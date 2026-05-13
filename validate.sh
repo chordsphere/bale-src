@@ -74,6 +74,10 @@ check_runs "pack --help"   "$BALE" pack   --help
 check_runs "apply --help"  "$BALE" apply  --help
 check_runs "revert --help" "$BALE" revert --help
 
+# apply --help should surface the new default so users see where staging
+# lands without having to read the source.
+check_output "apply --help mentions .bale/staging" ".bale/staging" "$BALE" apply --help
+
 # If a symlink at ~/.local/bin/bale points at this install, verify it works.
 section "symlink resolution (if applicable)"
 SYM="$HOME/.local/bin/bale"
