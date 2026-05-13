@@ -1,5 +1,8 @@
 # bale.toml — per-repo configurables for this bale-managed project.
-# Committed and team-shared. Absent file or absent key = silent skip.
+# Committed and team-shared. Layered ON TOP OF the global config at
+# <install>/user/bale.toml: keys set here override globals per-key.
+# Absent file or absent key = silent skip at this layer (and fall back to
+# global if it sets the key).
 #
 # Run `bale config init` to set up, review, or change. The wizard is
 # the canonical interface; hand-edits work but the wizard knows only
@@ -9,8 +12,4 @@
 # escape hatches for this — set/get/edit subcommands land later.
 
 [hooks]
-post_pack = "scripts/copy-request-to-downloads.sh"
 post_apply_pass = "scripts/reinstall.sh"
-
-[apply]
-search_paths = ["/mnt/c/Users/chord/Downloads/"]
