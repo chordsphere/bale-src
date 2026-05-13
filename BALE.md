@@ -12,10 +12,10 @@
 
 The design document for the **bale** command-line tool. bale is the
 mechanical machinery that makes the workflow described in
-`CLAUDE.md`, `TARBALL.md`, and `DOCS.md` operate. It packs request
-tarballs to send to Claude, applies response tarballs Claude returns,
-and handles the git-side bookkeeping (staging, validating, committing,
-rolling back).
+`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` operate. It
+packs request tarballs to send to Claude, applies response tarballs
+Claude returns, and handles the git-side bookkeeping (staging,
+validating, committing, rolling back).
 
 This doc captures architecture decisions, the command surface, the
 wire-format details bale enforces, and the build phases. It is meant
@@ -32,6 +32,12 @@ the tool.
   into every request but does not enforce it; projects that adopt
   the workflow have Claude include the corresponding assertions in
   each response's `validation.sh`.
+- `CODE.md` is project-side code-layout philosophy — extraction,
+  splitting, indexing, pruning, plus the rules for human-authored
+  and meta code. Bale injects it into every request but does not
+  enforce it; projects that adopt the philosophy have Claude
+  include the corresponding assertions in each response's
+  `validation.sh`.
 - This doc (`BALE.md`) is the design of the tool itself. It is not
   injected into project requests; it lives in the bale tool's source
   repo and is read when modifying bale.
@@ -174,6 +180,7 @@ bale/
     CLAUDE.md
     TARBALL.md
     DOCS.md
+    CODE.md
   install.sh          # finalize the install (chmod, symlink, run validate)
   validate.sh         # sanity-check this install's layout and CLI surface
   upgrade.sh          # in-place upgrade to a newer release, preserving user/
@@ -243,7 +250,7 @@ The release-tarball form has two virtues over a single-file build
 (e.g. PEP 441 zipapp):
 
 1. **Editable docs.** When you run a bale session against the bale
-   repo itself, the three global docs are real files you can edit
+   repo itself, the four global docs are real files you can edit
    directly. Closing the loop doesn't require rebuilding a bundle —
    change a doc, save, the next `bale pack` injects the new version.
 2. **Consistent with bale's own output.** Bale moves tarballs;
@@ -261,10 +268,10 @@ The release-tarball form has two virtues over a single-file build
 
 ### 3.3 Global docs live in the bale installation
 
-`CLAUDE.md`, `TARBALL.md`, and `DOCS.md` live as regular files at
-`<install>/docs/` alongside the script. `bale pack` reads them from
-that location and injects them into the request tarball. They are
-never read from the project being snapped.
+`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` live as regular
+files at `<install>/docs/` alongside the script. `bale pack` reads
+them from that location and injects them into the request tarball.
+They are never read from the project being snapped.
 
 To edit a global doc: run bale on bale's own repo, where the docs
 are the same files bale reads at runtime — no separate
@@ -453,6 +460,7 @@ request-NNN/
   CLAUDE.md            # injected by bale
   TARBALL.md           # injected by bale
   DOCS.md              # injected by bale
+  CODE.md              # injected by bale
   context/             # everything the user chose to include
     <project files and any project docs>
   README.md            # optional; user's voice beyond manifest.goal
@@ -683,8 +691,8 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 
 1. Generate session ID. Reserve next NNN for the slug + date.
 2. Build `request-NNN/` skeleton.
-3. **Inject all three global docs** (`CLAUDE.md`, `TARBALL.md`,
-   `DOCS.md`) from bale's installation `docs/` directory.
+3. **Inject all four global docs** (`CLAUDE.md`, `TARBALL.md`,
+   `DOCS.md`, `CODE.md`) from bale's installation `docs/` directory.
 4. Write `manifest.json` with the gathered fields.
 5. Walk the include paths; apply exclusions (baked-in, `.baleignore`,
    user-supplied for this session); copy matching files into
@@ -1333,7 +1341,7 @@ the cleaner archive structure.
 
 - **Not a project workflow tool.** Bale orchestrates sessions, not
   workflows. The workflow is in `CLAUDE.md` / `TARBALL.md` /
-  `DOCS.md`, applied at the user's discretion.
+  `DOCS.md` / `CODE.md`, applied at the user's discretion.
 
 For the implementation-scope list (what bale does NOT do), see
 section 2.2.
