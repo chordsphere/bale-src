@@ -83,6 +83,11 @@ check_runs "config init --help" "$BALE" config init --help
 # lands without having to read the source.
 check_output "apply --help mentions .bale/staging" ".bale/staging" "$BALE" apply --help
 
+# retry --help should surface the same default for the same reason —
+# retry takes --staging-dir with the identical default, and a user
+# discovering retry shouldn't have to read the source to know that.
+check_output "retry --help mentions .bale/staging" ".bale/staging" "$BALE" retry --help
+
 # config init's help should mention idempotency since that's the
 # user-facing contract — re-running is safe.
 check_output "config init --help mentions Idempotent" "Idempotent" "$BALE" config init --help

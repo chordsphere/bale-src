@@ -7,6 +7,20 @@ This is bale-src — the source repo for the bale CLI. The project itself
 evolves through bale-on-bale sessions, so the doc inventory is small and
 will stay that way for a while.
 
+## Tool design
+
+- `BALE.md` (repo root) — the bale tool's canonical design document.
+  Covers purpose, scope, command surface, wire format, pack and apply
+  pipelines, rollback/revert/unlock semantics, the bale-enforced
+  contract (§11), self-applicability, build phases, and open decisions.
+  Pull whenever a session touches `bin/bale`, the pack or apply
+  pipeline, the staging or lock lifecycle, the wire format, or the
+  bale-enforced contract. Both `bin/bale` (section references in
+  comments and docstrings) and the global docs (`TARBALL.md` §7/§8,
+  `CLAUDE.md` §5) reference BALE.md directly. Not injected into
+  requests for other projects — it is bale-src's project documentation,
+  peer in structure to the global workflow docs but project-local.
+
 ## Explainers
 
 - `context/bale-internals.md` — how `bin/bale` is structured (commands,
@@ -24,9 +38,20 @@ will stay that way for a while.
 
 The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`) ship from the bale
 installation and are injected into every request; they are not listed
-here. Per DOCS.md §4.1, INDEX.md is usually introduced once a project has
-~3+ findable docs. This one was introduced early on architect's call so
-the scaffolding would be in place when more arrived. `meta-sessions.md`
-landed as the second standalone; a third will likely arrive alongside
-the post_pack hook or the apply search-paths mechanism, but the
-inventory stays at two until then.
+here. `BALE.md` is listed because it lives in this repo and is the
+canonical design reference for the bale tool — it is project
+documentation for bale-src, not a global workflow doc, and is not
+injected into requests for other projects.
+
+Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
+findable docs. This one was introduced early on architect's call so the
+scaffolding would be in place when more arrived. The current inventory
+is BALE.md plus two explainers; further explainers will likely arrive
+alongside the apply search-paths mechanism or a new hook.
+
+BALE.md is a category-of-one for bale-src: structurally peer to the
+global workflow docs (own META + INDEX + numbered sections) but
+project-local and not injected. DOCS.md's inventory table doesn't get
+a new row for it because adding bale-src-specific categories to a
+project-agnostic doc would itself be the wrong direction; this hint
+here in `INDEX.md` is the discoverable surface.
