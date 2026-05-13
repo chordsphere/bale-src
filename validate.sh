@@ -88,6 +88,11 @@ check_output "apply --help mentions .bale/staging" ".bale/staging" "$BALE" apply
 # discovering retry shouldn't have to read the source to know that.
 check_output "retry --help mentions .bale/staging" ".bale/staging" "$BALE" retry --help
 
+# apply and retry --help should mention apply.search_paths so users see
+# how relative tarball names get resolved before reading the source.
+check_output "apply --help mentions search_paths"  "search_paths" "$BALE" apply --help
+check_output "retry --help mentions search_paths"  "search_paths" "$BALE" retry --help
+
 # config init's help should mention idempotency since that's the
 # user-facing contract — re-running is safe.
 check_output "config init --help mentions Idempotent" "Idempotent" "$BALE" config init --help
