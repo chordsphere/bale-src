@@ -68,15 +68,22 @@ check_output "--version reports 0.0.1"  "bale 0.0.1" "$BALE" --version
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions revert"   "revert"     "$BALE" --help
+check_output "--help mentions config"   "config"     "$BALE" --help
 
 section "subcommand --help"
 check_runs "pack --help"   "$BALE" pack   --help
 check_runs "apply --help"  "$BALE" apply  --help
 check_runs "revert --help" "$BALE" revert --help
+check_runs "config --help" "$BALE" config --help
+check_runs "config init --help" "$BALE" config init --help
 
 # apply --help should surface the new default so users see where staging
 # lands without having to read the source.
 check_output "apply --help mentions .bale/staging" ".bale/staging" "$BALE" apply --help
+
+# config init's help should mention idempotency since that's the
+# user-facing contract — re-running is safe.
+check_output "config init --help mentions Idempotent" "Idempotent" "$BALE" config init --help
 
 # If a symlink at ~/.local/bin/bale points at this install, verify it works.
 section "symlink resolution (if applicable)"
