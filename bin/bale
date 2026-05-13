@@ -661,6 +661,35 @@ _VALID_ACTIONS = {"created", "modified", "deleted"}
 _VALID_CLAIM_VALUES = {"pass", "fail", "untested", "unknown"}
 
 
+def check_response_shell_syntax(response_dir: Path) -> None:
+    """Pre-flight `bash -n` on the response's apply.sh and validation.sh.
+
+    Both are required deliverables in every response tarball (TARBALL.md
+    section 5.1). validation.sh is staged and invoked by bale, so a
+    syntax error in it would surface — but loudly, mid-apply, after
+    staging. apply.sh is currently NOT staged at v0.0.1 (deletes come
+    from the manifest directly), so without this pre-flight there is
+    no point in the pipeline that ever checks apply.sh's syntax — a
+    broken script could ride all the way through PASS and merge. This
+    closes that gap and fails fast for both files.
+
+    Runs against the extracted response tree, not the staging tree, so
+    it sees exactly what the tarball shipped.
+
+    The required-files check upstream guarantees both files exist by
+    the time this runs.
+    """
+    for name in ("apply.sh", "validation.sh"):
+        path = response_dir / name
+        r = subprocess.run(
+            ["bash", "-n", str(path)],
+            capture_output=True, text=True, check=False,
+        )
+        if r.returncode != 0:
+            msg = (r.stderr or r.stdout or "").strip() or "syntax error"
+            fail(f"{name} has bash syntax errors: {msg}")
+
+
 def validate_response_manifest(manifest: dict) -> None:
     """Per TARBALL.md section 5.2 and BALE.md section 8.1 step 3.
 
@@ -908,33 +937,21 @@ def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None
 # Apply
 # ---------------------------------------------------------------------------
 
-def cmd_apply(args: argparse.Namespace) -> int:
-    cwd = Path.cwd().resolve()
-    refuse_system_dir(cwd)
+def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
+                    staging_override: Optional[str]) -> int:
+    """The apply pipeline proper: extract, validate, stage, run
+    validation.sh, commit-or-hold. Shared between cmd_apply (after lock
+    + clean-tree guards) and cmd_retry (after _discard_hold_state has
+    cleaned up a HOLDed attempt).
 
-    repo = repo_root(cwd)
-    if repo is None:
-        fail("not in a git repo. `bale apply` requires the project repo.")
-    refuse_system_dir(repo)
+    Expects, on entry:
+      - lock held on `locked_sid`
+      - working tree clean
+      - no bale/<sid> branch (revert/retry deleted it if needed)
+      - logging already wired to the session log file
 
-    tarball_path = Path(args.tarball).resolve()
-    if not tarball_path.is_file():
-        fail(f"tarball not found: {tarball_path}")
-
-    # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
-    locked_sid = read_lock(repo)
-    if locked_sid is None:
-        fail("no session is open. Run `bale pack` first to open one.")
-
-    # Wire logging to the session log from here on.
-    set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
-    log(f"applying {tarball_path.name} against session {locked_sid}")
-
-    # 8.1 step 5: working tree clean.
-    clean, status = working_tree_clean(repo)
-    if not clean:
-        fail("working tree is not clean. Commit or stash before applying:\n" + status)
-
+    Returns the apply exit code: 0 on PASS, 1 on HOLD.
+    """
     # Extract and validate the tarball into a temp dir.
     with tempfile.TemporaryDirectory() as tmpdir:
         # 8.1 step 1: tar integrity.
@@ -969,6 +986,11 @@ def cmd_apply(args: argparse.Namespace) -> int:
             if not (response_dir / required).is_file():
                 fail(f"missing required file in tarball: {required}")
 
+        # Pre-flight syntax check on the response's shell deliverables.
+        # The required-files check above guarantees they exist.
+        check_response_shell_syntax(response_dir)
+        log("apply.sh and validation.sh syntax checks passed")
+
         # 8.1 step 3: read and schema-validate the manifest.
         try:
             manifest = json.loads((response_dir / "manifest.json").read_text())
@@ -1000,10 +1022,10 @@ def cmd_apply(args: argparse.Namespace) -> int:
         # 8.3 stage. Default is <repo>/.bale/staging so the tree lives
         # inside the already-gitignored .bale/ directory; --staging-dir
         # overrides and resolves relative to cwd as before.
-        if args.staging_dir is None:
+        if staging_override is None:
             staging = repo / ".bale" / "staging"
         else:
-            staging = Path(args.staging_dir).resolve()
+            staging = Path(staging_override).resolve()
         if staging.exists():
             # Default-path staging from a prior session is unambiguously stale
             # at this point: either the previous session PASSed (its session
@@ -1015,7 +1037,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             # `bale revert` path has its own staging cleanup. A user-specified
             # --staging-dir, by contrast, is the user's directory and we
             # refuse rather than nuke it.
-            if args.staging_dir is None:
+            if staging_override is None:
                 log(f"removing stale staging at {staging}")
                 try:
                     shutil.rmtree(staging)
@@ -1097,13 +1119,175 @@ def cmd_apply(args: argparse.Namespace) -> int:
         print(f"  branch:  {sid_branch} (uncommitted; `git diff --cached` to inspect)")
         print(f"  log:     .bale/logs/{locked_sid}.log")
         print(f"  staging: {staging} (preserved)")
+        print(f"  retry:   bale retry <new-tarball>")
         print(f"  discard: bale revert {locked_sid}")
         return 1
 
 
 # ---------------------------------------------------------------------------
+# Apply
+# ---------------------------------------------------------------------------
+
+def cmd_apply(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale apply` requires the project repo.")
+    refuse_system_dir(repo)
+
+    tarball_path = Path(args.tarball).resolve()
+    if not tarball_path.is_file():
+        fail(f"tarball not found: {tarball_path}")
+
+    # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
+    locked_sid = read_lock(repo)
+    if locked_sid is None:
+        fail("no session is open. Run `bale pack` first to open one.")
+
+    # Wire logging to the session log from here on.
+    set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
+    log(f"applying {tarball_path.name} against session {locked_sid}")
+
+    # 8.1 step 5: working tree clean. (cmd_retry skips this guard because
+    # a HOLDed session's worktree is dirty by construction; retry's
+    # _discard_hold_state cleans it before calling _apply_pipeline.)
+    clean, status = working_tree_clean(repo)
+    if not clean:
+        fail("working tree is not clean. Commit or stash before applying:\n" + status)
+
+    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir)
+
+
+# ---------------------------------------------------------------------------
 # Revert
 # ---------------------------------------------------------------------------
+
+def _discard_hold_state(repo: Path, sid: str) -> dict:
+    """Discard the HOLD-applied state for sid.
+
+    Resets uncommitted changes on bale/<sid> if checked out, deletes the
+    branch, wipes the session dir, wipes the recorded staging directory.
+    Lock is intentionally preserved — callers manage that. cmd_revert
+    clears it after calling this helper; cmd_retry leaves it for
+    _apply_pipeline.
+
+    fail()s if bale/<sid> is already merged into the recorded origin
+    branch: that case means apply already PASSed, and either revert or
+    retry would be undoing committed work — the right verb is
+    `git revert applied/<sid>` instead.
+
+    Idempotent in the partial-state cases:
+      - no bale branch → log and skip branch operations
+      - no session dir → log and skip the wipe
+      - no recorded staging → log and skip
+    These cases arise legitimately from cmd_retry against a session
+    that was packed but never applied (no apply attempt = no branch).
+
+    Invariant: if bale/<sid> exists, the session dir's origin_branch
+    metadata also exists, because the apply pipeline writes 8.2's
+    metadata before creating the branch at 8.5.
+
+    Returns a status dict for caller-side summary output:
+        {
+            "branch_existed": bool,
+            "origin_branch": str | None,
+            "staging_status": str,  # "wiped (path)" / "already gone" / "not recorded"
+        }
+    """
+    sessions_dir = repo / ".bale" / "sessions" / sid
+    sid_branch = f"bale/{sid}"
+
+    # Read staging path BEFORE wiping sessions_dir so the trail survives.
+    recorded_staging: Optional[Path] = None
+    staging_path_file = sessions_dir / "staging_path"
+    if staging_path_file.is_file():
+        s = staging_path_file.read_text().strip()
+        if s:
+            recorded_staging = Path(s)
+
+    # Branch handling.
+    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                       cwd=repo, check=False)
+    branch_existed = branch_check.returncode == 0
+    origin_branch: Optional[str] = None
+
+    if branch_existed:
+        # Per the invariant above, origin_branch metadata must exist.
+        origin_branch_file = sessions_dir / "origin_branch"
+        if not origin_branch_file.is_file():
+            fail(f"{sid_branch} exists but session metadata at "
+                 f"{sessions_dir} is missing. Resolve manually.")
+        origin_branch = origin_branch_file.read_text().strip()
+        if not origin_branch:
+            fail(f"origin_branch file at {origin_branch_file} is empty")
+
+        # Refuse if already merged into origin. Tricky: in a HOLD the bale
+        # branch and origin point at the SAME commit (no commit was made
+        # on the bale branch), so the literal `is-ancestor` check is
+        # trivially true even though nothing was merged. The intent is
+        # "merged via a merge commit so deleting the branch would lose
+        # history that's threaded through origin" — which only applies
+        # when the SHAs differ. So guard the ancestor check accordingly.
+        sid_sha = git(["rev-parse", sid_branch], cwd=repo).stdout.strip()
+        origin_sha = git(["rev-parse", origin_branch], cwd=repo).stdout.strip()
+        if sid_sha != origin_sha:
+            ancestor = git(["merge-base", "--is-ancestor", sid_branch, origin_branch],
+                           cwd=repo, check=False)
+            if ancestor.returncode == 0:
+                fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
+                     f"this session was already merged. v0.0.1 has no `bale rollback`; "
+                     f"use `git revert applied/{sid}` manually.")
+
+        # If on the bale branch, reset HOLD's staged changes and switch to
+        # origin. (cmd_revert previously had a --force override note for
+        # other dirty-tree cases; we don't touch other branches' WIP
+        # because we don't check them out.)
+        current = current_branch(repo)
+        if current == sid_branch:
+            log(f"on {sid_branch}; resetting staged changes and switching to {origin_branch}")
+            git(["reset", "--hard", "HEAD"], cwd=repo)
+            git(["checkout", origin_branch], cwd=repo)
+        elif current != origin_branch:
+            log(f"on {current}; deleting {sid_branch} without changing branch")
+
+        # Force-delete the bale branch.
+        git(["branch", "-D", sid_branch], cwd=repo)
+        log(f"deleted branch {sid_branch}")
+    else:
+        log(f"no branch {sid_branch} to discard (no prior apply attempt)")
+
+    # Session dir wipe.
+    if sessions_dir.exists():
+        shutil.rmtree(sessions_dir)
+        log(f"wiped {sessions_dir}")
+
+    # Staging cleanup. Idempotent: a missing directory is fine — the user
+    # may have already removed it, or the session never made it past the
+    # exists() pre-check at apply time. Don't fail the whole operation
+    # for an unremovable staging dir; the git side is already reverted.
+    if recorded_staging is None:
+        staging_status = "not recorded"
+        log("no recorded staging path; skipping staging cleanup")
+    elif recorded_staging.exists():
+        try:
+            shutil.rmtree(recorded_staging)
+            log(f"wiped staging at {recorded_staging}")
+            staging_status = f"wiped ({recorded_staging})"
+        except OSError as e:
+            log(f"warning: could not remove {recorded_staging}: {e}")
+            staging_status = f"left in place ({recorded_staging}: {e})"
+    else:
+        log(f"staging at {recorded_staging} already gone")
+        staging_status = "already gone"
+
+    return {
+        "branch_existed": branch_existed,
+        "origin_branch": origin_branch,
+        "staging_status": staging_status,
+    }
+
 
 def cmd_revert(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
@@ -1121,27 +1305,14 @@ def cmd_revert(args: argparse.Namespace) -> int:
     set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
     log(f"revert: {sid}")
 
-    # 9.1 step 1: origin_branch lives in the session metadata.
-    origin_branch_file = sessions_dir / "origin_branch"
-    if not origin_branch_file.is_file():
+    # Revert-specific contract: refuse when there's nothing to revert.
+    # cmd_retry is more permissive (it can run against a packed-but-not-
+    # applied session) — that policy stays out of _discard_hold_state.
+
+    # 9.1 step 1: metadata must exist.
+    if not (sessions_dir / "origin_branch").is_file():
         fail(f"no session metadata for {sid} at {sessions_dir}. Either the "
              f"sid is wrong or the session was already cleaned up.")
-    origin_branch = origin_branch_file.read_text().strip()
-    if not origin_branch:
-        fail(f"origin_branch file at {origin_branch_file} is empty")
-
-    # Recorded staging path (written by `bale apply`). Read NOW so it
-    # survives the sessions_dir wipe below; cleanup is deferred until
-    # branch deletion is done so a half-revert doesn't lose the trail.
-    # A missing file is treated as "nothing to clean": sessions applied
-    # before this metadata existed, or whose stage step never landed,
-    # simply skip the staging-cleanup step with a logged note.
-    staging_path_file = sessions_dir / "staging_path"
-    recorded_staging: Optional[Path] = None
-    if staging_path_file.is_file():
-        s = staging_path_file.read_text().strip()
-        if s:
-            recorded_staging = Path(s)
 
     # The bale branch must exist. If it doesn't, the session was already
     # applied (PASS path deletes the branch after merge) — direct the user
@@ -1153,45 +1324,8 @@ def cmd_revert(args: argparse.Namespace) -> int:
              f"v0.0.1 has no `bale rollback` — use `git revert applied/{sid}` "
              f"manually to undo a merged session.")
 
-    # 9.1 step 2: refuse if the bale branch is already merged into origin.
-    # Tricky: in a HOLD the bale branch and origin point at the SAME commit
-    # (no commit was made on the bale branch), so the literal `is-ancestor`
-    # check is trivially true even though nothing was merged. The intent is
-    # "merged via a merge commit so deleting the branch would lose history
-    # that's threaded through origin" — which only applies when the SHAs
-    # differ. So guard the ancestor check accordingly.
-    sid_sha = git(["rev-parse", sid_branch], cwd=repo).stdout.strip()
-    origin_sha = git(["rev-parse", origin_branch], cwd=repo).stdout.strip()
-    if sid_sha != origin_sha:
-        ancestor = git(["merge-base", "--is-ancestor", sid_branch, origin_branch],
-                       cwd=repo, check=False)
-        if ancestor.returncode == 0:
-            fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
-                 f"this session was already merged. v0.0.1 has no `bale rollback`; "
-                 f"use `git revert applied/{sid}` manually.")
-
-    # 9.1 steps 3-4: if currently on bale/<sid>, discard the HOLD's staged
-    # changes and switch to origin. (The doc refuses on a dirty tree with a
-    # --force override; v0.0.1 has no --force, so we resolve the only
-    # legitimately-dirty case — staged changes from a HOLD on the bale
-    # branch — by reset-hard. Other branches' WIP is left alone since we
-    # don't touch them.)
-    current = current_branch(repo)
-    if current == sid_branch:
-        log(f"on {sid_branch}; resetting staged changes and switching to {origin_branch}")
-        git(["reset", "--hard", "HEAD"], cwd=repo)
-        git(["checkout", origin_branch], cwd=repo)
-    elif current != origin_branch:
-        log(f"on {current}; deleting {sid_branch} without changing branch")
-
-    # 9.1 step 5: force-delete the bale branch.
-    git(["branch", "-D", sid_branch], cwd=repo)
-    log(f"deleted branch {sid_branch}")
-
-    # 9.1 step 6: wipe the session dir.
-    if sessions_dir.exists():
-        shutil.rmtree(sessions_dir)
-        log(f"wiped {sessions_dir}")
+    # Shared cleanup (9.1 steps 2-6, plus staging cleanup).
+    status = _discard_hold_state(repo, sid)
 
     # 9.1 step 7: clear the lock if this sid is currently locked.
     locked = read_lock(repo)
@@ -1200,33 +1334,56 @@ def cmd_revert(args: argparse.Namespace) -> int:
         clear_lock(repo)
         log(f"cleared lock (was {sid})")
 
-    # Staging cleanup. Idempotent: a missing directory is fine — the user
-    # may have already removed it, or the session never made it past the
-    # exists() pre-check at apply time.
-    if recorded_staging is None:
-        staging_status = "not recorded"
-        log("no recorded staging path; skipping staging cleanup")
-    elif recorded_staging.exists():
-        try:
-            shutil.rmtree(recorded_staging)
-            log(f"wiped staging at {recorded_staging}")
-            staging_status = f"wiped ({recorded_staging})"
-        except OSError as e:
-            # Don't fail the whole revert for an unremovable staging dir —
-            # the git side is already reverted. Surface and let the user
-            # finish cleanup by hand.
-            log(f"warning: could not remove {recorded_staging}: {e}")
-            staging_status = f"left in place ({recorded_staging}: {e})"
-    else:
-        log(f"staging at {recorded_staging} already gone")
-        staging_status = "already gone"
-
     print()
     print(f"  reverted {sid}")
-    print(f"  branch:  {origin_branch}")
+    print(f"  branch:  {status['origin_branch']}")
     print(f"  lock:    {'cleared' if lock_cleared else 'unchanged'}")
-    print(f"  staging: {staging_status}")
+    print(f"  staging: {status['staging_status']}")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Retry
+# ---------------------------------------------------------------------------
+#
+# Re-attempt a HOLDed session with a corrected response tarball, in the
+# same session id. Without this command the user must `bale revert` + re-
+# `pack` + `apply`, which mints a fresh sid and forces `corrects` to
+# point across sessions even though the intent and goal didn't change.
+# Retry preserves the lock so the new apply lands in the same session.
+
+def cmd_retry(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale retry` requires the project repo.")
+    refuse_system_dir(repo)
+
+    tarball_path = Path(args.tarball).resolve()
+    if not tarball_path.is_file():
+        fail(f"tarball not found: {tarball_path}")
+
+    # Retry requires an open session, same as apply. The lock identifies
+    # which session this retry is for — no separate <sid> argument.
+    locked_sid = read_lock(repo)
+    if locked_sid is None:
+        fail("no session is open; nothing to retry. `bale retry` is for "
+             "re-attempting a packed session. If you have a tarball but "
+             "no open session, run `bale pack` first and then `bale apply`.")
+
+    # Wire logging to the same session log apply/revert use.
+    set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
+    log(f"retrying session {locked_sid} with {tarball_path.name}")
+
+    # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
+    # never tried apply). In that case retry behaves like apply.
+    status = _discard_hold_state(repo, locked_sid)
+    if not status["branch_existed"]:
+        log("no prior apply attempt for this session; retry equivalent to apply")
+
+    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -1624,6 +1781,28 @@ def build_parser() -> argparse.ArgumentParser:
              "An explicit path is resolved relative to cwd.",
     )
     p_apply.set_defaults(func=cmd_apply)
+
+    # retry
+    p_retry = sub.add_parser(
+        "retry",
+        help="Re-attempt a HOLDed session with a new response tarball "
+             "(same session id, no repack).",
+        description=(
+            "Discard the HOLDed apply state for the currently locked "
+            "session — reset the bale/<sid> branch, wipe the session's "
+            "staging — and run the apply pipeline against a new response "
+            "tarball, preserving the lock so the new attempt lands in "
+            "the same session id. The new tarball's manifest.responds_to "
+            "must match the locked sid (same as `bale apply`)."
+        ),
+    )
+    p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
+    p_retry.add_argument(
+        "--staging-dir", default=None,
+        help="Where to stage the apply (default: <repo>/.bale/staging). "
+             "An explicit path is resolved relative to cwd.",
+    )
+    p_retry.set_defaults(func=cmd_retry)
 
     # revert
     p_revert = sub.add_parser(
