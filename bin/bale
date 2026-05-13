@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.2. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.3. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
-reconciliation (BALE.md §11 rule 18) landed in this version; the rest
-of v0.1 (full pack wizard, .baleignore, walkthrough, release-tarball
-packaging) lands later.
+reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
+caps (BALE.md §7.4) and the --force override land in this version.
+The rest of v0.1 (full pack wizard, .baleignore, walkthrough,
+release-tarball packaging) lands later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -35,6 +36,7 @@ import sys
 import tarfile
 import tempfile
 import tomllib
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -44,7 +46,7 @@ from typing import Optional
 # Constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.2"
+VERSION = "0.0.3"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -141,6 +143,24 @@ SYSTEM_DIRS = (
     "/dev", "/tmp", "/var/tmp", "/private/tmp",
 )
 
+# Pack threshold caps. From BALE.md section 7.4.
+# Soft caps drive the interactive prompt / piped warning. Hard caps drive
+# refusal (interactive + piped both refuse). Depth is hard-only — there's
+# no realistic case where "uh, 19 directories deep is fine but 20 is iffy"
+# is the right product gesture; deep paths are either fine or pathological.
+# Sizes are 1024-based (a "GB" here means 2^30 bytes), matching how every
+# OS-shaped tool quotes them.
+PACK_MAX_FILES_SOFT = 10_000
+PACK_MAX_FILES_HARD = 100_000
+PACK_MAX_SIZE_SOFT = 100 * 1024 * 1024            # 100 MB
+PACK_MAX_SIZE_HARD = 1 * 1024 * 1024 * 1024       # 1 GB
+PACK_MAX_DEPTH = 20
+
+# How many entries to show in the "largest directories" report on a soft
+# breach. Keep this small — the prompt is meant to point at obvious
+# offenders, not survey the whole tree.
+PACK_LARGEST_DIRS_TOPN = 5
+
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -152,14 +172,49 @@ SYSTEM_DIRS = (
 
 _log_file: Optional[Path] = None
 
+# Pending log lines, replayed into the session log the first time set_log_file
+# opens one. The pack pipeline emits --force override notes (home-directory
+# refusal bypass, threshold-cap bypass) before the session ID is allocated and
+# the per-session log file exists. Per the constraint that override events
+# must reach the session log "prominently," log(..., force=True) routes
+# through this buffer when no log file is open yet, and set_log_file() drains
+# it on first attach. Buffer-on-stdout-only callers (the regular log() path)
+# don't queue anything: a normal `[bale] foo` line emitted with no log file
+# open is already visible on stdout and isn't worth journaling retroactively.
+_pending_log_lines: list[str] = []
+
 
 def set_log_file(p: Optional[Path]) -> None:
+    """Set (or clear) the session log file. On first attach with a non-None
+    path, drain any buffered --force lines into it so the session log has the
+    override events even though they preceded sid allocation. A failed drain
+    surfaces on stderr but does not raise — logging must never break pack."""
     global _log_file
     _log_file = p
+    if p is None or not _pending_log_lines:
+        return
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with p.open("a", encoding="utf-8") as f:
+            for line in _pending_log_lines:
+                ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                f.write(f"{ts} {line}\n")
+    except OSError as e:
+        # Same shape as log()'s defensive path: surface and continue.
+        print(f"[bale] (log-write failed: {e})", file=sys.stderr)
+    _pending_log_lines.clear()
 
 
-def log(msg: str) -> None:
-    line = f"[bale] {msg}"
+def log(msg: str, *, force: bool = False) -> None:
+    """Emit a [bale] line to stdout, and (if a session log is open) journal it.
+
+    `force=True` formats the line as a prominent FORCE: prefix and, if no
+    session log is open yet, queues the line for replay once one is. Use it
+    only for --force-override events (home-dir, threshold caps) where the
+    journal entry is the audit trail; ordinary informational logs leave
+    `force=False` so they don't clutter the FORCE: prefix or queue."""
+    prefix = "[bale] FORCE: " if force else "[bale] "
+    line = f"{prefix}{msg}"
     print(line)
     if _log_file is not None:
         try:
@@ -170,6 +225,9 @@ def log(msg: str) -> None:
         except OSError as e:
             # Logging must never raise; surface and continue.
             print(f"[bale] (log-write failed: {e})", file=sys.stderr)
+    elif force:
+        # No session log yet — buffer for replay when set_log_file() opens one.
+        _pending_log_lines.append(line)
 
 
 def fail(msg: str, code: int = 1) -> None:
@@ -335,21 +393,35 @@ def ensure_bale_gitignored(repo: Path) -> bool:
 # Path-safety checks
 # ---------------------------------------------------------------------------
 
-def refuse_system_dir(p: Path) -> None:
-    """Per BALE.md section 7.1 steps 1-2. No override at v0.0.1."""
+def refuse_system_dir(p: Path, *, force: bool = False) -> None:
+    """Per BALE.md section 7.1 steps 1-2.
+
+    Step 1 (SYSTEM_DIRS) has no override flag — `bale pack` at `/` is almost
+    certainly a typo, and the spec is explicit that there's no escape hatch.
+    Step 2 ($HOME) supports `--force` for the legitimate dotfiles-repo case.
+    When forced, the bypass is logged prominently via log(force=True) so the
+    session journal records it; the log-line is buffered until the session
+    log file exists, since this check fires before sid allocation."""
     resolved = p.resolve()
     if str(resolved) in SYSTEM_DIRS:
+        # No override here, by design (BALE.md §7.1 step 1).
         fail(
             f"refusing to operate at system directory {resolved}. "
             f"cd into a project directory and retry."
         )
     home = Path.home().resolve()
     if resolved == home:
-        # v0.0.1 has no --force; refuse outright. v0.1 adds --force for
-        # the legitimate dotfiles-repo case.
+        if force:
+            log(
+                f"bypassing home-directory refusal at {resolved} "
+                f"(legitimate use: dotfiles repo)",
+                force=True,
+            )
+            return
         fail(
             f"refusing to operate at $HOME ({resolved}). "
-            f"v0.0.1 has no override; cd into a subdirectory."
+            f"Re-run with --force if this is a dotfiles repo and you know "
+            f"what you're doing; otherwise cd into a subdirectory."
         )
 
 
@@ -439,18 +511,100 @@ def is_under_include(rel: str, includes: list[str]) -> bool:
 
 
 def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
-    """Return repo-relative paths that should land in the request's context/.
+    """Return repo-relative paths that should land in the request's context/,
+    with no threshold caps engaged. Thin wrapper over walk_for_pack — kept
+    as a named entry point because the filter chain (BALE.md sections 6.4
+    and 7.5 step 5) is conceptually distinct from the threshold projection
+    and a future caller (e.g. a `bale debug filter` introspection command)
+    will want just the list, not the projection. cmd_pack itself uses
+    walk_for_pack directly so it gets the projection in the same pass."""
+    return walk_for_pack(repo, includes, caps=PackCaps(), force=True).files
 
-    Pipeline (BALE.md sections 6.4 and 7.5 step 5):
-      1. Start with `git ls-files` output (already honors .gitignore).
-      2. Drop non-files (git lists untracked directories that contain a
-         nested .git/ as a single directory entry).
-      3. Drop anything under a baked-in excluded directory.
-      4. Drop anything matching a secret pattern (or .npmrc w/ _authToken).
-      5. Drop anything not under the user's --include paths (if any).
-    """
-    result: list[str] = []
+
+# ---------------------------------------------------------------------------
+# Pack: scope projection + threshold caps (BALE.md section 7.4)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class PackCaps:
+    """Threshold caps for a pack walk. The hard caps are the only knobs
+    --max-* exposes; the soft caps are deliberately not user-tunable, since
+    their job is to nudge the user toward thinking about scope before pack
+    proceeds, not to be a second tuning surface."""
+    max_files_soft: int = PACK_MAX_FILES_SOFT
+    max_files_hard: int = PACK_MAX_FILES_HARD
+    max_size_soft: int = PACK_MAX_SIZE_SOFT
+    max_size_hard: int = PACK_MAX_SIZE_HARD
+    max_depth: int = PACK_MAX_DEPTH
+
+
+@dataclass
+class PackProjection:
+    """Result of walk_for_pack: the surviving file list plus the numbers the
+    threshold-breach prompt and the refusal message both want to display.
+
+    `files` is sorted on return — matches the old gather_files_for_pack
+    contract. On a hard breach `files` holds the *partial* list collected
+    up to the short-circuit; the caller should treat it as diagnostic, not
+    as the set to pack. `largest_dirs` is sorted descending by bytes, capped
+    at PACK_LARGEST_DIRS_TOPN — designed for the prompt's brief overview,
+    not for surveying the whole tree. `hard_breach` is the cap that
+    triggered short-circuit (only set when force=False); it's the field
+    cmd_pack reads to decide refusal. `hard_breaches_seen` is the full set
+    of hard caps the final totals exceed — populated only under --force,
+    where the walk doesn't short-circuit, so the FORCE audit log can name
+    every cap that was bypassed instead of just the first."""
+    files: list[str]
+    total_bytes: int
+    max_depth_seen: int
+    # (top-level-dir-name, total_bytes_in_dir, file_count_in_dir), descending by bytes.
+    largest_dirs: list[tuple[str, int, int]]
+    # Human-readable description of the cap that tripped short-circuit, or None.
+    hard_breach: Optional[str] = None
+    # Hard caps the final totals exceed (populated only under --force).
+    hard_breaches_seen: list[str] = field(default_factory=list)
+    # Soft caps exceeded by final totals (only when no hard breach was seen).
+    soft_breaches: list[str] = field(default_factory=list)
+
+
+def walk_for_pack(
+    repo: Path,
+    includes: list[str],
+    *,
+    caps: PackCaps,
+    force: bool,
+) -> PackProjection:
+    """Enumerate files for pack, applying the filter chain, while accumulating
+    file count, total size, max depth, and per-top-level-dir totals.
+
+    Filter chain (BALE.md sections 6.4, 7.5 step 5): exactly the same as the
+    old gather_files_for_pack — git ls-files → drop non-files → drop
+    baked-in excluded dirs → drop secrets → keep only paths under
+    --include. Order matches the old function's, so the surviving set is
+    identical to what v0.0.2 packed.
+
+    Short-circuit (BALE.md §7.4): when `force` is False, the walk stops the
+    moment a hard cap is exceeded, reporting which cap triggered in
+    `hard_breach`. When `force` is True, the walk runs to completion with
+    no breach detection — --force callers want the full set, not a count
+    of what they're bypassing. Soft breaches are computed only when no
+    hard breach tripped, since a hard breach already obviates the prompt.
+
+    Depth semantics: `depth` is the number of directory components above
+    the file ('foo.txt' is depth 0, 'a/b/foo.txt' is depth 2). A cap of
+    20 means files up to 20 directories deep are allowed; the 21st-level
+    file trips the cap. Files at depth 0 are bucketed under '(root)' in
+    largest_dirs so root-level files don't disappear from the report."""
+    files: list[str] = []
+    total_bytes = 0
+    max_depth_seen = 0
+    dir_bytes: dict[str, int] = {}
+    dir_counts: dict[str, int] = {}
+    hard_breach: Optional[str] = None
+
     for rel in list_git_files(repo):
+        # Filter chain — matches gather_files_for_pack's body exactly so the
+        # surviving set on a no-cap run is byte-identical to v0.0.2.
         if not (repo / rel).is_file():
             continue
         if is_under_excluded_dir(rel):
@@ -459,8 +613,185 @@ def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
             continue
         if not is_under_include(rel, includes):
             continue
-        result.append(rel)
-    return sorted(result)
+
+        # File survives. Account for it before the cap check, so the
+        # breach message can name the file count and size that *include*
+        # the offending entry — clearer than "you were at 99,999 and the
+        # next file would have been #100,000".
+        try:
+            size = (repo / rel).stat().st_size
+        except OSError:
+            # Secrets-and-perms gaps shouldn't crash the walk. Treat
+            # unreadable as 0 bytes; the file's still in the surviving
+            # set per the filter chain.
+            size = 0
+
+        parts = Path(rel).parts
+        depth = len(parts) - 1
+        top = parts[0] if depth > 0 else "(root)"
+
+        files.append(rel)
+        total_bytes += size
+        if depth > max_depth_seen:
+            max_depth_seen = depth
+        dir_bytes[top] = dir_bytes.get(top, 0) + size
+        dir_counts[top] = dir_counts.get(top, 0) + 1
+
+        # Hard-cap short-circuit — only when not --force. The order
+        # (files → size → depth) is the order the messages will read
+        # most naturally if multiple caps would have tripped, since
+        # only the first one is reported.
+        if not force:
+            if len(files) >= caps.max_files_hard + 1:
+                hard_breach = (
+                    f"file count {len(files):,} exceeds hard cap "
+                    f"{caps.max_files_hard:,}"
+                )
+                break
+            if total_bytes > caps.max_size_hard:
+                hard_breach = (
+                    f"total size {format_bytes(total_bytes)} exceeds hard cap "
+                    f"{format_bytes(caps.max_size_hard)}"
+                )
+                break
+            if depth > caps.max_depth:
+                hard_breach = (
+                    f"path depth {depth} exceeds hard cap {caps.max_depth} "
+                    f"(at {rel})"
+                )
+                break
+
+    # Largest-directories report. Only meaningful when there's something to
+    # report — root-only walks just have ('(root)', ...) which is still useful.
+    largest = sorted(
+        ((d, dir_bytes[d], dir_counts[d]) for d in dir_bytes),
+        key=lambda t: t[1],
+        reverse=True,
+    )[:PACK_LARGEST_DIRS_TOPN]
+
+    # Post-walk breach detection.
+    #
+    # `hard_breach` is set inside the loop only when the loop short-circuited,
+    # which only happens when force=False. So:
+    #   - force=False, no breach: hard_breach=None, hard_breaches_seen=[],
+    #                             may set soft_breaches
+    #   - force=False, breach:    hard_breach="…", hard_breaches_seen=[],
+    #                             soft_breaches=[] (we never get past the break)
+    #   - force=True, breach:     hard_breach=None, walk ran to completion;
+    #                             compute hard_breaches_seen + soft_breaches
+    #                             against final totals so the FORCE audit log
+    #                             can name every cap that was bypassed.
+    #
+    # The soft/hard separation in the audit case: list soft breaches only when
+    # no hard breach is seen, otherwise the soft list is redundant noise —
+    # exceeding the hard cap necessarily exceeds the soft cap of the same kind.
+    hard_breaches_seen: list[str] = []
+    soft_breaches: list[str] = []
+    if hard_breach is None:
+        if len(files) > caps.max_files_hard:
+            hard_breaches_seen.append(
+                f"file count {len(files):,} exceeds hard cap "
+                f"{caps.max_files_hard:,}"
+            )
+        if total_bytes > caps.max_size_hard:
+            hard_breaches_seen.append(
+                f"total size {format_bytes(total_bytes)} exceeds hard cap "
+                f"{format_bytes(caps.max_size_hard)}"
+            )
+        if max_depth_seen > caps.max_depth:
+            hard_breaches_seen.append(
+                f"path depth {max_depth_seen} exceeds hard cap "
+                f"{caps.max_depth}"
+            )
+        if not hard_breaches_seen:
+            if len(files) > caps.max_files_soft:
+                soft_breaches.append(
+                    f"file count {len(files):,} exceeds soft cap "
+                    f"{caps.max_files_soft:,}"
+                )
+            if total_bytes > caps.max_size_soft:
+                soft_breaches.append(
+                    f"total size {format_bytes(total_bytes)} exceeds soft cap "
+                    f"{format_bytes(caps.max_size_soft)}"
+                )
+
+    return PackProjection(
+        files=sorted(files),
+        total_bytes=total_bytes,
+        max_depth_seen=max_depth_seen,
+        largest_dirs=largest,
+        hard_breach=hard_breach,
+        hard_breaches_seen=hard_breaches_seen,
+        soft_breaches=soft_breaches,
+    )
+
+
+def parse_size_arg(s: str) -> int:
+    """Parse a --max-size value. Accepts a bare byte count ('5000000'), or
+    an integer suffixed with K/M/G (case-insensitive; KB/MB/GB also accepted).
+    Multiplier is 1024-based, matching the OS-style 'M' = 2^20 convention
+    bale uses throughout (see PACK_MAX_SIZE_* and format_bytes). Raises
+    ValueError with a user-facing message on a malformed input — callers
+    surface that via fail()."""
+    s = (s or "").strip()
+    if not s:
+        raise ValueError("empty size value")
+    # Try the two-char suffixes first ('KB', 'MB', 'GB') so '100MB' doesn't
+    # get tail-stripped as '100M' + leftover 'B' on the int parse.
+    mults = {"K": 1024, "M": 1024**2, "G": 1024**3}
+    upper = s.upper()
+    if len(upper) >= 2 and upper[-2:] in ("KB", "MB", "GB"):
+        try:
+            return int(upper[:-2]) * mults[upper[-2]]
+        except ValueError:
+            raise ValueError(f"invalid size value: {s!r}")
+    if upper[-1] in mults:
+        try:
+            return int(upper[:-1]) * mults[upper[-1]]
+        except ValueError:
+            raise ValueError(f"invalid size value: {s!r}")
+    try:
+        return int(s)
+    except ValueError:
+        raise ValueError(
+            f"invalid size value: {s!r} (expected bytes, or a number with "
+            f"K/M/G suffix, e.g. '500M', '1G')"
+        )
+
+
+def format_bytes(n: int) -> str:
+    """Pretty-print a byte count using 1024-based units (KB = 2^10, etc.).
+    Mirrors the convention used in BALE.md's example projection block and
+    in the soft-breach prompt — sticking to one unit family across all
+    bale output."""
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024**2:
+        return f"{n / 1024:.1f} KB"
+    if n < 1024**3:
+        return f"{n / (1024**2):.1f} MB"
+    return f"{n / (1024**3):.2f} GB"
+
+
+def format_projection_block(projection: PackProjection) -> str:
+    """Render the human-readable projection block per BALE.md §7.4. Shown to
+    the user before the y/N prompt on a soft breach, on stderr as the
+    'warn and proceed' message in piped mode, and inside the hard-breach
+    refusal message — same content in all three places, single source of
+    truth."""
+    lines = [
+        "This pack would include:",
+        f"  Files:      {len(projection.files):,}",
+        f"  Size:       {format_bytes(projection.total_bytes)}",
+        f"  Max depth:  {projection.max_depth_seen} levels",
+    ]
+    if projection.largest_dirs:
+        lines.append("")
+        lines.append("Largest directories:")
+        for d, b, c in projection.largest_dirs:
+            label = d if d == "(root)" else f"{d}/"
+            lines.append(f"  {label:<14} {format_bytes(b):>10}   {c:>6,} files")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -565,7 +896,7 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
 
 def cmd_pack(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
-    refuse_system_dir(cwd)
+    refuse_system_dir(cwd, force=args.force)
 
     repo = repo_root(cwd)
     if repo is None:
@@ -574,7 +905,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "run `git init && git add -A && git commit -m initial` first, "
             "then retry."
         )
-    refuse_system_dir(repo)
+    refuse_system_dir(repo, force=args.force)
 
     # Lock check (BALE.md 7.1 step 5).
     existing = read_lock(repo)
@@ -598,6 +929,26 @@ def cmd_pack(args: argparse.Namespace) -> int:
         if not (repo / inc).exists():
             fail(f"--include path does not exist: {inc}")
 
+    # Pack threshold caps (BALE.md §7.4). The --max-* flags override only
+    # the hard caps; the soft caps stay at PACK_MAX_*_SOFT so the prompt
+    # still fires at the same scope-sanity threshold regardless of how the
+    # user tuned the hard refusal point.
+    caps_kwargs: dict = {}
+    if args.max_files is not None:
+        if args.max_files < 1:
+            fail(f"--max-files must be >= 1; got {args.max_files}")
+        caps_kwargs["max_files_hard"] = args.max_files
+    if args.max_size is not None:
+        try:
+            caps_kwargs["max_size_hard"] = parse_size_arg(args.max_size)
+        except ValueError as e:
+            fail(str(e))
+    if args.max_depth is not None:
+        if args.max_depth < 0:
+            fail(f"--max-depth must be >= 0; got {args.max_depth}")
+        caps_kwargs["max_depth"] = args.max_depth
+    caps = PackCaps(**caps_kwargs)
+
     # Ensure .bale/ is in .gitignore before we start writing under it. If we
     # had to modify .gitignore and the tree is otherwise clean, auto-commit
     # the change so `bale apply` doesn't trip on the dirty tree later. If
@@ -619,14 +970,85 @@ def cmd_pack(args: argparse.Namespace) -> int:
             git(["commit", "-m", "bale: ignore .bale/"], cwd=repo)
             log("auto-committed the .gitignore change")
 
-    # Enumerate files.
-    files = gather_files_for_pack(repo, args.include)
+    # Walk + project. Short-circuits on hard breach when not --force; with
+    # --force, walks to completion with no breach detection. See walk_for_pack.
+    projection = walk_for_pack(repo, args.include, caps=caps, force=args.force)
+    files = projection.files
     if not files:
         fail("no files would be included after exclusions; widen --include "
              "or check .gitignore.")
-    log(f"selected {len(files)} files for context/")
 
-    # Allocate session ID and switch logging to the per-session file.
+    # Breach handling (BALE.md §7.4).
+    # Order: hard breach refuses (or --force bypasses with a FORCE log);
+    # then soft breach prompts (TTY) or warns (piped) — unless --force,
+    # which logs the bypass and proceeds.
+    if projection.hard_breach is not None:
+        # walk_for_pack only sets hard_breach when force=False; this
+        # branch is unreachable under --force by construction.
+        sys.stderr.write(format_projection_block(projection) + "\n\n")
+        fail(
+            f"hard threshold breach: {projection.hard_breach}. "
+            f"Walk stopped at the breach (BALE.md §7.4). Re-run with the "
+            f"appropriate --max-* flag to raise the cap, or with --force "
+            f"to bypass all caps."
+        )
+    elif args.force:
+        # --force is active. Name every cap that would have tripped so the
+        # audit log records exactly what was bypassed. hard_breaches_seen
+        # is populated even though walk_for_pack didn't short-circuit, and
+        # soft_breaches is populated only when no hard breach is seen. An
+        # empty union means the user passed --force but nothing tripped —
+        # still log the event so the audit trail records the user's intent.
+        # The home-dir override (if it fired) was already logged inside
+        # refuse_system_dir; this line covers the threshold-cap side.
+        all_bypassed = projection.hard_breaches_seen + projection.soft_breaches
+        if all_bypassed:
+            log(
+                "bypassing threshold breach(es): "
+                + "; ".join(all_bypassed)
+                + f". Final scope: {len(files):,} files, "
+                + f"{format_bytes(projection.total_bytes)}, "
+                + f"max depth {projection.max_depth_seen}.",
+                force=True,
+            )
+        else:
+            log(
+                f"--force active; no thresholds tripped. Final scope: "
+                f"{len(files):,} files, "
+                f"{format_bytes(projection.total_bytes)}, "
+                f"max depth {projection.max_depth_seen}.",
+                force=True,
+            )
+    elif projection.soft_breaches:
+        # Soft breach without --force. Print the projection block to stderr
+        # in both modes — it's diagnostic context, not the pack's output —
+        # then either prompt (TTY) or warn-and-proceed (piped).
+        sys.stderr.write(format_projection_block(projection) + "\n\n")
+        sys.stderr.write(
+            "Soft threshold breach: "
+            + "; ".join(projection.soft_breaches)
+            + ".\n"
+        )
+        if sys.stdin.isatty():
+            # [e] edit-excludes is deferred — y/N only. Default no, so an
+            # accidental Enter aborts rather than packing a 200MB tarball.
+            if not confirm_yn("Continue with this pack?", default_no=True):
+                # No sid allocated yet, no log file open — clean abort.
+                print("[bale] aborted at threshold prompt", file=sys.stderr)
+                return 1
+        else:
+            # Piped mode: the warning already went to stderr above; proceed.
+            sys.stderr.write("[bale] piped mode: proceeding past soft breach.\n")
+
+    log(f"selected {len(files)} files for context/ "
+        f"({format_bytes(projection.total_bytes)}, "
+        f"max depth {projection.max_depth_seen})")
+
+    # Allocate session ID and switch logging to the per-session file. The
+    # set_log_file() call drains any buffered --force lines from
+    # refuse_system_dir / the threshold check above into the new log file,
+    # so the session journal has the override events even though they
+    # preceded sid allocation.
     sid = next_session_id(repo, args.slug)
     set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
     log(f"session id: {sid}")
@@ -2646,7 +3068,7 @@ def _cmd_config_init_global() -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.2 bootstrap).",
+        description="Claude session orchestrator (v0.0.3 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -2679,6 +3101,34 @@ def build_parser() -> argparse.ArgumentParser:
         "--expects-probe", choices=("yes", "no", "claude-decides"),
         default="claude-decides",
         help="Whether the session expects a probe.",
+    )
+    # Threshold caps (BALE.md §7.4). Each --max-* sets the hard cap; the soft
+    # caps (which drive the y/N prompt) stay at the defaults. --force
+    # bypasses both threshold caps and the home-directory refusal; the
+    # override is logged prominently to the session log.
+    p_pack.add_argument(
+        "--max-files", type=int, default=None, metavar="N",
+        help=f"Hard cap on file count (default: {PACK_MAX_FILES_HARD:,}). "
+             f"Soft cap is fixed at {PACK_MAX_FILES_SOFT:,}.",
+    )
+    p_pack.add_argument(
+        "--max-size", type=str, default=None, metavar="BYTES",
+        help=f"Hard cap on total bundled bytes. Accepts a raw count or a "
+             f"K/M/G suffix, e.g. '500M', '1G'. "
+             f"Default: {format_bytes(PACK_MAX_SIZE_HARD)}. "
+             f"Soft cap is fixed at {format_bytes(PACK_MAX_SIZE_SOFT)}.",
+    )
+    p_pack.add_argument(
+        "--max-depth", type=int, default=None, metavar="N",
+        help=f"Hard cap on path depth in directory levels "
+             f"(default: {PACK_MAX_DEPTH}).",
+    )
+    p_pack.add_argument(
+        "--force", action="store_true",
+        help="Bypass threshold caps AND the home-directory refusal. The "
+             "override is logged prominently to the session log. Use for "
+             "legitimate cases (dotfiles repo, deliberately large pack); "
+             "do not use to silence a soft-breach prompt without thinking.",
     )
     p_pack.set_defaults(func=cmd_pack)
 

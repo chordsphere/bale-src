@@ -89,7 +89,7 @@ if [[ ! -x "$BALE" ]]; then
 fi
 
 section "CLI surface"
-check_output "--version reports 0.0.2"  "bale 0.0.2" "$BALE" --version
+check_output "--version reports 0.0.3"  "bale 0.0.3" "$BALE" --version
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
@@ -128,6 +128,15 @@ check_output "config init --help mentions Idempotent" "Idempotent" "$BALE" confi
 check_output "config init --help mentions --global" "--global" "$BALE" config init --help
 check_output "config init --help mentions install/user path" "<install>/user" "$BALE" config init --help
 
+# pack --help should surface the threshold-cap flags and --force introduced
+# in 0.0.3. The check is that the literal flag string appears — argparse
+# generates the usage line and the long-option entry, so a missing flag
+# means the parser wiring regressed.
+check_output "pack --help mentions --max-files" "--max-files" "$BALE" pack --help
+check_output "pack --help mentions --max-size"  "--max-size"  "$BALE" pack --help
+check_output "pack --help mentions --max-depth" "--max-depth" "$BALE" pack --help
+check_output "pack --help mentions --force"     "--force"     "$BALE" pack --help
+
 # upgrade.sh must be runnable and self-document via --help.
 check_runs "upgrade.sh --help" "$INSTALL_DIR/upgrade.sh" --help
 check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh" --help
@@ -136,7 +145,7 @@ check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh
 section "symlink resolution (if applicable)"
 SYM="$HOME/.local/bin/bale"
 if [[ -L "$SYM" && "$(readlink "$SYM")" == "$BALE" ]]; then
-  check_output "via symlink: --version" "bale 0.0.2" "$SYM" --version
+  check_output "via symlink: --version" "bale 0.0.3" "$SYM" --version
 else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"
 fi
