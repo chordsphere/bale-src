@@ -67,12 +67,14 @@ section "CLI surface"
 check_output "--version reports 0.0.1"  "bale 0.0.1" "$BALE" --version
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
+check_output "--help mentions retry"    "retry"      "$BALE" --help
 check_output "--help mentions revert"   "revert"     "$BALE" --help
 check_output "--help mentions config"   "config"     "$BALE" --help
 
 section "subcommand --help"
 check_runs "pack --help"   "$BALE" pack   --help
 check_runs "apply --help"  "$BALE" apply  --help
+check_runs "retry --help"  "$BALE" retry  --help
 check_runs "revert --help" "$BALE" revert --help
 check_runs "config --help" "$BALE" config --help
 check_runs "config init --help" "$BALE" config init --help

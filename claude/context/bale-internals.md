@@ -34,7 +34,14 @@ a banner comment. Read top-to-bottom:
 11. **Apply pipeline.** Manifest validation, file presence + sha256
     + path safety, staging, validation, commit-or-hold logic.
 12. **`cmd_apply`.**
-13. **`cmd_revert`.**
+13. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
+    session entirely (and clears the lock); retry discards the same
+    HOLD state but preserves the lock and reruns the apply pipeline
+    against a corrected response tarball. Both call a shared
+    `_discard_hold_state()` helper for the destructive cleanup; the
+    lock-clear and post-cleanup steps are caller policy. The apply
+    pipeline body itself is extracted as `_apply_pipeline()` so both
+    `cmd_apply` and `cmd_retry` invoke it without duplication.
 14. **`bale.toml` configurables.** `load_config()`, `get_hook()`.
 15. **Hook invocation.** `confirm_yn()`, `run_hook()`.
 16. **`bale config init` wizard.** `_prompt_value()`,
@@ -163,27 +170,29 @@ version of bale into `$BALE_INSTALL` (default `~/bale`). The reinstall
 script lives at `scripts/reinstall.sh` and is wired up via this repo's
 `bale.toml`. Never fires on revert.
 
+**`post_pack`** — invoked after `bale pack` writes the request tarball
+and acquires the session lock. Same opt-in/prompted contract as
+`post_apply_pass`. Use cases: copying the tarball to a shared folder,
+opening Claude in the browser with the tarball ready to drag in,
+pinging chat that a request is queued. Lifecycle ordering matters for
+the wizard — `post_pack` is walked before `post_apply_pass` (pack
+happens before apply), and `render_bale_toml()` emits TOML keys in
+the same order.
+
 ### 3.7 Hooks coming in follow-up sessions
 
 These are listed here to make the design rationale visible — they are
 not implemented yet.
 
-- **`post_pack`** (next session) — invoked after `bale pack` writes the
-  request tarball. Use case: opening Claude in the browser with the
-  tarball ready to drag in, or copying the tarball to a shared folder.
-  Same contract as `post_apply_pass`: opt-in, prompted, exit code is
-  advisory.
-- **Apply search paths** (session after next) — not a hook but a
-  configurable under the same mechanism. A `[apply]` table (working
-  name) with a list of directories `bale apply` should look in when
-  given a bare session id rather than a path. Lets `bale apply
-  2026-05-13-foo-003` find the tarball wherever it landed without
-  retyping the path.
+- **Apply search paths** — not a hook but a configurable under the
+  same mechanism. A `[apply]` table (working name) with a list of
+  directories `bale apply` should look in when given a bare session
+  id rather than a path. Lets `bale apply 2026-05-13-foo-003` find
+  the tarball wherever it landed without retyping the path.
 
-Both extensions slot into the existing mechanism: a new entry in
-`HOOK_NAMES`, a new branch in `walk_configurables()`, and (for the
-apply paths) a new branch in `render_bale_toml()`. No new wire-format,
-no new bale command.
+This extension slots into the existing mechanism: a new branch in
+`walk_configurables()` and `render_bale_toml()`. No new hook entry, no
+new bale command.
 
 ---
 
@@ -240,7 +249,8 @@ The full loop with everything wired up:
 2. User ships the tarball to Claude.
 3. Claude returns a response tarball.
 4. User runs `bale apply <response.tar.gz>`:
-   1. Tarball validated, manifest schema-checked, sha256s verified.
+   1. Tarball validated, manifest schema-checked, `apply.sh` and
+      `validation.sh` syntax-checked, sha256s verified.
    2. Project state copied into `.bale/staging/`, response files
       overlaid, deletes applied.
    3. `validation.sh` runs in staging. PASS or HOLD.
