@@ -9,4 +9,5 @@
 # escape hatches for this — set/get/edit subcommands land later.
 
 [hooks]
+post_pack = "scripts/copy-request-to-downloads.sh"
 post_apply_pass = "scripts/reinstall.sh"
