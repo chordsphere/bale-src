@@ -564,7 +564,7 @@ after the bale is merged; `validation.sh` does not duplicate it.
 
 Validation never writes to the real project. The full pipeline:
 
-1. Bale creates a staging directory (default: `./staging/`,
+1. Bale creates a staging directory (default: `<repo>/.bale/staging/`,
    configurable via `--staging-dir`).
 2. Bale copies the current project state into staging.
 3. Bale applies `files/` over the staging copy, then runs `apply.sh`
