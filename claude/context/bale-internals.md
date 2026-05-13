@@ -56,60 +56,90 @@ deliberately out of scope until they earn a place.
 
 ---
 
-## 2. `bale.toml` — the per-repo configurables file
+## 2. `bale.toml` — the configurables file (two layers)
 
 ### 2.1 Location and lifecycle
 
-- **Path:** `<repo>/bale.toml`, repo root.
-- **Source of truth:** committed, team-shared. Not per-developer —
-  every clone of the repo gets the same hook wiring.
-- **Lifecycle:** written by `bale config init`. Hand-edits work, but
-  re-running the wizard rewrites the file from its walked surface, so
-  unrecognized keys you hand-edit in are dropped on re-run. At v0.0.x
-  there is no escape hatch for this — `set/get/edit` subcommands will
-  land in a later session if the need is real.
+Two files share the same TOML schema, differing only in layer:
 
-### 2.2 Absence is silent
+- **Project layer:** `<repo>/bale.toml`, repo root.
+  - **Source of truth:** committed, team-shared. Every clone of the repo
+    gets the same wiring.
+  - **Lifecycle:** written by `bale config init`. Hand-edits work, but
+    re-running the wizard rewrites the file from its walked surface, so
+    unrecognized keys you hand-edit in are dropped on re-run.
+- **Global (install) layer:** `<install>/user/bale.toml`.
+  - **Source of truth:** user-owned, never in the release tarball. Lives
+    inside `<install>/user/` (the only user-owned subtree of the install)
+    so the install dir stays portable as a unit — copy `<install>/`
+    anywhere and the global config travels with it. `upgrade.sh` preserves
+    `user/` across release swaps; `install.sh` never creates it (does
+    nothing on absent, reports state on present).
+  - **Lifecycle:** written by `bale config init --global`. The wizard
+    creates `<install>/user/` (and `user/scripts/`-style subdirs as
+    needed) on first write. Same idempotency contract as the project file.
+
+At v0.0.x there are no `set/get/edit` subcommands at either layer; `init`
+plus hand-edits is the entire surface. If the need is real, they land later.
+
+### 2.2 Layering rules — project overrides global per-key
+
+`merged_config(repo)` produces the effective config bale operates on:
+
+- **Per-key replacement.** Project wins on any key it sets; project absent
+  means inherit from global. There is no append semantics across layers.
+- **Empty value at project = explicit suppression.** A key present but
+  empty at the project layer (`post_pack = ""` for scalars, `search_paths
+  = []` for lists) wins as "no value" — the inherited global is NOT
+  consulted. The typed accessors (`get_hook`, `get_apply_search_paths`)
+  already treat empty as unset, so this falls out of the merge mechanically.
+- **List-shaped configs use replace semantics.** When project sets
+  `search_paths`, its list wins fully (including the empty-list suppress
+  form). No mixed-list semantics — append across machines would mean
+  unpredictable order, and order matters for first-match-wins lookups.
+- **Hook paths resolve at merge time** against the layer that owns them.
+  Project hooks resolve against `<repo>/`; global hooks resolve against
+  `<install>/user/`. `merged_config` returns absolute filesystem paths so
+  callers (`get_hook`, `run_hook`) don't track provenance.
+
+### 2.3 Absence is silent (at both layers)
 
 The whole mechanism is opt-in:
 
-- File absent → bale behaves exactly as it did pre-configurables. No
-  warning, no prompt to run `bale config init`.
-- File present but a key absent → that configurable is silently
-  skipped.
-- Key present but the value is `""` (empty string) → also silently
-  skipped. This lets the wizard write `key = ""` for "I considered this
-  and chose to skip" without a separate delete path. In practice the
-  wizard's render omits unset keys, but `get_hook()` honors the empty
-  case if the file is hand-edited.
+- Both files absent → bale behaves exactly as it did pre-configurables.
+- File absent at one layer → that layer contributes nothing; merge is
+  whatever the other layer says.
+- Both files present but a key absent in both → that configurable is
+  silently skipped.
 
-The contract is uniform: anywhere a configurable could be read, "not
-configured" is a silent no-op. Bale never nags about a configurable
-that hasn't been opted in to.
+Bale never nags about an unconfigured configurable.
 
-### 2.3 Malformed files are fatal
+### 2.4 Malformed files are fatal
 
-A typo in `bale.toml` is fatal — `load_config()` raises through
-`fail()` with the parser's line/column. We never want a typo to
-silently disable a hook the user thought was wired up.
+A typo at either layer is fatal — `load_config`/`load_global_config`
+raise through `fail()` with the parser's line/column. We never want a
+typo to silently disable a hook the user thought was wired up.
 
-### 2.4 Schema at v0.0.1
+### 2.5 Schema at v0.0.x
 
 ```toml
 [hooks]
+post_pack = "scripts/copy-request-to-downloads.sh"
 post_apply_pass = "scripts/reinstall.sh"
+
+[apply]
+search_paths = ["~/Downloads"]
 ```
 
-Only one section, one key. Future sessions add:
+The schema is identical at both layers. The only thing that differs is
+what hook paths resolve against (the file's own directory). Future
+sessions add more keys under `[hooks]` and (potentially) new top-level
+sections; each new key extends `walk_configurables()` in the same session
+so the discoverable surface stays in sync.
 
-- More keys under `[hooks]` (e.g. `post_pack`).
-- A new top-level section for path resolution (working name `[apply]`
-  with a `search_paths` array, but the exact shape is the next
-  session's call).
-
-The wizard owns the discoverable surface. If you add a key without
-extending `walk_configurables()`, there is no canonical way for a user
-to set it.
+The wizard owns the discoverable surface at both layers. If you add a key
+without extending `walk_configurables()`, there is no canonical way for a
+user to set it.
 
 ---
 
@@ -117,10 +147,24 @@ to set it.
 
 ### 3.1 What a hook is
 
-A hook is a path to a user-supplied executable script, repo-relative.
-Bale invokes it at a specific moment in its lifecycle. Bale never
-embeds install or copy logic; the script is the consumer's
-responsibility.
+A hook is a path to a user-supplied executable script. Bale invokes it
+at a specific moment in its lifecycle. Bale never embeds install or copy
+logic; the script is the consumer's responsibility.
+
+Hook paths resolve relative to whichever layer's `bale.toml` they live in:
+
+- Project-layer hooks (`<repo>/bale.toml`) resolve against the repo root.
+  Place the script under `<repo>/scripts/foo.sh`, reference it as
+  `"scripts/foo.sh"` in the config.
+- Global-layer hooks (`<install>/user/bale.toml`) resolve against
+  `<install>/user/`. Place the script under `<install>/user/scripts/foo.sh`,
+  reference it the same way: `"scripts/foo.sh"`.
+
+`merged_config` resolves these to absolute filesystem paths at merge time,
+so `get_hook` and `run_hook` always work with absolute paths and don't
+need to know the originating layer. `run_hook` does identify the layer
+in its pre-invocation prompt — "hook: post_pack (global)" vs "(project)"
+— so the user sees what's about to run.
 
 ### 3.2 Always-prompt
 
@@ -200,43 +244,84 @@ new bale command.
 
 ### 4.1 Canonical interface
 
-The wizard is the single way to opt in to the configurables mechanism.
-A user who only ever runs `bale config init` should be able to discover
-every configurable that exists; conversely, a configurable bale knows
-about but the wizard doesn't walk through is a contract violation.
+The wizard is the single way to opt in to the configurables mechanism,
+at either layer. A user who only ever runs `bale config init` (and
+`bale config init --global`) should be able to discover every configurable
+that exists; conversely, a configurable bale knows about but the wizard
+doesn't walk through is a contract violation.
 
-### 4.2 Walkthrough
+### 4.2 Two modes, one surface
+
+`bale config init` runs against the project layer (`<repo>/bale.toml`).
+`bale config init --global` runs against the global layer
+(`<install>/user/bale.toml`). Both modes call the same
+`walk_configurables()`; what differs:
+
+| Aspect | Project mode (default) | Global mode (`--global`) |
+|---|---|---|
+| Target file | `<repo>/bale.toml` | `<install>/user/bale.toml` |
+| Requires git repo? | Yes (refuses if not in one) | No |
+| Walks git identity? | Yes | No (identity is per-repo) |
+| Shows inherited values? | Yes — global is below, displayed as inherited | No — no layer below |
+| Hook-path hint | "Path relative to `<repo>/`" | "Path relative to `<install>/user/`" |
+| Header in generated file | project-flavored | global-flavored |
+
+### 4.3 Walkthrough (project mode)
 
 1. Resolve repo root; refuse system dirs and non-git-repos.
-2. Load existing `bale.toml` (if present).
+2. Load existing `<repo>/bale.toml` (if present) AND the global config
+   from `<install>/user/bale.toml` (if present) — the latter becomes the
+   `inherited` argument to `walk_configurables`.
 3. Walk git identity:
    - For each of `user.name`, `user.email`, check `git config --get`.
-     If already set (anywhere — repo-local or global), report and
-     leave alone.
+     If already set (anywhere — repo-local or global), report and leave
+     alone.
    - If unset everywhere, prompt. Non-empty input is written to the
      **repo-local** git config (`git config <key> <value>`, no
      `--global`). Empty input is treated as a skip.
-4. Walk every configurable in `walk_configurables()`. For each:
-   - Show its description and current value (or `(unset)`).
-   - Prompt for new value.
-   - Empty input → keep current.
-   - Non-empty input → set.
-   - Literal `-` → clear.
-5. Render the result via `render_bale_toml()` and write to
+4. Walk every configurable in `walk_configurables()`. For each, display
+   shows the current at this layer AND any inherited-from-global value
+   AND the effective value the merge would produce. Input semantics:
+   - Empty input → keep current at this layer.
+   - Non-empty value → set at this layer (overrides any inherited).
+   - Literal `-` → clear at this layer (revert to inheriting if a global
+     value exists, else unset).
+   - Literal `x` (offered only when an inherited value is shown) →
+     write empty string / empty list — explicit suppression of the
+     inherited value.
+5. Render via `render_bale_toml(cfg, layer="project")` and write to
    `<repo>/bale.toml`.
 
-### 4.3 Idempotency
+### 4.4 Walkthrough (global mode)
 
-Re-running on a configured repo shows the current value for each
-configurable and accepts Enter to keep. The output file after a
-re-run-with-all-Enters equals the input file modulo trailing whitespace
-— the wizard is safe to run on a whim.
+1. Don't resolve a repo; refuse only system-dir cwd.
+2. Load existing `<install>/user/bale.toml` (if present). No inherited
+   layer below.
+3. No git-identity walk.
+4. Walk every configurable. Display shows only the current value (no
+   "inherited" line, no `x` option — nothing to suppress). Input
+   semantics:
+   - Empty input → keep current.
+   - Non-empty value → set.
+   - Literal `-` → clear.
+5. Create `<install>/user/` if it doesn't exist (this is the global
+   layer's first write).
+6. Render via `render_bale_toml(cfg, layer="global")` and write to
+   `<install>/user/bale.toml`.
 
-### 4.4 Header in the generated file
+### 4.5 Idempotency
 
-`render_bale_toml()` prepends a fixed header comment that points back
-at the wizard. The header explicitly warns that hand-edited unknown
-keys are dropped on re-run.
+Re-running at either layer shows the current value for each configurable
+and accepts Enter to keep. The output file after a re-run-with-all-Enters
+equals the input file modulo trailing whitespace — the wizard is safe
+to run on a whim.
+
+### 4.6 Headers in the generated files
+
+`render_bale_toml(cfg, layer=...)` prepends a layer-specific fixed header
+comment that points back at the wizard. The header makes it instantly
+obvious which file you're reading (project vs global) and warns that
+hand-edited unknown keys are dropped on re-run.
 
 ---
 
@@ -257,9 +342,13 @@ The full loop with everything wired up:
    4. PASS path: changes applied to working tree on `bale/<sid>`
       branch, committed, merged into origin with `--no-ff`, tagged
       `applied/<sid>`, lock cleared, session dir wiped.
-   5. **`run_hook(repo, load_config(repo), "post_apply_pass", sid)`**
-      — loads `bale.toml`, looks up `[hooks].post_apply_pass`, finds
-      `scripts/reinstall.sh`, prompts the user.
+   5. **`run_hook(repo, merged_config(repo), "post_apply_pass", sid)`**
+      — `merged_config` layers `<install>/user/bale.toml` under
+      `<repo>/bale.toml`, resolves hook paths against their owning
+      layer's root, and yields absolute paths. Looks up
+      `[hooks].post_apply_pass`, finds `scripts/reinstall.sh` (a project
+      hook in this case, resolving to `<repo>/scripts/reinstall.sh`),
+      prompts the user.
    6. User accepts. `scripts/reinstall.sh` runs with `BALE_HOOK`,
       `BALE_SESSION_ID`, `BALE_REPO_ROOT` exported. It mirrors `bin/`,
       `docs/`, `install.sh`, `validate.sh` into `$BALE_INSTALL`,

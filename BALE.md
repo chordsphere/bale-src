@@ -176,16 +176,27 @@ bale/
     DOCS.md
   install.sh          # finalize the install (chmod, symlink, run validate)
   validate.sh         # sanity-check this install's layout and CLI surface
+  upgrade.sh          # in-place upgrade to a newer release, preserving user/
   README.md           # install and usage notes for first-time users
 ```
 
-This is the **install layout** — the contents of `~/bale/` (or wherever
-the user extracts) after install. It is distinct from the **bale-src
-layout** (the source repo): bale-src has the same six top-level items
-plus `bale.toml`, `scripts/`, and `claude/` (project-local
-configurables, hook scripts, and bale-src's own doc map). The
-extras are bale-src's own use of the bale workflow and are not part
-of the release. See section 13 for why bale-src has this shape.
+This is the **install layout** — what `~/bale/` (or wherever the
+user extracts) contains right after install. One additional
+location matters for runtime but is *not* in the release tarball:
+`<install>/user/`, the user-owned subtree that holds the global
+`bale.toml` and any global hook scripts. It's absent on a fresh
+install; `bale config init --global` creates it on first write.
+`upgrade.sh` preserves it across release swaps. Keeping it inside
+the install dir (rather than under `$XDG_CONFIG_HOME` or `~/`) is
+deliberate: the install dir stays portable as a unit — copy
+`<install>/` anywhere and the global config travels with it.
+
+This is distinct from the **bale-src layout** (the source repo):
+bale-src has the same release-shaped top-level items plus
+`bale.toml`, `scripts/`, and `claude/` (project-local configurables,
+hook scripts, and bale-src's own doc map). The extras are bale-src's
+own use of the bale workflow and are not part of the release. See
+section 13 for why bale-src has this shape.
 
 Install is one extract + one script:
 
@@ -194,17 +205,31 @@ tar -xzf bale-vX.Y.Z.tar.gz -C ~/
 ~/bale/install.sh
 ```
 
+Upgrade is one extra script that preserves the user-owned subtree:
+
+```bash
+~/bale/upgrade.sh path/to/new-bale-release.tar.gz
+```
+
+`upgrade.sh` is the canonical install-preserving path: moves
+`user/` aside, wipes the install dir clean, extracts the new
+release, moves `user/` back, runs the new `install.sh`. The
+`README.md` documents two manual alternatives (tar-over-top, `rm
+-rf` + extract) and their tradeoffs; both exist primarily for the
+"no `user/` subtree to preserve" case.
+
 The destination is the user's choice: `~/bale/`,
 `~/.local/share/bale/`, `/opt/bale/`, anywhere writable. The script
 locates its sibling docs via `Path(__file__).resolve().parent.parent
 / 'docs'` — wherever the directory landed, `bin/bale` finds
-`../docs/`.
+`../docs/` (and `../user/` for global config).
 
 `install.sh` is intentionally thin: it verifies layout, restores
 executable bits (some filesystems strip them on extract), offers a
-PATH symlink, and runs `validate.sh`. No virtualenv, no pip, no
-sourcing in shell rc. Two optional conveniences exist on top of the
-bare install, and each must remain optional:
+PATH symlink, and runs `validate.sh`. It does NOT create `user/` —
+that's `bale config init --global`'s job, on opt-in. No virtualenv,
+no pip, no sourcing in shell rc. Two optional conveniences exist
+on top of the bare install, and each must remain optional:
 
 - Symlink `bin/bale` into a PATH directory (`ln -s ~/bale/bin/bale
   ~/.local/bin/bale`) so `bale` works as a bare command. Without it,
@@ -265,6 +290,15 @@ Every project sees the new docs on its next pack.
 `.gitignore` automatically. The tool offers to add it on any first
 invocation in a repo that doesn't have the entry.
 
+There's also one piece of *per-install* user state, distinct from
+per-project: `<install>/user/`. It holds the global (install-wide)
+`bale.toml` and any global hook scripts the user has set up via
+`bale config init --global`. Per-project state stays in `<repo>/.bale/`;
+per-install user state stays in `<install>/user/`. The former is
+gitignored project state; the latter is user-owned install state that
+survives `upgrade.sh`. Neither is in the release tarball. See
+`claude/context/bale-internals.md` §2 for the layering rules.
+
 ### 3.5 Solo-project assumption
 
 This tool is for solo projects. No shared-branch detection, no
@@ -275,29 +309,39 @@ about pushed history.
 
 ### 3.6 First-time user flow
 
-The intended onboarding is two steps:
+The intended onboarding is two-to-three steps:
 
 1. Extract the release tarball and run `install.sh`. `install.sh`
    leaves a working `bale` binary on `PATH` (assuming the symlink
    step was accepted) and points the user at step 2.
 2. `cd` into a project (any git repo). Run `bale config init`. The
    wizard walks every configurable that exists — git identity,
-   hooks, search paths — and writes `bale.toml`. It is idempotent
-   and entirely optional past git identity; pressing Enter through
-   each prompt leaves the project in a perfectly usable state.
+   hooks, search paths — and writes `<repo>/bale.toml`. It is
+   idempotent and entirely optional past git identity; pressing
+   Enter through each prompt leaves the project in a perfectly
+   usable state.
+3. *(Optional)* Run `bale config init --global` from anywhere. This
+   walks the same configurables (minus git identity, which is
+   per-repo) and writes `<install>/user/bale.toml` — the install-
+   wide layer that every project inherits per-key. Useful when you
+   want, e.g., `~/Downloads` in `apply.search_paths` once for every
+   bale-using project on the machine, rather than re-typing it in
+   every `<repo>/bale.toml`.
 
-After step 2, `bale pack` / `bale apply` / `bale retry` / `bale
-revert` work normally. The wizard is the **single canonical
-discoverable surface** for everything `bale.toml` controls; a
-configurable that isn't walked by `bale config init` is a contract
-violation (see `claude/context/bale-internals.md` §4.1).
+After step 2 (and optionally 3), `bale pack` / `bale apply` /
+`bale retry` / `bale revert` work normally. The wizard is the
+**single canonical discoverable surface** at both layers for
+everything `bale.toml` controls; a configurable that isn't walked
+by `bale config init` is a contract violation (see
+`claude/context/bale-internals.md` §4.1).
 
 A user who skips step 2 sees no errors. `bale pack` in a non-git
 directory triggers the git-init walkthrough (section 10) and asks
 for the same identity info inline; hooks and search paths just
 stay opt-out. Step 2 exists so the first-time user can opt *in* to
 everything bale can do in one walk, without having to discover
-each surface piecemeal.
+each surface piecemeal. Step 3 exists so a user with multiple
+bale-using projects can set machine-wide defaults once.
 
 ---
 
