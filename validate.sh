@@ -53,6 +53,7 @@ section "filesystem layout"
 [[ -x "$BALE" ]]                                && pass "bin/bale executable"    || fail "bin/bale executable"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
+[[ -f "$INSTALL_DIR/README.md"   ]]             && pass "README.md present"      || fail "README.md present"
 for d in CLAUDE TARBALL DOCS; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done

@@ -164,8 +164,8 @@ feature a casual project doesn't need to learn.
 
 Bale ships as a **release tarball** that extracts in place to a
 self-contained directory. Source lives in a normal package layout;
-a build step packages that layout into `bale-vX.Y.Z.tar.gz`. The
-released directory has this shape:
+a build step (planned for v0.1+) packages that layout into
+`bale-vX.Y.Z.tar.gz`. The released directory has this shape:
 
 ```
 bale/
@@ -174,14 +174,24 @@ bale/
     CLAUDE.md
     TARBALL.md
     DOCS.md
-  README.md           # install and usage notes
+  install.sh          # finalize the install (chmod, symlink, run validate)
+  validate.sh         # sanity-check this install's layout and CLI surface
+  README.md           # install and usage notes for first-time users
 ```
 
-Install is one command — extract the tarball anywhere on disk:
+This is the **install layout** — the contents of `~/bale/` (or wherever
+the user extracts) after install. It is distinct from the **bale-src
+layout** (the source repo): bale-src has the same six top-level items
+plus `bale.toml`, `scripts/`, and `claude/` (project-local
+configurables, hook scripts, and bale-src's own doc map). The
+extras are bale-src's own use of the bale workflow and are not part
+of the release. See section 13 for why bale-src has this shape.
+
+Install is one extract + one script:
 
 ```bash
-curl -L <release-url>/bale-vX.Y.Z.tar.gz | tar -xz -C ~/
-~/bale/bin/bale --version
+tar -xzf bale-vX.Y.Z.tar.gz -C ~/
+~/bale/install.sh
 ```
 
 The destination is the user's choice: `~/bale/`,
@@ -190,9 +200,11 @@ locates its sibling docs via `Path(__file__).resolve().parent.parent
 / 'docs'` — wherever the directory landed, `bin/bale` finds
 `../docs/`.
 
-That is the entire install. No setup script, no virtualenv, no pip,
-no sourcing anything in shell rc. Two optional conveniences exist on
-top of the bare install, and each must remain optional:
+`install.sh` is intentionally thin: it verifies layout, restores
+executable bits (some filesystems strip them on extract), offers a
+PATH symlink, and runs `validate.sh`. No virtualenv, no pip, no
+sourcing in shell rc. Two optional conveniences exist on top of the
+bare install, and each must remain optional:
 
 - Symlink `bin/bale` into a PATH directory (`ln -s ~/bale/bin/bale
   ~/.local/bin/bale`) so `bale` works as a bare command. Without it,
@@ -260,6 +272,32 @@ upstream/origin tracking, no concurrent-session-on-different-machines
 handling. The rollback story relies on this: `git revert` works
 cleanly on local-only branches and the user doesn't have to think
 about pushed history.
+
+### 3.6 First-time user flow
+
+The intended onboarding is two steps:
+
+1. Extract the release tarball and run `install.sh`. `install.sh`
+   leaves a working `bale` binary on `PATH` (assuming the symlink
+   step was accepted) and points the user at step 2.
+2. `cd` into a project (any git repo). Run `bale config init`. The
+   wizard walks every configurable that exists — git identity,
+   hooks, search paths — and writes `bale.toml`. It is idempotent
+   and entirely optional past git identity; pressing Enter through
+   each prompt leaves the project in a perfectly usable state.
+
+After step 2, `bale pack` / `bale apply` / `bale retry` / `bale
+revert` work normally. The wizard is the **single canonical
+discoverable surface** for everything `bale.toml` controls; a
+configurable that isn't walked by `bale config init` is a contract
+violation (see `claude/context/bale-internals.md` §4.1).
+
+A user who skips step 2 sees no errors. `bale pack` in a non-git
+directory triggers the git-init walkthrough (section 10) and asks
+for the same identity info inline; hooks and search paths just
+stay opt-out. Step 2 exists so the first-time user can opt *in* to
+everything bale can do in one walk, without having to discover
+each surface piecemeal.
 
 ---
 
@@ -1143,9 +1181,24 @@ hand-written. Just enough to apply its own first tarball:
 
 No rollback, no unlock, no release-tarball packaging script. The
 working layout is the install layout: `bin/bale` (with shebang and
-`chmod +x`) plus `docs/CLAUDE.md`, `docs/TARBALL.md`,
-`docs/DOCS.md`. The user runs it directly by path or symlinks
-`bin/bale` onto `PATH`.
+`chmod +x`), the three global docs at `docs/CLAUDE.md`,
+`docs/TARBALL.md`, `docs/DOCS.md`, plus `install.sh`, `validate.sh`,
+and the user-facing `README.md` at the top. `install.sh` finalizes
+an install (chmod, optional PATH symlink, runs `validate.sh`);
+`validate.sh` sanity-checks an install's layout and CLI surface.
+The user runs `bin/bale` directly by path or symlinks it onto
+`PATH` via `install.sh`. The release-tarball *packaging* script
+(a build target that turns this layout into a versioned
+`bale-vX.Y.Z.tar.gz`) is v0.1's job; at v0.0.1 a release is just
+`tar -czf bale.tar.gz bale/` against this layout.
+
+bale-src — the source repo for the bale tool — has the same six
+top-level items as the release plus `bale.toml`, `scripts/`, and
+`claude/`. Those extras are bale-src's own use of bale (a
+per-repo configuration file, hook scripts wired through that file,
+and bale-src's project doc map). They are not part of the release
+tarball and are not mirrored by `scripts/reinstall.sh`. A user who
+only installs the release tarball never sees them.
 
 ### v0.1 — usable v1
 

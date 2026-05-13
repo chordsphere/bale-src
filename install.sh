@@ -49,7 +49,7 @@ confirm() {
 log "install dir: $INSTALL_DIR"
 
 # Verify expected layout. Catches a partial/corrupt extract before we do anything.
-for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md validate.sh; do
+for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh README.md; do
   [[ -e "$INSTALL_DIR/$f" ]] || die "missing expected file: $INSTALL_DIR/$f"
 done
 log "layout OK"
@@ -100,3 +100,12 @@ if [[ "$DO_VALIDATE" == "1" ]]; then
 else
   log "skipping validate (--no-validate); run $INSTALL_DIR/validate.sh manually any time"
 fi
+
+# Point the user at the canonical first-project setup. Printed after validate
+# so it's the last thing the user sees on a clean install. We don't try to
+# run `bale config init` from here — it requires a git repo (the project the
+# user wants to use bale on), and the install dir is not that.
+log "---"
+log "next step: cd to a project (git repo) you want to use bale with, then"
+log "           run 'bale config init' to walk through per-repo setup."
+log "           (the wizard is idempotent; re-run any time.)"

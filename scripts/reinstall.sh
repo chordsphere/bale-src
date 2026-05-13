@@ -40,7 +40,7 @@ log "target:     $BALE_INSTALL"
 log "session id: ${BALE_SESSION_ID:-(unset)}"
 
 # Sanity: the source layout must look like a bale install root.
-for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh; do
+for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh README.md; do
   [[ -f "$REPO/$f" ]] || die "source layout missing: $REPO/$f"
 done
 
@@ -54,14 +54,15 @@ fi
 mkdir -p "$BALE_INSTALL"
 
 # Mirror the install-relevant pieces. Wipe bin/ and docs/ first so a
-# rename in the source doesn't leave stale files in the install. The two
-# top-level scripts are individual files so a plain cp suffices.
+# rename in the source doesn't leave stale files in the install. The
+# top-level scripts and README are individual files so a plain cp suffices.
 rm -rf "$BALE_INSTALL/bin" "$BALE_INSTALL/docs"
 cp -R "$REPO/bin"  "$BALE_INSTALL/bin"
 cp -R "$REPO/docs" "$BALE_INSTALL/docs"
 cp    "$REPO/install.sh"  "$BALE_INSTALL/install.sh"
 cp    "$REPO/validate.sh" "$BALE_INSTALL/validate.sh"
-log "mirrored bin/, docs/, install.sh, validate.sh"
+cp    "$REPO/README.md"   "$BALE_INSTALL/README.md"
+log "mirrored bin/, docs/, install.sh, validate.sh, README.md"
 
 # Finalize via install.sh in non-interactive mode.
 # --no-symlink: an existing symlink (if any) was set on initial install
