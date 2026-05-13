@@ -85,6 +85,13 @@ BALE_CONFIG = "bale.toml"
 # discoverable surface, so a hook that's invoked but not in the wizard
 # is a contract violation.
 HOOK_NAMES = (
+    # Triggered after `bale pack` successfully writes the request tarball
+    # and acquires the session lock. The session is durable on disk by the
+    # time this fires; per the hook contract, a non-zero exit is logged
+    # but does not unwind pack. Order in this tuple is lifecycle order
+    # (pack before apply); the same order is the wizard's prompt order
+    # and the rendered bale.toml's key order.
+    "post_pack",
     # Triggered after `bale apply` succeeds (PASS path, post-merge).
     # Used by bale-src itself to reinstall bale into the install location
     # after each PASS session.
@@ -609,6 +616,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
     persist_pack_session(repo, sid, manifest)
     write_lock(repo, sid)
     log(f"acquired session lock")
+
+    # post_pack hook. Silent no-op when not configured. Fires after the
+    # tarball is on disk AND the session is locked — i.e. after every
+    # state change pack performs has succeeded, mirroring the
+    # post_apply_pass placement (after merge + tag + lock-clear). A
+    # hook-side failure logs but does not unwind pack; the tarball is
+    # already where the user needs it.
+    run_hook(repo, load_config(repo), "post_pack", sid)
 
     # User-facing summary.
     print()
@@ -1440,6 +1455,24 @@ def walk_configurables(existing: dict) -> dict:
     isn't here, there's no canonical way to opt in to it.
     """
     new: dict = {}
+
+    # ---- [hooks].post_pack --------------------------------------------------
+    current_post_pack = (existing.get("hooks") or {}).get("post_pack") or ""
+    val = _prompt_value(
+        "hooks.post_pack",
+        current=current_post_pack or None,
+        description=[
+            "Script invoked after `bale pack` successfully writes the",
+            "request tarball and acquires the session lock. Bale prompts",
+            "before running it. Use cases: copying the tarball path to",
+            "the clipboard, opening the outbox in a file manager,",
+            "uploading the tarball somewhere, pinging chat — anything",
+            "you'd run on a fresh request landing on disk.",
+            "Repo-relative path. Must be executable.",
+        ],
+    )
+    if val:
+        new.setdefault("hooks", {})["post_pack"] = val
 
     # ---- [hooks].post_apply_pass --------------------------------------------
     current_post_apply_pass = (existing.get("hooks") or {}).get("post_apply_pass") or ""
