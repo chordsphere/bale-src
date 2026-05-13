@@ -26,6 +26,7 @@ The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`) ship from the bale
 installation and are injected into every request; they are not listed
 here. Per DOCS.md §4.1, INDEX.md is usually introduced once a project has
 ~3+ findable docs. This one was introduced early on architect's call so
-the scaffolding is in place when the second and third explainers arrive
-(probably alongside the post_pack hook and the apply search-paths
-mechanism).
+the scaffolding would be in place when more arrived. `meta-sessions.md`
+landed as the second standalone; a third will likely arrive alongside
+the post_pack hook or the apply search-paths mechanism, but the
+inventory stays at two until then.

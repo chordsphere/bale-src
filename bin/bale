@@ -831,7 +831,7 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     """Copy validation.sh into staging, place .bale-manifest.json for claims
     access, run it, log output, return exit code."""
     val_dst = staging / "validation.sh"
-    shutil.copy2(response_dir / "validation.sh", val_dst)
+    shutil.copy2(response_dir / "validation.sh", val_dst, follow_symlinks=False)
     val_dst.chmod(0o755)
 
     # Per BALE.md 7.3 — validation.sh reads claims here.
@@ -1008,7 +1008,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
                     fail(f"could not remove stale staging at {staging}: {e}")
             else:
                 fail(f"staging directory already exists: {staging}. "
-                     f"Remove it or pass --staging-dir to a fresh path.")
+                     f"Remove it or pass a different --staging-dir.")
         # Record staging path under the session dir so `bale revert` can
         # clean it up later. Written before stage_response so a partial
         # stage that errors out still leaves a trail for revert to follow.
