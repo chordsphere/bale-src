@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.3. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.4. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
-caps (BALE.md §7.4) and the --force override land in this version.
-The rest of v0.1 (full pack wizard, .baleignore, walkthrough,
+caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
+was added as a fourth global doc in this version, with the injection
+list, install layout, and self-check scripts updated to match. The
+rest of v0.1 (full pack wizard, .baleignore, walkthrough,
 release-tarball packaging) lands later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
@@ -46,14 +48,14 @@ from typing import Optional
 # Constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.3"
+VERSION = "0.0.4"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
 # still finds the real docs directory next to the real bin/.
 INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md")
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
 
 # Baked-in exclusions for pack. From BALE.md section 6.4.
 # Directory names (matched by basename at any depth).

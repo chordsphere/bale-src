@@ -18,6 +18,7 @@ bale/
     CLAUDE.md       # the working agreement bale injects into every request
     TARBALL.md      # the wire-format contract for request/response tarballs
     DOCS.md         # doc-management philosophy
+    CODE.md         # code-layout philosophy (extraction, splitting, indexing)
   install.sh        # finalize an install (run after extracting)
   validate.sh       # sanity-check this install
   upgrade.sh        # in-place upgrade to a newer release, preserving user/
@@ -27,7 +28,7 @@ bale/
                     # the release tarball; survives upgrade.sh.
 ```
 
-The three docs in `docs/` are the global workflow docs — bale ships them and
+The four docs in `docs/` are the global workflow docs — bale ships them and
 injects them into every request, so any project using bale sees the same
 contract regardless of the project's own files.
 

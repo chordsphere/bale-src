@@ -16,15 +16,15 @@ file wins.**
 
 ### Global vs project docs
 
-`CLAUDE.md`, `TARBALL.md`, and `DOCS.md` are global — bale injects
-all three into every request from its own installation. Claude does
-not modify these in response tarballs; they evolve only via bale
-sessions targeting the bale tool's own repository. `INDEX.md`,
-`STATE.md`, `charter-brief.md`, ADRs, and schemas are project-
-specific. Bale includes whatever the user names; nothing is auto-
-detected. A casual project (one script, a data folder) may have
-none of the project-specific docs and ship just the three global
-docs + the session prompt + the relevant source files.
+`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` are global —
+bale injects all four into every request from its own installation.
+Claude does not modify these in response tarballs; they evolve only
+via bale sessions targeting the bale tool's own repository.
+`INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs, and schemas are
+project-specific. Bale includes whatever the user names; nothing
+is auto-detected. A casual project (one script, a data folder) may
+have none of the project-specific docs and ship just the four
+global docs + the session prompt + the relevant source files.
 
 ---
 
@@ -37,7 +37,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `CLAUDE.md` in full; `TARBALL.md` and `DOCS.md` are present and skimmed for orientation, drilled into per the triggers below. Plus the session prompt and any project docs (`charter-brief.md`, `INDEX.md`, etc.) the project has |
+| Every session | `CLAUDE.md` in full; `TARBALL.md`, `DOCS.md`, and `CODE.md` are present and skimmed for orientation, drilled into per the triggers below. Plus the session prompt and any project docs (`charter-brief.md`, `INDEX.md`, etc.) the project has |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `adr/NNNN-*.md` |
@@ -45,6 +45,7 @@ The minimum context for the task. Default at every threshold:
 | Task modifies source files | + those files (named in the request) |
 | Code is meant to land in the project | Re-read `TARBALL.md` before producing |
 | Adding/splitting/pruning documentation | Re-read `DOCS.md` before producing |
+| Adding/splitting/pruning code, or making layout decisions | Re-read `CODE.md` before producing |
 | Environment-specific gap remains after the above | Return a probe — see `TARBALL.md` section 4 |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
@@ -96,8 +97,9 @@ The INDEX read-paths table is the source. The principles below say
   in `TARBALL.md` section 4.
 - **Triggered drill-downs happen *before* the work, not during.**
   Entering tarball mode → read `TARBALL.md` first. Touching the doc
-  inventory → read `DOCS.md` first. This file says *when*; the
-  specialized file says *how*.
+  inventory → read `DOCS.md` first. Touching code layout
+  (extraction, splitting, indexing) → read `CODE.md` first. This
+  file says *when*; the specialized file says *how*.
 
 ---
 
@@ -312,17 +314,17 @@ the conversation doesn't have to.
   explicitly. Default assumption: no emergency.
 - **The protocol itself feels wrong** — if a session feels like the
   protocol is the work, the protocol is broken. Fix it here (or in
-  `TARBALL.md` if the mechanics are the problem, or in `DOCS.md` if
-  it's a documentation-maintenance gap), and propagate to every
-  project.
+  `TARBALL.md` if the mechanics are the problem, in `DOCS.md` if
+  it's a documentation-maintenance gap, or in `CODE.md` if it's a
+  code-layout gap), and propagate to every project.
 
 ---
 
 ## 10. What to include in a request tarball
 
-Bale injects `CLAUDE.md`, `TARBALL.md`, and `DOCS.md` into every
-request from its own installation. They are always present; Claude
-never has to ask for them.
+Bale injects `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md`
+into every request from its own installation. They are always
+present; Claude never has to ask for them.
 
 Project docs (`INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs,
 schemas) are included by the user if the project has them, omitted

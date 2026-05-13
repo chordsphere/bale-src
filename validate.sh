@@ -56,7 +56,7 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
 [[ -x "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh executable"  || fail "upgrade.sh executable"
 [[ -f "$INSTALL_DIR/README.md"   ]]             && pass "README.md present"      || fail "README.md present"
-for d in CLAUDE TARBALL DOCS; do
+for d in CLAUDE TARBALL DOCS CODE; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
 
@@ -89,7 +89,7 @@ if [[ ! -x "$BALE" ]]; then
 fi
 
 section "CLI surface"
-check_output "--version reports 0.0.3"  "bale 0.0.3" "$BALE" --version
+check_output "--version reports 0.0.4"  "bale 0.0.4" "$BALE" --version
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
@@ -145,7 +145,7 @@ check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh
 section "symlink resolution (if applicable)"
 SYM="$HOME/.local/bin/bale"
 if [[ -L "$SYM" && "$(readlink "$SYM")" == "$BALE" ]]; then
-  check_output "via symlink: --version" "bale 0.0.3" "$SYM" --version
+  check_output "via symlink: --version" "bale 0.0.4" "$SYM" --version
 else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"
 fi

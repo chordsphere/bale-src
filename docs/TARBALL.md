@@ -75,12 +75,13 @@ request-NNN/
   CLAUDE.md            # injected by bale
   TARBALL.md           # injected by bale
   DOCS.md              # injected by bale
+  CODE.md              # injected by bale
   context/             # everything the user chose to include
     <project files and any project docs the user named>
   README.md            # optional; user's voice beyond the manifest's `goal` field
 ```
 
-The first four slots are reserved for bale-injected global docs and
+The first five slots are reserved for bale-injected global docs and
 the manifest. Everything else the user wants Claude to see —
 including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
