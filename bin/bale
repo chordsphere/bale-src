@@ -1805,6 +1805,7 @@ def walk_configurables(existing: dict) -> dict:
         "hooks.post_pack",
         current=current_post_pack or None,
         description=[
+            "Optional. Enter to skip; you can wire one up later.",
             "Script invoked after `bale pack` successfully writes the",
             "request tarball and acquires the session lock. Bale prompts",
             "before running it. Use cases: copying the tarball path to",
@@ -1823,6 +1824,7 @@ def walk_configurables(existing: dict) -> dict:
         "hooks.post_apply_pass",
         current=current_post_apply_pass or None,
         description=[
+            "Optional. Enter to skip; you can wire one up later.",
             "Script invoked after `bale apply` succeeds (PASS path,",
             "post-merge). Bale prompts before running it. Use cases:",
             "reinstalling bale on bale-src, syncing artifacts, notifying",
@@ -1850,6 +1852,7 @@ def walk_configurables(existing: dict) -> dict:
         "apply.search_paths",
         current=current_search_paths,
         description=[
+            "Optional. Enter to skip; you can wire one up later.",
             "Directories `bale apply` and `bale retry` search when given a",
             "relative tarball name. Tried in order; first match wins. An",
             "absolute path argument bypasses search. Cwd is always tried",
@@ -1927,8 +1930,10 @@ def cmd_config_init(args: argparse.Namespace) -> int:
 
     repo = repo_root(cwd)
     if repo is None:
-        fail("not in a git repo. `bale config init` requires a project repo. "
-             "Run `git init && git add -A && git commit -m initial` first.")
+        fail("not in a git repo. `bale config init` configures bale for one "
+             "project at a time, and that project must be a git repo. "
+             "`cd` into the project you want to use bale with, then re-run. "
+             "(No git repo yet? `git init && git add -A && git commit -m initial`.)")
     refuse_system_dir(repo)
 
     cfg_path = repo / BALE_CONFIG
@@ -1943,6 +1948,11 @@ def cmd_config_init(args: argparse.Namespace) -> int:
         print(f"  (existing file; current values shown, Enter keeps each.)")
     else:
         print(f"  (new file; only the keys you set will be written.)")
+    print()
+    print(f"  This is the canonical setup walkthrough for using bale on this")
+    print(f"  repo. It's idempotent — re-run any time to review or change.")
+    print(f"  Everything past git identity is optional; pressing Enter through")
+    print(f"  the rest leaves the repo in a perfectly usable state.")
 
     walkthrough_git_identity(repo)
 
