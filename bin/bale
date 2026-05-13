@@ -98,6 +98,23 @@ HOOK_NAMES = (
     "post_apply_pass",
 )
 
+# Value-shaped configurables under the [apply] section. Parallels HOOK_NAMES
+# in spirit (a tuple of declared keys; the wizard is the source of truth for
+# the discoverable surface) but the *shape* is different: hooks are single
+# script paths, these are richer typed values. Each entry here has:
+#   - a typed accessor (e.g. get_apply_search_paths) that loads + validates
+#   - a walk_configurables() block that prompts for it
+#   - a render_bale_toml() branch that serializes it
+# Currently just `search_paths` (a list of directories). The lesson the
+# bale.toml format generalizes by adding sections + typed accessors, not by
+# abstracting away the difference between section types.
+APPLY_VALUES = (
+    # List of directories to search when `bale apply` or `bale retry`
+    # receives a relative tarball name. Tried in order; first match wins.
+    # Absolute paths bypass search entirely.
+    "search_paths",
+)
+
 # Path-location refusals. From BALE.md section 7.1.
 SYSTEM_DIRS = (
     "/", "/home", "/Users", "/usr", "/var", "/etc", "/bin",
@@ -944,6 +961,59 @@ def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None
             git(["rm", "-f", "--ignore-unmatch", path], cwd=repo)
 
 
+def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
+    """Resolve a CLI tarball argument against `apply.search_paths`.
+
+    Used by `bale apply` and `bale retry`. The semantics are layered so that
+    a user with no search_paths configured sees identical behavior to the
+    pre-search-paths era:
+
+      1. Absolute path → returned as-is. Search is bypassed entirely (per
+         the bale.toml contract). The caller checks existence and emits
+         its normal "tarball not found" error if the path doesn't exist.
+      2. Relative path AND no search_paths configured → resolved against
+         cwd. Same behavior as the original `Path(arg).resolve()` plus
+         the caller's existence check.
+      3. Relative path AND search_paths configured → cwd first, then each
+         configured search path in order. First existing file wins. If
+         none match, fail() here with a multi-line message naming every
+         directory consulted (cwd plus each search path). Cwd is part
+         of the search even though the user didn't configure it — a bare
+         filename should still resolve from where the user invoked bale.
+
+    Tilde and env var expansion on search_paths entries is handled upstream
+    by get_apply_search_paths; entries arrive here already expanded. The
+    cli-supplied `arg` itself is NOT expanded — the shell already does
+    that, and a quoted `~/foo` arg almost certainly means the user
+    explicitly didn't want expansion.
+    """
+    p = Path(arg)
+    if p.is_absolute():
+        return p
+    if not search_paths:
+        # No search configured — preserve pre-feature behavior verbatim.
+        return (cwd / arg).resolve()
+
+    cwd_candidate = cwd / arg
+    if cwd_candidate.is_file():
+        return cwd_candidate.resolve()
+    for sp in search_paths:
+        candidate = Path(sp) / arg
+        if candidate.is_file():
+            return candidate.resolve()
+
+    # Nothing matched. The error names every directory that was searched —
+    # per the explicit constraint, the user should never be left guessing
+    # which paths bale consulted.
+    lines = [f"tarball not found: {arg}", "  searched:"]
+    lines.append(f"    {cwd}  (cwd)")
+    for sp in search_paths:
+        lines.append(f"    {sp}")
+    fail("\n".join(lines))
+    # fail() does sys.exit; this return is unreachable but keeps mypy happy.
+    return cwd_candidate  # pragma: no cover
+
+
 # ---------------------------------------------------------------------------
 # Apply
 # ---------------------------------------------------------------------------
@@ -1148,8 +1218,19 @@ def cmd_apply(args: argparse.Namespace) -> int:
         fail("not in a git repo. `bale apply` requires the project repo.")
     refuse_system_dir(repo)
 
-    tarball_path = Path(args.tarball).resolve()
+    # Resolve the tarball argument through apply.search_paths. When no
+    # search paths are configured, this is equivalent to Path(arg).resolve()
+    # against cwd — preserving the pre-feature behavior verbatim. The
+    # config-malformed-path is fatal up front (load_config / get_apply_search_paths
+    # validate the shape) so the user finds out before any session work.
+    cfg = load_config(repo)
+    search_paths = get_apply_search_paths(cfg)
+    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
+        # Only reachable for the absolute-path branch (relative + search
+        # paths configured already fails inside the helper); the empty-
+        # search-paths relative branch reaches here only if (cwd/arg)
+        # doesn't exist. Either way, the existing message is right.
         fail(f"tarball not found: {tarball_path}")
 
     # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
@@ -1372,7 +1453,11 @@ def cmd_retry(args: argparse.Namespace) -> int:
         fail("not in a git repo. `bale retry` requires the project repo.")
     refuse_system_dir(repo)
 
-    tarball_path = Path(args.tarball).resolve()
+    # Same search-path resolution as `bale apply` — retry takes a tarball
+    # path argument with the same semantics, so it honors the same config.
+    cfg = load_config(repo)
+    search_paths = get_apply_search_paths(cfg)
+    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
@@ -1445,6 +1530,52 @@ def get_hook(cfg: dict, name: str) -> Optional[str]:
         return None
     val = val.strip()
     return val or None
+
+
+def get_apply_search_paths(cfg: dict) -> list[str]:
+    """Return the configured [apply].search_paths, expanded.
+
+    Absent section or absent key returns []. Malformed shape is fatal —
+    same contract as load_config's "typo shouldn't silently disable a
+    configured behavior the user thought was wired up." A misshapen
+    search_paths is exactly that class of bug.
+
+    Expansion: every entry is run through expandvars then expanduser at
+    read time. Persistence keeps the literal user-typed string (so a
+    committed bale.toml with `~/Downloads` works on any machine where
+    `~` resolves); expansion happens here, at the boundary between the
+    config file and the code that consumes the paths.
+
+    Empty-string entries are dropped silently — they're an artifact of
+    sloppy hand-edits (e.g. trailing colons in wizard input) and the
+    user's intent is clearly to omit them.
+    """
+    apply_section = cfg.get("apply")
+    if apply_section is None:
+        return []
+    if not isinstance(apply_section, dict):
+        fail(f"{BALE_CONFIG}: [apply] must be a table, got {type(apply_section).__name__}")
+
+    raw = apply_section.get("search_paths")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        fail(f"{BALE_CONFIG}: apply.search_paths must be an array of strings, "
+             f"got {type(raw).__name__}")
+    for i, entry in enumerate(raw):
+        if not isinstance(entry, str):
+            fail(f"{BALE_CONFIG}: apply.search_paths[{i}] must be a string, "
+                 f"got {type(entry).__name__}")
+
+    expanded: list[str] = []
+    for entry in raw:
+        e = entry.strip()
+        if not e:
+            continue
+        # expandvars first so a $VAR pointing at a path containing ~ still
+        # gets the ~ expanded by the second step.
+        expanded.append(os.path.expanduser(os.path.expandvars(e)))
+    return expanded
 
 
 # ---------------------------------------------------------------------------
@@ -1584,6 +1715,50 @@ def _prompt_value(label: str, *, current: Optional[str],
     return val
 
 
+def _prompt_path_list(label: str, *, current: Optional[list[str]],
+                      description: list[str]) -> Optional[list[str]]:
+    """List-of-paths prompt for the wizard, mirroring `_prompt_value` semantics.
+
+    Same Enter/-/value convention:
+      - Empty input → keep current (None or the previous list).
+      - Literal '-' → clear (return None).
+      - Non-empty input → parse as colon-separated paths, drop empty
+        entries (handles stray leading/trailing/double colons), return
+        the resulting list.
+
+    The display format prefers one path per line, since colon-joined
+    lists are unreadable at length. This is the canonical wizard
+    interface for list-shaped configurables; future list-shaped
+    configurables (envvars, ignore globs, etc.) should reuse this rather
+    than reinventing the parse loop.
+    """
+    print(f"[{label}]")
+    for line in description:
+        print(f"  {line}")
+    if current:
+        print(f"  current:")
+        for p in current:
+            print(f"    {p}")
+    else:
+        print(f"  current: (unset)")
+    print(f"  Enter to keep. Type colon-separated paths to set. Type '-' to clear.")
+    try:
+        raw = input(f"  > ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return current
+    val = raw.strip()
+    if val == "":
+        return current
+    if val == "-":
+        return None
+    # Drop empties — stray colons in input shouldn't introduce ""-entries
+    # that then survive into bale.toml.
+    parts = [p.strip() for p in val.split(":")]
+    parts = [p for p in parts if p]
+    return parts or None
+
+
 def walkthrough_git_identity(repo: Path) -> None:
     """Per constraint: check git user.name and user.email; if either is
     unset, prompt and write to the repo-local git config (never --global).
@@ -1658,6 +1833,37 @@ def walk_configurables(existing: dict) -> dict:
     if val:
         new.setdefault("hooks", {})["post_apply_pass"] = val
 
+    # ---- [apply].search_paths -----------------------------------------------
+    # Read the existing list defensively — if the file was hand-edited into
+    # a misshapen state, we don't want to crash the wizard before it can
+    # rewrite the file. get_apply_search_paths() is the strict accessor used
+    # at apply time; the wizard reads raw and tolerates oddness.
+    existing_apply = existing.get("apply") or {}
+    raw_paths = existing_apply.get("search_paths") if isinstance(existing_apply, dict) else None
+    current_search_paths: Optional[list[str]]
+    if isinstance(raw_paths, list) and all(isinstance(p, str) for p in raw_paths):
+        current_search_paths = [p for p in raw_paths if p] or None
+    else:
+        current_search_paths = None
+
+    val_list = _prompt_path_list(
+        "apply.search_paths",
+        current=current_search_paths,
+        description=[
+            "Directories `bale apply` and `bale retry` search when given a",
+            "relative tarball name. Tried in order; first match wins. An",
+            "absolute path argument bypasses search. Cwd is always tried",
+            "first implicitly — you don't need to list it.",
+            "Tilde (~/Downloads) and env vars ($HOME/Downloads) expand at",
+            "use time, so the committed file stays portable across machines.",
+            "Use case: a `post_pack` hook drops the request tarball in",
+            "~/Downloads; with ~/Downloads in search_paths, the matching",
+            "`bale apply request-NNN.tar.gz` works from anywhere in the repo.",
+        ],
+    )
+    if val_list:
+        new.setdefault("apply", {})["search_paths"] = val_list
+
     return new
 
 
@@ -1695,6 +1901,23 @@ def render_bale_toml(cfg: dict) -> str:
                 # introduce non-string scalars, add a branch here.
                 parts.append(f"{key} = {json.dumps(v)}")
         parts.append("")
+
+    # [apply] section. Currently just search_paths; future value-shaped
+    # configurables under [apply] each get their own branch here (and a
+    # walk_configurables block, and a typed accessor — the trio scales).
+    apply_section = cfg.get("apply") or {}
+    if apply_section:
+        parts.append("[apply]")
+        if "search_paths" in apply_section:
+            paths = apply_section["search_paths"]
+            # Emit as a TOML array literal. json.dumps produces a valid TOML
+            # array of strings for the list-of-strings case (the only one
+            # we currently support). Persisted literally — no expansion at
+            # write time, so the committed file is portable across machines.
+            rendered_array = "[" + ", ".join(json.dumps(p) for p in paths) + "]"
+            parts.append(f"search_paths = {rendered_array}")
+        parts.append("")
+
     return "\n".join(parts)
 
 
@@ -1784,6 +2007,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_apply = sub.add_parser(
         "apply",
         help="Validate and apply a response tarball.",
+        description=(
+            "Validate and apply a response tarball. The tarball argument is "
+            "resolved against apply.search_paths in bale.toml when set: "
+            "relative names are tried against cwd first, then each "
+            "configured directory in order, first match wins. Absolute "
+            "paths bypass search. Configure via `bale config init`."
+        ),
     )
     p_apply.add_argument("tarball", help="Path to response-NNN.tar.gz.")
     p_apply.add_argument(
@@ -1804,7 +2034,9 @@ def build_parser() -> argparse.ArgumentParser:
             "staging — and run the apply pipeline against a new response "
             "tarball, preserving the lock so the new attempt lands in "
             "the same session id. The new tarball's manifest.responds_to "
-            "must match the locked sid (same as `bale apply`)."
+            "must match the locked sid (same as `bale apply`). The tarball "
+            "argument is resolved against apply.search_paths in bale.toml "
+            "the same way `bale apply` does."
         ),
     )
     p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
