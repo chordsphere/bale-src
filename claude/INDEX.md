@@ -44,7 +44,7 @@ documentation for bale-src, not a global workflow doc, and is not
 injected into requests for other projects.
 
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
-findable docs. This one was introduced early on architect's call so the
+findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
 is BALE.md plus two explainers; further explainers will likely arrive
 alongside the apply search-paths mechanism or a new hook.
