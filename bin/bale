@@ -990,8 +990,25 @@ def cmd_apply(args: argparse.Namespace) -> int:
         else:
             staging = Path(args.staging_dir).resolve()
         if staging.exists():
-            fail(f"staging directory already exists: {staging}. "
-                 f"Remove it or pass --staging-dir to a fresh path.")
+            # Default-path staging from a prior session is unambiguously stale
+            # at this point: either the previous session PASSed (its session
+            # dir has already been removed by the PASS path below, with the
+            # merge commit plus applied/<sid> tag as the durable record), or this is a
+            # retry of an apply that errored mid-stage (rebuilding identical
+            # staging from inputs is correct), or it's a HOLD the user has
+            # decided to move past (re-invoking apply is the signal). The
+            # `bale revert` path has its own staging cleanup. A user-specified
+            # --staging-dir, by contrast, is the user's directory and we
+            # refuse rather than nuke it.
+            if args.staging_dir is None:
+                log(f"removing stale staging at {staging}")
+                try:
+                    shutil.rmtree(staging)
+                except OSError as e:
+                    fail(f"could not remove stale staging at {staging}: {e}")
+            else:
+                fail(f"staging directory already exists: {staging}. "
+                     f"Remove it or pass --staging-dir to a fresh path.")
         # Record staging path under the session dir so `bale revert` can
         # clean it up later. Written before stage_response so a partial
         # stage that errors out still leaves a trail for revert to follow.
