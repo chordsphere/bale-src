@@ -1,0 +1,1204 @@
+#!/usr/bin/env python3
+"""bale — Claude session orchestrator.
+
+v0.0.1 bootstrap. Hand-written, pre-tarball-protocol.
+
+Per BALE.md section 13, v0.0.1 implements just enough to apply its own
+first response tarball:
+
+    bale pack <goal> --include <paths>
+    bale apply <tarball>
+    bale revert <sid>
+
+No rollback, no unlock, no wizard, no release-tarball packaging. Stdlib
+only. Designed to be replaced by a v0.1 tarball that fleshes out the
+full pipeline.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+VERSION = "0.0.1"
+
+# bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
+# Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
+# still finds the real docs directory next to the real bin/.
+INSTALL_ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = INSTALL_ROOT / "docs"
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md")
+
+# Baked-in exclusions for pack. From BALE.md section 6.4.
+# Directory names (matched by basename at any depth).
+BAKED_IN_EXCLUDE_DIRS = {
+    # Bale and git internals
+    ".git", ".bale",
+    # Common big-build dirs
+    "node_modules", "__pycache__", ".venv", "target", "dist",
+    "build", ".next", ".nuxt", "out", ".cache",
+}
+
+# Filename glob patterns (matched by basename).
+SECRET_PATTERNS = (
+    ".env", ".env.*",
+    "*.pem", "*.key",
+    "*_rsa", "*_dsa",
+    "*.p12", "*.pfx",
+    "id_rsa", "id_dsa",
+    ".pypirc",
+)
+
+# Full relative paths from repo root that are always excluded.
+SECRET_PATH_EXCLUDES = (
+    ".aws/credentials",
+)
+
+# Path-location refusals. From BALE.md section 7.1.
+SYSTEM_DIRS = (
+    "/", "/home", "/Users", "/usr", "/var", "/etc", "/bin",
+    "/sbin", "/lib", "/lib64", "/opt", "/srv", "/proc", "/sys",
+    "/dev", "/tmp", "/var/tmp", "/private/tmp",
+)
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+#
+# v0.0.1 logs to stdout with a [bale] prefix. When a session is open we
+# also append to .bale/logs/<sid>.log. Structured logging proper lands
+# in v0.1.
+
+_log_file: Optional[Path] = None
+
+
+def set_log_file(p: Optional[Path]) -> None:
+    global _log_file
+    _log_file = p
+
+
+def log(msg: str) -> None:
+    line = f"[bale] {msg}"
+    print(line)
+    if _log_file is not None:
+        try:
+            _log_file.parent.mkdir(parents=True, exist_ok=True)
+            with _log_file.open("a", encoding="utf-8") as f:
+                ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                f.write(f"{ts} {line}\n")
+        except OSError as e:
+            # Logging must never raise; surface and continue.
+            print(f"[bale] (log-write failed: {e})", file=sys.stderr)
+
+
+def fail(msg: str, code: int = 1) -> None:
+    """Print a [bale] error to stderr, log it if a session is open, exit."""
+    line = f"[bale] error: {msg}"
+    print(line, file=sys.stderr)
+    if _log_file is not None:
+        try:
+            _log_file.parent.mkdir(parents=True, exist_ok=True)
+            with _log_file.open("a", encoding="utf-8") as f:
+                ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                f.write(f"{ts} {line}\n")
+        except OSError:
+            pass
+    sys.exit(code)
+
+
+# ---------------------------------------------------------------------------
+# Shell / git helpers
+# ---------------------------------------------------------------------------
+
+def run(cmd: list[str], *, cwd: Optional[Path] = None,
+        check: bool = True, capture: bool = True) -> subprocess.CompletedProcess:
+    """Wrapper around subprocess.run with consistent defaults.
+
+    Captures stdout/stderr as text by default. Raises CalledProcessError
+    on non-zero when check=True.
+    """
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd is not None else None,
+        check=check,
+        capture_output=capture,
+        text=True,
+    )
+
+
+def git(args: list[str], *, cwd: Path,
+        check: bool = True) -> subprocess.CompletedProcess:
+    return run(["git", *args], cwd=cwd, check=check)
+
+
+def repo_root(cwd: Path) -> Optional[Path]:
+    """Return the repo root containing cwd, or None if not in a repo."""
+    try:
+        r = run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=cwd, check=True, capture=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+    except FileNotFoundError:
+        fail("git not found on PATH; bale requires git.")
+    return Path(r.stdout.strip())
+
+
+# ---------------------------------------------------------------------------
+# Hashing
+# ---------------------------------------------------------------------------
+
+def sha256_file(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Session IDs and the per-day counter
+# ---------------------------------------------------------------------------
+#
+# Session ID format (TARBALL.md section 1): YYYY-MM-DD-<slug>-NNN
+# where NNN is a per-day monotonic counter maintained in
+# .bale/counter-YYYY-MM-DD.
+
+def next_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
+    today = today or date.today()
+    day = today.isoformat()
+    counter_path = repo / ".bale" / f"counter-{day}"
+    counter_path.parent.mkdir(parents=True, exist_ok=True)
+    if counter_path.exists():
+        try:
+            n = int(counter_path.read_text().strip()) + 1
+        except (OSError, ValueError):
+            n = 1
+    else:
+        n = 1
+    counter_path.write_text(f"{n}\n")
+    return f"{day}-{slug}-{n:03d}"
+
+
+# ---------------------------------------------------------------------------
+# Lock handling
+# ---------------------------------------------------------------------------
+#
+# .bale/current_session holds the open sid, or is empty when no session
+# is active. See BALE.md section 3.4 and section 9.5.
+
+def lock_path(repo: Path) -> Path:
+    return repo / ".bale" / "current_session"
+
+
+def read_lock(repo: Path) -> Optional[str]:
+    p = lock_path(repo)
+    if not p.exists():
+        return None
+    s = p.read_text().strip()
+    return s or None
+
+
+def write_lock(repo: Path, sid: str) -> None:
+    p = lock_path(repo)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(f"{sid}\n")
+
+
+def clear_lock(repo: Path) -> None:
+    p = lock_path(repo)
+    if p.exists():
+        p.write_text("")
+
+
+# ---------------------------------------------------------------------------
+# .gitignore handling for the .bale/ directory
+# ---------------------------------------------------------------------------
+
+def ensure_bale_gitignored(repo: Path) -> bool:
+    """Append .bale/ to repo's .gitignore if it isn't already there.
+
+    Returns True if the file was modified (so the caller can decide whether
+    to auto-commit), False if no change was needed.
+
+    Per BALE.md section 7.1 step 6. v0.0.1 appends silently with a log line;
+    the interactive confirmation lands in v0.1.
+    """
+    gi = repo / ".gitignore"
+    needle = ".bale/"
+    if gi.exists():
+        lines = [ln.rstrip("\n") for ln in gi.read_text().splitlines()]
+        if needle in lines or ".bale" in lines:
+            return False
+        with gi.open("a", encoding="utf-8") as f:
+            if lines and lines[-1] != "":
+                f.write("\n")
+            f.write(f"{needle}\n")
+        log(f"appended '{needle}' to {gi}.")
+    else:
+        gi.write_text(f"{needle}\n")
+        log(f"created {gi} with '{needle}'.")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Path-safety checks
+# ---------------------------------------------------------------------------
+
+def refuse_system_dir(p: Path) -> None:
+    """Per BALE.md section 7.1 steps 1-2. No override at v0.0.1."""
+    resolved = p.resolve()
+    if str(resolved) in SYSTEM_DIRS:
+        fail(
+            f"refusing to operate at system directory {resolved}. "
+            f"cd into a project directory and retry."
+        )
+    home = Path.home().resolve()
+    if resolved == home:
+        # v0.0.1 has no --force; refuse outright. v0.1 adds --force for
+        # the legitimate dotfiles-repo case.
+        fail(
+            f"refusing to operate at $HOME ({resolved}). "
+            f"v0.0.1 has no override; cd into a subdirectory."
+        )
+
+
+def is_path_safe(rel: str) -> bool:
+    """Reject path-traversal, absolute paths, and reserved prefixes."""
+    if rel.startswith("/"):
+        return False
+    parts = Path(rel).parts
+    if ".." in parts:
+        return False
+    if parts and parts[0] in (".git", ".bale"):
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Pack: file enumeration and filtering
+# ---------------------------------------------------------------------------
+
+def list_git_files(repo: Path) -> list[str]:
+    """All tracked + untracked-not-ignored files in the repo, repo-relative.
+
+    Uses `git ls-files --cached --others --exclude-standard`, which honors
+    .gitignore at every level plus .git/info/exclude. This is bale's default
+    way of respecting .gitignore (BALE.md section 6.4). v0.0.1 has no
+    `--no-gitignore` escape hatch; that lands in v0.1.
+    """
+    r = run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=repo, check=True,
+    )
+    return [line for line in r.stdout.splitlines() if line]
+
+
+def is_under_excluded_dir(rel: str) -> bool:
+    """Any path component matches a baked-in excluded directory name."""
+    for part in Path(rel).parts:
+        if part in BAKED_IN_EXCLUDE_DIRS:
+            return True
+    return False
+
+
+def matches_secret_pattern(rel: str) -> bool:
+    """Basename matches a secret glob, or full path matches a secret-path entry."""
+    base = Path(rel).name
+    for pat in SECRET_PATTERNS:
+        if fnmatch.fnmatchcase(base, pat):
+            return True
+    for full in SECRET_PATH_EXCLUDES:
+        if rel == full or rel.endswith("/" + full):
+            return True
+    return False
+
+
+def npmrc_has_authtoken(file_path: Path) -> bool:
+    """`.npmrc` is excluded only when it contains _authToken (BALE.md 6.4)."""
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return "_authToken" in content
+
+
+def is_secret_excluded(rel: str, repo: Path) -> bool:
+    if matches_secret_pattern(rel):
+        return True
+    if Path(rel).name == ".npmrc":
+        return npmrc_has_authtoken(repo / rel)
+    return False
+
+
+def is_under_include(rel: str, includes: list[str]) -> bool:
+    """No includes = include everything. Otherwise must be under one of them."""
+    if not includes:
+        return True
+    rel_p = Path(rel)
+    for inc in includes:
+        inc_p = Path(inc)
+        if rel_p == inc_p:
+            return True
+        try:
+            rel_p.relative_to(inc_p)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
+    """Return repo-relative paths that should land in the request's context/.
+
+    Pipeline (BALE.md sections 6.4 and 7.5 step 5):
+      1. Start with `git ls-files` output (already honors .gitignore).
+      2. Drop non-files (git lists untracked directories that contain a
+         nested .git/ as a single directory entry — e.g., bale's own
+         leftover `staging/` from a prior apply).
+      3. Drop anything under a baked-in excluded directory.
+      4. Drop anything matching a secret pattern (or .npmrc w/ _authToken).
+      5. Drop anything not under the user's --include paths (if any).
+    """
+    result: list[str] = []
+    for rel in list_git_files(repo):
+        if not (repo / rel).is_file():
+            continue
+        if is_under_excluded_dir(rel):
+            continue
+        if is_secret_excluded(rel, repo):
+            continue
+        if not is_under_include(rel, includes):
+            continue
+        result.append(rel)
+    return sorted(result)
+
+
+# ---------------------------------------------------------------------------
+# Pack: slug validation
+# ---------------------------------------------------------------------------
+
+def is_valid_slug(s: str) -> bool:
+    """Kebab-case: lowercase letters, digits, and single hyphens between them."""
+    if not s:
+        return False
+    if s.startswith("-") or s.endswith("-") or "--" in s:
+        return False
+    return all(c.islower() or c.isdigit() or c == "-" for c in s)
+
+
+# ---------------------------------------------------------------------------
+# Pack: manifest and tarball construction
+# ---------------------------------------------------------------------------
+
+def build_request_manifest(
+    sid: str,
+    project_name: str,
+    goal: str,
+    constraints: list[str],
+    out_of_scope: list[str],
+    expects_probe: str,
+    context_paths: list[str],
+) -> dict:
+    """Per TARBALL.md section 3.2. v0.0.1 always emits null depends_on."""
+    return {
+        "session_id": sid,
+        "project": project_name,
+        "goal": goal,
+        "depends_on": {
+            "previous_response": None,
+            "previous_probe": None,
+        },
+        "constraints": constraints,
+        "out_of_scope": out_of_scope,
+        "expects_probe": expects_probe,
+        "context_included": [f"context/{p}" for p in context_paths],
+    }
+
+
+def build_request_tarball(
+    repo: Path,
+    sid: str,
+    files: list[str],
+    manifest: dict,
+    out_path: Path,
+) -> None:
+    """Write the request tarball to out_path. Layout per TARBALL.md section 3.1."""
+    nnn = sid[-3:]
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        request_dir = Path(tmp) / f"request-{nnn}"
+        request_dir.mkdir()
+
+        # Inject the three global docs from the bale installation.
+        for doc in GLOBAL_DOCS:
+            shutil.copyfile(DOCS_DIR / doc, request_dir / doc)
+
+        # manifest.json.
+        (request_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+        )
+
+        # context/<files>, preserving each file's repo-relative path.
+        context_dir = request_dir / "context"
+        context_dir.mkdir()
+        for rel in files:
+            src = repo / rel
+            dst = context_dir / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+
+        # Tar with arcname so the archive's top-level entry is `request-NNN/`,
+        # independent of the temp directory's filesystem path.
+        with tarfile.open(out_path, "w:gz") as tf:
+            tf.add(str(request_dir), arcname=f"request-{nnn}")
+
+
+def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
+    """Write per-session metadata. Called AFTER tarball is built but BEFORE
+    the lock — see BALE.md section 7.6."""
+    sessions_dir = repo / ".bale" / "sessions" / sid
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    (sessions_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Pack
+# ---------------------------------------------------------------------------
+
+def cmd_pack(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail(
+            "not in a git repo. v0.0.1 has no git-init walkthrough yet; "
+            "run `git init && git add -A && git commit -m initial` first, "
+            "then retry."
+        )
+    refuse_system_dir(repo)
+
+    # Lock check (BALE.md 7.1 step 5).
+    existing = read_lock(repo)
+    if existing:
+        fail(
+            f"a session is already open: {existing}. "
+            f"Apply its response with `bale apply <tarball>`, or clear "
+            f".bale/current_session by hand (v0.1 adds `bale unlock`)."
+        )
+
+    # Input validation.
+    if not is_valid_slug(args.slug):
+        fail(
+            f"--slug must be kebab-case (lowercase letters, digits, "
+            f"hyphens; no leading/trailing/double hyphens): got {args.slug!r}"
+        )
+    goal = args.goal.strip()
+    if not goal:
+        fail("goal must be non-empty.")
+    for inc in args.include:
+        if not (repo / inc).exists():
+            fail(f"--include path does not exist: {inc}")
+
+    # Ensure .bale/ is in .gitignore before we start writing under it. If we
+    # had to modify .gitignore and the tree is otherwise clean, auto-commit
+    # the change so `bale apply` doesn't trip on the dirty tree later. If
+    # the tree is dirty for other reasons, just warn — the user is mid-WIP
+    # and we shouldn't entangle our setup commit with their work.
+    gitignore_changed = ensure_bale_gitignored(repo)
+    if gitignore_changed:
+        r = git(["status", "--porcelain"], cwd=repo)
+        other_dirty = [
+            ln for ln in r.stdout.splitlines()
+            if ln and not ln.endswith(" .gitignore")
+        ]
+        if other_dirty:
+            log("note: working tree has other uncommitted changes; "
+                ".gitignore was modified but not auto-committed. "
+                "Commit it before `bale apply` or apply will refuse.")
+        else:
+            git(["add", ".gitignore"], cwd=repo)
+            git(["commit", "-m", "bale: ignore .bale/"], cwd=repo)
+            log("auto-committed the .gitignore change")
+
+    # Enumerate files.
+    files = gather_files_for_pack(repo, args.include)
+    if not files:
+        fail("no files would be included after exclusions; widen --include "
+             "or check .gitignore.")
+    log(f"selected {len(files)} files for context/")
+
+    # Allocate session ID and switch logging to the per-session file.
+    sid = next_session_id(repo, args.slug)
+    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    log(f"session id: {sid}")
+
+    # Manifest.
+    manifest = build_request_manifest(
+        sid=sid,
+        project_name=repo.name,
+        goal=goal,
+        constraints=list(args.constraint),
+        out_of_scope=list(args.out_of_scope),
+        expects_probe=args.expects_probe,
+        context_paths=files,
+    )
+
+    # Build tarball.
+    tarball_path = repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+    try:
+        build_request_tarball(repo, sid, files, manifest, tarball_path)
+    except Exception as e:
+        if tarball_path.exists():
+            tarball_path.unlink()
+        fail(f"failed to build request tarball: {e}")
+    log(f"wrote {tarball_path}")
+
+    # Persist session, then acquire the lock LAST (BALE.md 7.6).
+    persist_pack_session(repo, sid, manifest)
+    write_lock(repo, sid)
+    log(f"acquired session lock")
+
+    # User-facing summary.
+    print()
+    print(f"  session id: {sid}")
+    print(f"  tarball:    {tarball_path}")
+    print(f"  files:      {len(files)} in context/")
+    print()
+    print("Send the tarball to Claude. When the response tarball comes back,")
+    print("run: bale apply <response-tarball>")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Apply: helpers
+# ---------------------------------------------------------------------------
+
+def current_branch(repo: Path) -> str:
+    """Return the current branch name (or 'HEAD' if detached — caller decides)."""
+    r = git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo)
+    return r.stdout.strip()
+
+
+def working_tree_clean(repo: Path) -> tuple[bool, str]:
+    """Return (clean, status_output). Clean means git status --porcelain is empty."""
+    r = git(["status", "--porcelain"], cwd=repo)
+    return (not r.stdout.strip(), r.stdout)
+
+
+# Allowed top-level keys in a response manifest (TARBALL.md section 5.2).
+_RESPONSE_MANIFEST_KEYS = {
+    "session_id", "responds_to", "corrects", "summary",
+    "changes", "deferred", "validation_will_run", "claims",
+}
+_VALID_ACTIONS = {"created", "modified", "deleted"}
+_VALID_CLAIM_VALUES = {"pass", "fail", "untested", "unknown"}
+
+
+def validate_response_manifest(manifest: dict) -> None:
+    """Per TARBALL.md section 5.2 and BALE.md section 8.1 step 3.
+
+    Strict: every key present, no unknown keys, every changes[] entry
+    complete with non-empty reason.
+    """
+    if not isinstance(manifest, dict):
+        fail("manifest is not a JSON object")
+
+    keys = set(manifest.keys())
+    missing = _RESPONSE_MANIFEST_KEYS - keys
+    extra = keys - _RESPONSE_MANIFEST_KEYS
+    if missing:
+        fail(f"manifest missing required keys: {sorted(missing)}")
+    if extra:
+        fail(f"manifest has unknown keys: {sorted(extra)}")
+
+    if not isinstance(manifest["session_id"], str) or not manifest["session_id"]:
+        fail("manifest.session_id must be a non-empty string")
+    if not isinstance(manifest["responds_to"], str) or not manifest["responds_to"]:
+        fail("manifest.responds_to must be a non-empty string")
+    if manifest["corrects"] is not None and not isinstance(manifest["corrects"], str):
+        fail("manifest.corrects must be a string or null")
+    if not isinstance(manifest["summary"], str) or not manifest["summary"].strip():
+        fail("manifest.summary must be a non-empty string")
+
+    if not isinstance(manifest["changes"], list):
+        fail("manifest.changes must be a list")
+    for i, change in enumerate(manifest["changes"]):
+        if not isinstance(change, dict):
+            fail(f"manifest.changes[{i}] must be an object")
+        change_keys = set(change.keys())
+        required = {"path", "action", "reason", "size_bytes", "sha256"}
+        cm = required - change_keys
+        cx = change_keys - required
+        if cm:
+            fail(f"manifest.changes[{i}] missing keys: {sorted(cm)}")
+        if cx:
+            fail(f"manifest.changes[{i}] has unknown keys: {sorted(cx)}")
+        if not isinstance(change["path"], str) or not change["path"]:
+            fail(f"manifest.changes[{i}].path must be a non-empty string")
+        if change["action"] not in _VALID_ACTIONS:
+            fail(f"manifest.changes[{i}].action must be one of "
+                 f"{sorted(_VALID_ACTIONS)}, got {change['action']!r}")
+        if not isinstance(change["reason"], str) or not change["reason"].strip():
+            fail(f"manifest.changes[{i}].reason must be non-empty "
+                 f"(path={change['path']!r})")
+        if not isinstance(change["size_bytes"], int) or change["size_bytes"] < 0:
+            fail(f"manifest.changes[{i}].size_bytes must be a non-negative int")
+        if change["action"] == "deleted":
+            if change["sha256"] is not None:
+                fail(f"manifest.changes[{i}]: deleted entries must have sha256=null")
+        else:
+            if not isinstance(change["sha256"], str) or not change["sha256"]:
+                fail(f"manifest.changes[{i}].sha256 required for {change['action']}")
+
+    if not isinstance(manifest["deferred"], list):
+        fail("manifest.deferred must be a list")
+    for i, d in enumerate(manifest["deferred"]):
+        if not isinstance(d, dict):
+            fail(f"manifest.deferred[{i}] must be an object")
+        if set(d.keys()) != {"what", "why"}:
+            fail(f"manifest.deferred[{i}] must have keys {{'what','why'}}, "
+                 f"got {sorted(d.keys())}")
+        for k in ("what", "why"):
+            if not isinstance(d[k], str) or not d[k].strip():
+                fail(f"manifest.deferred[{i}].{k} must be a non-empty string")
+
+    if not isinstance(manifest["validation_will_run"], list):
+        fail("manifest.validation_will_run must be a list")
+    if not all(isinstance(s, str) for s in manifest["validation_will_run"]):
+        fail("manifest.validation_will_run entries must be strings")
+
+    if not isinstance(manifest["claims"], dict):
+        fail("manifest.claims must be an object")
+    for k, v in manifest["claims"].items():
+        if v not in _VALID_CLAIM_VALUES:
+            fail(f"manifest.claims[{k!r}] must be one of "
+                 f"{sorted(_VALID_CLAIM_VALUES)}, got {v!r}")
+
+    # claims keys must be a subset of validation_will_run (BALE.md 8.1 step 10).
+    will_run = set(manifest["validation_will_run"])
+    claim_keys = set(manifest["claims"].keys())
+    extra_claims = claim_keys - will_run
+    if extra_claims:
+        fail(f"manifest.claims has keys not in validation_will_run: "
+             f"{sorted(extra_claims)}")
+
+
+def verify_files_against_manifest(response_dir: Path, manifest: dict) -> None:
+    """BALE.md 8.1 steps 7, 8, 9. All path-safety + presence + sha256 checks."""
+    files_dir = response_dir / "files"
+
+    # 9: path safety on every changes[].path.
+    for change in manifest["changes"]:
+        if not is_path_safe(change["path"]):
+            fail(f"unsafe path in manifest: {change['path']}")
+
+    # 7: presence per action.
+    for change in manifest["changes"]:
+        path = change["path"]
+        action = change["action"]
+        f = files_dir / path
+        if action in ("created", "modified"):
+            if not f.is_file():
+                fail(f"manifest declares {action} {path} but files/{path} "
+                     f"is missing in the tarball")
+        else:  # deleted
+            if f.exists():
+                fail(f"manifest declares deleted {path} but files/{path} "
+                     f"is present in the tarball (deletes must not ship a file)")
+
+    # 7 (other direction): every file in files/ is declared.
+    declared = {c["path"] for c in manifest["changes"]
+                if c["action"] in ("created", "modified")}
+    if files_dir.exists():
+        for f in files_dir.rglob("*"):
+            if f.is_file():
+                rel = f.relative_to(files_dir).as_posix()
+                if rel not in declared:
+                    fail(f"file in tarball not declared in manifest: files/{rel}")
+
+    # 8: sha256 matches for created/modified.
+    for change in manifest["changes"]:
+        if change["action"] in ("created", "modified"):
+            actual = sha256_file(files_dir / change["path"])
+            if actual != change["sha256"]:
+                fail(f"sha256 mismatch for {change['path']}: "
+                     f"manifest={change['sha256'][:12]}..., "
+                     f"actual={actual[:12]}...")
+
+
+def stage_response(repo: Path, response_dir: Path, manifest: dict, staging: Path) -> None:
+    """Build the staging tree: cp project, overlay files/, apply deletes.
+
+    BALE.md section 8.3. v0.0.1 ignores apply.sh and drives deletes from
+    the manifest directly (BALE.md section 13 v0.0.1).
+    """
+    staging.mkdir(parents=True)
+    staging_resolved = staging.resolve()
+
+    # cp project state into staging, minus .bale/ (BALE.md 8.3 step 2 spec).
+    # Also skip the staging directory itself if it lives inside the repo —
+    # otherwise iterdir() yields it (we just created it) and we'd copy it
+    # into itself.
+    for item in repo.iterdir():
+        if item.name == ".bale":
+            continue
+        if item.resolve() == staging_resolved:
+            continue
+        dst = staging / item.name
+        if item.is_dir():
+            shutil.copytree(item, dst, symlinks=True)
+        else:
+            shutil.copy2(item, dst, follow_symlinks=False)
+
+    # Overlay files/ from the response (BALE.md 8.3 step 3).
+    files_dir = response_dir / "files"
+    if files_dir.exists():
+        for src in files_dir.rglob("*"):
+            if src.is_file():
+                rel = src.relative_to(files_dir)
+                dst = staging / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst, follow_symlinks=False)
+
+    # Apply deletes directly from manifest (v0.0.1 substitutes for apply.sh).
+    for change in manifest["changes"]:
+        if change["action"] == "deleted":
+            target = staging / change["path"]
+            if target.exists():
+                target.unlink()
+                log(f"staged delete: {change['path']}")
+            else:
+                # Not strictly an error — the response may delete something
+                # already gone — but worth surfacing for review.
+                log(f"warning: deleted entry {change['path']} was not "
+                    f"present in the project; staging unchanged for it")
+
+
+def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
+                      manifest: dict, sid: str) -> int:
+    """Copy validation.sh into staging, place .bale-manifest.json for claims
+    access, run it, log output, return exit code."""
+    val_dst = staging / "validation.sh"
+    shutil.copy2(response_dir / "validation.sh", val_dst)
+    val_dst.chmod(0o755)
+
+    # Per BALE.md 7.3 — validation.sh reads claims here.
+    (staging / ".bale-manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+    )
+
+    log("running validation.sh in staging...")
+    result = subprocess.run(
+        ["bash", "validation.sh"],
+        cwd=str(staging),
+        capture_output=True,
+        text=True,
+    )
+
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+
+    log_file = repo / ".bale" / "logs" / f"{sid}.log"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with log_file.open("a", encoding="utf-8") as f:
+        f.write(f"\n--- validation.sh stdout ({sid}) ---\n")
+        f.write(result.stdout)
+        if result.stderr:
+            f.write(f"\n--- validation.sh stderr ---\n")
+            f.write(result.stderr)
+        f.write(f"\n--- validation.sh exit code: {result.returncode} ---\n")
+
+    return result.returncode
+
+
+def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None:
+    """Apply each manifest entry to the working tree. Used by both PASS and HOLD;
+    the caller decides whether to commit afterward.
+    """
+    for change in manifest["changes"]:
+        path = change["path"]
+        action = change["action"]
+        if action in ("created", "modified"):
+            src = staging / path
+            dst = repo / path
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+            git(["add", path], cwd=repo)
+        elif action == "deleted":
+            # `git rm` removes from working tree AND stages the deletion.
+            # If the file is already absent from the working tree (e.g. someone
+            # deleted it manually), --ignore-unmatch keeps us from erroring.
+            git(["rm", "-f", "--ignore-unmatch", path], cwd=repo)
+
+
+# ---------------------------------------------------------------------------
+# Apply
+# ---------------------------------------------------------------------------
+
+def cmd_apply(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale apply` requires the project repo.")
+    refuse_system_dir(repo)
+
+    tarball_path = Path(args.tarball).resolve()
+    if not tarball_path.is_file():
+        fail(f"tarball not found: {tarball_path}")
+
+    # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
+    locked_sid = read_lock(repo)
+    if locked_sid is None:
+        fail("no session is open. Run `bale pack` first to open one.")
+
+    # Wire logging to the session log from here on.
+    set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
+    log(f"applying {tarball_path.name} against session {locked_sid}")
+
+    # 8.1 step 5: working tree clean.
+    clean, status = working_tree_clean(repo)
+    if not clean:
+        fail("working tree is not clean. Commit or stash before applying:\n" + status)
+
+    # Extract and validate the tarball into a temp dir.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 8.1 step 1: tar integrity.
+        try:
+            tf = tarfile.open(tarball_path, "r:gz")
+        except (tarfile.TarError, OSError) as e:
+            fail(f"tarball is unreadable: {e}")
+
+        try:
+            # Defensive scan for unsafe paths inside the archive itself.
+            for member in tf.getmembers():
+                name = member.name
+                if name.startswith("/") or ".." in Path(name).parts:
+                    fail(f"tarball contains unsafe path: {name}")
+            # 8.1 step 2: extract.
+            tf.extractall(tmpdir)
+        finally:
+            tf.close()
+
+        # The archive must have exactly one top-level response-NNN/ directory.
+        entries = [p for p in Path(tmpdir).iterdir()]
+        if len(entries) != 1 or not entries[0].is_dir():
+            fail(f"tarball must contain exactly one top-level directory; "
+                 f"found {[e.name for e in entries]}")
+        response_dir = entries[0]
+        if not response_dir.name.startswith("response-"):
+            fail(f"top-level directory must be named response-NNN/, "
+                 f"got {response_dir.name}/")
+
+        # 8.1 step 11: required files present.
+        for required in ("manifest.json", "apply.sh", "validation.sh"):
+            if not (response_dir / required).is_file():
+                fail(f"missing required file in tarball: {required}")
+
+        # 8.1 step 3: read and schema-validate the manifest.
+        try:
+            manifest = json.loads((response_dir / "manifest.json").read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            fail(f"manifest.json is not valid JSON: {e}")
+        validate_response_manifest(manifest)
+        log("manifest schema validation passed")
+
+        # 8.1 step 6: responds_to matches the locked sid.
+        if manifest["responds_to"] != locked_sid:
+            fail(f"manifest.responds_to={manifest['responds_to']!r} does not "
+                 f"match locked session {locked_sid!r}")
+
+        # 8.1 steps 7, 8, 9: file presence, sha256, path safety.
+        verify_files_against_manifest(response_dir, manifest)
+        log("file presence, sha256, and path safety verified")
+
+        # 8.2 stamp session.
+        sessions_dir = repo / ".bale" / "sessions" / locked_sid
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        head = git(["rev-parse", "HEAD"], cwd=repo).stdout.strip()
+        origin_branch = current_branch(repo)
+        (sessions_dir / "git_head_at_apply").write_text(head + "\n")
+        (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
+        (sessions_dir / "response-manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+        )
+
+        # 8.3 stage. Default ./staging/, overridable.
+        staging = Path(args.staging_dir).resolve()
+        if staging.exists():
+            fail(f"staging directory already exists: {staging}. "
+                 f"Remove it or pass --staging-dir to a fresh path.")
+        try:
+            stage_response(repo, response_dir, manifest, staging)
+        except Exception as e:
+            shutil.rmtree(staging, ignore_errors=True)
+            fail(f"failed to stage response: {e}")
+        log(f"staged into {staging}")
+
+        # 8.5: create bale/<sid> branch at HEAD (don't check out yet).
+        sid_branch = f"bale/{locked_sid}"
+        try:
+            git(["branch", sid_branch, "HEAD"], cwd=repo)
+        except subprocess.CalledProcessError as e:
+            fail(f"could not create branch {sid_branch}: "
+                 f"{e.stderr or e.stdout or e}")
+        log(f"created branch {sid_branch} at HEAD ({head[:7]})")
+
+        # Run validation.sh in staging.
+        exit_code = run_validation_sh(repo, response_dir, staging, manifest, locked_sid)
+        log(f"validation.sh exit code: {exit_code}")
+
+        # 8.6 commit-or-hold. v0.0.1: no walkthrough; PASS auto-merges, HOLD leaves
+        # the branch with staged uncommitted changes for inspection.
+        if exit_code == 0:
+            git(["checkout", sid_branch], cwd=repo)
+            apply_changes_to_worktree(repo, staging, manifest)
+            commit_msg = f"[bale {locked_sid}] {manifest['summary']}"
+            git(["commit", "-m", commit_msg], cwd=repo)
+            log(f"committed changes to {sid_branch}")
+
+            # Merge into origin (BALE.md 8.8 "Merge").
+            git(["checkout", origin_branch], cwd=repo)
+            git(["merge", "--no-ff", sid_branch, "-m",
+                 f"Merge bale {locked_sid}"], cwd=repo)
+            git(["tag", f"applied/{locked_sid}"], cwd=repo)
+            git(["branch", "-d", sid_branch], cwd=repo)
+
+            # Cleanup: clear lock, remove session dir.
+            clear_lock(repo)
+            shutil.rmtree(sessions_dir, ignore_errors=True)
+            log(f"tagged applied/{locked_sid}, cleared lock, deleted {sid_branch}")
+
+            print()
+            print(f"  [PASS] {locked_sid}")
+            print(f"  tag:     applied/{locked_sid}")
+            print(f"  branch:  {origin_branch} (merged)")
+            print(f"  files:   {len(manifest['changes'])} changed")
+            print(f"  staging: {staging} (preserved for inspection)")
+            return 0
+
+        # HOLD path. Apply to worktree but do not commit; leave branch checked
+        # out with staged changes for the user to inspect.
+        git(["checkout", sid_branch], cwd=repo)
+        apply_changes_to_worktree(repo, staging, manifest)
+        log(f"validation FAILED (exit={exit_code}); held on {sid_branch} "
+            f"with staged uncommitted changes")
+
+        print()
+        print(f"  [HOLD] {locked_sid}")
+        print(f"  validation exited {exit_code}")
+        print(f"  branch:  {sid_branch} (uncommitted; `git diff --cached` to inspect)")
+        print(f"  log:     .bale/logs/{locked_sid}.log")
+        print(f"  staging: {staging} (preserved)")
+        print(f"  discard: clear .bale/current_session and `git checkout {origin_branch} && "
+              f"git branch -D {sid_branch}` (v0.0.1 has no `bale revert` yet)")
+        return 1
+
+
+# ---------------------------------------------------------------------------
+# Revert
+# ---------------------------------------------------------------------------
+
+def cmd_revert(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale revert` requires the project repo.")
+    refuse_system_dir(repo)
+
+    sid = args.sid
+    sid_branch = f"bale/{sid}"
+    sessions_dir = repo / ".bale" / "sessions" / sid
+
+    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    log(f"revert: {sid}")
+
+    # 9.1 step 1: origin_branch lives in the session metadata.
+    origin_branch_file = sessions_dir / "origin_branch"
+    if not origin_branch_file.is_file():
+        fail(f"no session metadata for {sid} at {sessions_dir}. Either the "
+             f"sid is wrong or the session was already cleaned up.")
+    origin_branch = origin_branch_file.read_text().strip()
+    if not origin_branch:
+        fail(f"origin_branch file at {origin_branch_file} is empty")
+
+    # The bale branch must exist. If it doesn't, the session was already
+    # applied (PASS path deletes the branch after merge) — direct the user
+    # to git revert, since v0.0.1 has no `bale rollback` yet.
+    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                       cwd=repo, check=False)
+    if branch_check.returncode != 0:
+        fail(f"no branch {sid_branch}. If the session was already applied, "
+             f"v0.0.1 has no `bale rollback` — use `git revert applied/{sid}` "
+             f"manually to undo a merged session.")
+
+    # 9.1 step 2: refuse if the bale branch is already merged into origin.
+    # Tricky: in a HOLD the bale branch and origin point at the SAME commit
+    # (no commit was made on the bale branch), so the literal `is-ancestor`
+    # check is trivially true even though nothing was merged. The intent is
+    # "merged via a merge commit so deleting the branch would lose history
+    # that's threaded through origin" — which only applies when the SHAs
+    # differ. So guard the ancestor check accordingly.
+    sid_sha = git(["rev-parse", sid_branch], cwd=repo).stdout.strip()
+    origin_sha = git(["rev-parse", origin_branch], cwd=repo).stdout.strip()
+    if sid_sha != origin_sha:
+        ancestor = git(["merge-base", "--is-ancestor", sid_branch, origin_branch],
+                       cwd=repo, check=False)
+        if ancestor.returncode == 0:
+            fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
+                 f"this session was already merged. v0.0.1 has no `bale rollback`; "
+                 f"use `git revert applied/{sid}` manually.")
+
+    # 9.1 steps 3-4: if currently on bale/<sid>, discard the HOLD's staged
+    # changes and switch to origin. (The doc refuses on a dirty tree with a
+    # --force override; v0.0.1 has no --force, so we resolve the only
+    # legitimately-dirty case — staged changes from a HOLD on the bale
+    # branch — by reset-hard. Other branches' WIP is left alone since we
+    # don't touch them.)
+    current = current_branch(repo)
+    if current == sid_branch:
+        log(f"on {sid_branch}; resetting staged changes and switching to {origin_branch}")
+        git(["reset", "--hard", "HEAD"], cwd=repo)
+        git(["checkout", origin_branch], cwd=repo)
+    elif current != origin_branch:
+        log(f"on {current}; deleting {sid_branch} without changing branch")
+
+    # 9.1 step 5: force-delete the bale branch.
+    git(["branch", "-D", sid_branch], cwd=repo)
+    log(f"deleted branch {sid_branch}")
+
+    # 9.1 step 6: wipe the session dir.
+    if sessions_dir.exists():
+        shutil.rmtree(sessions_dir)
+        log(f"wiped {sessions_dir}")
+
+    # 9.1 step 7: clear the lock if this sid is currently locked.
+    locked = read_lock(repo)
+    lock_cleared = locked == sid
+    if lock_cleared:
+        clear_lock(repo)
+        log(f"cleared lock (was {sid})")
+
+    print()
+    print(f"  reverted {sid}")
+    print(f"  branch:  {origin_branch}")
+    print(f"  lock:    {'cleared' if lock_cleared else 'unchanged'}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="bale",
+        description="Claude session orchestrator (v0.0.1 bootstrap).",
+    )
+    p.add_argument("--version", action="version", version=f"bale {VERSION}")
+
+    sub = p.add_subparsers(dest="command", required=True, metavar="<command>")
+
+    # pack
+    p_pack = sub.add_parser(
+        "pack",
+        help="Build a request tarball from goal + included paths.",
+    )
+    p_pack.add_argument("goal", help="One-sentence goal for the session.")
+    p_pack.add_argument(
+        "--slug", required=True,
+        help="Short kebab-case slug for the session ID.",
+    )
+    p_pack.add_argument(
+        "--include", action="append", default=[], metavar="PATH",
+        help="File or directory to include (repeatable). "
+             "Defaults to the whole repo if omitted.",
+    )
+    p_pack.add_argument(
+        "--constraint", action="append", default=[], metavar="TEXT",
+        help="Add a constraint (repeatable).",
+    )
+    p_pack.add_argument(
+        "--out-of-scope", action="append", default=[], metavar="TEXT",
+        help="Add an out-of-scope item (repeatable).",
+    )
+    p_pack.add_argument(
+        "--expects-probe", choices=("yes", "no", "claude-decides"),
+        default="claude-decides",
+        help="Whether the session expects a probe.",
+    )
+    p_pack.set_defaults(func=cmd_pack)
+
+    # apply
+    p_apply = sub.add_parser(
+        "apply",
+        help="Validate and apply a response tarball.",
+    )
+    p_apply.add_argument("tarball", help="Path to response-NNN.tar.gz.")
+    p_apply.add_argument(
+        "--staging-dir", default="./staging",
+        help="Where to stage the apply (default: ./staging).",
+    )
+    p_apply.set_defaults(func=cmd_apply)
+
+    # revert
+    p_revert = sub.add_parser(
+        "revert",
+        help="Discard a held bale branch.",
+    )
+    p_revert.add_argument("sid", help="Session ID to revert.")
+    p_revert.set_defaults(func=cmd_revert)
+
+    return p
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    # Sanity: the installation must have the three global docs alongside.
+    if args.command == "pack":
+        missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
+        if missing:
+            fail(
+                f"installation is missing global docs in {DOCS_DIR}: "
+                f"{', '.join(missing)}. Reinstall bale."
+            )
+
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
