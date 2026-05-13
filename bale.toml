@@ -11,3 +11,6 @@
 [hooks]
 post_pack = "scripts/copy-request-to-downloads.sh"
 post_apply_pass = "scripts/reinstall.sh"
+
+[apply]
+search_paths = ["/mnt/c/Users/chord/Downloads/"]
