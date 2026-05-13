@@ -6,16 +6,21 @@
 
 ---
 
-## 1. The shape of `bin/bale`
+## 1. The shape of `bin/bale` and the sibling `bin/bale_config.py`
 
-A single Python file (`bin/bale`) with no third-party dependencies. The
-top of the file declares constants (paths, exclusions, version, hook
-names); the rest is organized as roughly-flat sections, each named with
-a banner comment. Read top-to-bottom:
+Two Python files in `bin/`, no third-party dependencies. `bin/bale` is
+the entry point; `bin/bale_config.py` is a sibling module imported by
+`bin/bale` for the configurables loader/merger and the `bale config init`
+wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
+sections). The top of `bin/bale` declares constants (paths, exclusions,
+version); the rest is organized as roughly-flat sections, each named with
+a numbered banner comment. Read `bin/bale` top-to-bottom:
 
-1. **Imports + constants.** `VERSION`, `INSTALL_ROOT`, `GLOBAL_DOCS`,
-   `BAKED_IN_EXCLUDE_DIRS`, `SECRET_PATTERNS`, `SECRET_PATH_EXCLUDES`,
-   `SYSTEM_DIRS`, `BALE_CONFIG`, `HOOK_NAMES`.
+1. **Imports + constants.** `VERSION`, `INSTALL_ROOT`, `DOCS_DIR`,
+   `GLOBAL_DOCS`, `BAKED_IN_EXCLUDE_DIRS`, `SECRET_PATTERNS`,
+   `SECRET_PATH_EXCLUDES`, `SYSTEM_DIRS`. The `BALE_CONFIG`,
+   `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`,
+   `HOOK_NAMES`, and `APPLY_VALUES` constants live in `bale_config`.
 2. **Logging.** `log()` and `fail()`. Logging is first-draft, not
    retrofit — every non-trivial action goes through them.
 3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`. Subprocess
@@ -42,12 +47,22 @@ a banner comment. Read top-to-bottom:
     lock-clear and post-cleanup steps are caller policy. The apply
     pipeline body itself is extracted as `_apply_pipeline()` so both
     `cmd_apply` and `cmd_retry` invoke it without duplication.
-14. **`bale.toml` configurables.** `load_config()`, `get_hook()`.
-15. **Hook invocation.** `confirm_yn()`, `run_hook()`.
-16. **`bale config init` wizard.** `_prompt_value()`,
-    `walkthrough_git_identity()`, `walk_configurables()`,
-    `render_bale_toml()`, `cmd_config_init()`.
-17. **CLI parser + `main`.**
+14. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
+    `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
+    which layer the script came from.
+15. **CLI parser + `main`.** The `bale config init` subparser wires
+    `func=bale_config.cmd_config_init`.
+
+`bin/bale_config.py` has three sections (with its own index header):
+loader/merger (`load_config`, `load_global_config`, `merged_config`,
+`get_hook`, `get_apply_search_paths`); the wizard (`_prompt_value`,
+`walkthrough_git_identity`, `walk_configurables`, `render_bale_toml`,
+`cmd_config_init`); and the module-level constants listed above
+(`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
+`GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, `APPLY_VALUES`). It imports `log`,
+`fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
+`__main__` (i.e. `bin/bale`) inside the functions that use them — see
+the module docstring for why this pattern over a third shared module.
 
 Two-level subparsing only — `bale <verb>` for the four top-level
 commands, plus `bale config <subcommand>` for the config family. At
