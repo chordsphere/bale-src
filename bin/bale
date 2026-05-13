@@ -146,8 +146,12 @@ def fail(msg: str, code: int = 1) -> None:
             with _log_file.open("a", encoding="utf-8") as f:
                 ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
                 f.write(f"{ts} {line}\n")
-        except OSError:
-            pass
+        except OSError as e:
+            # Logging must never raise; surface and continue (matches log()).
+            # The primary error has already gone to stderr above; this second
+            # line tells the user their fail wasn't journaled, which is the
+            # kind of fact they'd want when debugging *why* bale broke.
+            print(f"[bale] (log-write failed: {e})", file=sys.stderr)
     sys.exit(code)
 
 
@@ -827,6 +831,13 @@ def stage_response(repo: Path, response_dir: Path, manifest: dict, staging: Path
 
     BALE.md section 8.3. v0.0.1 ignores apply.sh and drives deletes from
     the manifest directly (BALE.md section 13 v0.0.1).
+
+    Precondition: `staging` must not exist. `_apply_pipeline` checks
+    and removes a stale default-path staging before calling this; the
+    explicit --staging-dir path errors out upstream when staging exists.
+    The bare `staging.mkdir(parents=True)` below (no `exist_ok=True`) is
+    intentional — a violation of the precondition should surface as a
+    FileExistsError, not a silent overlay onto someone else's directory.
     """
     staging.mkdir(parents=True)
     staging_resolved = staging.resolve()
