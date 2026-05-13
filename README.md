@@ -20,12 +20,22 @@ bale/
     DOCS.md         # doc-management philosophy
   install.sh        # finalize an install (run after extracting)
   validate.sh       # sanity-check this install
+  upgrade.sh        # in-place upgrade to a newer release, preserving user/
   README.md         # this file
+  user/             # USER-OWNED. Optional; created by `bale config init --global`.
+                    # Holds global bale.toml + global hook scripts. Never in
+                    # the release tarball; survives upgrade.sh.
 ```
 
 The three docs in `docs/` are the global workflow docs — bale ships them and
 injects them into every request, so any project using bale sees the same
 contract regardless of the project's own files.
+
+`user/` is the only directory inside the install that bale doesn't own. It's
+where your install-wide (global) `bale.toml` and global hook scripts live.
+A fresh install has no `user/` subtree; `bale config init --global` creates
+it on first write. Everything inside is preserved across upgrades when you
+use `upgrade.sh`.
 
 ## Install
 
@@ -46,11 +56,37 @@ tar -xzf bale-vX.Y.Z.tar.gz -C ~/
 
 `install.sh --help` covers the flags (`-y`, `--no-symlink`, `--no-validate`).
 
-For a clean upgrade over an existing install:
+## Upgrading
+
+Three paths, in order of preference:
+
+**1. `upgrade.sh` (recommended).** Preserves `user/` across the swap.
+
+```bash
+~/bale/upgrade.sh path/to/new-bale-release.tar.gz
+```
+
+It moves `user/` aside, wipes the install dir, extracts the new release,
+moves `user/` back, and runs the new `install.sh`. This is the only path
+that's both drift-free (stale files from prior versions are gone) and
+user-data-safe (your `user/bale.toml` and `user/scripts/` survive).
+
+**2. `rm -rf && extract` (manual, drift-free but nukes user/).** Use only
+when you don't have a `user/` subtree (or you've backed it up):
 
 ```bash
 rm -rf ~/bale && tar -xzf bale-vX.Y.Z.tar.gz -C ~/ && ~/bale/install.sh
 ```
+
+**3. `tar -xzf` over the existing install (untracked drift risk).** The new
+release's files overwrite the old, but anything *removed* between versions
+stays behind:
+
+```bash
+tar -xzf bale-vX.Y.Z.tar.gz -C ~/ && ~/bale/install.sh
+```
+
+Use only for quick local tests, never for the install you rely on.
 
 ## Requirements
 
@@ -89,9 +125,28 @@ The result is `bale.toml` at the repo root, committed alongside the rest
 of the project. Absent file or absent key means "silently skip" — the
 mechanism is opt-in by design.
 
+### Optional: global (install-wide) defaults
+
+Two layers share the same schema:
+
+  - **Project layer**: `<repo>/bale.toml`, what `bale config init` writes.
+    Committed and team-shared.
+  - **Global layer**: `<install>/user/bale.toml`, what `bale config init
+    --global` writes. Lives inside the install and follows it as a unit —
+    user-owned, preserved across `upgrade.sh`, never in the release tarball.
+
+When both layers set a key, the project wins. When only the global sets it,
+the project inherits. To suppress an inherited global at a particular project
+without setting your own, set the key to `""` (empty string for scalars,
+`[]` for lists) — the wizard offers this as an explicit `x` option when it
+sees you're walking over an inherited value.
+
+Global hook scripts live under `<install>/user/scripts/`. Project hook scripts
+live under `<repo>/`. Hook paths resolve relative to whichever layer owns them.
+
 You can also skip `bale config init` entirely and just use bale; the first
 `bale pack` in a non-git directory offers a git-init walkthrough, and
-hooks/search-paths default to off if `bale.toml` doesn't exist.
+hooks/search-paths default to off at both layers when nothing is configured.
 
 ## Daily use
 

@@ -53,10 +53,34 @@ section "filesystem layout"
 [[ -x "$BALE" ]]                                && pass "bin/bale executable"    || fail "bin/bale executable"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
+[[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
+[[ -x "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh executable"  || fail "upgrade.sh executable"
 [[ -f "$INSTALL_DIR/README.md"   ]]             && pass "README.md present"      || fail "README.md present"
 for d in CLAUDE TARBALL DOCS; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
+
+section "user-owned layer (global config)"
+# user/ is optional on a fresh install — absence is reported, not failed.
+# Presence is reported; if a global bale.toml exists, syntax-check it.
+if [[ -d "$INSTALL_DIR/user" ]]; then
+  pass "user/ subtree present"
+  if [[ -f "$INSTALL_DIR/user/bale.toml" ]]; then
+    pass "global bale.toml present"
+    # Syntax-check via Python's tomllib (stdlib in 3.11+; bale already
+    # requires that, so this is a free dependency). Treat parse failure
+    # as fatal — matches load_global_config's contract.
+    if python3 -c "import tomllib, sys; tomllib.loads(open('$INSTALL_DIR/user/bale.toml').read())" 2>/dev/null; then
+      pass "global bale.toml is valid TOML"
+    else
+      fail "global bale.toml is valid TOML" "tomllib could not parse it"
+    fi
+  else
+    printf '  [SKIP] no global bale.toml (run "bale config init --global" to create one)\n'
+  fi
+else
+  printf '  [SKIP] no user/ subtree (run "bale config init --global" to create one)\n'
+fi
 
 if [[ ! -x "$BALE" ]]; then
   printf '\n[validate] bin/bale not runnable; skipping remaining checks.\n'
@@ -97,6 +121,16 @@ check_output "retry --help mentions search_paths"  "search_paths" "$BALE" retry 
 # config init's help should mention idempotency since that's the
 # user-facing contract — re-running is safe.
 check_output "config init --help mentions Idempotent" "Idempotent" "$BALE" config init --help
+
+# config init --help should also surface the --global option so users
+# discover the install-wide layer without reading the source. Mention
+# "<install>/user" path so the location is concrete in the help text.
+check_output "config init --help mentions --global" "--global" "$BALE" config init --help
+check_output "config init --help mentions install/user path" "<install>/user" "$BALE" config init --help
+
+# upgrade.sh must be runnable and self-document via --help.
+check_runs "upgrade.sh --help" "$INSTALL_DIR/upgrade.sh" --help
+check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh" --help
 
 # If a symlink at ~/.local/bin/bale points at this install, verify it works.
 section "symlink resolution (if applicable)"

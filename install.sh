@@ -14,8 +14,13 @@
 #   ~/bale/install.sh --no-validate    # skip the trailing validate
 #   ~/bale/install.sh -h | --help      # this help
 #
-# For a clean upgrade over an existing install:
+# For a clean upgrade over an existing install, the recommended path is
+# upgrade.sh, which preserves the user-owned <install>/user/ subtree
+# (global config + global hook scripts) across the swap:
+#   ~/bale/upgrade.sh path/to/new-bale-release.tar.gz
+# Alternatives (drift- or data-loss-prone — see README for tradeoffs):
 #   rm -rf ~/bale && tar -xzf bale-vX.Y.Z.tar.gz -C ~/ && ~/bale/install.sh
+#   tar -xzf bale-vX.Y.Z.tar.gz -C ~/ && ~/bale/install.sh   # may leave stale files
 
 set -euo pipefail
 
@@ -48,14 +53,31 @@ confirm() {
 
 log "install dir: $INSTALL_DIR"
 
-# Verify expected layout. Catches a partial/corrupt extract before we do anything.
-for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh README.md; do
+# Verify expected layout. Catches a partial/corrupt extract before we do
+# anything. user/ is intentionally NOT in this list — it's user-owned and
+# absent on a fresh install; we report its state below but don't fail.
+for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh upgrade.sh README.md; do
   [[ -e "$INSTALL_DIR/$f" ]] || die "missing expected file: $INSTALL_DIR/$f"
 done
 log "layout OK"
 
+# Report user/ state. Present after an upgrade (upgrade.sh restored it).
+# Absent on a fresh install — `bale config init --global` creates it on
+# first write. install.sh never creates user/ itself, because doing so
+# implicitly claims that subtree on a clean install; we'd rather it stay
+# absent until the user opts into global config.
+if [[ -d "$INSTALL_DIR/user" ]]; then
+  if [[ -f "$INSTALL_DIR/user/bale.toml" ]]; then
+    log "global config present: $INSTALL_DIR/user/bale.toml"
+  else
+    log "user/ subtree present (no global bale.toml inside)"
+  fi
+else
+  log "no global config (no user/ subtree); run 'bale config init --global' to set one up"
+fi
+
 # Restore executable bits. Some filesystems (NTFS, FAT) drop them on extract.
-chmod +x "$BALE" "$INSTALL_DIR/validate.sh"
+chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh"
 log "ensured executable bits"
 
 # Symlink onto PATH (optional).
@@ -106,6 +128,9 @@ fi
 # run `bale config init` from here — it requires a git repo (the project the
 # user wants to use bale on), and the install dir is not that.
 log "---"
-log "next step: cd to a project (git repo) you want to use bale with, then"
-log "           run 'bale config init' to walk through per-repo setup."
-log "           (the wizard is idempotent; re-run any time.)"
+log "next steps:"
+log "  - cd to a project (git repo) you want to use bale with, then"
+log "    run 'bale config init' to walk through per-repo setup."
+log "  - optionally run 'bale config init --global' (from anywhere) to set"
+log "    install-wide defaults that every project inherits per-key."
+log "  (both walkthroughs are idempotent; re-run any time.)"

@@ -40,7 +40,7 @@ log "target:     $BALE_INSTALL"
 log "session id: ${BALE_SESSION_ID:-(unset)}"
 
 # Sanity: the source layout must look like a bale install root.
-for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh README.md; do
+for f in bin/bale docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md install.sh validate.sh upgrade.sh README.md; do
   [[ -f "$REPO/$f" ]] || die "source layout missing: $REPO/$f"
 done
 
@@ -56,13 +56,18 @@ mkdir -p "$BALE_INSTALL"
 # Mirror the install-relevant pieces. Wipe bin/ and docs/ first so a
 # rename in the source doesn't leave stale files in the install. The
 # top-level scripts and README are individual files so a plain cp suffices.
+# user/ is intentionally left alone — it's the global-config subtree owned
+# by the user, never in bale-src. This selective-mirror approach is what
+# makes reinstall.sh user/-safe by construction (vs. the rm -rf install
+# approach the README documents as an alternative).
 rm -rf "$BALE_INSTALL/bin" "$BALE_INSTALL/docs"
 cp -R "$REPO/bin"  "$BALE_INSTALL/bin"
 cp -R "$REPO/docs" "$BALE_INSTALL/docs"
 cp    "$REPO/install.sh"  "$BALE_INSTALL/install.sh"
 cp    "$REPO/validate.sh" "$BALE_INSTALL/validate.sh"
+cp    "$REPO/upgrade.sh"  "$BALE_INSTALL/upgrade.sh"
 cp    "$REPO/README.md"   "$BALE_INSTALL/README.md"
-log "mirrored bin/, docs/, install.sh, validate.sh, README.md"
+log "mirrored bin/, docs/, install.sh, validate.sh, upgrade.sh, README.md (user/ left alone)"
 
 # Finalize via install.sh in non-interactive mode.
 # --no-symlink: an existing symlink (if any) was set on initial install

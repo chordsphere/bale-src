@@ -74,10 +74,25 @@ SECRET_PATH_EXCLUDES = (
     ".aws/credentials",
 )
 
-# Per-repo configurables file (BALE.md "configurables" §, claude/context/
-# bale-internals.md). Committed and team-shared. Absent file or absent key =
-# silent skip. The bale config init wizard is the canonical interface.
+# Configurables file name. Used at two layers:
+#   - <repo>/bale.toml — per-repo, committed and team-shared.
+#   - <install>/user/bale.toml — per-install global, user-owned, never in the
+#     release tarball. The user/ subtree is bale's only user-owned location;
+#     everything else under <install>/ is replaced on upgrade.
+# Absent file (or absent key within it) = silent skip at that layer. Project
+# layer overrides global per-key. The `bale config init` wizard is the canonical
+# interface for both; `--global` targets the install-layer file. Schema and
+# layering rules live in claude/context/bale-internals.md.
 BALE_CONFIG = "bale.toml"
+
+# Subdirectory of the install that bale never owns: it's where the user's
+# global config and global hook scripts live. The release tarball ships nothing
+# under here; `bale config init --global` creates the directory on first write.
+# Hook paths in <install>/user/bale.toml resolve relative to this directory
+# (parallel to project hooks resolving relative to <repo>/).
+GLOBAL_USER_DIR_NAME = "user"
+GLOBAL_USER_DIR = INSTALL_ROOT / GLOBAL_USER_DIR_NAME
+GLOBAL_CONFIG_PATH = GLOBAL_USER_DIR / BALE_CONFIG
 
 # Hooks bale knows how to invoke. Sessions adding a new hook extend this
 # tuple AND walk_configurables() AND render_bale_toml() in the same
@@ -644,7 +659,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # post_apply_pass placement (after merge + tag + lock-clear). A
     # hook-side failure logs but does not unwind pack; the tarball is
     # already where the user needs it.
-    run_hook(repo, load_config(repo), "post_pack", sid)
+    #
+    # merged_config layers global under project so a single config call covers
+    # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
+    run_hook(repo, merged_config(repo), "post_pack", sid)
 
     # User-facing summary.
     print()
@@ -1177,7 +1195,10 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # hook runs after the merge so a hook-side failure can't unwind
             # bale's primary work — at this point the session is durably
             # applied and tagged.
-            run_hook(repo, load_config(repo), "post_apply_pass", locked_sid)
+            #
+            # merged_config layers global under project so a single config
+            # call covers both `<install>/user/bale.toml` and `<repo>/bale.toml`.
+            run_hook(repo, merged_config(repo), "post_apply_pass", locked_sid)
 
             print()
             print(f"  [PASS] {locked_sid}")
@@ -1219,11 +1240,13 @@ def cmd_apply(args: argparse.Namespace) -> int:
     refuse_system_dir(repo)
 
     # Resolve the tarball argument through apply.search_paths. When no
-    # search paths are configured, this is equivalent to Path(arg).resolve()
-    # against cwd — preserving the pre-feature behavior verbatim. The
-    # config-malformed-path is fatal up front (load_config / get_apply_search_paths
-    # validate the shape) so the user finds out before any session work.
-    cfg = load_config(repo)
+    # search paths are configured at either layer, this is equivalent to
+    # Path(arg).resolve() against cwd — preserving the pre-feature behavior
+    # verbatim. The config-malformed-path is fatal up front (merged_config
+    # delegates to load_config/load_global_config which both validate parsing,
+    # and get_apply_search_paths validates the shape) so the user finds out
+    # before any session work.
+    cfg = merged_config(repo)
     search_paths = get_apply_search_paths(cfg)
     tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
@@ -1454,8 +1477,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
     refuse_system_dir(repo)
 
     # Same search-path resolution as `bale apply` — retry takes a tarball
-    # path argument with the same semantics, so it honors the same config.
-    cfg = load_config(repo)
+    # path argument with the same semantics, so it honors the same merged
+    # global+project config.
+    cfg = merged_config(repo)
     search_paths = get_apply_search_paths(cfg)
     tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
@@ -1483,20 +1507,41 @@ def cmd_retry(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# bale.toml — per-repo configurables
+# bale.toml — configurables (two layers: global install + per-repo project)
 # ---------------------------------------------------------------------------
 #
-# Committed at repo root. Absent file or absent key = silent skip. The
-# discoverable surface is owned by walk_configurables() below; the file
-# itself just points back at the wizard. Schema and rationale live in
+# Two files share the same TOML schema:
+#
+#   - <install>/user/bale.toml — global. User-owned, lives inside the install
+#     so the whole install dir stays portable as a unit. Created by
+#     `bale config init --global`. Never in the release tarball.
+#   - <repo>/bale.toml — project. Committed and team-shared. Created by
+#     `bale config init`.
+#
+# Absent file (or absent key within it) = silent skip at that layer. The
+# project layer overrides the global layer per-key: a key set in project wins;
+# a key absent in project inherits global; a key explicitly set to "" (or to
+# [] for list-shaped configs) at the project layer suppresses any inherited
+# global value (via the typed accessors' existing "empty = unset" contract).
+#
+# Hook script paths resolve relative to whichever layer owns them: project
+# hooks against the repo, global hooks against <install>/user/. After
+# merged_config(), get_hook() returns an absolute filesystem path string and
+# callers don't track layer provenance.
+#
+# The discoverable surface is owned by walk_configurables() below; both files
+# just point back at the wizard. Schema and layering live in
 # claude/context/bale-internals.md.
 
 def load_config(repo: Path) -> dict:
-    """Return parsed bale.toml as a dict, or {} if the file is absent.
+    """Return parsed <repo>/bale.toml as a dict, or {} if the file is absent.
 
-    A missing file is the canonical opt-out — bale's behavior collapses
-    to no-config. A malformed file is fatal: we never want a typo to
-    silently disable a configured hook the user thought was wired up.
+    Project layer only — for the layered effective config, use merged_config().
+
+    A missing file is the canonical opt-out — the project's behavior collapses
+    to no-config (or, in the layered model, to whatever the global layer
+    supplies). A malformed file is fatal: we never want a typo to silently
+    disable a configured hook the user thought was wired up.
     """
     cfg_path = repo / BALE_CONFIG
     if not cfg_path.is_file():
@@ -1510,12 +1555,111 @@ def load_config(repo: Path) -> dict:
         fail(f"could not read {cfg_path}: {e}")
 
 
+def load_global_config() -> dict:
+    """Return parsed <install>/user/bale.toml as a dict, or {} if absent.
+
+    Global layer only — for the layered effective config, use merged_config().
+
+    Same contract as load_config: absent = silent {}, malformed = fatal. The
+    file lives inside the install so the install dir stays portable as a unit;
+    `bale config init --global` is the canonical writer.
+    """
+    if not GLOBAL_CONFIG_PATH.is_file():
+        return {}
+    try:
+        with GLOBAL_CONFIG_PATH.open("rb") as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        fail(f"{GLOBAL_CONFIG_PATH} is malformed TOML: {e}")
+    except OSError as e:
+        fail(f"could not read {GLOBAL_CONFIG_PATH}: {e}")
+
+
+def merged_config(repo: Path) -> dict:
+    """Return the effective config, layering global under project.
+
+    Layering rules:
+      - Per-key replacement. A key set at the project layer wins; absent at
+        the project layer means inherit from global.
+      - Hook scripts (string scalars) resolve to absolute filesystem paths at
+        merge time, against their owning layer's root: <repo>/ for project,
+        <install>/user/ for global. Downstream callers see absolute paths and
+        don't need to track provenance.
+      - List-shaped configs (currently just apply.search_paths) use replace
+        semantics: when the project sets the key, its list wins fully
+        (including the empty-list case). Append semantics aren't well-defined
+        across all future list configs, so each list-shaped key's typed
+        accessor decides.
+      - Empty-string scalars and empty lists at the project layer pass through
+        as-is. The typed accessors (get_hook, get_apply_search_paths) treat
+        empty as "unset" — so an empty value at the project layer effectively
+        suppresses any inherited global value. This is the suppression contract
+        bale-internals.md describes; no special handling needed here.
+
+    Malformed shapes at either layer (e.g. [hooks] as a list) are tolerated
+    here — strict validation lives in the typed accessors, which the call
+    sites already invoke. This function's job is shape-preserving layering,
+    not validation.
+    """
+    g = load_global_config()
+    p = load_config(repo)
+    merged: dict = {}
+
+    # [hooks] — scalar string keys.
+    g_hooks = g.get("hooks") if isinstance(g.get("hooks"), dict) else {}
+    p_hooks = p.get("hooks") if isinstance(p.get("hooks"), dict) else {}
+    out_hooks: dict = {}
+    for key in HOOK_NAMES:
+        if key in p_hooks:
+            # Project layer owns the key — resolve relative to repo.
+            v = p_hooks[key]
+            if isinstance(v, str):
+                s = v.strip()
+                if s:
+                    out_hooks[key] = str((repo / s).resolve())
+                else:
+                    # Explicit suppress: pass through empty string. get_hook()
+                    # treats this as None (no hook runs), and crucially, the
+                    # global value is NOT inherited because the project key is
+                    # present.
+                    out_hooks[key] = ""
+        elif key in g_hooks:
+            v = g_hooks[key]
+            if isinstance(v, str):
+                s = v.strip()
+                if s:
+                    out_hooks[key] = str((GLOBAL_USER_DIR / s).resolve())
+    if out_hooks:
+        merged["hooks"] = out_hooks
+
+    # [apply] — list-shaped keys, replace semantics. Pass values through
+    # untouched; get_apply_search_paths handles expansion + strict shape
+    # checking at read time.
+    g_apply = g.get("apply") if isinstance(g.get("apply"), dict) else {}
+    p_apply = p.get("apply") if isinstance(p.get("apply"), dict) else {}
+    out_apply: dict = {}
+    if "search_paths" in p_apply:
+        out_apply["search_paths"] = p_apply["search_paths"]
+    elif "search_paths" in g_apply:
+        out_apply["search_paths"] = g_apply["search_paths"]
+    if out_apply:
+        merged["apply"] = out_apply
+
+    return merged
+
+
 def get_hook(cfg: dict, name: str) -> Optional[str]:
     """Return the configured hook script path, or None if unset/empty.
 
-    Empty strings are treated as unset so the wizard can write `key = ""`
-    for "I considered this and chose to skip" without requiring a separate
-    delete path. This is the silent-skip contract: absent or empty = no-op.
+    Expects the merged config (from merged_config). After merging, hook values
+    are absolute filesystem paths resolved against their owning layer's root
+    — so this returns an absolute path string, never a relative one.
+
+    Empty strings are treated as unset so the wizard can write `key = ""` for
+    "I considered this and chose to skip" without a separate delete path. In
+    the layered model an empty string at the project layer is also the
+    suppression mechanism: merged_config preserves it, and this accessor
+    returns None, so run_hook does nothing — overriding any inherited global.
 
     Raises ValueError when called with a name bale doesn't know about —
     catches typos at the call site rather than silently doing nothing.
@@ -1611,36 +1755,58 @@ def confirm_yn(prompt: str, *, default_no: bool = True) -> bool:
 def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
     """Run the named hook if configured. Silent no-op when absent.
 
-    Prompts the user before invoking. The user's decline is respected
-    silently (no failure). A configured-but-missing or non-executable
-    script is logged and skipped rather than failing — bale's primary
-    work has already succeeded by the time this runs, and a broken hook
-    shouldn't unwind it.
+    Expects the merged config (from merged_config), so the hook value is
+    already an absolute path resolved against its owning layer. This function
+    decides which layer the script came from (project vs global) for display
+    purposes and runs it.
+
+    Prompts the user before invoking. The user's decline is respected silently
+    (no failure). A configured-but-missing or non-executable script is logged
+    and skipped rather than failing — bale's primary work has already
+    succeeded by the time this runs, and a broken hook shouldn't unwind it.
     """
     script = get_hook(cfg, name)
     if script is None:
         return  # silent skip — opt-in mechanism
 
-    # Refuse traversal and absolute paths even though the script came from
-    # a committed file: defense in depth costs nothing here.
-    if not is_path_safe(script):
-        log(f"[hook {name}] configured script {script!r} is not a safe "
-            f"repo-relative path; skipping.")
+    script_path = Path(script)
+    # Defense in depth: get_hook returns absolute paths from merged_config, but
+    # if some caller hands us a raw config and a relative slips through, refuse
+    # rather than guess what to resolve it against.
+    if not script_path.is_absolute():
+        log(f"[hook {name}] configured script {script!r} is not an absolute "
+            f"path; this indicates a caller bug (pass merged_config, not "
+            f"load_config). Skipping.")
         return
 
-    script_path = repo / script
     if not script_path.is_file():
-        log(f"[hook {name}] configured script {script} not found in repo; "
-            f"skipping. (Fix bale.toml or commit the script.)")
+        log(f"[hook {name}] configured script {script_path} not found; "
+            f"skipping. (Fix bale.toml or place the script there.)")
         return
     if not os.access(script_path, os.X_OK):
-        log(f"[hook {name}] {script} is not executable; skipping. "
-            f"(`chmod +x {script}` to enable.)")
+        log(f"[hook {name}] {script_path} is not executable; skipping. "
+            f"(`chmod +x {script_path}` to enable.)")
         return
 
+    # Identify which layer the script came from, for the prompt. We compare
+    # against the install's user/ dir and the repo root; an absolute path that
+    # falls inside one of those is from that layer. (Falls-inside-neither
+    # shouldn't happen via the wizard, but is possible via hand-edits with an
+    # absolute path; we label that "configured" and let the user inspect.)
+    source_label = "configured"
+    try:
+        script_path.relative_to(GLOBAL_USER_DIR.resolve())
+        source_label = "global"
+    except ValueError:
+        try:
+            script_path.relative_to(repo.resolve())
+            source_label = "project"
+        except ValueError:
+            pass
+
     print()
-    print(f"  hook:   {name}")
-    print(f"  script: {script}")
+    print(f"  hook:   {name} ({source_label})")
+    print(f"  script: {script_path}")
     print(f"  cwd:    {repo}")
     print(f"  env:    BALE_HOOK={name}")
     print(f"          BALE_SESSION_ID={sid}")
@@ -1658,7 +1824,7 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
         "BALE_SESSION_ID": sid,
         "BALE_REPO_ROOT": str(repo),
     }
-    log(f"[hook {name}] invoking {script}")
+    log(f"[hook {name}] invoking {script_path}")
     try:
         # No capture: stream the hook's stdout/stderr to the user's terminal
         # so a long-running install shows progress. The session log already
@@ -1680,28 +1846,86 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# `bale config init` — the configurables wizard
+# `bale config init` — the configurables wizard (both layers)
 # ---------------------------------------------------------------------------
 #
-# The canonical way to set up bale on a repo. Walks every configurable
-# that currently exists (just `[hooks].post_apply_pass` at v0.0.1).
-# Idempotent: re-running on an already-configured repo shows current
-# values and lets the user re-confirm or change them. Sessions adding new
-# configurables extend walk_configurables() in the same response — the
-# wizard is the single source of truth for the discoverable surface.
+# The canonical way to opt in to bale's configurables mechanism. Walks every
+# configurable bale knows about; runs against either the project layer
+# (`<repo>/bale.toml`, default) or the global layer (`<install>/user/bale.toml`,
+# via `--global`). Both modes use the same walk_configurables() function —
+# the layer differs only in destination file, header text, whether git
+# identity is walked, and whether inherited (global → project) values are
+# displayed.
+#
+# Idempotent at both layers: re-running shows current values and lets the
+# user re-confirm, change, or clear each one. The wizard is the single source
+# of truth for the discoverable surface — a configurable bale invokes but
+# the wizard doesn't walk is a contract violation.
 
 def _prompt_value(label: str, *, current: Optional[str],
+                  inherited: Optional[str] = None,
                   description: list[str]) -> Optional[str]:
     """Generic value-prompt for the wizard.
 
-    Empty input → keep current. Non-empty input → set. Literal '-' →
-    clear (unset). EOF/^C → keep current (safer than clearing).
+    Three states the wizard recognizes at this layer:
+      - None       — key absent at this layer. Means "inherit" if a lower
+                     layer has a value; "no value at all" otherwise.
+      - ""         — key present, empty. Explicit suppression: at the project
+                     layer this overrides any inherited global value with "no
+                     hook runs"; at the global layer it's redundant with
+                     absence (no lower layer to suppress) but harmless.
+      - "value"    — key set to a value.
+
+    Input semantics:
+      - Enter (empty input) → keep current (returns whatever was passed in,
+        including None or "").
+      - '-'                 → return None (clear at this layer).
+      - 'x'                 → return "" (explicit suppress). Only offered when
+                              `inherited` is set; otherwise treated as a typo
+                              and rejected with a hint.
+      - any other text      → return that text (set value).
+      - EOF/^C              → keep current (safer than clearing).
+
+    Display shows current AND inherited AND the effective value the merge
+    would produce, so the user sees at a glance what they're about to keep,
+    change, or override.
     """
     print(f"[{label}]")
     for line in description:
         print(f"  {line}")
-    print(f"  current: {current!s}" if current else "  current: (unset)")
-    print(f"  Enter to keep. Type a value to set. Type '-' to clear.")
+
+    # Display current state at this layer.
+    if current is None:
+        print(f"  current at this layer: (unset)")
+    elif current == "":
+        print(f"  current at this layer: (suppressed — no hook runs at this layer)")
+    else:
+        print(f"  current at this layer: {current}")
+
+    # Display inherited (only present when this is the project layer and the
+    # global layer has a value).
+    if inherited:
+        print(f"  inherited from global: {inherited}")
+
+    # Effective value the merge would produce given current state.
+    if current is None:
+        effective = inherited
+    elif current == "":
+        effective = None
+    else:
+        effective = current
+    if effective:
+        print(f"  effective: {effective}")
+    else:
+        print(f"  effective: (no hook will run)")
+
+    # Prompt instructions. Suppress option only appears when there's something
+    # to suppress; that keeps the wording minimal in the common case (global
+    # walk, or project walk with no inherited value).
+    print(f"  Enter to keep. Type a value to set. Type '-' to clear (unset at this layer).")
+    if inherited:
+        print(f"  Type 'x' to suppress (write empty string — no hook regardless of inherited).")
+
     try:
         raw = input(f"  > ")
     except (EOFError, KeyboardInterrupt):
@@ -1712,36 +1936,83 @@ def _prompt_value(label: str, *, current: Optional[str],
         return current
     if val == "-":
         return None
+    if val == "x":
+        if inherited:
+            return ""
+        # No inherited value to suppress — 'x' is meaningless here. Don't
+        # silently treat it as a literal value (the user almost certainly
+        # meant the suppress sigil). Ask again would mean recursing; the
+        # cheaper move is to keep current and surface the mistake.
+        print(f"  '{val}' is the suppression sigil, only meaningful when a global "
+              f"value is inherited. No global value is set for this key; keeping current.")
+        return current
     return val
 
 
 def _prompt_path_list(label: str, *, current: Optional[list[str]],
+                      inherited: Optional[list[str]] = None,
                       description: list[str]) -> Optional[list[str]]:
     """List-of-paths prompt for the wizard, mirroring `_prompt_value` semantics.
 
-    Same Enter/-/value convention:
-      - Empty input → keep current (None or the previous list).
-      - Literal '-' → clear (return None).
-      - Non-empty input → parse as colon-separated paths, drop empty
-        entries (handles stray leading/trailing/double colons), return
-        the resulting list.
+    Three states at this layer:
+      - None        — key absent.
+      - []          — key present, empty list. Explicit suppression (the
+                      accessor returns [], no extra search paths).
+      - [x, y, ...] — value set.
 
-    The display format prefers one path per line, since colon-joined
-    lists are unreadable at length. This is the canonical wizard
-    interface for list-shaped configurables; future list-shaped
-    configurables (envvars, ignore globs, etc.) should reuse this rather
-    than reinventing the parse loop.
+    Input semantics:
+      - Enter (empty input)                  → keep current.
+      - '-'                                  → return None (clear).
+      - 'x'                                  → return [] (explicit suppress).
+                                               Only offered when `inherited`
+                                               is non-empty.
+      - colon-separated paths                → return parsed list (empties
+                                               dropped — stray colons in input
+                                               shouldn't introduce ""-entries).
+      - EOF/^C                               → keep current.
+
+    The display format prefers one path per line — colon-joined lists are
+    unreadable at length. This is the canonical wizard interface for list-
+    shaped configurables; future list-shaped configurables should reuse this.
     """
     print(f"[{label}]")
     for line in description:
         print(f"  {line}")
-    if current:
-        print(f"  current:")
+
+    # Display current at this layer.
+    if current is None:
+        print(f"  current at this layer: (unset)")
+    elif current == []:
+        print(f"  current at this layer: (suppressed — empty list)")
+    else:
+        print(f"  current at this layer:")
         for p in current:
             print(f"    {p}")
+
+    # Display inherited.
+    if inherited:
+        print(f"  inherited from global:")
+        for p in inherited:
+            print(f"    {p}")
+
+    # Effective.
+    if current is None:
+        effective = inherited
+    elif current == []:
+        effective = None
     else:
-        print(f"  current: (unset)")
+        effective = current
+    if effective:
+        print(f"  effective:")
+        for p in effective:
+            print(f"    {p}")
+    else:
+        print(f"  effective: (no extra search paths)")
+
     print(f"  Enter to keep. Type colon-separated paths to set. Type '-' to clear.")
+    if inherited:
+        print(f"  Type 'x' to suppress (write empty list — overrides inherited).")
+
     try:
         raw = input(f"  > ")
     except (EOFError, KeyboardInterrupt):
@@ -1752,6 +2023,12 @@ def _prompt_path_list(label: str, *, current: Optional[list[str]],
         return current
     if val == "-":
         return None
+    if val == "x":
+        if inherited:
+            return []
+        print(f"  '{val}' is the suppression sigil, only meaningful when a global "
+              f"value is inherited. No global value is set for this key; keeping current.")
+        return current
     # Drop empties — stray colons in input shouldn't introduce ""-entries
     # that then survive into bale.toml.
     parts = [p.strip() for p in val.split(":")]
@@ -1790,20 +2067,57 @@ def walkthrough_git_identity(repo: Path) -> None:
             print(f"  to a fallback identity until {key} is set.")
 
 
-def walk_configurables(existing: dict) -> dict:
-    """Walk every configurable that currently exists; return the new dict.
+def walk_configurables(existing: dict, *, layer: str,
+                       inherited: Optional[dict] = None) -> dict:
+    """Walk every configurable; return the new dict for the layer being edited.
+
+    `existing` is the current contents of the file being written. `layer` is
+    "project" or "global". `inherited` is the lower layer (the global config)
+    when walking the project layer, or None when walking global (no layer
+    below to inherit from).
+
+    The presence of a key in the returned dict, including the empty-string /
+    empty-list "suppress" form, determines what render_bale_toml emits.
 
     Sessions adding new configurables extend this function in the same
-    response. The wizard is the discoverable surface; if a configurable
-    isn't here, there's no canonical way to opt in to it.
+    response. The wizard is the discoverable surface; if a configurable isn't
+    here, there's no canonical way to opt in to it.
     """
+    if layer not in ("project", "global"):
+        raise ValueError(f"unknown layer: {layer!r}")
+    inherited = inherited or {}
+
+    # Layer-specific phrasing for hook descriptions. The mechanics are the
+    # same at both layers; what differs is where paths resolve to and where
+    # the file lives.
+    if layer == "project":
+        path_hint = (
+            "Path relative to <repo>/, the repo root. Must be executable.")
+    else:
+        path_hint = (
+            "Path relative to <install>/user/, the global hook-script "
+            "directory inside this bale install. Must be executable. "
+            "Place the script under <install>/user/scripts/ and reference "
+            "it here.")
+
     new: dict = {}
 
-    # ---- [hooks].post_pack --------------------------------------------------
-    current_post_pack = (existing.get("hooks") or {}).get("post_pack") or ""
+    # ---- [hooks].post_pack ------------------------------------------------
+    existing_hooks = existing.get("hooks") or {}
+    inherited_hooks = inherited.get("hooks") or {}
+
+    # current at this layer: None | "" | "value"
+    raw_cur = existing_hooks.get("post_pack")
+    current = raw_cur if isinstance(raw_cur, str) else None
+
+    # inherited (only meaningful in project layer): None | "value"
+    raw_inh = inherited_hooks.get("post_pack")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
     val = _prompt_value(
         "hooks.post_pack",
-        current=current_post_pack or None,
+        current=current,
+        inherited=inh,
         description=[
             "Optional. Enter to skip; you can wire one up later.",
             "Script invoked after `bale pack` successfully writes the",
@@ -1812,45 +2126,72 @@ def walk_configurables(existing: dict) -> dict:
             "the clipboard, opening the outbox in a file manager,",
             "uploading the tarball somewhere, pinging chat — anything",
             "you'd run on a fresh request landing on disk.",
-            "Repo-relative path. Must be executable.",
+            path_hint,
         ],
     )
-    if val:
+    if val is not None:
+        # Includes the explicit-suppress case ("" goes into the dict so the
+        # renderer emits `post_pack = ""`).
         new.setdefault("hooks", {})["post_pack"] = val
 
-    # ---- [hooks].post_apply_pass --------------------------------------------
-    current_post_apply_pass = (existing.get("hooks") or {}).get("post_apply_pass") or ""
+    # ---- [hooks].post_apply_pass ------------------------------------------
+    raw_cur = existing_hooks.get("post_apply_pass")
+    current = raw_cur if isinstance(raw_cur, str) else None
+    raw_inh = inherited_hooks.get("post_apply_pass")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
     val = _prompt_value(
         "hooks.post_apply_pass",
-        current=current_post_apply_pass or None,
+        current=current,
+        inherited=inh,
         description=[
             "Optional. Enter to skip; you can wire one up later.",
             "Script invoked after `bale apply` succeeds (PASS path,",
             "post-merge). Bale prompts before running it. Use cases:",
             "reinstalling bale on bale-src, syncing artifacts, notifying",
             "chat — anything you'd run on commit-and-merge.",
-            "Repo-relative path. Must be executable.",
+            path_hint,
         ],
     )
-    if val:
+    if val is not None:
         new.setdefault("hooks", {})["post_apply_pass"] = val
 
-    # ---- [apply].search_paths -----------------------------------------------
-    # Read the existing list defensively — if the file was hand-edited into
-    # a misshapen state, we don't want to crash the wizard before it can
-    # rewrite the file. get_apply_search_paths() is the strict accessor used
-    # at apply time; the wizard reads raw and tolerates oddness.
-    existing_apply = existing.get("apply") or {}
-    raw_paths = existing_apply.get("search_paths") if isinstance(existing_apply, dict) else None
-    current_search_paths: Optional[list[str]]
-    if isinstance(raw_paths, list) and all(isinstance(p, str) for p in raw_paths):
-        current_search_paths = [p for p in raw_paths if p] or None
-    else:
-        current_search_paths = None
+    # ---- [apply].search_paths ---------------------------------------------
+    # Read both layers defensively — if a file was hand-edited into a
+    # misshapen state, we don't want to crash the wizard before it can
+    # rewrite the file. The strict typed accessor (get_apply_search_paths)
+    # is used at apply time; the wizard reads raw and tolerates oddness.
+    def _coerce_path_list(raw) -> Optional[list[str]]:
+        if not isinstance(raw, list):
+            return None
+        if not all(isinstance(p, str) for p in raw):
+            return None
+        clean = [p for p in raw if p]
+        # Distinguish "key present with empty list" (suppress) from "key
+        # absent." If raw was [] originally, return [] — keep the suppress
+        # form. If raw was non-empty but all entries were filtered to empty,
+        # treat as None (no usable content) so the wizard can re-prompt.
+        if not raw:
+            return []
+        return clean if clean else None
+
+    existing_apply = existing.get("apply") if isinstance(existing.get("apply"), dict) else {}
+    inherited_apply = inherited.get("apply") if isinstance(inherited.get("apply"), dict) else {}
+
+    raw_cur_list = existing_apply.get("search_paths") if "search_paths" in existing_apply else None
+    current_list = _coerce_path_list(raw_cur_list) if raw_cur_list is not None else None
+
+    raw_inh_list = inherited_apply.get("search_paths") if "search_paths" in inherited_apply else None
+    inh_list = _coerce_path_list(raw_inh_list) if raw_inh_list is not None else None
+    # Drop empty inherited (an empty list inherited from global isn't a usable
+    # default to show).
+    if inh_list == []:
+        inh_list = None
 
     val_list = _prompt_path_list(
         "apply.search_paths",
-        current=current_search_paths,
+        current=current_list,
+        inherited=inh_list,
         description=[
             "Optional. Enter to skip; you can wire one up later.",
             "Directories `bale apply` and `bale retry` search when given a",
@@ -1864,18 +2205,25 @@ def walk_configurables(existing: dict) -> dict:
             "`bale apply request-NNN.tar.gz` works from anywhere in the repo.",
         ],
     )
-    if val_list:
+    if val_list is not None:
+        # Both the value-set case and the empty-list (suppress) case go in;
+        # the renderer emits search_paths = [...] either way.
         new.setdefault("apply", {})["search_paths"] = val_list
 
     return new
 
 
-# The wizard is canonical, so the generated file points back at it
-# rather than duplicating per-key descriptions. Hand-edits work but the
-# wizard doesn't preserve unknown keys on re-run; document that here.
-_BALE_TOML_HEADER = """\
+# The wizard is canonical, so the generated file points back at it rather
+# than duplicating per-key descriptions. Hand-edits work but the wizard
+# doesn't preserve unknown keys on re-run; document that here. Two headers
+# because the layer is part of the file's identity: someone opening the
+# global file should immediately know it isn't the project file.
+_PROJECT_TOML_HEADER = """\
 # bale.toml — per-repo configurables for this bale-managed project.
-# Committed and team-shared. Absent file or absent key = silent skip.
+# Committed and team-shared. Layered ON TOP OF the global config at
+# <install>/user/bale.toml: keys set here override globals per-key.
+# Absent file or absent key = silent skip at this layer (and fall back to
+# global if it sets the key).
 #
 # Run `bale config init` to set up, review, or change. The wizard is
 # the canonical interface; hand-edits work but the wizard knows only
@@ -1885,23 +2233,55 @@ _BALE_TOML_HEADER = """\
 # escape hatches for this — set/get/edit subcommands land later.
 """
 
+_GLOBAL_TOML_HEADER = """\
+# bale.toml — global (per-install) configurables for this bale install.
+# Lives at <install>/user/bale.toml; sibling project files at
+# <repo>/bale.toml override these per-key. User-owned, never in the
+# release tarball — survives `upgrade.sh` and stays portable as a unit
+# with the rest of the install.
+#
+# Run `bale config init --global` to set up, review, or change. The
+# wizard is the canonical interface; hand-edits work but the wizard
+# knows only about the configurables it walks through. Re-running
+# rewrites this file from its walked surface, so unrecognized keys
+# you hand-edited will be dropped.
+#
+# Hook paths in this file resolve relative to <install>/user/ (typically
+# place scripts under <install>/user/scripts/).
+"""
 
-def render_bale_toml(cfg: dict) -> str:
+
+def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
     """Render the wizard's config dict into a TOML file body.
 
-    Only emits sections the user opted in to. Sections with no set keys
-    are omitted — an empty [hooks] block would be noise. New hooks (or
-    new top-level sections in future sessions) get a branch here.
+    `layer` controls the header comment ("project" or "global"). Both layers
+    share the same TOML schema; the header is the only difference.
+
+    Only emits sections the user opted in to. Sections with no set keys are
+    omitted — an empty [hooks] block would be noise. Keys whose value is the
+    empty string (or empty list for list-shaped keys) ARE emitted, because
+    those carry meaning: `post_pack = ""` is an explicit-suppress at the
+    project layer.
+
+    New hooks (or new top-level sections in future sessions) get a branch here.
     """
-    parts = [_BALE_TOML_HEADER]
+    if layer == "project":
+        header = _PROJECT_TOML_HEADER
+    elif layer == "global":
+        header = _GLOBAL_TOML_HEADER
+    else:
+        raise ValueError(f"unknown layer: {layer!r}")
+
+    parts = [header]
     hooks = cfg.get("hooks") or {}
     if hooks:
         parts.append("[hooks]")
         for key in HOOK_NAMES:
             if key in hooks:
                 v = hooks[key]
-                # All current hook values are strings. When future hooks
-                # introduce non-string scalars, add a branch here.
+                # All current hook values are strings (possibly empty for
+                # the explicit-suppress case). When future hooks introduce
+                # non-string scalars, add a branch here.
                 parts.append(f"{key} = {json.dumps(v)}")
         parts.append("")
 
@@ -1915,8 +2295,9 @@ def render_bale_toml(cfg: dict) -> str:
             paths = apply_section["search_paths"]
             # Emit as a TOML array literal. json.dumps produces a valid TOML
             # array of strings for the list-of-strings case (the only one
-            # we currently support). Persisted literally — no expansion at
-            # write time, so the committed file is portable across machines.
+            # we currently support, including the empty-list suppress form).
+            # Persisted literally — no expansion at write time, so the
+            # committed file is portable across machines.
             rendered_array = "[" + ", ".join(json.dumps(p) for p in paths) + "]"
             parts.append(f"search_paths = {rendered_array}")
         parts.append("")
@@ -1925,6 +2306,27 @@ def render_bale_toml(cfg: dict) -> str:
 
 
 def cmd_config_init(args: argparse.Namespace) -> int:
+    """Walk the wizard against either the project layer (<repo>/bale.toml) or
+    the global layer (<install>/user/bale.toml).
+
+    The wizard walks the same configurables in both modes — that's the
+    contract from bale-internals.md §4.1: a single discoverable surface for
+    every configurable bale knows about. What differs:
+
+      - Where the file is written.
+      - Whether git identity is walked (project only — identity is a per-repo
+        concern; bale's global config has nothing to do with git).
+      - Whether inherited values are displayed (project mode shows global as
+        inherited; global mode has no lower layer).
+      - The header comment in the rendered file and the description text in
+        a few prompts.
+    """
+    if getattr(args, "global_layer", False):
+        return _cmd_config_init_global()
+    return _cmd_config_init_project()
+
+
+def _cmd_config_init_project() -> int:
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
 
@@ -1933,17 +2335,26 @@ def cmd_config_init(args: argparse.Namespace) -> int:
         fail("not in a git repo. `bale config init` configures bale for one "
              "project at a time, and that project must be a git repo. "
              "`cd` into the project you want to use bale with, then re-run. "
-             "(No git repo yet? `git init && git add -A && git commit -m initial`.)")
+             "(No git repo yet? `git init && git add -A && git commit -m initial`.)"
+             "\n\n"
+             "If you meant to configure the install-level global config, "
+             "use `bale config init --global` instead — that doesn't require "
+             "a repo.")
     refuse_system_dir(repo)
 
     cfg_path = repo / BALE_CONFIG
     existing = load_config(repo)
+    inherited = load_global_config()
     is_existing = cfg_path.is_file()
 
     print()
-    print(f"bale config init")
-    print(f"  repo:   {repo}")
-    print(f"  config: {cfg_path}")
+    print(f"bale config init (project layer)")
+    print(f"  repo:    {repo}")
+    print(f"  config:  {cfg_path}")
+    if GLOBAL_CONFIG_PATH.is_file():
+        print(f"  global:  {GLOBAL_CONFIG_PATH} (inherited)")
+    else:
+        print(f"  global:  {GLOBAL_CONFIG_PATH} (not configured)")
     if is_existing:
         print(f"  (existing file; current values shown, Enter keeps each.)")
     else:
@@ -1957,16 +2368,68 @@ def cmd_config_init(args: argparse.Namespace) -> int:
     walkthrough_git_identity(repo)
 
     print()
-    print("Configurables")
-    new_cfg = walk_configurables(existing)
+    print("Configurables (project layer)")
+    new_cfg = walk_configurables(existing, layer="project", inherited=inherited)
 
-    rendered = render_bale_toml(new_cfg)
+    rendered = render_bale_toml(new_cfg, layer="project")
     cfg_path.write_text(rendered, encoding="utf-8")
     log(f"wrote {cfg_path}")
 
     print()
     print(f"  bale.toml: {cfg_path}")
     print(f"  Re-run `bale config init` any time to review or change.")
+    return 0
+
+
+def _cmd_config_init_global() -> int:
+    """Configure the global (install-layer) file at <install>/user/bale.toml.
+
+    No git-identity walk: identity is a per-repo concern. No repo lookup:
+    global config exists independently of any project; running this from
+    outside any git repo is fine. Refuses system dirs out of caution
+    (cwd parity with project mode), even though we don't read cwd otherwise.
+    """
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    cfg_path = GLOBAL_CONFIG_PATH
+    existing = load_global_config()
+    is_existing = cfg_path.is_file()
+
+    # Create the user/ subtree on first write. Idempotent: exist_ok=True.
+    # parents=True covers the (theoretical) case where install root exists
+    # but user/ has been deleted manually.
+    GLOBAL_USER_DIR.mkdir(parents=True, exist_ok=True)
+
+    print()
+    print(f"bale config init --global")
+    print(f"  install: {INSTALL_ROOT}")
+    print(f"  config:  {cfg_path}")
+    if is_existing:
+        print(f"  (existing file; current values shown, Enter keeps each.)")
+    else:
+        print(f"  (new file; only the keys you set will be written.)")
+    print()
+    print(f"  Configures the install-wide global layer for this bale install.")
+    print(f"  Every project that runs this bale inherits these defaults; each")
+    print(f"  project's own bale.toml can override per-key.")
+    print(f"  Hook scripts referenced here live under <install>/user/scripts/")
+    print(f"  and are preserved across upgrades (via `upgrade.sh`).")
+    print(f"  It's idempotent — re-run any time to review or change.")
+
+    print()
+    print("Configurables (global layer)")
+    # No inherited layer below global.
+    new_cfg = walk_configurables(existing, layer="global", inherited=None)
+
+    rendered = render_bale_toml(new_cfg, layer="global")
+    cfg_path.write_text(rendered, encoding="utf-8")
+    log(f"wrote {cfg_path}")
+
+    print()
+    print(f"  bale.toml (global): {cfg_path}")
+    print(f"  scripts dir:        {GLOBAL_USER_DIR / 'scripts'} (place global hook scripts here)")
+    print(f"  Re-run `bale config init --global` any time to review or change.")
     return 0
 
 
@@ -2069,21 +2532,32 @@ def build_parser() -> argparse.ArgumentParser:
     # the only subcommand is `init`; set/get/edit land in later sessions.
     p_config = sub.add_parser(
         "config",
-        help="Manage per-repo configurables (bale.toml).",
+        help="Manage bale configurables (per-repo or global).",
     )
     config_sub = p_config.add_subparsers(
         dest="config_cmd", required=True, metavar="<subcommand>",
     )
     p_config_init = config_sub.add_parser(
         "init",
-        help="Walk through every configurable on this repo, or re-confirm "
-             "existing values. Idempotent.",
+        help="Walk through every configurable at the chosen layer (project "
+             "by default; pass --global for the install-wide layer). "
+             "Idempotent.",
         description=(
-            "Walk through every configurable on this repo, or re-confirm "
-            "existing values. Idempotent: re-running on an already-"
-            "configured repo shows current values and lets you keep, "
-            "change, or clear each one. Writes bale.toml at repo root."
+            "Walk through every configurable on this repo (default) or "
+            "for this install (--global), or re-confirm existing values. "
+            "Idempotent: re-running shows current values and lets you keep, "
+            "change, suppress, or clear each one. "
+            "Default writes <repo>/bale.toml. With --global, writes "
+            "<install>/user/bale.toml — the install-wide layer that every "
+            "project using this bale install inherits per-key. Project "
+            "values override globals when both are set."
         ),
+    )
+    p_config_init.add_argument(
+        "--global", action="store_true", dest="global_layer",
+        help="Walk the install-wide global layer at <install>/user/bale.toml "
+             "instead of the per-repo layer at <repo>/bale.toml. Does not "
+             "require a git repo.",
     )
     p_config_init.set_defaults(func=cmd_config_init)
 
