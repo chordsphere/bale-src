@@ -473,23 +473,28 @@ def build_request_tarball(
         request_dir = Path(tmp) / f"request-{nnn}"
         request_dir.mkdir()
 
-        # Inject the three global docs from the bale installation.
+        # Inject the three global docs from the bale installation. copy2 +
+        # follow_symlinks=False preserves mode bits — see the context-files
+        # copy below for why that matters for the rest of the tarball.
         for doc in GLOBAL_DOCS:
-            shutil.copyfile(DOCS_DIR / doc, request_dir / doc)
+            shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
 
         # manifest.json.
         (request_dir / "manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
 
-        # context/<files>, preserving each file's repo-relative path.
+        # context/<files>, preserving each file's repo-relative path. copy2
+        # + follow_symlinks=False preserves mode bits so an executable script
+        # in the project arrives in context/ still executable, matching what
+        # stage_response does for files/ in response tarballs.
         context_dir = request_dir / "context"
         context_dir.mkdir()
         for rel in files:
             src = repo / rel
             dst = context_dir / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dst)
+            shutil.copy2(src, dst, follow_symlinks=False)
 
         # Tar with arcname so the archive's top-level entry is `request-NNN/`,
         # independent of the temp directory's filesystem path.
@@ -871,7 +876,11 @@ def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None
             src = staging / path
             dst = repo / path
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dst)
+            # copy2 + follow_symlinks=False preserves the staging copy's mode
+            # bits so an executable file from files/ lands in the worktree
+            # still executable. stage_response already preserves mode bits
+            # going into staging; this is the matching half on the way out.
+            shutil.copy2(src, dst, follow_symlinks=False)
             git(["add", path], cwd=repo)
         elif action == "deleted":
             # `git rm` removes from working tree AND stages the deletion.
