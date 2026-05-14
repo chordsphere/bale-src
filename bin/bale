@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.7. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.8. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -21,8 +21,14 @@ recommended already in context/, instead of just handoff.md), and the
 apply walkthrough's `[r]` revert action — previously a v0.1 stub that
 told the user to run `bale revert <sid>` themselves — is wired
 through to _discard_hold_state + clear_lock so the action completes
-inline. The rest of v0.1 (full pack wizard, .baleignore, git-init
-walkthrough, release-tarball packaging) lands later.
+inline. v0.0.8 lands the BALE.md §10 git-init walkthrough: `bale pack`
+in a non-git directory now offers to initialize the repo, prompts for
+missing git identity (via bale_config.walkthrough_git_identity, per
+the session constraint to reuse that helper), writes a .gitignore
+with the §6.4 baked-in exclusion set, and records an initial commit
+before continuing into the rest of the pack pipeline. The remaining
+v0.1 items (full pack wizard, $EDITOR integration, .baleignore,
+release-tarball packaging) land later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -42,28 +48,28 @@ session 003 means Python 3.11+ (tomllib lives there, inside
 fleshes out the full pipeline.
 
 Sections:
-   1. Imports + constants                              (~line  107)
-   2. Logging                                          (~line  177)
-   3. Shell / git helpers                              (~line  264)
-   4. Hashing                                          (~line  303)
-   5. Session IDs and the per-day counter              (~line  319)
-   6. Lock handling                                    (~line  377)
-   7. .gitignore handling for the .bale/ directory     (~line  408)
-   8. Path-safety checks                               (~line  438)
-   9. Pack: file enumeration and filtering             (~line  486)
-  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  570)
-  11. Pack: slug validation                            (~line  843)
-  12. Pack: manifest and tarball construction          (~line  856)
-  13. Pack                                             (~line  956)
-  14. Apply: helpers                                   (~line 1170)
-  15. Apply: pipeline                                  (~line 2164)
-  16. Apply                                            (~line 2451)
-  17. Revert                                           (~line 2500)
-  18. Retry                                            (~line 2682)
-  19. Unlock                                           (~line 2731)
-  20. Handoff                                          (~line 2825)
-  21. Hook invocation                                  (~line 3270)
-  22. CLI                                              (~line 3393)
+   1. Imports + constants                              (~line  113)
+   2. Logging                                          (~line  183)
+   3. Shell / git helpers                              (~line  270)
+   4. Hashing                                          (~line  309)
+   5. Session IDs and the per-day counter              (~line  325)
+   6. Lock handling                                    (~line  383)
+   7. .gitignore handling for the .bale/ directory     (~line  414)
+   8. Path-safety checks                               (~line  444)
+   9. Pack: file enumeration and filtering             (~line  492)
+  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  576)
+  11. Pack: slug validation                            (~line  849)
+  12. Pack: manifest and tarball construction          (~line  862)
+  13. Pack                                             (~line  962)
+  14. Apply: helpers                                   (~line 1397)
+  15. Apply: pipeline                                  (~line 2391)
+  16. Apply                                            (~line 2678)
+  17. Revert                                           (~line 2727)
+  18. Retry                                            (~line 2909)
+  19. Unlock                                           (~line 2958)
+  20. Handoff                                          (~line 3052)
+  21. Hook invocation                                  (~line 3497)
+  22. CLI                                              (~line 3620)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -107,7 +113,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.7"
+VERSION = "0.0.8"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -956,17 +962,238 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
 # 13. Pack
 # ---------------------------------------------------------------------------
 
+# --- Git-init walkthrough (BALE.md §10) --------------------------------------
+
+# The .gitignore body the walkthrough drops on a fresh init. Sourced from
+# BALE.md §6.4's baked-in exclusion set — kept in parallel with the
+# pack-side constants above (BAKED_IN_EXCLUDE_DIRS / SECRET_PATTERNS /
+# SECRET_PATH_EXCLUDES) rather than reconstructed from them. Two reasons
+# the duplication is the right call here: pack consumes those tuples
+# programmatically (basename matching, plus npmrc_has_authtoken content
+# inspection), and .gitignore needs a verbatim text body with grouping
+# comments — reconstructing one from the other would either drop the
+# comments or re-introduce the conditional-npmrc logic git can't express.
+# validation.sh asserts the literal patterns are present so the two
+# surfaces don't silently diverge.
+_INITIAL_GITIGNORE_BODY = """\
+# bale: default exclusion set (BALE.md §6.4)
+# Created by the git-init walkthrough. Edit freely; bale won't rewrite this.
+
+# Bale and git internals
+.bale/
+.git/
+
+# Common big-build dirs
+node_modules/
+__pycache__/
+.venv/
+target/
+dist/
+build/
+.next/
+.nuxt/
+out/
+.cache/
+
+# Common secret patterns.
+# Pack's filter only excludes .npmrc when its content matches `_authToken`
+# (see npmrc_has_authtoken). .gitignore can't express a content-conditional,
+# so this list ignores .npmrc unconditionally — un-ignore with `!.npmrc`
+# if your project's .npmrc is genuinely public (registry config only).
+.env
+.env.*
+*.pem
+*.key
+*_rsa
+*_dsa
+*.p12
+*.pfx
+id_rsa
+id_dsa
+.aws/credentials
+.npmrc
+.pypirc
+"""
+
+
+def _write_initial_gitignore(cwd: Path) -> None:
+    """Create or append the §6.4 baked-in exclusion set to .gitignore.
+
+    On a fresh init the file is usually absent — write _INITIAL_GITIGNORE_BODY
+    directly. If a .gitignore already exists (e.g., the user ran a project
+    scaffolder like `npx create-foo` before `bale pack`), append the block
+    while skipping any pattern lines already present so re-runs and partial
+    overlaps don't accumulate duplicates. Comment and blank lines are always
+    re-emitted: their job is grouping the appended block, not preserving
+    uniqueness.
+    """
+    gi = cwd / ".gitignore"
+    if not gi.exists():
+        gi.write_text(_INITIAL_GITIGNORE_BODY, encoding="utf-8")
+        return
+
+    existing = gi.read_text(encoding="utf-8")
+    existing_patterns = {
+        ln.strip()
+        for ln in existing.splitlines()
+        if ln.strip() and not ln.strip().startswith("#")
+    }
+
+    block_lines: list[str] = []
+    for raw in _INITIAL_GITIGNORE_BODY.splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            block_lines.append(raw)
+            continue
+        if stripped in existing_patterns:
+            continue
+        block_lines.append(raw)
+
+    # Ensure a blank line separates pre-existing content from the appended
+    # block. If the file already ended in a blank, no extra separator is
+    # needed; if it ended with content (with or without a trailing newline),
+    # add enough newlines to land the block at column 0 after one blank.
+    if existing.endswith("\n\n") or existing == "":
+        sep = ""
+    elif existing.endswith("\n"):
+        sep = "\n"
+    else:
+        sep = "\n\n"
+    with gi.open("a", encoding="utf-8") as f:
+        f.write(sep + "\n".join(block_lines) + "\n")
+
+
+def git_init_walkthrough(cwd: Path, *, force: bool) -> Path:
+    """Per BALE.md §10. Offer to initialize a git repo at cwd.
+
+    On accept: run `git init`, prompt for any missing git identity via
+    bale_config.walkthrough_git_identity (per the manifest constraint to
+    reuse that helper rather than reimplement), write a .gitignore with
+    the §6.4 baked-in exclusion set, and record the initial commit. Returns
+    the new repo root (== cwd) on success.
+
+    On decline: print the spec'd "bale requires a git repo" one-liner and
+    sys.exit(0). Per §10 the decline path is exit 0 — declining isn't an
+    error, it's a user choice.
+
+    Defense-in-depth: re-applies the §7.1 step 1-2 refusals before
+    initializing even though cmd_pack already called refuse_system_dir on
+    cwd. The inner re-check protects future callers (or future direct
+    entry points to the walkthrough) from accidentally `git init`-ing at
+    `/` or `$HOME`. The home-directory refusal is `--force`-overridable
+    per the spec; the system-dir refusal has no override at all.
+
+    Flow ordering note: BALE.md §10's example flow shows identity prompts
+    *before* "Initializing repository...". This implementation runs
+    `git init` first, then identity, because walkthrough_git_identity
+    writes the prompted values to repo-local git config (per its own
+    constraint — "never --global"), which requires an existing repo. The
+    user-visible step order is init → identity → gitignore → commit;
+    the display matches that reality rather than the spec's example.
+    notes.md flags this for the architect to either ratify or amend §10
+    in a future session.
+    """
+    print()
+    print("This directory isn't a git repository. Bale needs git for branch")
+    print("staging and the rollback story.")
+    print()
+
+    # Piped / non-interactive mode: there's no way to confirm intent and no
+    # way to prompt for identity. Fail loudly rather than auto-initializing
+    # a repo somewhere unexpected.
+    if not sys.stdin.isatty():
+        fail(
+            "not in a git repo; the walkthrough needs a TTY (it prompts for "
+            "confirmation and git identity). Re-run from an interactive "
+            "shell, or run `git init && git add -A && git commit -m initial` "
+            "yourself, then retry."
+        )
+
+    if not confirm_yn("Would you like me to set it up?", default_no=False):
+        print()
+        print(
+            "bale requires a git repo. Re-run after `git init` or accept "
+            "the walkthrough."
+        )
+        sys.exit(0)
+
+    # Defense in depth — see docstring. cmd_pack already refused at this
+    # cwd before calling us; the inner re-check exists in case a future
+    # caller forgets that step.
+    refuse_system_dir(cwd, force=force)
+
+    print()
+    print("Initializing repository...")
+    try:
+        git(["init"], cwd=cwd)
+    except subprocess.CalledProcessError as e:
+        fail(
+            f"git init at {cwd} failed (exit {e.returncode}). Check "
+            f"directory permissions and retry."
+        )
+    log(f"git init at {cwd}")
+    print("  ✓ git init")
+
+    # Identity prompts via the shared helper. It checks repo-local + global
+    # scope, reports any already-set values, and prompts only for the
+    # unset ones — writing to repo-local (never --global). Prints its own
+    # header block, so no preamble line is needed here.
+    bale_config.walkthrough_git_identity(cwd)
+
+    _write_initial_gitignore(cwd)
+    log("wrote initial .gitignore with §6.4 baked-in exclusion set")
+    print("  ✓ Created .gitignore with bale's default exclusion set")
+
+    try:
+        git(["add", "-A"], cwd=cwd)
+    except subprocess.CalledProcessError as e:
+        fail(
+            f"git add -A failed (exit {e.returncode}). Inspect the repo "
+            f"and re-run `bale pack` after recovering."
+        )
+    print("  ✓ Staging all files in this directory")
+
+    try:
+        git(["commit", "-m", "Initial commit (bale)"], cwd=cwd)
+    except subprocess.CalledProcessError as e:
+        # Most likely cause: every file in cwd was matched by the new
+        # .gitignore (e.g. a directory of nothing but .env files). The
+        # spec asks for a real baseline commit, not --allow-empty; fail
+        # explicitly so the user understands the directory needs at
+        # least one trackable file. The repo is left in the "init'd but
+        # uncommitted" state — `bale pack` retried after adding a file
+        # will pick up via repo_root and not re-run the walkthrough.
+        fail(
+            f"initial commit failed (exit {e.returncode}). If the "
+            f"directory contains only files matched by the new "
+            f".gitignore, add a tracked file (e.g. README.md) and retry. "
+            f"The repo is initialized but has no baseline commit yet."
+        )
+    log("recorded initial commit: 'Initial commit (bale)'")
+    print('  ✓ Initial commit: "Initial commit (bale)"')
+
+    print()
+    print("Done. Continuing with bale pack...")
+    print()
+    return cwd
+
+
+# --- cmd_pack ----------------------------------------------------------------
+
 def cmd_pack(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
 
     repo = repo_root(cwd)
     if repo is None:
-        fail(
-            "not in a git repo. v0.0.1 has no git-init walkthrough yet; "
-            "run `git init && git add -A && git commit -m initial` first, "
-            "then retry."
-        )
+        # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
+        # The walkthrough re-applies refuse_system_dir as defense in depth
+        # (the constraint that motivated separating it from cmd_pack), then
+        # `git init`s here, prompts for any missing git identity, writes a
+        # .gitignore with the §6.4 baked-in exclusion set, and records the
+        # initial commit. On user decline it prints the spec'd one-liner
+        # and exits 0; on accept it returns the new repo root (== cwd).
+        repo = git_init_walkthrough(cwd, force=args.force)
     refuse_system_dir(repo, force=args.force)
 
     # Lock check (BALE.md 7.1 step 5).
@@ -3396,7 +3623,7 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.7 bootstrap).",
+        description="Claude session orchestrator (v0.0.8 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
