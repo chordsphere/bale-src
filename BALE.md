@@ -390,15 +390,20 @@ for v0.1.
 
 ## 5. Command surface
 
-Five commands. Each does one thing.
+The full target surface. Phases in §13 govern which commands land in
+which release; until a command's phase ships, the row stays here as a
+forward-looking entry.
 
-| Command | Purpose |
-|---------|---------|
-| `bale pack` | Build a request tarball from the project + user-specified scope. |
-| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the branch staged for inspection. |
-| `bale revert <sid>` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). |
-| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. |
-| `bale unlock` | Clear an abandoned session lock. |
+| Command | Purpose | Phase |
+|---------|---------|-------|
+| `bale pack` | Build a request tarball from the project + user-specified scope. | v0.0.1 |
+| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the branch staged for inspection. | v0.0.1 |
+| `bale retry <tarball>` | Re-attempt a HOLDed session with a corrected response tarball, preserving the lock so the new attempt lands in the same session id. | v0.0.x |
+| `bale revert <sid>` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). | v0.0.1 |
+| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. | v0.2 (not yet shipped) |
+| `bale unlock` | Clear an abandoned session lock. | v0.0.5 |
+| `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. | v0.0.6 |
+| `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 
 No `status`, no `log`, no `blame`, no `diag`. Inspection is a Claude
 session.
@@ -1327,54 +1332,64 @@ End-to-end harness. Spin up a temp git repo. Pack, apply, validate,
 rollback through every code path. Held states. Conflicts. Stale
 locks. Reverts. Re-apply.
 
-### v0.5+ — `.bale.toml`
+### v0.5+ — extensions to `bale.toml`
 
-Per-project configuration. Override defaults for things like staging
-directory, baked-in excludes, and an optional response-archive
-location (e.g. `archive_dir = "claude/responses"`) so the apply
-pipeline can copy whichever of `README.md`, `notes.md`, and
-`next-prompt.md` the response actually included into the project's
-archive convention. Strictly opt-in; a project without `.bale.toml`
-behaves exactly as v0.1–v0.4 (no archival; users who want it move
-the files manually).
+Per-project and global configurables already exist (`bale.toml` at
+both layers, with the `[hooks]` and `[apply]` sections shipped through
+the v0.0.x line — see `claude/context/bale-internals.md`). v0.5+ is
+where additional keys earn their place under that mechanism if a use
+case argues for them. Candidates that have come up in conversation
+but not landed:
+
+- Staging directory override (currently `--staging-dir` on the
+  command line only).
+- Tuning the baked-in exclude set (adding to it; removing requires
+  more care since the secret patterns are non-negotiable per §6.4).
+- An optional response-archive location (e.g.
+  `archive_dir = "claude/responses"`) so the apply pipeline can copy
+  whichever of `README.md`, `notes.md`, and `next-prompt.md` the
+  response actually included into the project's archive convention.
+
+Any addition extends `bale_config.walk_configurables()` and
+`render_bale_toml()` in the same session — the wizard owns the
+discoverable surface (bale-internals.md §2.5).
 
 ---
 
-## 14. Open decisions
+## 14. Resolved decisions
 
-Things still to resolve during the build. The implementer (or a
-future bale session) decides.
+Decisions that were open during design but have since been settled
+by the implementation. Recorded here as a historical trace; there
+are no currently-open items in this section. New decisions go in an
+ADR (`claude/context/adr/`) per DOCS.md §5.
 
-### 14.1 Bootstrap approach
+### 14.1 Bootstrap approach — option (a) chosen
 
-Two options for v0.0.1:
+Two options were on the table for v0.0.1:
 
-- **(a)** Hand-write the smallest possible bale — one Python file
-  at `bin/bale` (no wizard, no walkthrough, ~400–600 lines) plus the
-  three docs at `docs/` — and use it to apply the first tarball that
-  fleshes out v0.1. Disciplined, slow.
-- **(b)** Hand-write the entire v0.1 (multi-module, wizard,
-  walkthrough, rollback), treat the snapshot system as the workflow
-  for *future* changes from v0.2 onward. Faster initial delivery,
-  but more hand-written code that wasn't itself the product of a
-  bale session.
+- **(a)** Hand-write the smallest possible bale and use it to apply
+  the first tarball that fleshes out v0.1.
+- **(b)** Hand-write the entire v0.1 and treat the snapshot system
+  as the workflow for future changes only.
 
-Recommendation: (a). The bootstrap discipline pays off when the
-first bale session on the tool surfaces a real issue with the apply
-contract.
+Implementation took (a). The v0.0.x line bears it out: every
+v0.0.N>1 patch has been a bale session on the previous version.
+The bootstrap discipline paid off on the first session that
+surfaced an exec-bit-stripping bug in the apply path (see
+`claude/context/meta-sessions.md` §2), which is exactly the class
+of issue the meta-sessions framing predicted.
 
-### 14.2 Tarball file naming
+### 14.2 Tarball file naming — option (b) chosen
 
-Two options:
-- **(a)** `request-NNN.tar.gz` and `response-NNN.tar.gz`. Matches
-  the directory inside.
+Two options were on the table:
+- **(a)** `request-NNN.tar.gz` / `response-NNN.tar.gz` (matches the
+  directory inside).
 - **(b)** Include the sid: `request-2026-05-12-foo-001.tar.gz`.
-  Unambiguous if multiple tarballs are floating around.
 
-Recommendation: (b) for the outbound name (what the user sees),
-since users may have several requests in their downloads folder
-across projects. The directory inside still uses `request-NNN/` for
-the cleaner archive structure.
+Implementation took (b) for the outbound tarball name: `bale pack`
+writes `.bale/outbox/request-<sid>.tar.gz`, and `bale handoff`
+follows the same convention. The directory inside still uses
+`request-NNN/` / `response-NNN/` for the cleaner archive structure.
 
 ---
 

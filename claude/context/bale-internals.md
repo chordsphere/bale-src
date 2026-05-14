@@ -14,17 +14,26 @@ the entry point; `bin/bale_config.py` is a sibling module imported by
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
 sections). The top of `bin/bale` declares constants (paths, exclusions,
 version); the rest is organized as roughly-flat sections, each named with
-a numbered banner comment. Read `bin/bale` top-to-bottom:
+a numbered banner comment. The index header in the file's top docstring
+lists every section with an approximate line number; that header is the
+canonical map and is kept in sync with the body by the response's
+`validation.sh` whenever a section is added, renamed, or moved. The list
+below is the higher-level grouping of those sections — what each cluster
+is *for* — and stays stable as the per-section line numbers drift:
 
 1. **Imports + constants.** `VERSION`, `INSTALL_ROOT`, `DOCS_DIR`,
    `GLOBAL_DOCS`, `BAKED_IN_EXCLUDE_DIRS`, `SECRET_PATTERNS`,
-   `SECRET_PATH_EXCLUDES`, `SYSTEM_DIRS`. The `BALE_CONFIG`,
-   `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`,
-   `HOOK_NAMES`, and `APPLY_VALUES` constants live in `bale_config`.
-2. **Logging.** `log()` and `fail()`. Logging is first-draft, not
-   retrofit — every non-trivial action goes through them.
-3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`. Subprocess
-   wrappers with capture-and-text defaults.
+   `SECRET_PATH_EXCLUDES`, `SYSTEM_DIRS`, plus the `PACK_MAX_*`
+   threshold caps. The `BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`,
+   `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, and
+   `APPLY_VALUES` constants live in `bale_config`.
+2. **Logging.** `log()`, `fail()`, `set_log_file()`. Logging is
+   first-draft, not retrofit — every non-trivial action goes through
+   them, and `log(..., force=True)` buffers FORCE: lines emitted
+   before sid allocation so they reach the session log when one
+   opens.
+3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`.
+   Subprocess wrappers with capture-and-text defaults.
 4. **Hashing.** `sha256_file()`, `sha256_bytes()`.
 5. **Session IDs + the per-day counter.** `next_session_id()` —
    `YYYY-MM-DD-<slug>-NNN`.
@@ -33,47 +42,59 @@ a numbered banner comment. Read `bin/bale` top-to-bottom:
 7. **`.gitignore` for `.bale/`.** Bale auto-appends `.bale/` to
    `.gitignore` on first `pack` if missing.
 8. **Path-safety checks.** `refuse_system_dir()`, `is_path_safe()`.
-9. **Pack pipeline.** File enumeration, slug validation, manifest
-   construction, tarball construction.
-10. **`cmd_pack`.**
-11. **Apply pipeline.** Manifest validation, file presence + sha256
-    + path safety, staging, validation, commit-or-hold logic.
-12. **`cmd_apply`.**
-13. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
+9. **Pack pipeline.** Five sections in the body, kept separate
+   because they grew past the threshold for one cluster: file
+   enumeration and filtering; scope projection + threshold caps
+   (BALE.md §7.4); slug validation; manifest and tarball
+   construction; and `cmd_pack` itself (which also hosts the
+   git-init walkthrough per BALE.md §10).
+10. **Apply pipeline.** Three sections in the body: apply helpers,
+    the apply pipeline proper (`_apply_pipeline`, shared with retry),
+    and `cmd_apply`. Manifest validation, file presence + sha256 +
+    path safety, staging, validation, commit-or-hold logic, and
+    walkthrough.
+11. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
     session entirely (and clears the lock); retry discards the same
     HOLD state but preserves the lock and reruns the apply pipeline
     against a corrected response tarball. Both call a shared
     `_discard_hold_state()` helper for the destructive cleanup; the
-    lock-clear and post-cleanup steps are caller policy. The apply
-    pipeline body itself is extracted as `_apply_pipeline()` so both
-    `cmd_apply` and `cmd_retry` invoke it without duplication.
-14. **`cmd_unlock`.** Clears an abandoned session lock — the
+    lock-clear and post-cleanup steps are caller policy.
+12. **`cmd_unlock`.** Clears an abandoned session lock — the
     "held, no branch" state from BALE.md §9.5. Removes
     `.bale/current_session` and `.bale/sessions/<sid>/`; touches no
     git state. Refuses on HOLD-with-branch (a `bale/<sid>` branch
     exists) because that's `bale revert`'s territory; `--force`
     overrides the refusal but leaves the orphan branch in place and
     logs the override with the FORCE: prefix.
-15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
+13. **`cmd_handoff`.** Repackages a bailout response (TARBALL.md
+    §5.6) into a fresh request that inherits the bailed-on session's
+    goal verbatim, pre-packs source files extracted from
+    `handoff.md`'s reading-plan section (v0.0.7+), and warns on
+    chained-bailout lineages (CLAUDE.md §11.4). Optional
+    `--edit-goal` opens `$EDITOR` on the inherited goal before
+    packing.
+14. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
-16. **CLI parser + `main`.** The `bale config init` subparser wires
+15. **CLI parser + `main`.** The `bale config init` subparser wires
     `func=bale_config.cmd_config_init`.
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
 `get_hook`, `get_apply_search_paths`); the wizard (`_prompt_value`,
-`walkthrough_git_identity`, `walk_configurables`, `render_bale_toml`,
-`cmd_config_init`); and the module-level constants listed above
+`_prompt_path_list`, `walkthrough_git_identity`, `walk_configurables`,
+`render_bale_toml`, `cmd_config_init` and its layer-specific
+implementations); and the module-level constants listed above
 (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
 `GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, `APPLY_VALUES`). It imports `log`,
 `fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
 `__main__` (i.e. `bin/bale`) inside the functions that use them — see
 the module docstring for why this pattern over a third shared module.
 
-Two-level subparsing only — `bale <verb>` for the four top-level
-commands, plus `bale config <subcommand>` for the config family. At
-v0.0.1 the only `config` subcommand is `init`; `set`, `get`, `edit` are
+Two-level subparsing only — `bale <verb>` for seven top-level commands
+(`pack`, `apply`, `retry`, `revert`, `unlock`, `handoff`, `config`),
+plus `bale config <subcommand>` for the config family. At v0.0.x the
+only `config` subcommand is `init`; `set`, `get`, `edit` are
 deliberately out of scope until they earn a place.
 
 ---

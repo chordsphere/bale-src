@@ -112,15 +112,17 @@ check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
 check_output "--help mentions revert"   "revert"     "$BALE" --help
 check_output "--help mentions unlock"   "unlock"     "$BALE" --help
+check_output "--help mentions handoff"  "handoff"    "$BALE" --help
 check_output "--help mentions config"   "config"     "$BALE" --help
 
 section "subcommand --help"
-check_runs "pack --help"   "$BALE" pack   --help
-check_runs "apply --help"  "$BALE" apply  --help
-check_runs "retry --help"  "$BALE" retry  --help
-check_runs "revert --help" "$BALE" revert --help
-check_runs "unlock --help" "$BALE" unlock --help
-check_runs "config --help" "$BALE" config --help
+check_runs "pack --help"    "$BALE" pack    --help
+check_runs "apply --help"   "$BALE" apply   --help
+check_runs "retry --help"   "$BALE" retry   --help
+check_runs "revert --help"  "$BALE" revert  --help
+check_runs "unlock --help"  "$BALE" unlock  --help
+check_runs "handoff --help" "$BALE" handoff --help
+check_runs "config --help"  "$BALE" config  --help
 check_runs "config init --help" "$BALE" config init --help
 
 # apply --help should surface the new default so users see where staging
@@ -136,6 +138,11 @@ check_output "retry --help mentions .bale/staging" ".bale/staging" "$BALE" retry
 # how relative tarball names get resolved before reading the source.
 check_output "apply --help mentions search_paths"  "search_paths" "$BALE" apply --help
 check_output "retry --help mentions search_paths"  "search_paths" "$BALE" retry --help
+
+# handoff --help should mention --edit-goal (its distinctive flag, added in
+# v0.0.7) so users discover the inherited-goal edit path without reading the
+# source. Parallels the per-subcommand spot-checks for apply/retry above.
+check_output "handoff --help mentions --edit-goal" "--edit-goal" "$BALE" handoff --help
 
 # config init's help should mention idempotency since that's the
 # user-facing contract — re-running is safe.
