@@ -31,6 +31,7 @@ a paused session.
 |-----------|------|
 | Producing a normal response tarball | Sections 1, 2, 5, 7 |
 | Returning a probe instead of a response | Sections 1, 2, 4 |
+| Returning a bailout response (`CLAUDE.md` §11 triggered) | Sections 1, 2, 5.6, 5.7, 5.8 |
 | Handling a request tarball I received | Sections 1, 2, 3 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
 | Writing or debugging `apply.sh` | Section 5.1.1 |
@@ -323,6 +324,13 @@ asking before any code lands. The constraint is on the *deliverable's
 shape*: when code is the response, the tarball is the response,
 without a parallel copy in chat.
 
+A **bailout** response (§5.6) has a distinct shape: no `files/`,
+no-op `apply.sh` and `validation.sh`, plus mandatory `handoff.md`
+and `diagnostics.json`. It is the response Claude returns when the
+session can't fit the goal within its context budget — see
+`CLAUDE.md` §11. Bale's apply step treats bailouts as informational
+rather than applicable.
+
 ### 5.1.1 apply.sh
 
 `apply.sh` ships operations beyond the cp-and-overwrite that `files/`
@@ -372,6 +380,7 @@ contract.
   "session_id": "2026-05-12-vue-scaffold-001",
   "responds_to": "2026-05-12-vue-scaffold-001",
   "corrects": null,
+  "response_kind": "normal",
   "summary": "one-paragraph summary of what this response delivers",
   "changes": [
     {
@@ -443,6 +452,10 @@ Field semantics:
   replaced response's tarball stays in `claude/responses/` as
   history; the pointer is how someone reading later traces what
   happened.
+- **`response_kind`** — `"normal"` (default) for an ordinary
+  response. `"bailout"` when Claude could not fit the goal in this
+  session's context budget (see `CLAUDE.md` §11). Bailout responses
+  follow the distinct shape in section 5.6.
 
 ### 5.3 Claims vs verdict
 
@@ -504,6 +517,206 @@ run first.
 
 If nothing's queued, omit the file. Absence means *"no follow-up;
 this session stands alone."*
+
+`next-prompt.md` is for queued follow-up work after a *successful*
+session. It is **not** the same as `handoff.md` (§5.7), which is
+the artifact of a *bailed* session. Different reader posture
+(myself vs. a fresh Claude), different content, different file.
+
+### 5.6 Bailout response
+
+A bailout response is what Claude returns when `CLAUDE.md` §11
+triggers have fired — the goal won't fit in this session's context
+budget and Claude is handing off to a fresh session instead of
+pushing through. The bailout artifact is the safety net for
+context-budget exhaustion; the *why* lives in `CLAUDE.md` §11.
+
+#### 5.6.1 Shape
+
+```
+response-NNN/
+  manifest.json        # response_kind: "bailout"
+  apply.sh             # no-op
+  validation.sh        # no-op
+  handoff.md           # required: instructions for the next Claude (§5.7)
+  diagnostics.json     # required: structured diagnostics (§5.8)
+  files/               # absent or empty
+  notes.md             # optional, addressed to me (not the next Claude)
+```
+
+`response_kind: "bailout"` in the manifest is the canonical marker.
+Bale's apply step branches on it: instead of applying changes, it
+displays the handoff summary and prompts the user to run
+`bale handoff <response-NNN>` to package a fresh session.
+
+`README.md` and `next-prompt.md` are absent in bailouts —
+`handoff.md` carries the forward-looking content for the next
+Claude, and `notes.md` (if present) carries the user-facing
+commentary.
+
+#### 5.6.2 Manifest specifics for bailouts
+
+When `response_kind: "bailout"`:
+
+- **`summary`** — one paragraph: what was attempted, which trigger
+  fired (per `CLAUDE.md` §11.2), what the handoff prescribes for
+  the next session.
+- **`changes`** — empty array. Nothing changed.
+- **`deferred`** — empty. Deferred work lives in `handoff.md`'s
+  prescription, not as a flat list.
+- **`validation_will_run`** — empty array. No checks to run.
+- **`claims`** — empty object. Nothing to claim.
+
+The `responds_to` field still names the request this answers. The
+new session that the user packs after running `bale handoff` will
+have its own fresh `session_id` (same slug, new date+NNN), and its
+`depends_on.previous_response` will point at the bailout.
+
+#### 5.6.3 Apply-time UX (contract for bale)
+
+When bale's apply step encounters `response_kind: "bailout"`, it:
+
+1. Prints a clear banner identifying the response as a bailout. No
+   changes will be applied; do not run `apply.sh` or
+   `validation.sh` against the project.
+2. Prints the `manifest.summary` and the first section of
+   `handoff.md`.
+3. Prints the explicit next-step: *"Run `bale handoff
+   <response-NNN>` to package the handoff into a fresh session."*
+4. Skips the staging diff and validation invocation entirely.
+
+This section is the contract; the bale CLI implementation of
+`handoff` lands in a separate session. Until that CLI exists, the
+user packs the handoff manually by including `handoff.md` in the
+next request's `context/` and inheriting `manifest.goal` from the
+prior request — and the bailout's `notes.md` should say so
+explicitly.
+
+### 5.7 handoff.md (required in bailout responses)
+
+Written for the **next Claude session**, not for me. Voice is
+terse and instructional — no hedging, no conversational softening,
+no "I" reflection beyond what the next Claude needs to plan its
+budget.
+
+Required sections, in this order:
+
+```markdown
+# Handoff
+
+## Original goal
+
+[Verbatim copy of `manifest.goal` from the request this bailed on.
+The next session should not have to re-extract this.]
+
+## What I loaded
+
+[Every doc and source file Claude actually read this session, with
+a verdict on whether it earned its budget cost:
+- `path/to/doc.md` — necessary | wasted | partial
+The next Claude uses this to skip what wasted budget last time.]
+
+## What I explored
+
+[Reasoning paths Claude pursued — drill-downs, hypotheses, design
+options — with a verdict:
+- `did X` — productive | dead end | inconclusive
+Concrete enough that the next Claude can avoid repeating dead
+ends.]
+
+## What I learned
+
+[Concrete observations that compress the next session's reading.
+Example: "The relevant logic for goal X lives in `composables/`,
+not `utils/`." "Skip `src/legacy/` — nothing in it is reachable
+from the current entry points." If nothing useful was learned,
+state that.]
+
+## Reading plan for the next session
+
+[A specific drill-down prescription for the next Claude, given the
+original goal. INDEX-table-compatible paths. If reading order
+matters, number it. This is the most important section — its job
+is to put the next Claude on the right track in one read, not
+ten.]
+
+## Salvageable work
+
+[Any partial decisions, sketches, or code stubs that should not be
+discarded. Verbatim where possible. If nothing is salvageable,
+write: "Nothing to salvage — restart from the reading plan."]
+```
+
+The next Claude reads `handoff.md` as the first `context/` doc and
+treats its reading plan as authoritative for that session, unless
+the request manifest overrides it.
+
+### 5.8 diagnostics.json (required in bailout responses)
+
+Structured longitudinal data, aggregated across sessions to
+calibrate where budget actually goes. Schema:
+
+```json
+{
+  "session_id": "2026-05-14-context-limit-005",
+  "bail_trigger": "reading-path-inflation",
+  "bail_narrative": "one paragraph in Claude's voice: what was noticed, when, why bailing beat pushing through.",
+  "context_loaded": [
+    {
+      "path": "context/docs/CLAUDE.md",
+      "verdict": "necessary",
+      "note": "the operating manual; can't skip"
+    },
+    {
+      "path": "context/docs/TARBALL.md",
+      "verdict": "wasted",
+      "note": "drilled prematurely; the session turned out to be conversational"
+    }
+  ],
+  "exploration_paths": [
+    {
+      "what": "considered putting the budget premise in §1 directly",
+      "verdict": "dead_end",
+      "note": "renumbering cost too high; chose a forward-reference instead"
+    }
+  ],
+  "tool_calls_summary": {
+    "view": 6,
+    "bash_tool": 4,
+    "str_replace": 0
+  },
+  "what_would_save_next_time": [
+    "concrete, prescriptive advice for the next Claude — what reading paths to skip, what decisions are already made"
+  ]
+}
+```
+
+Field semantics:
+
+- **`bail_trigger`** — one of `"reading-path-inflation"`,
+  `"mid-build-budget-panic"`, or `"other"`. Matches the triggers
+  defined in `CLAUDE.md` §11.2.
+- **`bail_narrative`** — Claude's honest paragraph on the bail
+  decision. The retrospective complement to the prescriptive
+  `handoff.md`.
+- **`context_loaded[].verdict`** — `"necessary"`, `"wasted"`, or
+  `"partial"`. The verdict is qualitative; Claude can't measure
+  token-spend per doc precisely.
+- **`exploration_paths[].verdict`** — `"productive"`, `"dead_end"`,
+  or `"inconclusive"`.
+- **`tool_calls_summary`** — map of tool name to call count.
+  Captured from Claude's own count, not measured externally.
+- **`what_would_save_next_time`** — array of strings, each a
+  concrete prescription. Overlaps with `handoff.md`'s "What I
+  learned" section; that's intentional — `handoff.md` is for the
+  next Claude, `diagnostics.json` is for the user's longitudinal
+  analysis.
+
+The schema is intentionally loose: new fields can be added in
+future sessions without breaking earlier aggregation, and values
+are honest estimates rather than measurements. Aggregation across
+sessions is left to the user (jq, notebook, eventual `bale stats`
+command).
 
 ---
 
