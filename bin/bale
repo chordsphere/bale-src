@@ -845,7 +845,7 @@ def build_request_tarball(
         request_dir = Path(tmp) / f"request-{nnn}"
         request_dir.mkdir()
 
-        # Inject the three global docs from the bale installation. copy2 +
+        # Inject the global docs from the bale installation. copy2 +
         # follow_symlinks=False preserves mode bits — see the context-files
         # copy below for why that matters for the rest of the tarball.
         for doc in GLOBAL_DOCS:
@@ -2258,7 +2258,7 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.3 bootstrap).",
+        description="Claude session orchestrator (v0.0.4 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -2425,7 +2425,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Sanity: the installation must have the three global docs alongside.
+    # Sanity: the installation must have the global docs alongside.
     if args.command == "pack":
         missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
         if missing:

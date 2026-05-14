@@ -14,6 +14,7 @@ After install, `~/bale/` (or wherever you extracted) contains:
 ```
 bale/
   bin/bale          # the CLI entrypoint (Python, stdlib only)
+  bin/bale_config.py  # configurables loader/merger + `bale config init` wizard
   docs/
     CLAUDE.md       # the working agreement bale injects into every request
     TARBALL.md      # the wire-format contract for request/response tarballs

@@ -176,6 +176,7 @@ a build step (planned for v0.1+) packages that layout into
 ```
 bale/
   bin/bale            # the Python entrypoint with shebang
+  bin/bale_config.py  # configurables loader/merger + `bale config init` wizard
   docs/
     CLAUDE.md
     TARBALL.md
