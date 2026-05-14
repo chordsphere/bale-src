@@ -90,7 +90,23 @@ if [[ ! -x "$BALE" ]]; then
 fi
 
 section "CLI surface"
-check_output "--version reports 0.0.5"  "bale 0.0.5" "$BALE" --version
+
+# Read the canonical VERSION from bin/bale so this script doesn't
+# duplicate the version string. Matches the module-level
+#   VERSION = "X.Y.Z"
+# assignment near the top of bin/bale. Reading from the declaration
+# (rather than from `bin/bale --version` output) keeps the check
+# meaningful: if argparse's `--version` wiring ever regresses against
+# the declared constant, the substring check below will catch it.
+# `head -1` is a defensive belt in case future edits introduce a
+# second matching line; the first top-level assignment is canonical.
+EXPECTED_VERSION=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$BALE" | head -1)
+if [[ -n "$EXPECTED_VERSION" ]]; then
+  pass "read VERSION from bin/bale ($EXPECTED_VERSION)"
+  check_output "--version reports $EXPECTED_VERSION" "bale $EXPECTED_VERSION" "$BALE" --version
+else
+  fail "read VERSION from bin/bale" "no top-level VERSION = \"...\" assignment found"
+fi
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
@@ -153,7 +169,11 @@ check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh
 section "symlink resolution (if applicable)"
 SYM="$HOME/.local/bin/bale"
 if [[ -L "$SYM" && "$(readlink "$SYM")" == "$BALE" ]]; then
-  check_output "via symlink: --version" "bale 0.0.5" "$SYM" --version
+  if [[ -n "$EXPECTED_VERSION" ]]; then
+    check_output "via symlink: --version" "bale $EXPECTED_VERSION" "$SYM" --version
+  else
+    printf '  [SKIP] via symlink: --version (could not read VERSION from bin/bale)\n'
+  fi
 else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"
 fi
