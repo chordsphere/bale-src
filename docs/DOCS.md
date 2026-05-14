@@ -71,7 +71,7 @@ behaves once present.
 | **Architectural decisions** | `0001-vue-over-react.md` | Append-only; new file per decision; old files never edited (superseded instead) | `claude/context/adr/` | `NNNN-lowercase-hyphenated.md` |
 | **Schemas / data contracts** | `dist-api.openapi.yaml`, `dist-meta.schema.json` | Edited when the underlying contract changes | `claude/context/schemas/` | `lowercase-hyphenated.<ext>` |
 | **Long-form explainers** | `surface-modes.md` | Edited when the subject evolves | `claude/context/` | `lowercase-hyphenated.md` |
-| **Session notes** | `notes.md`, `next-prompt.md` | Write-once; archived, never edited | `claude/responses/response-NNN/` | conventional |
+| **Session notes** | `notes.md`, `next-prompt.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once; archived, never edited | `claude/responses/response-NNN/` | conventional (`.md`, plus `.json` for `diagnostics.json`) |
 
 If a needed document doesn't fit any row, that's a signal — either it
 belongs in a category Claude didn't recognize, or it's the seed of a

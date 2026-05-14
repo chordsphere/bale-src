@@ -8,6 +8,26 @@
 
 ## META
 
+### Reading order
+
+Every session, in this order:
+
+1. **`manifest.json`** — the session scope. Tells Claude in
+   seconds whether this is conversational or tarball mode, what's
+   in scope, what context files are present, what to ignore. Read
+   first so the triggers below fire correctly.
+2. **This file (`CLAUDE.md`)** in full.
+3. **The session prompt and any project docs** the manifest's
+   `context_included` names.
+4. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
+   `CODE.md` — never pre-emptively. They're 24–28K each; most
+   sessions don't touch most of them. The INDEX table below says
+   when each one engages.
+
+Reading the manifest first is the single most important budget
+discipline: it prevents drilling into a doc the session doesn't
+need. Context budget is finite — see §11.
+
 ### What this doc is
 
 The operating manual. Read every session. If something here
@@ -37,7 +57,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `CLAUDE.md` in full; `TARBALL.md`, `DOCS.md`, and `CODE.md` are present and skimmed for orientation, drilled into per the triggers below. Plus the session prompt and any project docs (`charter-brief.md`, `INDEX.md`, etc.) the project has |
+| Every session | `manifest.json` first (sets scope); then `CLAUDE.md` in full; then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `adr/NNNN-*.md` |
@@ -76,6 +96,13 @@ The reverse failure — Claude over-procedures and turns every short
 exchange into a tarball ceremony — is also a bug. The mechanics
 referenced here engage when work is meant to land. They stay out of
 the way the rest of the time.
+
+Beyond the architect/builder split, one premise binds the work
+itself: **every session must complete within a single context
+window.** No implicit continuation, no relying on the runtime to
+"carry over" what didn't fit. If Claude realizes the budget won't
+carry the goal through, the discipline is to bail to a handoff,
+not push through. Mechanics in §11.
 
 ---
 
@@ -131,6 +158,12 @@ When Claude decides tarball mode is engaging, **Claude re-reads
 `TARBALL.md` before producing the response.** `TARBALL.md` is always
 present (bale injects it), but the act of re-engaging with the
 contract before producing matters — drill-down beats recall.
+
+Within tarball mode, three response shapes are possible: a full
+response tarball (the default, when work landed), a probe
+(`TARBALL.md` section 4, when an environment gap blocks the work),
+and a bailout response (§11, when the budget won't carry the work
+through).
 
 ### When Claude is unsure which mode
 
@@ -330,3 +363,87 @@ Project docs (`INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs,
 schemas) are included by the user if the project has them, omitted
 otherwise. Drill further into project docs only when the read-paths
 table says to.
+
+---
+
+## 11. Context Budget
+
+Every session is bounded by a single context window. This section
+governs how Claude detects the budget running thin and what to do
+about it. The premise lives in §1; this section is the mechanics.
+
+### 11.1 Operating realities
+
+- **No implicit continuation.** The session either completes within
+  this window or it bails to a handoff. The runtime does not
+  "carry over" what didn't fit.
+- **Compaction is a failure mode, not a feature.** Where the
+  runtime auto-compacts (claude.ai web/app), by the time it
+  triggers, Claude's grasp of the loaded context has already
+  degraded. The discipline is to bail *before* compaction can
+  engage.
+- **Budget is not directly measurable.** Claude cannot reliably
+  count remaining tokens. The triggers below are *behavioral*, not
+  numeric.
+
+### 11.2 Bail triggers
+
+Bail when one of these is true:
+
+- **Reading-path inflation.** Claude has drilled past what the
+  INDEX table prescribed and is still not converging on the work.
+  §2's "stop and act, not keep reading" rule is the first-line
+  defense; this is the escalation when stopping and acting isn't
+  viable either.
+- **Mid-build budget panic.** Claude is producing the response,
+  notices the change set is bigger than estimated, and the
+  remaining work (`validation.sh`, `notes.md`, manifest hashes)
+  won't fit without sprawl that risks compaction.
+
+What is *not* a bail trigger:
+
+- **A numeric token threshold.** Claude can't measure that
+  reliably. Pretending otherwise produces inconsistent behavior.
+- **The work being hard.** Hard ≠ doesn't fit.
+
+Bail early. By the time the wall is *felt*, the response is already
+going to truncate or trigger compaction. Conservative bailout is
+cheap (a queued re-attempt); confident push-through that ends in
+compaction is expensive (silent breakage I have to catch later).
+
+### 11.3 The bailout response
+
+A bailout is a distinguished kind of response tarball, marked
+`response_kind: "bailout"` in the manifest so bale's apply step
+treats it differently. Shape and required artifacts: `TARBALL.md`
+section 5.6.
+
+Two artifacts are mandatory in a bailout:
+
+- **`handoff.md`** — written for the *next Claude*, not for me.
+  Terse, instructional; original goal verbatim, what was loaded
+  and what was productive, the curated reading plan for the next
+  session, any salvageable partial work. Spec: `TARBALL.md`
+  section 5.7.
+- **`diagnostics.json`** — structured longitudinal data: bail
+  trigger, exploration paths, tool-call summary. Aggregated across
+  sessions as a calibration signal. Spec: `TARBALL.md` section 5.8.
+
+The bailout response carries no `files/` (or an empty one) and a
+no-op `validation.sh`. Nothing is applied to the project. The
+follow-on action is `bale handoff <response-NNN>` to package the
+handoff into a fresh session with full budget.
+
+### 11.4 Bailout is not a fallback for laziness
+
+The first-line defense against running out of budget is the
+drill-down discipline in §2: don't over-read, don't explore
+branches that haven't earned the budget, don't pre-skim docs the
+INDEX table didn't point at. Bailout is the safety net for
+sessions where the goal was genuinely bigger than the budget — not
+for sessions where Claude could have finished by reading less.
+
+If bailouts cluster around the same kind of work, the signal is
+about scoping, not about Claude's discipline. That observation
+warrants a separate session — see §9 ("the protocol itself feels
+wrong"), not a new bail.
