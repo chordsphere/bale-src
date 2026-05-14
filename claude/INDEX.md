@@ -36,9 +36,9 @@ will stay that way for a while.
 
 ## Notes on this index
 
-The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`) ship from the bale
-installation and are injected into every request; they are not listed
-here. `BALE.md` is listed because it lives in this repo and is the
+The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`) ship from
+the bale installation and are injected into every request; they are not
+listed here. `BALE.md` is listed because it lives in this repo and is the
 canonical design reference for the bale tool — it is project
 documentation for bale-src, not a global workflow doc, and is not
 injected into requests for other projects.

@@ -27,7 +27,7 @@ top-level execution is at the moment of import.
 Sections:
   1. Imports + constants                              (~line  60)
   2. Configurables: load and merge                    (~line 115)
-  3. `bale config init` wizard                        (~line 320)
+  3. `bale config init` wizard                        (~line 340)
 
 Constants exported for `bin/bale`'s use (referenced by `run_hook` for
 layer detection, and by `build_parser` for command dispatch):
