@@ -200,11 +200,12 @@ deliberate: the install dir stays portable as a unit — copy
 `<install>/` anywhere and the global config travels with it.
 
 This is distinct from the **bale-src layout** (the source repo):
-bale-src has the same release-shaped top-level items plus
-`bale.toml`, `scripts/`, and `claude/` (project-local configurables,
-hook scripts, and bale-src's own doc map). The extras are bale-src's
-own use of the bale workflow and are not part of the release. See
-section 13 for why bale-src has this shape.
+bale-src has the same release-shaped top-level items plus this
+design doc (`BALE.md`), `bale.toml`, `scripts/`, and `claude/`
+(project-local configurables, hook scripts, and bale-src's own doc
+map). The extras are bale-src's own use of the bale workflow and
+are not part of the release. See section 13 for why bale-src has
+this shape.
 
 Install is one extract + one script:
 
@@ -1058,18 +1059,23 @@ Flow:
 
 ```
 $ bale pack
+
 This directory isn't a git repository. Bale needs git for branch
 staging and the rollback story.
 
 Would you like me to set it up? [Y/n] > Y
 
-Configuring git for first use.
-  Your name (for commits)? > 
-  Your email (for commits)? > 
-  (configuring `git config --global user.name/user.email`)
-
 Initializing repository...
   ✓ git init
+
+Git identity (used for commit attribution on bale apply)
+  git user.name: (unset)
+  enter your name (Enter to skip): > Alice Example
+  wrote user.name = Alice Example to repo-local git config
+  git user.email: (unset)
+  enter your email (Enter to skip): > alice@example.com
+  wrote user.email = alice@example.com to repo-local git config
+
   ✓ Created .gitignore with bale's default exclusion set
   ✓ Staging all files in this directory
   ✓ Initial commit: "Initial commit (bale)"
@@ -1079,9 +1085,22 @@ Done. Continuing with bale pack...
 
 Details:
 
-- **user.name / user.email** — only prompted if not already set
-  globally. Bale checks `git config --global user.name` and
-  `git config --global user.email` first.
+- **Step order: init → identity → gitignore → commit.** `git init`
+  runs first so the identity prompt has a repo to write into (next
+  bullet). The single "Initializing repository..." header opens the
+  block; the four steps print in order beneath it, with the identity
+  prompts interleaved between `✓ git init` and `✓ Created .gitignore`.
+- **user.name / user.email** — the two fields are checked
+  independently. Each is read with `git config --get <key>` (no scope
+  flag, so any scope — system, global, or repo-local — counts as
+  set). A value found in any scope is reported as `(set)` and left
+  alone. An unset field is prompted; a non-empty response is written
+  to **repo-local** git config (`.git/config` in the new repo) and
+  never to `--global`. An empty response (Enter alone, EOF, or ^C)
+  is honored as a skip; bale prints a note that commits during this
+  session may fall back to git's default attribution until the value
+  is set. A repo whose identity is already set globally sees the
+  `(set)` lines and no prompts at all.
 - **`.gitignore`** — append bale's full baked-in exclusion set from
   §6.4 (bale/git internals, common build dirs, secret patterns) with
   a one-line note. If the file is absent, create it with the same
@@ -1091,6 +1110,27 @@ Details:
 - **Initial commit** — `git add -A` (everything not excluded by the
   newly-populated `.gitignore`). Commit message:
   `Initial commit (bale)`. This is the baseline rollback target.
+- **Non-TTY fast-fail** — when stdin is not a TTY (piped input, CI
+  runner, non-interactive shell), bale aborts before `git init`
+  rather than attempting an unattended initialization. The
+  walkthrough needs a TTY for both the confirmation prompt and the
+  identity prompts; auto-initializing a repo in a non-interactive
+  context risks landing one somewhere unexpected, which is a worse
+  failure than refusing. The error names the recovery: re-run from
+  an interactive shell, or run `git init && git add -A && git commit
+  -m initial` manually and then retry `bale pack`.
+- **Empty-initial-commit failure** — if `git commit` exits non-zero
+  after `git add -A` (most commonly because every file in the
+  directory matched the newly-populated `.gitignore` — e.g., a folder
+  of nothing but `.env` files), bale fails the walkthrough explicitly
+  rather than retrying with `--allow-empty`. An empty baseline would
+  silently mask that every file got ignored, leaving the user with
+  an apparently-initialized bale workspace that has nothing for bale
+  to track. Failing loudly surfaces the mismatch. The repo is left
+  in the init'd-but-uncommitted state; the error names the recovery
+  (add a trackable file such as `README.md` and re-run `bale pack`).
+  The subsequent run finds the repo via `repo_root` and skips the
+  walkthrough entirely.
 - **Decline path** — if the user answers `n`, bale prints
   *"bale requires a git repo. Re-run after `git init` or accept the
   walkthrough."* and exits 0.
@@ -1246,10 +1286,10 @@ The user runs `bin/bale` directly by path or symlinks it onto
 `tar -czf bale.tar.gz bale/` against this layout.
 
 bale-src — the source repo for the bale tool — has the same six
-top-level items as the release plus `bale.toml`, `scripts/`, and
-`claude/`. Those extras are bale-src's own use of bale (a
+top-level items as the release plus `BALE.md`, `bale.toml`,
+`scripts/`, and `claude/`. Those extras are this design doc, a
 per-repo configuration file, hook scripts wired through that file,
-and bale-src's project doc map). They are not part of the release
+and bale-src's project doc map. They are not part of the release
 tarball and are not mirrored by `scripts/reinstall.sh`. A user who
 only installs the release tarball never sees them.
 
