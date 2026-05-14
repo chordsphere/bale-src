@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.4. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.5. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -10,8 +10,9 @@ install layout, and self-check scripts updated to match. The
 configurables loader/merger and the `bale config init` wizard were
 extracted from this file into the sibling `bale_config.py` module in
 v0.0.4 to apply CODE.md §4.2 to the largest two sections; this file
-now hosts the pack/apply/revert/retry pipelines, the hook runtime,
-and the CLI surface. The rest of v0.1 (full pack wizard, .baleignore,
+now hosts the pack/apply/revert/retry/unlock pipelines, the hook
+runtime, and the CLI surface. `bale unlock` (BALE.md §9.3) landed in
+v0.0.5. The rest of v0.1 (full pack wizard, .baleignore, git-init
 walkthrough, release-tarball packaging) lands later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
@@ -21,11 +22,13 @@ successive bale-on-bale sessions evolve:
     bale pack <goal> --include <paths>
     bale apply <tarball>
     bale revert <sid>
+    bale retry <tarball>
+    bale unlock
     bale config init
 
-No rollback, no unlock, no release-tarball packaging. Stdlib only —
-which since session 003 means Python 3.11+ (tomllib lives there,
-inside `bale_config`). Designed to be replaced by a v0.1 tarball that
+No rollback, no release-tarball packaging. Stdlib only — which since
+session 003 means Python 3.11+ (tomllib lives there, inside
+`bale_config`). Designed to be replaced by a v0.1 tarball that
 fleshes out the full pipeline.
 
 Sections:
@@ -47,15 +50,16 @@ Sections:
   16. Apply                                            (~line 1850)
   17. Revert                                           (~line 1900)
   18. Retry                                            (~line 2080)
-  19. Hook invocation                                  (~line 2130)
-  20. CLI                                              (~line 2255)
+  19. Unlock                                           (~line 2130)
+  20. Hook invocation                                  (~line 2210)
+  21. CLI                                              (~line 2335)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
 ("bale.toml — configurables" and "`bale config init` — the
 configurables wizard") moved there entire. The two remaining surfaces
-that touch configurables — `run_hook` (section 19) and the `config
-init` subparser wiring (section 20) — go through `bale_config`'s
+that touch configurables — `run_hook` (section 20) and the `config
+init` subparser wiring (section 21) — go through `bale_config`'s
 module-level API.
 """
 
@@ -90,7 +94,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.4"
+VERSION = "0.0.5"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -127,7 +131,7 @@ SECRET_PATH_EXCLUDES = (
 # Configurables (the bale.toml file name, the per-install user/ directory,
 # hook names, and apply-section value keys) moved to bin/bale_config.py
 # in v0.0.4. The two surfaces in this file that still touch them — run_hook
-# (section 19) and the `config init` subparser wiring (section 20) — reach
+# (section 20) and the `config init` subparser wiring (section 21) — reach
 # them through bale_config.* module-level attributes.
 
 # Path-location refusals. From BALE.md section 7.1.
@@ -906,8 +910,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     if existing:
         fail(
             f"a session is already open: {existing}. "
-            f"Apply its response with `bale apply <tarball>`, or clear "
-            f".bale/current_session by hand (v0.1 adds `bale unlock`)."
+            f"Apply its response with `bale apply <tarball>`, or run "
+            f"`bale unlock` if the session was abandoned."
         )
 
     # Input validation.
@@ -2129,7 +2133,101 @@ def cmd_retry(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 19. Hook invocation
+# 19. Unlock
+# ---------------------------------------------------------------------------
+#
+# Clear an abandoned session lock — the "held, no branch" state from
+# BALE.md §9.5 (user ran `bale pack`, never applied, never reverted).
+# Cleans `.bale/current_session` and `.bale/sessions/<sid>/` without
+# touching git. Refuses on the HOLD-with-branch state (a `bale/<sid>`
+# branch exists) — that's `bale revert` territory; `--force` overrides
+# the refusal but leaves the branch in place, since deleting branches
+# is precisely what `bale revert` exists to do safely. The `--force`
+# path is logged with the FORCE: prefix so the override is auditable
+# alongside other --force events in the session log.
+
+def cmd_unlock(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale unlock` requires the project repo.")
+    refuse_system_dir(repo)
+
+    # BALE.md §9.3 step 1: read the lock.
+    sid = read_lock(repo)
+
+    # BALE.md §9.3 step 2: empty lock → no-op.
+    if sid is None:
+        print()
+        print("  no open session; nothing to unlock.")
+        return 0
+
+    # Wire logging into the session log now that we have a sid. The log
+    # file at .bale/logs/<sid>.log lives outside .bale/sessions/<sid>/,
+    # so wiping the session dir below doesn't disturb the running log.
+    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    log(f"unlock: {sid}")
+
+    sid_branch = f"bale/{sid}"
+    sessions_dir = repo / ".bale" / "sessions" / sid
+
+    # BALE.md §9.3 step 3: refuse if the bale branch exists. The branch's
+    # presence means apply ran far enough to create it but didn't reach a
+    # terminal state (PASS would have deleted the branch after merge;
+    # revert would have force-deleted it). The right command for that
+    # state is `bale revert`, which knows about origin_branch metadata and
+    # handles the branch + staging cleanup. --force overrides for the
+    # unusual cases (corrupted session dir, manually-edited state) where
+    # the user wants bale out of the way regardless.
+    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                       cwd=repo, check=False)
+    branch_exists = branch_check.returncode == 0
+
+    if branch_exists and not args.force:
+        fail(
+            f"branch {sid_branch} exists — this session reached HOLD. "
+            f"Use `bale revert {sid}` to discard the branch and clear "
+            f"the lock together, or `bale unlock --force` to clear only "
+            f"the lock (the branch would be left in place for you to "
+            f"delete manually)."
+        )
+
+    if branch_exists and args.force:
+        log(
+            f"--force; clearing lock for {sid} while branch {sid_branch} "
+            f"still exists. Branch is preserved.",
+            force=True,
+        )
+
+    # BALE.md §9.3 step 4: clear the lock, wipe the session dir. No git
+    # operations — that's the whole point of unlock vs revert.
+    clear_lock(repo)
+    log(f"cleared lock (was {sid})")
+
+    if sessions_dir.exists():
+        shutil.rmtree(sessions_dir)
+        log(f"wiped {sessions_dir}")
+        session_status = f"wiped ({sessions_dir})"
+    else:
+        log(f"no session dir at {sessions_dir} to wipe")
+        session_status = "not present"
+
+    print()
+    print(f"  unlocked {sid}")
+    print(f"  lock:    cleared")
+    print(f"  session: {session_status}")
+    if branch_exists:
+        print(
+            f"  branch:  {sid_branch} preserved (--force); "
+            f"`git branch -D {sid_branch}` to remove"
+        )
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 20. Hook invocation
 # ---------------------------------------------------------------------------
 #
 # All hooks shell out to user-supplied scripts; bale never embeds install
@@ -2252,13 +2350,13 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 20. CLI
+# 21. CLI
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.4 bootstrap).",
+        description="Claude session orchestrator (v0.0.5 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -2373,6 +2471,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_revert.add_argument("sid", help="Session ID to revert.")
     p_revert.set_defaults(func=cmd_revert)
+
+    # unlock
+    p_unlock = sub.add_parser(
+        "unlock",
+        help="Clear an abandoned session lock (no git side effects).",
+        description=(
+            "Clear the session lock for a `bale pack` that was never "
+            "applied. Removes .bale/current_session and the matching "
+            ".bale/sessions/<sid>/ directory; performs no git operations. "
+            "Refuses if a bale/<sid> branch exists — that means `bale "
+            "apply` ran far enough to create the branch but didn't reach "
+            "a terminal state, and the right command for that state is "
+            "`bale revert <sid>`. --force overrides the refusal but "
+            "leaves the orphan branch in place; delete it with "
+            "`git branch -D bale/<sid>` if you no longer want it."
+        ),
+    )
+    p_unlock.add_argument(
+        "--force", action="store_true",
+        help="Clear the lock even if a bale/<sid> branch exists. The "
+             "branch is left in place; you'll need to delete it manually. "
+             "The override is logged with the FORCE: prefix.",
+    )
+    p_unlock.set_defaults(func=cmd_unlock)
 
     # config — group for configurables-management subcommands. At v0.0.1
     # the only subcommand is `init`; set/get/edit land in later sessions.

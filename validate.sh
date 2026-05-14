@@ -90,11 +90,12 @@ if [[ ! -x "$BALE" ]]; then
 fi
 
 section "CLI surface"
-check_output "--version reports 0.0.4"  "bale 0.0.4" "$BALE" --version
+check_output "--version reports 0.0.5"  "bale 0.0.5" "$BALE" --version
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
 check_output "--help mentions revert"   "revert"     "$BALE" --help
+check_output "--help mentions unlock"   "unlock"     "$BALE" --help
 check_output "--help mentions config"   "config"     "$BALE" --help
 
 section "subcommand --help"
@@ -102,6 +103,7 @@ check_runs "pack --help"   "$BALE" pack   --help
 check_runs "apply --help"  "$BALE" apply  --help
 check_runs "retry --help"  "$BALE" retry  --help
 check_runs "revert --help" "$BALE" revert --help
+check_runs "unlock --help" "$BALE" unlock --help
 check_runs "config --help" "$BALE" config --help
 check_runs "config init --help" "$BALE" config init --help
 
@@ -138,6 +140,11 @@ check_output "pack --help mentions --max-size"  "--max-size"  "$BALE" pack --hel
 check_output "pack --help mentions --max-depth" "--max-depth" "$BALE" pack --help
 check_output "pack --help mentions --force"     "--force"     "$BALE" pack --help
 
+# unlock --help should mention --force (the only flag it takes; if the
+# parser wiring regressed and --force went missing, callers stuck in the
+# held-with-branch state would have no documented way out).
+check_output "unlock --help mentions --force"   "--force"     "$BALE" unlock --help
+
 # upgrade.sh must be runnable and self-document via --help.
 check_runs "upgrade.sh --help" "$INSTALL_DIR/upgrade.sh" --help
 check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh" --help
@@ -146,7 +153,7 @@ check_output "upgrade.sh --help mentions user/" "user/" "$INSTALL_DIR/upgrade.sh
 section "symlink resolution (if applicable)"
 SYM="$HOME/.local/bin/bale"
 if [[ -L "$SYM" && "$(readlink "$SYM")" == "$BALE" ]]; then
-  check_output "via symlink: --version" "bale 0.0.4" "$SYM" --version
+  check_output "via symlink: --version" "bale 0.0.5" "$SYM" --version
 else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"
 fi

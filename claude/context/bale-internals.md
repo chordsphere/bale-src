@@ -47,10 +47,17 @@ a numbered banner comment. Read `bin/bale` top-to-bottom:
     lock-clear and post-cleanup steps are caller policy. The apply
     pipeline body itself is extracted as `_apply_pipeline()` so both
     `cmd_apply` and `cmd_retry` invoke it without duplication.
-14. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
+14. **`cmd_unlock`.** Clears an abandoned session lock — the
+    "held, no branch" state from BALE.md §9.5. Removes
+    `.bale/current_session` and `.bale/sessions/<sid>/`; touches no
+    git state. Refuses on HOLD-with-branch (a `bale/<sid>` branch
+    exists) because that's `bale revert`'s territory; `--force`
+    overrides the refusal but leaves the orphan branch in place and
+    logs the override with the FORCE: prefix.
+15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
-15. **CLI parser + `main`.** The `bale config init` subparser wires
+16. **CLI parser + `main`.** The `bale config init` subparser wires
     `func=bale_config.cmd_config_init`.
 
 `bin/bale_config.py` has three sections (with its own index header):
