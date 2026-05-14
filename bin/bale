@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.5. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.6. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -10,10 +10,12 @@ install layout, and self-check scripts updated to match. The
 configurables loader/merger and the `bale config init` wizard were
 extracted from this file into the sibling `bale_config.py` module in
 v0.0.4 to apply CODE.md §4.2 to the largest two sections; this file
-now hosts the pack/apply/revert/retry/unlock pipelines, the hook
-runtime, and the CLI surface. `bale unlock` (BALE.md §9.3) landed in
-v0.0.5. The rest of v0.1 (full pack wizard, .baleignore, git-init
-walkthrough, release-tarball packaging) lands later.
+now hosts the pack/apply/revert/retry/unlock/handoff pipelines, the
+hook runtime, and the CLI surface. `bale unlock` (BALE.md §9.3) landed
+in v0.0.5. `bale handoff` plus apply-time branching on
+`response_kind: "bailout"` (TARBALL.md §5.6.3) landed in v0.0.6. The
+rest of v0.1 (full pack wizard, .baleignore, git-init walkthrough,
+release-tarball packaging) lands later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -24,6 +26,7 @@ successive bale-on-bale sessions evolve:
     bale revert <sid>
     bale retry <tarball>
     bale unlock
+    bale handoff <bailout-tarball>
     bale config init
 
 No rollback, no release-tarball packaging. Stdlib only — which since
@@ -32,27 +35,28 @@ session 003 means Python 3.11+ (tomllib lives there, inside
 fleshes out the full pipeline.
 
 Sections:
-   1. Imports + constants                              (~line   90)
-   2. Logging                                          (~line  160)
-   3. Shell / git helpers                              (~line  245)
-   4. Hashing                                          (~line  285)
-   5. Session IDs and the per-day counter              (~line  300)
-   6. Lock handling                                    (~line  325)
-   7. .gitignore handling for the .bale/ directory     (~line  355)
-   8. Path-safety checks                               (~line  385)
-   9. Pack: file enumeration and filtering             (~line  435)
-  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  520)
-  11. Pack: slug validation                            (~line  790)
-  12. Pack: manifest and tarball construction          (~line  805)
-  13. Pack                                             (~line  890)
-  14. Apply: helpers                                   (~line 1100)
-  15. Apply: pipeline                                  (~line 1650)
-  16. Apply                                            (~line 1850)
-  17. Revert                                           (~line 1900)
-  18. Retry                                            (~line 2080)
-  19. Unlock                                           (~line 2130)
-  20. Hook invocation                                  (~line 2210)
-  21. CLI                                              (~line 2335)
+   1. Imports + constants                              (~line   99)
+   2. Logging                                          (~line  169)
+   3. Shell / git helpers                              (~line  256)
+   4. Hashing                                          (~line  295)
+   5. Session IDs and the per-day counter              (~line  311)
+   6. Lock handling                                    (~line  369)
+   7. .gitignore handling for the .bale/ directory     (~line  400)
+   8. Path-safety checks                               (~line  430)
+   9. Pack: file enumeration and filtering             (~line  478)
+  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  562)
+  11. Pack: slug validation                            (~line  835)
+  12. Pack: manifest and tarball construction          (~line  848)
+  13. Pack                                             (~line  948)
+  14. Apply: helpers                                   (~line 1162)
+  15. Apply: pipeline                                  (~line 1886)
+  16. Apply                                            (~line 2107)
+  17. Revert                                           (~line 2156)
+  18. Retry                                            (~line 2338)
+  19. Unlock                                           (~line 2387)
+  20. Handoff                                          (~line 2481)
+  21. Hook invocation                                  (~line 2845)
+  22. CLI                                              (~line 2968)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -70,6 +74,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -94,7 +99,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.5"
+VERSION = "0.0.6"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -324,6 +329,40 @@ def next_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
         n = 1
     counter_path.write_text(f"{n}\n")
     return f"{day}-{slug}-{n:03d}"
+
+
+def parse_session_id(sid: str) -> tuple[str, str, str]:
+    """Split a session id into (date, slug, nnn). Inverse of next_session_id's
+    formatter. Raises ValueError on a malformed input.
+
+    Used by `bale handoff` to lift the slug off a bailout response's
+    session_id so the follow-up session preserves it (TARBALL.md §1's
+    format plus the explicit constraint from prior session that handoff
+    keeps the slug, mints a new date+NNN).
+
+    Format reminder: 'YYYY-MM-DD-<slug>-NNN' — date is fixed 10 chars,
+    NNN is fixed 3 digits, slug is whatever sits in between (kebab-case,
+    may itself contain hyphens). Splitting from the ends, not by
+    rsplit('-'), is the way to handle slugs with hyphens correctly.
+    """
+    if len(sid) < 11 + 4:
+        raise ValueError(f"session id too short: {sid!r}")
+    date_part = sid[:10]
+    if sid[10] != "-":
+        raise ValueError(f"session id missing date separator: {sid!r}")
+    if sid[-4] != "-":
+        raise ValueError(f"session id missing NNN separator: {sid!r}")
+    nnn = sid[-3:]
+    if not nnn.isdigit():
+        raise ValueError(f"session id NNN must be 3 digits: {sid!r}")
+    slug = sid[11:-4]
+    try:
+        date.fromisoformat(date_part)
+    except ValueError as e:
+        raise ValueError(f"session id date is not ISO YYYY-MM-DD: {date_part!r} ({e})")
+    if not is_valid_slug(slug):
+        raise ValueError(f"session id slug is not kebab-case: {slug!r}")
+    return date_part, slug, nnn
 
 
 # ---------------------------------------------------------------------------
@@ -817,16 +856,22 @@ def build_request_manifest(
     out_of_scope: list[str],
     expects_probe: str,
     context_paths: list[str],
+    depends_on: Optional[dict] = None,
 ) -> dict:
-    """Per TARBALL.md section 3.2. v0.0.1 always emits null depends_on."""
+    """Per TARBALL.md section 3.2. `depends_on` defaults to the v0.0.1 shape
+    ({previous_response: None, previous_probe: None}); `bale handoff` passes
+    a populated dict pointing at the bailout it's continuing from, which is
+    the only path that sets `previous_response` non-null in v0.0.6."""
+    if depends_on is None:
+        depends_on = {
+            "previous_response": None,
+            "previous_probe": None,
+        }
     return {
         "session_id": sid,
         "project": project_name,
         "goal": goal,
-        "depends_on": {
-            "previous_response": None,
-            "previous_probe": None,
-        },
+        "depends_on": depends_on,
         "constraints": constraints,
         "out_of_scope": out_of_scope,
         "expects_probe": expects_probe,
@@ -835,13 +880,25 @@ def build_request_manifest(
 
 
 def build_request_tarball(
-    repo: Path,
     sid: str,
-    files: list[str],
+    context_entries: list[tuple[str, Path]],
     manifest: dict,
     out_path: Path,
 ) -> None:
-    """Write the request tarball to out_path. Layout per TARBALL.md section 3.1."""
+    """Write the request tarball to out_path. Layout per TARBALL.md section 3.1.
+
+    `context_entries` is a list of (context_relative_path, source_absolute_path)
+    tuples. For `bale pack` the tuples are (rel, repo / rel) for each repo-
+    relative file the scope selected. For `bale handoff` there's exactly one
+    tuple — ("handoff.md", <extracted bailout dir>/handoff.md) — because the
+    source lives outside the project's repo. Decoupling the context-relative
+    path from the source path is what makes both call sites work without one
+    pretending to be the other.
+
+    The caller is responsible for path safety on each entry's
+    context_relative_path (no traversal, no absolute, no .bale/.git prefix);
+    both current callers feed already-filtered inputs.
+    """
     nnn = sid[-3:]
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -860,14 +917,13 @@ def build_request_tarball(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
 
-        # context/<files>, preserving each file's repo-relative path. copy2
-        # + follow_symlinks=False preserves mode bits so an executable script
-        # in the project arrives in context/ still executable, matching what
-        # stage_response does for files/ in response tarballs.
+        # context/<files>. copy2 + follow_symlinks=False preserves mode bits
+        # so an executable script in the project arrives in context/ still
+        # executable, matching what stage_response does for files/ in
+        # response tarballs.
         context_dir = request_dir / "context"
         context_dir.mkdir()
-        for rel in files:
-            src = repo / rel
+        for rel, src in context_entries:
             dst = context_dir / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst, follow_symlinks=False)
@@ -1062,10 +1118,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
         context_paths=files,
     )
 
-    # Build tarball.
+    # Build tarball. Pack's context is just repo-relative paths picked by
+    # the filter chain; bale handoff builds (rel, source) tuples differently
+    # since handoff.md doesn't live in the repo.
     tarball_path = repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+    context_entries = [(rel, repo / rel) for rel in files]
     try:
-        build_request_tarball(repo, sid, files, manifest, tarball_path)
+        build_request_tarball(sid, context_entries, manifest, tarball_path)
     except Exception as e:
         if tarball_path.exists():
             tarball_path.unlink()
@@ -1116,12 +1175,18 @@ def working_tree_clean(repo: Path) -> tuple[bool, str]:
 
 
 # Allowed top-level keys in a response manifest (TARBALL.md section 5.2).
-_RESPONSE_MANIFEST_KEYS = {
+# `response_kind` is optional (defaults to "normal"); the rest are required.
+_REQUIRED_RESPONSE_MANIFEST_KEYS = {
     "session_id", "responds_to", "corrects", "summary",
     "changes", "deferred", "validation_will_run", "claims",
 }
+_OPTIONAL_RESPONSE_MANIFEST_KEYS = {"response_kind"}
+_ALLOWED_RESPONSE_MANIFEST_KEYS = (
+    _REQUIRED_RESPONSE_MANIFEST_KEYS | _OPTIONAL_RESPONSE_MANIFEST_KEYS
+)
 _VALID_ACTIONS = {"created", "modified", "deleted"}
 _VALID_CLAIM_VALUES = {"pass", "fail", "untested", "unknown"}
+_VALID_RESPONSE_KINDS = {"normal", "bailout"}
 
 
 def check_response_shell_syntax(response_dir: Path) -> None:
@@ -1154,15 +1219,22 @@ def check_response_shell_syntax(response_dir: Path) -> None:
 def validate_response_manifest(manifest: dict) -> None:
     """Per TARBALL.md section 5.2 and BALE.md section 8.1 step 3.
 
-    Strict: every key present, no unknown keys, every changes[] entry
-    complete with non-empty reason.
+    Strict: every required key present, no unknown keys, every changes[]
+    entry complete with non-empty reason.
+
+    `response_kind` (TARBALL.md §5.2, added in v0.0.6) is optional and
+    defaults to "normal" if absent — old-shape manifests pass through
+    untouched. When present, it must be in `_VALID_RESPONSE_KINDS`.
+    For "bailout", §5.6.2 mandates empty `changes`, `deferred`,
+    `validation_will_run`, and `claims`; we enforce that here so an
+    out-of-shape bailout is rejected before staging.
     """
     if not isinstance(manifest, dict):
         fail("manifest is not a JSON object")
 
     keys = set(manifest.keys())
-    missing = _RESPONSE_MANIFEST_KEYS - keys
-    extra = keys - _RESPONSE_MANIFEST_KEYS
+    missing = _REQUIRED_RESPONSE_MANIFEST_KEYS - keys
+    extra = keys - _ALLOWED_RESPONSE_MANIFEST_KEYS
     if missing:
         fail(f"manifest missing required keys: {sorted(missing)}")
     if extra:
@@ -1176,6 +1248,11 @@ def validate_response_manifest(manifest: dict) -> None:
         fail("manifest.corrects must be a string or null")
     if not isinstance(manifest["summary"], str) or not manifest["summary"].strip():
         fail("manifest.summary must be a non-empty string")
+
+    response_kind = manifest.get("response_kind", "normal")
+    if response_kind not in _VALID_RESPONSE_KINDS:
+        fail(f"manifest.response_kind must be one of "
+             f"{sorted(_VALID_RESPONSE_KINDS)}, got {response_kind!r}")
 
     if not isinstance(manifest["changes"], list):
         fail("manifest.changes must be a list")
@@ -1238,6 +1315,25 @@ def validate_response_manifest(manifest: dict) -> None:
     if extra_claims:
         fail(f"manifest.claims has keys not in validation_will_run: "
              f"{sorted(extra_claims)}")
+
+    # Bailout-shape rules (TARBALL.md §5.6.2). The bailout's apply path
+    # skips staging/validation entirely, so an out-of-shape bailout —
+    # claiming changes, deferrals, or check predictions — is a contract
+    # violation worth rejecting here rather than letting a stale field
+    # quietly mislead a reader of the session log later.
+    if response_kind == "bailout":
+        if manifest["changes"]:
+            fail("manifest.response_kind=bailout requires changes[] to be empty "
+                 "(TARBALL.md §5.6.2): no files are applied for a bailout")
+        if manifest["deferred"]:
+            fail("manifest.response_kind=bailout requires deferred[] to be empty "
+                 "(TARBALL.md §5.6.2): deferrals live in handoff.md, not the manifest")
+        if manifest["validation_will_run"]:
+            fail("manifest.response_kind=bailout requires validation_will_run[] "
+                 "to be empty (TARBALL.md §5.6.2): no validation runs")
+        if manifest["claims"]:
+            fail("manifest.response_kind=bailout requires claims{} to be empty "
+                 "(TARBALL.md §5.6.2): no validation runs, so nothing to claim")
 
 
 def verify_files_against_manifest(response_dir: Path, manifest: dict) -> None:
@@ -1649,6 +1745,143 @@ def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
     return cwd_candidate  # pragma: no cover
 
 
+def first_section_of_handoff(handoff_md_text: str) -> str:
+    """Return the first '## …' section of a handoff.md document, header line
+    included, up to (but not including) the next '## …' heading or EOF.
+
+    TARBALL.md §5.7 mandates a fixed section order in handoff.md, and the
+    first one is `## Original goal`. §5.6.3 requires this section be
+    printed at apply time so the architect sees the goal that bailed out
+    without opening the tarball. Returns "" if no `## ` heading is found —
+    the apply path treats that as an empty banner section rather than a
+    fatal error, because the §5.6.3 contract is "print the first section"
+    and a missing one is content-level, not a tarball-shape violation.
+    """
+    lines = handoff_md_text.splitlines(keepends=True)
+    start = None
+    for i, line in enumerate(lines):
+        if line.startswith("## "):
+            start = i
+            break
+    if start is None:
+        return ""
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if lines[j].startswith("## "):
+            end = j
+            break
+    return "".join(lines[start:end]).rstrip("\n")
+
+
+def print_bailout_banner(manifest: dict, handoff_path: Path,
+                         tarball_basename: str) -> None:
+    """Per TARBALL.md §5.6.3 steps 1-3: a clear banner identifying the
+    response as a bailout, the manifest.summary, the first section of
+    handoff.md, and the explicit next-step instruction.
+
+    Output style mirrors the existing PASS / HOLD banners in
+    _apply_pipeline — leading blank line, label-value pairs with two-space
+    indent — so the eye lands on `[BAILOUT]` the same way it lands on
+    `[PASS]` and `[HOLD]`. The multi-line summary and handoff section are
+    bracketed by `--- … ---` separators since they don't fit the label-
+    value shape.
+    """
+    try:
+        handoff_text = handoff_path.read_text(encoding="utf-8")
+    except OSError as e:
+        # handoff.md was present at the file-existence check in
+        # _apply_bailout; an unreadable file here is a real surprise.
+        # Surface and bail.
+        fail(f"could not read handoff.md: {e}")
+    first_section = first_section_of_handoff(handoff_text)
+
+    print()
+    print(f"  [BAILOUT] {manifest['session_id']}")
+    print(f"  No changes applied. apply.sh and validation.sh were not run.")
+    print()
+    print(f"  --- summary ---")
+    for line in manifest["summary"].splitlines() or [""]:
+        print(f"  {line}")
+    print()
+    print(f"  --- handoff (first section) ---")
+    if first_section:
+        for line in first_section.splitlines():
+            print(f"  {line}")
+    else:
+        print(f"  (handoff.md has no `## ` section; check the file directly)")
+    print()
+    print(f"  Next step:")
+    print(f"    bale handoff {tarball_basename}")
+    print()
+
+
+def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
+                   tarball_basename: str) -> int:
+    """Apply-time handler for `response_kind: "bailout"` per TARBALL.md §5.6.3.
+
+    This is the branch _apply_pipeline takes when the manifest declares a
+    bailout. We:
+
+      1. Verify the bailout's mandatory artifacts (handoff.md and
+         diagnostics.json) — §5.6.1.
+      2. Preserve manifest + handoff.md + diagnostics.json under
+         `.bale/sessions/<sid>/` so `bale handoff`'s lineage chase can
+         find them later. (Normal-PASS sessions wipe their session dir;
+         bailouts keep theirs, since the next handoff session may chase
+         this one for repeat-bailout warning.)
+      3. Print the §5.6.3 banner (`print_bailout_banner` does the layout).
+      4. Clear the lock — the session is consumed. The user's explicit
+         next action is `bale handoff <tarball>`, which acquires a fresh
+         lock against a new sid.
+      5. Return 0. No `apply.sh`, no staging, no validation, no branch.
+
+    No `git_head_at_apply` / `origin_branch` / `staging_path` metadata is
+    written — no branch is created so there's nothing for `bale revert`
+    to chase. (`bale revert` against a bailout sid will fall through the
+    `no branch` guard, which is correct: a bailout has nothing to
+    revert.)
+    """
+    handoff_path = response_dir / "handoff.md"
+    diagnostics_path = response_dir / "diagnostics.json"
+    if not handoff_path.is_file():
+        fail("bailout response is missing handoff.md (TARBALL.md §5.6.1 — "
+             "required when response_kind=bailout)")
+    if not diagnostics_path.is_file():
+        fail("bailout response is missing diagnostics.json (TARBALL.md §5.6.1 — "
+             "required when response_kind=bailout)")
+
+    # JSON sanity on diagnostics. The schema is intentionally loose
+    # (TARBALL.md §5.8), but it must parse — an unparseable file is the
+    # kind of thing aggregation tooling later would silently skip, which
+    # is worse than failing here.
+    try:
+        json.loads(diagnostics_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        fail(f"diagnostics.json is not valid JSON: {e}")
+
+    # Preserve artifacts for the lineage chase + later inspection.
+    sessions_dir = repo / ".bale" / "sessions" / sid
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    (sessions_dir / "response-manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+    )
+    shutil.copy2(handoff_path, sessions_dir / "handoff.md", follow_symlinks=False)
+    shutil.copy2(diagnostics_path, sessions_dir / "diagnostics.json",
+                 follow_symlinks=False)
+    log(f"bailout artifacts preserved under {sessions_dir}")
+
+    print_bailout_banner(manifest, handoff_path, tarball_basename)
+
+    # Lock release. The bailed session is consumed; the next user action is
+    # `bale handoff <tarball>` (which itself does the pack-style lock
+    # acquisition for the follow-up session). The bailout's session dir
+    # stays in place — small, valuable for the chase, easy to remove by
+    # hand if the user decides the lineage is done.
+    clear_lock(repo)
+    log(f"bailout {sid}: lock cleared")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # 15. Apply: pipeline
 # ---------------------------------------------------------------------------
@@ -1719,6 +1952,24 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         if manifest["responds_to"] != locked_sid:
             fail(f"manifest.responds_to={manifest['responds_to']!r} does not "
                  f"match locked session {locked_sid!r}")
+
+        # Bailout fork — TARBALL.md §5.6.3. response_kind="bailout" means no
+        # files, no apply.sh effect, no validation.sh run; the response is a
+        # signal to package a fresh session via `bale handoff <tarball>`.
+        # _apply_bailout owns the artifact checks, the session-dir
+        # preservation, the §5.6.3 banner, and the lock release. The early
+        # branch is what keeps the bailout path free of staging side
+        # effects — by the time the normal path's verify_files / stage /
+        # reconcile runs, response_kind=="normal" is guaranteed.
+        #
+        # The `.get(..., "normal")` default keeps v0.0.5-shaped manifests
+        # (the ones without a response_kind key — including this very CLI
+        # session's own response) on the normal path. Validation upstream
+        # guarantees the value is in _VALID_RESPONSE_KINDS when present.
+        if manifest.get("response_kind", "normal") == "bailout":
+            return _apply_bailout(
+                repo, response_dir, manifest, locked_sid, tarball_path.name,
+            )
 
         # 8.1 steps 7, 8, 9: file presence, sha256, path safety.
         verify_files_against_manifest(response_dir, manifest)
@@ -2227,7 +2478,371 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 20. Hook invocation
+# 20. Handoff
+# ---------------------------------------------------------------------------
+#
+# `bale handoff <bailout-tarball>` packs a fresh request from a bailed
+# session — the safety net for CLAUDE.md §11 context exhaustion. Inherits
+# the bailed-on session's goal verbatim, auto-includes handoff.md (and
+# only handoff.md) in the new request's context/, sets
+# depends_on.previous_response to the bailout's session_id, and allocates
+# a new session id with the SAME slug, today's date, next NNN. Per the
+# prior session's explicit choice, "same session id" was interpreted as
+# "same slug, new date+NNN" — flagged in notes.md for the architect to
+# correct if the intent was otherwise.
+
+def edit_goal_in_editor(initial_goal: str) -> str:
+    """Open $EDITOR on a temporary .md file pre-populated with the inherited
+    goal; return the user's edited contents stripped of trailing whitespace.
+
+    Honors $EDITOR, falls back to $VISUAL, then to /usr/bin/editor (Debian
+    convention). $EDITOR may be a multi-word command (`code --wait`); we
+    split with shlex but don't validate further — the same trust-the-user
+    posture the rest of bale takes with subprocess invocations. A non-zero
+    exit from the editor is logged but not fatal: the user may have :q'd
+    deliberately to abort the edit while still wanting to ship the
+    original goal. The empty-after-strip case IS fatal — an empty goal
+    would fail the request manifest's goal-must-be-non-empty rule
+    downstream, and surfacing that here gives a clearer message.
+
+    There may be a similar editor-launcher inside bale_config.py's wizard;
+    if so, consolidation is worth a follow-up session — flagged in
+    notes.md since I didn't have visibility into that file from this
+    request's context.
+    """
+    editor_env = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if not editor_env:
+        debian_alt = "/usr/bin/editor"
+        if Path(debian_alt).exists():
+            editor_env = debian_alt
+        else:
+            fail(
+                "$EDITOR is not set and /usr/bin/editor is not available; "
+                "cannot --edit-goal. Set EDITOR (e.g. `export EDITOR=vim`) "
+                "and retry, or drop --edit-goal to inherit the goal verbatim."
+            )
+
+    with tempfile.NamedTemporaryFile(
+        mode="w+", suffix=".md", delete=False, encoding="utf-8",
+    ) as tf:
+        tf.write(initial_goal)
+        if not initial_goal.endswith("\n"):
+            tf.write("\n")
+        tmp_path = Path(tf.name)
+
+    try:
+        cmd = shlex.split(editor_env) + [str(tmp_path)]
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            log(f"$EDITOR ({editor_env!r}) exited {result.returncode}; "
+                f"using whatever the file holds now")
+        edited = tmp_path.read_text(encoding="utf-8").strip()
+        if not edited:
+            fail("goal is empty after --edit-goal; aborting. "
+                 "Drop --edit-goal to inherit the original goal verbatim.")
+        return edited
+    finally:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+
+
+def warn_repeat_bailout(repo: Path, responds_to_sid: str) -> None:
+    """Warn (no fail) if the bailed-on session was itself packed from a
+    prior bailout. Two bailouts in a row is a scoping signal — see
+    CLAUDE.md §11.4 — and the next handoff session is unlikely to
+    succeed without narrower scope. We do not block: the architect may
+    have already narrowed, or may be deliberately trying again.
+
+    Chain walk:
+      1. The request manifest of the bailed-on session lives at
+         `.bale/sessions/<responds_to_sid>/manifest.json` (written by
+         `bale pack` or `bale handoff`).
+      2. Its `depends_on.previous_response`, if set, names the prior
+         response in the chain. In v0.0.6, only `bale handoff` sets
+         this field, so a non-null value strongly implies the prior
+         response was a bailout — but we verify by inspecting the
+         prior response's manifest under
+         `.bale/sessions/<prev_resp_sid>/response-manifest.json`,
+         which `_apply_bailout` preserves precisely for this lookup.
+      3. If the previous response's `response_kind` is "bailout",
+         warn. Silent otherwise.
+
+    Every link in the chain may be missing — the request manifest could
+    be cleaned up, the previous response's session dir might have been
+    pruned by hand, JSON might be malformed. Any of those cases yield a
+    silent skip: warning on incomplete data would be noise. The chase is
+    a best-effort comfort signal, not a correctness check.
+    """
+    req_manifest_path = repo / ".bale" / "sessions" / responds_to_sid / "manifest.json"
+    if not req_manifest_path.is_file():
+        return
+    try:
+        req_manifest = json.loads(req_manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    prev_resp_sid = (req_manifest.get("depends_on") or {}).get("previous_response")
+    if not prev_resp_sid or not isinstance(prev_resp_sid, str):
+        return
+
+    prev_resp_manifest_path = (
+        repo / ".bale" / "sessions" / prev_resp_sid / "response-manifest.json"
+    )
+    if not prev_resp_manifest_path.is_file():
+        return
+    try:
+        prev_resp_manifest = json.loads(
+            prev_resp_manifest_path.read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return
+    if prev_resp_manifest.get("response_kind") != "bailout":
+        return
+
+    # The previous response in this chain was also a bailout. Warn via
+    # log(force=True) so the message lands in stdout AND will be drained
+    # to the session log once next_session_id allocates one (force=True
+    # buffers when no log file is open).
+    log(
+        f"repeat bailout in lineage: prior bailout {prev_resp_sid} → "
+        f"this bailout's predecessor {responds_to_sid} → current handoff. "
+        f"Two bailouts in a row is usually a scoping signal (CLAUDE.md §11.4): "
+        f"consider narrowing the goal rather than asking the next session to "
+        f"absorb the same scope. Proceeding anyway.",
+        force=True,
+    )
+
+
+def cmd_handoff(args: argparse.Namespace) -> int:
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd, force=args.force)
+
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale handoff` requires the project repo.")
+    refuse_system_dir(repo, force=args.force)
+
+    # Resolve the bailout tarball through apply.search_paths — same
+    # semantics as `bale apply`. The bailout the user just applied is the
+    # natural input (handoff's job is precisely to follow up on that
+    # application), so re-resolving against the same search paths matches
+    # the muscle memory.
+    cfg = bale_config.merged_config(repo)
+    search_paths = bale_config.get_apply_search_paths(cfg)
+    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
+    if not tarball_path.is_file():
+        fail(f"tarball not found: {tarball_path}")
+
+    # Handoff acquires a new lock; refuse if one is already held.
+    # `bale apply` on a bailout already cleared the lock, so the normal
+    # workflow doesn't trip this — but a user who skipped apply and
+    # invoked handoff directly would, and the failure message points them
+    # at the right next step. Matches `bale pack`'s guard verbatim so the
+    # two locking surfaces stay symmetric.
+    existing = read_lock(repo)
+    if existing:
+        fail(
+            f"a session is already open: {existing}. "
+            f"Apply its response with `bale apply <tarball>`, or run "
+            f"`bale unlock` if the session was abandoned."
+        )
+
+    # Same .bale/ gitignore guard `bale pack` runs. handoff writes under
+    # .bale/ before there's any session id, so the directory must already
+    # be excluded; otherwise our staging artifacts leak into the user's
+    # next commit.
+    gitignore_changed = ensure_bale_gitignored(repo)
+    if gitignore_changed:
+        r = git(["status", "--porcelain"], cwd=repo)
+        other_dirty = [
+            ln for ln in r.stdout.splitlines()
+            if ln and not ln.endswith(" .gitignore")
+        ]
+        if other_dirty:
+            log("note: working tree has other uncommitted changes; "
+                ".gitignore was modified but not auto-committed. "
+                "Commit it before `bale apply` or apply will refuse.")
+        else:
+            git(["add", ".gitignore"], cwd=repo)
+            git(["commit", "-m", "bale: ignore .bale/"], cwd=repo)
+            log("auto-committed the .gitignore change")
+
+    # Extract and validate the bailout tarball. Same tarball-shape and
+    # manifest-validation guards as `bale apply` — sharing them keeps the
+    # two ingestion surfaces' expectations identical, so the user can't
+    # land in a state where apply accepts a tarball that handoff would
+    # reject (or vice versa).
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            tf = tarfile.open(tarball_path, "r:gz")
+        except (tarfile.TarError, OSError) as e:
+            fail(f"tarball is unreadable: {e}")
+        try:
+            for member in tf.getmembers():
+                name = member.name
+                if name.startswith("/") or ".." in Path(name).parts:
+                    fail(f"tarball contains unsafe path: {name}")
+            tf.extractall(tmpdir)
+        finally:
+            tf.close()
+
+        entries = [p for p in Path(tmpdir).iterdir()]
+        if len(entries) != 1 or not entries[0].is_dir():
+            fail(f"tarball must contain exactly one top-level directory; "
+                 f"found {[e.name for e in entries]}")
+        response_dir = entries[0]
+        if not response_dir.name.startswith("response-"):
+            fail(f"top-level directory must be named response-NNN/, "
+                 f"got {response_dir.name}/")
+
+        try:
+            manifest = json.loads(
+                (response_dir / "manifest.json").read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            fail(f"manifest.json is not valid JSON: {e}")
+        validate_response_manifest(manifest)
+
+        # Must be a bailout. A normal response doesn't carry handoff.md
+        # and there's nothing to "hand off" — direct the user to apply.
+        response_kind = manifest.get("response_kind", "normal")
+        if response_kind != "bailout":
+            fail(
+                f"`bale handoff` is for bailout responses only; this "
+                f"tarball's manifest has response_kind={response_kind!r}. "
+                f"Run `bale apply {tarball_path.name}` instead."
+            )
+
+        handoff_path = response_dir / "handoff.md"
+        if not handoff_path.is_file():
+            fail("bailout response is missing handoff.md (TARBALL.md §5.6.1)")
+
+        bailout_sid = manifest["session_id"]
+        responds_to_sid = manifest["responds_to"]
+
+        # Lineage chase — warn if this is a second bailout in the same
+        # chain. Best-effort; silent on incomplete data.
+        warn_repeat_bailout(repo, responds_to_sid)
+
+        # Derive the new session id: same slug as the bailout, today's
+        # date, next NNN. This is the "same session id, new pass at it"
+        # interpretation from the prior session.
+        try:
+            _date, slug, _nnn = parse_session_id(bailout_sid)
+        except ValueError as e:
+            fail(f"could not parse bailout session_id {bailout_sid!r}: {e}")
+
+        # Inherit the bailed-on request's goal verbatim. The request
+        # manifest is stored at .bale/sessions/<request-sid>/manifest.json
+        # by `bale pack` / `bale handoff` at pack time; we need it here to
+        # pick up the original goal so the user doesn't have to retype it.
+        request_manifest_path = (
+            repo / ".bale" / "sessions" / responds_to_sid / "manifest.json"
+        )
+        if not request_manifest_path.is_file():
+            fail(
+                f"cannot inherit goal: request manifest not found at "
+                f"{request_manifest_path}. The bailed-on session's record "
+                f"may have been cleaned up. Run `bale pack` to start a "
+                f"fresh session and re-state the goal manually."
+            )
+        try:
+            request_manifest = json.loads(
+                request_manifest_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            fail(f"could not parse request manifest at "
+                 f"{request_manifest_path}: {e}")
+        inherited_goal = (request_manifest.get("goal") or "").strip()
+        if not inherited_goal:
+            fail(f"inherited goal from {request_manifest_path} is empty; "
+                 f"cannot proceed.")
+
+        # Optional pre-pack edit. The fail path inside edit_goal_in_editor
+        # already covers empty-after-edit, so we trust its return.
+        if args.edit_goal:
+            inherited_goal = edit_goal_in_editor(inherited_goal)
+
+        # Allocate the new session id NOW (after all the validation
+        # gates) so the per-day counter doesn't burn an NNN on a pack
+        # that was about to fail anyway. Same staging-then-allocate
+        # ordering `bale pack` uses.
+        new_sid = next_session_id(repo, slug)
+        set_log_file(repo / ".bale" / "logs" / f"{new_sid}.log")
+        log(f"handoff from bailout {bailout_sid} -> new session {new_sid}")
+        log(f"inherited goal from request {responds_to_sid}")
+
+        # Build the new request manifest. depends_on.previous_response
+        # points at the bailout — this is the ONLY path in v0.0.6 that
+        # populates previous_response, which is what makes the lineage
+        # chase reliable. Constraints/out_of_scope reset to empty; the
+        # architect can re-add via a future `bale pack` if needed (no
+        # CLI surface for them on handoff yet, deliberately — keeping
+        # the command's surface narrow until the use case argues for
+        # more).
+        new_manifest = build_request_manifest(
+            sid=new_sid,
+            project_name=repo.name,
+            goal=inherited_goal,
+            constraints=[],
+            out_of_scope=[],
+            expects_probe="claude-decides",
+            context_paths=["handoff.md"],
+            depends_on={
+                "previous_response": bailout_sid,
+                "previous_probe": None,
+            },
+        )
+
+        # Build the tarball. context_entries is a single (relpath, src)
+        # tuple — only handoff.md, sourced from the extracted bailout's
+        # response_dir. No prior-request material is carried forward by
+        # design (per the prior session's confirmed constraint).
+        tarball_out = repo / ".bale" / "outbox" / f"request-{new_sid}.tar.gz"
+        try:
+            build_request_tarball(
+                new_sid,
+                [("handoff.md", handoff_path)],
+                new_manifest,
+                tarball_out,
+            )
+        except Exception as e:
+            if tarball_out.exists():
+                tarball_out.unlink()
+            fail(f"failed to build request tarball: {e}")
+        log(f"wrote {tarball_out}")
+
+        # Persist the new session and acquire its lock — same ordering
+        # `bale pack` uses (persist before lock, lock last). The lock
+        # acquired here is for the new sid; the bailout's lock was
+        # cleared by `bale apply`'s bailout branch.
+        persist_pack_session(repo, new_sid, new_manifest)
+        write_lock(repo, new_sid)
+        log(f"acquired session lock")
+
+        # post_pack hook fires for handoff too — same lifecycle position
+        # as in `bale pack` (after tarball-on-disk AND lock-acquired). A
+        # hook that prepares the user's environment for a new request
+        # is just as relevant for a handoff as for a pack; the hook
+        # contract makes no distinction.
+        run_hook(repo, bale_config.merged_config(repo), "post_pack", new_sid)
+
+        print()
+        print(f"  session id: {new_sid}")
+        print(f"  tarball:    {tarball_out}")
+        print(f"  inherited:  goal from {responds_to_sid}"
+              + ("  (edited)" if args.edit_goal else "  (verbatim)"))
+        print(f"  context:    handoff.md")
+        print(f"  depends_on: previous_response = {bailout_sid}")
+        print()
+        print("Send the tarball to Claude. When the response comes back,")
+        print("run: bale apply <response-tarball>")
+        return 0
+
+
+# ---------------------------------------------------------------------------
+# 21. Hook invocation
 # ---------------------------------------------------------------------------
 #
 # All hooks shell out to user-supplied scripts; bale never embeds install
@@ -2350,13 +2965,13 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 21. CLI
+# 22. CLI
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.5 bootstrap).",
+        description="Claude session orchestrator (v0.0.6 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -2495,6 +3110,52 @@ def build_parser() -> argparse.ArgumentParser:
              "The override is logged with the FORCE: prefix.",
     )
     p_unlock.set_defaults(func=cmd_unlock)
+
+    # handoff — repackage a bailout response into a fresh request tarball.
+    # TARBALL.md §5.6.3: when `bale apply` encounters response_kind=bailout
+    # it prints the handoff banner and stops; `bale handoff <tarball>`
+    # then takes that bailout's handoff.md and ships it as the sole
+    # context entry for a new session that inherits the original goal.
+    p_handoff = sub.add_parser(
+        "handoff",
+        help="Repackage a bailout response into a fresh request tarball.",
+        description=(
+            "Take a bailout response tarball (response_kind=\"bailout\", "
+            "TARBALL.md §5.6.3) and build a new request tarball that "
+            "ships its handoff.md as the sole context entry, inheriting "
+            "the original session's goal verbatim. The new session id "
+            "keeps the slug and bumps the date/counter. Refuses if a "
+            "session is already locked (bale pack/apply must be quiet "
+            "first). Warns — but proceeds — if the bailout's predecessor "
+            "was also a bailout; chained handoffs are a smell, and the "
+            "warning is informational only (no flag suppresses or escalates "
+            "it). With --edit-goal, opens $EDITOR on the inherited goal "
+            "before packing. With --force, bypasses the home-directory "
+            "refusal that all bale commands enforce — same semantics as "
+            "`bale pack --force`."
+        ),
+    )
+    p_handoff.add_argument(
+        "tarball",
+        help="Path to the bailout response tarball (resolved against "
+             "apply.search_paths the same way `bale apply` resolves).",
+    )
+    p_handoff.add_argument(
+        "--edit-goal", action="store_true",
+        help="Open $EDITOR on the inherited goal text before packing. "
+             "Useful when the original goal needs refining in light of "
+             "what the bailout learned. Falls back to $VISUAL, then to "
+             "/usr/bin/editor.",
+    )
+    p_handoff.add_argument(
+        "--force", action="store_true",
+        help="Bypass the home-directory refusal that all bale commands "
+             "enforce — same semantics as `bale pack --force`. The "
+             "override is logged with the FORCE: prefix. Has no effect "
+             "on the chained-bailout lineage warning, which is "
+             "informational only and prints regardless.",
+    )
+    p_handoff.set_defaults(func=cmd_handoff)
 
     # config — group for configurables-management subcommands. At v0.0.1
     # the only subcommand is `init`; set/get/edit land in later sessions.
