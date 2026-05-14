@@ -1692,6 +1692,168 @@ def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None
             git(["rm", "-f", "--ignore-unmatch", path], cwd=repo)
 
 
+# --- Apply walkthrough (BALE.md §8.7) ----------------------------------------
+#
+# The walkthrough is the interactive step that resolves a freshly-applied bale
+# branch into a terminal git state. Both validation outcomes (PASS, HOLD) print
+# the same summary block and then prompt for an action; the action set differs
+# per state. Factored into helpers so the summary can be re-built/inspected
+# without re-running the apply pipeline (a v0.3 polish item) and so the
+# prompt's TTY/EOF handling stays out of _apply_pipeline's already-long body.
+
+def format_walkthrough_summary(
+    *,
+    sid: str,
+    origin_branch: str,
+    sid_branch: str,
+    state: str,
+    exit_code: int,
+    manifest: dict,
+    response_dir: Path,
+    staging: Path,
+    repo: Path,
+) -> str:
+    """Build the BALE.md §8.7 walkthrough summary block as a single string.
+
+    `state` is "PASS" or "HOLD". Pure aside from one `git diff --stat` call
+    against the live repo (which is the cheapest way to get an accurate
+    origin..sid_branch diffstat and matches the inspection command we tell
+    the user to run). The caller prints the returned string.
+    """
+    lines: list[str] = [""]
+    lines.append(f"  [{state}] {sid}")
+    lines.append(f"  origin:  {origin_branch}")
+    if state == "PASS":
+        lines.append(f"  branch:  {sid_branch} (committed; ready to merge)")
+    else:
+        lines.append(f"  branch:  {sid_branch} (uncommitted; staged changes held)")
+    lines.append(f"  summary: {manifest.get('summary', '(no summary)')}")
+
+    # Claims block per TARBALL.md §5.3. The actual claim-vs-verdict
+    # reconciliation lives in validation.sh's output (already streamed to the
+    # log file before this point); we surface the claims side here so the
+    # walkthrough is self-contained for review.
+    claims = manifest.get("claims", {}) or {}
+    if claims:
+        lines.append("")
+        lines.append("  claims (verdict in .bale/logs/{}.log):".format(sid))
+        width = max(len(k) for k in claims) if claims else 0
+        for check, claim in claims.items():
+            lines.append(f"    {check:<{width}}  claim={claim}")
+        lines.append(f"  validation exit code: {exit_code}")
+    else:
+        lines.append(f"  validation: exit={exit_code} (no project-level claims)")
+
+    # Diffstat between origin and the bale branch. On the HOLD path the bale
+    # branch's HEAD is identical to origin's HEAD (no commit was made), so
+    # the rev-range diff is empty; in that case run a diff against the index
+    # so the user still sees what's staged. PASS path always has a commit.
+    if state == "PASS":
+        diff_args = ["diff", "--stat", f"{origin_branch}..{sid_branch}"]
+        diff_label = f"origin..{sid_branch}"
+    else:
+        diff_args = ["diff", "--stat", "--cached"]
+        diff_label = "staged (uncommitted)"
+    try:
+        diffstat = git(diff_args, cwd=repo, check=False).stdout.rstrip()
+    except subprocess.CalledProcessError as e:
+        diffstat = f"(diffstat unavailable: {e.stderr or e})"
+    lines.append("")
+    lines.append(f"  diffstat ({diff_label}):")
+    if diffstat:
+        for ln in diffstat.splitlines():
+            lines.append(f"    {ln}")
+    else:
+        lines.append("    (empty)")
+
+    # notes.md and next-prompt.md from the response — surfaced inline per
+    # BALE.md §8.7. Silent skip when absent; absence is the canonical signal
+    # of "nothing extra to surface" (TARBALL.md §5.1, §5.4, §5.5).
+    for fname in ("notes.md", "next-prompt.md"):
+        fpath = response_dir / fname
+        if not fpath.is_file():
+            continue
+        try:
+            body = fpath.read_text(encoding="utf-8").rstrip()
+        except OSError as e:
+            lines.append("")
+            lines.append(f"  --- {fname} (unreadable: {e}) ---")
+            continue
+        if not body:
+            continue  # present but empty — treat as silent skip
+        lines.append("")
+        lines.append(f"  --- {fname} ---")
+        for ln in body.splitlines():
+            lines.append(f"  {ln}" if ln else "")
+        lines.append(f"  --- end {fname} ---")
+
+    # Inspection commands. The user runs these manually if they want to dig
+    # past the summary; we don't shell out, just print the commands.
+    lines.append("")
+    lines.append("  inspect:")
+    lines.append(f"    git diff {origin_branch}..{sid_branch}")
+    lines.append(f"    git log {sid_branch}")
+    lines.append(f"    cat .bale/logs/{sid}.log")
+    lines.append(f"    ls {staging}/")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def prompt_walkthrough_action(state: str) -> str:
+    """Prompt the user for the terminal walkthrough action.
+
+    Returns one of "merge" (PASS only), "inspect" (HOLD only), or "revert"
+    (both states). The default selected on Enter / EOF / non-TTY matches
+    BALE.md §8.7's piped-mode contract:
+
+      - PASS path → default "merge" (auto-merge into origin).
+      - HOLD path → default "inspect" (exit non-zero with branch held).
+
+    `state` is "PASS" or "HOLD"; any other value is a caller bug.
+    """
+    if state not in ("PASS", "HOLD"):
+        raise ValueError(f"prompt_walkthrough_action: bad state {state!r}")
+    default = "merge" if state == "PASS" else "inspect"
+
+    if not sys.stdin.isatty():
+        # Piped/non-interactive: take the default silently. The summary
+        # already printed above carries the context the user needs to
+        # interpret the exit code.
+        return default
+
+    if state == "PASS":
+        print(
+            "  [Enter/m] merge into origin (default)   "
+            "[r] revert — discard branch"
+        )
+    else:
+        print(
+            "  [Enter/i] inspect — hold for review (default)   "
+            "[r] revert — discard branch"
+        )
+    try:
+        ans = input("  > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        # ^C or stdin closed mid-prompt: treat as default. Don't fail the
+        # whole apply for an interrupted prompt; the user can re-run.
+        print()
+        return default
+
+    if ans == "":
+        return default
+    if ans in ("r", "revert"):
+        return "revert"
+    if state == "PASS" and ans in ("m", "merge"):
+        return "merge"
+    if state == "HOLD" and ans in ("i", "inspect"):
+        return "inspect"
+    # Unrecognized inputs fall back to the default rather than re-prompting.
+    # The user can ^C and re-run apply if they typo'd; re-prompt loops in a
+    # 2-option surface add code without much benefit.
+    print(f"  (unrecognized {ans!r}; defaulting to {default})")
+    return default
+
+
 def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
     """Resolve a CLI tarball argument against `apply.search_paths`.
 
@@ -2046,23 +2208,53 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         exit_code = run_validation_sh(repo, response_dir, staging, manifest, locked_sid)
         log(f"validation.sh exit code: {exit_code}")
 
-        # 8.6 commit-or-hold. v0.0.1: no walkthrough; PASS auto-merges, HOLD leaves
-        # the branch with staged uncommitted changes for inspection.
-        if exit_code == 0:
-            git(["checkout", sid_branch], cwd=repo)
-            apply_changes_to_worktree(repo, staging, manifest)
+        # 8.6 commit-or-hold + 8.7 walkthrough. Both validation outcomes
+        # check out bale/<sid> and apply the manifest's changes to the
+        # working tree; PASS additionally commits so the branch carries a
+        # merge-ready commit before the walkthrough prompts. HOLD leaves the
+        # changes staged but uncommitted, matching BALE.md §8.6 step 2 of
+        # the HOLD path.
+        git(["checkout", sid_branch], cwd=repo)
+        apply_changes_to_worktree(repo, staging, manifest)
+        state = "PASS" if exit_code == 0 else "HOLD"
+        if state == "PASS":
             commit_msg = f"[bale {locked_sid}] {manifest['summary']}"
             git(["commit", "-m", commit_msg], cwd=repo)
             log(f"committed changes to {sid_branch}")
+        else:
+            log(f"validation FAILED (exit={exit_code}); held on {sid_branch} "
+                f"with staged uncommitted changes")
 
-            # Merge into origin (BALE.md 8.8 "Merge").
+        # 8.7 walkthrough — print summary, prompt for terminal action.
+        # Both PASS and HOLD go through the same summary path so the user
+        # sees the same shape regardless of outcome (only the prompt
+        # action set and the default differ).
+        print(format_walkthrough_summary(
+            sid=locked_sid,
+            origin_branch=origin_branch,
+            sid_branch=sid_branch,
+            state=state,
+            exit_code=exit_code,
+            manifest=manifest,
+            response_dir=response_dir,
+            staging=staging,
+            repo=repo,
+        ))
+        action = prompt_walkthrough_action(state)
+        log(f"walkthrough action: {action}")
+
+        # 8.8 terminal actions. Merge (PASS only), inspect (HOLD only),
+        # revert (both states; currently stubbed — see below).
+        if action == "merge":
+            # PASS → merge into origin, tag the applied sid, delete the
+            # bale branch, clean up session dir + lock, fire the hook.
+            # Order matches the pre-walkthrough PASS path so the hook keeps
+            # firing after a durable git state is in place.
             git(["checkout", origin_branch], cwd=repo)
             git(["merge", "--no-ff", sid_branch, "-m",
                  f"Merge bale {locked_sid}"], cwd=repo)
             git(["tag", f"applied/{locked_sid}"], cwd=repo)
             git(["branch", "-d", sid_branch], cwd=repo)
-
-            # Cleanup: clear lock, remove session dir.
             clear_lock(repo)
             shutil.rmtree(sessions_dir, ignore_errors=True)
             log(f"tagged applied/{locked_sid}, cleared lock, deleted {sid_branch}")
@@ -2085,21 +2277,35 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             print(f"  staging: {staging} (preserved for inspection)")
             return 0
 
-        # HOLD path. Apply to worktree but do not commit; leave branch checked
-        # out with staged changes for the user to inspect.
-        git(["checkout", sid_branch], cwd=repo)
-        apply_changes_to_worktree(repo, staging, manifest)
-        log(f"validation FAILED (exit={exit_code}); held on {sid_branch} "
-            f"with staged uncommitted changes")
+        if action == "inspect":
+            # HOLD → leave branch checked out with staged changes for the
+            # user to investigate. Exit non-zero per BALE.md §8.7 piped-mode
+            # contract; the lock and branch persist until the user retries
+            # with a corrected response or reverts.
+            print()
+            print(f"  [HOLD] {locked_sid}")
+            print(f"  validation exited {exit_code}")
+            print(f"  branch:  {sid_branch} (uncommitted; "
+                  f"`git diff --cached` to inspect)")
+            print(f"  log:     .bale/logs/{locked_sid}.log")
+            print(f"  staging: {staging} (preserved)")
+            print(f"  retry:   bale retry <new-tarball>")
+            print(f"  discard: bale revert {locked_sid}")
+            return 1
 
+        # action == "revert" — v0.1 stub. The state is reversible by the
+        # existing `bale revert <sid>` command in both PASS-committed and
+        # HOLD-staged shapes; wiring it inline here is queued for v0.2 (see
+        # next-prompt.md). For now, leave the branch held in the same shape
+        # as `inspect` and surface the exact follow-up command. Exit non-
+        # zero so scripted callers can detect "user asked to back out".
         print()
-        print(f"  [HOLD] {locked_sid}")
-        print(f"  validation exited {exit_code}")
-        print(f"  branch:  {sid_branch} (uncommitted; `git diff --cached` to inspect)")
-        print(f"  log:     .bale/logs/{locked_sid}.log")
-        print(f"  staging: {staging} (preserved)")
-        print(f"  retry:   bale retry <new-tarball>")
-        print(f"  discard: bale revert {locked_sid}")
+        print(f"  [REVERT-REQUESTED] {locked_sid}")
+        print(f"  walkthrough `revert` is stubbed in v0.1; the branch is")
+        print(f"  held in the same shape as `inspect`. Run:")
+        print(f"      bale revert {locked_sid}")
+        print(f"  to discard cleanly (deletes {sid_branch}, clears lock,")
+        print(f"  wipes staging). Lock and branch are preserved until then.")
         return 1
 
 

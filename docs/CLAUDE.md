@@ -154,6 +154,13 @@ tarball. A 500-line component goes in a tarball. A long discussion
 that ends *"okay let's build it"* enters tarball mode at *let's build
 it*, not before.
 
+A request for a *downloadable file* — a script to run elsewhere, a
+PDF, an export, anything the user wants in their hands rather than
+committed — is not by itself a tarball-mode trigger. The trigger is
+intent-to-commit code. Bailouts (§11), probes (`TARBALL.md` §4), and
+ordinary chat replies can all surface as files depending on the
+request shape; the file-delivery surface is incidental to the mode.
+
 When Claude decides tarball mode is engaging, **Claude re-reads
 `TARBALL.md` before producing the response.** `TARBALL.md` is always
 present (bale injects it), but the act of re-engaging with the
@@ -169,6 +176,23 @@ through).
 
 Claude asks, in one sentence. Default lean: conversational. It's
 cheaper to upgrade to a tarball than to over-formalize a chat.
+
+### When the chat preamble and the manifest goal disagree
+
+If the chat preamble and the manifest goal conflict on mode or scope,
+**the manifest goal wins.** The manifest is the durable artifact bale
+records; preamble framing that diverges from it is conversational
+drift, often because the request was inherited from an earlier
+session and the architect retyped intent without repacking. If the
+architect wants the manifest's framing overridden mid-conversation,
+the right move is a fresh `bale pack` (or a brief paused question in
+chat) — not riding a stale manifest forward with new instructions in
+the preamble. Until that fresh request exists, Claude works to what
+the manifest says.
+
+The architect can override this rule by saying so explicitly ("accept
+the preamble's override on my authority for this session") — the rule
+is the default, not a wall.
 
 ### The transition mid-session
 
@@ -399,6 +423,14 @@ Bail when one of these is true:
   notices the change set is bigger than estimated, and the
   remaining work (`validation.sh`, `notes.md`, manifest hashes)
   won't fit without sprawl that risks compaction.
+- **Architect-requested.** The architect has asked for a bailout
+  explicitly — typically to test the handoff path or to checkpoint
+  a long session into a fresh start. The request can arrive in the
+  chat preamble or as a mid-session instruction; either way, treat
+  it as authoritative and produce a real bailout (`handoff.md`,
+  `diagnostics.json`, the §5.6 shape). The bail_trigger enum value
+  in `diagnostics.json` is `"other"` with the specifics in
+  `bail_narrative` — see `TARBALL.md` §5.8.
 
 What is *not* a bail trigger:
 

@@ -638,7 +638,24 @@ state that.]
 original goal. INDEX-table-compatible paths. If reading order
 matters, number it. This is the most important section — its job
 is to put the next Claude on the right track in one read, not
-ten.]
+ten.
+
+When the bailing Claude has a clear recommendation for what the next
+session should do, the reading plan is written for *that* piece —
+concrete, single-track, ready to execute. Alternatives worth
+preserving are framed as *overrides* ("if the architect picks X
+instead, the reading plan is Y"), not as equal candidates in a
+menu. Defaulting to a multiple-choice menu when a recommendation
+existed is the failure mode that produces "which piece?" misfires
+in the next session — the next Claude reads the menu, asks the
+architect to pick, and the recommendation gets lost.
+
+The multiple-choice shape is reserved for genuine close calls where
+the bailing Claude couldn't pick. When that case applies, the
+handoff also declares that **the next session opens in
+conversational mode** and transitions to tarball mode after the
+architect picks — saving the next Claude from re-discovering that
+shape on every chained handoff.]
 
 ## Salvageable work
 
@@ -694,8 +711,15 @@ calibrate where budget actually goes. Schema:
 Field semantics:
 
 - **`bail_trigger`** — one of `"reading-path-inflation"`,
-  `"mid-build-budget-panic"`, or `"other"`. Matches the triggers
-  defined in `CLAUDE.md` §11.2.
+  `"mid-build-budget-panic"`, or `"other"`. The first two match the
+  Claude-detected triggers in `CLAUDE.md` §11.2. The third
+  (architect-requested bailouts — test sessions, deliberate
+  checkpoints; see `CLAUDE.md` §11.2's third bullet) uses `"other"`
+  and surfaces the specifics in `bail_narrative` rather than minting
+  a new enum value. The enum stays small for clean longitudinal
+  filtering across sessions; the narrative is searchable when a
+  finer cut is needed (e.g., `jq 'select(.bail_narrative |
+  test("test"))'`).
 - **`bail_narrative`** — Claude's honest paragraph on the bail
   decision. The retrospective complement to the prescriptive
   `handoff.md`.
