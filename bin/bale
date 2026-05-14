@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.6. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.7. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -13,9 +13,16 @@ v0.0.4 to apply CODE.md §4.2 to the largest two sections; this file
 now hosts the pack/apply/revert/retry/unlock/handoff pipelines, the
 hook runtime, and the CLI surface. `bale unlock` (BALE.md §9.3) landed
 in v0.0.5. `bale handoff` plus apply-time branching on
-`response_kind: "bailout"` (TARBALL.md §5.6.3) landed in v0.0.6. The
-rest of v0.1 (full pack wizard, .baleignore, git-init walkthrough,
-release-tarball packaging) lands later.
+`response_kind: "bailout"` (TARBALL.md §5.6.3) landed in v0.0.6.
+v0.0.7 finishes two follow-ups: `bale handoff` now pre-packs source
+files extracted from handoff.md's `## Reading plan for the next
+session` section (so the next request lands with the files Claude
+recommended already in context/, instead of just handoff.md), and the
+apply walkthrough's `[r]` revert action — previously a v0.1 stub that
+told the user to run `bale revert <sid>` themselves — is wired
+through to _discard_hold_state + clear_lock so the action completes
+inline. The rest of v0.1 (full pack wizard, .baleignore, git-init
+walkthrough, release-tarball packaging) lands later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -35,28 +42,28 @@ session 003 means Python 3.11+ (tomllib lives there, inside
 fleshes out the full pipeline.
 
 Sections:
-   1. Imports + constants                              (~line   99)
-   2. Logging                                          (~line  169)
-   3. Shell / git helpers                              (~line  256)
-   4. Hashing                                          (~line  295)
-   5. Session IDs and the per-day counter              (~line  311)
-   6. Lock handling                                    (~line  369)
-   7. .gitignore handling for the .bale/ directory     (~line  400)
-   8. Path-safety checks                               (~line  430)
-   9. Pack: file enumeration and filtering             (~line  478)
-  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  562)
-  11. Pack: slug validation                            (~line  835)
-  12. Pack: manifest and tarball construction          (~line  848)
-  13. Pack                                             (~line  948)
-  14. Apply: helpers                                   (~line 1162)
-  15. Apply: pipeline                                  (~line 1886)
-  16. Apply                                            (~line 2107)
-  17. Revert                                           (~line 2156)
-  18. Retry                                            (~line 2338)
-  19. Unlock                                           (~line 2387)
-  20. Handoff                                          (~line 2481)
-  21. Hook invocation                                  (~line 2845)
-  22. CLI                                              (~line 2968)
+   1. Imports + constants                              (~line  107)
+   2. Logging                                          (~line  177)
+   3. Shell / git helpers                              (~line  264)
+   4. Hashing                                          (~line  303)
+   5. Session IDs and the per-day counter              (~line  319)
+   6. Lock handling                                    (~line  377)
+   7. .gitignore handling for the .bale/ directory     (~line  408)
+   8. Path-safety checks                               (~line  438)
+   9. Pack: file enumeration and filtering             (~line  486)
+  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  570)
+  11. Pack: slug validation                            (~line  843)
+  12. Pack: manifest and tarball construction          (~line  856)
+  13. Pack                                             (~line  956)
+  14. Apply: helpers                                   (~line 1170)
+  15. Apply: pipeline                                  (~line 2164)
+  16. Apply                                            (~line 2451)
+  17. Revert                                           (~line 2500)
+  18. Retry                                            (~line 2682)
+  19. Unlock                                           (~line 2731)
+  20. Handoff                                          (~line 2825)
+  21. Hook invocation                                  (~line 3270)
+  22. CLI                                              (~line 3393)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -74,6 +81,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -99,7 +107,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.6"
+VERSION = "0.0.7"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1935,6 +1943,114 @@ def first_section_of_handoff(handoff_md_text: str) -> str:
     return "".join(lines[start:end]).rstrip("\n")
 
 
+def reading_plan_section(handoff_md_text: str) -> str:
+    """Return the text of handoff.md's `## Reading plan for the next session`
+    section, header line included, up to (but not including) the next `## `
+    heading or EOF. Returns "" if no matching section is found.
+
+    Mirrors first_section_of_handoff in shape — both slice the same document
+    by `##` heading. Kept separate rather than parameterized because the
+    callers want different things from the same text (the bailout banner
+    wants whichever section is first; `bale handoff` wants the specific
+    reading-plan section), and the section title is locked by TARBALL.md
+    §5.7. If a third heading-scoped extractor lands, a shared helper
+    earns its place.
+    """
+    target = "## Reading plan for the next session"
+    lines = handoff_md_text.splitlines(keepends=True)
+    start = None
+    for i, line in enumerate(lines):
+        if line.rstrip("\n") == target:
+            start = i
+            break
+    if start is None:
+        return ""
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if lines[j].startswith("## "):
+            end = j
+            break
+    return "".join(lines[start:end]).rstrip("\n")
+
+
+# Regex for backtick-wrapped inline tokens. Single-backtick spans only:
+# `\`([^`\n]+)\`` — content between two backticks on the same line, content
+# non-empty, no embedded backticks. Triple-backticks (fenced code blocks)
+# and double-backticks (rare) are intentionally NOT matched — reading plans
+# cite files as inline-code spans, the markdown convention for paths.
+_BACKTICK_INLINE = re.compile(r"`([^`\n]+)`")
+
+# Extensions we treat as "path-shaped" when a token has no slash. Without
+# this set, a backtick-wrapped bare filename like `BALE.md` would be
+# rejected for lacking a slash — but it's a real path in a flat repo
+# root. Conversely, a backtick-wrapped English word like `pass` has
+# neither slash nor known extension and is correctly skipped. The set is
+# permissive on purpose; the asymmetry in extract_paths_from_reading_plan's
+# docstring justifies inclusion over precision.
+_PATH_LIKE_EXTENSIONS = frozenset((
+    ".md", ".py", ".toml", ".json", ".yml", ".yaml", ".sh", ".bash",
+    ".txt", ".html", ".css", ".js", ".ts", ".jsx", ".tsx", ".vue",
+    ".rs", ".go", ".rb", ".java", ".c", ".cc", ".cpp", ".h", ".hpp",
+))
+
+
+def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
+    """Pull repo-relative file paths out of a reading-plan markdown section.
+
+    Heuristic: scan every backtick-inline span (`like-this`), keep the first
+    whitespace-delimited token, strip a trailing `:NNN` line-reference, and
+    accept the token as a candidate path when (a) it contains `/` OR has a
+    known code/doc extension (per _PATH_LIKE_EXTENSIONS), AND (b) it is
+    path-safe per is_path_safe (no leading `/`, no `..`, no `.git/` /
+    `.bale/` prefix). The four bale-injected global docs are filtered out
+    here too — they ship at the request's top level on every pack, so a
+    duplicate under context/ would be noise.
+
+    Output preserves first-appearance order and is deduped. No filesystem
+    access — that's gather_files_for_pack's job downstream.
+
+    Deliberately permissive: a false positive becomes a tracked file the
+    next session sees unnecessarily (cheap — gather_files_for_pack's
+    own filters will drop it if it doesn't exist or matches an exclusion);
+    a false negative becomes a file the next session has to ask for
+    (expensive — the friction the pre-pack is meant to remove). The
+    asymmetry argues for inclusion.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for match in _BACKTICK_INLINE.finditer(plan_text):
+        # First whitespace-delimited token. A backtick span like
+        # `BALE.md §8.7` yields `BALE.md`; the section ref is dropped.
+        token = match.group(1).strip().split(None, 1)
+        if not token:
+            continue
+        token = token[0]
+        # Strip a `:NNN` line-ref suffix (e.g. `bin/bale:2296` -> `bin/bale`).
+        # File paths don't legitimately contain `:` in this project's
+        # conventions; if a future filename does, the split needs
+        # reworking.
+        if ":" in token:
+            token = token.split(":", 1)[0]
+        if not token:
+            continue
+        has_slash = "/" in token
+        ext = Path(token).suffix.lower()
+        if not has_slash and ext not in _PATH_LIKE_EXTENSIONS:
+            continue
+        if not is_path_safe(token):
+            continue
+        # Filter out bale-injected global docs (bare-filename match against
+        # GLOBAL_DOCS). A reading plan that says "re-read `BALE.md` §8.7"
+        # is informational; bale already ships BALE.md at the top level.
+        if Path(token).name in GLOBAL_DOCS:
+            continue
+        if token in seen:
+            continue
+        seen.add(token)
+        out.append(token)
+    return out
+
+
 def print_bailout_banner(manifest: dict, handoff_path: Path,
                          tarball_basename: str) -> None:
     """Per TARBALL.md §5.6.3 steps 1-3: a clear banner identifying the
@@ -2293,19 +2409,41 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             print(f"  discard: bale revert {locked_sid}")
             return 1
 
-        # action == "revert" — v0.1 stub. The state is reversible by the
-        # existing `bale revert <sid>` command in both PASS-committed and
-        # HOLD-staged shapes; wiring it inline here is queued for v0.2 (see
-        # next-prompt.md). For now, leave the branch held in the same shape
-        # as `inspect` and surface the exact follow-up command. Exit non-
-        # zero so scripted callers can detect "user asked to back out".
+        # action == "revert" — BALE.md §8.8: "Delete the branch (forcefully),
+        # wipe .bale/sessions/<sid>/, clear the lock. Same operation
+        # regardless of whether validation passed or held." Wired through
+        # to _discard_hold_state (section 17) which already does the heavy
+        # lifting for `bale revert <sid>` — branch-aware reset/checkout,
+        # branch -D, session-dir wipe, recorded-staging wipe. clear_lock
+        # is the caller's responsibility per _discard_hold_state's
+        # docstring contract.
+        #
+        # Why this is safe on the PASS path: PASS just committed on
+        # bale/<sid>, so sid_sha != origin_sha and _discard_hold_state's
+        # ancestor guard recognises this as an unmerged branch (the
+        # guard's purpose is to refuse already-merged sessions, which
+        # this isn't — origin still points at HEAD-pre-apply). On the
+        # HOLD path, sid_sha == origin_sha so the guard's "is_ancestor"
+        # branch short-circuits as designed. Either way the cleanup
+        # runs.
+        #
+        # Exit code: 1, matching the stub this replaces. The work did
+        # not land in origin; a scripted `bale apply $TARBALL && deploy`
+        # caller should short-circuit. The distinction between
+        # [HOLD]+inspect (work staged for human review) and
+        # [REVERT]+revert (work backed out cleanly) lives in the
+        # printed banner, not the exit code — exit code carries the
+        # binary "work landed or not" signal only.
+        status = _discard_hold_state(repo, locked_sid)
+        clear_lock(repo)
+        log(f"walkthrough revert: {locked_sid}; lock cleared")
+
         print()
-        print(f"  [REVERT-REQUESTED] {locked_sid}")
-        print(f"  walkthrough `revert` is stubbed in v0.1; the branch is")
-        print(f"  held in the same shape as `inspect`. Run:")
-        print(f"      bale revert {locked_sid}")
-        print(f"  to discard cleanly (deletes {sid_branch}, clears lock,")
-        print(f"  wipes staging). Lock and branch are preserved until then.")
+        print(f"  [REVERT] {locked_sid}")
+        print(f"  branch:  {status['origin_branch']} "
+              f"({sid_branch} deleted)")
+        print(f"  lock:    cleared")
+        print(f"  staging: {status['staging_status']}")
         return 1
 
 
@@ -2689,13 +2827,22 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 #
 # `bale handoff <bailout-tarball>` packs a fresh request from a bailed
 # session — the safety net for CLAUDE.md §11 context exhaustion. Inherits
-# the bailed-on session's goal verbatim, auto-includes handoff.md (and
-# only handoff.md) in the new request's context/, sets
+# the bailed-on session's goal verbatim, auto-includes handoff.md plus any
+# source files extracted from handoff.md's `## Reading plan for the next
+# session` section (TARBALL.md §5.7) in the new request's context/, sets
 # depends_on.previous_response to the bailout's session_id, and allocates
 # a new session id with the SAME slug, today's date, next NNN. Per the
 # prior session's explicit choice, "same session id" was interpreted as
 # "same slug, new date+NNN" — flagged in notes.md for the architect to
 # correct if the intent was otherwise.
+#
+# Pre-pack of source files (v0.0.7+): extract_paths_from_reading_plan
+# parses backtick-inline tokens from the reading-plan section,
+# gather_files_for_pack applies the standard exclusion / .gitignore
+# filter chain, and the surviving files are added to context_entries
+# alongside handoff.md. An empty / absent reading plan or one that
+# cites no path-shaped tokens degrades cleanly to handoff.md-only —
+# the v0.0.6 behavior — so existing bailout tarballs keep working.
 
 def edit_goal_in_editor(initial_goal: str) -> str:
     """Open $EDITOR on a temporary .md file pre-populated with the inherited
@@ -2970,6 +3117,40 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         if args.edit_goal:
             inherited_goal = edit_goal_in_editor(inherited_goal)
 
+        # Pre-pack source files from handoff.md's `## Reading plan for the
+        # next session` section (TARBALL.md §5.7). The bailing Claude's
+        # reading plan typically names the files the next session should
+        # read; bundling them in context/ here removes the
+        # apply-bailout-then-manually-repack step the architect would
+        # otherwise have to run. Three layers of degradation keep this
+        # robust:
+        #
+        #   1. If handoff.md has no reading-plan section, or the section
+        #      cites no path-shaped tokens, extract_paths_from_reading_plan
+        #      returns []. Fall back to handoff.md-only (the v0.0.6 shape).
+        #   2. If a cited path doesn't resolve to a tracked file (typo,
+        #      since-renamed, ignored by .gitignore), gather_files_for_pack
+        #      silently drops it. The dropped list is logged so the
+        #      architect can audit without the handoff failing.
+        #   3. If a cited path is unsafe (escape, .git/, .bale/) or matches
+        #      a baked-in secret pattern, the same filters drop it. Same
+        #      cleanup contract — bale never refuses a handoff over a
+        #      single bad reference in a Claude-authored doc.
+        #
+        # Done before sid allocation so a (hypothetical) error doesn't
+        # burn an NNN. The implementation only logs and reads; it cannot
+        # fail() at this point.
+        try:
+            handoff_text = handoff_path.read_text(encoding="utf-8")
+        except OSError as e:
+            fail(f"could not read handoff.md from bailout tarball: {e}")
+        plan_text = reading_plan_section(handoff_text)
+        extracted_paths = extract_paths_from_reading_plan(plan_text)
+        if extracted_paths:
+            included_paths = gather_files_for_pack(repo, extracted_paths)
+        else:
+            included_paths = []
+
         # Allocate the new session id NOW (after all the validation
         # gates) so the per-day counter doesn't burn an NNN on a pack
         # that was about to fail anyway. Same staging-then-allocate
@@ -2978,6 +3159,33 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         set_log_file(repo / ".bale" / "logs" / f"{new_sid}.log")
         log(f"handoff from bailout {bailout_sid} -> new session {new_sid}")
         log(f"inherited goal from request {responds_to_sid}")
+        # Reading-plan pre-pack accounting goes to the session log so an
+        # architect investigating later can see exactly which candidates
+        # came out of handoff.md and which survived the filter. Logged
+        # AFTER set_log_file so the lines land in the right log file
+        # rather than the unbuffered preamble.
+        if extracted_paths:
+            log(f"reading plan: {len(extracted_paths)} candidate(s) "
+                f"extracted, {len(included_paths)} included after filter")
+            log(f"  candidates: {extracted_paths}")
+            log(f"  included:   {included_paths}")
+        else:
+            log("reading plan: no path-shaped tokens (section missing, "
+                "empty, or cited no files); context = handoff.md only")
+
+        # Build the (context_relative_path, source_absolute_path) entries
+        # for build_request_tarball. handoff.md's source lives in the
+        # extracted-bailout tmpdir; each pre-packed source file's source
+        # lives in the repo. Parallel context_paths list goes into the
+        # manifest so the next Claude sees the full inventory in
+        # manifest.context_included per TARBALL.md §3.2.
+        context_entries: list[tuple[str, Path]] = [
+            ("handoff.md", handoff_path),
+        ]
+        context_paths_for_manifest: list[str] = ["handoff.md"]
+        for rel in included_paths:
+            context_entries.append((rel, repo / rel))
+            context_paths_for_manifest.append(rel)
 
         # Build the new request manifest. depends_on.previous_response
         # points at the bailout — this is the ONLY path in v0.0.6 that
@@ -2994,22 +3202,25 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             constraints=[],
             out_of_scope=[],
             expects_probe="claude-decides",
-            context_paths=["handoff.md"],
+            context_paths=context_paths_for_manifest,
             depends_on={
                 "previous_response": bailout_sid,
                 "previous_probe": None,
             },
         )
 
-        # Build the tarball. context_entries is a single (relpath, src)
-        # tuple — only handoff.md, sourced from the extracted bailout's
-        # response_dir. No prior-request material is carried forward by
-        # design (per the prior session's confirmed constraint).
+        # Build the tarball. context_entries is whatever the reading-plan
+        # extraction produced (handoff.md first, then 0..N source files);
+        # build_request_tarball doesn't care about the source-vs-repo
+        # mixing because each entry carries its own source path. Per the
+        # prior session's confirmed constraint, no prior-request material
+        # is carried forward — context_entries holds only the bailout's
+        # handoff.md and the files the reading plan named.
         tarball_out = repo / ".bale" / "outbox" / f"request-{new_sid}.tar.gz"
         try:
             build_request_tarball(
                 new_sid,
-                [("handoff.md", handoff_path)],
+                context_entries,
                 new_manifest,
                 tarball_out,
             )
@@ -3039,7 +3250,15 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         print(f"  tarball:    {tarball_out}")
         print(f"  inherited:  goal from {responds_to_sid}"
               + ("  (edited)" if args.edit_goal else "  (verbatim)"))
-        print(f"  context:    handoff.md")
+        if included_paths:
+            plural = "s" if len(included_paths) != 1 else ""
+            print(f"  context:    handoff.md + {len(included_paths)} "
+                  f"reading-plan file{plural}:")
+            for rel in included_paths:
+                print(f"                {rel}")
+        else:
+            print(f"  context:    handoff.md  "
+                  f"(no reading-plan files extracted)")
         print(f"  depends_on: previous_response = {bailout_sid}")
         print()
         print("Send the tarball to Claude. When the response comes back,")
@@ -3177,7 +3396,7 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.6 bootstrap).",
+        description="Claude session orchestrator (v0.0.7 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
