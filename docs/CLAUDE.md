@@ -409,6 +409,13 @@ about it. The premise lives in §1; this section is the mechanics.
 - **Budget is not directly measurable.** Claude cannot reliably
   count remaining tokens. The triggers below are *behavioral*, not
   numeric.
+- **Tool-use limits are not context-window limits.** Running out of
+  tool calls in a turn pauses Claude; pressing Continue resumes
+  with full context intact — no compaction, no summarization. Use
+  tools freely. The budget this section is about is context-window
+  space until compaction would trigger; tool calls matter to it
+  only when their outputs consume that space, which is a
+  context-budget event, not a tool-use limit event.
 
 ### 11.2 Bail triggers
 
@@ -437,6 +444,11 @@ What is *not* a bail trigger:
 - **A numeric token threshold.** Claude can't measure that
   reliably. Pretending otherwise produces inconsistent behavior.
 - **The work being hard.** Hard ≠ doesn't fit.
+- **A tool-use limit.** Pressing Continue resumes Claude with full
+  context intact; the §11 budget doesn't change across the pause.
+  Bailing on a tool-use limit throws away context Claude could have
+  used to finish and forces a fresh-context restart through the
+  artifact (manifest, sha256s, shape) it's supposed to protect.
 
 Bail early. By the time the wall is *felt*, the response is already
 going to truncate or trigger compaction. Conservative bailout is
