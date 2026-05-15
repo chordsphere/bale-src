@@ -1307,9 +1307,9 @@ Apply a tarball from Claude that adds:
 
 - The full pack pipeline: wizard, `$EDITOR` integration, baked-in
   exclusions, `.baleignore`. *(Wizard and `$EDITOR` for the README
-  step landed in v0.0.9; the wizard's excludes prompt is deferred and
-  rides with the `.baleignore` work. Baked-in exclusions landed in
-  v0.0.1.)*
+  step landed in v0.0.9. `.baleignore` plus the wizard's excludes
+  prompt and the §7.4 soft-cap `[e]` edit-excludes branch landed in
+  v0.0.10. Baked-in exclusions landed in v0.0.1.)*
 - The full apply pipeline: `apply.sh` handling, manifest
   reconciliation after staging, walkthrough. *(All landed in v0.0.2.)*
 - `bale unlock`. *(Landed in v0.0.5.)*
@@ -1318,8 +1318,7 @@ Apply a tarball from Claude that adds:
   `docs/` into `bale-vX.Y.Z.tar.gz`. *(Still open.)*
 - Git-init walkthrough. *(Landed in v0.0.8.)*
 
-Remaining at v0.0.9: `.baleignore` (with the wizard's deferred
-excludes prompt) and the release-tarball packaging script.
+Remaining at v0.0.10: the release-tarball packaging script.
 
 ### v0.2 — rollback
 
