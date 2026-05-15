@@ -618,10 +618,13 @@ to skipping it — the manifest's `goal`, `constraints`, and
 `y` only when there's prose worth keeping that doesn't fit those
 fields.
 
-If the user answers `y`, `$EDITOR` (or `$VISUAL`, falling back to
-`nano`/`vi`) opens with a scaffold pre-populated from the wizard
-answers. The user expands in prose, saves, and bale proceeds.
-Saving an empty buffer omits the file.
+If the user answers `y`, `$EDITOR` (falling back to `$VISUAL`, then to
+`/usr/bin/editor` — the Debian alternatives entry, which catches most
+no-EDITOR-set installs) opens with a scaffold pre-populated from the
+wizard answers. The user expands in prose, saves, and bale proceeds.
+Saving an empty buffer omits the file. The fallback chain matches
+`bale handoff --edit-goal` on purpose — they share one `open_in_editor`
+helper, so users see one editor-resolution behavior across the tool.
 
 `--no-edit` forces skip regardless.
 
@@ -1303,14 +1306,20 @@ only installs the release tarball never sees them.
 Apply a tarball from Claude that adds:
 
 - The full pack pipeline: wizard, `$EDITOR` integration, baked-in
-  exclusions, `.baleignore`.
+  exclusions, `.baleignore`. *(Wizard and `$EDITOR` for the README
+  step landed in v0.0.9; the wizard's excludes prompt is deferred and
+  rides with the `.baleignore` work. Baked-in exclusions landed in
+  v0.0.1.)*
 - The full apply pipeline: `apply.sh` handling, manifest
-  reconciliation after staging, walkthrough.
-- `bale unlock`.
+  reconciliation after staging, walkthrough. *(All landed in v0.0.2.)*
+- `bale unlock`. *(Landed in v0.0.5.)*
 - The release-tarball packaging script (a `Makefile` target or
   `scripts/build.sh` in the bale repo) that bundles `bin/` and
-  `docs/` into `bale-vX.Y.Z.tar.gz`.
-- Git-init walkthrough.
+  `docs/` into `bale-vX.Y.Z.tar.gz`. *(Still open.)*
+- Git-init walkthrough. *(Landed in v0.0.8.)*
+
+Remaining at v0.0.9: `.baleignore` (with the wizard's deferred
+excludes prompt) and the release-tarball packaging script.
 
 ### v0.2 — rollback
 

@@ -42,41 +42,50 @@ is *for* — and stays stable as the per-section line numbers drift:
 7. **`.gitignore` for `.bale/`.** Bale auto-appends `.bale/` to
    `.gitignore` on first `pack` if missing.
 8. **Path-safety checks.** `refuse_system_dir()`, `is_path_safe()`.
-9. **Pack pipeline.** Five sections in the body, kept separate
-   because they grew past the threshold for one cluster: file
-   enumeration and filtering; scope projection + threshold caps
-   (BALE.md §7.4); slug validation; manifest and tarball
-   construction; and `cmd_pack` itself (which also hosts the
-   git-init walkthrough per BALE.md §10).
-10. **Apply pipeline.** Three sections in the body: apply helpers,
+9. **Editor invocation.** `open_in_editor()` — $EDITOR / $VISUAL /
+   /usr/bin/editor fallback, tempfile, shlex split, kept-on-non-zero-
+   exit semantics. Called by both `bale handoff --edit-goal`
+   (via the thin `edit_goal_in_editor` wrapper in the Handoff cluster
+   that adds the goal-specific empty-is-fatal check) and the pack
+   wizard's README step. Lives in its own section because it
+   straddles two clusters that would otherwise both want to own it.
+10. **Pack pipeline.** Six sections in the body, kept separate
+    because they grew past the threshold for one cluster: file
+    enumeration and filtering; scope projection + threshold caps
+    (BALE.md §7.4); slug validation; manifest and tarball
+    construction; the §7.3 wizard (added in v0.0.9 — interactive
+    prompts for goal/slug/constraints/out_of_scope/README); and
+    `cmd_pack` itself (which also hosts the git-init walkthrough
+    per BALE.md §10).
+11. **Apply pipeline.** Three sections in the body: apply helpers,
     the apply pipeline proper (`_apply_pipeline`, shared with retry),
     and `cmd_apply`. Manifest validation, file presence + sha256 +
     path safety, staging, validation, commit-or-hold logic, and
     walkthrough.
-11. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
+12. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
     session entirely (and clears the lock); retry discards the same
     HOLD state but preserves the lock and reruns the apply pipeline
     against a corrected response tarball. Both call a shared
     `_discard_hold_state()` helper for the destructive cleanup; the
     lock-clear and post-cleanup steps are caller policy.
-12. **`cmd_unlock`.** Clears an abandoned session lock — the
+13. **`cmd_unlock`.** Clears an abandoned session lock — the
     "held, no branch" state from BALE.md §9.5. Removes
     `.bale/current_session` and `.bale/sessions/<sid>/`; touches no
     git state. Refuses on HOLD-with-branch (a `bale/<sid>` branch
     exists) because that's `bale revert`'s territory; `--force`
     overrides the refusal but leaves the orphan branch in place and
     logs the override with the FORCE: prefix.
-13. **`cmd_handoff`.** Repackages a bailout response (TARBALL.md
+14. **`cmd_handoff`.** Repackages a bailout response (TARBALL.md
     §5.6) into a fresh request that inherits the bailed-on session's
     goal verbatim, pre-packs source files extracted from
     `handoff.md`'s reading-plan section (v0.0.7+), and warns on
     chained-bailout lineages (CLAUDE.md §11.4). Optional
-    `--edit-goal` opens `$EDITOR` on the inherited goal before
-    packing.
-14. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
+    `--edit-goal` opens `$EDITOR` on the inherited goal (via the
+    shared `open_in_editor` in cluster 9) before packing.
+15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
-15. **CLI parser + `main`.** The `bale config init` subparser wires
+16. **CLI parser + `main`.** The `bale config init` subparser wires
     `func=bale_config.cmd_config_init`.
 
 `bin/bale_config.py` has three sections (with its own index header):

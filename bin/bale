@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.8. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.9. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -23,12 +23,19 @@ told the user to run `bale revert <sid>` themselves — is wired
 through to _discard_hold_state + clear_lock so the action completes
 inline. v0.0.8 lands the BALE.md §10 git-init walkthrough: `bale pack`
 in a non-git directory now offers to initialize the repo, prompts for
-missing git identity (via bale_config.walkthrough_git_identity, per
-the session constraint to reuse that helper), writes a .gitignore
-with the §6.4 baked-in exclusion set, and records an initial commit
-before continuing into the rest of the pack pipeline. The remaining
-v0.1 items (full pack wizard, $EDITOR integration, .baleignore,
-release-tarball packaging) land later.
+missing git identity (via bale_config.walkthrough_git_identity),
+writes a .gitignore with the §6.4 baked-in exclusion set, and records
+an initial commit before continuing into the rest of the pack
+pipeline. v0.0.9 lands two coupled BALE.md §7.3 items: the
+interactive pack wizard (`bale pack` with goal or --slug missing now
+prompts on a TTY for the missing fields, plus constraints,
+out_of_scope, and an optional README) and $EDITOR integration for the
+README step. The editor invocation that `bale handoff --edit-goal`
+introduced in v0.0.7 was generalized into a shared `open_in_editor`
+helper so the pack wizard's README step and the handoff goal-edit
+share one implementation. The remaining v0.1 items (.baleignore plus
+the wizard's deferred excludes prompt, and release-tarball packaging)
+land later.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -49,34 +56,36 @@ fleshes out the full pipeline.
 
 Sections:
    1. Imports + constants                              (~line  113)
-   2. Logging                                          (~line  183)
-   3. Shell / git helpers                              (~line  270)
-   4. Hashing                                          (~line  309)
-   5. Session IDs and the per-day counter              (~line  325)
-   6. Lock handling                                    (~line  383)
-   7. .gitignore handling for the .bale/ directory     (~line  414)
-   8. Path-safety checks                               (~line  444)
-   9. Pack: file enumeration and filtering             (~line  492)
-  10. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  576)
-  11. Pack: slug validation                            (~line  849)
-  12. Pack: manifest and tarball construction          (~line  862)
-  13. Pack                                             (~line  962)
-  14. Apply: helpers                                   (~line 1397)
-  15. Apply: pipeline                                  (~line 2391)
-  16. Apply                                            (~line 2678)
-  17. Revert                                           (~line 2727)
-  18. Retry                                            (~line 2909)
-  19. Unlock                                           (~line 2958)
-  20. Handoff                                          (~line 3052)
-  21. Hook invocation                                  (~line 3497)
-  22. CLI                                              (~line 3620)
+   2. Logging                                          (~line  185)
+   3. Shell / git helpers                              (~line  272)
+   4. Hashing                                          (~line  311)
+   5. Session IDs and the per-day counter              (~line  327)
+   6. Lock handling                                    (~line  385)
+   7. .gitignore handling for the .bale/ directory     (~line  416)
+   8. Path-safety checks                               (~line  446)
+   9. Editor invocation                                (~line  494)
+  10. Pack: file enumeration and filtering            (~line  552)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  636)
+  12. Pack: slug validation                           (~line  909)
+  13. Pack: manifest and tarball construction         (~line  922)
+  14. Pack: wizard                                    (~line 1022)
+  15. Pack                                            (~line 1244)
+  16. Apply: helpers                                  (~line 1463)
+  17. Apply: pipeline                                 (~line 2457)
+  18. Apply                                           (~line 2744)
+  19. Revert                                          (~line 2793)
+  20. Retry                                           (~line 2975)
+  21. Unlock                                          (~line 3024)
+  22. Handoff                                         (~line 3118)
+  23. Hook invocation                                 (~line 3563)
+  24. CLI                                             (~line 3676)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
 ("bale.toml — configurables" and "`bale config init` — the
 configurables wizard") moved there entire. The two remaining surfaces
-that touch configurables — `run_hook` (section 21) and the `config
-init` subparser wiring (section 22) — go through `bale_config`'s
+that touch configurables — `run_hook` (section 23) and the `config
+init` subparser wiring (section 24) — go through `bale_config`'s
 module-level API.
 """
 
@@ -113,7 +122,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -150,7 +159,7 @@ SECRET_PATH_EXCLUDES = (
 # Configurables (the bale.toml file name, the per-install user/ directory,
 # hook names, and apply-section value keys) moved to bin/bale_config.py
 # in v0.0.4. The two surfaces in this file that still touch them — run_hook
-# (section 21) and the `config init` subparser wiring (section 22) — reach
+# (section 23) and the `config init` subparser wiring (section 24) — reach
 # them through bale_config.* module-level attributes.
 
 # Path-location refusals. From BALE.md section 7.1.
@@ -489,7 +498,68 @@ def is_path_safe(rel: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# 9. Pack: file enumeration and filtering
+# 9. Editor invocation
+# ---------------------------------------------------------------------------
+
+def open_in_editor(initial_text: str, *, abort_hint: str = "") -> str:
+    """Open $EDITOR on a temporary .md file pre-populated with initial_text;
+    return the user's edited contents stripped of trailing whitespace.
+
+    Honors $EDITOR, falls back to $VISUAL, then to /usr/bin/editor (Debian
+    convention; the alternatives system points at the user's selected editor
+    on Debian/Ubuntu, which catches most no-EDITOR-set installs). $EDITOR
+    may be a multi-word command (`code --wait`); we split with shlex but
+    don't validate further — the same trust-the-user posture the rest of
+    bale takes with subprocess invocations. A non-zero exit from the editor
+    is logged but not fatal: the user may have :q'd deliberately to abort
+    while still wanting whatever's in the buffer.
+
+    Empty return is allowed: the caller decides whether empty means
+    "abort" (cmd_handoff's --edit-goal) or "skip the optional artifact"
+    (pack wizard's README step). The abort_hint string, when set, is
+    appended to the no-editor-available fail() message so the user gets a
+    caller-specific suggestion on what to do instead (e.g. "drop
+    --edit-goal" or "answer 'n' to the README prompt").
+    """
+    editor_env = os.environ.get("EDITOR") or os.environ.get("VISUAL")
+    if not editor_env:
+        debian_alt = "/usr/bin/editor"
+        if Path(debian_alt).exists():
+            editor_env = debian_alt
+        else:
+            msg = (
+                "$EDITOR is not set and /usr/bin/editor is not available. "
+                "Set EDITOR (e.g. `export EDITOR=vim`) and retry"
+            )
+            if abort_hint:
+                msg += f", or {abort_hint}"
+            msg += "."
+            fail(msg)
+
+    with tempfile.NamedTemporaryFile(
+        mode="w+", suffix=".md", delete=False, encoding="utf-8",
+    ) as tf:
+        tf.write(initial_text)
+        if not initial_text.endswith("\n"):
+            tf.write("\n")
+        tmp_path = Path(tf.name)
+
+    try:
+        cmd = shlex.split(editor_env) + [str(tmp_path)]
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            log(f"$EDITOR ({editor_env!r}) exited {result.returncode}; "
+                f"using whatever the file holds now")
+        return tmp_path.read_text(encoding="utf-8").strip()
+    finally:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# 10. Pack: file enumeration and filtering
 # ---------------------------------------------------------------------------
 
 def list_git_files(repo: Path) -> list[str]:
@@ -573,7 +643,7 @@ def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 10. Pack: scope projection + threshold caps (BALE.md section 7.4)
+# 11. Pack: scope projection + threshold caps (BALE.md section 7.4)
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -846,7 +916,7 @@ def format_projection_block(projection: PackProjection) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 11. Pack: slug validation
+# 12. Pack: slug validation
 # ---------------------------------------------------------------------------
 
 def is_valid_slug(s: str) -> bool:
@@ -859,7 +929,7 @@ def is_valid_slug(s: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# 12. Pack: manifest and tarball construction
+# 13. Pack: manifest and tarball construction
 # ---------------------------------------------------------------------------
 
 def build_request_manifest(
@@ -898,6 +968,8 @@ def build_request_tarball(
     context_entries: list[tuple[str, Path]],
     manifest: dict,
     out_path: Path,
+    *,
+    readme_body: Optional[str] = None,
 ) -> None:
     """Write the request tarball to out_path. Layout per TARBALL.md section 3.1.
 
@@ -908,6 +980,12 @@ def build_request_tarball(
     source lives outside the project's repo. Decoupling the context-relative
     path from the source path is what makes both call sites work without one
     pretending to be the other.
+
+    `readme_body` is the §7.3 wizard's optional prose: written as `README.md`
+    at the top of the request tarball when set, omitted entirely when None.
+    Per TARBALL.md §3.1 (and the wizard's "empty buffer = skip" contract in
+    BALE.md §7.3), absence is the canonical signal that the manifest's
+    structured fields are the whole story.
 
     The caller is responsible for path safety on each entry's
     context_relative_path (no traversal, no absolute, no .bale/.git prefix);
@@ -930,6 +1008,13 @@ def build_request_tarball(
         (request_dir / "manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
+
+        # Optional README.md. Written when the wizard collected non-empty
+        # prose; omitted otherwise. Trailing newline is normalized so the
+        # tarball doesn't ship the rare buffer that ends mid-line.
+        if readme_body is not None:
+            text = readme_body if readme_body.endswith("\n") else readme_body + "\n"
+            (request_dir / "README.md").write_text(text, encoding="utf-8")
 
         # context/<files>. copy2 + follow_symlinks=False preserves mode bits
         # so an executable script in the project arrives in context/ still
@@ -959,7 +1044,166 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 13. Pack
+# 14. Pack: wizard
+# ---------------------------------------------------------------------------
+#
+# Interactive prompts for the BALE.md §7.3 wizard. Wizard mode engages
+# when `bale pack` is invoked without enough on the command line to skip
+# it — specifically when either the goal positional or --slug is missing.
+# Once engaged, the wizard walks the optionals (constraints, out_of_scope,
+# README) too, prompting only for fields the CLI didn't already provide.
+#
+# The §7.3 spec also lists an "Anything to exclude from the default-
+# include-everything?" prompt; that one is deferred alongside the
+# [e] edit-excludes branch of the §7.4 soft-cap loop (cmd_pack notes
+# this), because they share the same plumbing — a session-level
+# excludes list threaded through walk_for_pack — that the upcoming
+# .baleignore work installs.
+#
+# These helpers are pack-specific (single caller — cmd_pack). They live
+# in their own section because the wizard is a coherent enough subject
+# that grouping the prompts under a banner is cheaper than letting them
+# sprawl across cmd_pack's prologue, and parallel to the other "Pack:
+# <aspect>" sections already in the file.
+
+# README scaffold template (BALE.md §7.3). Saved as a constant so the
+# wizard test can read it back and compare. The braces are replaced by
+# the wizard's collected answers; the comment text instructs the user
+# how to skip the file (empty buffer omits per BALE.md §7.3).
+_PACK_README_SCAFFOLD = """\
+# {goal}
+
+<!--
+This README is OPTIONAL — extra prose context beyond what the manifest's
+structured fields carry. The manifest will already include:
+
+  goal:         {goal}
+  constraints:  {constraints}
+  out_of_scope: {out_of_scope}
+
+Add prose below this comment that doesn't fit those fields (e.g. a
+short story of why the session exists, links to context the architect
+wants Claude to read first, a list of files-of-interest with reasons).
+Save an empty buffer to omit this README entirely; the structured
+fields above will still ship in the manifest either way.
+-->
+
+"""
+
+
+def _wizard_input_required(prompt: str, *, validator=None,
+                           validator_hint: str = "") -> str:
+    """Single-line prompt, loops until the user gives a non-empty value
+    that passes `validator` (if supplied). EOF/^C aborts the whole pack.
+    Used for the required wizard fields (goal, slug)."""
+    while True:
+        try:
+            raw = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if not raw:
+            print("  (cannot be empty)")
+            continue
+        if validator is not None and not validator(raw):
+            print(f"  ({validator_hint})")
+            continue
+        return raw
+
+
+def _wizard_input_list(label: str) -> list[str]:
+    """Multi-line prompt; one item per line, blank line ends collection.
+    Used for the optional list fields (constraints, out_of_scope). EOF/^C
+    aborts the whole pack (consistent with the required prompts — a user
+    bailing out partway through has signalled they don't want this
+    session, not "ship what's collected so far")."""
+    print(label)
+    items: list[str] = []
+    while True:
+        try:
+            raw = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if not raw:
+            return items
+        items.append(raw)
+
+
+def _wizard_readme_body(goal: str, constraints: list[str],
+                        out_of_scope: list[str], *,
+                        no_edit: bool) -> Optional[str]:
+    """The README step of the §7.3 wizard. Returns the README content
+    (non-empty) or None to omit the file.
+
+    `--no-edit` short-circuits to None without prompting (per §7.3:
+    "--no-edit forces skip regardless"). Otherwise: y/N prompt; on y,
+    $EDITOR opens with a scaffold pre-populated from the wizard answers.
+    An empty buffer after editing also yields None (per §7.3: "Saving
+    an empty buffer omits the file")."""
+    if no_edit:
+        return None
+    if not confirm_yn("Add a README with prose context?", default_no=True):
+        return None
+    scaffold = _PACK_README_SCAFFOLD.format(
+        goal=goal,
+        constraints=", ".join(constraints) if constraints else "(none)",
+        out_of_scope=", ".join(out_of_scope) if out_of_scope else "(none)",
+    )
+    body = open_in_editor(
+        scaffold,
+        abort_hint="answer 'n' at the README prompt to skip it",
+    )
+    return body if body else None
+
+
+def _wizard_fill_args(args: argparse.Namespace) -> None:
+    """Run the §7.3 wizard, populating any args.* fields the CLI left
+    unset. Mutates args in place; does not return. Caller has already
+    verified stdin is a TTY.
+
+    Prompt order matches the §7.3 example. Each prompt is skipped if its
+    CLI counterpart was already supplied — a user who ran `bale pack
+    "my goal" --constraint foo` only sees the slug/out_of_scope/README
+    prompts. Excludes are deferred (see the section banner above)."""
+    print("[bale pack] interactive mode — fill missing fields. ^C to abort.")
+    print()
+
+    if args.goal is None:
+        args.goal = _wizard_input_required("Goal (one sentence)? > ")
+
+    if args.slug is None:
+        args.slug = _wizard_input_required(
+            "Short slug (kebab-case)? > ",
+            validator=is_valid_slug,
+            validator_hint=(
+                "must be kebab-case: lowercase letters, digits, hyphens; "
+                "no leading/trailing/double hyphens"
+            ),
+        )
+
+    if not args.constraint:
+        args.constraint = _wizard_input_list(
+            "Any constraints? (one per line, blank to finish)"
+        )
+
+    if not args.out_of_scope:
+        args.out_of_scope = _wizard_input_list(
+            "Any out-of-scope concerns? (one per line, blank to finish)"
+        )
+
+    # README is the last step and is what threads $EDITOR into pack. It
+    # has no CLI equivalent (the wizard's y/N prompt is the only way to
+    # produce a request-tarball README), so it always runs when the
+    # wizard is engaged — unless --no-edit suppresses it.
+    args._readme_body = _wizard_readme_body(
+        args.goal, list(args.constraint), list(args.out_of_scope),
+        no_edit=args.no_edit,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 15. Pack
 # ---------------------------------------------------------------------------
 
 # --- Git-init walkthrough (BALE.md §10) --------------------------------------
@@ -1202,6 +1446,28 @@ def cmd_pack(args: argparse.Namespace) -> int:
             f"`bale unlock` if the session was abandoned."
         )
 
+    # Wizard entry (BALE.md §7.3). Engaged when either of the required
+    # fields (goal positional, --slug) is missing AND stdin is a TTY.
+    # The wizard fills in the missing fields plus walks the optionals
+    # (constraints, out_of_scope, README), skipping any field already
+    # supplied on the command line. _readme_body is attached to args by
+    # the wizard so the build step can pick it up downstream; the
+    # non-wizard path leaves it None.
+    args._readme_body = None
+    if args.goal is None or args.slug is None:
+        if not sys.stdin.isatty():
+            missing = []
+            if args.goal is None:
+                missing.append("goal")
+            if args.slug is None:
+                missing.append("--slug")
+            fail(
+                f"missing required arg(s) ({', '.join(missing)}) and stdin "
+                f"is not a TTY; cannot prompt interactively. Provide them "
+                f"on the command line and re-run."
+            )
+        _wizard_fill_args(args)
+
     # Input validation.
     if not is_valid_slug(args.slug):
         fail(
@@ -1352,11 +1618,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
 
     # Build tarball. Pack's context is just repo-relative paths picked by
     # the filter chain; bale handoff builds (rel, source) tuples differently
-    # since handoff.md doesn't live in the repo.
+    # since handoff.md doesn't live in the repo. The wizard's optional
+    # README, when the user opted in via the §7.3 prompt, rides along here.
     tarball_path = repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
     context_entries = [(rel, repo / rel) for rel in files]
     try:
-        build_request_tarball(sid, context_entries, manifest, tarball_path)
+        build_request_tarball(
+            sid, context_entries, manifest, tarball_path,
+            readme_body=args._readme_body,
+        )
     except Exception as e:
         if tarball_path.exists():
             tarball_path.unlink()
@@ -1391,7 +1661,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 14. Apply: helpers
+# 16. Apply: helpers
 # ---------------------------------------------------------------------------
 
 def current_branch(repo: Path) -> str:
@@ -2385,7 +2655,7 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
 
 
 # ---------------------------------------------------------------------------
-# 15. Apply: pipeline
+# 17. Apply: pipeline
 # ---------------------------------------------------------------------------
 
 def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
@@ -2636,7 +2906,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # action == "revert" — BALE.md §8.8: "Delete the branch (forcefully),
         # wipe .bale/sessions/<sid>/, clear the lock. Same operation
         # regardless of whether validation passed or held." Wired through
-        # to _discard_hold_state (section 17) which already does the heavy
+        # to _discard_hold_state (section 19) which already does the heavy
         # lifting for `bale revert <sid>` — branch-aware reset/checkout,
         # branch -D, session-dir wipe, recorded-staging wipe. clear_lock
         # is the caller's responsibility per _discard_hold_state's
@@ -2672,7 +2942,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 
 
 # ---------------------------------------------------------------------------
-# 16. Apply
+# 18. Apply
 # ---------------------------------------------------------------------------
 
 def cmd_apply(args: argparse.Namespace) -> int:
@@ -2721,7 +2991,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 17. Revert
+# 19. Revert
 # ---------------------------------------------------------------------------
 
 def _discard_hold_state(repo: Path, sid: str) -> dict:
@@ -2903,7 +3173,7 @@ def cmd_revert(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 18. Retry
+# 20. Retry
 # ---------------------------------------------------------------------------
 #
 # Re-attempt a HOLDed session with a corrected response tarball, in the
@@ -2952,7 +3222,7 @@ def cmd_retry(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 19. Unlock
+# 21. Unlock
 # ---------------------------------------------------------------------------
 #
 # Clear an abandoned session lock — the "held, no branch" state from
@@ -3046,7 +3316,7 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 20. Handoff
+# 22. Handoff
 # ---------------------------------------------------------------------------
 #
 # `bale handoff <bailout-tarball>` packs a fresh request from a bailed
@@ -3067,55 +3337,25 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 # the v0.0.6 behavior — so existing bailout tarballs keep working.
 
 def edit_goal_in_editor(initial_goal: str) -> str:
-    """Open $EDITOR on a temporary .md file pre-populated with the inherited
-    goal; return the user's edited contents stripped of trailing whitespace.
+    """Open $EDITOR on the inherited goal and return the user's edit, with
+    the goal-specific contract that an empty result is fatal.
 
-    Honors $EDITOR, falls back to $VISUAL, then to /usr/bin/editor (Debian
-    convention). $EDITOR may be a multi-word command (`code --wait`); we
-    split with shlex but don't validate further — the same trust-the-user
-    posture the rest of bale takes with subprocess invocations. A non-zero
-    exit from the editor is logged but not fatal: the user may have :q'd
-    deliberately to abort the edit while still wanting to ship the
-    original goal. The empty-after-strip case IS fatal — an empty goal
-    would fail the request manifest's goal-must-be-non-empty rule
+    Thin wrapper over open_in_editor (section 9). The editor-launch
+    mechanics — $EDITOR / $VISUAL / /usr/bin/editor fallback, tempfile,
+    shlex, non-zero-exit-but-keep-the-buffer — moved there in v0.0.9
+    when the pack wizard's README step became the second caller. The
+    only goal-specific behavior is the empty-after-strip check: an empty
+    goal would fail the request manifest's goal-must-be-non-empty rule
     downstream, and surfacing that here gives a clearer message.
     """
-    editor_env = os.environ.get("EDITOR") or os.environ.get("VISUAL")
-    if not editor_env:
-        debian_alt = "/usr/bin/editor"
-        if Path(debian_alt).exists():
-            editor_env = debian_alt
-        else:
-            fail(
-                "$EDITOR is not set and /usr/bin/editor is not available; "
-                "cannot --edit-goal. Set EDITOR (e.g. `export EDITOR=vim`) "
-                "and retry, or drop --edit-goal to inherit the goal verbatim."
-            )
-
-    with tempfile.NamedTemporaryFile(
-        mode="w+", suffix=".md", delete=False, encoding="utf-8",
-    ) as tf:
-        tf.write(initial_goal)
-        if not initial_goal.endswith("\n"):
-            tf.write("\n")
-        tmp_path = Path(tf.name)
-
-    try:
-        cmd = shlex.split(editor_env) + [str(tmp_path)]
-        result = subprocess.run(cmd, check=False)
-        if result.returncode != 0:
-            log(f"$EDITOR ({editor_env!r}) exited {result.returncode}; "
-                f"using whatever the file holds now")
-        edited = tmp_path.read_text(encoding="utf-8").strip()
-        if not edited:
-            fail("goal is empty after --edit-goal; aborting. "
-                 "Drop --edit-goal to inherit the original goal verbatim.")
-        return edited
-    finally:
-        try:
-            tmp_path.unlink()
-        except OSError:
-            pass
+    edited = open_in_editor(
+        initial_goal,
+        abort_hint="drop --edit-goal to inherit the goal verbatim",
+    )
+    if not edited:
+        fail("goal is empty after --edit-goal; aborting. "
+             "Drop --edit-goal to inherit the original goal verbatim.")
+    return edited
 
 
 def warn_repeat_bailout(repo: Path, responds_to_sid: str) -> None:
@@ -3483,7 +3723,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 21. Hook invocation
+# 23. Hook invocation
 # ---------------------------------------------------------------------------
 #
 # All hooks shell out to user-supplied scripts; bale never embeds install
@@ -3606,13 +3846,13 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 22. CLI
+# 24. CLI
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.8 bootstrap).",
+        description="Claude session orchestrator (v0.0.9 bootstrap).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -3623,10 +3863,15 @@ def build_parser() -> argparse.ArgumentParser:
         "pack",
         help="Build a request tarball from goal + included paths.",
     )
-    p_pack.add_argument("goal", help="One-sentence goal for the session.")
     p_pack.add_argument(
-        "--slug", required=True,
-        help="Short kebab-case slug for the session ID.",
+        "goal", nargs="?", default=None,
+        help="One-sentence goal for the session. Omit on a TTY to enter "
+             "the interactive wizard (BALE.md §7.3); required when piped.",
+    )
+    p_pack.add_argument(
+        "--slug", default=None,
+        help="Short kebab-case slug for the session ID. Omit on a TTY to "
+             "enter the interactive wizard; required when piped.",
     )
     p_pack.add_argument(
         "--include", action="append", default=[], metavar="PATH",
@@ -3635,16 +3880,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pack.add_argument(
         "--constraint", action="append", default=[], metavar="TEXT",
-        help="Add a constraint (repeatable).",
+        help="Add a constraint (repeatable). When the wizard runs, omitting "
+             "this flag triggers an interactive multi-line prompt; supplying "
+             "it skips that prompt.",
     )
     p_pack.add_argument(
         "--out-of-scope", action="append", default=[], metavar="TEXT",
-        help="Add an out-of-scope item (repeatable).",
+        help="Add an out-of-scope item (repeatable). Same wizard interaction "
+             "as --constraint.",
     )
     p_pack.add_argument(
         "--expects-probe", choices=("yes", "no", "claude-decides"),
         default="claude-decides",
         help="Whether the session expects a probe.",
+    )
+    p_pack.add_argument(
+        "--no-edit", action="store_true",
+        help="In the wizard's README step, skip the y/N prompt and $EDITOR "
+             "entirely. Useful for non-interactive automation that still "
+             "wants the wizard to walk the structured fields. No-op outside "
+             "the wizard, since the non-wizard path has no $EDITOR step.",
     )
     # Threshold caps (BALE.md §7.4). Each --max-* sets the hard cap; the soft
     # caps (which drive the y/N prompt) stay at the defaults. --force
