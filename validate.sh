@@ -163,6 +163,12 @@ check_output "pack --help mentions --max-size"  "--max-size"  "$BALE" pack --hel
 check_output "pack --help mentions --max-depth" "--max-depth" "$BALE" pack --help
 check_output "pack --help mentions --force"     "--force"     "$BALE" pack --help
 
+# pack --help should also surface --no-edit (added in 0.0.9 alongside the
+# §7.3 wizard) so users discover the README-step opt-out without reading
+# the source. Parallels the per-subcommand spot-check for handoff
+# --edit-goal above.
+check_output "pack --help mentions --no-edit"   "--no-edit"   "$BALE" pack --help
+
 # unlock --help should mention --force (the only flag it takes; if the
 # parser wiring regressed and --force went missing, callers stuck in the
 # held-with-branch state would have no documented way out).
