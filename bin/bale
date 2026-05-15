@@ -75,8 +75,8 @@ Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
 ("bale.toml — configurables" and "`bale config init` — the
 configurables wizard") moved there entire. The two remaining surfaces
-that touch configurables — `run_hook` (section 20) and the `config
-init` subparser wiring (section 21) — go through `bale_config`'s
+that touch configurables — `run_hook` (section 21) and the `config
+init` subparser wiring (section 22) — go through `bale_config`'s
 module-level API.
 """
 
@@ -150,7 +150,7 @@ SECRET_PATH_EXCLUDES = (
 # Configurables (the bale.toml file name, the per-install user/ directory,
 # hook names, and apply-section value keys) moved to bin/bale_config.py
 # in v0.0.4. The two surfaces in this file that still touch them — run_hook
-# (section 20) and the `config init` subparser wiring (section 21) — reach
+# (section 21) and the `config init` subparser wiring (section 22) — reach
 # them through bale_config.* module-level attributes.
 
 # Path-location refusals. From BALE.md section 7.1.
@@ -1083,15 +1083,12 @@ def git_init_walkthrough(cwd: Path, *, force: bool) -> Path:
     `/` or `$HOME`. The home-directory refusal is `--force`-overridable
     per the spec; the system-dir refusal has no override at all.
 
-    Flow ordering note: BALE.md §10's example flow shows identity prompts
-    *before* "Initializing repository...". This implementation runs
-    `git init` first, then identity, because walkthrough_git_identity
+    Flow ordering note: BALE.md §10 documents the step order as
+    init → identity → gitignore → commit. `git init` runs first so the
+    identity prompt has a repo to write into; walkthrough_git_identity
     writes the prompted values to repo-local git config (per its own
-    constraint — "never --global"), which requires an existing repo. The
-    user-visible step order is init → identity → gitignore → commit;
-    the display matches that reality rather than the spec's example.
-    notes.md flags this for the architect to either ratify or amend §10
-    in a future session.
+    constraint — "never --global"), which requires an existing repo.
+    The display matches that order.
     """
     print()
     print("This directory isn't a git repository. Bale needs git for branch")
@@ -3058,10 +3055,8 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 # source files extracted from handoff.md's `## Reading plan for the next
 # session` section (TARBALL.md §5.7) in the new request's context/, sets
 # depends_on.previous_response to the bailout's session_id, and allocates
-# a new session id with the SAME slug, today's date, next NNN. Per the
-# prior session's explicit choice, "same session id" was interpreted as
-# "same slug, new date+NNN" — flagged in notes.md for the architect to
-# correct if the intent was otherwise.
+# a new session id per TARBALL.md §5.6.2: same slug as the bailout,
+# today's date, next NNN.
 #
 # Pre-pack of source files (v0.0.7+): extract_paths_from_reading_plan
 # parses backtick-inline tokens from the reading-plan section,
@@ -3084,11 +3079,6 @@ def edit_goal_in_editor(initial_goal: str) -> str:
     original goal. The empty-after-strip case IS fatal — an empty goal
     would fail the request manifest's goal-must-be-non-empty rule
     downstream, and surfacing that here gives a clearer message.
-
-    There may be a similar editor-launcher inside bale_config.py's wizard;
-    if so, consolidation is worth a follow-up session — flagged in
-    notes.md since I didn't have visibility into that file from this
-    request's context.
     """
     editor_env = os.environ.get("EDITOR") or os.environ.get("VISUAL")
     if not editor_env:
@@ -3305,9 +3295,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # chain. Best-effort; silent on incomplete data.
         warn_repeat_bailout(repo, responds_to_sid)
 
-        # Derive the new session id: same slug as the bailout, today's
-        # date, next NNN. This is the "same session id, new pass at it"
-        # interpretation from the prior session.
+        # Derive the new session id per TARBALL.md §5.6.2: same slug as
+        # the bailout, today's date, next NNN.
         try:
             _date, slug, _nnn = parse_session_id(bailout_sid)
         except ValueError as e:
@@ -3809,7 +3798,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_handoff.set_defaults(func=cmd_handoff)
 
-    # config — group for configurables-management subcommands. At v0.0.1
+    # config — group for configurables-management subcommands. At v0.0.x
     # the only subcommand is `init`; set/get/edit land in later sessions.
     p_config = sub.add_parser(
         "config",

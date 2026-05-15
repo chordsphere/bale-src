@@ -585,13 +585,6 @@ When bale's apply step encounters `response_kind: "bailout"`, it:
    <response-NNN>` to package the handoff into a fresh session."*
 4. Skips the staging diff and validation invocation entirely.
 
-This section is the contract; the bale CLI implementation of
-`handoff` lands in a separate session. Until that CLI exists, the
-user packs the handoff manually by including `handoff.md` in the
-next request's `context/` and inheriting `manifest.goal` from the
-prior request — and the bailout's `notes.md` should say so
-explicitly.
-
 ### 5.7 handoff.md (required in bailout responses)
 
 Written for the **next Claude session**, not for me. Voice is
