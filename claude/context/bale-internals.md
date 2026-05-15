@@ -51,17 +51,27 @@ is *for* — and stays stable as the per-section line numbers drift:
    straddles two clusters that would otherwise both want to own it.
 10. **Pack pipeline.** Six sections in the body, kept separate
     because they grew past the threshold for one cluster: file
-    enumeration and filtering; scope projection + threshold caps
+    enumeration and filtering (including the `BaleignoreMatcher`
+    class and its `load_baleignore` / `build_pack_matcher` /
+    `is_baleignore_match` helpers — also consumed by the apply
+    pipeline at cluster 11); scope projection + threshold caps
     (BALE.md §7.4); slug validation; manifest and tarball
     construction; the §7.3 wizard (added in v0.0.9 — interactive
-    prompts for goal/slug/constraints/out_of_scope/README); and
+    prompts for goal/slug/constraints/out_of_scope/README, plus
+    in v0.0.10 the previously-deferred excludes prompt seeded
+    with a preview of any persisted `.baleignore`); and
     `cmd_pack` itself (which also hosts the git-init walkthrough
-    per BALE.md §10).
+    per BALE.md §10, the §7.4 soft-cap `[y]/[e]/[n]` loop where
+    `[e]` collects more session-only excludes and re-walks, and
+    the force-include of `.baleignore` into context when present).
 11. **Apply pipeline.** Three sections in the body: apply helpers,
     the apply pipeline proper (`_apply_pipeline`, shared with retry),
     and `cmd_apply`. Manifest validation, file presence + sha256 +
-    path safety, staging, validation, commit-or-hold logic, and
-    walkthrough.
+    path safety (including the `.baleignore` match check per
+    BALE.md §11 rule 14, which rejects a response declaring a
+    path the user-managed exclusion file says shouldn't ride
+    through bale), staging, validation, commit-or-hold logic,
+    and walkthrough.
 12. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
     session entirely (and clears the lock); retry discards the same
     HOLD state but preserves the lock and reruns the apply pipeline
@@ -86,15 +96,19 @@ is *for* — and stays stable as the per-section line numbers drift:
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
 16. **CLI parser + `main`.** The `bale config init` subparser wires
-    `func=bale_config.cmd_config_init`.
+    `func=bale_config.cmd_config_init`. `bale pack` accepts both
+    `--include PATH` and (from v0.0.10) `--exclude PATTERN`; the
+    latter takes gitignore-style patterns parsed by the same
+    `BaleignoreMatcher` (cluster 10), composes them with the
+    repo's `.baleignore`, and applies them session-scope only.
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
 `get_hook`, `get_apply_search_paths`); the wizard (`_prompt_value`,
 `_prompt_path_list`, `walkthrough_git_identity`, `walk_configurables`,
-`render_bale_toml`, `cmd_config_init` and its layer-specific
-implementations); and the module-level constants listed above
-(`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
+`render_bale_toml`, `walkthrough_baleignore`, `cmd_config_init` and
+its layer-specific implementations); and the module-level constants
+listed above (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
 `GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, `APPLY_VALUES`). It imports `log`,
 `fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
 `__main__` (i.e. `bin/bale`) inside the functions that use them — see
@@ -343,6 +357,20 @@ doesn't walk through is a contract violation.
      inherited value.
 5. Render via `render_bale_toml(cfg, layer="project")` and write to
    `<repo>/bale.toml`.
+6. **`.baleignore` walkthrough** (added in v0.0.10). Project mode
+   only — `.baleignore` lives at the repo root and has no install-
+   layer equivalent. The walk has three idempotent phases: (a) if
+   `<repo>/.baleignore` exists, walk each pattern line and prompt
+   `keep this pattern? [Y/n]` — comments and blanks pass through
+   verbatim, not prompted; (b) prompt for additions, one per line,
+   blank to finish, with a brief syntax reminder inline (gitignore
+   subset, no negation); (c) write the composed file, or remove it
+   if the kept-plus-added pattern set is empty (a missing file is
+   the canonical "no .baleignore" state, so an all-removed walk
+   collapses to file-deleted rather than file-of-comments). The
+   walk doesn't import bale itself — patterns are validated lazily
+   the next time pack or apply loads the file via
+   `BaleignoreMatcher` (cluster 10).
 
 ### 4.4 Walkthrough (global mode)
 

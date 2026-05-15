@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.9. Hand-written, pre-tarball-protocol. Tracking incrementally
+v0.0.10. Hand-written, pre-tarball-protocol. Tracking incrementally
 toward the v0.1 contract: apply.sh handling and post-apply manifest
 reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
 caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
@@ -33,9 +33,18 @@ out_of_scope, and an optional README) and $EDITOR integration for the
 README step. The editor invocation that `bale handoff --edit-goal`
 introduced in v0.0.7 was generalized into a shared `open_in_editor`
 helper so the pack wizard's README step and the handoff goal-edit
-share one implementation. The remaining v0.1 items (.baleignore plus
-the wizard's deferred excludes prompt, and release-tarball packaging)
-land later.
+share one implementation. v0.0.10 lands the final BALE.md §7.3/§7.4
+items: `.baleignore` reading (BALE.md §6.4) threaded through the
+pack filter chain and the apply-time path-safety check (BALE.md §11
+rule 14), the wizard's previously-deferred "anything to exclude"
+prompt (now seeded with a preview of any persisted .baleignore so
+the user sees what's already filtered before adding session-only
+patterns), the §7.4 soft-cap `[e] edit excludes` branch (collect
+more patterns, rebuild matcher, re-walk), a `--exclude` CLI flag
+parallel to `--include`, and a `bale config init` step that walks
+the user through `.baleignore` line-by-line (canonical persistence
+surface, paired with the session-only wizard prompts above). The
+remaining v0.1 item is release-tarball packaging.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -55,30 +64,30 @@ session 003 means Python 3.11+ (tomllib lives there, inside
 fleshes out the full pipeline.
 
 Sections:
-   1. Imports + constants                              (~line  113)
-   2. Logging                                          (~line  185)
-   3. Shell / git helpers                              (~line  272)
-   4. Hashing                                          (~line  311)
-   5. Session IDs and the per-day counter              (~line  327)
-   6. Lock handling                                    (~line  385)
-   7. .gitignore handling for the .bale/ directory     (~line  416)
-   8. Path-safety checks                               (~line  446)
-   9. Editor invocation                                (~line  494)
-  10. Pack: file enumeration and filtering            (~line  552)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  636)
-  12. Pack: slug validation                           (~line  909)
-  13. Pack: manifest and tarball construction         (~line  922)
-  14. Pack: wizard                                    (~line 1022)
-  15. Pack                                            (~line 1244)
-  16. Apply: helpers                                  (~line 1463)
-  17. Apply: pipeline                                 (~line 2457)
-  18. Apply                                           (~line 2744)
-  19. Revert                                          (~line 2793)
-  20. Retry                                           (~line 2975)
-  21. Unlock                                          (~line 3024)
-  22. Handoff                                         (~line 3118)
-  23. Hook invocation                                 (~line 3563)
-  24. CLI                                             (~line 3676)
+   1. Imports + constants                              (~line  130)
+   2. Logging                                          (~line  207)
+   3. Shell / git helpers                              (~line  294)
+   4. Hashing                                          (~line  333)
+   5. Session IDs and the per-day counter              (~line  349)
+   6. Lock handling                                    (~line  407)
+   7. .gitignore handling for the .bale/ directory     (~line  438)
+   8. Path-safety checks                               (~line  468)
+   9. Editor invocation                                (~line  516)
+  10. Pack: file enumeration and filtering             (~line  577)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line  954)
+  12. Pack: slug validation                            (~line 1237)
+  13. Pack: manifest and tarball construction          (~line 1250)
+  14. Pack: wizard                                     (~line 1365)
+  15. Pack                                             (~line 1607)
+  16. Apply: helpers                                   (~line 2147)
+  17. Apply: pipeline                                  (~line 3168)
+  18. Apply                                            (~line 3456)
+  19. Revert                                           (~line 3505)
+  20. Retry                                            (~line 3687)
+  21. Unlock                                           (~line 3736)
+  22. Handoff                                          (~line 3830)
+  23. Hook invocation                                  (~line 4237)
+  24. CLI                                              (~line 4360)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -122,7 +131,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.9"
+VERSION = "0.0.10"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -155,6 +164,13 @@ SECRET_PATTERNS = (
 SECRET_PATH_EXCLUDES = (
     ".aws/credentials",
 )
+
+# Filename for the per-repo user-managed exclusion list (BALE.md §6.4).
+# Lives at the repo root only — bale does not walk for per-directory
+# .baleignore files. Gitignore-style syntax (subset; see BaleignoreMatcher
+# in section 10). The wizard in bale_config.walkthrough_baleignore is
+# the canonical writer; hand-edits work too.
+BALEIGNORE_FILE = ".baleignore"
 
 # Configurables (the bale.toml file name, the per-install user/ directory,
 # hook names, and apply-section value keys) moved to bin/bale_config.py
@@ -631,6 +647,290 @@ def is_under_include(rel: str, includes: list[str]) -> bool:
     return False
 
 
+# --- .baleignore (BALE.md §6.4) ---------------------------------------------
+#
+# `.baleignore` lives at the repo root and lets users add project-specific
+# permanent exclusions on top of the baked-in dir/secret patterns and
+# `.gitignore`. Used at both pack (filter chain) and apply (rule 14: a
+# response cannot declare a path that matches `.baleignore`).
+#
+# Syntax: a documented subset of gitignore. Each non-blank, non-comment
+# line is a pattern, normalized as follows:
+#
+#   - Leading `#` (after lstrip) → comment, skipped.
+#   - Trailing `/` → directory-only: matches when any path component
+#     equals the pattern's body (slash-less anchored variant matches the
+#     leading component only).
+#   - Leading `/` → anchored to repo root: pattern (minus the leading
+#     slash) is matched against the full relative path.
+#   - No slash → basename match against any path component (so `data`
+#     excludes both `data/x.csv` and `nested/data/x.csv`).
+#   - Slash in the middle → match against the full relative path
+#     (anchored), with `fnmatch`-style globbing inside each segment.
+#   - Leading `!` → unsupported at v0.1; load_baleignore raises with a
+#     helpful message. Negation has outsized semantic cost (multi-pass
+#     evaluation, ordering matters) for limited real-world need; users
+#     wanting it can narrow `--include` instead.
+#
+# Globs use `fnmatch.fnmatchcase` (case-sensitive — matches gitignore
+# behavior on POSIX filesystems; Windows-case-insensitive variants would
+# need their own flag). `**` is NOT a special token in the subset; treat
+# it as a literal sequence of two stars, which won't match anything
+# normal. If recursive matching is wanted, omit the slash entirely
+# (basename match runs at every depth) or use multiple patterns.
+
+class BaleignoreMatcher:
+    """A loaded `.baleignore` pattern set. Stateless after construction;
+    callers pre-build one matcher and run many paths through it.
+
+    Constructed by `load_baleignore(repo)` from the on-disk file, or
+    `BaleignoreMatcher.from_lines(lines)` for in-memory composition (the
+    pack pipeline composes file patterns with session-extra patterns via
+    `build_pack_matcher`).
+
+    Pattern compilation is one-time at construction so per-path `matches`
+    is a tight loop over pre-classified entries. Each entry is one of
+    three shapes:
+
+      - ("basename", body)      — match body against any single path
+        component. Used for unanchored patterns with no slash in body
+        (regardless of trailing slash). Covers `data`, `data/`, `*.csv`.
+        Files-at-depth and dirs-at-depth both match because path
+        components are checked at every depth — matches how gitignore
+        treats a no-slash pattern as a basename-anywhere pattern that
+        implicitly subtree-excludes matched directories.
+      - ("path_or_under", body) — segment-wise fnmatch with subtree:
+        matches when len(parts) >= len(body_segs) AND each body_segs[i]
+        fnmatches parts[i]. Used for dir-only patterns (trailing slash)
+        and for anchored bare names (`/build`). `/build/` matches both
+        `build` and `build/x`; `src/legacy/` matches `src/legacy` and
+        `src/legacy/sub/Bar.vue`.
+      - ("path_exact",    body) — segment-wise fnmatch, strict: matches
+        when len(parts) == len(body_segs) AND each segment fnmatches.
+        Used for non-dir-only patterns containing an internal slash,
+        like `src/legacy/*.vue`. The strict-depth rule is what stops
+        `*.vue` from being greedy across slashes (Python's stdlib
+        `fnmatch` itself does not respect `/` boundaries — `*` matches
+        slashes — so segment-wise matching is how we restore the
+        gitignore-style anchored-per-component semantics).
+
+    The empty matcher (no patterns) returns False for every path.
+    `load_baleignore` returns None on absent file specifically so callers
+    can branch on "no matcher loaded" rather than always constructing
+    an empty one — micro-optimization on the hot pack walk where most
+    repos have no `.baleignore`.
+    """
+
+    __slots__ = ("_entries", "_patterns")
+
+    def __init__(self, entries: list[tuple], patterns: list[str]):
+        # entries: classified pattern list for matching. Each entry is
+        # ("basename", body) or ("path_or_under"|"path_exact", body, segs)
+        # where segs is body.split("/") pre-computed.
+        # patterns: the raw normalized pattern lines, preserved so error
+        # messages can name "which pattern matched" verbatim (apply rule 14
+        # gives a much clearer rejection when it can echo the actual line).
+        self._entries = entries
+        self._patterns = patterns
+
+    @classmethod
+    def from_lines(cls, lines: list[str]) -> "BaleignoreMatcher":
+        """Build a matcher from a list of pattern lines. Lines may include
+        comments and blanks; they're stripped here. Raises ValueError on
+        leading `!` (negation, unsupported at v0.1) so the caller can fail
+        with file context."""
+        entries: list[tuple] = []
+        patterns: list[str] = []
+        for raw in lines:
+            stripped = raw.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if stripped.startswith("!"):
+                raise ValueError(
+                    f"negation patterns (lines starting with '!') are not "
+                    f"supported in .baleignore at v0.1. Offending line: "
+                    f"{stripped!r}. Narrow `--include` paths or remove "
+                    f"the conflicting positive pattern instead."
+                )
+            patterns.append(stripped)
+
+            # Directory-only marker (trailing slash).
+            is_dir_only = stripped.endswith("/")
+            body = stripped[:-1] if is_dir_only else stripped
+
+            # Anchored to repo root (leading slash).
+            anchored = body.startswith("/")
+            if anchored:
+                body = body[1:]
+            if not body:
+                # Pathological pattern like "/" or "//" — skip rather
+                # than crash. A bare anchor matches nothing meaningful.
+                continue
+
+            has_slash = "/" in body
+
+            # Classification:
+            #
+            # - Unanchored AND no slash in body → basename-anywhere.
+            #   Covers `data`, `data/`, `*.csv`. Trailing-slash variant
+            #   collapses into basename because the basename-anywhere
+            #   rule already matches both the dir and everything under it
+            #   (each component is checked, so `data` in parts wins for
+            #   both `data` and `data/x`).
+            #
+            # - Dir-only (trailing slash) OR anchored-with-no-internal-
+            #   slash → path_or_under. The former covers `src/legacy/`
+            #   (which should subtree-match); the latter covers `/build`
+            #   and `/build/` (where the bare anchored name conventionally
+            #   excludes the named dir's whole subtree).
+            #
+            # - Else (non-dir-only with slash inside) → path_exact. This
+            #   is the strict glob-at-fixed-depth case: `src/legacy/
+            #   *.vue` matches only at depth 3, not deeper. Users wanting
+            #   subtree from a glob-bearing path should add a trailing
+            #   slash to make the intent explicit.
+            if not anchored and not has_slash:
+                entries.append(("basename", body))
+            elif is_dir_only or (anchored and not has_slash):
+                entries.append(("path_or_under", body, body.split("/")))
+            else:
+                entries.append(("path_exact", body, body.split("/")))
+        return cls(entries, patterns)
+
+    @property
+    def patterns(self) -> list[str]:
+        """The normalized pattern lines, for display in error messages and
+        the wizard's preview. Returned as a fresh list — callers are free
+        to mutate without affecting the matcher."""
+        return list(self._patterns)
+
+    def __bool__(self) -> bool:
+        # Truthy when there's at least one effective pattern. The empty
+        # matcher is falsy, which lets callers do `if matcher: ...`
+        # to skip the per-path check when nothing was loaded.
+        return bool(self._entries)
+
+    @staticmethod
+    def _matches_one(parts: list[str], entry: tuple) -> bool:
+        """Single-entry match — extracted so matches() and first_match()
+        share the per-entry logic. parts is rel.split('/') (passed in to
+        avoid re-splitting on every entry)."""
+        tag = entry[0]
+        if tag == "basename":
+            body = entry[1]
+            for part in parts:
+                if fnmatch.fnmatchcase(part, body):
+                    return True
+            return False
+        # path_or_under or path_exact
+        body_segs = entry[2]
+        if tag == "path_exact":
+            if len(parts) != len(body_segs):
+                return False
+        else:  # path_or_under
+            if len(parts) < len(body_segs):
+                return False
+        for i, seg in enumerate(body_segs):
+            if not fnmatch.fnmatchcase(parts[i], seg):
+                return False
+        return True
+
+    def matches(self, rel: str) -> bool:
+        """True if rel is matched by any pattern. rel is a repo-relative,
+        forward-slash-separated path (matching git's convention). Always
+        False for the empty matcher."""
+        if not self._entries:
+            return False
+        parts = rel.split("/") if rel else []
+        for entry in self._entries:
+            if self._matches_one(parts, entry):
+                return True
+        return False
+
+    def first_match(self, rel: str) -> Optional[str]:
+        """The first pattern that matches rel, or None. Used by error
+        messages that want to name which pattern caused a rejection (the
+        apply-side rule-14 reject in particular reads better when it can
+        echo the pattern verbatim)."""
+        if not self._entries:
+            return None
+        parts = rel.split("/") if rel else []
+        for entry, pat in zip(self._entries, self._patterns):
+            if self._matches_one(parts, entry):
+                return pat
+        return None
+
+
+def load_baleignore(repo: Path) -> Optional[BaleignoreMatcher]:
+    """Load `<repo>/.baleignore` into a matcher, or return None if the file
+    is absent. A present-but-empty file (only comments and blanks) returns
+    an empty matcher, distinguishable from None — useful in messaging
+    ("you have a .baleignore but it's empty") without re-stat'ing the file.
+
+    Malformed patterns (negation at v0.1) fail loudly: the file is the
+    user's source of truth, and silently dropping unsupported syntax
+    would mean Claude responses get apply-rejected for reasons that
+    look correct on the page.
+    """
+    f = repo / BALEIGNORE_FILE
+    if not f.is_file():
+        return None
+    try:
+        text = f.read_text(encoding="utf-8")
+    except OSError as e:
+        fail(f"could not read {f}: {e}")
+    try:
+        return BaleignoreMatcher.from_lines(text.splitlines())
+    except ValueError as e:
+        fail(f"{f}: {e}")
+
+
+def build_pack_matcher(
+    repo: Path, session_excludes: list[str],
+) -> Optional[BaleignoreMatcher]:
+    """Compose `.baleignore` lines with this session's extra exclude
+    patterns into a single matcher. Returns None when there's neither a
+    file nor any session patterns, so the pack walk can skip the per-path
+    check entirely in the common case.
+
+    The session-excludes pass through the same parser as the file
+    contents — same syntax, same semantics, same negation rejection.
+    `walk_for_pack` accepts the combined matcher; it does not need to
+    know which patterns came from which source. The wizard previews the
+    file contents separately so the user still understands what's
+    persistent vs session-scoped, but at walk time they're the same set.
+    """
+    file_lines: list[str] = []
+    f = repo / BALEIGNORE_FILE
+    if f.is_file():
+        try:
+            file_lines = f.read_text(encoding="utf-8").splitlines()
+        except OSError as e:
+            fail(f"could not read {f}: {e}")
+    combined = file_lines + list(session_excludes)
+    if not any(ln.strip() and not ln.strip().startswith("#")
+               for ln in combined):
+        return None
+    try:
+        return BaleignoreMatcher.from_lines(combined)
+    except ValueError as e:
+        # `.baleignore` was already validated by load_baleignore in any
+        # surface that called it; this branch fires when a session-extra
+        # pattern triggered the negation guard. Include the offending
+        # pattern in the message — the user typed it.
+        fail(f"invalid session exclude pattern: {e}")
+
+
+def is_baleignore_match(rel: str, matcher: Optional[BaleignoreMatcher]) -> bool:
+    """Convenience for apply-side rule 14: True when `rel` is matched.
+    None matcher (no `.baleignore`) returns False. Kept as a free function
+    so apply-side code reads as `is_baleignore_match(p, matcher)` parallel
+    to `is_path_safe(p)`."""
+    if matcher is None:
+        return False
+    return matcher.matches(rel)
+
+
 def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
     """Return repo-relative paths that should land in the request's context/,
     with no threshold caps engaged. Thin wrapper over walk_for_pack — kept
@@ -638,8 +938,17 @@ def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
     and 7.5 step 5) is conceptually distinct from the threshold projection
     and a future caller (e.g. a `bale debug filter` introspection command)
     will want just the list, not the projection. cmd_pack itself uses
-    walk_for_pack directly so it gets the projection in the same pass."""
-    return walk_for_pack(repo, includes, caps=PackCaps(), force=True).files
+    walk_for_pack directly so it gets the projection in the same pass.
+
+    Honors `.baleignore` at the repo root (build_pack_matcher loads it) but
+    has no surface for session-scoped excludes — those are wizard/CLI-driven
+    and `cmd_pack` plumbs them through directly. A debug caller that wants
+    to test session excludes can use walk_for_pack with a pre-built matcher
+    rather than going through this convenience entry point."""
+    matcher = build_pack_matcher(repo, [])
+    return walk_for_pack(
+        repo, includes, caps=PackCaps(), force=True, matcher=matcher,
+    ).files
 
 
 # ---------------------------------------------------------------------------
@@ -694,15 +1003,23 @@ def walk_for_pack(
     *,
     caps: PackCaps,
     force: bool,
+    matcher: Optional[BaleignoreMatcher] = None,
 ) -> PackProjection:
     """Enumerate files for pack, applying the filter chain, while accumulating
     file count, total size, max depth, and per-top-level-dir totals.
 
-    Filter chain (BALE.md sections 6.4, 7.5 step 5): exactly the same as the
-    old gather_files_for_pack — git ls-files → drop non-files → drop
-    baked-in excluded dirs → drop secrets → keep only paths under
-    --include. Order matches the old function's, so the surviving set is
-    identical to what v0.0.2 packed.
+    Filter chain (BALE.md sections 6.4, 7.5 step 5): git ls-files → drop
+    non-files → drop baked-in excluded dirs → drop secrets → drop paths
+    matched by the .baleignore-plus-session matcher (if any) → keep only
+    paths under --include. Order matches the v0.0.9 function's filter chain
+    with the matcher slotted before --include — same reasoning as the
+    other exclude filters: cheaper to drop matched paths early than to
+    run them through the --include pruner.
+
+    `matcher` is the combined `.baleignore`-plus-session-excludes matcher
+    built by `build_pack_matcher`. None (the common case for repos without
+    a `.baleignore` and a no-CLI-exclude session) skips the per-path
+    matcher check entirely.
 
     Short-circuit (BALE.md §7.4): when `force` is False, the walk stops the
     moment a hard cap is exceeded, reporting which cap triggered in
@@ -724,13 +1041,15 @@ def walk_for_pack(
     hard_breach: Optional[str] = None
 
     for rel in list_git_files(repo):
-        # Filter chain — matches gather_files_for_pack's body exactly so the
-        # surviving set on a no-cap run is byte-identical to v0.0.2.
+        # Filter chain — matches gather_files_for_pack's body so the
+        # surviving set on a no-cap run is consistent across entry points.
         if not (repo / rel).is_file():
             continue
         if is_under_excluded_dir(rel):
             continue
         if is_secret_excluded(rel, repo):
+            continue
+        if matcher is not None and matcher.matches(rel):
             continue
         if not is_under_include(rel, includes):
             continue
@@ -1050,15 +1369,16 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
 # Interactive prompts for the BALE.md §7.3 wizard. Wizard mode engages
 # when `bale pack` is invoked without enough on the command line to skip
 # it — specifically when either the goal positional or --slug is missing.
-# Once engaged, the wizard walks the optionals (constraints, out_of_scope,
-# README) too, prompting only for fields the CLI didn't already provide.
+# Once engaged, the wizard walks the optionals (excludes, constraints,
+# out_of_scope, README) too, prompting only for fields the CLI didn't
+# already provide.
 #
-# The §7.3 spec also lists an "Anything to exclude from the default-
-# include-everything?" prompt; that one is deferred alongside the
-# [e] edit-excludes branch of the §7.4 soft-cap loop (cmd_pack notes
-# this), because they share the same plumbing — a session-level
-# excludes list threaded through walk_for_pack — that the upcoming
-# .baleignore work installs.
+# Pattern visibility: the wizard previews any `.baleignore` patterns
+# already at the repo root before prompting for session-scoped additions.
+# Session excludes do NOT persist — they shape this pack only and vanish
+# afterward. Persistence lives in `bale config init`'s .baleignore step
+# (bale_config.walkthrough_baleignore), so the two surfaces stay
+# separable: ad-hoc filtering at pack, durable filtering at config init.
 #
 # These helpers are pack-specific (single caller — cmd_pack). They live
 # in their own section because the wizard is a coherent enough subject
@@ -1130,6 +1450,77 @@ def _wizard_input_list(label: str) -> list[str]:
         items.append(raw)
 
 
+def _wizard_input_excludes(repo: Path) -> list[str]:
+    """The §7.3 'anything to exclude' prompt. Previews any persisted
+    `.baleignore` patterns so the user knows what's already filtered before
+    adding session-only ones. Returns the session-scoped additions; the
+    caller composes them with `.baleignore` via `build_pack_matcher`.
+
+    The preview uses the matcher's own normalized form, not raw file
+    bytes — comment lines and blanks are already stripped, so what the
+    user sees is what the walk applies. A present-but-empty file shows
+    `(no patterns)` rather than nothing, to distinguish 'file exists,
+    has no effect' from 'no file'.
+
+    Each pattern goes through BaleignoreMatcher's validator (negation
+    rejected, etc.) at compose time in `build_pack_matcher`, so the
+    wizard doesn't second-guess syntax here — bad patterns surface as
+    fail() inside the pack pipeline a few steps later, with the same
+    error wording the file-load path uses."""
+    matcher = load_baleignore(repo)
+    if matcher is None:
+        print(
+            "No .baleignore at the repo root. (Set durable patterns via "
+            "`bale config init` later if you want them; for now, list "
+            "anything to skip just for this pack — gitignore-style "
+            "patterns, e.g. data/, *.parquet, /build/.)"
+        )
+    else:
+        persisted = matcher.patterns
+        if persisted:
+            print("Current .baleignore (already filtered out):")
+            for p in persisted:
+                print(f"  {p}")
+        else:
+            print(".baleignore is present but contains no patterns.")
+        print(
+            "Anything else to exclude just for this pack? "
+            "(one per line, blank to finish)"
+        )
+    return _wizard_input_list("> ")
+
+
+def _prompt_soft_breach_action() -> str:
+    """The §7.4 soft-cap [y]/[e]/[n] prompt. Returns 'y', 'e', or 'n'.
+
+    Re-prompts on unrecognized input rather than picking a default for a
+    typo — the choice between 'continue with this scope', 'add filters
+    and re-walk', and 'abort the whole pack' is large enough that a
+    silent default would surprise the user. EOF/^C is treated as 'n'
+    (abort) — consistent with how the rest of the wizard treats those
+    signals (a bail-out, not a confirm)."""
+    print()
+    print("[y] continue with this pack")
+    print("[e] edit excludes (add session-only patterns and re-walk)")
+    print("[n] abort")
+    while True:
+        try:
+            raw = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return "n"
+        if raw in ("y", "yes"):
+            return "y"
+        if raw in ("e", "edit"):
+            return "e"
+        if raw in ("n", "no", ""):
+            # Empty input falls through to 'n' — the prompt's whole job
+            # is making the user pick, and bare Enter on a scope-breach
+            # prompt should be the safe choice.
+            return "n"
+        print(f"  (didn't recognize {raw!r}; type y, e, or n)")
+
+
 def _wizard_readme_body(goal: str, constraints: list[str],
                         out_of_scope: list[str], *,
                         no_edit: bool) -> Optional[str]:
@@ -1157,15 +1548,19 @@ def _wizard_readme_body(goal: str, constraints: list[str],
     return body if body else None
 
 
-def _wizard_fill_args(args: argparse.Namespace) -> None:
+def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     """Run the §7.3 wizard, populating any args.* fields the CLI left
     unset. Mutates args in place; does not return. Caller has already
     verified stdin is a TTY.
 
-    Prompt order matches the §7.3 example. Each prompt is skipped if its
+    Prompt order matches the §7.3 example: goal → slug → exclude →
+    constraints → out_of_scope → README. Each prompt is skipped if its
     CLI counterpart was already supplied — a user who ran `bale pack
-    "my goal" --constraint foo` only sees the slug/out_of_scope/README
-    prompts. Excludes are deferred (see the section banner above)."""
+    "my goal" --constraint foo` only sees the slug/exclude/out_of_scope/
+    README prompts. The exclude prompt previews any persisted
+    `.baleignore` so the user sees what's already filtered before adding
+    session-only patterns; persistence happens via `bale config init`,
+    not here."""
     print("[bale pack] interactive mode — fill missing fields. ^C to abort.")
     print()
 
@@ -1181,6 +1576,13 @@ def _wizard_fill_args(args: argparse.Namespace) -> None:
                 "no leading/trailing/double hyphens"
             ),
         )
+
+    # Session excludes — skipped when --exclude was already provided on
+    # the CLI (parallel to --constraint / --out-of-scope). The §7.3 prompt
+    # order puts this between slug and constraints; if the CLI pre-filled
+    # it, we silently skip and proceed.
+    if not args.exclude:
+        args.exclude = _wizard_input_excludes(repo)
 
     if not args.constraint:
         args.constraint = _wizard_input_list(
@@ -1449,10 +1851,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
     # fields (goal positional, --slug) is missing AND stdin is a TTY.
     # The wizard fills in the missing fields plus walks the optionals
-    # (constraints, out_of_scope, README), skipping any field already
-    # supplied on the command line. _readme_body is attached to args by
-    # the wizard so the build step can pick it up downstream; the
-    # non-wizard path leaves it None.
+    # (excludes, constraints, out_of_scope, README), skipping any field
+    # already supplied on the command line. _readme_body is attached to
+    # args by the wizard so the build step can pick it up downstream;
+    # the non-wizard path leaves it None.
     args._readme_body = None
     if args.goal is None or args.slug is None:
         if not sys.stdin.isatty():
@@ -1466,7 +1868,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"is not a TTY; cannot prompt interactively. Provide them "
                 f"on the command line and re-run."
             )
-        _wizard_fill_args(args)
+        _wizard_fill_args(args, repo)
 
     # Input validation.
     if not is_valid_slug(args.slug):
@@ -1522,79 +1924,161 @@ def cmd_pack(args: argparse.Namespace) -> int:
             git(["commit", "-m", "bale: ignore .bale/"], cwd=repo)
             log("auto-committed the .gitignore change")
 
-    # Walk + project. Short-circuits on hard breach when not --force; with
-    # --force, walks to completion with no breach detection. See walk_for_pack.
-    projection = walk_for_pack(repo, args.include, caps=caps, force=args.force)
-    files = projection.files
-    if not files:
-        fail("no files would be included after exclusions; widen --include "
-             "or check .gitignore.")
+    # Build the .baleignore + session-excludes matcher (BALE.md §6.4).
+    # None when the repo has no .baleignore AND the session has no extra
+    # excludes — walk_for_pack skips the per-path matcher check in that
+    # case. The matcher is rebuilt on each iteration of the soft-cap
+    # [e] loop below, since adding patterns mid-prompt has to take
+    # effect on the re-walk.
+    session_excludes: list[str] = list(args.exclude)
+    matcher = build_pack_matcher(repo, session_excludes)
 
-    # Breach handling (BALE.md §7.4).
-    # Order: hard breach refuses (or --force bypasses with a FORCE log);
-    # then soft breach prompts (TTY) or warns (piped) — unless --force,
-    # which logs the bypass and proceeds.
-    if projection.hard_breach is not None:
-        # walk_for_pack only sets hard_breach when force=False; this
-        # branch is unreachable under --force by construction.
-        sys.stderr.write(format_projection_block(projection) + "\n\n")
-        fail(
-            f"hard threshold breach: {projection.hard_breach}. "
-            f"Walk stopped at the breach (BALE.md §7.4). Re-run with the "
-            f"appropriate --max-* flag to raise the cap, or with --force "
-            f"to bypass all caps."
+    # Walk + project, with the soft-breach edit-excludes loop wrapped
+    # around it. The loop's body is:
+    #   1. walk_for_pack with the current matcher.
+    #   2. Hard breach → refuse (or --force-log-and-proceed).
+    #   3. Soft breach → prompt y/e/n.
+    #      - y: break out of loop, proceed.
+    #      - e: collect more session-exclude patterns, rebuild matcher,
+    #           re-walk (this iteration).
+    #      - n: abort.
+    #   4. No breach → break out of loop, proceed.
+    # The loop terminates either via `break` (continue/abort decision
+    # made) or via `fail()` (hard breach without --force, or user abort).
+    # Piped mode never enters [e] — the warn-and-proceed branch breaks
+    # immediately. --force also bypasses the prompt entirely.
+    while True:
+        projection = walk_for_pack(
+            repo, args.include, caps=caps, force=args.force, matcher=matcher,
         )
-    elif args.force:
-        # --force is active. Name every cap that would have tripped so the
-        # audit log records exactly what was bypassed. hard_breaches_seen
-        # is populated even though walk_for_pack didn't short-circuit, and
-        # soft_breaches is populated only when no hard breach is seen. An
-        # empty union means the user passed --force but nothing tripped —
-        # still log the event so the audit trail records the user's intent.
-        # The home-dir override (if it fired) was already logged inside
-        # refuse_system_dir; this line covers the threshold-cap side.
-        all_bypassed = projection.hard_breaches_seen + projection.soft_breaches
-        if all_bypassed:
-            log(
-                "bypassing threshold breach(es): "
-                + "; ".join(all_bypassed)
-                + f". Final scope: {len(files):,} files, "
-                + f"{format_bytes(projection.total_bytes)}, "
-                + f"max depth {projection.max_depth_seen}.",
-                force=True,
+        files = projection.files
+        if not files:
+            fail(
+                "no files would be included after exclusions; widen "
+                "--include or relax .baleignore / --exclude patterns."
             )
-        else:
-            log(
-                f"--force active; no thresholds tripped. Final scope: "
-                f"{len(files):,} files, "
-                f"{format_bytes(projection.total_bytes)}, "
-                f"max depth {projection.max_depth_seen}.",
-                force=True,
+
+        # Breach handling (BALE.md §7.4).
+        # Order: hard breach refuses (or --force bypasses with a FORCE log);
+        # then soft breach prompts (TTY) or warns (piped) — unless --force,
+        # which logs the bypass and proceeds.
+        if projection.hard_breach is not None:
+            # walk_for_pack only sets hard_breach when force=False; this
+            # branch is unreachable under --force by construction.
+            sys.stderr.write(format_projection_block(projection) + "\n\n")
+            fail(
+                f"hard threshold breach: {projection.hard_breach}. "
+                f"Walk stopped at the breach (BALE.md §7.4). Re-run with the "
+                f"appropriate --max-* flag to raise the cap, or with --force "
+                f"to bypass all caps."
             )
-    elif projection.soft_breaches:
-        # Soft breach without --force. Print the projection block to stderr
-        # in both modes — it's diagnostic context, not the pack's output —
-        # then either prompt (TTY) or warn-and-proceed (piped).
-        sys.stderr.write(format_projection_block(projection) + "\n\n")
-        sys.stderr.write(
-            "Soft threshold breach: "
-            + "; ".join(projection.soft_breaches)
-            + ".\n"
-        )
-        if sys.stdin.isatty():
-            # [e] edit-excludes is deferred — y/N only. Default no, so an
-            # accidental Enter aborts rather than packing a 200MB tarball.
-            if not confirm_yn("Continue with this pack?", default_no=True):
-                # No sid allocated yet, no log file open — clean abort.
-                print("[bale] aborted at threshold prompt", file=sys.stderr)
-                return 1
+        elif args.force:
+            # --force is active. Name every cap that would have tripped so the
+            # audit log records exactly what was bypassed. hard_breaches_seen
+            # is populated even though walk_for_pack didn't short-circuit, and
+            # soft_breaches is populated only when no hard breach is seen. An
+            # empty union means the user passed --force but nothing tripped —
+            # still log the event so the audit trail records the user's intent.
+            # The home-dir override (if it fired) was already logged inside
+            # refuse_system_dir; this line covers the threshold-cap side.
+            all_bypassed = projection.hard_breaches_seen + projection.soft_breaches
+            if all_bypassed:
+                log(
+                    "bypassing threshold breach(es): "
+                    + "; ".join(all_bypassed)
+                    + f". Final scope: {len(files):,} files, "
+                    + f"{format_bytes(projection.total_bytes)}, "
+                    + f"max depth {projection.max_depth_seen}.",
+                    force=True,
+                )
+            else:
+                log(
+                    f"--force active; no thresholds tripped. Final scope: "
+                    f"{len(files):,} files, "
+                    f"{format_bytes(projection.total_bytes)}, "
+                    f"max depth {projection.max_depth_seen}.",
+                    force=True,
+                )
+            break
+        elif projection.soft_breaches:
+            # Soft breach without --force. Print the projection block to stderr
+            # in both modes — it's diagnostic context, not the pack's output —
+            # then either prompt (TTY, y/e/n) or warn-and-proceed (piped).
+            sys.stderr.write(format_projection_block(projection) + "\n\n")
+            sys.stderr.write(
+                "Soft threshold breach: "
+                + "; ".join(projection.soft_breaches)
+                + ".\n"
+            )
+            if sys.stdin.isatty():
+                # [y] continue, [e] edit excludes, [n] abort. Default is
+                # abort on bare Enter so an accidental keystroke doesn't
+                # pack a 200MB tarball. The prompt repeats on unrecognized
+                # input rather than picking a default — better to ask
+                # again than to mis-route on a typo.
+                action = _prompt_soft_breach_action()
+                if action == "n":
+                    # No sid allocated yet, no log file open — clean abort.
+                    print("[bale] aborted at threshold prompt",
+                          file=sys.stderr)
+                    return 1
+                if action == "e":
+                    # Collect more session-only patterns, rebuild matcher,
+                    # re-walk. The new patterns stack on top of whatever
+                    # was already in session_excludes — pressing `e`
+                    # repeatedly is additive, not replace-all.
+                    print()
+                    print("Adding session-only exclusions. These do NOT")
+                    print("modify .baleignore (use `bale config init`")
+                    print("for that). Patterns are gitignore-style; one")
+                    print("per line, blank to finish:")
+                    additions = _wizard_input_list("> ")
+                    if not additions:
+                        # User pressed Enter immediately — no new patterns
+                        # to apply. Re-walk would be identical; just
+                        # re-prompt for the breach decision.
+                        sys.stderr.write(
+                            "[bale] no patterns added; re-prompting.\n"
+                        )
+                        continue
+                    session_excludes.extend(additions)
+                    matcher = build_pack_matcher(repo, session_excludes)
+                    print()
+                    print(f"Added {len(additions)} pattern(s); re-walking...")
+                    print()
+                    continue
+                # action == "y" — proceed past the breach.
+                break
+            else:
+                # Piped mode: the warning already went to stderr above; proceed.
+                sys.stderr.write("[bale] piped mode: proceeding past soft breach.\n")
+                break
         else:
-            # Piped mode: the warning already went to stderr above; proceed.
-            sys.stderr.write("[bale] piped mode: proceeding past soft breach.\n")
+            # No breach. Proceed.
+            break
+
+    # `.baleignore` is force-included in context/ when it exists. The
+    # filter chain above would have skipped it only if a baked-in or
+    # secret pattern matched (none do — `.baleignore` isn't a secret and
+    # isn't under a baked-in excluded dir), but the file may not be
+    # tracked yet on a fresh repo, in which case `git ls-files
+    # --exclude-standard` already picks it up via the --others branch.
+    # The append-if-missing here is defense in depth for the case where
+    # a user adds `.baleignore` to their `.gitignore` (which would be
+    # odd, but is permitted and Claude shouldn't be blind to the file
+    # just because its owning user chose to gitignore it). Inserted as
+    # a relative path so it lines up with the other entries the walker
+    # produced, and only when it actually exists on disk.
+    if (repo / BALEIGNORE_FILE).is_file() and BALEIGNORE_FILE not in files:
+        files = sorted(files + [BALEIGNORE_FILE])
+        log(f"force-included {BALEIGNORE_FILE} in context (was not in "
+            f"git-tracked set)")
 
     log(f"selected {len(files)} files for context/ "
         f"({format_bytes(projection.total_bytes)}, "
-        f"max depth {projection.max_depth_seen})")
+        f"max depth {projection.max_depth_seen})"
+        + (f" [session excludes: {len(session_excludes)}]"
+           if session_excludes else ""))
 
     # Allocate session ID and switch logging to the per-session file. The
     # set_log_file() call drains any buffered --force lines from
@@ -1838,14 +2322,41 @@ def validate_response_manifest(manifest: dict) -> None:
                  "(TARBALL.md §5.6.2): no validation runs, so nothing to claim")
 
 
-def verify_files_against_manifest(response_dir: Path, manifest: dict) -> None:
-    """BALE.md 8.1 steps 7, 8, 9. All path-safety + presence + sha256 checks."""
-    files_dir = response_dir / "files"
+def verify_files_against_manifest(
+    repo: Path, response_dir: Path, manifest: dict,
+) -> None:
+    """BALE.md 8.1 steps 7, 8, 9. All path-safety + presence + sha256 checks.
 
-    # 9: path safety on every changes[].path.
+    `repo` is the apply target — required since v0.0.10 because step 9's
+    path-safety now includes the `.baleignore` match per BALE.md §11
+    rule 14: a response cannot declare a path the project's user-managed
+    exclusion file says shouldn't ride through bale. The matcher is
+    loaded once and reused across all change entries; load failure
+    propagates as `fail()` so the apply rejects with the same error
+    wording pack uses for the same file.
+    """
+    files_dir = response_dir / "files"
+    baleignore = load_baleignore(repo)
+
+    # 9: path safety on every changes[].path. Two independent gates —
+    # is_path_safe rejects path-traversal and reserved prefixes; the
+    # .baleignore check (rule 14) rejects paths the user said shouldn't
+    # flow through bale. Distinct messages so the user knows which gate
+    # tripped and how to recover (fix the manifest vs edit .baleignore).
     for change in manifest["changes"]:
         if not is_path_safe(change["path"]):
             fail(f"unsafe path in manifest: {change['path']}")
+        if is_baleignore_match(change["path"], baleignore):
+            # baleignore is non-None here (is_baleignore_match returns
+            # False on None) so first_match is safe.
+            pat = baleignore.first_match(change["path"])
+            fail(
+                f"manifest declares {change['path']!r} but it matches "
+                f".baleignore pattern {pat!r}. The response is rejected "
+                f"per BALE.md §11 rule 14. Either edit `.baleignore` to "
+                f"allow this path (then re-run apply) or use `bale retry` "
+                f"with a corrected response."
+            )
 
     # 7: presence per action.
     for change in manifest["changes"]:
@@ -2743,8 +3254,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
             )
 
-        # 8.1 steps 7, 8, 9: file presence, sha256, path safety.
-        verify_files_against_manifest(response_dir, manifest)
+        # 8.1 steps 7, 8, 9: file presence, sha256, path safety (incl.
+        # .baleignore match per BALE.md §11 rule 14).
+        verify_files_against_manifest(repo, response_dir, manifest)
         log("file presence, sha256, and path safety verified")
 
         # 8.2 stamp session.
@@ -3877,6 +4389,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--include", action="append", default=[], metavar="PATH",
         help="File or directory to include (repeatable). "
              "Defaults to the whole repo if omitted.",
+    )
+    p_pack.add_argument(
+        "--exclude", action="append", default=[], metavar="PATTERN",
+        help="gitignore-style pattern to exclude from this pack "
+             "(repeatable). Composes with .baleignore — these are "
+             "session-only, .baleignore is persistent (edit via "
+             "`bale config init`). When the wizard runs, omitting "
+             "this flag triggers the interactive 'anything to exclude' "
+             "prompt; supplying it skips that prompt.",
     )
     p_pack.add_argument(
         "--constraint", action="append", default=[], metavar="TEXT",

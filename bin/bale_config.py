@@ -799,6 +799,170 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
     return "\n".join(parts)
 
 
+def walkthrough_baleignore(repo: Path) -> None:
+    """Walk the user through `<repo>/.baleignore` — the user-managed
+    exclusion file the pack/apply pipelines read at BALE.md §6.4 / §11
+    rule 14. Project-mode only; called from _cmd_config_init_project
+    after the bale.toml is written.
+
+    The walk has three phases, each idempotent:
+
+      1. If a `.baleignore` exists, walk its lines one at a time and
+         ask "keep this pattern?" — default is keep (Enter).
+      2. Prompt for additions, one per line, blank to finish.
+      3. Write the file (or remove it, if the keep+add net is empty).
+
+    The file format: one pattern per line, blank lines and `#`-comments
+    permitted. The walk preserves user-authored comments by passing them
+    through verbatim in phase 1 (we show them inline, but don't ask
+    keep/remove — they're orientation for the patterns near them, and
+    asking the user 'keep this comment?' for every comment would be
+    noise). New patterns from phase 2 don't get auto-comments; the user
+    is the canonical author of comments in this file.
+
+    Syntax explanation is inline at the top of phase 2 so the user
+    doesn't need to read BALE.md §6.4 to fill in a pattern. The phrasing
+    matches what bin/bale's BaleignoreMatcher actually does — a single
+    place where the supported subset is described to the user.
+
+    The function does not import bale (or its matcher) — keeps this
+    module's circular-import surface minimal, and any pattern the user
+    types here will be validated when pack/apply next loads the file.
+    The cost of late validation is an error message at pack time
+    instead of inline; the cost of a typo here is one re-run of
+    `bale config init`, which is acceptable.
+    """
+    from __main__ import log
+
+    BALEIGNORE = ".baleignore"
+    path = repo / BALEIGNORE
+
+    print()
+    print(".baleignore — files and patterns to exclude from request tarballs")
+    print(f"  file: {path}")
+    print(f"  applies on top of bale's baked-in exclusions and your .gitignore.")
+    print(f"  Claude reads this file when packing, and apply rejects a")
+    print(f"  response whose changes touch a matched path (BALE.md §11 rule 14).")
+
+    existing_lines: list[str] = []
+    if path.is_file():
+        try:
+            existing_lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError as e:
+            print(f"  could not read {path}: {e} — skipping .baleignore step.")
+            return
+        print(f"  (existing file; walk each pattern to keep or remove,")
+        print(f"  then add more if you like.)")
+    else:
+        print(f"  (no file yet; pressing Enter through skips creation.)")
+
+    # Phase 1: walk existing lines. Comments and blanks pass through
+    # verbatim; pattern lines get a y/n. EOF/^C at any prompt is
+    # interpreted as "keep" (consistent with the wizard's general bias
+    # toward preservation on accidental aborts — the file is rewritten
+    # only after the user finishes the walk).
+    kept_lines: list[str] = []
+    for line in existing_lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            # Pass through verbatim — these are the user's comments and
+            # spacing, not patterns we walk.
+            kept_lines.append(line)
+            continue
+        print()
+        print(f"  pattern: {stripped}")
+        try:
+            raw = input(f"  keep this pattern? [Y/n] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            raw = ""
+        if raw in ("n", "no"):
+            # Drop this line. Adjacent comment lines are preserved
+            # above; the user may want to clean them up next run.
+            continue
+        kept_lines.append(line)
+
+    # Phase 2: prompt for additions. Show a brief syntax reminder so the
+    # user doesn't need to read the spec.
+    print()
+    print("  Add new patterns? (one per line, blank to finish)")
+    print("  Syntax (subset of gitignore):")
+    print("    data/         — directory named 'data' anywhere")
+    print("    /build/       — directory named 'build' at repo root only")
+    print("    *.parquet     — files ending in .parquet, any depth")
+    print("    src/legacy/   — that exact dir and everything under it")
+    print("    src/legacy/*.vue — .vue files directly in src/legacy/")
+    print("  Patterns starting with '!' (negation) are not supported.")
+    added: list[str] = []
+    while True:
+        try:
+            raw = input("  > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not raw:
+            break
+        if raw.startswith("!"):
+            print(f"  (negation patterns aren't supported; skipping {raw!r})")
+            continue
+        added.append(raw)
+
+    # Compose the new file body. If the user dropped every existing
+    # pattern AND added nothing, remove the file rather than write a
+    # noisy "all-comment" leftover. If only comments survived in the
+    # kept-from-existing set and the user added nothing, also remove —
+    # comments without patterns aren't load-bearing and a missing file
+    # is the canonical "no .baleignore" state.
+    new_pattern_lines = [
+        ln for ln in kept_lines
+        if ln.strip() and not ln.strip().startswith("#")
+    ] + added
+    if not new_pattern_lines:
+        if path.is_file():
+            try:
+                path.unlink()
+                log(f"removed {path} (no patterns kept or added)")
+                print(f"  removed {BALEIGNORE} — no patterns active.")
+            except OSError as e:
+                # Surface the failure but don't abort the wizard — the
+                # bale.toml has already been written by this point.
+                print(f"  could not remove {path}: {e}")
+        else:
+            print(f"  no .baleignore created — no patterns to write.")
+        return
+
+    # Write the file. Compose by stitching together the kept lines (in
+    # original order, comments and patterns intermingled) and then the
+    # additions at the end. A trailing newline is appended so the file
+    # is a clean text file rather than missing-newline-EOF.
+    body_lines: list[str] = list(kept_lines)
+    if added:
+        # Visually separate user-added patterns from any existing block,
+        # but only if the existing content didn't end with a blank line
+        # already. The separator is a single blank line; that's enough
+        # to let a future re-run-of-the-wizard recognize the boundary
+        # without it being load-bearing for the matcher (blank lines
+        # are stripped at parse time).
+        if body_lines and body_lines[-1].strip():
+            body_lines.append("")
+        body_lines.extend(added)
+
+    body = "\n".join(body_lines) + "\n"
+    try:
+        path.write_text(body, encoding="utf-8")
+    except OSError as e:
+        # Same not-aborting reasoning as the unlink branch above.
+        print(f"  could not write {path}: {e}")
+        return
+
+    pattern_count = sum(
+        1 for ln in body_lines
+        if ln.strip() and not ln.strip().startswith("#")
+    )
+    log(f"wrote {path} ({pattern_count} pattern(s))")
+    print(f"  wrote {BALEIGNORE} ({pattern_count} pattern(s) active).")
+
+
 def cmd_config_init(args: argparse.Namespace) -> int:
     """Walk the wizard against either the project layer (<repo>/bale.toml) or
     the global layer (<install>/user/bale.toml).
@@ -870,6 +1034,14 @@ def _cmd_config_init_project() -> int:
     rendered = render_bale_toml(new_cfg, layer="project")
     cfg_path.write_text(rendered, encoding="utf-8")
     log(f"wrote {cfg_path}")
+
+    # .baleignore walkthrough — project-mode only. The file lives at the
+    # repo root and is the user-facing exclusion surface that pack and
+    # apply consume (BALE.md §6.4, §11 rule 14). Visibility lives here
+    # rather than in bin/bale's pack wizard because `bale config init` is
+    # the canonical "set up bale for this project" surface — the user
+    # who never runs `bale pack` interactively still configures here.
+    walkthrough_baleignore(repo)
 
     print()
     print(f"  bale.toml: {cfg_path}")
