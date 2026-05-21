@@ -1313,12 +1313,17 @@ Apply a tarball from Claude that adds:
 - The full apply pipeline: `apply.sh` handling, manifest
   reconciliation after staging, walkthrough. *(All landed in v0.0.2.)*
 - `bale unlock`. *(Landed in v0.0.5.)*
-- The release-tarball packaging script (a `Makefile` target or
-  `scripts/build.sh` in the bale repo) that bundles `bin/` and
-  `docs/` into `bale-vX.Y.Z.tar.gz`. *(Still open.)*
+- The release-tarball packaging script (`scripts/build.sh` in the
+  bale repo) that bundles `bin/` and `docs/` into
+  `bale-vX.Y.Z.tar.gz`. *(Landed in bale-src ahead of the v0.1.0
+  cut; v0.1.0 is the first release built with it.)*
 - Git-init walkthrough. *(Landed in v0.0.8.)*
 
-Remaining at v0.0.10: the release-tarball packaging script.
+v0.1.0 is the cut: VERSION bumped from 0.0.10 to 0.1.0, with two
+small quality-of-life touch-ups landed alongside the bump
+(`--include` / `--exclude` now accept multiple paths per flag;
+TARBALL.md §5.2's example aligned to the literal-string preflight
+in §11 row 15).
 
 ### v0.2 — rollback
 
