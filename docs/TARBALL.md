@@ -419,8 +419,8 @@ contract.
   ],
   "claims": {
     "eslint": "pass",
-    "vue-tsc": "pass",
-    "vite build": "pass"
+    "vue-tsc --noEmit": "pass",
+    "vite build (staging only)": "pass"
   }
 }
 ```
@@ -854,9 +854,9 @@ The end-of-run summary includes a `claims` block:
 
 ```
 claims vs verdict:
-  eslint:     claim=pass    verdict=pass    [agree]
-  vue-tsc:    claim=pass    verdict=fail    [DISAGREE]
-  vite build: claim=pass    verdict=skip    [n/a]
+  eslint:                    claim=pass    verdict=pass    [agree]
+  vue-tsc --noEmit:          claim=pass    verdict=fail    [DISAGREE]
+  vite build (staging only): claim=pass    verdict=skip    [n/a]
 ```
 
 Disagreements (`claim=pass, verdict=fail` or `claim=fail,

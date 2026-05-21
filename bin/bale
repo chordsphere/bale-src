@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 """bale — Claude session orchestrator.
 
-v0.0.10. Hand-written, pre-tarball-protocol. Tracking incrementally
-toward the v0.1 contract: apply.sh handling and post-apply manifest
-reconciliation (BALE.md §11 rule 18) landed in v0.0.2; pack threshold
-caps (BALE.md §7.4) and the --force override landed in v0.0.3; CODE.md
+v0.1.0 — the first proper release. Cuts the v0.1 contract from
+BALE.md §13: every piece of the pack and apply pipelines, plus the
+ancillary commands (revert, retry, unlock, handoff, config init),
+is now landed. v0.1.0 itself bumps VERSION, lands two small
+quality-of-life fixes — `--include` and `--exclude` accept multiple
+paths per flag (was: one flag per path) — and pairs with two
+TARBALL.md tightenings (§5.2's example aligned to the literal-string
+preflight; the §13.4 phase summary updated to reflect the
+release-tarball packaging script having landed). The v0.0.x line
+above remains the bootstrap narrative; the v0.1.0 milestone is
+purely the cut.
+
+Tracking incrementally toward the v0.1 contract: apply.sh handling
+and post-apply manifest reconciliation (BALE.md §11 rule 18) landed
+in v0.0.2; pack threshold caps (BALE.md §7.4) and the --force
+override landed in v0.0.3; CODE.md
 was added as a fourth global doc in v0.0.4, with the injection list,
 install layout, and self-check scripts updated to match. The
 configurables loader/merger and the `bale config init` wizard were
@@ -43,8 +55,9 @@ patterns), the §7.4 soft-cap `[e] edit excludes` branch (collect
 more patterns, rebuild matcher, re-walk), a `--exclude` CLI flag
 parallel to `--include`, and a `bale config init` step that walks
 the user through `.baleignore` line-by-line (canonical persistence
-surface, paired with the session-only wizard prompts above). The
-remaining v0.1 item is release-tarball packaging.
+surface, paired with the session-only wizard prompts above). With
+the release-tarball packaging script (`scripts/build.sh`) landed
+in bale-src and v0.1.0 bumped here, the v0.1 contract is closed.
 
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
@@ -58,10 +71,9 @@ successive bale-on-bale sessions evolve:
     bale handoff <bailout-tarball>
     bale config init
 
-No rollback, no release-tarball packaging. Stdlib only — which since
+No rollback yet — that's v0.2. Stdlib only — which since
 session 003 means Python 3.11+ (tomllib lives there, inside
-`bale_config`). Designed to be replaced by a v0.1 tarball that
-fleshes out the full pipeline.
+`bale_config`).
 
 Sections:
    1. Imports + constants                              (~line  130)
@@ -131,7 +143,7 @@ import bale_config  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.0.10"
+VERSION = "0.1.0"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4364,7 +4376,7 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description="Claude session orchestrator (v0.0.9 bootstrap).",
+        description="Claude session orchestrator (v0.1.0).",
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -4386,15 +4398,18 @@ def build_parser() -> argparse.ArgumentParser:
              "enter the interactive wizard; required when piped.",
     )
     p_pack.add_argument(
-        "--include", action="append", default=[], metavar="PATH",
-        help="File or directory to include (repeatable). "
-             "Defaults to the whole repo if omitted.",
+        "--include", action="extend", nargs="+", default=[], metavar="PATH",
+        help="File or directory to include. Accepts multiple paths per "
+             "flag (e.g. --include src lib README.md) and is itself "
+             "repeatable; all paths flatten into one list. Defaults to "
+             "the whole repo if omitted.",
     )
     p_pack.add_argument(
-        "--exclude", action="append", default=[], metavar="PATTERN",
-        help="gitignore-style pattern to exclude from this pack "
-             "(repeatable). Composes with .baleignore — these are "
-             "session-only, .baleignore is persistent (edit via "
+        "--exclude", action="extend", nargs="+", default=[], metavar="PATTERN",
+        help="gitignore-style pattern to exclude from this pack. Accepts "
+             "multiple patterns per flag (e.g. --exclude 'data/*' 'tmp/*') "
+             "and is itself repeatable. Composes with .baleignore — these "
+             "are session-only, .baleignore is persistent (edit via "
              "`bale config init`). When the wizard runs, omitting "
              "this flag triggers the interactive 'anything to exclude' "
              "prompt; supplying it skips that prompt.",
