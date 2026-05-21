@@ -221,8 +221,8 @@ PACK_LARGEST_DIRS_TOPN = 5
 # ---------------------------------------------------------------------------
 #
 # v0.0.1 logs to stdout with a [bale] prefix. When a session is open we
-# also append to .bale/logs/<sid>.log. Structured logging proper lands
-# in v0.1.
+# also append to .bale/logs/<sid>.log. Structured logging proper is a
+# later enhancement.
 
 _log_file: Optional[Path] = None
 
@@ -458,7 +458,7 @@ def ensure_bale_gitignored(repo: Path) -> bool:
     to auto-commit), False if no change was needed.
 
     Per BALE.md section 7.1 step 6. v0.0.1 appends silently with a log line;
-    the interactive confirmation lands in v0.1.
+    interactive confirmation is a later enhancement.
     """
     gi = repo / ".gitignore"
     needle = ".bale/"
@@ -595,8 +595,8 @@ def list_git_files(repo: Path) -> list[str]:
 
     Uses `git ls-files --cached --others --exclude-standard`, which honors
     .gitignore at every level plus .git/info/exclude. This is bale's default
-    way of respecting .gitignore (BALE.md section 6.4). v0.0.1 has no
-    `--no-gitignore` escape hatch; that lands in v0.1.
+    way of respecting .gitignore (BALE.md section 6.4). There is no
+    `--no-gitignore` escape hatch yet; that's a later enhancement.
     """
     r = run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
@@ -679,7 +679,7 @@ def is_under_include(rel: str, includes: list[str]) -> bool:
 #     excludes both `data/x.csv` and `nested/data/x.csv`).
 #   - Slash in the middle → match against the full relative path
 #     (anchored), with `fnmatch`-style globbing inside each segment.
-#   - Leading `!` → unsupported at v0.1; load_baleignore raises with a
+#   - Leading `!` → unsupported; load_baleignore raises with a
 #     helpful message. Negation has outsized semantic cost (multi-pass
 #     evaluation, ordering matters) for limited real-world need; users
 #     wanting it can narrow `--include` instead.
@@ -749,7 +749,7 @@ class BaleignoreMatcher:
     def from_lines(cls, lines: list[str]) -> "BaleignoreMatcher":
         """Build a matcher from a list of pattern lines. Lines may include
         comments and blanks; they're stripped here. Raises ValueError on
-        leading `!` (negation, unsupported at v0.1) so the caller can fail
+        leading `!` (negation, unsupported) so the caller can fail
         with file context."""
         entries: list[tuple] = []
         patterns: list[str] = []
@@ -879,7 +879,7 @@ def load_baleignore(repo: Path) -> Optional[BaleignoreMatcher]:
     an empty matcher, distinguishable from None — useful in messaging
     ("you have a .baleignore but it's empty") without re-stat'ing the file.
 
-    Malformed patterns (negation at v0.1) fail loudly: the file is the
+    Malformed patterns (negation) fail loudly: the file is the
     user's source of truth, and silently dropping unsupported syntax
     would mean Claude responses get apply-rejected for reasons that
     look correct on the page.
