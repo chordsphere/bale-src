@@ -7,7 +7,9 @@
 #   ~/bale/upgrade.sh path/to/new-bale-release.tar.gz
 #
 # What it does:
-#   1. Validates the new tarball looks like a bale install (bin/bale exists).
+#   1. Validates the new tarball looks like a complete bale install
+#      (bin/bale and the schemas/ files are present — see the pre-flight
+#      member check below for why schemas/ is required up front).
 #   2. Moves <install>/user/ aside to <install>.user-backup/.
 #   3. rm -rf <install>/ and extracts the new tarball in its place.
 #   4. Moves user/ back into the new install.
@@ -19,8 +21,8 @@
 #
 # What it does NOT preserve: anything you hand-edited outside user/. The
 # release tarball's contents are authoritative; that's the contract for
-# every release file (bin/bale, docs/*, install.sh, validate.sh, README.md,
-# upgrade.sh itself). Hand-edits inside user/ ARE preserved.
+# every release file (bin/bale, docs/*, schemas/*, install.sh, validate.sh,
+# README.md, upgrade.sh itself). Hand-edits inside user/ ARE preserved.
 #
 # Why this script ships in the release: making upgrades clean-replace by
 # default is the only mechanism that prevents stale-file drift (a renamed
@@ -94,9 +96,43 @@ if [[ ! -x "$INSTALL_DIR/bin/bale" ]]; then
   die "$INSTALL_DIR does not look like a bale install (no executable bin/bale). Refusing to upgrade."
 fi
 
-# Sanity: peek at the tarball; require it contains bin/bale.
-if ! tar -tzf "$NEW_TARBALL" 2>/dev/null | grep -q '\(^\|/\)bin/bale$'; then
-  die "tarball $NEW_TARBALL does not contain bin/bale — does not look like a bale release."
+# Sanity: peek at the tarball; require it contains the members that make a
+# release a release. bin/bale has always been required here; v0.1.1 made
+# schemas/ a mandatory part of the install — install.sh's layout check and
+# validate.sh both fail without the three schema files. The clean-replace
+# below is destructive (it wipes the existing install, schemas/ included),
+# so a release member that install.sh will later demand has to be verified
+# *here*, before the wipe. Otherwise a schemas-less tarball passes this
+# guard, the wipe runs, and install.sh only discovers the gap afterward —
+# leaving a broken, half-upgraded install with the old schemas/ already
+# gone. Checking up front lets us refuse the swap with the existing install
+# still intact. This is the same pre-flight contract that already protected
+# bin/bale, extended to the files v0.1.1 made non-optional.
+TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
+  || die "could not read $NEW_TARBALL as a gzip tar — is it a valid bale release tarball?"
+
+REQUIRED_RELEASE_MEMBERS=(
+  bin/bale
+  schemas/request-manifest.schema.json
+  schemas/response-manifest.schema.json
+  schemas/diagnostics.schema.json
+)
+missing_members=()
+for member in "${REQUIRED_RELEASE_MEMBERS[@]}"; do
+  # The tarball carries a top-level prefix (e.g. bale-vX.Y.Z/), so match the
+  # member at any prefix: a leading '/' or start-of-line before it. Escape
+  # '.' so the literal dots in the schema filenames don't act as regex
+  # wildcards. Mirrors the original bin/bale anchor; for bin/bale (no dots)
+  # the escape is a no-op, so its check is unchanged.
+  member_re="${member//./\\.}"
+  if printf '%s\n' "$TARBALL_LISTING" | grep -q "\(^\|/\)${member_re}\$"; then
+    log "release contains $member"
+  else
+    missing_members+=("$member")
+  fi
+done
+if [[ ${#missing_members[@]} -gt 0 ]]; then
+  die "tarball $NEW_TARBALL is missing required release member(s): ${missing_members[*]}. A complete bale release (v0.1.1+) ships bin/bale and schemas/. Refusing to upgrade; existing install left untouched."
 fi
 
 # Detect the tarball's top-level prefix (it's usually a single directory like
