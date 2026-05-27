@@ -60,6 +60,22 @@ section "filesystem layout"
 for d in CLAUDE TARBALL DOCS CODE; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
+for s in request-manifest response-manifest diagnostics; do
+  schema="$INSTALL_DIR/schemas/$s.schema.json"
+  if [[ -f "$schema" ]]; then
+    pass "schemas/$s.schema.json present"
+    # Parse-check via Python's stdlib json (bale requires 3.11+, so free).
+    # A schema that doesn't parse is one bale can't load at pre-flight, which
+    # would turn every pack/apply into a hard fail — catch it here instead.
+    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$schema" 2>/dev/null; then
+      pass "schemas/$s.schema.json is valid JSON"
+    else
+      fail "schemas/$s.schema.json is valid JSON" "json could not parse it"
+    fi
+  else
+    fail "schemas/$s.schema.json present"
+  fi
+done
 
 section "user-owned layer (global config)"
 # user/ is optional on a fresh install — absence is reported, not failed.
