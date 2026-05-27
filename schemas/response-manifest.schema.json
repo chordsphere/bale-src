@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anthropics/bale/schemas/response-manifest.schema.json",
+  "title": "bale response manifest",
+  "description": "Shape of response-NNN/manifest.json per TARBALL.md sections 5.2 and 5.6.2. Field semantics live in TARBALL.md; this schema constrains only the universal envelope. Cross-field invariants (sha256 file match, path-safety, claims subset of validation_will_run, stripped-non-empty reasons, bailout-shape rules) stay in bale's Python validators.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "responds_to",
+    "corrects",
+    "summary",
+    "changes",
+    "deferred",
+    "validation_will_run",
+    "claims"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "YYYY-MM-DD-<slug>-NNN per TARBALL.md section 1. For a normal response this equals responds_to; for a bailout it equals responds_to too, since the bailout is the answer to the same request."
+    },
+    "responds_to": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Session ID of the request this response answers. Bale verifies it matches the locked session."
+    },
+    "corrects": {
+      "type": ["string", "null"],
+      "description": "Session ID of a prior response this re-attempts, or null."
+    },
+    "response_kind": {
+      "type": "string",
+      "enum": ["normal", "bailout"],
+      "description": "Optional, defaults to 'normal' if absent so v0.0.5-shaped manifests pass through. 'bailout' triggers TARBALL.md section 5.6's distinct shape (enforced in Python)."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One paragraph: what this response delivers."
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "action", "reason", "size_bytes", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Repo-relative path. Path-safety (no traversal, no .git/.bale, no .baleignore match) is enforced in Python."
+          },
+          "action": {
+            "type": "string",
+            "enum": ["created", "modified", "deleted"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Non-empty. The stripped-non-empty rule is enforced in Python; this schema only catches the empty-string case."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": ["string", "null"],
+            "description": "Required string for created/modified; required null for deleted. The conditional rule is enforced in Python — this schema admits either."
+          }
+        }
+      }
+    },
+    "deferred": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["what", "why"],
+        "properties": {
+          "what": { "type": "string", "minLength": 1 },
+          "why":  { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "validation_will_run": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Declarative list of what validation.sh is configured to do. Strings are freeform — they're labels the user reads, not commands bale invokes."
+    },
+    "claims": {
+      "type": "object",
+      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). Values are constrained to the enum.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["pass", "fail", "untested", "unknown"]
+      }
+    }
+  }
+}
