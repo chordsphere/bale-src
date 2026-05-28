@@ -140,6 +140,35 @@ the layout rationale. Landing rollback also retires the three "v0.0.1 has no
 <sid>`. `bin/bale_rollback.py` joins the other three bin/ modules in the
 install.sh / validate.sh / scripts/reinstall.sh layout checks.
 
+v0.2.1 starts the BALE.md §13 v0.3 "polish" phase, landing its four
+apply-side inspection flags while deferring the phase's other two items
+(inline `bale help <cmd>` and optional bash completion) to a v0.3b
+follow-up — so v0.3 is not yet cut. The four flags all hang off the
+`apply` subparser. `--show-validator` and `--show-apply-script` are pure
+inspection: they resolve the tarball through `apply.search_paths` (like a
+real apply), extract it, and print the requested script(s) to stdout, then
+exit 0 — no session lock, no clean-tree requirement, no git side effects
+(the new `inspect_response_scripts` helper in section 18). `--dry-run`
+runs the read-only front half of the apply pipeline — extract, shell-syntax
+pre-flight, manifest schema validation, `responds_to` match, and the
+presence/sha256/path-safety verification — then prints a plan summary
+(`format_dry_run_report`, section 18) and returns before the session
+stamp, staging, branch creation, validation run, or commit; it requires a
+lock (the `responds_to` check is part of "what would apply do") but not a
+clean tree, since it touches neither the worktree nor `.bale/`. A dry-run
+of a bailout response reports that apply would package a handoff rather
+than running `_apply_bailout`. `--verbose` threads through
+`_apply_pipeline` into `run_validation_sh` (bale_staging) and flips that
+helper's output routing: default keeps `validation.sh` output in the
+session log only (the walkthrough summary carries the verdict, BALE.md
+§8.5 step 4), while `--verbose` additionally streams it live to the
+terminal via a Popen line-reader. `_apply_pipeline` gained `dry_run` and
+`verbose` keyword params, both defaulting False so `cmd_retry`'s call site
+is unchanged. Wiring `--verbose` across other commands (BALE.md §5.4 lists
+it as a global flag) and the §7.4 pass-through of `--verbose` into
+`validation.sh` itself are left as future work — see this session's
+notes.md.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -160,30 +189,30 @@ which since session 003 means Python 3.11+ (tomllib lives there, inside
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  249)
-   2. Logging                                          (~line  326)
-   3. Shell / git helpers                              (~line  413)
-   4. Hashing                                          (~line  452)
-   5. Session IDs and the per-day counter              (~line  468)
-   6. Lock handling                                    (~line  526)
-   7. .gitignore handling for the .bale/ directory     (~line  557)
-   8. Path-safety checks                               (~line  587)
-   9. Editor invocation                                (~line  635)
-  10. Pack: file enumeration and filtering             (~line  696)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1073)
-  12. Pack: slug validation                            (~line 1356)
-  13. Pack: manifest and tarball construction          (~line 1369)
-  14. Pack: wizard                                     (~line 1484)
-  15. Pack                                             (~line 1726)
-  16. Apply: helpers                                   (~line 2275)
-  17. Apply: pipeline                                  (~line 2757)
-  18. Apply                                            (~line 3046)
-  19. Revert                                           (~line 3095)
-  20. Retry                                            (~line 3277)
-  21. Unlock                                           (~line 3326)
-  22. Handoff                                          (~line 3420)
-  23. Hook invocation                                  (~line 3834)
-  24. CLI                                              (~line 3957)
+   1. Imports + constants                              (~line  314)
+   2. Logging                                          (~line  391)
+   3. Shell / git helpers                              (~line  478)
+   4. Hashing                                          (~line  517)
+   5. Session IDs and the per-day counter              (~line  533)
+   6. Lock handling                                    (~line  591)
+   7. .gitignore handling for the .bale/ directory     (~line  622)
+   8. Path-safety checks                               (~line  652)
+   9. Editor invocation                                (~line  700)
+  10. Pack: file enumeration and filtering             (~line  761)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1138)
+  12. Pack: slug validation                            (~line 1421)
+  13. Pack: manifest and tarball construction          (~line 1434)
+  14. Pack: wizard                                     (~line 1549)
+  15. Pack                                             (~line 1791)
+  16. Apply: helpers                                   (~line 2340)
+  17. Apply: pipeline                                  (~line 2822)
+  18. Apply                                            (~line 3144)
+  19. Revert                                           (~line 3362)
+  20. Retry                                            (~line 3543)
+  21. Unlock                                           (~line 3592)
+  22. Handoff                                          (~line 3686)
+  23. Hook invocation                                  (~line 4100)
+  24. CLI                                              (~line 4223)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -285,7 +314,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2794,7 +2823,8 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
 # ---------------------------------------------------------------------------
 
 def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
-                    staging_override: Optional[str]) -> int:
+                    staging_override: Optional[str], *,
+                    dry_run: bool = False, verbose: bool = False) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
     + clean-tree guards) and cmd_retry (after _discard_hold_state has
@@ -2802,11 +2832,22 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 
     Expects, on entry:
       - lock held on `locked_sid`
-      - working tree clean
+      - working tree clean (not required when dry_run — a dry-run touches
+        neither the worktree nor .bale/)
       - no bale/<sid> branch (revert/retry deleted it if needed)
       - logging already wired to the session log file
 
-    Returns the apply exit code: 0 on PASS, 1 on HOLD.
+    `dry_run` (cmd_apply --dry-run) runs only the read-only front half —
+    extract, syntax pre-flight, manifest schema, responds_to, and the
+    presence/sha256/path-safety verification — then prints the plan and
+    returns 0 before the session stamp, staging, branch, validation run, or
+    commit. No git or filesystem side effects. `verbose` (cmd_apply
+    --verbose) is forwarded to run_validation_sh, which streams
+    validation.sh output live to the terminal in addition to the session log
+    (BALE.md §8.5 step 4); it has no effect under dry_run, which never runs
+    validation.sh. cmd_retry passes neither, so its behavior is unchanged.
+
+    Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
     # Extract and validate the tarball into a temp dir.
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -2875,6 +2916,15 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # guarantees the value is in the response_kind enum when present
         # (response-manifest.schema.json).
         if manifest.get("response_kind", "normal") == "bailout":
+            if dry_run:
+                # Don't run _apply_bailout under dry-run — it preserves the
+                # session dir, prints the live §5.6.3 banner, and releases
+                # the lock, all of which are side effects. Report the plan
+                # instead.
+                print(format_dry_run_report(manifest, locked_sid,
+                                            is_bailout=True))
+                log("dry-run: bailout response; no side effects performed")
+                return 0
             return _apply_bailout(
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
             )
@@ -2883,6 +2933,17 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # .baleignore match per BALE.md §11 rule 14).
         verify_files_against_manifest(repo, response_dir, manifest)
         log("file presence, sha256, and path safety verified")
+
+        # --dry-run stops here: every check that doesn't touch the worktree
+        # or .bale/ has now run and passed. Report the plan and return before
+        # the session stamp, staging, branch creation, validation run, and
+        # commit. A passing dry-run means the tarball would be accepted for a
+        # real apply.
+        if dry_run:
+            print(format_dry_run_report(manifest, locked_sid,
+                                        is_bailout=False))
+            log("dry-run: validated; no git side effects performed")
+            return 0
 
         # 8.2 stamp session.
         sessions_dir = repo / ".bale" / "sessions" / locked_sid
@@ -2952,7 +3013,8 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         log(f"created branch {sid_branch} at HEAD ({head[:7]})")
 
         # Run validation.sh in staging.
-        exit_code = run_validation_sh(repo, response_dir, staging, manifest, locked_sid)
+        exit_code = run_validation_sh(repo, response_dir, staging, manifest,
+                                      locked_sid, verbose=verbose)
         log(f"validation.sh exit code: {exit_code}")
 
         # 8.6 commit-or-hold + 8.7 walkthrough. Both validation outcomes
@@ -3082,6 +3144,147 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 # 18. Apply
 # ---------------------------------------------------------------------------
 
+def _extract_response_dir(tmpdir: str, tarball_path: Path) -> Path:
+    """Open `tarball_path`, scan for unsafe member paths, extract into
+    `tmpdir`, and return the single top-level `response-NNN/` directory.
+
+    The same tar-integrity / single-top-level-dir / response- prefix checks
+    the apply pipeline's section 17 does, factored out so the inspection
+    flags (`--show-validator`, `--show-apply-script`) can reuse them without
+    duplicating the safety scan. `fail()`s on any structural problem, so the
+    caller can assume a well-formed response dir on return.
+    """
+    try:
+        tf = tarfile.open(tarball_path, "r:gz")
+    except (tarfile.TarError, OSError) as e:
+        fail(f"tarball is unreadable: {e}")
+    try:
+        for member in tf.getmembers():
+            name = member.name
+            if name.startswith("/") or ".." in Path(name).parts:
+                fail(f"tarball contains unsafe path: {name}")
+        tf.extractall(tmpdir)
+    finally:
+        tf.close()
+
+    entries = [p for p in Path(tmpdir).iterdir()]
+    if len(entries) != 1 or not entries[0].is_dir():
+        fail(f"tarball must contain exactly one top-level directory; "
+             f"found {[e.name for e in entries]}")
+    response_dir = entries[0]
+    if not response_dir.name.startswith("response-"):
+        fail(f"top-level directory must be named response-NNN/, "
+             f"got {response_dir.name}/")
+    return response_dir
+
+
+def inspect_response_scripts(tarball_path: Path, *, show_apply: bool,
+                             show_validator: bool) -> int:
+    """`bale apply --show-apply-script` / `--show-validator`: print the
+    requested shell deliverable(s) from a response tarball, then exit.
+
+    Pure inspection — no session lock, no clean-tree requirement, no git or
+    staging side effects. The point is to read what a tarball *would* run
+    before deciding to apply it, so it deliberately works whether or not a
+    session is open. The tarball is still resolved through
+    `apply.search_paths` by the caller and validated for structure here via
+    `_extract_response_dir`, so a malformed tarball is reported the same way
+    `bale apply` would report it.
+
+    When both flags are set, apply.sh is printed before validation.sh, each
+    under a banner naming the file so piping the combined output stays
+    legible. Returns 0 on success; structural problems `fail()` (exit 1)
+    inside `_extract_response_dir`.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        response_dir = _extract_response_dir(tmpdir, tarball_path)
+        # Both scripts are required deliverables (TARBALL.md §5.1 / BALE.md
+        # §11 row 16); a missing one is a malformed tarball, not a silent
+        # skip. Check only the file(s) actually requested so showing one
+        # script still works against a tarball whose other script is absent
+        # for some reason — the failure is then specific to what was asked.
+        wanted: list[str] = []
+        if show_apply:
+            wanted.append("apply.sh")
+        if show_validator:
+            wanted.append("validation.sh")
+        for name in wanted:
+            if not (response_dir / name).is_file():
+                fail(f"{name} is missing from {tarball_path.name} "
+                     f"(required deliverable per TARBALL.md §5.1)")
+        for i, name in enumerate(wanted):
+            if i > 0:
+                print()
+            print(f"# ===== {response_dir.name}/{name} "
+                  f"({tarball_path.name}) =====")
+            try:
+                sys.stdout.write((response_dir / name).read_text())
+            except OSError as e:
+                fail(f"could not read {name} from tarball: {e}")
+    return 0
+
+
+def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
+    """Build the `--dry-run` plan summary as a single string.
+
+    Reports what a real `bale apply` would do with this tarball, having
+    already passed every read-only pre-flight check (extract, syntax,
+    manifest schema, responds_to, presence/sha256/path-safety). Pure — the
+    caller prints the returned string and returns 0.
+    """
+    lines: list[str] = [""]
+    lines.append(f"  [DRY RUN] {sid}")
+    lines.append(f"  summary: {manifest.get('summary', '(no summary)')}")
+
+    if is_bailout:
+        # A bailout carries no files and isn't applied; a real apply would
+        # print the §5.6.3 handoff banner and stop. Say so rather than
+        # listing an empty change set as if it were applicable.
+        lines.append("")
+        lines.append("  response_kind: bailout")
+        lines.append("  apply would: print the handoff banner and stop "
+                     "(no files applied).")
+        lines.append("  next step:   bale handoff <tarball>")
+        lines.append("")
+        lines.append("  DRY RUN — nothing applied, working tree untouched.")
+        lines.append("")
+        return "\n".join(lines)
+
+    changes = manifest.get("changes", []) or []
+    by_action = {"created": 0, "modified": 0, "deleted": 0}
+    for c in changes:
+        by_action[c["action"]] = by_action.get(c["action"], 0) + 1
+    lines.append(
+        f"  changes: {len(changes)} "
+        f"({by_action['created']} created, "
+        f"{by_action['modified']} modified, "
+        f"{by_action['deleted']} deleted)"
+    )
+    lines.append("")
+    lines.append("  would apply:")
+    if changes:
+        width = max(len(c["action"]) for c in changes)
+        for c in changes:
+            lines.append(f"    {c['action']:<{width}}  {c['path']}")
+    else:
+        lines.append("    (none)")
+
+    will_run = manifest.get("validation_will_run", []) or []
+    lines.append("")
+    if will_run:
+        lines.append("  validation.sh would run:")
+        for item in will_run:
+            lines.append(f"    - {item}")
+    else:
+        lines.append("  validation.sh would run: (nothing declared)")
+
+    lines.append("")
+    lines.append("  DRY RUN — validated only. No branch, no staging applied "
+                 "to the worktree, no commit.")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def cmd_apply(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
@@ -3108,14 +3311,39 @@ def cmd_apply(args: argparse.Namespace) -> int:
         # doesn't exist. Either way, the existing message is right.
         fail(f"tarball not found: {tarball_path}")
 
+    # `--show-apply-script` / `--show-validator`: pure inspection. Print the
+    # requested deliverable(s) from the tarball and exit. Deliberately ahead
+    # of the lock and clean-tree guards — inspecting what a tarball would run
+    # shouldn't require an open session or a pristine worktree.
+    if args.show_apply_script or args.show_validator:
+        return inspect_response_scripts(
+            tarball_path,
+            show_apply=args.show_apply_script,
+            show_validator=args.show_validator,
+        )
+
     # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
+    # Required for a real apply, a retry, and a dry-run alike — the
+    # responds_to check a dry-run performs needs the locked sid to compare
+    # against.
     locked_sid = read_lock(repo)
     if locked_sid is None:
         fail("no session is open. Run `bale pack` first to open one.")
 
     # Wire logging to the session log from here on.
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
-    log(f"applying {tarball_path.name} against session {locked_sid}")
+    log(f"{'dry-run validating' if args.dry_run else 'applying'} "
+        f"{tarball_path.name} against session {locked_sid}")
+
+    # `--dry-run`: run the read-only front half of the pipeline (validate,
+    # report the plan) and stop before any git or worktree side effect. It
+    # touches neither the working tree nor `.bale/`, so the clean-tree guard
+    # a real apply needs is skipped here.
+    if args.dry_run:
+        return _apply_pipeline(
+            repo, tarball_path, locked_sid, args.staging_dir,
+            dry_run=True, verbose=args.verbose,
+        )
 
     # 8.1 step 5: working tree clean. (cmd_retry skips this guard because
     # a HOLDed session's worktree is dirty by construction; retry's
@@ -3124,7 +3352,10 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if not clean:
         fail("working tree is not clean. Commit or stash before applying:\n" + status)
 
-    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir)
+    return _apply_pipeline(
+        repo, tarball_path, locked_sid, args.staging_dir,
+        verbose=args.verbose,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -4098,7 +4329,12 @@ def build_parser() -> argparse.ArgumentParser:
             "resolved against apply.search_paths in bale.toml when set: "
             "relative names are tried against cwd first, then each "
             "configured directory in order, first match wins. Absolute "
-            "paths bypass search. Configure via `bale config init`."
+            "paths bypass search. Configure via `bale config init`.\n\n"
+            "Inspection flags (--show-validator, --show-apply-script, "
+            "--dry-run) look without applying: the first two print a script "
+            "from the tarball and need no open session; --dry-run runs the "
+            "read-only validation half against the open session and prints "
+            "the plan, touching neither the worktree nor git."
         ),
     )
     p_apply.add_argument("tarball", help="Path to response-NNN.tar.gz.")
@@ -4106,6 +4342,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--staging-dir", default=None,
         help="Where to stage the apply (default: <repo>/.bale/staging). "
              "An explicit path is resolved relative to cwd.",
+    )
+    p_apply.add_argument(
+        "--show-validator", action="store_true",
+        help="Print the tarball's validation.sh and exit, without applying. "
+             "Resolves the tarball through apply.search_paths like a real "
+             "apply but needs no open session and no clean working tree. "
+             "Combine with --show-apply-script to print both.",
+    )
+    p_apply.add_argument(
+        "--show-apply-script", action="store_true",
+        help="Print the tarball's apply.sh and exit, without applying. Same "
+             "no-session, no-clean-tree semantics as --show-validator; when "
+             "both are given, apply.sh prints first.",
+    )
+    p_apply.add_argument(
+        "--dry-run", action="store_true",
+        help="Validate the tarball against the open session and print what "
+             "apply would do (the change set and the checks validation.sh "
+             "would run), then stop. Requires an open session (for the "
+             "responds_to check) but no clean working tree: no branch is "
+             "created, nothing is staged into the worktree, nothing is "
+             "committed.",
+    )
+    p_apply.add_argument(
+        "--verbose", action="store_true",
+        help="Stream validation.sh output live to the terminal in addition "
+             "to the session log (BALE.md §8.5). Without it, validation "
+             "output goes to .bale/logs/<sid>.log only and the walkthrough "
+             "summary carries the verdict. No effect with --dry-run, which "
+             "does not run validation.sh.",
     )
     p_apply.set_defaults(func=cmd_apply)
 

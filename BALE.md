@@ -435,7 +435,10 @@ The following flags apply across multiple commands:
 - `--force` — bypass safety refusals (system-dir, home-dir,
   threshold caps, dirty-tree checks). Logged prominently.
 - `--verbose` — stream validation output and other long-running
-  command output to stdout in addition to the log file.
+  command output to stdout in addition to the log file. (Landed
+  apply-scoped in v0.2.1 — `bale apply --verbose` streams `validation.sh`
+  output live; wiring it across the other commands listed here is future
+  work.)
 - `--no-interact` — non-TTY mode. Skips prompts; the default action
   (Enter key equivalent) is taken at every prompt point.
 - `--staging-dir <path>` — override the default `./staging/`
@@ -1337,11 +1340,26 @@ session, noted in that session's `notes.md`.)*
 
 ### v0.3 — polish
 
-- Inline help (`bale help <cmd>`).
-- `--show-validator`, `--show-apply-script`, `--dry-run`.
-- `--verbose` mode for apply (stream validation output live).
+- Inline help (`bale help <cmd>`). *(Deferred to v0.3b.)*
+- `--show-validator`, `--show-apply-script`, `--dry-run`. *(Landed in
+  v0.2.1 on the `apply` subparser — the show flags are pure tarball
+  inspection needing no open session, `--dry-run` runs the read-only
+  validation half against the open session and prints the plan without
+  touching the worktree or git. The behavioral paths were exercised
+  manually in the landing session plus a temp-repo show-script check in
+  that response's `validation.sh`; full coverage waits on the v0.4
+  harness.)*
+- `--verbose` mode for apply (stream validation output live). *(Landed in
+  v0.2.1, apply-scoped: `run_validation_sh` now routes `validation.sh`
+  output to the session log only by default and live-streams to the
+  terminal under `--verbose`, per §8.5 step 4. Wiring `--verbose` across
+  the other commands the §5.4 global-flags list anticipates, and the §7.4
+  pass-through of `--verbose` into `validation.sh` itself, remain open.)*
 - Optional bash completion (`source` it from shell rc — not required
-  for any functionality).
+  for any functionality). *(Deferred to v0.3b.)*
+
+v0.3 is not yet cut: the four apply flags above landed in v0.2.1, with
+inline help and bash completion held for a v0.3b follow-up.
 
 ### v0.4 — selftest
 

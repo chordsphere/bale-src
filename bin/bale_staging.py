@@ -421,9 +421,22 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
 
 
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
-                      manifest: dict, sid: str) -> int:
+                      manifest: dict, sid: str, *, verbose: bool = False) -> int:
     """Copy validation.sh into staging, place .bale-manifest.json for claims
-    access, run it, log output, return exit code."""
+    access, run it, log output, return exit code.
+
+    Output routing follows BALE.md §8.5 step 4: validation.sh's stdout/stderr
+    always land in the session log (`.bale/logs/<sid>.log`); the terminal
+    sees them only when `verbose` is set (cmd_apply --verbose). In the
+    default (non-verbose) path the run is captured and dumped to the log
+    after completion — the walkthrough summary the caller prints carries the
+    verdict, and the HOLD banner points at the log for detail. The verbose
+    path streams live instead: stderr is merged into stdout (live output is
+    interleaved on one stream anyway) and each line is echoed to the terminal
+    as it arrives while being collected for the log. Exit-code semantics
+    (0 pass / 1 check-failed / 2 script-errored, TARBALL.md §7.5) are
+    identical on both paths.
+    """
     from __main__ import log
     val_dst = staging / "validation.sh"
     shutil.copy2(response_dir / "validation.sh", val_dst, follow_symlinks=False)
@@ -434,7 +447,42 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
     )
 
-    log("running validation.sh in staging...")
+    log("running validation.sh in staging"
+        + (" (verbose: streaming live)..." if verbose else "..."))
+
+    log_file = repo / ".bale" / "logs" / f"{sid}.log"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if verbose:
+        # Live stream. Merge stderr into stdout so the terminal sees the same
+        # interleaving the user would at a real shell, read line by line, echo
+        # immediately, and collect for the log. bufsize=1 + text mode gives
+        # line-buffered reads; iterating proc.stdout blocks per line until EOF.
+        proc = subprocess.Popen(
+            ["bash", "validation.sh"],
+            cwd=str(staging),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        collected: list[str] = []
+        # proc.stdout is non-None because stdout=PIPE; guard anyway for mypy.
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            collected.append(line)
+        returncode = proc.wait()
+        merged = "".join(collected)
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write(f"\n--- validation.sh output ({sid}, verbose: "
+                    f"stdout+stderr interleaved) ---\n")
+            f.write(merged)
+            f.write(f"\n--- validation.sh exit code: {returncode} ---\n")
+        return returncode
+
+    # Default: capture, log only, terminal stays quiet.
     result = subprocess.run(
         ["bash", "validation.sh"],
         cwd=str(staging),
@@ -442,13 +490,6 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
         text=True,
     )
 
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-
-    log_file = repo / ".bale" / "logs" / f"{sid}.log"
-    log_file.parent.mkdir(parents=True, exist_ok=True)
     with log_file.open("a", encoding="utf-8") as f:
         f.write(f"\n--- validation.sh stdout ({sid}) ---\n")
         f.write(result.stdout)
