@@ -393,8 +393,16 @@ table says to.
 ## 11. Context Budget
 
 Every session is bounded by a single context window. This section
-governs how Claude detects the budget running thin and what to do
-about it. The premise lives in §1; this section is the mechanics.
+covers two defenses against overrunning it. The first is
+*preventive*: a pre-flight check (§11.2) that estimates up front
+whether the goal can plausibly fit, *before* any irreversible
+reading, and proposes a split if it can't. The second is *reactive*:
+detecting the budget running thin mid-session and bailing to a
+handoff (§11.3–§11.5). The preventive check is the cheaper gate —
+it spends almost nothing before deciding — so it fires first; the
+reactive path is the safety net for the cases that only reveal their
+size once the work is underway. The premise lives in §1; this
+section is the mechanics.
 
 ### 11.1 Operating realities
 
@@ -417,7 +425,69 @@ about it. The premise lives in §1; this section is the mechanics.
   only when their outputs consume that space, which is a
   context-budget event, not a tool-use limit event.
 
-### 11.2 Bail triggers
+### 11.2 Pre-flight scope check
+
+Before drilling into any of the triggered drill-down docs or the
+in-scope source files — *before any irreversible reading* — Claude
+makes one estimate: does this goal plausibly fit a single context
+window? The estimate is **behavioral, not numeric** (§11.1): Claude
+cannot count tokens, so the judgment is over shape — how many files
+the goal touches, how much required reading the INDEX table
+prescribes, how large a change set the work implies — not over a
+threshold.
+
+The check has teeth in one specific case the reactive path can't
+catch cheaply: **the required reading is itself a large fraction of
+the window.** If the docs and source files the INDEX table points at
+for this goal would, just by being read, consume most of the budget
+the work needs, that is an *upfront split signal* — caught here,
+before the reading is spent, not discovered mid-build. This is the
+budget face of §2's drill-down discipline ("stop and act, not keep
+reading") and the preventive complement to §11.5: over-reading is a
+first-line budget failure, and the first line is where it should be
+caught.
+
+When the goal won't fit, Claude does **not** start reading and does
+**not** start building. It stays in conversational mode and returns,
+in chat:
+
+1. **A proposed split.** Name the seam — the real boundary along
+   which the goal divides into sessions that each fit. Not "this is
+   too big," but "these two pieces are independent; the first is X,
+   the second is Y, and Y depends on X landing first." The seam is
+   the deliverable; the split is only as good as the boundary it
+   names.
+2. **A concrete `bale pack` rescope.** For the *first* session of the
+   split, a real, copy-pasteable `bale pack` command — a single line,
+   no backslash continuations — that the architect can paste to
+   create the narrower request. The command's flags and their mapping
+   to manifest fields live in `TARBALL.md` §3.4; the offer cites that
+   reference rather than inventing syntax. Framing goes in the prose
+   around the command, never inside the fenced block, so the block
+   holds only the line to paste. A typical offer reads: *splitting at
+   the types/endpoints seam, the first session is*
+
+   ```
+   bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --expects-probe no
+   ```
+
+This is **not** a bailout. A bailout (§11.4) is a tarball Claude
+ships after work is underway and the budget gave out mid-flight; it
+carries a `handoff.md` and `diagnostics.json` because real context
+was spent and has to be salvaged. The pre-flight check spends almost
+nothing — it precedes the reading — so its output is an ordinary
+chat reply proposing how to proceed, not an artifact to apply. The
+two are complementary, not redundant: the pre-flight check stops the
+*knowably* oversized goal before it costs anything; the reactive path
+(§11.3) catches the goal whose size only became visible once Claude
+was inside the work.
+
+If the goal does plausibly fit, Claude proceeds normally — reads what
+the INDEX table prescribes and builds. The check is a gate, not a
+ceremony; a goal that obviously fits clears it in a sentence of
+silent judgment, not a paragraph of analysis.
+
+### 11.3 Bail triggers
 
 Bail when one of these is true:
 
@@ -455,7 +525,7 @@ going to truncate or trigger compaction. Conservative bailout is
 cheap (a queued re-attempt); confident push-through that ends in
 compaction is expensive (silent breakage I have to catch later).
 
-### 11.3 The bailout response
+### 11.4 The bailout response
 
 A bailout is a distinguished kind of response tarball, marked
 `response_kind: "bailout"` in the manifest so bale's apply step
@@ -478,14 +548,17 @@ no-op `validation.sh`. Nothing is applied to the project. The
 follow-on action is `bale handoff <response-NNN>` to package the
 handoff into a fresh session with full budget.
 
-### 11.4 Bailout is not a fallback for laziness
+### 11.5 Bailout is not a fallback for laziness
 
-The first-line defense against running out of budget is the
-drill-down discipline in §2: don't over-read, don't explore
+The first-line defense against running out of budget is two-part:
+the drill-down discipline in §2 (don't over-read, don't explore
 branches that haven't earned the budget, don't pre-skim docs the
-INDEX table didn't point at. Bailout is the safety net for
-sessions where the goal was genuinely bigger than the budget — not
-for sessions where Claude could have finished by reading less.
+INDEX table didn't point at) and the pre-flight scope check in §11.2
+(don't commit to a goal whose required reading or change set won't
+fit, split it first). Bailout is the safety net behind both — for
+sessions where the goal was genuinely bigger than the budget and the
+size only surfaced mid-build, not for sessions where Claude could
+have finished by reading less or should have split up front.
 
 If bailouts cluster around the same kind of work, the signal is
 about scoping, not about Claude's discipline. That observation
