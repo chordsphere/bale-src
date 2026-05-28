@@ -43,6 +43,14 @@ canonical design reference for the bale tool — it is project
 documentation for bale-src, not a global workflow doc, and is not
 injected into requests for other projects.
 
+Routing — when a session is authoring or emitting a `bale pack` command
+(by hand, or as a rescope offer per `CLAUDE.md` §11.2), the canonical
+flag/format surface is `TARBALL.md` §3.4; cite it rather than reconstruct
+the command from `bin/bale`'s pack argparse parser, which now carries a
+pointer comment to the same section. This is a cross-reference into an
+injected global doc, not an inventory entry — the global docs are not
+listed here (see above).
+
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
