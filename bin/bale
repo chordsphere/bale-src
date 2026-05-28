@@ -4330,6 +4330,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True, metavar="<command>")
 
     # pack
+    # Flag/format surface is canonical in TARBALL.md §3.4 — cite it when
+    # authoring or emitting this command (single-line, no backslash
+    # continuations); don't reconstruct it from this parser.
     p_pack = sub.add_parser(
         "pack",
         help="Build a request tarball from goal + included paths.",
