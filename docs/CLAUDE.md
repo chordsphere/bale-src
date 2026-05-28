@@ -431,21 +431,41 @@ Before drilling into any of the triggered drill-down docs or the
 in-scope source files — *before any irreversible reading* — Claude
 makes one estimate: does this goal plausibly fit a single context
 window? The estimate is **behavioral, not numeric** (§11.1): Claude
-cannot count tokens, so the judgment is over shape — how many files
-the goal touches, how much required reading the INDEX table
-prescribes, how large a change set the work implies — not over a
-threshold.
+cannot count tokens, so the judgment is over shape, not over a
+threshold. And the shape that matters is *total projected
+throughput*, not input alone — what the goal makes Claude read in
+(the docs and source files the INDEX table prescribes for it), what
+it makes Claude write out (the change set the goal implies: the
+`files/` mirror, the manifest, the response artifacts), and what it
+makes Claude verify (authoring `validation.sh`, reasoning through
+each claim, and the self-checking passes over its own output that a
+larger change set multiplies). A goal can have a modest read-in and
+still overrun the window on what it produces or on what confirming it
+costs. The estimate weighs all three. Reading is the one Claude is
+most tempted to treat as the whole cost — it is the part visible
+before the work even starts — which is exactly why the output and
+verification the goal implies have to be named alongside it.
 
-The check has teeth in one specific case the reactive path can't
-catch cheaply: **the required reading is itself a large fraction of
-the window.** If the docs and source files the INDEX table points at
-for this goal would, just by being read, consume most of the budget
-the work needs, that is an *upfront split signal* — caught here,
-before the reading is spent, not discovered mid-build. This is the
-budget face of §2's drill-down discipline ("stop and act, not keep
-reading") and the preventive complement to §11.5: over-reading is a
-first-line budget failure, and the first line is where it should be
-caught.
+The check earns its keep because it is the only gate that weighs the
+whole of throughput *before* any of it is spent. Required reading is
+the component that most needs catching here: once the docs and source
+files the INDEX table points at have been read, that budget is gone —
+the reactive path (§11.3) cannot un-spend it. So a goal whose
+prescribed reading would, just by being read, consume most of the
+budget the work needs is an *upfront split signal*, caught before the
+reading is spent rather than discovered after. But the same logic
+extends to write-out and verification. The reactive path *can* notice
+a change set running long mid-build (§11.3's mid-build budget panic),
+yet by the time it does, the reading and the early output are already
+spent and only a bailout salvages them. Estimating projected output
+volume and verification cost up front — from the change set the goal
+implies, before the reading — turns a class of mid-build bailouts
+into a cheap conversational rescope. This is the budget face of §2's
+drill-down discipline ("stop and act, not keep reading") and the
+preventive complement to §11.5: over-reading is a first-line budget
+failure, but so is committing to a goal whose output or verification
+was always going to overflow, and the first line is where both should
+be caught.
 
 When the goal won't fit, Claude does **not** start reading and does
 **not** start building. It stays in conversational mode and returns,
@@ -482,10 +502,22 @@ two are complementary, not redundant: the pre-flight check stops the
 (§11.3) catches the goal whose size only became visible once Claude
 was inside the work.
 
-If the goal does plausibly fit, Claude proceeds normally — reads what
+If the goal *comfortably* fits, Claude proceeds normally — reads what
 the INDEX table prescribes and builds. The check is a gate, not a
 ceremony; a goal that obviously fits clears it in a sentence of
 silent judgment, not a paragraph of analysis.
+
+A goal that fits only *tightly* does not clear the gate. A tight fit
+is the precise shape that turns into a mid-build budget panic (§11.3)
+or, worse, into compaction before Claude can bail — and §11.1 is
+clear that compaction is a failure mode, not a margin to spend. The
+trade is asymmetric: splitting one window early costs a queued
+re-attempt, while a tight fit that proves too tight costs a bailout
+and a salvaged handoff. So when the honest estimate is *"this just
+barely fits,"* Claude treats it exactly as a goal that won't fit —
+staying in conversational mode and returning the split proposal above
+— rather than betting the window on the estimate having been
+generous. Only a comfortable margin proceeds.
 
 ### 11.3 Bail triggers
 
