@@ -6,9 +6,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`)
 
-Four Python files in `bin/`, no third-party dependencies. `bin/bale` is
+Five Python files in `bin/`, no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
@@ -172,8 +172,30 @@ helpers it needs (`fail`, `log`, `git`, `sha256_file`, `is_path_safe`,
 path constants — every path derives from the functions' arguments — so the
 module is just the functions. The extraction was behavior-preserving.
 
-Two-level subparsing only — `bale <verb>` for seven top-level commands
-(`pack`, `apply`, `retry`, `revert`, `unlock`, `handoff`, `config`),
+`bin/bale_rollback.py` is the fourth sibling (added in v0.2.0) and the first
+that is **net-new code rather than an extraction** — it is the v0.2 rollback
+feature, placed in its own module from the start so `bin/bale` gained only the
+CLI wiring rather than a fresh command cluster (the alternative considered, a
+Rollback section inside `bin/bale` next to Revert, is recorded in the v0.2
+response notes). It owns `bale rollback`'s three operations — default rollback
+(`git revert` of an `applied/<sid>` merge commit, `-m 1` mainline), `--undo`
+(revert the revert, re-applying), and `--list` (applied sessions with status)
+— plus the shared revert core, the dirty-tree guard (`--stash` / `--force`),
+the conflict-in-progress path, and the tag bookkeeping that threads one
+session through `applied/<sid>` → `reverted/<sid>` → `re-applied/<sid>`. Like
+a single cohesive cluster it carries only a module docstring (no index header
+— CODE.md §2.1). `bin/bale` imports its single public entry point
+`cmd_rollback` by name (`from bale_rollback import cmd_rollback`); the module
+reaches back for shared helpers (`log`, `fail`, `git`, `repo_root`,
+`refuse_system_dir`, `current_branch`, `working_tree_clean`, `set_log_file`)
+lazily from `__main__`, the same idiom the other three siblings use. Landing
+it retired the "no `bale rollback` yet" stubs in `cmd_revert` /
+`_discard_hold_state`, which now route the already-merged case to
+`bale rollback <sid>`.
+
+Two-level subparsing only — `bale <verb>` for eight top-level commands
+(`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
+`config`),
 plus `bale config <subcommand>` for the config family. At v0.0.x the
 only `config` subcommand is `init`; `set`, `get`, `edit` are
 deliberately out of scope until they earn a place.
