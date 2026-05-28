@@ -169,6 +169,30 @@ it as a global flag) and the §7.4 pass-through of `--verbose` into
 `validation.sh` itself are left as future work — see this session's
 notes.md.
 
+v0.2.2 closes the two BALE.md §13 v0.3 polish items deferred in v0.2.1:
+`bale help [<cmd>]` (inline discovery — BALE.md §5.1) and `bale
+completion bash` (an opt-in bash completion generator — BALE.md §3.1).
+Both are projections of one source of truth: the argparse parser
+`build_parser()` returns. `cmd_help` dispatches argparse's own
+`format_help()` after walking `_SubParsersAction.choices` to the named
+command (one level for top-level commands, two for `config init` /
+`help <cmd> <sub>`). `cmd_completion` walks the same parser once and
+emits a self-contained bash function that does pure-shell dispatch at
+Tab-press time — no subprocess back to bale per Tab press. The two
+functions plus a small introspection layer (`_get_subparsers_action`,
+`_iter_flag_actions`, `_classify_flag`, `_generate_bash_completion`)
+land in a new section 24 "Help and completion"; the prior section 24
+"CLI" renumbers to 25 and gains the two new subparsers. No separate
+command/flag registry data structure was added: argparse already
+encodes commands, flags, choices, and help strings, and a parallel
+dict that `build_parser()` consumes would double the bookkeeping for
+every new command and let drift creep in silently. With both items
+landed, the v0.3 polish phase has one open thread — the `--verbose`
+extension to commands beyond `apply` and the §7.4 pass-through to
+`validation.sh` — so v0.3 is not cut here; the architect's call on
+whether to cut now with that thread tracked separately, or to bundle
+it into v0.3 first, is left to the next session.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -189,37 +213,38 @@ which since session 003 means Python 3.11+ (tomllib lives there, inside
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  314)
-   2. Logging                                          (~line  391)
-   3. Shell / git helpers                              (~line  478)
-   4. Hashing                                          (~line  517)
-   5. Session IDs and the per-day counter              (~line  533)
-   6. Lock handling                                    (~line  591)
-   7. .gitignore handling for the .bale/ directory     (~line  622)
-   8. Path-safety checks                               (~line  652)
-   9. Editor invocation                                (~line  700)
-  10. Pack: file enumeration and filtering             (~line  761)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1138)
-  12. Pack: slug validation                            (~line 1421)
-  13. Pack: manifest and tarball construction          (~line 1434)
-  14. Pack: wizard                                     (~line 1549)
-  15. Pack                                             (~line 1791)
-  16. Apply: helpers                                   (~line 2340)
-  17. Apply: pipeline                                  (~line 2822)
-  18. Apply                                            (~line 3144)
-  19. Revert                                           (~line 3362)
-  20. Retry                                            (~line 3543)
-  21. Unlock                                           (~line 3592)
-  22. Handoff                                          (~line 3686)
-  23. Hook invocation                                  (~line 4100)
-  24. CLI                                              (~line 4223)
+   1. Imports + constants                              (~line  339)
+   2. Logging                                          (~line  416)
+   3. Shell / git helpers                              (~line  503)
+   4. Hashing                                          (~line  542)
+   5. Session IDs and the per-day counter              (~line  558)
+   6. Lock handling                                    (~line  616)
+   7. .gitignore handling for the .bale/ directory     (~line  647)
+   8. Path-safety checks                               (~line  677)
+   9. Editor invocation                                (~line  725)
+  10. Pack: file enumeration and filtering             (~line  786)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1163)
+  12. Pack: slug validation                            (~line 1446)
+  13. Pack: manifest and tarball construction          (~line 1459)
+  14. Pack: wizard                                     (~line 1574)
+  15. Pack                                             (~line 1816)
+  16. Apply: helpers                                   (~line 2365)
+  17. Apply: pipeline                                  (~line 2847)
+  18. Apply                                            (~line 3169)
+  19. Revert                                           (~line 3387)
+  20. Retry                                            (~line 3568)
+  21. Unlock                                           (~line 3617)
+  22. Handoff                                          (~line 3711)
+  23. Hook invocation                                  (~line 4125)
+  24. Help and completion                              (~line 4248)
+  25. CLI                                              (~line 4651)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
 ("bale.toml — configurables" and "`bale config init` — the
 configurables wizard") moved there entire. The two remaining surfaces
 that touch configurables — `run_hook` (section 23) and the `config
-init` subparser wiring (section 24) — go through `bale_config`'s
+init` subparser wiring (section 25) — go through `bale_config`'s
 module-level API.
 
 Manifest + JSON Schema validation lives in the sibling
@@ -241,9 +266,9 @@ The `bale rollback` command lives in the sibling `bale_rollback.py` module
 (added in v0.2.0 — the fourth sibling, and the first that is net-new rather
 than an extraction). This file imports its single public entry point —
 `cmd_rollback` — by name, wired to the `rollback` subparser in the CLI
-section. The undo-family tag bookkeeping (applied/ → reverted/ → re-applied/)
-and the `git revert` mechanics all live in that module; `bin/bale` keeps only
-the subparser and the dispatch.
+section (section 25). The undo-family tag bookkeeping (applied/ → reverted/
+→ re-applied/) and the `git revert` mechanics all live in that module;
+`bin/bale` keeps only the subparser and the dispatch.
 """
 
 from __future__ import annotations
@@ -314,7 +339,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -358,7 +383,7 @@ BALEIGNORE_FILE = ".baleignore"
 # Configurables (the bale.toml file name, the per-install user/ directory,
 # hook names, and apply-section value keys) moved to bin/bale_config.py
 # in v0.0.4. The two surfaces in this file that still touch them — run_hook
-# (section 23) and the `config init` subparser wiring (section 24) — reach
+# (section 23) and the `config init` subparser wiring (section 25) — reach
 # them through bale_config.* module-level attributes.
 
 # Path-location refusals. From BALE.md section 7.1.
@@ -4220,7 +4245,410 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 24. CLI
+# 24. Help and completion
+# ---------------------------------------------------------------------------
+#
+# `bale help [<cmd>]` and `bale completion bash` are two projections of the
+# same source of truth: the argparse parser `build_parser()` (section 25)
+# returns. The parser is the canonical command/flag registry — every
+# subcommand, flag, choice, and help string lives there exactly once, and
+# both surfaces here read it through a small introspection layer
+# (`_get_subparsers_action`, `_iter_flag_actions`, `_classify_flag`).
+#
+# A separate COMMAND_REGISTRY dict that `build_parser()` consumed in
+# parallel was considered and rejected: argparse already encodes the data,
+# so the parallel dict would double the bookkeeping for every new command
+# and let drift creep in silently (a flag added to argparse and forgotten
+# in the dict would just stop appearing in completion or help, with no
+# error). Reading argparse's `_SubParsersAction.choices` and each
+# subparser's `_actions` is a stable, widely-used idiom; the leading
+# underscore on `_actions` is more pep8-stylistic than a stability marker.
+#
+# `cmd_help` dispatches argparse's own `format_help()` after walking
+# `_SubParsersAction.choices` to the named command. The walk supports
+# `config init` (two-level nesting) and `help` (which itself shows its
+# usage when run as `bale help help`).
+#
+# `cmd_completion` walks the parser once and emits a self-contained bash
+# function that does pure-shell dispatch at Tab-press time — no subprocess
+# back to bale per Tab press. When the parser changes (new command, new
+# flag, new --expects-probe choice), the user re-runs the command and
+# re-sources. Bale itself never touches the user's shell rc.
+
+def _get_subparsers_action(parser: argparse.ArgumentParser):
+    """Return the parser's `_SubParsersAction`, or `None` if it has none.
+
+    argparse exposes subparsers as an action in `_actions`; this is the
+    only stable way to enumerate them programmatically. `bin/bale` builds
+    each parser with exactly one subparsers action (`bale <cmd>` for the
+    top-level, `bale config <sub>` for the config group), so the function
+    returns the first match.
+    """
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return action
+    return None
+
+
+def _iter_flag_actions(subparser: argparse.ArgumentParser):
+    """Yield non-positional actions on `subparser`.
+
+    Includes argparse's auto-added `-h`/`--help`, since that's a real flag
+    the user can pass and completion should surface it. Excludes
+    positional arguments and the subparsers action (positionals have an
+    empty `option_strings`).
+    """
+    for action in subparser._actions:
+        if action.option_strings:
+            yield action
+
+
+def _classify_flag(action: argparse.Action) -> tuple[bool, Optional[list[str]]]:
+    """Classify a flag action for completion purposes.
+
+    Returns `(takes_value, choices_or_None)`:
+        takes_value — True if the flag expects a value argument after it
+                      (so completion of the next word is value-flavored,
+                      not flag-flavored).
+        choices     — non-None when argparse's `choices=` was set, giving
+                      the literal value list to suggest. None when any
+                      string/int/path is acceptable.
+
+    The valueless action types (`store_true`, `store_false`, `store_const`,
+    `count`, `version`, `help`) cover argparse's built-in surface here.
+    """
+    valueless = (
+        argparse._StoreTrueAction,
+        argparse._StoreFalseAction,
+        argparse._StoreConstAction,
+        argparse._CountAction,
+        argparse._VersionAction,
+        argparse._HelpAction,
+    )
+    if isinstance(action, valueless):
+        return (False, None)
+    choices = list(action.choices) if action.choices else None
+    return (True, choices)
+
+
+# --- bale help [<cmd> [<sub>]] -----------------------------------------------
+
+def cmd_help(args) -> int:
+    """Print help for bale, a command, or a nested subcommand.
+
+    `bale help`                  → top-level usage (commands + one-liners).
+    `bale help <cmd>`            → that command's full --help output.
+    `bale help <cmd> <sub>`      → nested subcommand's --help (e.g.
+                                   `bale help config init`).
+    `bale help <unknown>`        → fails with the available command list.
+
+    Implementation is just argparse's own `format_help()` invoked at the
+    right level — no duplicated help strings.
+    """
+    parser = build_parser()
+    names = list(args.command_path or [])
+
+    if not names:
+        parser.print_help()
+        return 0
+
+    # Walk the chain. At each step, the current parser must have a
+    # _SubParsersAction whose .choices includes the next name.
+    current: argparse.ArgumentParser = parser
+    for i, name in enumerate(names):
+        sub = _get_subparsers_action(current)
+        if sub is None:
+            qualified = "bale " + " ".join(names[:i])
+            fail(
+                f"`{qualified}` has no subcommands; "
+                f"try `bale help {' '.join(names[:i])}` for its flags."
+            )
+        if name not in sub.choices:
+            qualified = "bale" if i == 0 else "bale " + " ".join(names[:i])
+            available = ", ".join(sorted(sub.choices))
+            fail(
+                f"no such command: `{name}` under `{qualified}`. "
+                f"Available: {available}."
+            )
+        current = sub.choices[name]
+
+    current.print_help()
+    return 0
+
+
+# --- bale completion bash ----------------------------------------------------
+
+def _generate_bash_completion(parser: argparse.ArgumentParser) -> str:
+    """Generate a self-contained bash completion script for `bale`.
+
+    The output is a complete bash file: header comment, one
+    `_bale_complete` function that does pure-shell dispatch (no subprocess
+    back to bale per Tab press), and the `complete -F` line that
+    registers it. The user sources the output once per shell session
+    (`source <(bale completion bash)`) or installs it persistently under
+    `~/.local/share/bash-completion/completions/bale`.
+
+    Generation walks the parser once at runtime, so the script is in sync
+    with whatever surface bale exposes the moment the user generated it.
+    """
+    sub_action = _get_subparsers_action(parser)
+    if sub_action is None:
+        fail("internal: top-level parser has no subcommands")
+
+    cmd_names = list(sub_action.choices.keys())
+
+    # nested_map[cmd] = [list of subcommand names] for two-level commands.
+    # Right now only `config` has subcommands; the structure scales when
+    # more do. Used both for completing `bale config <TAB>` and for
+    # completing the second positional of `bale help <cmd> <TAB>`.
+    nested_map: dict[str, list[str]] = {}
+    for cn in cmd_names:
+        nested = _get_subparsers_action(sub_action.choices[cn])
+        if nested is not None:
+            nested_map[cn] = list(nested.choices.keys())
+
+    lines: list[str] = []
+    lines.append("# bash completion for bale.")
+    lines.append("# Generated by `bale completion bash` — regenerate when bale's CLI changes.")
+    lines.append("#")
+    lines.append("# Usage:")
+    lines.append("#   source <(bale completion bash)")
+    lines.append("# Or, persistently:")
+    lines.append("#   bale completion bash > ~/.local/share/bash-completion/completions/bale")
+    lines.append("")
+    lines.append("_bale_complete() {")
+    lines.append("    local cur prev cword")
+    lines.append('    cur="${COMP_WORDS[COMP_CWORD]}"')
+    lines.append('    prev="${COMP_WORDS[COMP_CWORD-1]}"')
+    lines.append("    cword=$COMP_CWORD")
+    lines.append("")
+    lines.append("    # Find the first non-flag word after `bale` — that's the subcommand.")
+    lines.append('    local sub="" i')
+    lines.append("    for (( i=1; i<cword; i++ )); do")
+    lines.append('        case "${COMP_WORDS[i]}" in')
+    lines.append("            -*) ;;")
+    lines.append('            *) sub="${COMP_WORDS[i]}"; break ;;')
+    lines.append("        esac")
+    lines.append("    done")
+    lines.append("")
+    lines.append('    if [ -z "$sub" ]; then')
+    lines.append('        case "$cur" in')
+    lines.append('            -*) COMPREPLY=( $(compgen -W "--version --help" -- "$cur") ) ;;')
+    lines.append(f'            *) COMPREPLY=( $(compgen -W "{" ".join(cmd_names)}" -- "$cur") ) ;;')
+    lines.append("        esac")
+    lines.append("        return 0")
+    lines.append("    fi")
+    lines.append("")
+    lines.append('    case "$sub" in')
+
+    for cn in cmd_names:
+        _emit_subcommand_branch(lines, cn, sub_action.choices[cn], cmd_names, nested_map)
+
+    lines.append("        *)")
+    lines.append("            COMPREPLY=()")
+    lines.append("            ;;")
+    lines.append("    esac")
+    lines.append("}")
+    lines.append("")
+    lines.append("complete -F _bale_complete bale")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _emit_subcommand_branch(
+    lines: list[str],
+    name: str,
+    subparser: argparse.ArgumentParser,
+    all_cmd_names: list[str],
+    nested_map: dict[str, list[str]],
+) -> None:
+    """Emit one `case "$sub" in <name>) ... ;;` branch.
+
+    Per branch, the dispatch order is:
+      1. If `$prev` was a value-taking flag, complete its value (choices
+         literal, or fall through to filename completion).
+      2. If this command has a nested subparser (e.g. `config init`),
+         dispatch on the next positional.
+      3. If `$cur` starts with `-`, complete from this command's flag list.
+      4. Otherwise, complete the positional — command names for `help`,
+         choices for `completion`, filenames for tarball/sid commands,
+         else nothing.
+    """
+    lines.append(f"        {name})")
+
+    # Collect flags and classify each.
+    flag_actions = list(_iter_flag_actions(subparser))
+    all_flag_strings: list[str] = []
+    value_flag_strings: list[str] = []   # any flag that takes a value
+    choice_flags: list[tuple[list[str], list[str]]] = []  # (option_strings, choices)
+    for action in flag_actions:
+        all_flag_strings.extend(action.option_strings)
+        takes_value, choices = _classify_flag(action)
+        if takes_value:
+            value_flag_strings.extend(action.option_strings)
+            if choices:
+                choice_flags.append((action.option_strings, [str(c) for c in choices]))
+
+    # 1. Previous-word dispatch for value-taking flags.
+    if value_flag_strings:
+        lines.append('            case "$prev" in')
+        choice_flag_strings = {s for opts, _ in choice_flags for s in opts}
+        for opt_strings, choices in choice_flags:
+            pat = "|".join(opt_strings)
+            words = " ".join(choices)
+            lines.append(f"                {pat})")
+            lines.append(f'                    COMPREPLY=( $(compgen -W "{words}" -- "$cur") )')
+            lines.append("                    return 0 ;;")
+        other_value_flags = [s for s in value_flag_strings if s not in choice_flag_strings]
+        if other_value_flags:
+            pat = "|".join(other_value_flags)
+            lines.append(f"                {pat})")
+            lines.append("                    compopt -o default 2>/dev/null")
+            lines.append("                    COMPREPLY=()")
+            lines.append("                    return 0 ;;")
+        lines.append("            esac")
+
+    # 2. Two-level commands: dispatch on the second positional.
+    if name in nested_map:
+        nested_names = nested_map[name]
+        lines.append('            local subsub="" j')
+        lines.append("            for (( j=i+1; j<cword; j++ )); do")
+        lines.append('                case "${COMP_WORDS[j]}" in')
+        lines.append("                    -*) ;;")
+        lines.append('                    *) subsub="${COMP_WORDS[j]}"; break ;;')
+        lines.append("                esac")
+        lines.append("            done")
+        lines.append('            if [ -z "$subsub" ]; then')
+        lines.append('                case "$cur" in')
+        lines.append(
+            f'                    -*) COMPREPLY=( $(compgen -W "{" ".join(all_flag_strings)}" -- "$cur") ) ;;'
+        )
+        lines.append(
+            f'                    *) COMPREPLY=( $(compgen -W "{" ".join(nested_names)}" -- "$cur") ) ;;'
+        )
+        lines.append("                esac")
+        lines.append("                return 0")
+        lines.append("            fi")
+        lines.append('            case "$subsub" in')
+        nested_action = _get_subparsers_action(subparser)
+        for nname in nested_names:
+            nsp = nested_action.choices[nname]
+            n_flag_strings: list[str] = []
+            for a in _iter_flag_actions(nsp):
+                n_flag_strings.extend(a.option_strings)
+            lines.append(f"                {nname})")
+            lines.append('                    case "$cur" in')
+            lines.append(
+                f'                        -*) COMPREPLY=( $(compgen -W "{" ".join(n_flag_strings)}" -- "$cur") ) ;;'
+            )
+            lines.append("                        *) COMPREPLY=() ;;")
+            lines.append("                    esac")
+            lines.append("                    return 0 ;;")
+        lines.append("            esac")
+        lines.append("            ;;")
+        return
+
+    # 3/4. Single-positional command: flag-or-positional dispatch.
+    # Determine positional completion strategy:
+    #   - `bale help` → top-level command names AND, on the second
+    #     positional, that command's nested subcommand names (so
+    #     `bale help config <TAB>` suggests `init`).
+    #   - argparse `choices=` on the positional → those choices.
+    #   - positional dest is `tarball` → filename completion.
+    #   - else → no positional completion.
+    positional_words: Optional[str] = None
+    positional_is_filename = False
+
+    if name == "help":
+        # Two-positional shape: command + optional sub.
+        # First positional: top-level commands. Second positional: that
+        # command's subcommands (if any). Track how many positionals are
+        # already in the line.
+        lines.append('            local helped="" k seen_pos=0')
+        lines.append("            for (( k=i+1; k<cword; k++ )); do")
+        lines.append('                case "${COMP_WORDS[k]}" in')
+        lines.append("                    -*) ;;")
+        lines.append("                    *)")
+        lines.append("                        seen_pos=$((seen_pos+1))")
+        lines.append('                        if [ -z "$helped" ]; then')
+        lines.append('                            helped="${COMP_WORDS[k]}"')
+        lines.append("                        fi")
+        lines.append("                        ;;")
+        lines.append("                esac")
+        lines.append("            done")
+        lines.append('            case "$cur" in')
+        lines.append('                -*) COMPREPLY=( $(compgen -W "--help" -- "$cur") ) ;;')
+        lines.append("                *)")
+        lines.append('                    if [ -z "$helped" ]; then')
+        lines.append(
+            f'                        COMPREPLY=( $(compgen -W "{" ".join(all_cmd_names)}" -- "$cur") )'
+        )
+        lines.append("                    else")
+        lines.append('                        case "$helped" in')
+        for parent_cmd, child_cmds in nested_map.items():
+            lines.append(
+                f'                            {parent_cmd}) COMPREPLY=( $(compgen -W "{" ".join(child_cmds)}" -- "$cur") ) ;;'
+            )
+        lines.append("                            *) COMPREPLY=() ;;")
+        lines.append("                        esac")
+        lines.append("                    fi")
+        lines.append("                    ;;")
+        lines.append("            esac")
+        lines.append("            ;;")
+        return
+
+    # General single-positional handling: read the positional's argparse
+    # spec to decide.
+    for action in subparser._actions:
+        if action.option_strings:
+            continue
+        if isinstance(action, argparse._SubParsersAction):
+            # Already handled above by nested_map; defensive in case the
+            # parser shape changes.
+            continue
+        if action.choices:
+            positional_words = " ".join(str(c) for c in action.choices)
+        elif action.dest == "tarball":
+            # The only path-shaped positional in bale today.
+            positional_is_filename = True
+        break
+
+    lines.append('            case "$cur" in')
+    lines.append(
+        f'                -*) COMPREPLY=( $(compgen -W "{" ".join(all_flag_strings)}" -- "$cur") ) ;;'
+    )
+    if positional_words is not None:
+        lines.append(
+            f'                *) COMPREPLY=( $(compgen -W "{positional_words}" -- "$cur") ) ;;'
+        )
+    elif positional_is_filename:
+        lines.append("                *) compopt -o default 2>/dev/null; COMPREPLY=() ;;")
+    else:
+        lines.append("                *) COMPREPLY=() ;;")
+    lines.append("            esac")
+    lines.append("            ;;")
+
+
+def cmd_completion(args) -> int:
+    """Print a shell completion script for `bale` to stdout.
+
+    Only bash is supported at v0.2.2; the subparser's `choices=` enforces
+    that, so this function only ever sees `args.shell == "bash"`. The
+    defensive check below is for if a future session adds zsh/fish to
+    `choices` without wiring the generator branch — the failure mode
+    should be a loud error, not a silent empty file.
+    """
+    if args.shell != "bash":
+        fail(
+            f"shell '{args.shell}' is in argparse's choices list but its "
+            f"completion generator hasn't been wired yet."
+        )
+    sys.stdout.write(_generate_bash_completion(build_parser()))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 25. CLI
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -4562,6 +4990,62 @@ def build_parser() -> argparse.ArgumentParser:
              "require a git repo.",
     )
     p_config_init.set_defaults(func=bale_config.cmd_config_init)
+
+    # help — inline discovery (BALE.md §5.1). Renders argparse's own
+    # format_help() at the right level after walking the parser to the
+    # named command. `bale help` and `bale --help` produce the same
+    # top-level output; the subcommand form (`bale help pack`,
+    # `bale help config init`) is what justifies a dedicated command —
+    # `bale <cmd> --help` already works per-subparser but isn't
+    # discoverable from the top-level help text the way a named
+    # subcommand is.
+    p_help = sub.add_parser(
+        "help",
+        help="Show help for bale or a specific command.",
+        description=(
+            "Show help. With no arguments, prints the top-level usage "
+            "and the list of commands. With a command name, prints that "
+            "command's full --help output. Two-level commands accept a "
+            "subcommand: `bale help config init` shows `bale config "
+            "init`'s flags."
+        ),
+    )
+    p_help.add_argument(
+        "command_path",
+        nargs="*",
+        metavar="<cmd>",
+        help="Command (and optional subcommand) to show help for. Omit "
+             "for the top-level usage.",
+    )
+    p_help.set_defaults(func=cmd_help)
+
+    # completion — print a bash completion script to stdout. Source it
+    # from your shell rc (BALE.md §3.1: "Source a bash-completion script
+    # in shell rc"). The script is generated by walking this very parser,
+    # so it stays in sync with whatever surface bale exposes at the
+    # moment of generation; re-run when commands or flags change.
+    p_completion = sub.add_parser(
+        "completion",
+        help="Print a shell completion script (bash) to stdout.",
+        description=(
+            "Print a shell completion script to stdout for the chosen "
+            "shell. Only bash is supported in v0.2.2. The output is a "
+            "self-contained function that does pure-shell dispatch at "
+            "Tab-press time — no subprocess back to bale per Tab press. "
+            "Source it from your shell rc:\n\n"
+            "    source <(bale completion bash)\n\n"
+            "Or install persistently:\n\n"
+            "    bale completion bash > ~/.local/share/bash-completion/completions/bale\n\n"
+            "Re-generate when bale's CLI surface changes."
+        ),
+    )
+    p_completion.add_argument(
+        "shell",
+        choices=("bash",),
+        metavar="<shell>",
+        help="Which shell to emit completion for. Currently only 'bash'.",
+    )
+    p_completion.set_defaults(func=cmd_completion)
 
     return p
 

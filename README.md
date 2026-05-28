@@ -167,8 +167,14 @@ bale revert <sid>
 ```
 
 Run `bale --help` for the full command surface and `bale <command> --help`
-for any specific command. The workflow these commands enforce is described
-in `docs/CLAUDE.md` and `docs/TARBALL.md`; read those when you want the why.
+for any specific command. `bale help` and `bale help <command>` are
+equivalents (the dedicated help subcommand makes that surface discoverable
+from the top-level command list — useful when you forget which flag you
+were after). For bash users, `source <(bale completion bash)` from your
+shell rc adds Tab completion of commands, flags, and choice-valued args
+like `--expects-probe yes|no|claude-decides`. The workflow these commands
+enforce is described in `docs/CLAUDE.md` and `docs/TARBALL.md`; read those
+when you want the why.
 
 ## bale-src — this is also bale's own source
 

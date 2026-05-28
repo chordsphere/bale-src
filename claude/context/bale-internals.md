@@ -119,6 +119,28 @@ is *for* — and stays stable as the per-section line numbers drift:
     latter takes gitignore-style patterns parsed by the same
     `BaleignoreMatcher` (cluster 10), composes them with the
     repo's `.baleignore`, and applies them session-scope only.
+    From v0.2.2, the `help` and `completion` subparsers
+    (`func=cmd_help`, `func=cmd_completion`) wire the discoverability
+    surface that cluster 17 implements.
+17. **Help and completion.** `cmd_help` and `cmd_completion`
+    (introduced v0.2.2) plus the small introspection layer they share
+    (`_get_subparsers_action`, `_iter_flag_actions`, `_classify_flag`,
+    `_generate_bash_completion`). Both surfaces read from a single
+    source of truth: the argparse parser `build_parser()` (cluster 16)
+    returns. `cmd_help` dispatches argparse's own `format_help()`
+    after walking `_SubParsersAction.choices` to the named command (one
+    level for top-level commands, two for `config init` and
+    `help <cmd> <sub>`). `cmd_completion` walks the same parser once
+    and prints a self-contained bash function that does pure-shell
+    dispatch at Tab-press time — no subprocess back to bale per Tab
+    press. No parallel command/flag registry data structure was added;
+    argparse already encodes the data, and a parallel dict would
+    double the bookkeeping for every new command. By file order this
+    cluster sits between Hook invocation (cluster 15, banner section
+    23) and the CLI parser (cluster 16, banner section 25); it is
+    listed as cluster 17 to preserve the existing cluster numbers,
+    which (per this section's preamble) are stable across line-number
+    drift.
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
@@ -193,12 +215,16 @@ it retired the "no `bale rollback` yet" stubs in `cmd_revert` /
 `_discard_hold_state`, which now route the already-merged case to
 `bale rollback <sid>`.
 
-Two-level subparsing only — `bale <verb>` for eight top-level commands
+Two-level subparsing only — `bale <verb>` for ten top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
-`config`),
-plus `bale config <subcommand>` for the config family. At v0.0.x the
-only `config` subcommand is `init`; `set`, `get`, `edit` are
-deliberately out of scope until they earn a place.
+`config`, `help`, `completion`), plus `bale config <subcommand>` for the
+config family. At v0.0.x the only `config` subcommand is `init`; `set`,
+`get`, `edit` are deliberately out of scope until they earn a place.
+`help` and `completion` (added v0.2.2) are top-level rather than nested
+because both are bale-wide discoverability surfaces, not configuration
+operations; `bale help` shows top-level usage, `bale help <cmd>` shows
+one command's `--help`, and `bale completion bash` prints the bash
+completion script to stdout.
 
 ---
 

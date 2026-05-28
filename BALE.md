@@ -1340,7 +1340,11 @@ session, noted in that session's `notes.md`.)*
 
 ### v0.3 — polish
 
-- Inline help (`bale help <cmd>`). *(Deferred to v0.3b.)*
+- Inline help (`bale help <cmd>`). *(Landed in v0.2.2 as the `help` and
+  `completion` subparsers in `bin/bale` section 25, dispatching through a
+  small introspection layer in the new section 24. `bale help` and `bale
+  help <cmd>` both work, plus the two-level `bale help config init`; the
+  unknown-command path prints the available list and exits non-zero.)*
 - `--show-validator`, `--show-apply-script`, `--dry-run`. *(Landed in
   v0.2.1 on the `apply` subparser — the show flags are pure tarball
   inspection needing no open session, `--dry-run` runs the read-only
@@ -1356,10 +1360,19 @@ session, noted in that session's `notes.md`.)*
   the other commands the §5.4 global-flags list anticipates, and the §7.4
   pass-through of `--verbose` into `validation.sh` itself, remain open.)*
 - Optional bash completion (`source` it from shell rc — not required
-  for any functionality). *(Deferred to v0.3b.)*
+  for any functionality). *(Landed in v0.2.2 as `bale completion bash`,
+  which walks `build_parser()` once and emits a self-contained bash
+  function that does pure-shell dispatch — no subprocess back to bale per
+  Tab press. Both the help command and the completion script read the
+  same source of truth, the argparse parser, so adding a flag in one
+  place propagates to both surfaces automatically.)*
 
-v0.3 is not yet cut: the four apply flags above landed in v0.2.1, with
-inline help and bash completion held for a v0.3b follow-up.
+v0.3 is not yet cut: the four apply flags above and apply-scoped
+`--verbose` landed in v0.2.1, inline help and bash completion landed in
+v0.2.2, and one thread remains open — the `--verbose` extension to
+commands beyond `apply` and the §7.4 pass-through of `--verbose` into
+`validation.sh` itself. The cut waits on that thread, or on an explicit
+architect's call to cut now and track the remainder under v0.3b.
 
 ### v0.4 — selftest
 
