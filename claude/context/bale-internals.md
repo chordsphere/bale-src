@@ -6,13 +6,18 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling `bin/bale_config.py`
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`)
 
-Two Python files in `bin/`, no third-party dependencies. `bin/bale` is
-the entry point; `bin/bale_config.py` is a sibling module imported by
+Three Python files in `bin/`, no third-party dependencies. `bin/bale` is
+the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
-sections). The top of `bin/bale` declares constants (paths, exclusions,
+sections). `bin/bale_validate.py` is a second sibling module, imported by
+`bin/bale` for the manifest + JSON Schema validation cluster — schema
+loading and the request/response/diagnostics validators (extracted in
+v0.1.2 to bring the apply-helpers section back under the CODE.md §4.2
+size threshold, the same precedent and sibling-import mechanism as
+`bale_config`). The top of `bin/bale` declares constants (paths, exclusions,
 version); the rest is organized as roughly-flat sections, each named with
 a numbered banner comment. The index header in the file's top docstring
 lists every section with an approximate line number; that header is the
@@ -66,7 +71,10 @@ is *for* — and stays stable as the per-section line numbers drift:
     the force-include of `.baleignore` into context when present).
 11. **Apply pipeline.** Three sections in the body: apply helpers,
     the apply pipeline proper (`_apply_pipeline`, shared with retry),
-    and `cmd_apply`. Manifest validation, file presence + sha256 +
+    and `cmd_apply`. Manifest validation (the schema-loading and
+    request/response/diagnostics validators now live in the sibling
+    `bale_validate` module — `bin/bale` imports the three public entry
+    points by name and calls them unqualified), file presence + sha256 +
     path safety (including the `.baleignore` match check per
     BALE.md §11 rule 14, which rejects a response declaring a
     path the user-managed exclusion file says shouldn't ride
@@ -113,6 +121,25 @@ listed above (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
 `fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
 `__main__` (i.e. `bin/bale`) inside the functions that use them — see
 the module docstring for why this pattern over a third shared module.
+
+`bin/bale_validate.py` is a single cohesive cluster, not a multi-section
+file, so it carries only a module docstring (no index header — CODE.md
+§2.1). It owns schema loading and caching (`load_schema`, `_SCHEMA_CACHE`,
+the `SCHEMAS_DIR` / `*_SCHEMA` name constants), the generic schema walker
+(`validate_against_schema`, `_validate_against_schema`, and the
+`_describe_json_value` / `_json_type_matches` / `_child_path` helpers),
+`validate_manifest_shape`, and the three public entry points
+`validate_request_manifest`, `validate_diagnostics`, and
+`validate_response_manifest` (the last carrying the cross-field invariants
+a per-instance schema can't express). `bin/bale` imports those three by
+name (`from bale_validate import ...`) rather than as a qualified module,
+so the apply/handoff call sites stay unqualified; the five validators that
+report failures import `fail` lazily from `__main__` inside the function
+body, the same idiom `bale_config` uses. `INSTALL_ROOT` / `SCHEMAS_DIR`
+are recomputed from this file's own location, so the module resolves the
+real `schemas/` directory independently of `bin/bale`. The schema files
+under `schemas/` and the set of recognized schema keywords are unchanged
+by the extraction — it was a behavior-preserving move.
 
 Two-level subparsing only — `bale <verb>` for seven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `unlock`, `handoff`, `config`),
