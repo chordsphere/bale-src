@@ -56,7 +56,7 @@ log "install dir: $INSTALL_DIR"
 # Verify expected layout. Catches a partial/corrupt extract before we do
 # anything. user/ is intentionally NOT in this list — it's user-owned and
 # absent on a fresh install; we report its state below but don't fail.
-for f in bin/bale bin/bale_config.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
+for f in bin/bale bin/bale_config.py bin/bale_validate.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
   [[ -e "$INSTALL_DIR/$f" ]] || die "missing expected file: $INSTALL_DIR/$f"
 done
 log "layout OK"
