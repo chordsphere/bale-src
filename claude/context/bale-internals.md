@@ -6,9 +6,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`)
 
-Three Python files in `bin/`, no third-party dependencies. `bin/bale` is
+Four Python files in `bin/`, no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
@@ -17,7 +17,12 @@ sections). `bin/bale_validate.py` is a second sibling module, imported by
 loading and the request/response/diagnostics validators (extracted in
 v0.1.2 to bring the apply-helpers section back under the CODE.md §4.2
 size threshold, the same precedent and sibling-import mechanism as
-`bale_config`). The top of `bin/bale` declares constants (paths, exclusions,
+`bale_config`). `bin/bale_staging.py` is a third sibling module, imported
+by `bin/bale` for the apply pipeline's staging + reconciliation cluster —
+the shell-syntax pre-flight, response-vs-manifest verification, staging-tree
+construction, post-`apply.sh` reconciliation, `validation.sh` run, and
+worktree apply (extracted in v0.1.3 to continue the section-16 reduction,
+the same precedent and mechanism again). The top of `bin/bale` declares constants (paths, exclusions,
 version); the rest is organized as roughly-flat sections, each named with
 a numbered banner comment. The index header in the file's top docstring
 lists every section with an approximate line number; that header is the
@@ -69,9 +74,14 @@ is *for* — and stays stable as the per-section line numbers drift:
     per BALE.md §10, the §7.4 soft-cap `[y]/[e]/[n]` loop where
     `[e]` collects more session-only excludes and re-walks, and
     the force-include of `.baleignore` into context when present).
-11. **Apply pipeline.** Three sections in the body: apply helpers,
-    the apply pipeline proper (`_apply_pipeline`, shared with retry),
-    and `cmd_apply`. Manifest validation (the schema-loading and
+11. **Apply pipeline.** Three sections in the body: apply helpers (the
+    staging-tree, reconciliation, `validation.sh`-run, worktree-apply,
+    response-verification, and shell-syntax-pre-flight helpers were
+    extracted to the sibling `bale_staging` module in v0.1.3, imported by
+    name; what remains in this section is `current_branch`,
+    `working_tree_clean`, and the walkthrough / bailout / tarball-resolution
+    helpers), the apply pipeline proper (`_apply_pipeline`, shared with
+    retry), and `cmd_apply`. Manifest validation (the schema-loading and
     request/response/diagnostics validators now live in the sibling
     `bale_validate` module — `bin/bale` imports the three public entry
     points by name and calls them unqualified), file presence + sha256 +
@@ -140,6 +150,27 @@ are recomputed from this file's own location, so the module resolves the
 real `schemas/` directory independently of `bin/bale`. The schema files
 under `schemas/` and the set of recognized schema keywords are unchanged
 by the extraction — it was a behavior-preserving move.
+
+`bin/bale_staging.py` is likewise a single cohesive cluster with only a
+module docstring (no index header — CODE.md §2.1). It owns the apply
+pipeline's staging and worktree mechanics: the `bash -n` pre-flight on the
+response's `apply.sh`/`validation.sh` (`check_response_shell_syntax`), the
+response-vs-manifest presence/sha256/path-safety checks
+(`verify_files_against_manifest`), staging-tree construction plus the
+`apply.sh` run over it (`stage_response`), the post-`apply.sh`
+reconciliation of staging against the manifest
+(`reconcile_staging_against_manifest` and its private `_walk_tree_sha256`
+snapshot helper), the `validation.sh` run in staging (`run_validation_sh`),
+and the worktree apply (`apply_changes_to_worktree`). `bin/bale` imports the
+six public entry points by name (`from bale_staging import ...`) so the
+apply-pipeline call sites stay unqualified — `_walk_tree_sha256` stays
+private — the same convention as `bale_validate`. The shared `bin/bale`
+helpers it needs (`fail`, `log`, `git`, `sha256_file`, `is_path_safe`,
+`load_baleignore`, `is_baleignore_match`) are imported lazily from
+`__main__` inside the functions that use them, the same idiom as
+`bale_config` and `bale_validate`. Unlike `bale_validate` it recomputes no
+path constants — every path derives from the functions' arguments — so the
+module is just the functions. The extraction was behavior-preserving.
 
 Two-level subparsing only — `bale <verb>` for seven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `unlock`, `handoff`, `config`),
