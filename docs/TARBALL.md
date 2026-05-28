@@ -33,6 +33,7 @@ a paused session.
 | Returning a probe instead of a response | Sections 1, 2, 4 |
 | Returning a bailout response (`CLAUDE.md` §11 triggered) | Sections 1, 2, 5.6, 5.7, 5.8 |
 | Handling a request tarball I received | Sections 1, 2, 3 |
+| Authoring a request, or citing a `bale pack` rescope (`CLAUDE.md` §11.2) | Section 3.4 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
 | Writing or debugging `apply.sh` | Section 5.1.1 |
 | Hard rules / what counts as a violation | Sections 8, 9 |
@@ -176,6 +177,50 @@ not silently guess. Claude either:
 
 The `no` setting is honored as a hard constraint; the assumption is
 honored as a recoverable risk.
+
+### 3.4 Authoring a request with `bale pack`
+
+`bale pack` is the command that produces a request tarball — the §3.1
+shape, with a `manifest.json` (§3.2) assembled from its flags. It's
+documented here so two callers can cite a real command instead of
+guessing: the architect authoring a session by hand, and Claude
+offering a rescope when the pre-flight scope check (`CLAUDE.md`
+§11.2) decides a goal needs splitting.
+
+The flags below are the stable surface; each maps to a manifest field
+or a packing behavior:
+
+| Flag | Maps to / does |
+|------|----------------|
+| `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). |
+| `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. |
+| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. |
+| `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
+| `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
+| `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
+| `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
+| `--no-edit` | Skips the optional `$EDITOR` step for `README.md` (§3.1) — pack non-interactively with no prose beyond the structured fields. |
+| `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
+| `--force` | Override the `--max-*` guard rails when the architect knowingly wants a pack past a cap. |
+
+**Commands are single-line.** Every `bale pack` invocation — both the
+architect's and the one Claude emits in a rescope offer (`CLAUDE.md`
+§11.2) — is written as one line with no backslash continuations, so
+it pastes into a terminal directly. Repeatable flags repeat inline on
+the same line; they do not wrap.
+
+A basic pack:
+
+```
+bale pack "Add a debounced search box to the catalog page" --slug catalog-search --include src/components/Catalog.vue --include src/composables --constraint "no new dependencies" --expects-probe no
+```
+
+A rescope pack — the first session of a split the pre-flight check
+proposed, with the deferred half named in `--out-of-scope`:
+
+```
+bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --out-of-scope "tests for the endpoint layer" --expects-probe no
+```
 
 ---
 
@@ -559,7 +604,7 @@ commentary.
 When `response_kind: "bailout"`:
 
 - **`summary`** — one paragraph: what was attempted, which trigger
-  fired (per `CLAUDE.md` §11.2), what the handoff prescribes for
+  fired (per `CLAUDE.md` §11.3), what the handoff prescribes for
   the next session.
 - **`changes`** — empty array. Nothing changed.
 - **`deferred`** — empty. Deferred work lives in `handoff.md`'s
@@ -705,9 +750,9 @@ Field semantics:
 
 - **`bail_trigger`** — one of `"reading-path-inflation"`,
   `"mid-build-budget-panic"`, or `"other"`. The first two match the
-  Claude-detected triggers in `CLAUDE.md` §11.2. The third
+  Claude-detected triggers in `CLAUDE.md` §11.3. The third
   (architect-requested bailouts — test sessions, deliberate
-  checkpoints; see `CLAUDE.md` §11.2's third bullet) uses `"other"`
+  checkpoints; see `CLAUDE.md` §11.3's third bullet) uses `"other"`
   and surfaces the specifics in `bail_narrative` rather than minting
   a new enum value. The enum stays small for clean longitudinal
   filtering across sessions; the narrative is searchable when a
