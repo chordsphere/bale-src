@@ -54,6 +54,7 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/bin/bale_config.py" ]]      && pass "bin/bale_config.py present" || fail "bin/bale_config.py present"
 [[ -f "$INSTALL_DIR/bin/bale_validate.py" ]]    && pass "bin/bale_validate.py present" || fail "bin/bale_validate.py present"
 [[ -f "$INSTALL_DIR/bin/bale_staging.py" ]]     && pass "bin/bale_staging.py present" || fail "bin/bale_staging.py present"
+[[ -f "$INSTALL_DIR/bin/bale_rollback.py" ]]    && pass "bin/bale_rollback.py present" || fail "bin/bale_rollback.py present"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
@@ -129,6 +130,7 @@ check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
 check_output "--help mentions retry"    "retry"      "$BALE" --help
 check_output "--help mentions revert"   "revert"     "$BALE" --help
+check_output "--help mentions rollback" "rollback"   "$BALE" --help
 check_output "--help mentions unlock"   "unlock"     "$BALE" --help
 check_output "--help mentions handoff"  "handoff"    "$BALE" --help
 check_output "--help mentions config"   "config"     "$BALE" --help
@@ -138,6 +140,7 @@ check_runs "pack --help"    "$BALE" pack    --help
 check_runs "apply --help"   "$BALE" apply   --help
 check_runs "retry --help"   "$BALE" retry   --help
 check_runs "revert --help"  "$BALE" revert  --help
+check_runs "rollback --help"  "$BALE" rollback --help
 check_runs "unlock --help"  "$BALE" unlock  --help
 check_runs "handoff --help" "$BALE" handoff --help
 check_runs "config --help"  "$BALE" config  --help
@@ -161,6 +164,13 @@ check_output "retry --help mentions search_paths"  "search_paths" "$BALE" retry 
 # v0.0.7) so users discover the inherited-goal edit path without reading the
 # source. Parallels the per-subcommand spot-checks for apply/retry above.
 check_output "handoff --help mentions --edit-goal" "--edit-goal" "$BALE" handoff --help
+
+# rollback --help should surface its distinctive flags (--undo, --list,
+# --stash, added in v0.2) so users discover the reverse / status / dirty-tree
+# paths without reading the source. Same spirit as the handoff check above.
+check_output "rollback --help mentions --undo"  "--undo"  "$BALE" rollback --help
+check_output "rollback --help mentions --list"  "--list"  "$BALE" rollback --help
+check_output "rollback --help mentions --stash" "--stash" "$BALE" rollback --help
 
 # config init's help should mention idempotency since that's the
 # user-facing contract — re-running is safe.

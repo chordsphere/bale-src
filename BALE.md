@@ -400,7 +400,7 @@ forward-looking entry.
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the branch staged for inspection. | v0.0.1 |
 | `bale retry <tarball>` | Re-attempt a HOLDed session with a corrected response tarball, preserving the lock so the new attempt lands in the same session id. | v0.0.x |
 | `bale revert <sid>` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). | v0.0.1 |
-| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. | v0.2 (not yet shipped) |
+| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. | v0.2 |
 | `bale unlock` | Clear an abandoned session lock. | v0.0.5 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
@@ -1329,7 +1329,11 @@ in §11 row 15).
 
 `bale rollback`, `--undo`, `--list`, `--stash`. Its own phase because
 of the conflict and merge-commit edge cases that deserve careful
-selftest coverage.
+selftest coverage. *(Landed in v0.2.0 as the sibling `bin/bale_rollback.py`
+module — net-new code, not an extraction. Tests deferred to v0.4 with the
+rest of the v0.1–v0.3 line, since the selftest harness lands there; the
+conflict and merge-commit paths were exercised manually in the landing
+session, noted in that session's `notes.md`.)*
 
 ### v0.3 — polish
 

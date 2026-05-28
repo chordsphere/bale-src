@@ -124,6 +124,22 @@ install.sh / validate.sh / scripts/reinstall.sh layout checks. Section 16 now
 holds `current_branch`, `working_tree_clean`, and the apply-walkthrough /
 bailout / tarball-resolution helpers.
 
+v0.2.0 cuts the BALE.md §13 v0.2 rollback phase: the `bale rollback [sid]`
+command (`git revert` of an applied/merged session, BALE.md §9.2), with
+`--undo` (revert the revert, re-applying), `--list` (applied sessions with
+rollback status), `--stash` (auto-stash a dirty tree around the revert), and
+merge-vs-plain-commit detection driving the `-m 1` mainline selection.
+Conflicts leave the revert in progress with the affected files printed
+(§9.2 step 5). The feature lands as a fourth sibling module,
+`bin/bale_rollback.py` — net-new code rather than an extraction, so this file
+gains only the CLI wiring (subparser + `from bale_rollback import
+cmd_rollback`); see that module's docstring and the v0.2 response notes for
+the layout rationale. Landing rollback also retires the three "v0.0.1 has no
+`bale rollback` — use `git revert applied/<sid>` manually" stubs in
+`cmd_revert` / `_discard_hold_state`, which now point at `bale rollback
+<sid>`. `bin/bale_rollback.py` joins the other three bin/ modules in the
+install.sh / validate.sh / scripts/reinstall.sh layout checks.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -131,13 +147,16 @@ successive bale-on-bale sessions evolve:
     bale pack <goal> --include <paths>
     bale apply <tarball>
     bale revert <sid>
+    bale rollback [sid]
     bale retry <tarball>
     bale unlock
     bale handoff <bailout-tarball>
     bale config init
 
-No rollback yet — that's v0.2. Stdlib only — which since
-session 003 means Python 3.11+ (tomllib lives there, inside
+Rollback (`bale rollback`) landed in v0.2 — `git revert` of an applied
+session, with `--undo` / `--list` / `--stash`. It lives in the sibling
+`bale_rollback` module; this file holds only its CLI wiring. Stdlib only —
+which since session 003 means Python 3.11+ (tomllib lives there, inside
 `bale_config`).
 
 Sections:
@@ -188,6 +207,14 @@ six public entry points — `check_response_shell_syntax`,
 `reconcile_staging_against_manifest`, `run_validation_sh`,
 `apply_changes_to_worktree` — by name so the apply-section call sites read
 unqualified, matching the `bale_validate` convention.
+
+The `bale rollback` command lives in the sibling `bale_rollback.py` module
+(added in v0.2.0 — the fourth sibling, and the first that is net-new rather
+than an extraction). This file imports its single public entry point —
+`cmd_rollback` — by name, wired to the `rollback` subparser in the CLI
+section. The undo-family tag bookkeeping (applied/ → reverted/ → re-applied/)
+and the `git revert` mechanics all live in that module; `bin/bale` keeps only
+the subparser and the dispatch.
 """
 
 from __future__ import annotations
@@ -244,12 +271,21 @@ from bale_staging import (  # noqa: E402 — sys.path tweak above is load-bearin
     verify_files_against_manifest,
 )
 
+# The `bale rollback` command lives in the sibling bale_rollback module (added
+# in v0.2.0 — the fourth sibling, net-new rather than an extraction). Same
+# sys.path-insert sibling-import mechanism as the three above. Imported by name
+# so the CLI dispatch reads `func=cmd_rollback` unqualified; the module reaches
+# back for shared helpers (log/fail/git/repo_root/refuse_system_dir/
+# current_branch/working_tree_clean/set_log_file) lazily from __main__, the same
+# idiom the other siblings use.
+from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-bearing
+
 
 # ---------------------------------------------------------------------------
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.1.3"
+VERSION = "0.2.0"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3107,7 +3143,7 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
     fail()s if bale/<sid> is already merged into the recorded origin
     branch: that case means apply already PASSed, and either revert or
     retry would be undoing committed work — the right verb is
-    `git revert applied/<sid>` instead.
+    `bale rollback <sid>` instead (v0.2+).
 
     Idempotent in the partial-state cases:
       - no bale branch → log and skip branch operations
@@ -3168,8 +3204,8 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
                            cwd=repo, check=False)
             if ancestor.returncode == 0:
                 fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
-                     f"this session was already merged. v0.0.1 has no `bale rollback`; "
-                     f"use `git revert applied/{sid}` manually.")
+                     f"this session was already merged. Use "
+                     f"`bale rollback {sid}` to undo a merged session.")
 
         # If on the bale branch, reset HOLD's staged changes and switch to
         # origin. (cmd_revert previously had a --force override note for
@@ -3252,8 +3288,7 @@ def cmd_revert(args: argparse.Namespace) -> int:
                        cwd=repo, check=False)
     if branch_check.returncode != 0:
         fail(f"no branch {sid_branch}. If the session was already applied, "
-             f"v0.0.1 has no `bale rollback` — use `git revert applied/{sid}` "
-             f"manually to undo a merged session.")
+             f"use `bale rollback {sid}` to undo a merged session (v0.2+).")
 
     # Shared cleanup (9.1 steps 2-6, plus staging cleanup).
     status = _discard_hold_state(repo, sid)
@@ -4105,6 +4140,59 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_revert.add_argument("sid", help="Session ID to revert.")
     p_revert.set_defaults(func=cmd_revert)
+
+    # rollback — git revert an applied (merged) session. BALE.md §9.2.
+    # The third "undo" verb (§9.4): revert discards a not-yet-merged branch,
+    # unlock clears a lock with no git effect, rollback undoes a *merged*
+    # session via history-preserving `git revert` and is itself reversible
+    # with --undo. Command logic lives in the sibling bale_rollback module.
+    p_rollback = sub.add_parser(
+        "rollback",
+        help="git revert an applied (merged) session. Defaults to the most "
+             "recent; --undo reverses a rollback; --list shows status.",
+        description=(
+            "Undo an applied (merged) bale via `git revert`, history-"
+            "preserving and itself reversible. With no sid, targets the most "
+            "recent applied/<sid> tag reachable from HEAD. Detects whether the "
+            "tagged commit is a merge (the usual case — apply merges --no-ff) "
+            "and reverts the mainline parent accordingly. Refuses on a dirty "
+            "working tree; --stash stashes around the revert, --force proceeds "
+            "anyway. Refuses if reverted/<sid> already exists unless --force. "
+            "On conflict, leaves the revert in progress and prints the affected "
+            "files. Tags reverted/<sid> on success. --undo reverts that revert "
+            "(re-applying) and tags re-applied/<sid>; --list shows applied "
+            "sessions with rollback status and changes nothing."
+        ),
+    )
+    p_rollback.add_argument(
+        "sid", nargs="?", default=None,
+        help="Session ID to roll back (or, with --undo, to re-apply). "
+             "Omit to target the most recent applied (or, with --undo, "
+             "reverted) session reachable from HEAD.",
+    )
+    p_rollback.add_argument(
+        "--undo", action="store_true",
+        help="Reverse a prior rollback: revert the reverted/<sid> commit "
+             "(re-applying the original change) and tag re-applied/<sid>.",
+    )
+    p_rollback.add_argument(
+        "--list", action="store_true", dest="list",
+        help="List applied sessions reachable from HEAD with rollback status "
+             "(applied / reverted / re-applied). Read-only; takes no sid.",
+    )
+    p_rollback.add_argument(
+        "--stash", action="store_true",
+        help="Stash a dirty working tree (including untracked files) before "
+             "the revert and pop it after. Without this, a dirty tree is "
+             "refused (or use --force to proceed onto dirty state).",
+    )
+    p_rollback.add_argument(
+        "--force", action="store_true",
+        help="Bypass the dirty-tree refusal (without stashing) and the "
+             "reverted/<sid>-already-exists / re-applied/<sid>-already-exists "
+             "refusals. Overrides are logged with the FORCE: prefix.",
+    )
+    p_rollback.set_defaults(func=cmd_rollback)
 
     # unlock
     p_unlock = sub.add_parser(
