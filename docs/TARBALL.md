@@ -384,6 +384,19 @@ already provides — primarily deletes. Renames are decomposed into a
 plus an `rm` of the old path in `apply.sh`; `apply.sh` itself never
 performs `mv` operations, because the commit step in bale is driven
 per-manifest-entry from `changes[]`, not from a tree-level diff.
+
+Executable mode bits are the parallel case the cp-mirror can't
+carry: bale's `files/` overlay strips mode, so a `created` or
+`modified` entry meant to be executable arrives at staging with the
+exec bit cleared. `apply.sh` restores it with a per-path `chmod +x`
+after the overlay applies — `chmod +x scripts/release.sh`, one line
+per file. Forgetting the chmod is a confidently silent breakage:
+content lands correct, validation that only inspects content can
+pass straight past it, and the next invocation of the script meets
+`Permission denied`. The responsibility sits on Claude precisely
+because the overlay can't infer intent — a script and a config file
+look the same to a copy.
+
 Bale runs `apply.sh` in a staging copy of the project before
 `validation.sh`, then verifies the resulting state matches the
 manifest: every file removed from staging must be in
@@ -393,7 +406,8 @@ malformed `apply.sh` that touches files not declared in the manifest
 fails verification and the tarball is rejected.
 
 `apply.sh` is minimal — only the operations the cp-mirror can't
-express. A session with no deletes or renames ships a no-op script:
+express. A session with no deletes, renames, or executable bits to
+restore ships a no-op script:
 
 ```bash
 #!/usr/bin/env bash
@@ -806,8 +820,9 @@ are what's *absent*:
 `deferred` and `claims` are both empty — nothing was held back, and
 no project-level checks run for a markdown typo. `validation_will_run`
 covers only what `validation.sh` actually does for this change (file
-syntax). `apply.sh` is the no-op script. `README.md`, `notes.md`, and
-`next-prompt.md` are absent — nothing surprising happened, no
+syntax). `apply.sh` is the no-op script — no deletes, no renames, and
+no executable bits to restore (see §5.1.1). `README.md`, `notes.md`,
+and `next-prompt.md` are absent — nothing surprising happened, no
 follow-up is queued, and the manifest's `summary` field covers what
 the response delivers.
 
