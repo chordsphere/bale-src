@@ -21,6 +21,38 @@ will stay that way for a while.
   requests for other projects — it is bale-src's project documentation,
   peer in structure to the global workflow docs but project-local.
 
+## Architectural decisions
+
+The first ADRs for bale-src; this category and its `context/adr/`
+directory are introduced here. BALE.md §14 ("Resolved decisions") already
+routes new decisions to `context/adr/` per DOCS.md §5 — that pointer is now
+live. ADRs are append-only (DOCS.md §7.2): superseded, never edited or
+deleted.
+
+- `context/adr/0001-defer-tests-doc.md` — defer the standalone global
+  `TESTS.md`; house testing doctrine in CODE.md §13 until a named promotion
+  trigger. Status: Accepted. Pull when touching testing doctrine, deciding
+  whether `TESTS.md` should exist yet, or planning the v0.4 selftest.
+- `context/adr/0002-test-oracle.md` — what decides selftest pass/fail:
+  observable contract state (git/fs/lock), narrow golden, no self-grading.
+  Status: Proposed. Pull when designing or reviewing selftest assertions.
+- `context/adr/0003-selftest-dogfood-depth.md` — two test tiers (unit on pure
+  helpers + CLI E2E via `bin/bale` by absolute path); no recursion into the
+  real install. Status: Proposed. Pull when building the v0.4 harness or any
+  test that drives the CLI.
+- `context/adr/0004-test-fixtures.md` — programmatic factories from the
+  documented wire format as primary; narrow pinned fixtures for bad/old
+  inputs; no recorded corpus. Status: Proposed. Pull when authoring test
+  inputs or the fixture layer.
+- `context/adr/0005-test-hermeticity.md` — fully sandboxed suite (temp
+  `HOME`/`BALE_INSTALL`, no real reinstall, stubbed `$EDITOR`); hard rules on
+  the destructive surfaces. Status: Proposed. Pull when building the test
+  harness or touching any path that writes outside the repo.
+
+ADRs 0002–0005 are Proposed pending the architect's ratification on review;
+0001 is Accepted. None of these is implemented — they precede any test code
+(out of scope this session).
+
 ## Explainers
 
 - `context/bale-internals.md` — how `bin/bale` is structured (commands,
@@ -54,8 +86,13 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md plus two explainers; further explainers will likely arrive
-alongside the apply search-paths mechanism or a new hook.
+is BALE.md, two explainers, and five ADRs (0001–0005, the first in the
+project — the ADR category was introduced in the same session that added
+them, per DOCS.md §4.1/§4.5). Testing doctrine itself lives in the global
+`CODE.md` §13, not as a project doc; it is not listed here for the same
+reason the other global docs aren't (see above). Further explainers will
+likely arrive alongside the apply search-paths mechanism, a new hook, or
+the v0.4 selftest harness.
 
 BALE.md is a category-of-one for bale-src: structurally peer to the
 global workflow docs (own META + INDEX + numbered sections) but

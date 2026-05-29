@@ -55,6 +55,7 @@ prior session, **this file wins.**
 | Working on code that runs in or operates on the workflow itself | Section 8 |
 | Naming a function, file, or section | Section 9 |
 | Hard rules / what counts as a violation | Sections 10, 11 |
+| Placing tests, or deciding where test code lives | Section 13 |
 
 ---
 
@@ -556,3 +557,103 @@ future session reach for it independently, and would having it
 separate make that reach faster than scrolling? If yes, extract.
 If unsure, leave it inline; whether it deserves its own home can
 wait until it's been touched a few times.
+
+---
+
+## 13. Testing
+
+> **Provisional section.** This is the interim home for testing
+> doctrine, sitting after the Meta-Principle by intent rather than
+> as an afterthought: it is a lodger, not part of the
+> code-organization arc above it, and it lifts out cleanly when it
+> earns promotion to a standalone global `TESTS.md` (the fifth
+> workflow doc). Placing it last keeps that future extraction a pure
+> lift with no renumbering of §§1–12. The promotion trigger is in
+> §13.4. The decision to defer `TESTS.md` and house doctrine here is
+> recorded in each adopting project's ADRs — for bale-src,
+> `claude/context/adr/0001-defer-tests-doc.md`.
+
+`CLAUDE.md` section 6 carries the value — *tests ship with code.* This
+section carries the **layout** half of that value: where test code
+lives, when a test unit has outgrown itself, and how testing relates
+to the §1 code-unit inventory. It does not decide a project's testing
+*strategy* — what the oracle is, how deep to dogfood, how fixtures are
+built, how hermetic the suite must be. Those are per-project decisions
+that go in ADRs (§13.5), because the right answer depends on what the
+code under test does.
+
+### 13.1 A test is a code unit
+
+Tests obey §1's inventory like any other code. A single assertion is a
+function-scale unit; a cohesive group of assertions over one subject is
+a section; a subject large enough to load on its own is a file; a test
+subsystem with shared harness and fixtures is a package. The same
+outgrown-when signals (§1) and the same split signals (§4) apply. A
+test file earns extraction from its host the moment a session reaches
+for it without needing the rest of the suite, exactly as production
+code does.
+
+### 13.2 Where test code lives
+
+Match the project and language convention first (§9). Absent one, the
+default is **tests adjacent to the subject they exercise** at the unit
+they cover: a per-module test file mirrors its module; an end-to-end or
+integration harness that exercises the whole tool is its own subject
+and lives in its own place. The signal that a flat test file should
+split is the same as §4.2 for any section — it has crossed ~300 lines
+*and* grown internal sub-clusters that don't share readers (e.g. fast
+unit checks living next to slow end-to-end paths that a focused session
+would rather load alone).
+
+### 13.3 Tests ship in the same response (the layout consequence)
+
+`CLAUDE.md` section 6 requires a test in the same response as the
+function it covers, or a `notes.md` deferral naming why not. The layout
+consequence: a session that adds a meaningful function adds (or extends)
+the test unit that mirrors it, in the same `files/` mirror, under the
+convention §13.2 fixed. A deferral is a `manifest.deferred[]` entry plus
+a `notes.md` line — never a silent omission. When a whole line of work
+defers its tests to a later phase (a harness that hasn't landed yet),
+that deferral is named once in the project's design doc and repeated in
+each interim session's `notes.md`, so untested code is always visible as
+a known debt rather than an accident.
+
+### 13.4 Promotion trigger — when this section becomes `TESTS.md`
+
+This section stays a section until it crosses DOCS.md §6.1's own split
+signals: it covers **multiple distinct topics that don't share
+readers** — testing *philosophy*, *harness mechanics* (how to author a
+selftest, the sandbox/fixture API), and *reference* — such that a reader
+here for code layout scrolls past testing machinery they don't need. In
+practice that threshold is reached when a project's end-to-end test
+*harness* lands and its mechanics need documenting: at that point the
+doctrine has a different reader (someone writing tests) and a different
+lifecycle (it tracks the harness, not the code-layout philosophy) than
+the rest of CODE.md. DOCS.md §11 is the governing rule — *write it as a
+section first; its own file waits until it has been read a few times.*
+
+Promotion is a documentation **split** (DOCS.md §6.2), and because
+`TESTS.md` would be a global workflow doc, it carries one extra cost the
+ordinary split doesn't: bale injects the global docs from its own
+installation, so adding a fifth one means updating bale's `GLOBAL_DOCS`
+set and the pack-time injection — a `bin/bale` change, hence its own
+session. The split session does both: lifts §13 into `TESTS.md` (this
+section becomes a one-line trigger pointing there, mirroring how the
+INDEX read-paths table points at the heavier doc) and lands the
+injection change.
+
+### 13.5 Strategy is per-project — recorded in ADRs
+
+The choices this section deliberately does not make — the test
+**oracle** (what decides pass/fail), **dogfood depth** (how much the
+suite drives the tool through its own surface vs. internal functions),
+**fixtures** (how test inputs are built and maintained), and
+**hermeticity** (how isolated the suite is from the real environment) —
+are decided once per project and recorded as ADRs, because each answer
+depends on the subject under test. A tool that operates on the developer's
+own environment (installs, git state, a `$HOME`-level config) has a
+sharp hermeticity rule that a pure library doesn't need; a tool that is
+its own primary artifact (meta code, §8) has a dogfood-depth answer
+shaped by the one-apply-behind property (§8.1) that an ordinary project
+never faces. CODE.md states the property; the ADRs carry the project's
+answer.
