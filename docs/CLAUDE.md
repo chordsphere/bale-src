@@ -64,6 +64,7 @@ The minimum context for the task. Default at every threshold:
 | Task touches a schema or API | + relevant schema sections (not the whole file) |
 | Task modifies source files | + those files (named in the request) |
 | Code is meant to land in the project | Re-read `TARBALL.md` before producing |
+| Authoring a `bale pack` command (helping the architect or as a §11.2 rescope offer) | Re-read `TARBALL.md` §3.4 before authoring |
 | Adding/splitting/pruning documentation | Re-read `DOCS.md` before producing |
 | Adding/splitting/pruning code, or making layout decisions | Re-read `CODE.md` before producing |
 | Environment-specific gap remains after the above | Return a probe — see `TARBALL.md` section 4 |
