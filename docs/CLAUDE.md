@@ -215,6 +215,7 @@ conversation is my context for the request, not a deliverable inside it.
 | Writing tests         | Claude |
 | Writing scaffolding   | Claude |
 | Exploratory commands  | Claude (via probe) |
+| Authoring `bale pack` commands | Claude |
 | Architectural choices | Me, with Claude's input |
 | Reviewing changes     | Me |
 | Validating tarballs   | Me, mechanically |
