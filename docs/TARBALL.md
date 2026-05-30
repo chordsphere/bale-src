@@ -182,10 +182,15 @@ honored as a recoverable risk.
 
 `bale pack` is the command that produces a request tarball — the §3.1
 shape, with a `manifest.json` (§3.2) assembled from its flags. It's
-documented here so two callers can cite a real command instead of
-guessing: the architect authoring a session by hand, and Claude
-offering a rescope when the pre-flight scope check (`CLAUDE.md`
-§11.2) decides a goal needs splitting.
+documented here so its callers can cite a real command instead of
+guessing. By default that caller is Claude: authoring `bale pack`
+commands is Claude's responsibility (`CLAUDE.md` §4), and Claude emits
+them in two places — a rescope offer when the pre-flight scope check
+(`CLAUDE.md` §11.2) decides a goal needs splitting, and a queued
+`next-prompt.md` (§5.5) when the follow-up is a fresh tarball-mode
+session. The architect authoring a session by hand is the minority
+case — less common now that Claude emits the command, but fully
+supported, with the same flags and the same single-line form.
 
 The flags below are the stable surface; each maps to a manifest field
 or a packing behavior:
@@ -208,6 +213,16 @@ architect's and the one Claude emits in a rescope offer (`CLAUDE.md`
 §11.2) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
 the same line; they do not wrap.
+
+**No backticks in the goal string.** The goal is a double-quoted shell
+argument, and double quotes do not protect backticks: the shell treats
+text between backticks as command substitution and runs it before
+`bale` ever sees the goal. Wrapping a code symbol in backticks — the
+reflex when writing about code — makes the shell try to execute that
+symbol as a command and pack whatever it prints, usually an error.
+Name code symbols in plain prose inside the goal (*the useAuth hook*,
+not the backticked form); `$(...)` and an unescaped `$` carry the same
+hazard. This is why none of the example goals here use backticks.
 
 A basic pack:
 
@@ -570,9 +585,14 @@ small enough that none of the above apply, don't write a stub.
 ### 5.5 next-prompt.md (optional)
 
 If more work is queued, include `next-prompt.md` with the literal
-prompt I should paste into my next message — including which files
-to include in the next request tarball and whether a probe should
-run first.
+text I should paste next. When the follow-up is a fresh tarball-mode
+session — the common case — that text is a single-line `bale pack`
+command (§3.4), authored by Claude (`CLAUDE.md` §4) so I paste rather
+than compose: its flags already carry which files to `--include` and
+the `--expects-probe` setting, so the command runs as-is. When the
+follow-up is conversational instead, `next-prompt.md` is the plain
+prompt to paste, with no `bale pack` wrapper, since no tarball is
+being packed.
 
 If nothing's queued, omit the file. Absence means *"no follow-up;
 this session stands alone."*
