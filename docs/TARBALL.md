@@ -208,9 +208,10 @@ or a packing behavior:
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the architect knowingly wants a pack past a cap. |
 
-**Commands are single-line.** Every `bale pack` invocation — both the
-architect's and the one Claude emits in a rescope offer (`CLAUDE.md`
-§11.2) — is written as one line with no backslash continuations, so
+**Commands are single-line.** Every `bale pack` invocation — the
+architect's, the one Claude emits in a rescope offer (`CLAUDE.md`
+§11.2), and the one Claude emits in a queued `next-prompt.md`
+(§5.5) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
 the same line; they do not wrap.
 
