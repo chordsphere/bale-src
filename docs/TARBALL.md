@@ -411,7 +411,9 @@ content lands correct, validation that only inspects content can
 pass straight past it, and the next invocation of the script meets
 `Permission denied`. The responsibility sits on Claude precisely
 because the overlay can't infer intent — a script and a config file
-look the same to a copy.
+look the same to a copy. The validation-side guard that catches a
+forgotten `chmod` — an exec-bit assertion in `validation.sh` — is
+§7.7.
 
 Bale runs `apply.sh` in a staging copy of the project before
 `validation.sh`, then verifies the resulting state matches the
@@ -531,6 +533,37 @@ Field semantics:
   response. `"bailout"` when Claude could not fit the goal in this
   session's context budget (see `CLAUDE.md` §11). Bailout responses
   follow the distinct shape in section 5.6.
+
+### 5.2.1 Computing size_bytes and sha256
+
+`size_bytes` and `sha256` are computed, never transcribed. A
+hand-written hash is wrong with near-certainty, and bale's pre-flight
+rejects any tarball whose manifest sha256 disagrees with the bytes
+under `files/` (§7) — so a guessed value doesn't save a step, it
+guarantees a bounced tarball. Run the values off the real files.
+
+From inside the response directory, this emits the manifest path,
+size, and hash for every file under `files/` — exactly the `created`
+and `modified` entries, in the `path` form `changes[]` expects:
+
+```bash
+cd response-NNN
+find files -type f | sort | while read -r f; do
+  printf '%s\t%s\t%s\n' \
+    "${f#files/}" \
+    "$(wc -c < "$f")" \
+    "$(sha256sum "$f" | cut -d' ' -f1)"
+done
+```
+
+`${f#files/}` strips the mirror prefix, so `files/src/Foo.vue` reports
+as `src/Foo.vue`, paste-ready into `changes[].path`. On a host without
+`sha256sum` (macOS, say), use `shasum -a 256` in its place.
+
+`deleted` entries have no file under `files/`, so the snippet never
+emits them: set their `size_bytes` to `0` and `sha256` to `null` by
+hand per §5.2. Those two literals are the only size or hash values
+ever written rather than computed.
 
 ### 5.3 Claims vs verdict
 
@@ -972,6 +1005,34 @@ Target wall time under 2 minutes for typical sessions. If a session's
 validation will exceed that, `validation_will_run` notes it and the
 script gates the slow checks behind `--slow`.
 
+### 7.7 Asserting executable bits
+
+A session that ships an executable — a `created` or `modified` file
+meant to run, typically a script with a shebang — asserts its exec bit
+in `validation.sh`. This is the verify side of the restore in §5.1.1:
+the `files/` overlay strips mode, `apply.sh` restores it with `chmod
++x`, and a forgotten `chmod` is the silent breakage that content-only
+checks sail past. The assertion is what turns that into a `[FAIL]`.
+
+By the time `validation.sh` runs, bale has overlaid `files/` and run
+`apply.sh` in staging (§7.1), so the file sits at its repo-relative
+path with the mode `apply.sh` left it. Test that path directly — not
+the `files/` copy, whose mode was already stripped:
+
+```bash
+if [ -x scripts/release.sh ]; then
+  echo "[PASS] scripts/release.sh is executable"
+else
+  echo "[FAIL] scripts/release.sh not executable — apply.sh chmod omitted?"
+  exit_code=1
+fi
+```
+
+This is a session-specific assertion (§7.2 item 6): it ships only when
+the session ships an executable, and names the exact path rather than
+scanning the tree. A session shipping no executables omits it, the
+same way it omits a build check when nothing built.
+
 ---
 
 ## 8. Hard Rules (Tarball-Specific)
@@ -1021,8 +1082,9 @@ won't catch them.
    decide what to claim for each project-level check.
 3. Build `files/` mirroring the project tree (when there are
    created/modified entries).
-4. Build `manifest.json` with reasons, sizes, sha256s, deferrals,
-   `validation_will_run`, and `claims`.
+4. Build `manifest.json` with reasons, sizes, sha256s (computed via
+   §5.2.1, never by hand), deferrals, `validation_will_run`, and
+   `claims`.
 5. Write `apply.sh` for deletes (or a no-op script if none).
 6. Write `validation.sh` honoring the contract in section 7.
 7. Optionally write `notes.md` if there are surprises, decisions, or
