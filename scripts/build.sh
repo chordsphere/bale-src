@@ -49,17 +49,36 @@ done
 log() { printf '[build] %s\n' "$*"; }
 die() { printf '[build] error: %s\n' "$*" >&2; exit 1; }
 
-# The 10 files the release tarball contains (BALE.md §3.1, mirrored in
-# scripts/reinstall.sh's source-layout sanity check and in install.sh's
-# layout verifier). When these three lists drift apart it's always a
-# bug — one of them is wrong about what the release actually contains.
+# The files the release tarball contains (BALE.md §3.1). The same layout
+# is mirrored in three other places — install.sh's layout verifier,
+# validate.sh's filesystem-layout section, and scripts/reinstall.sh's
+# source-layout sanity check. When any of these lists drift apart it's
+# always a bug: one of them is wrong about what the release actually
+# contains. This list was the one that had drifted — it was missing the
+# three bin/ helper modules and the entire schemas/ directory.
+#
+# Those omissions are fatal, not cosmetic: bin/bale hard-imports
+# bale_validate, bale_staging, and bale_rollback at module load, and
+# resolves schemas/ relative to its install root at runtime. A release
+# missing any of them is dead on arrival — install.sh rejects the layout,
+# and even past that bin/bale would crash on its first import.
+#
+# No file count is hardcoded in this comment on purpose: a literal count
+# is just one more thing to drift. The verifier below derives it from the
+# array (${#RELEASE_FILES[@]}), so the array is the single source.
 RELEASE_FILES=(
   bin/bale
   bin/bale_config.py
+  bin/bale_validate.py
+  bin/bale_staging.py
+  bin/bale_rollback.py
   docs/CLAUDE.md
   docs/TARBALL.md
   docs/DOCS.md
   docs/CODE.md
+  schemas/request-manifest.schema.json
+  schemas/response-manifest.schema.json
+  schemas/diagnostics.schema.json
   install.sh
   validate.sh
   upgrade.sh
@@ -100,15 +119,39 @@ fi
 
 # Cheap pre-flight syntax checks. We'd rather fail before tarring than
 # ship a release whose first sign of trouble is a user's install.sh.
+# Syntax-check every Python source the release ships: the bin/bale entry
+# point (named explicitly — it has no .py extension) plus the helper
+# modules it imports at load time. The helper list is derived from
+# RELEASE_FILES rather than re-typed, so a module added to the release
+# above is checked here automatically — the exact drift the file list
+# itself just suffered. bin/bale hard-imports every helper, so a syntax
+# error in any one of them is a crash on first run; better to fail here
+# than at a user's install.sh.
 log "syntax check: python files"
-python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$REPO_ROOT/bin/bale" \
-  || die "bin/bale failed Python syntax check"
-python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$REPO_ROOT/bin/bale_config.py" \
-  || die "bin/bale_config.py failed Python syntax check"
+PY_SOURCES=(bin/bale)
+for f in "${RELEASE_FILES[@]}"; do
+  [[ "$f" == bin/*.py ]] && PY_SOURCES+=("$f")
+done
+for py in "${PY_SOURCES[@]}"; do
+  python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$REPO_ROOT/$py" \
+    || die "$py failed Python syntax check"
+done
 log "syntax check: shell scripts"
 bash -n "$REPO_ROOT/install.sh"  || die "install.sh failed bash syntax check"
 bash -n "$REPO_ROOT/validate.sh" || die "validate.sh failed bash syntax check"
 bash -n "$REPO_ROOT/upgrade.sh"  || die "upgrade.sh failed bash syntax check"
+# Parse-check the JSON schemas the release ships, derived from RELEASE_FILES
+# for the same anti-drift reason as the Python sources above. validate.sh
+# runs this same stdlib json.load check at install time; doing it here too
+# catches a malformed schema before tarring rather than at a user's
+# validate.sh. A schema bale can't load turns every pack/apply into a hard
+# fail, so the one extra parse per file is worth it.
+log "syntax check: json schemas"
+for f in "${RELEASE_FILES[@]}"; do
+  [[ "$f" == schemas/*.json ]] || continue
+  python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$REPO_ROOT/$f" \
+    || die "$f failed JSON parse check"
+done
 
 # Stage to a tmpdir. The tarball's top-level directory is `bale/`:
 # README.md's install command is `tar -xzf bale-vX.Y.Z.tar.gz -C ~/`
