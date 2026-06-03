@@ -651,12 +651,18 @@ manifest's `changes[]` and the bytes under `files/` — the sizes, the
 sha256s, and the `claims` block. A hash remembered across a
 compaction is a hash invented from a summary, and `TARBALL.md`
 §5.2.1 rejects invented hashes for exactly this reason. So before
-presenting anything, Claude re-runs the `TARBALL.md` §5.2.1
+presenting anything, Claude re-runs the full manifest
+internal-consistency set — the same one `TARBALL.md` §10.1
+self-checks before any pack. It re-runs the `TARBALL.md` §5.2.1
 computation against the real `files/` to repopulate every
-`size_bytes` and `sha256`, re-derives each `claims` entry from what
-the changes actually do (`TARBALL.md` §5.3), and confirms `files/`
-and `changes[]` agree both directions — every file declared, no file
-undeclared. The claim/verdict contract (`TARBALL.md` §7.3) only
+`size_bytes` and `sha256`; confirms `files/` and `changes[]` agree
+both directions — every file declared, no file undeclared; re-derives
+each `claims` entry from what the changes actually do (`TARBALL.md`
+§5.3); and confirms `set(claims) ⊆ validation_will_run`, every
+`claims` key still verbatim-matching a `validation_will_run` entry. A
+compaction is exactly the event that desyncs a `claims` key from the
+check it names, so the subset is re-checked here, not assumed to have
+survived. The claim/verdict contract (`TARBALL.md` §7.3) only
 holds if the claims were derived from the *present* change set, not
 from the one Claude remembers making.
 
