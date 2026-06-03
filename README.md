@@ -92,7 +92,10 @@ Use only for quick local tests, never for the install you rely on.
 
 ## Requirements
 
-- Python 3.11+ (stdlib only — no pip, no virtualenv).
+- Python 3.10+ (stdlib only — no pip, no virtualenv). On 3.11+ config parsing
+  uses the standard library's `tomllib`; on 3.10 (which has no stdlib TOML
+  parser) bale uses a pure-Python parser vendored in-tree, so "no pip" still
+  holds either way.
 - `git`, `bash`, and POSIX `tar`/`cp`/`rm` on `PATH`.
 
 On Windows, run under WSL or Git Bash — bale assumes a POSIX shell.
