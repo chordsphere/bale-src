@@ -193,6 +193,26 @@ extension to commands beyond `apply` and the §7.4 pass-through to
 whether to cut now with that thread tracked separately, or to bundle
 it into v0.3 first, is left to the next session.
 
+v0.2.3 adds `bale status`, a read-only dashboard for the working
+directory's bale (section 25, inserted ahead of the CLI parser, which
+renumbers 25->26). It reports the tool version, the repo and working-tree
+cleanliness, the open session and its lifecycle state (idle/packed/held/
+orphan, BALE.md §9.5), the outbox, a light pointer at applied history
+(deferring the full applied/reverted/re-applied view to `bale rollback
+--list`), and config presence plus effective hooks and apply search paths.
+It takes no lock and makes no git or filesystem writes, degrades gracefully
+outside a git repo and on a malformed bale.toml, and always exits 0 on a
+successful read -- problems surface as rows, not a failing exit code. Like
+`help` and `completion` it carries no flags and so surfaces in both for
+free (all three read the same `build_parser()`). Structure follows the
+file's build-a-string / caller-prints split: a pure `_session_state_and_hint`
+classifier and a pure `_render_status`, with `_gather_status` doing the only
+I/O -- the seam ADR 0003's two test tiers anticipate, though the tests
+themselves stay deferred to the v0.4 harness (ADR 0001). `bale status` is
+net-new surface not in BALE.md's §13 build map; whether it folds into the
+still-open v0.3 cut or stands alone is the architect's call (see this
+session's notes.md).
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -237,7 +257,8 @@ Sections:
   22. Handoff                                          (~line 3823)
   23. Hook invocation                                  (~line 4248)
   24. Help and completion                              (~line 4371)
-  25. CLI                                              (~line 4774)
+  25. Status                                          (~line 4795)
+  26. CLI                                              (~line 5149)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -339,7 +360,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4791,7 +4812,361 @@ def cmd_completion(args) -> int:
 
 
 # ---------------------------------------------------------------------------
-# 25. CLI
+# 25. Status
+# ---------------------------------------------------------------------------
+#
+# `bale status` is a read-only dashboard for the working directory's bale: the
+# tool version, the repo and whether its working tree is clean, the open
+# session (if any) and which lifecycle state it sits in, the outbox, a light
+# pointer at applied history, and what's configured. It takes no lock, makes no
+# git or filesystem writes, and degrades gracefully outside a git repo or in a
+# not-yet-initialised one — the whole point is to answer "where does this repo
+# stand with bale, and what's the next move?" without any side effects.
+#
+# Structure follows the file's existing "build a string, the caller prints it"
+# split (format_summary_block, format_walkthrough_summary): _gather_status reads
+# the world into a StatusReport, _render_status turns that report into the
+# canonical summary block, and cmd_status wires the two and prints. That seam is
+# also the test seam ADR 0003 (claude/context/adr/0003-selftest-dogfood-depth.md)
+# anticipates — _session_state_and_hint and _render_status are pure and
+# unit-testable without a TTY or a real repo, and the CLI E2E drives `bale
+# status` end to end. Tests themselves are deferred to the v0.4 harness (see
+# this session's notes.md and ADR 0001), the standing deferral every v0.1–v0.3
+# session has carried.
+
+# Open-session lifecycle states, matching BALE.md §9.5 and the commands that
+# act on each. The constants exist so the classifier, the renderer, and a
+# future selftest all name the states identically rather than passing bare
+# strings around.
+SESSION_STATE_IDLE = "idle"
+SESSION_STATE_PACKED = "packed"
+SESSION_STATE_HELD = "held"
+SESSION_STATE_ORPHAN = "orphan"
+
+
+def _session_state_and_hint(
+    lock_sid: Optional[str],
+    has_branch: bool,
+    has_outbox: bool,
+) -> tuple[str, str, str]:
+    """Classify the open-session lifecycle state from three already-gathered facts.
+
+    Pure by design: every filesystem/git probe happens in _gather_status, and
+    this maps the resulting booleans to (state, human-readable description,
+    next-step hint). Keeping it pure makes it the cheap unit-test target ADR
+    0003 names — the four states are exhaustively checkable without touching
+    disk.
+
+    The states (BALE.md §9.5) and the command that acts on each:
+      - idle    no lock; nothing open.                  → `bale pack`
+      - packed  lock set, request tarball still in the   → send it, `bale apply`
+                outbox, no bale/<sid> branch yet.
+      - held    lock set and a bale/<sid> branch exists: → `bale apply` /
+                `bale apply` ran far enough to create       `bale retry` /
+                the branch but hasn't reached a terminal    `bale revert`
+                state (a HOLD verdict, or held for review).
+      - orphan  lock set, no branch, no outbox tarball:  → `bale unlock`
+                an abandoned lock with no git footprint.
+    """
+    if lock_sid is None:
+        return (
+            SESSION_STATE_IDLE,
+            "idle — no open session",
+            'start one with `bale pack "<goal>" --include <paths>`',
+        )
+    if has_branch:
+        return (
+            SESSION_STATE_HELD,
+            f"held — branch bale/{lock_sid} exists; apply not yet terminal",
+            f"inspect, then `bale apply <response>`, `bale retry <response>`, "
+            f"or `bale revert {lock_sid}`",
+        )
+    if has_outbox:
+        return (
+            SESSION_STATE_PACKED,
+            "packed — request tarball awaiting a response, then apply",
+            "send the outbox tarball to Claude, then `bale apply <response>`",
+        )
+    return (
+        SESSION_STATE_ORPHAN,
+        "open — lock held with no branch and no outbox (abandoned)",
+        "clear it with `bale unlock` (or `bale unlock --force`)",
+    )
+
+
+@dataclass
+class StatusReport:
+    """Everything `bale status` reports, gathered once and rendered once.
+
+    A field left at its None / empty default means "not applicable" and is
+    omitted from the rendered block — session_* are None outside an open
+    session, repo_root is None outside a git repo, and so on. Keeping the report
+    a plain data holder (no I/O, no formatting) is what lets _render_status stay
+    pure and lets the future selftest assert against the gathered facts directly
+    rather than scraping rendered text.
+    """
+
+    version: str
+    repo_root: Optional[Path] = None
+    branch: Optional[str] = None
+    tree_clean: Optional[bool] = None
+    tree_change_count: int = 0
+    bale_initialised: bool = False
+    session_sid: Optional[str] = None
+    session_state: Optional[str] = None
+    session_desc: Optional[str] = None
+    session_goal: Optional[str] = None
+    session_expects_probe: Optional[str] = None
+    next_hint: Optional[str] = None
+    outbox_tarballs: list[str] = field(default_factory=list)
+    applied_count: int = 0
+    applied_latest: Optional[str] = None
+    project_config: Optional[Path] = None
+    global_config: Optional[Path] = None
+    hooks_wired: list[str] = field(default_factory=list)
+    search_path_count: int = 0
+    config_summary_failed: bool = False
+    baleignore: bool = False
+
+
+def _branch_exists(repo: Path, branch: str) -> bool:
+    """True if `branch` is a local branch in `repo`. Read-only; never raises on
+    a missing ref — `git rev-parse --verify --quiet` exits non-zero for that and
+    we report it as absence."""
+    r = git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo, check=False)
+    return r.returncode == 0
+
+
+def _applied_tags(repo: Path) -> tuple[int, Optional[str]]:
+    """Return (count, most-recent-sid) for applied/<sid> tags in `repo`.
+
+    Most-recent is by tag creation date (matching how `bale rollback` reasons
+    about applied history), reported as the bare sid with the `applied/` prefix
+    stripped. This is a deliberately light touch: `bale rollback --list` is the
+    full applied/reverted/re-applied view, and status only points at it.
+    """
+    r = git(["for-each-ref", "--sort=-creatordate",
+             "--format=%(refname:short)", "refs/tags/applied/"],
+            cwd=repo, check=False)
+    if r.returncode != 0:
+        return (0, None)
+    tags = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    if not tags:
+        return (0, None)
+    latest = tags[0]
+    prefix = "applied/"
+    if latest.startswith(prefix):
+        latest = latest[len(prefix):]
+    return (len(tags), latest)
+
+
+def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
+    """Fill the config-related fields of `report`, best-effort.
+
+    Presence is reported by path existence alone (no parse): a malformed
+    bale.toml must not stop `bale status` the way it (correctly) stops pack and
+    apply — status is a diagnostic and should still render. The richer summary
+    (which hooks are wired, how many apply search paths) goes through
+    bale_config.merged_config, wrapped so that ANY failure — including a
+    fail()-driven SystemExit on a malformed file — degrades to
+    config_summary_failed=True with the presence facts intact, rather than
+    aborting the report. The degradation is reported, not swallowed (CLAUDE.md
+    §6: silent skips are bugs).
+    """
+    report.project_config = (
+        repo / bale_config.BALE_CONFIG
+        if repo is not None and (repo / bale_config.BALE_CONFIG).exists()
+        else None
+    )
+    report.global_config = (
+        bale_config.GLOBAL_CONFIG_PATH
+        if bale_config.GLOBAL_CONFIG_PATH.exists()
+        else None
+    )
+    if repo is not None:
+        report.baleignore = (repo / BALEIGNORE_FILE).exists()
+
+    # Nothing to summarise if neither layer has a file.
+    if report.project_config is None and report.global_config is None:
+        return
+    try:
+        cfg = bale_config.merged_config(repo) if repo is not None \
+            else bale_config.load_global_config()
+        report.hooks_wired = [
+            name for name in bale_config.HOOK_NAMES
+            if bale_config.get_hook(cfg, name) is not None
+        ]
+        report.search_path_count = len(bale_config.get_apply_search_paths(cfg))
+    except SystemExit:
+        # merged_config / the typed accessors route malformed config through
+        # fail(), which sys.exit()s. Catch it so status survives a broken
+        # config and still reports the presence facts above.
+        report.config_summary_failed = True
+    except Exception:  # noqa: BLE001 — status must never crash on config shape
+        report.config_summary_failed = True
+
+
+def _gather_status(cwd: Path) -> StatusReport:
+    """Read repo, session, outbox, applied-history, and config state into a
+    StatusReport. All I/O lives here; the classifier and renderer are pure.
+
+    Read-only throughout: git is only ever queried, never mutated, and no
+    filesystem path is written. Works with no git repo (repo_root is None and
+    the git-derived fields stay None) and with a repo that has never run bale
+    (bale_initialised False, everything else empty).
+    """
+    report = StatusReport(version=VERSION)
+
+    repo = repo_root(cwd)
+    report.repo_root = repo
+    if repo is None:
+        # Outside a git repo there's no per-repo state to read; only the global
+        # config layer and the tool version are meaningful.
+        _summarise_config(None, report)
+        return report
+
+    report.branch = current_branch(repo)
+    clean, status_output = working_tree_clean(repo)
+    report.tree_clean = clean
+    report.tree_change_count = len(
+        [ln for ln in status_output.splitlines() if ln.strip()]
+    )
+    report.bale_initialised = (repo / ".bale").is_dir()
+
+    # Open session + its lifecycle state.
+    lock_sid = read_lock(repo)
+    report.session_sid = lock_sid
+    has_branch = _branch_exists(repo, f"bale/{lock_sid}") if lock_sid else False
+
+    outbox_dir = repo / ".bale" / "outbox"
+    if outbox_dir.is_dir():
+        report.outbox_tarballs = sorted(
+            p.name for p in outbox_dir.glob("request-*.tar.gz")
+        )
+    has_outbox = (
+        lock_sid is not None
+        and f"request-{lock_sid}.tar.gz" in report.outbox_tarballs
+    )
+
+    state, desc, hint = _session_state_and_hint(lock_sid, has_branch, has_outbox)
+    report.session_state = state
+    report.session_desc = desc
+    report.next_hint = hint
+
+    # Pull goal + expects_probe off the stamped request manifest when one is
+    # open. Best-effort: a hand-created or partial lock may have no manifest, in
+    # which case the goal line is simply omitted.
+    if lock_sid is not None:
+        manifest_path = repo / ".bale" / "sessions" / lock_sid / "manifest.json"
+        if manifest_path.exists():
+            try:
+                m = json.loads(manifest_path.read_text(encoding="utf-8"))
+                goal = (m.get("goal") or "").strip()
+                report.session_goal = goal or None
+                report.session_expects_probe = m.get("expects_probe")
+            except (OSError, json.JSONDecodeError):
+                # A stamped manifest that won't parse is worth surfacing, but
+                # not worth aborting status over; leave the fields None so the
+                # rows drop out, and let pack/apply be the ones to hard-fail on
+                # a corrupt manifest.
+                log(f"status: could not read {manifest_path}; "
+                    f"omitting goal", )
+
+    report.applied_count, report.applied_latest = _applied_tags(repo)
+    _summarise_config(repo, report)
+    return report
+
+
+def _render_status(report: StatusReport) -> str:
+    """Render a StatusReport as the canonical summary block (format_summary_block).
+
+    Pure: builds and returns a string, prints nothing. Rows are emitted only for
+    facts that apply, so the block stays tight across the idle / packed / held /
+    no-repo shapes. When a session is open the block gets a `[STATUS] <sid>`
+    headline (the same eye-catching form pack/apply use); otherwise it is rows
+    only. The next-step hint becomes the trailer — the actionable last line.
+    """
+    rows: list[tuple[str, str]] = [("bale version", report.version)]
+
+    if report.repo_root is None:
+        rows.append(("repo", "(not inside a git repository)"))
+    else:
+        tree = "clean" if report.tree_clean else \
+            f"{report.tree_change_count} uncommitted change(s)"
+        rows.append(("repo", f"{report.repo_root}  (branch {report.branch}, {tree})"))
+        if not report.bale_initialised:
+            rows.append(("bale", "not yet initialised here (no .bale/ — runs on first `bale pack`)"))
+
+    if report.repo_root is not None:
+        rows.append(("session", report.session_desc or "idle — no open session"))
+        if report.session_goal:
+            rows.append(("goal", report.session_goal))
+        if report.session_expects_probe:
+            rows.append(("expects probe", report.session_expects_probe))
+
+        if report.outbox_tarballs:
+            n = len(report.outbox_tarballs)
+            noun = "tarball" if n == 1 else "tarballs"
+            rows.append(("outbox", f"{n} request {noun}: {', '.join(report.outbox_tarballs)}"))
+        else:
+            rows.append(("outbox", "empty"))
+
+        if report.applied_count:
+            rows.append((
+                "applied",
+                f"{report.applied_count} session(s); latest {report.applied_latest} "
+                f"(`bale rollback --list` for full status)",
+            ))
+        else:
+            rows.append(("applied", "none yet"))
+
+    # Config (both layers; same shape in or out of a repo).
+    config_bits: list[str] = []
+    if report.project_config is not None:
+        config_bits.append("project bale.toml")
+    if report.global_config is not None:
+        config_bits.append("global bale.toml")
+    if not config_bits:
+        config_bits.append("none (run `bale config init`)")
+    config_value = ", ".join(config_bits)
+    if report.config_summary_failed:
+        config_value += " — could not summarise (malformed? run `bale config init`)"
+    else:
+        detail: list[str] = []
+        if report.hooks_wired:
+            detail.append(f"{', '.join(report.hooks_wired)} wired")
+        if report.search_path_count:
+            detail.append(f"{report.search_path_count} apply search path(s)")
+        if report.baleignore:
+            detail.append(".baleignore present")
+        if detail:
+            config_value += f"; {'; '.join(detail)}"
+    rows.append(("config", config_value))
+
+    headline_kwargs = {}
+    if report.session_sid is not None:
+        headline_kwargs = {"status": "STATUS", "sid": report.session_sid}
+
+    trailer = ["Next: " + report.next_hint] if report.next_hint else None
+    return format_summary_block(rows, trailer=trailer, **headline_kwargs)
+
+
+def cmd_status(args) -> int:
+    """`bale status` — print a read-only summary of the working directory's bale.
+
+    No lock, no git or filesystem writes, no clean-tree requirement. Always
+    exits 0 on a successful read: status reports problems (an abandoned lock, a
+    malformed config) as rows rather than as a non-zero exit, so it stays usable
+    as the first thing you run when a repo's bale state is unclear.
+    """
+    report = _gather_status(Path.cwd())
+    print(_render_status(report))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 26. CLI
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -5189,6 +5564,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Which shell to emit completion for. Currently only 'bash'.",
     )
     p_completion.set_defaults(func=cmd_completion)
+
+    # status — read-only dashboard for the working directory's bale (section
+    # 25). No lock, no git/filesystem writes; degrades gracefully outside a git
+    # repo. Like `help` and `completion` it carries no flags, so it needs no
+    # special-casing in the completion generator (section 24) — it surfaces in
+    # `bale help`, `bale help status`, and `bale completion bash` for free, the
+    # whole point of those two reading from this one parser.
+    p_status = sub.add_parser(
+        "status",
+        help="Show a read-only summary of this repo's bale state.",
+        description=(
+            "Print a read-only summary of the working directory's bale: the "
+            "tool version, the repo and whether its working tree is clean, the "
+            "open session (if any) and its lifecycle state, the outbox, a light "
+            "pointer at applied history, and what's configured. Takes no lock, "
+            "makes no git or filesystem changes, and works outside a git repo "
+            "or in a not-yet-initialised one. Always exits 0 on a successful "
+            "read — problems are reported as rows, not as a failing exit code."
+        ),
+    )
+    p_status.set_defaults(func=cmd_status)
 
     return p
 
