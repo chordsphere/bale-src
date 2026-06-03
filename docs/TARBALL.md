@@ -889,12 +889,11 @@ The protocol still applies. The floor is the floor.
 Two validations run on every response tarball, and they answer
 different questions.
 
-**Bale's pre-flight** (the full list in `BALE.md` section 11, also
-the contract rules in section 8 below) answers *"is this tarball
-well-formed?"* — manifest schema, sha256 agreement, path safety,
-out-of-scope, `apply.sh` reconciliation. It runs first and rejects
-malformed tarballs before any other work; if it rejects,
-`validation.sh` never runs.
+**Bale's pre-flight** (the contract rules in section 8 below)
+answers *"is this tarball well-formed?"* — manifest schema, sha256
+agreement, path safety, out-of-scope, `apply.sh` reconciliation. It
+runs first and rejects malformed tarballs before any other work; if
+it rejects, `validation.sh` never runs.
 
 **The response's `validation.sh`** answers *"do the changes do what
 Claude claims they do?"* It is Claude's per-session hypothesis test,
@@ -1037,9 +1036,15 @@ same way it omits a build check when nothing built.
 
 ## 8. Hard Rules (Tarball-Specific)
 
-Contract rules — the mechanical checks bale enforces — are listed in
-**BALE.md section 11**, which is canonical. The rules below are
-*policy*: caught at review, not by bale.
+Contract rules — the mechanical checks bale enforces at pack and
+apply time — are not re-listed here: bale applies them automatically
+and rejects a malformed tarball before `validation.sh` runs, so the
+builder's job is to satisfy them, not to recite them. They cover
+manifest schema and field agreement, sha256 and size match against
+`files/`, a non-empty `reason` on every change, path safety, the
+`files/`↔`changes[]` correspondence, and the post-`apply.sh`
+reconciliation of §5.1.1. The rules below are instead *policy*:
+caught at review, not by bale.
 
 | Rule | Enforcement |
 |------|-------------|
@@ -1049,7 +1054,7 @@ Contract rules — the mechanical checks bale enforces — are listed in
 | `validation_will_run` is honest and complete | review |
 | Tarball mode without `TARBALL.md` loaded — pause and ask | Claude's own check at the start of a response |
 | Probe is read-only outside `./probe-output/` | probe self-check + my review |
-| `apply.sh` operations limited to deletes and other manifest-declared file ops — no `mv`, no installs, no builds | review (with bale's post-run reconciliation in BALE.md 11 row 18 catching tree violations) |
+| `apply.sh` operations limited to deletes and other manifest-declared file ops — no `mv`, no installs, no builds | review (with bale's post-`apply.sh` reconciliation against the manifest, §5.1.1, catching tree violations) |
 
 Rule labels follow `CLAUDE.md` section 6. Claude should surface
 policy concerns in `notes.md` precisely because mechanical checks

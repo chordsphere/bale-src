@@ -15,11 +15,16 @@ will stay that way for a while.
   contract (§11), self-applicability, build phases, and open decisions.
   Pull whenever a session touches `bin/bale`, the pack or apply
   pipeline, the staging or lock lifecycle, the wire format, or the
-  bale-enforced contract. Both `bin/bale` (section references in
-  comments and docstrings) and the global docs (`TARBALL.md` §7/§8,
-  `CLAUDE.md` §5) reference BALE.md directly. Not injected into
-  requests for other projects — it is bale-src's project documentation,
-  peer in structure to the global workflow docs but project-local.
+  bale-enforced contract. `bin/bale` references BALE.md directly
+  (section references in comments and docstrings) — legitimate,
+  since both live in this repo. The global docs deliberately do
+  **not**: a `BALE.md` pointer inside an injected doc dangles in
+  every other project, so the global docs describe bale's behavior
+  generically and cross-reference only their own sections. Don't
+  reintroduce a `BALE.md` citation into `CLAUDE.md`, `TARBALL.md`,
+  `DOCS.md`, or `CODE.md`. Not injected into requests for other
+  projects — it is bale-src's project documentation, peer in
+  structure to the global workflow docs but project-local.
 
 ## Architectural decisions
 

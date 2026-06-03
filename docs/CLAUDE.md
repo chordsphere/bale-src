@@ -68,6 +68,7 @@ The minimum context for the task. Default at every threshold:
 | Adding/splitting/pruning documentation | Re-read `DOCS.md` before producing |
 | Adding/splitting/pruning code, or making layout decisions | Re-read `CODE.md` before producing |
 | Environment-specific gap remains after the above | Return a probe — see `TARBALL.md` section 4 |
+| Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
 This table says when to pull from it. If the project has no
@@ -245,7 +246,7 @@ Session-scoped artifacts:
 
 Bale does not, by default, archive response artifacts (`README.md`,
 `notes.md`, `next-prompt.md`) into `claude/responses/`; archival is
-opt-in per project (BALE.md 13 v0.5+).
+opt-in per project.
 Casual projects with no `claude/` structure simply read the response
 notes during apply's walkthrough and don't archive at all.
 
@@ -415,7 +416,10 @@ section is the mechanics.
   runtime auto-compacts (claude.ai web/app), by the time it
   triggers, Claude's grasp of the loaded context has already
   degraded. The discipline is to bail *before* compaction can
-  engage.
+  engage. When it engages anyway — and on an auto-compacting
+  surface it sometimes will, despite the discipline — §11.6 is the
+  recovery path: prevention failing does not license proceeding as
+  if context were intact.
 - **Budget is not directly measurable.** Claude cannot reliably
   count remaining tokens. The triggers below are *behavioral*, not
   numeric.
@@ -598,3 +602,71 @@ If bailouts cluster around the same kind of work, the signal is
 about scoping, not about Claude's discipline. That observation
 warrants a separate session — see §9 ("the protocol itself feels
 wrong"), not a new bail.
+
+### 11.6 Recovering from a compaction
+
+§11.1 names compaction a failure mode and §11.3 says to bail before
+it engages. This subsection is for the case where that failed: the
+runtime compacted mid-session and Claude is now working from a
+summary of context it once held in full. Everything above is
+*prevention*; this is *recovery*, and it is a distinct path — a
+bailout (§11.4) is what Claude ships *before* compaction to protect a
+fresh session, whereas recovery is what Claude does *after*
+compaction has already landed in this one.
+
+**Recognize it, out loud.** The first failure is pretending it
+didn't happen. The tells: a summary of earlier turns standing in for
+the turns themselves; a request or a partial response Claude is
+"continuing" but can no longer quote; an instruction to resume work
+whose specifics have gone soft. On noticing any of these, Claude says
+so — a sentence in chat, and a line in `notes.md` if a tarball ships
+this session — rather than proceeding on a half-remembered picture. A
+compaction worked through silently is the one that produces
+confidently-wrong output.
+
+**Re-ground from durable artifacts, not from memory.** "Drill-down
+beats recall" (§2) holds doubly here, because recall is exactly what
+the compaction corrupted. The durable artifacts survive it; the
+summary is the lossy part. Claude rebuilds from the durable side:
+
+- **The request `manifest.json`** is the source of scope. Re-read
+  `goal`, `constraints`, `out_of_scope`, and `context_included` —
+  this is what the session is actually for, and the compacted summary
+  is a lossy copy of it.
+- **`CLAUDE.md`** — this file, re-read enough to restore the
+  operating frame: which mode the session is in, and what the INDEX
+  read-paths table prescribes for the goal.
+- **The mode's contract doc.** Tarball mode → re-read `TARBALL.md`
+  in full; its contract shape (manifest fields, the `files/` mirror,
+  validation) is exactly the structured detail a summary flattens.
+  Documentation work → re-read `DOCS.md`; code layout → `CODE.md`.
+- **Any partial response already on disk.** If Claude had begun
+  producing `files/`, a manifest, or a `validation.sh` before the
+  compaction, that partial output is durable and authoritative over
+  the summary. Read it back before extending it.
+
+**Re-derive the tarball claims; never carry them across.** The
+knowledge a compaction reliably destroys is the match between the
+manifest's `changes[]` and the bytes under `files/` — the sizes, the
+sha256s, and the `claims` block. A hash remembered across a
+compaction is a hash invented from a summary, and `TARBALL.md`
+§5.2.1 rejects invented hashes for exactly this reason. So before
+presenting anything, Claude re-runs the `TARBALL.md` §5.2.1
+computation against the real `files/` to repopulate every
+`size_bytes` and `sha256`, re-derives each `claims` entry from what
+the changes actually do (`TARBALL.md` §5.3), and confirms `files/`
+and `changes[]` agree both directions — every file declared, no file
+undeclared. The claim/verdict contract (`TARBALL.md` §7.3) only
+holds if the claims were derived from the *present* change set, not
+from the one Claude remembers making.
+
+**Hold the response until re-grounded.** A post-compaction response
+is held back until the re-reading and the re-derivation above are
+done. An incomplete or internally inconsistent tarball — manifest
+disagreeing with `files/`, a claim about a check that no longer
+matches the change set — is the characteristic compaction artifact;
+bale's pre-flight bounces the lucky cases and the unlucky ones pass
+shape-checks and land broken. If, partway through recovery, Claude
+judges the remaining budget can't carry a re-grounded, re-validated
+response through, that is an ordinary mid-build bail (§11.3): hand
+off rather than ship a tarball Claude can't stand behind.
