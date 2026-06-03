@@ -228,16 +228,16 @@ Sections:
   13. Pack: manifest and tarball construction          (~line 1459)
   14. Pack: wizard                                     (~line 1574)
   15. Pack                                             (~line 1816)
-  16. Apply: helpers                                   (~line 2365)
-  17. Apply: pipeline                                  (~line 2847)
-  18. Apply                                            (~line 3169)
-  19. Revert                                           (~line 3387)
-  20. Retry                                            (~line 3568)
-  21. Unlock                                           (~line 3617)
-  22. Handoff                                          (~line 3711)
-  23. Hook invocation                                  (~line 4125)
-  24. Help and completion                              (~line 4248)
-  25. CLI                                              (~line 4651)
+  16. Apply: helpers                                   (~line 2371)
+  17. Apply: pipeline                                  (~line 2948)
+  18. Apply                                            (~line 3281)
+  19. Revert                                           (~line 3499)
+  20. Retry                                            (~line 3680)
+  21. Unlock                                           (~line 3729)
+  22. Handoff                                          (~line 3823)
+  23. Hook invocation                                  (~line 4248)
+  24. Help and completion                              (~line 4371)
+  25. CLI                                              (~line 4774)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -2350,14 +2350,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
     run_hook(repo, bale_config.merged_config(repo), "post_pack", sid)
 
-    # User-facing summary.
-    print()
-    print(f"  session id: {sid}")
-    print(f"  tarball:    {tarball_path}")
-    print(f"  files:      {len(files)} in context/")
-    print()
-    print("Send the tarball to Claude. When the response tarball comes back,")
-    print("run: bale apply <response-tarball>")
+    # User-facing summary. Built through the shared formatter so pack ends on
+    # the same shape as apply/handoff; the actionable next step is the trailer,
+    # so it is the last thing printed.
+    print(format_summary_block(
+        [
+            ("session id", sid),
+            ("tarball", str(tarball_path)),
+            ("files", f"{len(files)} in context/"),
+        ],
+        trailer=[
+            "Send the tarball to Claude. When the response tarball comes back,",
+            "run: bale apply <response-tarball>",
+        ],
+    ))
     return 0
 
 
@@ -2375,6 +2381,70 @@ def working_tree_clean(repo: Path) -> tuple[bool, str]:
     """Return (clean, status_output). Clean means git status --porcelain is empty."""
     r = git(["status", "--porcelain"], cwd=repo)
     return (not r.stdout.strip(), r.stdout)
+
+
+# --- Shared end-of-run summary formatting ------------------------------------
+#
+# Every command that finishes with a status report — pack, apply (its PASS /
+# HOLD / REVERT / BAILOUT banners and the walkthrough summary), handoff — ends
+# on the same shape: a leading blank line, an optional `[STATUS] <sid>`
+# headline, a block of two-space-indented, colon-aligned label/value rows, and
+# optional verbatim trailer lines (the actionable next step). One formatter
+# owns that shape so the call sites stay visually identical and so the rule
+# that drives this whole cluster — *the crisp summary is the LAST thing
+# printed, where the terminal cursor and the reader's eye come to rest* — lives
+# in one place instead of being re-implemented per command.
+#
+# Callers that also emit bulky reference material (the walkthrough's notes.md /
+# next-prompt.md bodies and diffstat, the bailout's handoff excerpt) print that
+# material FIRST and call this LAST, so a long reference body never pushes the
+# scannable verdict off the top of the screen. This helper is a pure string
+# builder — it prints nothing; the caller prints what it returns.
+#
+# Housed in the apply-helpers section for now because its two most involved
+# callers (format_walkthrough_summary, print_bailout_banner) live here; when
+# the deferred revert/retry/unlock output pass lands it is the natural moment
+# to promote this into a dedicated "Output formatting" section (see this
+# session's notes.md).
+
+def format_summary_block(
+    rows: list[tuple[str, str]],
+    *,
+    status: Optional[str] = None,
+    sid: Optional[str] = None,
+    trailer: Optional[list[str]] = None,
+) -> str:
+    """Render the canonical end-of-run summary block as a single string.
+
+    `rows` are (label, value) pairs rendered as `  <label>: <value>` with the
+    colons aligned on the longest label and a two-space indent. When both
+    `status` and `sid` are given they prepend a `  [STATUS] <sid>` headline —
+    the form the eye locks onto, matching the apply PASS / HOLD / REVERT /
+    BAILOUT banners. Commands with no verdict (pack, handoff) pass neither and
+    get rows only. `trailer` lines are emitted verbatim after a blank line, for
+    the actionable next step ("Send the tarball to Claude...", "Next step:
+    ...").
+
+    The returned block opens with a blank line and has NO trailing blank; the
+    caller prints it (its print adds the final newline) and is responsible for
+    any extra spacing before a following prompt. Pure: builds a string, prints
+    nothing.
+    """
+    if (status is None) != (sid is None):
+        # Half a headline is a caller bug — both or neither.
+        raise ValueError(
+            "format_summary_block: status and sid must be given together"
+        )
+    lines: list[str] = [""]
+    if status is not None:
+        lines.append(f"  [{status}] {sid}")
+    width = max((len(label) for label, _ in rows), default=0)
+    for label, value in rows:
+        lines.append(f"  {(label + ':'):<{width + 1}} {value}")
+    if trailer:
+        lines.append("")
+        lines.extend(trailer)
+    return "\n".join(lines)
 
 
 # --- Apply walkthrough (BALE.md §8.7) ----------------------------------------
@@ -2405,29 +2475,28 @@ def format_walkthrough_summary(
     origin..sid_branch diffstat and matches the inspection command we tell
     the user to run). The caller prints the returned string.
     """
-    lines: list[str] = [""]
-    lines.append(f"  [{state}] {sid}")
-    lines.append(f"  origin:  {origin_branch}")
-    if state == "PASS":
-        lines.append(f"  branch:  {sid_branch} (committed; ready to merge)")
-    else:
-        lines.append(f"  branch:  {sid_branch} (uncommitted; staged changes held)")
-    lines.append(f"  summary: {manifest.get('summary', '(no summary)')}")
+    # Reference material first, crisp verdict last. Everything appended to
+    # `ref` below is the scrollable detail — the per-check claims table, the
+    # diffstat, the notes.md / next-prompt.md bodies, the inspect commands. The
+    # one-glance verdict block is built afterwards and returned *last*, so it
+    # lands at the bottom of the output where the cursor and the eye settle.
+    # (Before this change the [PASS]/[HOLD] headline printed first and a long
+    # notes.md or next-prompt.md body could push it clean off the screen, so
+    # the eye landed on the inspect commands instead of the verdict.)
+    ref: list[str] = []
 
-    # Claims block per TARBALL.md §5.3. The actual claim-vs-verdict
+    # Claims-per-check detail per TARBALL.md §5.3. The actual claim-vs-verdict
     # reconciliation lives in validation.sh's output (already streamed to the
     # log file before this point); we surface the claims side here so the
-    # walkthrough is self-contained for review.
+    # walkthrough is self-contained for review. The exit code is rolled up
+    # into the verdict block below — this is the per-check breakout.
     claims = manifest.get("claims", {}) or {}
     if claims:
-        lines.append("")
-        lines.append("  claims (verdict in .bale/logs/{}.log):".format(sid))
-        width = max(len(k) for k in claims) if claims else 0
+        ref.append("")
+        ref.append("  claims (verdict in .bale/logs/{}.log):".format(sid))
+        width = max(len(k) for k in claims)
         for check, claim in claims.items():
-            lines.append(f"    {check:<{width}}  claim={claim}")
-        lines.append(f"  validation exit code: {exit_code}")
-    else:
-        lines.append(f"  validation: exit={exit_code} (no project-level claims)")
+            ref.append(f"    {check:<{width}}  claim={claim}")
 
     # Diffstat between origin and the bale branch. On the HOLD path the bale
     # branch's HEAD is identical to origin's HEAD (no commit was made), so
@@ -2443,17 +2512,19 @@ def format_walkthrough_summary(
         diffstat = git(diff_args, cwd=repo, check=False).stdout.rstrip()
     except subprocess.CalledProcessError as e:
         diffstat = f"(diffstat unavailable: {e.stderr or e})"
-    lines.append("")
-    lines.append(f"  diffstat ({diff_label}):")
+    ref.append("")
+    ref.append(f"  diffstat ({diff_label}):")
     if diffstat:
         for ln in diffstat.splitlines():
-            lines.append(f"    {ln}")
+            ref.append(f"    {ln}")
     else:
-        lines.append("    (empty)")
+        ref.append("    (empty)")
 
     # notes.md and next-prompt.md from the response — surfaced inline per
     # BALE.md §8.7. Silent skip when absent; absence is the canonical signal
-    # of "nothing extra to surface" (TARBALL.md §5.1, §5.4, §5.5).
+    # of "nothing extra to surface" (TARBALL.md §5.1, §5.4, §5.5). These are
+    # the longest things the walkthrough prints, which is exactly why they
+    # sit up here in the reference block rather than just above the prompt.
     for fname in ("notes.md", "next-prompt.md"):
         fpath = response_dir / fname
         if not fpath.is_file():
@@ -2461,27 +2532,53 @@ def format_walkthrough_summary(
         try:
             body = fpath.read_text(encoding="utf-8").rstrip()
         except OSError as e:
-            lines.append("")
-            lines.append(f"  --- {fname} (unreadable: {e}) ---")
+            ref.append("")
+            ref.append(f"  --- {fname} (unreadable: {e}) ---")
             continue
         if not body:
             continue  # present but empty — treat as silent skip
-        lines.append("")
-        lines.append(f"  --- {fname} ---")
+        ref.append("")
+        ref.append(f"  --- {fname} ---")
         for ln in body.splitlines():
-            lines.append(f"  {ln}" if ln else "")
-        lines.append(f"  --- end {fname} ---")
+            ref.append(f"  {ln}" if ln else "")
+        ref.append(f"  --- end {fname} ---")
 
     # Inspection commands. The user runs these manually if they want to dig
     # past the summary; we don't shell out, just print the commands.
-    lines.append("")
-    lines.append("  inspect:")
-    lines.append(f"    git diff {origin_branch}..{sid_branch}")
-    lines.append(f"    git log {sid_branch}")
-    lines.append(f"    cat .bale/logs/{sid}.log")
-    lines.append(f"    ls {staging}/")
-    lines.append("")
-    return "\n".join(lines)
+    ref.append("")
+    ref.append("  inspect:")
+    ref.append(f"    git diff {origin_branch}..{sid_branch}")
+    ref.append(f"    git log {sid_branch}")
+    ref.append(f"    cat .bale/logs/{sid}.log")
+    ref.append(f"    ls {staging}/")
+
+    # Crisp verdict block LAST — the thing the eye lands on. Origin/branch/
+    # summary plus a one-line validation roll-up; the per-check table and the
+    # full diff are in the reference block above.
+    if claims:
+        validation_row = (
+            f"exit={exit_code} ({len(claims)} claim(s); "
+            f"per-check table above, verdict in log)"
+        )
+    else:
+        validation_row = f"exit={exit_code} (no project-level claims)"
+    branch_state = (
+        f"{sid_branch} (committed; ready to merge)" if state == "PASS"
+        else f"{sid_branch} (uncommitted; staged changes held)"
+    )
+    summary_block = format_summary_block(
+        [
+            ("origin", origin_branch),
+            ("branch", branch_state),
+            ("summary", manifest.get("summary", "(no summary)")),
+            ("validation", validation_row),
+        ],
+        status=state,
+        sid=sid,
+    )
+    # Trailing blank separates the verdict block from the prompt the caller
+    # prints next.
+    return "\n".join(ref) + "\n" + summary_block + "\n"
 
 
 def prompt_walkthrough_action(state: str) -> str:
@@ -2730,16 +2827,16 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
 
 def print_bailout_banner(manifest: dict, handoff_path: Path,
                          tarball_basename: str) -> None:
-    """Per TARBALL.md §5.6.3 steps 1-3: a clear banner identifying the
-    response as a bailout, the manifest.summary, the first section of
-    handoff.md, and the explicit next-step instruction.
+    """Per TARBALL.md §5.6.3 steps 1-3: the manifest.summary, the first
+    section of handoff.md, a clear banner identifying the response as a
+    bailout, and the explicit next-step instruction.
 
-    Output style mirrors the existing PASS / HOLD banners in
-    _apply_pipeline — leading blank line, label-value pairs with two-space
-    indent — so the eye lands on `[BAILOUT]` the same way it lands on
-    `[PASS]` and `[HOLD]`. The multi-line summary and handoff section are
-    bracketed by `--- … ---` separators since they don't fit the label-
-    value shape.
+    The summary paragraph and the handoff excerpt are the bulky reference
+    material, so they print FIRST, bracketed by `--- … ---` separators since
+    they don't fit the label-value shape. The crisp `[BAILOUT]` banner and the
+    `bale handoff` next step print LAST, via format_summary_block, so the eye
+    lands on the verdict and the action even when the handoff excerpt runs
+    long — the same reordering applied to the apply walkthrough summary.
     """
     try:
         handoff_text = handoff_path.read_text(encoding="utf-8")
@@ -2750,9 +2847,8 @@ def print_bailout_banner(manifest: dict, handoff_path: Path,
         fail(f"could not read handoff.md: {e}")
     first_section = first_section_of_handoff(handoff_text)
 
-    print()
-    print(f"  [BAILOUT] {manifest['session_id']}")
-    print(f"  No changes applied. apply.sh and validation.sh were not run.")
+    # Reference material first: the summary paragraph and the handoff excerpt
+    # (the part that can run long).
     print()
     print(f"  --- summary ---")
     for line in manifest["summary"].splitlines() or [""]:
@@ -2764,9 +2860,14 @@ def print_bailout_banner(manifest: dict, handoff_path: Path,
             print(f"  {line}")
     else:
         print(f"  (handoff.md has no `## ` section; check the file directly)")
-    print()
-    print(f"  Next step:")
-    print(f"    bale handoff {tarball_basename}")
+
+    # Crisp banner + next step LAST.
+    print(format_summary_block(
+        [("applied", "no changes — apply.sh and validation.sh were not run")],
+        status="BAILOUT",
+        sid=manifest["session_id"],
+        trailer=["  Next step:", f"    bale handoff {tarball_basename}"],
+    ))
     print()
 
 
@@ -3103,12 +3204,16 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # call covers both `<install>/user/bale.toml` and `<repo>/bale.toml`.
             run_hook(repo, bale_config.merged_config(repo), "post_apply_pass", locked_sid)
 
-            print()
-            print(f"  [PASS] {locked_sid}")
-            print(f"  tag:     applied/{locked_sid}")
-            print(f"  branch:  {origin_branch} (merged)")
-            print(f"  files:   {len(manifest['changes'])} changed")
-            print(f"  staging: {staging} (preserved for inspection)")
+            print(format_summary_block(
+                [
+                    ("tag", f"applied/{locked_sid}"),
+                    ("branch", f"{origin_branch} (merged)"),
+                    ("files", f"{len(manifest['changes'])} changed"),
+                    ("staging", f"{staging} (preserved for inspection)"),
+                ],
+                status="PASS",
+                sid=locked_sid,
+            ))
             return 0
 
         if action == "inspect":
@@ -3116,15 +3221,19 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # user to investigate. Exit non-zero per BALE.md §8.7 piped-mode
             # contract; the lock and branch persist until the user retries
             # with a corrected response or reverts.
-            print()
-            print(f"  [HOLD] {locked_sid}")
-            print(f"  validation exited {exit_code}")
-            print(f"  branch:  {sid_branch} (uncommitted; "
-                  f"`git diff --cached` to inspect)")
-            print(f"  log:     .bale/logs/{locked_sid}.log")
-            print(f"  staging: {staging} (preserved)")
-            print(f"  retry:   bale retry <new-tarball>")
-            print(f"  discard: bale revert {locked_sid}")
+            print(format_summary_block(
+                [
+                    ("validation", f"exited {exit_code}"),
+                    ("branch", f"{sid_branch} (uncommitted; "
+                               f"`git diff --cached` to inspect)"),
+                    ("log", f".bale/logs/{locked_sid}.log"),
+                    ("staging", f"{staging} (preserved)"),
+                    ("retry", "bale retry <new-tarball>"),
+                    ("discard", f"bale revert {locked_sid}"),
+                ],
+                status="HOLD",
+                sid=locked_sid,
+            ))
             return 1
 
         # action == "revert" — BALE.md §8.8: "Delete the branch (forcefully),
@@ -3156,12 +3265,15 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         clear_lock(repo)
         log(f"walkthrough revert: {locked_sid}; lock cleared")
 
-        print()
-        print(f"  [REVERT] {locked_sid}")
-        print(f"  branch:  {status['origin_branch']} "
-              f"({sid_branch} deleted)")
-        print(f"  lock:    cleared")
-        print(f"  staging: {status['staging_status']}")
+        print(format_summary_block(
+            [
+                ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
+                ("lock", "cleared"),
+                ("staging", status['staging_status']),
+            ],
+            status="REVERT",
+            sid=locked_sid,
+        ))
         return 1
 
 
@@ -4100,24 +4212,35 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # contract makes no distinction.
         run_hook(repo, bale_config.merged_config(repo), "post_pack", new_sid)
 
-        print()
-        print(f"  session id: {new_sid}")
-        print(f"  tarball:    {tarball_out}")
-        print(f"  inherited:  goal from {responds_to_sid}"
-              + ("  (edited)" if args.edit_goal else "  (verbatim)"))
+        # Reading-plan file list (reference detail) first, crisp summary last —
+        # the same eye-lands-last shape as pack/apply. The crisp block carries
+        # the count; the per-file list (which can run several lines) sits above
+        # it rather than between the summary and the next-step instruction.
         if included_paths:
             plural = "s" if len(included_paths) != 1 else ""
-            print(f"  context:    handoff.md + {len(included_paths)} "
-                  f"reading-plan file{plural}:")
+            print()
+            print(f"  reading-plan file{plural} packed into context/:")
             for rel in included_paths:
-                print(f"                {rel}")
+                print(f"    {rel}")
+            context_val = (f"handoff.md + {len(included_paths)} "
+                           f"reading-plan file{plural}")
         else:
-            print(f"  context:    handoff.md  "
-                  f"(no reading-plan files extracted)")
-        print(f"  depends_on: previous_response = {bailout_sid}")
-        print()
-        print("Send the tarball to Claude. When the response comes back,")
-        print("run: bale apply <response-tarball>")
+            context_val = "handoff.md (no reading-plan files extracted)"
+
+        print(format_summary_block(
+            [
+                ("session id", new_sid),
+                ("tarball", str(tarball_out)),
+                ("inherited", f"goal from {responds_to_sid} "
+                              + ("(edited)" if args.edit_goal else "(verbatim)")),
+                ("context", context_val),
+                ("depends_on", f"previous_response = {bailout_sid}"),
+            ],
+            trailer=[
+                "Send the tarball to Claude. When the response comes back,",
+                "run: bale apply <response-tarball>",
+            ],
+        ))
         return 0
 
 
