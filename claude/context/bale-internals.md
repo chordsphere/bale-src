@@ -137,10 +137,34 @@ is *for* — and stays stable as the per-section line numbers drift:
     argparse already encodes the data, and a parallel dict would
     double the bookkeeping for every new command. By file order this
     cluster sits between Hook invocation (cluster 15, banner section
-    23) and the CLI parser (cluster 16, banner section 25); it is
-    listed as cluster 17 to preserve the existing cluster numbers,
+    23) and the CLI parser (cluster 16, banner section 26 — renumbered
+    from 25 when the Status section, cluster 18, was inserted ahead of
+    it); it is listed as cluster 17 to preserve the existing cluster numbers,
     which (per this section's preamble) are stable across line-number
     drift.
+18. **Status.** `cmd_status` (introduced v0.2.3) plus the pure helpers
+    it composes: `_session_state_and_hint` (classifies the open-session
+    lifecycle state — idle/packed/held/orphan, BALE.md §9.5 — from three
+    booleans), the `StatusReport` dataclass, `_gather_status` (the only
+    I/O: reads lock, outbox, the `bale/<sid>` branch, `applied/*` tags,
+    the stamped request manifest's goal, and config presence/effective
+    values), and `_render_status` (turns the report into a
+    `format_summary_block`). `bale status` is read-only — no lock, no git
+    or filesystem writes, no clean-tree requirement — and degrades
+    gracefully outside a git repo and on a malformed `bale.toml` (config
+    summary catches the `fail()`-driven `SystemExit` so the rest of the
+    report still renders). The gather/render split is the test seam ADR
+    0003 anticipates: the classifier and renderer are pure and
+    unit-testable, the command is CLI-E2E-testable; the tests themselves
+    are deferred to the v0.4 harness (ADR 0001). It reads several `bin/bale`
+    helpers (`read_lock`, `current_branch`, `working_tree_clean`,
+    `repo_root`, `format_summary_block`) and `bale_config`'s
+    `merged_config`/`get_hook`/`get_apply_search_paths` for the config
+    summary. By file order this cluster is banner section 25, between Help
+    and completion (cluster 17, banner section 24) and the CLI parser
+    (cluster 16, banner section 26 — renumbered from 25 when Status was
+    inserted ahead of it); it is listed as cluster 18 to preserve the
+    existing cluster numbers per this section's stable-numbering rule.
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
@@ -215,16 +239,19 @@ it retired the "no `bale rollback` yet" stubs in `cmd_revert` /
 `_discard_hold_state`, which now route the already-merged case to
 `bale rollback <sid>`.
 
-Two-level subparsing only — `bale <verb>` for ten top-level commands
+Two-level subparsing only — `bale <verb>` for eleven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
-`config`, `help`, `completion`), plus `bale config <subcommand>` for the
-config family. At v0.0.x the only `config` subcommand is `init`; `set`,
-`get`, `edit` are deliberately out of scope until they earn a place.
+`config`, `help`, `completion`, `status`), plus `bale config <subcommand>`
+for the config family. At v0.0.x the only `config` subcommand is `init`;
+`set`, `get`, `edit` are deliberately out of scope until they earn a place.
 `help` and `completion` (added v0.2.2) are top-level rather than nested
 because both are bale-wide discoverability surfaces, not configuration
 operations; `bale help` shows top-level usage, `bale help <cmd>` shows
 one command's `--help`, and `bale completion bash` prints the bash
-completion script to stdout.
+completion script to stdout. `status` (added v0.2.3) is likewise a
+top-level read-only surface — a no-flag dashboard of the working
+directory's bale state — and, carrying no flags, it surfaces in `help`
+and `completion` for free (cluster 18).
 
 ---
 
