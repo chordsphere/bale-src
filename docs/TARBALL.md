@@ -585,6 +585,29 @@ only. The mechanical checks Claude wrote the manifest for (manifest
 consistency, file syntax) are tautological — a `pass` claim adds no
 information and they're omitted.
 
+A `claims` key is not free text: it is the **canonical identifier**
+of the check it predicts, and that identifier is the check's
+`validation_will_run` entry. The two must verbatim-match — same
+characters, same spacing — so the entry string is the single
+canonical name a check is known by, reused unchanged as the `claims`
+key and again as the verdict label §7.3 reconciles against. That one
+shared string is what makes the reconciliation well-defined: a claim
+and its verdict pair because they name the check identically, not
+because anything matches a paraphrase. A `claims` key with no
+verbatim match in `validation_will_run` is unpairable — a prediction
+about a check the manifest never says will run.
+
+The match is one-directional, and the scoping is the point. Every
+`claims` key must appear in `validation_will_run`, so
+`set(claims) ⊆ set(validation_will_run)`; the converse does not hold.
+`validation_will_run` also lists the mechanical checks (file syntax,
+manifest consistency) the paragraph above excludes from `claims`, and
+those entries therefore stand as run-but-unclaimed — correct, not a
+gap. So the invariant binds only the claimable project-level checks:
+claimed checks are always a subset of run checks, never a superset.
+This subset relation is what §10.1 self-checks before packing and
+`CLAUDE.md` §11.6 re-derives after a compaction.
+
 A claim disagreeing with the verdict doesn't reject the tarball; it's
 flagged in validation's end-of-run report. The pattern of
 disagreements over time is the signal worth catching — it tells me
@@ -1098,7 +1121,29 @@ won't catch them.
    otherwise.
 9. Optionally write `README.md` if there's color beyond
    `manifest.summary` worth keeping. Skip otherwise.
-10. Tar: `tar -czf response-NNN.tar.gz response-NNN/`.
+10. **Self-check the manifest's internal consistency** — a computed
+    pass over the finished manifest against the real `files/`, not a
+    recollection of what was intended. The set is:
+    - **Recomputed hashes.** Re-run the §5.2.1 computation against
+      the bytes now under `files/` and confirm every `size_bytes` and
+      `sha256` matches — recomputed, never transcribed.
+    - **`files/` ↔ `changes[]`, both directions.** Every `created`/
+      `modified` entry has a file under `files/`, and every file under
+      `files/` has a matching entry — no declared-but-absent file, no
+      undeclared file. (`deleted` entries carry no `files/` member by
+      §5.1.1.)
+    - **`set(claims) ⊆ validation_will_run`.** Every `claims` key
+      verbatim-matches a `validation_will_run` entry (§5.3). A key
+      with no match is the tell of a renamed or paraphrased check; the
+      fix is the key, not a new entry.
+    Bale's pre-flight (§8) independently re-checks the first two and
+    bounces a tarball that fails either, so catching them here turns a
+    rejected tarball into a fix before packing. The third is the
+    builder's to keep: bale treats claims as diagnostic, not
+    gatekeeping (§7.3), so a stray claims key sails through pre-flight
+    and surfaces only as an unpairable line in the §7.3 reconciliation
+    — this self-check is the one place it's caught before then.
+11. Tar: `tar -czf response-NNN.tar.gz response-NNN/`.
 
 ### 10.2 Returning a probe instead
 
