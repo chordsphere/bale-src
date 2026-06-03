@@ -3668,11 +3668,23 @@ def cmd_revert(args: argparse.Namespace) -> int:
         clear_lock(repo)
         log(f"cleared lock (was {sid})")
 
-    print()
-    print(f"  reverted {sid}")
-    print(f"  branch:  {status['origin_branch']}")
-    print(f"  lock:    {'cleared' if lock_cleared else 'unchanged'}")
-    print(f"  staging: {status['staging_status']}")
+    # End-of-run summary through the shared formatter (see the
+    # "Shared end-of-run summary formatting" section) so `bale revert`
+    # ends on the same [STATUS] sid shape as apply/handoff — and in
+    # particular matches the apply pipeline's own walkthrough-revert
+    # banner (status="REVERT", branch/lock/staging rows), since both
+    # paths run the same _discard_hold_state cleanup. The crisp block is
+    # the last thing printed; the operational [bale] log lines above it
+    # are the reference trail that precedes it.
+    print(format_summary_block(
+        [
+            ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
+            ("lock", "cleared" if lock_cleared else "unchanged"),
+            ("staging", status["staging_status"]),
+        ],
+        status="REVERT",
+        sid=sid,
+    ))
     return 0
 
 
@@ -3807,15 +3819,23 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         log(f"no session dir at {sessions_dir} to wipe")
         session_status = "not present"
 
-    print()
-    print(f"  unlocked {sid}")
-    print(f"  lock:    cleared")
-    print(f"  session: {session_status}")
+    # End-of-run summary through the shared formatter, same [STATUS] sid
+    # shape as apply/handoff/revert. UNLOCK joins PASS/HOLD/REVERT as a
+    # terminal-state headline. The --force "branch preserved" note is an
+    # extra row only when a branch was actually left behind. As with
+    # revert, the operational [bale] log lines above are the reference
+    # trail and this block is the last thing printed.
+    rows = [
+        ("lock", "cleared"),
+        ("session", session_status),
+    ]
     if branch_exists:
-        print(
-            f"  branch:  {sid_branch} preserved (--force); "
-            f"`git branch -D {sid_branch}` to remove"
-        )
+        rows.append((
+            "branch",
+            f"{sid_branch} preserved (--force); "
+            f"`git branch -D {sid_branch}` to remove",
+        ))
+    print(format_summary_block(rows, status="UNLOCK", sid=sid))
     return 0
 
 
