@@ -285,7 +285,6 @@ def _run_revert(
             return 1
         conflicts = _conflicted_paths(repo)
         print()
-        print(f"  [CONFLICT] revert of {target_commit[:9]} did not apply cleanly")
         if conflicts:
             print("  conflicted files:")
             for p in conflicts:
@@ -298,6 +297,10 @@ def _run_revert(
         if stash_ref is not None:
             print(f"  your --stash changes are still stashed ({stash_ref}); "
                   f"`git stash pop` after the revert is resolved.")
+        # Status headline last, after the resolution steps the user needs to
+        # act on (the main-CLI output idiom: takeaway nearest the prompt).
+        print()
+        print(f"  [CONFLICT] revert of {target_commit[:9]} left in progress")
         log(f"revert conflict (exit {r.returncode}); left in progress, "
             f"not tagged")
         return 1
@@ -335,7 +338,7 @@ def _do_list(repo: Path) -> int:
         return 0
 
     print()
-    print(f"  applied sessions reachable from HEAD ({len(applied)}):")
+    print("  applied sessions reachable from HEAD:")
     print()
     for sid, _tag in applied:
         if _tag_exists(repo, f"{TAG_REAPPLIED}/{sid}"):
@@ -345,8 +348,11 @@ def _do_list(repo: Path) -> int:
         else:
             status = "applied"
         print(f"    {status:<11} {sid}")
+    # Summary + the actionable hint land last, after the rows (the readable
+    # idiom the main CLI uses: detail first, the takeaway nearest the prompt).
     print()
-    print("  rollback <sid> to revert; rollback <sid> --undo to re-apply.")
+    print(f"  {len(applied)} applied session(s); "
+          f"rollback <sid> to revert, rollback <sid> --undo to re-apply.")
     return 0
 
 
@@ -412,11 +418,14 @@ def _do_rollback(repo: Path, args) -> int:
         force=args.force,
     )
     if rc == 0:
+        # Detail first, the status headline last — the takeaway sits nearest
+        # the user's next prompt (the main-CLI output idiom).
         print()
-        print(f"  [ROLLED BACK] {sid}")
         print(f"  reverted:  applied/{sid} ({commit[:9]})")
         print(f"  tag:       {reverted_tag}")
         print(f"  undo with: bale rollback {sid} --undo")
+        print()
+        print(f"  [ROLLED BACK] {sid}")
     return rc
 
 
@@ -455,10 +464,12 @@ def _do_undo(repo: Path, args) -> int:
         force=args.force,
     )
     if rc == 0:
+        # Detail first, status headline last (same idiom as _do_rollback).
         print()
-        print(f"  [RE-APPLIED] {sid}")
         print(f"  undid:  reverted/{sid} ({revert_commit[:9]})")
         print(f"  tag:    {reapplied_tag}")
+        print()
+        print(f"  [RE-APPLIED] {sid}")
     return rc
 
 
