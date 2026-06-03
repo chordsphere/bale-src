@@ -33,6 +33,11 @@ YES=0
 DO_SYMLINK=1
 DO_VALIDATE=1
 
+# Outcomes captured as the script runs, reported in the closing summary so the
+# key facts land last (rather than scattered through the step log above).
+SYMLINK_STATUS="(unknown)"
+VALIDATE_STATUS="(unknown)"
+
 for arg in "$@"; do
   case "$arg" in
     -y|--yes)       YES=1 ;;
@@ -87,13 +92,16 @@ if [[ "$DO_SYMLINK" == "1" ]]; then
     existing="$(readlink "$SYMLINK_TARGET")"
     if [[ "$existing" == "$BALE" ]]; then
       log "symlink already points to this install ($SYMLINK_TARGET); no change"
+      SYMLINK_STATUS="already current ($SYMLINK_TARGET)"
     else
       log "symlink at $SYMLINK_TARGET currently points elsewhere: $existing"
       if confirm "repoint $SYMLINK_TARGET -> $BALE?"; then
         ln -sf "$BALE" "$SYMLINK_TARGET"
         log "repointed symlink"
+        SYMLINK_STATUS="repointed to this install ($SYMLINK_TARGET)"
       else
         log "left existing symlink alone"
+        SYMLINK_STATUS="left pointing elsewhere: $existing"
       fi
     fi
   elif [[ -e "$SYMLINK_TARGET" ]]; then
@@ -103,31 +111,46 @@ if [[ "$DO_SYMLINK" == "1" ]]; then
     if confirm "create symlink $SYMLINK_TARGET -> $BALE?"; then
       ln -s "$BALE" "$SYMLINK_TARGET"
       log "created symlink $SYMLINK_TARGET"
+      SYMLINK_STATUS="created ($SYMLINK_TARGET)"
       case ":$PATH:" in
         *":$HOME/.local/bin:"*) ;;
         *) log "note: $HOME/.local/bin is not on PATH. Add to your shell rc or invoke by full path." ;;
       esac
     else
       log "skipped symlink (re-run install.sh to add it later, or 'ln -s' by hand)"
+      SYMLINK_STATUS="skipped (declined; re-run install.sh to add)"
     fi
   fi
 else
   log "skipping symlink step (--no-symlink)"
+  SYMLINK_STATUS="skipped (--no-symlink)"
 fi
 
-# Validate at the end.
+# Validate at the end. Under `set -e`, a non-zero validate.sh aborts the
+# install here (before the summary) — so reaching the summary below means
+# validation passed. We capture that outcome rather than re-deriving it.
 if [[ "$DO_VALIDATE" == "1" ]]; then
   log "---"
   "$INSTALL_DIR/validate.sh"
+  VALIDATE_STATUS="passed"
 else
   log "skipping validate (--no-validate); run $INSTALL_DIR/validate.sh manually any time"
+  VALIDATE_STATUS="skipped (--no-validate)"
 fi
 
-# Point the user at the canonical first-project setup. Printed after validate
-# so it's the last thing the user sees on a clean install. We don't try to
-# run `bale config init` from here — it requires a git repo (the project the
-# user wants to use bale on), and the install dir is not that.
+# Closing summary. The key facts land here, last, after the step log and
+# validate.sh's own output above — so a user reading from the bottom sees
+# what happened and what to do next without scrolling back through the steps.
+# We don't try to run `bale config init` from here — it requires a git repo
+# (the project the user wants to use bale on), and the install dir is not that.
 log "---"
+log "install complete"
+log "  install dir: $INSTALL_DIR"
+log "  layout:      verified"
+log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh)"
+log "  symlink:     $SYMLINK_STATUS"
+log "  validate:    $VALIDATE_STATUS"
+log ""
 log "next steps:"
 log "  - cd to a project (git repo) you want to use bale with, then"
 log "    run 'bale config init' to walk through per-repo setup."

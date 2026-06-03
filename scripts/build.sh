@@ -215,8 +215,9 @@ fi
 SIZE=$(wc -c < "$TARBALL" | tr -d ' ')
 
 log "---"
-log "release: bale-v$VERSION"
-log "path:    $TARBALL"
-log "size:    $SIZE bytes"
-log "sha256:  ${SHA256:-(unavailable: install sha256sum or shasum)}"
-log "install: tar -xzf $(basename "$TARBALL") -C ~/  &&  ~/bale/install.sh"
+log "build complete"
+log "  release: bale-v$VERSION"
+log "  path:    $TARBALL"
+log "  size:    $SIZE bytes"
+log "  sha256:  ${SHA256:-(unavailable: install sha256sum or shasum)}"
+log "  install: tar -xzf $(basename "$TARBALL") -C ~/  &&  ~/bale/install.sh"

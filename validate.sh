@@ -14,10 +14,35 @@ BALE="$INSTALL_DIR/bin/bale"
 
 PASS=0
 FAIL=0
+FAILURES=()   # labels of failed checks, replayed in the closing summary
 
 section() { printf '\n[validate] %s\n' "$*"; }
 pass()    { printf '  [PASS] %s\n' "$1"; PASS=$((PASS + 1)); }
-fail()    { printf '  [FAIL] %s'  "$1"; [[ $# -gt 1 ]] && printf ' — %s' "$2"; printf '\n'; FAIL=$((FAIL + 1)); }
+fail() {
+  local msg="$1"
+  [[ $# -gt 1 ]] && msg="$msg — $2"
+  printf '  [FAIL] %s\n' "$msg"
+  FAILURES+=("$msg")
+  FAIL=$((FAIL + 1))
+}
+
+# Closing verdict block. Printed last — both on the early bin/bale-not-runnable
+# exit and at the normal end — so the result and the list of any failures land
+# at the bottom, instead of a bare count after dozens of [PASS] lines the user
+# has to scroll back through to find what actually failed.
+summary() {
+  printf '\n[validate] ---\n'
+  if [[ "$FAIL" -eq 0 ]]; then
+    printf '[validate] result: OK — %s checks passed\n' "$PASS"
+  else
+    printf '[validate] result: FAILED — %s passed, %s failed\n' "$PASS" "$FAIL"
+    printf '[validate] failed checks:\n'
+    local f
+    for f in "${FAILURES[@]}"; do
+      printf '  - %s\n' "$f"
+    done
+  fi
+}
 
 check_runs() {
   local name="$1"; shift
@@ -104,7 +129,7 @@ fi
 
 if [[ ! -x "$BALE" ]]; then
   printf '\n[validate] bin/bale not runnable; skipping remaining checks.\n'
-  printf '[validate] summary: %s passed, %s failed\n' "$PASS" "$FAIL"
+  summary
   exit 1
 fi
 
@@ -219,5 +244,5 @@ else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"
 fi
 
-printf '\n[validate] summary: %s passed, %s failed\n' "$PASS" "$FAIL"
+summary
 [[ "$FAIL" -eq 0 ]] || exit 1
