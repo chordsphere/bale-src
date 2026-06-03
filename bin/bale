@@ -306,6 +306,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -2434,6 +2435,7 @@ def format_summary_block(
     status: Optional[str] = None,
     sid: Optional[str] = None,
     trailer: Optional[list[str]] = None,
+    wrap_width: Optional[int] = None,
 ) -> str:
     """Render the canonical end-of-run summary block as a single string.
 
@@ -2445,6 +2447,19 @@ def format_summary_block(
     get rows only. `trailer` lines are emitted verbatim after a blank line, for
     the actionable next step ("Send the tarball to Claude...", "Next step:
     ...").
+
+    `wrap_width` is opt-in long-value handling, added for `bale status` whose
+    values (a wordy session goal, a long outbox listing) overflow a terminal
+    line where the banner callers' values — sids, branch names, exit codes —
+    never do. When it is None (every caller except status) the row-rendering
+    path is byte-for-byte the original single-line form, so this stays a pure
+    addition with no effect on the pack/apply/handoff/revert/unlock banners.
+    When it is set, a value is split on embedded newlines and each segment is
+    word-wrapped to fit `wrap_width` columns, with continuation lines indented
+    to align under the value column. Long unbreakable tokens (tarball
+    filenames, paths) are kept whole rather than chopped mid-token. The headline
+    and the trailer are never wrapped: the trailer carries copy-pasteable
+    command hints that must not break across lines.
 
     The returned block opens with a blank line and has NO trailing blank; the
     caller prints it (its print adds the final newline) and is responsible for
@@ -2460,12 +2475,51 @@ def format_summary_block(
     if status is not None:
         lines.append(f"  [{status}] {sid}")
     width = max((len(label) for label, _ in rows), default=0)
+    # Column where a value begins: two-space indent + padded "label:" + one
+    # space. Continuation lines (wrap mode only) align under it.
+    value_col = 2 + (width + 1) + 1
     for label, value in rows:
-        lines.append(f"  {(label + ':'):<{width + 1}} {value}")
+        prefix = f"  {(label + ':'):<{width + 1}} "
+        if wrap_width is None:
+            lines.append(f"{prefix}{value}")
+            continue
+        segments = _wrap_value_lines(value, max(wrap_width - value_col, 20))
+        first = segments[0] if segments else ""
+        lines.append(f"{prefix}{first}")
+        cont_indent = " " * value_col
+        for extra in segments[1:]:
+            lines.append(f"{cont_indent}{extra}" if extra else "")
     if trailer:
         lines.append("")
         lines.extend(trailer)
     return "\n".join(lines)
+
+
+def _wrap_value_lines(value: str, avail: int) -> list[str]:
+    """Split `value` into physical lines that fit `avail` columns.
+
+    Embedded newlines in `value` are honoured as hard breaks (the caller uses
+    them to lay an outbox listing out one tarball per line); each resulting
+    segment is then word-wrapped to `avail`. `break_long_words` and
+    `break_on_hyphens` are both off so a single long token — a tarball filename
+    or a repo path — is never split mid-token; it overflows its line intact,
+    which is far more readable than a path chopped at an arbitrary column. Pure;
+    returns the list of lines (an empty segment maps to a single empty line so a
+    blank value position is preserved rather than dropped).
+    """
+    out: list[str] = []
+    for segment in value.split("\n"):
+        if not segment:
+            out.append("")
+            continue
+        wrapped = textwrap.wrap(
+            segment,
+            width=avail,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+        out.extend(wrapped or [""])
+    return out
 
 
 # --- Apply walkthrough (BALE.md §8.7) ----------------------------------------
@@ -4843,6 +4897,14 @@ SESSION_STATE_PACKED = "packed"
 SESSION_STATE_HELD = "held"
 SESSION_STATE_ORPHAN = "orphan"
 
+# How many outbox tarballs `bale status` lists by name before collapsing the
+# remainder into a "+N more" pointer. A busy outbox (the case that prompted
+# this — every tarball joined onto one line ran clean off the screen) is now
+# capped to the most recent few; `ls .bale/outbox/` remains the full view. A
+# module constant rather than a literal so the renderer and a future selftest
+# (ADR 0003) name the same number, matching the SESSION_STATE_* pattern above.
+STATUS_OUTBOX_LIST_CAP = 6
+
 
 def _session_state_and_hint(
     lock_sid: Optional[str],
@@ -5086,6 +5148,15 @@ def _render_status(report: StatusReport) -> str:
     no-repo shapes. When a session is open the block gets a `[STATUS] <sid>`
     headline (the same eye-catching form pack/apply use); otherwise it is rows
     only. The next-step hint becomes the trailer — the actionable last line.
+
+    Long values are kept legible rather than left to flood the terminal: the
+    outbox is capped (STATUS_OUTBOX_LIST_CAP) and listed one tarball per line
+    instead of joined onto a single line, and every value is wrapped to the
+    terminal width via format_summary_block's wrap_width. The width read is the
+    one impurity-adjacent call (shutil.get_terminal_size, env/tty-derived);
+    everything else here is a pure function of `report`, so the renderer stays
+    the cheap unit-test target ADR 0003 names — a test can pin $COLUMNS for a
+    deterministic width.
     """
     rows: list[tuple[str, str]] = [("bale version", report.version)]
 
@@ -5106,9 +5177,37 @@ def _render_status(report: StatusReport) -> str:
             rows.append(("expects probe", report.session_expects_probe))
 
         if report.outbox_tarballs:
+            # Newest first (session IDs are date-prefixed, so a reverse sort is
+            # newest-first), one tarball per line, capped: the old single-line
+            # `, `-join is exactly what flooded the screen on a busy outbox. The
+            # open session's own request tarball is the most operationally
+            # relevant one, so it is pinned to the front — always shown and
+            # marked, never lost to the +N more overflow even on an outbox where
+            # other tarballs happen to sort newer. The count headline stays on
+            # the label line; the names wrap below it via format_summary_block's
+            # wrap_width handling.
             n = len(report.outbox_tarballs)
             noun = "tarball" if n == 1 else "tarballs"
-            rows.append(("outbox", f"{n} request {noun}: {', '.join(report.outbox_tarballs)}"))
+            ordered = sorted(report.outbox_tarballs, reverse=True)
+            current = (
+                f"request-{report.session_sid}.tar.gz"
+                if report.session_sid is not None else None
+            )
+            if current is not None and current in ordered:
+                ordered = [current] + [name for name in ordered if name != current]
+            shown = ordered[:STATUS_OUTBOX_LIST_CAP]
+            listed = [
+                f"{name} (current session)" if name == current else name
+                for name in shown
+            ]
+            overflow = n - len(shown)
+            if overflow:
+                listed.append(
+                    f"+{overflow} more (ls .bale/outbox/ to see all)"
+                )
+            rows.append(
+                ("outbox", f"{n} request {noun}:\n" + "\n".join(listed))
+            )
         else:
             rows.append(("outbox", "empty"))
 
@@ -5149,7 +5248,15 @@ def _render_status(report: StatusReport) -> str:
         headline_kwargs = {"status": "STATUS", "sid": report.session_sid}
 
     trailer = ["Next: " + report.next_hint] if report.next_hint else None
-    return format_summary_block(rows, trailer=trailer, **headline_kwargs)
+    # Wrap long values (a wordy goal, the outbox listing) to the terminal.
+    # shutil.get_terminal_size consults $COLUMNS, then the tty, then a (80, 24)
+    # fallback — so piped/non-tty output wraps at a stable 80 rather than not at
+    # all. Floored so a pathologically narrow terminal still leaves room for a
+    # value column.
+    wrap_width = max(shutil.get_terminal_size().columns, 40)
+    return format_summary_block(
+        rows, trailer=trailer, wrap_width=wrap_width, **headline_kwargs
+    )
 
 
 def cmd_status(args) -> int:
