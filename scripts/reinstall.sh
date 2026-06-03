@@ -77,4 +77,12 @@ log "mirrored bin/, docs/, schemas/, install.sh, validate.sh, upgrade.sh, README
 # that the new install is healthy.
 "$BALE_INSTALL/install.sh" -y --no-symlink
 
+# Closing summary. Runs after install.sh's own "install complete" block above,
+# so this reinstall verdict — the wrapper's key facts — is the final output the
+# dev loop leaves on screen. The same facts are logged as a preamble at the top
+# (progress trail); restating them here puts them last, where they're wanted.
+log "---"
 log "reinstall complete"
+log "  source:     $REPO"
+log "  target:     $BALE_INSTALL"
+log "  session id: ${BALE_SESSION_ID:-(unset)}"

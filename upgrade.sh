@@ -43,6 +43,10 @@ NEW_TARBALL=""
 YES="0"
 PASS_TO_INSTALL=()
 
+# Outcome captured as the swap runs, reported in the closing summary so the
+# key facts land just before the install.sh handoff rather than mid-log.
+USER_STATUS="(unknown)"
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -y|--yes)         YES="1"; PASS_TO_INSTALL+=("-y");           shift ;;
@@ -188,8 +192,10 @@ fi
 if [[ -d "$INSTALL_DIR/user" ]]; then
   mv "$INSTALL_DIR/user" "$USER_BACKUP"
   log "moved user/ aside: $USER_BACKUP"
+  USER_STATUS="preserved (moved aside and restored)"
 else
   log "no user/ subdir to preserve (this install hasn't been configured globally yet)"
+  USER_STATUS="none (install not globally configured)"
 fi
 
 # Wipe everything else in the install dir. Use find rather than rm -rf $INSTALL_DIR
@@ -213,9 +219,16 @@ if [[ -d "$USER_BACKUP" ]]; then
   log "restored user/ from backup"
 fi
 
-# Hand off to install.sh.
+# Hand off to install.sh. The closing summary prints here, just before the
+# handoff: upgrade.sh `exec`s install.sh (replacing this process), so
+# install.sh's own "install complete" summary becomes the final output the
+# user sees, with this swap summary immediately above it.
 log "---"
-log "running install.sh on the upgraded install"
+log "upgrade staged"
+log "  install dir: $INSTALL_DIR"
+log "  release:     $NEW_TARBALL"
+log "  user/ data:  $USER_STATUS"
+log "  next:        finalizing via install.sh (handoff below)"
 trap - EXIT
 rm -rf "$TMP_EXTRACT"
 exec "$INSTALL_DIR/install.sh" "${PASS_TO_INSTALL[@]}"
