@@ -1008,22 +1008,11 @@ def _cmd_config_init_project() -> int:
     is_existing = cfg_path.is_file()
 
     print()
-    print(f"bale config init (project layer)")
-    print(f"  repo:    {repo}")
-    print(f"  config:  {cfg_path}")
-    if GLOBAL_CONFIG_PATH.is_file():
-        print(f"  global:  {GLOBAL_CONFIG_PATH} (inherited)")
-    else:
-        print(f"  global:  {GLOBAL_CONFIG_PATH} (not configured)")
-    if is_existing:
-        print(f"  (existing file; current values shown, Enter keeps each.)")
-    else:
-        print(f"  (new file; only the keys you set will be written.)")
-    print()
-    print(f"  This is the canonical setup walkthrough for using bale on this")
-    print(f"  repo. It's idempotent — re-run any time to review or change.")
-    print(f"  Everything past git identity is optional; pressing Enter through")
-    print(f"  the rest leaves the repo in a perfectly usable state.")
+    print("bale config init (project layer)")
+    print("  Canonical setup walkthrough for using bale on this repo.")
+    print("  Idempotent — re-run any time to review or change. Everything")
+    print("  past git identity is optional; pressing Enter through the rest")
+    print("  leaves the repo in a perfectly usable state.")
 
     walkthrough_git_identity(repo)
 
@@ -1043,9 +1032,17 @@ def _cmd_config_init_project() -> int:
     # who never runs `bale pack` interactively still configures here.
     walkthrough_baleignore(repo)
 
+    # Key information last: the paths touched, what was written, and how to
+    # re-run — the summary sits nearest the prompt (the main-CLI output idiom).
     print()
-    print(f"  bale.toml: {cfg_path}")
-    print(f"  Re-run `bale config init` any time to review or change.")
+    print("bale config init — done (project layer)")
+    print(f"  repo:    {repo}")
+    print(f"  config:  {cfg_path} ({'updated' if is_existing else 'created'})")
+    if GLOBAL_CONFIG_PATH.is_file():
+        print(f"  global:  {GLOBAL_CONFIG_PATH} (inherited)")
+    else:
+        print(f"  global:  {GLOBAL_CONFIG_PATH} (not configured)")
+    print("  Re-run `bale config init` any time to review or change.")
     return 0
 
 
@@ -1072,20 +1069,13 @@ def _cmd_config_init_global() -> int:
     GLOBAL_USER_DIR.mkdir(parents=True, exist_ok=True)
 
     print()
-    print(f"bale config init --global")
-    print(f"  install: {INSTALL_ROOT}")
-    print(f"  config:  {cfg_path}")
-    if is_existing:
-        print(f"  (existing file; current values shown, Enter keeps each.)")
-    else:
-        print(f"  (new file; only the keys you set will be written.)")
-    print()
-    print(f"  Configures the install-wide global layer for this bale install.")
-    print(f"  Every project that runs this bale inherits these defaults; each")
-    print(f"  project's own bale.toml can override per-key.")
-    print(f"  Hook scripts referenced here live under <install>/user/scripts/")
-    print(f"  and are preserved across upgrades (via `upgrade.sh`).")
-    print(f"  It's idempotent — re-run any time to review or change.")
+    print("bale config init --global")
+    print("  Configures the install-wide global layer for this bale install.")
+    print("  Every project that runs this bale inherits these defaults; each")
+    print("  project's own bale.toml can override per-key. Hook scripts")
+    print("  referenced here live under <install>/user/scripts/ and are")
+    print("  preserved across upgrades (via `upgrade.sh`). Idempotent —")
+    print("  re-run any time to review or change.")
 
     print()
     print("Configurables (global layer)")
@@ -1096,8 +1086,12 @@ def _cmd_config_init_global() -> int:
     cfg_path.write_text(rendered, encoding="utf-8")
     log(f"wrote {cfg_path}")
 
+    # Key information last (same idiom as project mode): install + config
+    # paths, what was written, the scripts dir, and how to re-run.
     print()
-    print(f"  bale.toml (global): {cfg_path}")
-    print(f"  scripts dir:        {GLOBAL_USER_DIR / 'scripts'} (place global hook scripts here)")
-    print(f"  Re-run `bale config init --global` any time to review or change.")
+    print("bale config init --global — done")
+    print(f"  install:      {INSTALL_ROOT}")
+    print(f"  config:       {cfg_path} ({'updated' if is_existing else 'created'})")
+    print(f"  scripts dir:  {GLOBAL_USER_DIR / 'scripts'} (place global hook scripts here)")
+    print("  Re-run `bale config init --global` any time to review or change.")
     return 0
