@@ -3,16 +3,18 @@
 #
 # Run this after extracting bale's release tarball. It does:
 #   - chmod +x bin/bale and validate.sh (extract can lose the bit)
+#   - On Termux, offer to rewrite shebangs to the Termux interpreter
 #   - Verify the install layout is intact
 #   - Offer a symlink at ~/.local/bin/bale, with caution if one exists
 #   - Run validate.sh
 #
 # Usage:
-#   ~/bale/install.sh                  # interactive
-#   ~/bale/install.sh -y               # auto-yes all prompts
-#   ~/bale/install.sh --no-symlink     # skip the symlink offer
-#   ~/bale/install.sh --no-validate    # skip the trailing validate
-#   ~/bale/install.sh -h | --help      # this help
+#   ~/bale/install.sh                      # interactive
+#   ~/bale/install.sh -y                   # auto-yes all prompts
+#   ~/bale/install.sh --no-symlink         # skip the symlink offer
+#   ~/bale/install.sh --no-validate        # skip the trailing validate
+#   ~/bale/install.sh --no-termux-shebang  # skip the Termux shebang rewrite
+#   ~/bale/install.sh -h | --help          # this help
 #
 # For a clean upgrade over an existing install, the recommended path is
 # upgrade.sh, which preserves the user-owned <install>/user/ subtree
@@ -24,6 +26,156 @@
 
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# Functions first, install flow second. Everything above the source guard
+# below is side-effect-free: defining these functions runs no install steps,
+# so the file can be `source`d to reach a single helper in isolation (this is
+# how the response's validation.sh exercises the shebang rewrite hermetically,
+# without driving a real install). Direct execution falls through the guard
+# into the install flow at the bottom.
+# ---------------------------------------------------------------------------
+
+log() { printf '[install] %s\n' "$*"; }
+die() { printf '[install] error: %s\n' "$*" >&2; exit 1; }
+confirm() {
+  # ${YES:-0}: tolerate being defined-but-uncalled when the file is sourced
+  # (YES is only assigned in the install flow below the guard).
+  [[ "${YES:-0}" == "1" ]] && return 0
+  read -r -p "[install] $* [y/N] " ans
+  [[ "$ans" =~ ^[Yy]$ ]]
+}
+
+# --- Termux shebang handling -----------------------------------------------
+# On Termux (Android) there is no /usr/bin/env, so the stock
+# `#!/usr/bin/env <interp>` shebangs the release ships fail to exec unless the
+# termux-exec LD_PRELOAD shim is installed and active. Rewriting them to
+# absolute Termux interpreter paths lets the install run with no dependency on
+# termux-exec. Detection and the per-file rewrite are split into small
+# functions so the rewrite transform can be tested in isolation.
+
+# Termux's $PREFIX (…/files/usr) is the root every interpreter lives under;
+# fall back to the canonical path if $PREFIX is somehow unset.
+termux_prefix() {
+  printf '%s' "${PREFIX:-/data/data/com.termux/files/usr}"
+}
+
+# True when we appear to be running under Termux. TERMUX_VERSION is set by the
+# Termux app itself and is the strongest signal; a $PREFIX under com.termux and
+# the canonical bin dir are corroborating fallbacks.
+is_termux() {
+  [[ -n "${TERMUX_VERSION:-}" ]] && return 0
+  [[ "${PREFIX:-}" == *"/com.termux/"* ]] && return 0
+  [[ -d "/data/data/com.termux/files/usr/bin" ]] && return 0
+  return 1
+}
+
+# Resolve an interpreter name (bash, python3, …) to an absolute path under the
+# Termux prefix. Prefer the real on-PATH location (handles a non-default
+# prefix); fall back to $prefix/bin/<name>. Returns 1 (and prints nothing) if
+# neither resolves, so the caller can report a skip rather than write a shebang
+# pointing at a binary that isn't there. This is path resolution intrinsic to
+# the rewrite, not a prerequisite-package check (that is out of scope).
+termux_interp_path() {
+  local name="$1" prefix resolved
+  prefix="$(termux_prefix)"
+  if resolved="$(command -v "$name" 2>/dev/null)" && [[ -n "$resolved" ]]; then
+    printf '%s' "$resolved"
+    return 0
+  fi
+  if [[ -x "$prefix/bin/$name" ]]; then
+    printf '%s' "$prefix/bin/$name"
+    return 0
+  fi
+  return 1
+}
+
+# Rewrite one file's shebang to an absolute Termux interpreter path, in place.
+#
+# Prints exactly one outcome token to stdout (and nothing else, so callers and
+# the validation test can capture it cleanly):
+#   rewritten:<old> -> <new>   the shebang was rewritten
+#   current                    already points under the Termux prefix (no-op)
+#   not-shebang                line 1 is not a `#!` line (left untouched)
+#   no-interp                  shebang named no interpreter (left untouched)
+#   unresolved:<name>          interpreter did not resolve (left untouched)
+#   error-*                    an fs operation failed (returns non-zero)
+#
+# The replacement is an atomic rename (mktemp beside the target, then mv). A
+# rename leaves any process already executing this file reading the original,
+# now-unlinked inode — so install.sh rewriting its OWN shebang mid-run is safe:
+# the current run finishes on the old content, the new shebang takes effect on
+# the next invocation. The executable bit is preserved across the rename.
+rewrite_shebang() {
+  local file="$1"
+  local first body f0 f1 rest interp prefix newpath new
+
+  first="$(head -n 1 "$file")"
+  case "$first" in
+    '#!'*) ;;
+    *) printf 'not-shebang'; return 0 ;;
+  esac
+
+  body="${first#\#!}"
+  # `read` splits on IFS (space/tab) without globbing — safer than an array.
+  read -r f0 f1 rest <<< "$body"
+  if [[ -z "$f0" ]]; then
+    printf 'no-interp'; return 0
+  fi
+
+  # `#!/usr/bin/env bash` -> interpreter is the 2nd field (bash);
+  # `#!/usr/bin/python3` -> interpreter is the basename of the 1st field.
+  if [[ "$(basename "$f0")" == "env" && -n "$f1" ]]; then
+    interp="$f1"
+  else
+    interp="$(basename "$f0")"
+  fi
+  if [[ -z "$interp" ]]; then
+    printf 'no-interp'; return 0
+  fi
+
+  prefix="$(termux_prefix)"
+  # Already Termux-pointed (e.g. a re-run, or an already-fixed install)?
+  if [[ "$f0" == "$prefix/"* ]]; then
+    printf 'current'; return 0
+  fi
+
+  if ! newpath="$(termux_interp_path "$interp")"; then
+    printf 'unresolved:%s' "$interp"; return 0
+  fi
+  new="#!$newpath"
+  if [[ "$first" == "$new" ]]; then
+    printf 'current'; return 0
+  fi
+
+  local dir tmp was_x=0
+  dir="$(dirname "$file")"
+  if ! tmp="$(mktemp "$dir/.bale-shebang.XXXXXX")"; then
+    printf 'error-mktemp'; return 1
+  fi
+  if ! { printf '%s\n' "$new"; tail -n +2 "$file"; } > "$tmp"; then
+    rm -f "$tmp"; printf 'error-write'; return 1
+  fi
+  if [[ -x "$file" ]]; then was_x=1; fi
+  if ! mv "$tmp" "$file"; then
+    rm -f "$tmp"; printf 'error-mv'; return 1
+  fi
+  if [[ "$was_x" == "1" ]]; then chmod +x "$file"; fi
+
+  printf 'rewritten:%s -> %s' "$first" "$new"
+  return 0
+}
+
+# --- Source guard ----------------------------------------------------------
+# When sourced (BASH_SOURCE differs from $0), stop here: the caller wants the
+# functions above, not a live install. When executed directly, fall through.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  return 0 2>/dev/null || true
+fi
+
+# ===========================================================================
+# Install flow (runs only on direct execution)
+# ===========================================================================
+
 # This script's directory IS the bale install root.
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 BALE="$INSTALL_DIR/bin/bale"
@@ -32,29 +184,24 @@ SYMLINK_TARGET="$HOME/.local/bin/bale"
 YES=0
 DO_SYMLINK=1
 DO_VALIDATE=1
+DO_TERMUX_SHEBANG=1
 
 # Outcomes captured as the script runs, reported in the closing summary so the
 # key facts land last (rather than scattered through the step log above).
 SYMLINK_STATUS="(unknown)"
 VALIDATE_STATUS="(unknown)"
+SHEBANG_STATUS="(unknown)"
 
 for arg in "$@"; do
   case "$arg" in
-    -y|--yes)       YES=1 ;;
-    --no-symlink)   DO_SYMLINK=0 ;;
-    --no-validate)  DO_VALIDATE=0 ;;
-    -h|--help)      sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -y|--yes)             YES=1 ;;
+    --no-symlink)         DO_SYMLINK=0 ;;
+    --no-validate)        DO_VALIDATE=0 ;;
+    --no-termux-shebang)  DO_TERMUX_SHEBANG=0 ;;
+    -h|--help)            sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf '[install] error: unknown flag: %s\n' "$arg" >&2; exit 1 ;;
   esac
 done
-
-log() { printf '[install] %s\n' "$*"; }
-die() { printf '[install] error: %s\n' "$*" >&2; exit 1; }
-confirm() {
-  [[ "$YES" == "1" ]] && return 0
-  read -r -p "[install] $* [y/N] " ans
-  [[ "$ans" =~ ^[Yy]$ ]]
-}
 
 log "install dir: $INSTALL_DIR"
 
@@ -84,6 +231,52 @@ fi
 # Restore executable bits. Some filesystems (NTFS, FAT) drop them on extract.
 chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh"
 log "ensured executable bits"
+
+# Termux shebang rewrite (optional; only meaningful on Termux). Runs before the
+# symlink and validate steps below so that validate.sh — which execs bin/bale —
+# sees the rewritten interpreter and therefore passes without termux-exec.
+if [[ "$DO_TERMUX_SHEBANG" == "1" ]] && is_termux; then
+  log "Termux detected (prefix: $(termux_prefix))"
+  if confirm "rewrite shebangs to the Termux interpreter so bale runs without termux-exec?"; then
+    rewrote=0
+    skipped=0
+    # bin/bale is the installed executable; the three .sh are the shipped
+    # scripts. install.sh rewrites its own shebang too — safe via the atomic
+    # rename in rewrite_shebang (see that function's header).
+    for f in "$BALE" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh"; do
+      rel="${f#"$INSTALL_DIR"/}"
+      # `|| true`: rewrite_shebang prints an error-* token AND returns non-zero
+      # on a filesystem failure. Whether `set -e` aborts on a failed command
+      # substitution in an assignment is bash-version-dependent, so guard it
+      # explicitly — the token is still captured, and the error-* case below
+      # turns it into a clean die() rather than a bare contextless exit.
+      outcome="$(rewrite_shebang "$f")" || true
+      case "$outcome" in
+        rewritten:*)    log "  $rel: ${outcome#rewritten:}"; rewrote=$((rewrote + 1)) ;;
+        current)        log "  $rel: already Termux-pointed; left as-is" ;;
+        unresolved:*)   log "  $rel: interpreter '${outcome#unresolved:}' not found; left unchanged"; skipped=$((skipped + 1)) ;;
+        not-shebang|no-interp)
+                        log "  $rel: no rewritable shebang; left unchanged" ;;
+        error-*)        die "shebang rewrite failed for $rel ($outcome)" ;;
+        *)              die "shebang rewrite returned unexpected outcome for $rel: $outcome" ;;
+      esac
+    done
+    if [[ "$skipped" -gt 0 ]]; then
+      SHEBANG_STATUS="rewrote $rewrote, skipped $skipped (interpreter unresolved) -> $(termux_prefix)"
+    else
+      SHEBANG_STATUS="rewrote $rewrote file(s) -> $(termux_prefix)"
+    fi
+  else
+    log "skipped Termux shebang rewrite (declined; re-run install.sh to apply, or use termux-exec)"
+    SHEBANG_STATUS="skipped (declined)"
+  fi
+elif [[ "$DO_TERMUX_SHEBANG" == "0" ]]; then
+  log "skipping Termux shebang step (--no-termux-shebang)"
+  SHEBANG_STATUS="skipped (--no-termux-shebang)"
+else
+  # Not Termux — nothing to do, and no flag was needed to get here.
+  SHEBANG_STATUS="not applicable (not Termux)"
+fi
 
 # Symlink onto PATH (optional).
 if [[ "$DO_SYMLINK" == "1" ]]; then
@@ -148,6 +341,7 @@ log "install complete"
 log "  install dir: $INSTALL_DIR"
 log "  layout:      verified"
 log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh)"
+log "  shebangs:    $SHEBANG_STATUS"
 log "  symlink:     $SYMLINK_STATUS"
 log "  validate:    $VALIDATE_STATUS"
 log ""
