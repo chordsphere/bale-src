@@ -72,6 +72,7 @@ RELEASE_FILES=(
   bin/bale_validate.py
   bin/bale_staging.py
   bin/bale_rollback.py
+  bin/_bale_toml.py
   docs/CLAUDE.md
   docs/TARBALL.md
   docs/DOCS.md

@@ -40,7 +40,7 @@ log "target:     $BALE_INSTALL"
 log "session id: ${BALE_SESSION_ID:-(unset)}"
 
 # Sanity: the source layout must look like a bale install root.
-for f in bin/bale bin/bale_config.py bin/bale_validate.py bin/bale_staging.py bin/bale_rollback.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
+for f in bin/bale bin/bale_config.py bin/bale_validate.py bin/bale_staging.py bin/bale_rollback.py bin/_bale_toml.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
   [[ -f "$REPO/$f" ]] || die "source layout missing: $REPO/$f"
 done
 

@@ -261,12 +261,17 @@ The release-tarball form has two virtues over a single-file build
 
 ### 3.2 Requirements
 
-- Python 3.11+ on the host (modern Ubuntu and macOS both ship this).
+- Python 3.10+ on the host (modern Ubuntu and macOS both ship this; 3.10 is
+  also the floor on several security-hardened/LTS distros).
 - `git` on `PATH`.
 - `bash` on `PATH` (Windows users need Git Bash or WSL — this is
   documented but not engineered around).
 - Standard POSIX tools (`tar`, `cp`, `rm`, `mkdir`) on `PATH`.
-- No third-party Python dependencies. Stdlib only.
+- No third-party Python dependencies to install — nothing touches pip or a
+  virtualenv. Stdlib only on Python 3.11+. On 3.10, which has no stdlib TOML
+  parser, bale uses a pure-Python TOML reader vendored in-tree
+  (`bin/_bale_toml.py`); it ships inside the distribution, so the "no pip"
+  property is unchanged.
 
 ### 3.3 Global docs live in the bale installation
 

@@ -80,6 +80,7 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/bin/bale_validate.py" ]]    && pass "bin/bale_validate.py present" || fail "bin/bale_validate.py present"
 [[ -f "$INSTALL_DIR/bin/bale_staging.py" ]]     && pass "bin/bale_staging.py present" || fail "bin/bale_staging.py present"
 [[ -f "$INSTALL_DIR/bin/bale_rollback.py" ]]    && pass "bin/bale_rollback.py present" || fail "bin/bale_rollback.py present"
+[[ -f "$INSTALL_DIR/bin/_bale_toml.py" ]]       && pass "bin/_bale_toml.py present" || fail "bin/_bale_toml.py present"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
@@ -92,7 +93,7 @@ for s in request-manifest response-manifest diagnostics; do
   schema="$INSTALL_DIR/schemas/$s.schema.json"
   if [[ -f "$schema" ]]; then
     pass "schemas/$s.schema.json present"
-    # Parse-check via Python's stdlib json (bale requires 3.11+, so free).
+    # Parse-check via Python's stdlib json (always available, so free).
     # A schema that doesn't parse is one bale can't load at pre-flight, which
     # would turn every pack/apply into a hard fail — catch it here instead.
     if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$schema" 2>/dev/null; then
@@ -112,13 +113,16 @@ if [[ -d "$INSTALL_DIR/user" ]]; then
   pass "user/ subtree present"
   if [[ -f "$INSTALL_DIR/user/bale.toml" ]]; then
     pass "global bale.toml present"
-    # Syntax-check via Python's tomllib (stdlib in 3.11+; bale already
-    # requires that, so this is a free dependency). Treat parse failure
-    # as fatal — matches load_global_config's contract.
-    if python3 -c "import tomllib, sys; tomllib.loads(open('$INSTALL_DIR/user/bale.toml').read())" 2>/dev/null; then
+    # Syntax-check the global bale.toml the same way bale itself parses it:
+    # through the in-tree `_bale_toml` shim (stdlib `tomllib` on 3.11+, a
+    # vendored parser on 3.10), not stdlib `tomllib` directly. Using the shim
+    # keeps this check working on 3.10 and exercises the exact code path
+    # load_global_config uses. Treat parse failure as fatal — matches
+    # load_global_config's contract.
+    if python3 -c "import sys; sys.path.insert(0, '$INSTALL_DIR/bin'); import _bale_toml; _bale_toml.loads(open('$INSTALL_DIR/user/bale.toml').read())" 2>/dev/null; then
       pass "global bale.toml is valid TOML"
     else
-      fail "global bale.toml is valid TOML" "tomllib could not parse it"
+      fail "global bale.toml is valid TOML" "_bale_toml could not parse it"
     fi
   else
     printf '  [SKIP] no global bale.toml (run "bale config init --global" to create one)\n'

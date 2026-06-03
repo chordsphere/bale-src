@@ -41,9 +41,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import tomllib
 from pathlib import Path
 from typing import Optional
+
+# TOML parsing goes through the in-tree shim rather than stdlib `tomllib`
+# directly: `tomllib` is stdlib only on Python 3.11+, and bale supports 3.10
+# (which has no stdlib TOML parser). `_bale_toml` exposes the same
+# load/loads/TOMLDecodeError surface, backed by stdlib `tomllib` on 3.11+ and a
+# vendored pure-Python parser on 3.10. Imported by bare name because `bin/` is
+# on sys.path (bin/bale prepends it; see this module's top docstring). Aliased
+# to `tomllib` so the call sites below read as ordinary tomllib usage.
+import _bale_toml as tomllib
 
 
 # ---------------------------------------------------------------------------

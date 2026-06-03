@@ -229,7 +229,8 @@ successive bale-on-bale sessions evolve:
 Rollback (`bale rollback`) landed in v0.2 — `git revert` of an applied
 session, with `--undo` / `--list` / `--stash`. It lives in the sibling
 `bale_rollback` module; this file holds only its CLI wiring. Stdlib only —
-which since session 003 means Python 3.11+ (tomllib lives there, inside
+which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
+`tomllib`; 3.10 uses the vendored parser in `bin/_bale_toml.py`, both behind
 `bale_config`).
 
 Sections:
@@ -5697,13 +5698,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    # tomllib (used by config loading) is stdlib only in Python 3.11+.
-    # Fail loud and clear at startup rather than crashing on the first
-    # config load. Bale's "stdlib only" claim now implies 3.11+.
-    if sys.version_info < (3, 11):
+    # bale's floor is Python 3.10. TOML parsing (config loading) needs a
+    # parser that stdlib only ships from 3.11+ (`tomllib`); on 3.10 bale falls
+    # back to a vendored pure-Python parser via the `_bale_toml` shim, so 3.10
+    # is fully supported. Anything older lacks language/stdlib features bale
+    # relies on — fail loud and clear at startup rather than crashing later.
+    if sys.version_info < (3, 10):
         sys.stderr.write(
-            f"[bale] error: requires Python 3.11+ for tomllib "
-            f"(per-repo config support); running on Python "
+            f"[bale] error: requires Python 3.10+; running on Python "
             f"{sys.version_info.major}.{sys.version_info.minor}.\n"
         )
         return 1
