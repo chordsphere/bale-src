@@ -104,10 +104,13 @@ documentation for bale-src, not a global workflow doc, and is not
 injected into requests for other projects.
 
 Routing — when a session is authoring or emitting a `bale pack` command
-(by hand, or as a rescope offer per `CLAUDE.md` §11.2), the canonical
-flag/format surface is `TARBALL.md` §3.4; cite it rather than reconstruct
-the command from `bin/bale`'s pack argparse parser, which now carries a
-pointer comment to the same section. This is a cross-reference into an
+(a rescope offer per `CLAUDE.md` §11.2, or helping the architect by
+request), the canonical flag/format surface is `TARBALL.md` §3.4; cite
+it rather than reconstruct the command from `bin/bale`'s pack argparse
+parser, which carries a pointer comment to the same section. That
+emission is pre-work only: once a session has landed work, follow-up
+suggestions are prose Proposals (`TARBALL.md` §5.4.1), never runnable
+commands (`TARBALL.md` §5.5). This is a cross-reference into an
 injected global doc, not an inventory entry — the global docs are not
 listed here (see above).
 
