@@ -6,9 +6,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`)
 
-Five Python files in `bin/`, no third-party dependencies. `bin/bale` is
+Six Python files in `bin/`, no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
@@ -22,7 +22,13 @@ by `bin/bale` for the apply pipeline's staging + reconciliation cluster —
 the shell-syntax pre-flight, response-vs-manifest verification, staging-tree
 construction, post-`apply.sh` reconciliation, `validation.sh` run, and
 worktree apply (extracted in v0.1.3 to continue the section-16 reduction,
-the same precedent and mechanism again). The top of `bin/bale` declares constants (paths, exclusions,
+the same precedent and mechanism again). `bin/bale_report.py` is the fifth
+sibling, imported by `bin/bale` for the end-of-command result-reporting
+surface — the shared end-of-run summary formatter and the pack/apply
+outcome renderers: walkthrough summary, bailout banner, dry-run report
+(extracted in v0.2.6, the fourth extraction, same precedent and mechanism
+again; `bin/bale_rollback.py`, the fourth sibling, is net-new rather than
+an extraction and is described below). The top of `bin/bale` declares constants (paths, exclusions,
 version); the rest is organized as roughly-flat sections, each named with
 a numbered banner comment. The index header in the file's top docstring
 lists every section with an approximate line number; that header is the
@@ -77,10 +83,16 @@ is *for* — and stays stable as the per-section line numbers drift:
 11. **Apply pipeline.** Three sections in the body: apply helpers (the
     staging-tree, reconciliation, `validation.sh`-run, worktree-apply,
     response-verification, and shell-syntax-pre-flight helpers were
-    extracted to the sibling `bale_staging` module in v0.1.3, imported by
-    name; what remains in this section is `current_branch`,
-    `working_tree_clean`, and the walkthrough / bailout / tarball-resolution
-    helpers), the apply pipeline proper (`_apply_pipeline`, shared with
+    extracted to the sibling `bale_staging` module in v0.1.3, and the
+    end-of-run summary formatter plus the walkthrough-summary and
+    bailout-banner renderers to the sibling `bale_report` module in
+    v0.2.6, both imported by name; what remains in this section is
+    `current_branch`, `working_tree_clean`, the walkthrough prompt
+    (`prompt_walkthrough_action`), the handoff.md heading slicers
+    (`first_section_of_handoff`, `reading_plan_section`, and the
+    reading-plan path extractor), the tarball-resolution and
+    non-interactive-mode helpers, and `_apply_bailout`), the apply
+    pipeline proper (`_apply_pipeline`, shared with
     retry), and `cmd_apply`. Manifest validation (the schema-loading and
     request/response/diagnostics validators now live in the sibling
     `bale_validate` module — `bin/bale` imports the three public entry
@@ -158,7 +170,9 @@ is *for* — and stays stable as the per-section line numbers drift:
     unit-testable, the command is CLI-E2E-testable; the tests themselves
     are deferred to the v0.4 harness (ADR 0001). It reads several `bin/bale`
     helpers (`read_lock`, `current_branch`, `working_tree_clean`,
-    `repo_root`, `format_summary_block`) and `bale_config`'s
+    `repo_root`), `bale_report`'s `format_summary_block` (imported by
+    name into `bin/bale`'s namespace, so the call site is unqualified),
+    and `bale_config`'s
     `merged_config`/`get_hook`/`get_apply_search_paths` for the config
     summary. By file order this cluster is banner section 25, between Help
     and completion (cluster 17, banner section 24) and the CLI parser
@@ -242,6 +256,36 @@ lazily from `__main__`, the same idiom the other three siblings use. Landing
 it retired the "no `bale rollback` yet" stubs in `cmd_revert` /
 `_discard_hold_state`, which now route the already-merged case to
 `bale rollback <sid>`.
+
+`bin/bale_report.py` is the fifth sibling (extracted in v0.2.6 — the fourth
+extraction, resuming the pattern `bale_rollback` departed from). It owns the
+end-of-command result-reporting surface of the pack and apply pipelines: the
+shared end-of-run summary formatter every command finishes on
+(`format_summary_block`, with its private word-wrap helper
+`_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
+the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
+bailout banner (`print_bailout_banner`), and the `bale apply --dry-run` plan
+report (`format_dry_run_report`). The reference-material-first /
+crisp-verdict-last rule that drives the whole cluster is stated once, in the
+module docstring. A single cohesive cluster, it carries only a module
+docstring (no index header — CODE.md §2.1). `bin/bale` imports the four
+public entry points by name (`from bale_report import ...`) so every call
+site — the pack summary, the apply pipeline's walkthrough and
+terminal-action banners, the dry-run path, revert, unlock, handoff, and
+status — stays unqualified; `_wrap_value_lines` stays private (its only
+caller is `format_summary_block`). The shared `bin/bale` helpers it needs —
+`git` in the walkthrough summary's one `git diff --stat` call, and `fail`
+plus `first_section_of_handoff` in the bailout banner — are imported lazily
+from `__main__` inside the functions that use them, the same idiom as the
+other siblings. `first_section_of_handoff` itself stays in `bin/bale` next
+to its twin `reading_plan_section` — this module consumes, not owns, the
+handoff.md heading slicing. Like `bale_staging` it recomputes no path
+constants — every path derives from the functions' arguments — so the module
+is just the functions. The extraction was behavior-preserving; the
+interactive walkthrough prompt (`prompt_walkthrough_action`) and the
+apply-side file-content inspection (`inspect_response_scripts`) deliberately
+stayed in `bin/bale` — the seam is result assembly and rendering, not
+interaction or inspection.
 
 Two-level subparsing only — `bale <verb>` for eleven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,

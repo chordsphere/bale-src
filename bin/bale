@@ -255,6 +255,36 @@ accessors, wizard walk, renderer, all in bale_config — and the
 walkthrough/review artifacts are untouched: non-interactive mode
 still prints the full summary, notes.md surfacing, and banners.
 
+v0.2.6 extracts the pack and apply result-reporting surface — the
+shared end-of-run summary formatter (`format_summary_block` and its
+private `_wrap_value_lines`) from section 16, the walkthrough summary
+builder (`format_walkthrough_summary`) and bailout banner
+(`print_bailout_banner`) from section 16, and the dry-run plan report
+(`format_dry_run_report`) from section 18 — into a sibling
+`bin/bale_report.py` module: the fifth sibling and the fourth
+extraction, after bale_config (v0.0.4), bale_validate (v0.1.2), and
+bale_staging (v0.1.3), same precedent and mechanism. The seam is
+result assembly and rendering, not interaction or inspection:
+`prompt_walkthrough_action` (an input surface) and
+`inspect_response_scripts` / `_extract_response_dir` (file-content
+inspection) stay behind, as do the handoff.md heading slicers
+(`first_section_of_handoff` next to its twin `reading_plan_section`;
+bale_report pulls the former lazily from __main__). Behavior-
+preserving: the functions keep their signatures and every call site is
+unchanged — the four public entry points are pulled back into this
+file's namespace via `from bale_report import ...` (the by-name
+convention of bale_validate/bale_staging), so the pack summary, the
+apply pipeline's banners, revert, unlock, handoff, and status all
+still call them unqualified. The move also resolves the "promote this
+into a dedicated output-formatting section" note that had sat on
+format_summary_block since it landed, and pre-positions the small
+surface the upcoming json-output sessions land on. The `textwrap`
+import moved out with its sole user. `bin/bale_report.py` joins the
+other four bin/ modules in the install.sh / validate.sh /
+scripts/reinstall.sh layout checks via a follow-up — those scripts
+were outside the extraction session's scope (see that session's
+notes).
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -276,32 +306,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  404)
-   2. Logging                                          (~line  483)
-   3. Shell / git helpers                              (~line  570)
-   4. Hashing                                          (~line  609)
-   5. Session IDs and the per-day counter              (~line  625)
-   6. Lock handling                                    (~line  683)
-   7. .gitignore handling for the .bale/ directory     (~line  714)
-   8. Path-safety checks                               (~line  744)
-   9. Editor invocation                                (~line  792)
-  10. Pack: file enumeration and filtering             (~line  853)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1230)
-  12. Pack: slug validation                            (~line 1513)
-  13. Pack: manifest and tarball construction          (~line 1526)
-  14. Pack: wizard                                     (~line 1641)
-  15. Pack                                             (~line 1921)
-  16. Apply: helpers                                   (~line 2545)
-  17. Apply: pipeline                                  (~line 3222)
-  18. Apply                                            (~line 3570)
-  19. Revert                                           (~line 3801)
-  20. Retry                                            (~line 3994)
-  21. Unlock                                           (~line 4053)
-  22. Handoff                                          (~line 4155)
-  23. Hook invocation                                  (~line 4580)
-  24. Help and completion                              (~line 4734)
-  25. Status                                          (~line 5137)
-  26. CLI                                              (~line 5544)
+   1. Imports + constants                              (~line  456)
+   2. Logging                                          (~line  535)
+   3. Shell / git helpers                              (~line  622)
+   4. Hashing                                          (~line  661)
+   5. Session IDs and the per-day counter              (~line  677)
+   6. Lock handling                                    (~line  735)
+   7. .gitignore handling for the .bale/ directory     (~line  766)
+   8. Path-safety checks                               (~line  796)
+   9. Editor invocation                                (~line  844)
+  10. Pack: file enumeration and filtering             (~line  905)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1282)
+  12. Pack: slug validation                            (~line 1565)
+  13. Pack: manifest and tarball construction          (~line 1578)
+  14. Pack: wizard                                     (~line 1693)
+  15. Pack                                             (~line 1973)
+  16. Apply: helpers                                   (~line 2597)
+  17. Apply: pipeline                                  (~line 2976)
+  18. Apply                                            (~line 3324)
+  19. Revert                                           (~line 3494)
+  20. Retry                                            (~line 3687)
+  21. Unlock                                           (~line 3746)
+  22. Handoff                                          (~line 3848)
+  23. Hook invocation                                  (~line 4273)
+  24. Help and completion                              (~line 4427)
+  25. Status                                          (~line 4830)
+  26. CLI                                              (~line 5237)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -333,6 +363,15 @@ than an extraction). This file imports its single public entry point —
 section (section 25). The undo-family tag bookkeeping (applied/ → reverted/
 → re-applied/) and the `git revert` mechanics all live in that module;
 `bin/bale` keeps only the subparser and the dispatch.
+
+The end-of-command result-reporting surface lives in the sibling
+`bale_report.py` module (extracted in v0.2.6 — the fifth sibling, the
+fourth extraction). This file imports its four public entry points —
+`format_summary_block`, `format_walkthrough_summary`,
+`print_bailout_banner`, `format_dry_run_report` — by name so the call
+sites in the pack, apply, revert, unlock, handoff, and status sections
+read unqualified, matching the `bale_validate`/`bale_staging`
+convention. `_wrap_value_lines` stays private to that module.
 """
 
 from __future__ import annotations
@@ -349,7 +388,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -399,12 +437,28 @@ from bale_staging import (  # noqa: E402 — sys.path tweak above is load-bearin
 # idiom the other siblings use.
 from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-bearing
 
+# The end-of-command result-reporting surface — the shared summary-block
+# formatter and the pack/apply outcome renderers (walkthrough summary, bailout
+# banner, dry-run report) — lives in the sibling bale_report module (extracted
+# in v0.2.6, the fifth sibling, same sys.path-insert mechanism as the four
+# above). Imported by name so every call site — the pack summary, the apply
+# pipeline's walkthrough and terminal-action banners, revert, unlock, handoff,
+# status — stays unqualified, exactly as before the extraction. The module
+# reaches back for shared helpers (git, fail, first_section_of_handoff) lazily
+# from __main__, the same idiom the other siblings use.
+from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
+    format_dry_run_report,
+    format_summary_block,
+    format_walkthrough_summary,
+    print_bailout_banner,
+)
+
 
 # ---------------------------------------------------------------------------
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2557,124 +2611,6 @@ def working_tree_clean(repo: Path) -> tuple[bool, str]:
     return (not r.stdout.strip(), r.stdout)
 
 
-# --- Shared end-of-run summary formatting ------------------------------------
-#
-# Every command that finishes with a status report — pack, apply (its PASS /
-# HOLD / REVERT / BAILOUT banners and the walkthrough summary), handoff — ends
-# on the same shape: a leading blank line, an optional `[STATUS] <sid>`
-# headline, a block of two-space-indented, colon-aligned label/value rows, and
-# optional verbatim trailer lines (the actionable next step). One formatter
-# owns that shape so the call sites stay visually identical and so the rule
-# that drives this whole cluster — *the crisp summary is the LAST thing
-# printed, where the terminal cursor and the reader's eye come to rest* — lives
-# in one place instead of being re-implemented per command.
-#
-# Callers that also emit bulky reference material (the walkthrough's notes.md
-# body — plus legacy next-prompt.md, tolerated per TARBALL.md §5.5 — and
-# diffstat, the bailout's handoff excerpt) print that
-# material FIRST and call this LAST, so a long reference body never pushes the
-# scannable verdict off the top of the screen. This helper is a pure string
-# builder — it prints nothing; the caller prints what it returns.
-#
-# Housed in the apply-helpers section for now because its two most involved
-# callers (format_walkthrough_summary, print_bailout_banner) live here; when
-# the deferred revert/retry/unlock output pass lands it is the natural moment
-# to promote this into a dedicated "Output formatting" section (see this
-# session's notes.md).
-
-def format_summary_block(
-    rows: list[tuple[str, str]],
-    *,
-    status: Optional[str] = None,
-    sid: Optional[str] = None,
-    trailer: Optional[list[str]] = None,
-    wrap_width: Optional[int] = None,
-) -> str:
-    """Render the canonical end-of-run summary block as a single string.
-
-    `rows` are (label, value) pairs rendered as `  <label>: <value>` with the
-    colons aligned on the longest label and a two-space indent. When both
-    `status` and `sid` are given they prepend a `  [STATUS] <sid>` headline —
-    the form the eye locks onto, matching the apply PASS / HOLD / REVERT /
-    BAILOUT banners. Commands with no verdict (pack, handoff) pass neither and
-    get rows only. `trailer` lines are emitted verbatim after a blank line, for
-    the actionable next step ("Send the tarball to Claude...", "Next step:
-    ...").
-
-    `wrap_width` is opt-in long-value handling, added for `bale status` whose
-    values (a wordy session goal, a long outbox listing) overflow a terminal
-    line where the banner callers' values — sids, branch names, exit codes —
-    never do. When it is None (every caller except status) the row-rendering
-    path is byte-for-byte the original single-line form, so this stays a pure
-    addition with no effect on the pack/apply/handoff/revert/unlock banners.
-    When it is set, a value is split on embedded newlines and each segment is
-    word-wrapped to fit `wrap_width` columns, with continuation lines indented
-    to align under the value column. Long unbreakable tokens (tarball
-    filenames, paths) are kept whole rather than chopped mid-token. The headline
-    and the trailer are never wrapped: the trailer carries copy-pasteable
-    command hints that must not break across lines.
-
-    The returned block opens with a blank line and has NO trailing blank; the
-    caller prints it (its print adds the final newline) and is responsible for
-    any extra spacing before a following prompt. Pure: builds a string, prints
-    nothing.
-    """
-    if (status is None) != (sid is None):
-        # Half a headline is a caller bug — both or neither.
-        raise ValueError(
-            "format_summary_block: status and sid must be given together"
-        )
-    lines: list[str] = [""]
-    if status is not None:
-        lines.append(f"  [{status}] {sid}")
-    width = max((len(label) for label, _ in rows), default=0)
-    # Column where a value begins: two-space indent + padded "label:" + one
-    # space. Continuation lines (wrap mode only) align under it.
-    value_col = 2 + (width + 1) + 1
-    for label, value in rows:
-        prefix = f"  {(label + ':'):<{width + 1}} "
-        if wrap_width is None:
-            lines.append(f"{prefix}{value}")
-            continue
-        segments = _wrap_value_lines(value, max(wrap_width - value_col, 20))
-        first = segments[0] if segments else ""
-        lines.append(f"{prefix}{first}")
-        cont_indent = " " * value_col
-        for extra in segments[1:]:
-            lines.append(f"{cont_indent}{extra}" if extra else "")
-    if trailer:
-        lines.append("")
-        lines.extend(trailer)
-    return "\n".join(lines)
-
-
-def _wrap_value_lines(value: str, avail: int) -> list[str]:
-    """Split `value` into physical lines that fit `avail` columns.
-
-    Embedded newlines in `value` are honoured as hard breaks (the caller uses
-    them to lay an outbox listing out one tarball per line); each resulting
-    segment is then word-wrapped to `avail`. `break_long_words` and
-    `break_on_hyphens` are both off so a single long token — a tarball filename
-    or a repo path — is never split mid-token; it overflows its line intact,
-    which is far more readable than a path chopped at an arbitrary column. Pure;
-    returns the list of lines (an empty segment maps to a single empty line so a
-    blank value position is preserved rather than dropped).
-    """
-    out: list[str] = []
-    for segment in value.split("\n"):
-        if not segment:
-            out.append("")
-            continue
-        wrapped = textwrap.wrap(
-            segment,
-            width=avail,
-            break_long_words=False,
-            break_on_hyphens=False,
-        )
-        out.extend(wrapped or [""])
-    return out
-
-
 # --- Apply walkthrough (BALE.md §8.7) ----------------------------------------
 #
 # The walkthrough is the interactive step that resolves a freshly-applied bale
@@ -2683,143 +2619,9 @@ def _wrap_value_lines(value: str, avail: int) -> list[str]:
 # per state. Factored into helpers so the summary can be re-built/inspected
 # without re-running the apply pipeline (a v0.3 polish item) and so the
 # prompt's TTY/EOF handling stays out of _apply_pipeline's already-long body.
-
-def format_walkthrough_summary(
-    *,
-    sid: str,
-    origin_branch: str,
-    sid_branch: str,
-    state: str,
-    exit_code: int,
-    manifest: dict,
-    response_dir: Path,
-    staging: Path,
-    repo: Path,
-) -> str:
-    """Build the BALE.md §8.7 walkthrough summary block as a single string.
-
-    `state` is "PASS" or "HOLD". Pure aside from one `git diff --stat` call
-    against the live repo (which is the cheapest way to get an accurate
-    origin..sid_branch diffstat and matches the inspection command we tell
-    the user to run). The caller prints the returned string.
-    """
-    # Reference material first, crisp verdict last. Everything appended to
-    # `ref` below is the scrollable detail — the per-check claims table, the
-    # diffstat, the notes.md body (and legacy next-prompt.md, if a
-    # pre-retirement response ships one), the inspect commands. The
-    # one-glance verdict block is built afterwards and returned *last*, so it
-    # lands at the bottom of the output where the cursor and the eye settle.
-    # (Before this change the [PASS]/[HOLD] headline printed first and a long
-    # notes.md or next-prompt.md body could push it clean off the screen, so
-    # the eye landed on the inspect commands instead of the verdict.)
-    ref: list[str] = []
-
-    # Claims-per-check detail per TARBALL.md §5.3. The actual claim-vs-verdict
-    # reconciliation lives in validation.sh's output (already streamed to the
-    # log file before this point); we surface the claims side here so the
-    # walkthrough is self-contained for review. The exit code is rolled up
-    # into the verdict block below — this is the per-check breakout.
-    claims = manifest.get("claims", {}) or {}
-    if claims:
-        ref.append("")
-        ref.append("  claims (verdict in .bale/logs/{}.log):".format(sid))
-        width = max(len(k) for k in claims)
-        for check, claim in claims.items():
-            ref.append(f"    {check:<{width}}  claim={claim}")
-
-    # Diffstat between origin and the bale branch. On the HOLD path the bale
-    # branch's HEAD is identical to origin's HEAD (no commit was made), so
-    # the rev-range diff is empty; in that case run a diff against the index
-    # so the user still sees what's staged. PASS path always has a commit.
-    if state == "PASS":
-        diff_args = ["diff", "--stat", f"{origin_branch}..{sid_branch}"]
-        diff_label = f"origin..{sid_branch}"
-    else:
-        diff_args = ["diff", "--stat", "--cached"]
-        diff_label = "staged (uncommitted)"
-    try:
-        diffstat = git(diff_args, cwd=repo, check=False).stdout.rstrip()
-    except subprocess.CalledProcessError as e:
-        diffstat = f"(diffstat unavailable: {e.stderr or e})"
-    ref.append("")
-    ref.append(f"  diffstat ({diff_label}):")
-    if diffstat:
-        for ln in diffstat.splitlines():
-            ref.append(f"    {ln}")
-    else:
-        ref.append("    (empty)")
-
-    # notes.md from the response — surfaced inline per BALE.md §8.7. Silent
-    # skip when absent; absence is the canonical signal of "nothing extra to
-    # surface" (TARBALL.md §5.1, §5.4). This is the longest thing the
-    # walkthrough prints, which is exactly why it sits up here in the
-    # reference block rather than just above the prompt.
-    #
-    # next-prompt.md was retired as a response artifact (TARBALL.md §5.5):
-    # nothing new ships it, and follow-up suggestions now ride in notes.md's
-    # Proposals section (TARBALL.md §5.4.1). The walkthrough still reads it,
-    # by design — pre-retirement response tarballs remain reviewable during
-    # the transition — but labels the body deprecated rather than blending
-    # it in silently. Drop it from this tuple when the archive of legacy
-    # responses no longer matters.
-    for fname in ("notes.md", "next-prompt.md"):
-        fpath = response_dir / fname
-        if not fpath.is_file():
-            continue
-        header = fname
-        if fname == "next-prompt.md":
-            header = f"{fname} (deprecated — retired per TARBALL.md §5.5)"
-        try:
-            body = fpath.read_text(encoding="utf-8").rstrip()
-        except OSError as e:
-            ref.append("")
-            ref.append(f"  --- {header} (unreadable: {e}) ---")
-            continue
-        if not body:
-            continue  # present but empty — treat as silent skip
-        ref.append("")
-        ref.append(f"  --- {header} ---")
-        for ln in body.splitlines():
-            ref.append(f"  {ln}" if ln else "")
-        ref.append(f"  --- end {fname} ---")
-
-    # Inspection commands. The user runs these manually if they want to dig
-    # past the summary; we don't shell out, just print the commands.
-    ref.append("")
-    ref.append("  inspect:")
-    ref.append(f"    git diff {origin_branch}..{sid_branch}")
-    ref.append(f"    git log {sid_branch}")
-    ref.append(f"    cat .bale/logs/{sid}.log")
-    ref.append(f"    ls {staging}/")
-
-    # Crisp verdict block LAST — the thing the eye lands on. Origin/branch/
-    # summary plus a one-line validation roll-up; the per-check table and the
-    # full diff are in the reference block above.
-    if claims:
-        validation_row = (
-            f"exit={exit_code} ({len(claims)} claim(s); "
-            f"per-check table above, verdict in log)"
-        )
-    else:
-        validation_row = f"exit={exit_code} (no project-level claims)"
-    branch_state = (
-        f"{sid_branch} (committed; ready to merge)" if state == "PASS"
-        else f"{sid_branch} (uncommitted; staged changes held)"
-    )
-    summary_block = format_summary_block(
-        [
-            ("origin", origin_branch),
-            ("branch", branch_state),
-            ("summary", manifest.get("summary", "(no summary)")),
-            ("validation", validation_row),
-        ],
-        status=state,
-        sid=sid,
-    )
-    # Trailing blank separates the verdict block from the prompt the caller
-    # prints next.
-    return "\n".join(ref) + "\n" + summary_block + "\n"
-
+# The summary builder itself (format_walkthrough_summary) lives in the sibling
+# bale_report module since v0.2.6, with the rest of the end-of-command
+# reporting surface; what stays here is the prompt.
 
 def prompt_walkthrough_action(state: str, *, no_interact: bool = False,
                               no_interact_source: str = "") -> str:
@@ -3097,52 +2899,6 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
         seen.add(token)
         out.append(token)
     return out
-
-
-def print_bailout_banner(manifest: dict, handoff_path: Path,
-                         tarball_basename: str) -> None:
-    """Per TARBALL.md §5.6.3 steps 1-3: the manifest.summary, the first
-    section of handoff.md, a clear banner identifying the response as a
-    bailout, and the explicit next-step instruction.
-
-    The summary paragraph and the handoff excerpt are the bulky reference
-    material, so they print FIRST, bracketed by `--- … ---` separators since
-    they don't fit the label-value shape. The crisp `[BAILOUT]` banner and the
-    `bale handoff` next step print LAST, via format_summary_block, so the eye
-    lands on the verdict and the action even when the handoff excerpt runs
-    long — the same reordering applied to the apply walkthrough summary.
-    """
-    try:
-        handoff_text = handoff_path.read_text(encoding="utf-8")
-    except OSError as e:
-        # handoff.md was present at the file-existence check in
-        # _apply_bailout; an unreadable file here is a real surprise.
-        # Surface and bail.
-        fail(f"could not read handoff.md: {e}")
-    first_section = first_section_of_handoff(handoff_text)
-
-    # Reference material first: the summary paragraph and the handoff excerpt
-    # (the part that can run long).
-    print()
-    print(f"  --- summary ---")
-    for line in manifest["summary"].splitlines() or [""]:
-        print(f"  {line}")
-    print()
-    print(f"  --- handoff (first section) ---")
-    if first_section:
-        for line in first_section.splitlines():
-            print(f"  {line}")
-    else:
-        print(f"  (handoff.md has no `## ` section; check the file directly)")
-
-    # Crisp banner + next step LAST.
-    print(format_summary_block(
-        [("applied", "no changes — apply.sh and validation.sh were not run")],
-        status="BAILOUT",
-        sid=manifest["session_id"],
-        trailer=["  Next step:", f"    bale handoff {tarball_basename}"],
-    ))
-    print()
 
 
 def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
@@ -3648,67 +3404,6 @@ def inspect_response_scripts(tarball_path: Path, *, show_apply: bool,
             except OSError as e:
                 fail(f"could not read {name} from tarball: {e}")
     return 0
-
-
-def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
-    """Build the `--dry-run` plan summary as a single string.
-
-    Reports what a real `bale apply` would do with this tarball, having
-    already passed every read-only pre-flight check (extract, syntax,
-    manifest schema, responds_to, presence/sha256/path-safety). Pure — the
-    caller prints the returned string and returns 0.
-    """
-    lines: list[str] = [""]
-    lines.append(f"  [DRY RUN] {sid}")
-    lines.append(f"  summary: {manifest.get('summary', '(no summary)')}")
-
-    if is_bailout:
-        # A bailout carries no files and isn't applied; a real apply would
-        # print the §5.6.3 handoff banner and stop. Say so rather than
-        # listing an empty change set as if it were applicable.
-        lines.append("")
-        lines.append("  response_kind: bailout")
-        lines.append("  apply would: print the handoff banner and stop "
-                     "(no files applied).")
-        lines.append("  next step:   bale handoff <tarball>")
-        lines.append("")
-        lines.append("  DRY RUN — nothing applied, working tree untouched.")
-        lines.append("")
-        return "\n".join(lines)
-
-    changes = manifest.get("changes", []) or []
-    by_action = {"created": 0, "modified": 0, "deleted": 0}
-    for c in changes:
-        by_action[c["action"]] = by_action.get(c["action"], 0) + 1
-    lines.append(
-        f"  changes: {len(changes)} "
-        f"({by_action['created']} created, "
-        f"{by_action['modified']} modified, "
-        f"{by_action['deleted']} deleted)"
-    )
-    lines.append("")
-    lines.append("  would apply:")
-    if changes:
-        width = max(len(c["action"]) for c in changes)
-        for c in changes:
-            lines.append(f"    {c['action']:<{width}}  {c['path']}")
-    else:
-        lines.append("    (none)")
-
-    will_run = manifest.get("validation_will_run", []) or []
-    lines.append("")
-    if will_run:
-        lines.append("  validation.sh would run:")
-        for item in will_run:
-            lines.append(f"    - {item}")
-    else:
-        lines.append("  validation.sh would run: (nothing declared)")
-
-    lines.append("")
-    lines.append("  DRY RUN — validated only. No branch, no staging applied "
-                 "to the worktree, no commit.")
-    lines.append("")
-    return "\n".join(lines)
 
 
 def cmd_apply(args: argparse.Namespace) -> int:
