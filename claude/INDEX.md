@@ -28,8 +28,8 @@ will stay that way for a while.
 
 ## Architectural decisions
 
-The first ADRs for bale-src; this category and its `context/adr/`
-directory are introduced here. BALE.md §14 ("Resolved decisions") already
+This category and its `context/adr/` directory were introduced with ADRs
+0001–0005. BALE.md §14 ("Resolved decisions") already
 routes new decisions to `context/adr/` per DOCS.md §5 — that pointer is now
 live. ADRs are append-only (DOCS.md §7.2): superseded, never edited or
 deleted.
@@ -53,10 +53,33 @@ deleted.
   `HOME`/`BALE_INSTALL`, no real reinstall, stubbed `$EDITOR`); hard rules on
   the destructive surfaces. Status: Proposed. Pull when building the test
   harness or touching any path that writes outside the repo.
+- `context/adr/0006-session-registry.md` — replace the single
+  `current_session` lock with a per-sid registry of open sessions plus one
+  repo-level integration lock; single-session behavior preserved. Status:
+  Proposed. Pull when touching the lock lifecycle, pack or apply pre-flight,
+  or any concurrency work. First of the four concurrency ADRs; its Context
+  carries the motivating goal for the set.
+- `context/adr/0007-scope-disjointness.md` — disjoint session scope as a
+  mechanical contract: pack-time intersection refusal (includes as a
+  conservative proxy) and apply-time collision rejection (the real guard
+  against the whole-file clobber). Status: Proposed. Pull when touching pack
+  scope projection, apply pre-flight, or any concurrency work.
+- `context/adr/0008-checkout-free-integration.md` — integrate via a temp
+  worktree or plumbing under the integration lock instead of consuming the
+  user's checkout; clean-tree requirement relaxes; HOLD inspection surface
+  moves. Status: Proposed. Pull when touching the apply pipeline's
+  commit/merge steps, the HOLD path, or revert/retry semantics.
+- `context/adr/0009-orchestration-doc-plan.md` — defer a standalone
+  ORCHESTRATION.md per the ADR-0001 precedent; the doctrine skeleton (seam
+  decomposition, blind checkpoints, HOLD triage, escalation, trust phasing)
+  is recorded in the ADR; explainer at harness time, global doc when
+  orchestration is real. Status: Proposed. Pull when planning orchestration
+  or harness work, or deciding whether an orchestration doc should exist yet.
 
-ADRs 0002–0005 are Proposed pending the architect's ratification on review;
-0001 is Accepted. None of these is implemented — they precede any test code
-(out of scope this session).
+ADRs 0002–0009 are Proposed pending the architect's ratification on review;
+0001 is Accepted. None of these is implemented — 0002–0005 precede any test
+code, 0006–0008 precede the concurrency implementation, and 0009 defers the
+doc it is about.
 
 ## Explainers
 
@@ -91,9 +114,10 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md, two explainers, and five ADRs (0001–0005, the first in the
+is BALE.md, two explainers, and nine ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
-them, per DOCS.md §4.1/§4.5). Testing doctrine itself lives in the global
+them, per DOCS.md §4.1/§4.5 — and 0006–0009 the concurrency-architecture
+set). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or
