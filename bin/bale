@@ -213,6 +213,26 @@ net-new surface not in BALE.md's §13 build map; whether it folds into the
 still-open v0.3 cut or stands alone is the architect's call (see this
 session's notes.md).
 
+v0.2.4 lands non-interactive request authoring on the pack side
+(BALE.md §7.3/§7.4). Three coupled changes: `--readme-file PATH`
+packs prose context read from a file as the request's README.md,
+giving the optional artifact its first CLI surface (previously the
+wizard's $EDITOR step was the only producer); `--edit` forces the
+README $EDITOR step on a fully specified command (goal + --slug
+present, where the wizard never engages), seeded with --readme-file's
+content when both are given, with the standard scaffold otherwise;
+and the §7.4 soft-cap policy in piped mode flips from warn-and-proceed
+to fail — a breach nobody can see (automation, stderr unread) now
+stops the pack instead of silently shipping an oversized scope, with
+--exclude/.baleignore to narrow or --force to proceed deliberately as
+the escape hatches. README resolution moved out of _wizard_fill_args
+into a shared _resolve_readme_body so the wizard path and the
+fully-specified path converge on one precedence order (--edit >
+--readme-file > wizard y/N prompt > omit). Interactive behavior with
+none of the new flags present is unchanged; --edit refuses without a
+TTY (use --readme-file for non-interactive prose) and conflicts with
+--no-edit.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -234,32 +254,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  339)
-   2. Logging                                          (~line  416)
-   3. Shell / git helpers                              (~line  503)
-   4. Hashing                                          (~line  542)
-   5. Session IDs and the per-day counter              (~line  558)
-   6. Lock handling                                    (~line  616)
-   7. .gitignore handling for the .bale/ directory     (~line  647)
-   8. Path-safety checks                               (~line  677)
-   9. Editor invocation                                (~line  725)
-  10. Pack: file enumeration and filtering             (~line  786)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1163)
-  12. Pack: slug validation                            (~line 1446)
-  13. Pack: manifest and tarball construction          (~line 1459)
-  14. Pack: wizard                                     (~line 1574)
-  15. Pack                                             (~line 1816)
-  16. Apply: helpers                                   (~line 2371)
-  17. Apply: pipeline                                  (~line 2948)
-  18. Apply                                            (~line 3281)
-  19. Revert                                           (~line 3499)
-  20. Retry                                            (~line 3680)
-  21. Unlock                                           (~line 3729)
-  22. Handoff                                          (~line 3823)
-  23. Hook invocation                                  (~line 4248)
-  24. Help and completion                              (~line 4371)
-  25. Status                                          (~line 4795)
-  26. CLI                                              (~line 5149)
+   1. Imports + constants                              (~line  382)
+   2. Logging                                          (~line  461)
+   3. Shell / git helpers                              (~line  548)
+   4. Hashing                                          (~line  587)
+   5. Session IDs and the per-day counter              (~line  603)
+   6. Lock handling                                    (~line  661)
+   7. .gitignore handling for the .bale/ directory     (~line  692)
+   8. Path-safety checks                               (~line  722)
+   9. Editor invocation                                (~line  770)
+  10. Pack: file enumeration and filtering             (~line  831)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1208)
+  12. Pack: slug validation                            (~line 1491)
+  13. Pack: manifest and tarball construction          (~line 1504)
+  14. Pack: wizard                                     (~line 1619)
+  15. Pack                                             (~line 1899)
+  16. Apply: helpers                                   (~line 2523)
+  17. Apply: pipeline                                  (~line 3166)
+  18. Apply                                            (~line 3499)
+  19. Revert                                           (~line 3717)
+  20. Retry                                            (~line 3910)
+  21. Unlock                                           (~line 3959)
+  22. Handoff                                          (~line 4061)
+  23. Hook invocation                                  (~line 4486)
+  24. Help and completion                              (~line 4609)
+  25. Status                                          (~line 5012)
+  26. CLI                                              (~line 5419)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -362,7 +382,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -417,8 +437,10 @@ SYSTEM_DIRS = (
 )
 
 # Pack threshold caps. From BALE.md section 7.4.
-# Soft caps drive the interactive prompt / piped warning. Hard caps drive
-# refusal (interactive + piped both refuse). Depth is hard-only — there's
+# Soft caps drive the interactive [y]/[e]/[n] prompt; in piped mode (stdin
+# not a TTY) a soft breach refuses instead — no prompt is possible and a
+# warning nobody reads is not a check (v0.2.4; --force proceeds
+# deliberately). Hard caps drive refusal in both modes. Depth is hard-only — there's
 # no realistic case where "uh, 19 directories deep is fine but 20 is iffy"
 # is the right product gesture; deep paths are either fine or pathological.
 # Sizes are 1024-based (a "GB" here means 2^30 bytes), matching how every
@@ -1601,8 +1623,13 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
 # when `bale pack` is invoked without enough on the command line to skip
 # it — specifically when either the goal positional or --slug is missing.
 # Once engaged, the wizard walks the optionals (excludes, constraints,
-# out_of_scope, README) too, prompting only for fields the CLI didn't
-# already provide.
+# out_of_scope) too, prompting only for fields the CLI didn't already
+# provide. The README step is no longer wizard-internal: since v0.2.4 it
+# lives in _resolve_readme_body (this section), called by cmd_pack on
+# both the wizard and fully-specified paths, because --readme-file and
+# --edit give the README CLI surfaces that exist independently of the
+# wizard. The wizard's y/N-then-$EDITOR flow survives inside the
+# resolver as the lowest-precedence branch.
 #
 # Pattern visibility: the wizard previews any `.baleignore` patterns
 # already at the repo root before prompting for session-scoped additions.
@@ -1752,31 +1779,68 @@ def _prompt_soft_breach_action() -> str:
         print(f"  (didn't recognize {raw!r}; type y, e, or n)")
 
 
-def _wizard_readme_body(goal: str, constraints: list[str],
-                        out_of_scope: list[str], *,
-                        no_edit: bool) -> Optional[str]:
-    """The README step of the §7.3 wizard. Returns the README content
-    (non-empty) or None to omit the file.
+def _resolve_readme_body(args: argparse.Namespace, *,
+                         wizard_engaged: bool) -> Optional[str]:
+    """Resolve the request README's body (BALE.md §7.3). Returns non-empty
+    content, or None to omit the file. Called by cmd_pack on both the
+    wizard path and the fully-specified path — one resolver so the two
+    paths can't drift.
 
-    `--no-edit` short-circuits to None without prompting (per §7.3:
-    "--no-edit forces skip regardless"). Otherwise: y/N prompt; on y,
-    $EDITOR opens with a scaffold pre-populated from the wizard answers.
-    An empty buffer after editing also yields None (per §7.3: "Saving
-    an empty buffer omits the file")."""
-    if no_edit:
-        return None
-    if not confirm_yn("Add a README with prose context?", default_no=True):
-        return None
+    Precedence, first match wins:
+
+    1. `--edit` — open $EDITOR unconditionally (the flag is the "y").
+       Seeded with --readme-file's content when both flags are given
+       (review-then-pack), with the standard scaffold otherwise. An empty
+       buffer after editing yields None (per §7.3: "Saving an empty
+       buffer omits the file") — in the editor, deliberate deletion is
+       the omit gesture, unlike the --readme-file-alone path below where
+       an empty file is an upstream failure. cmd_pack has already
+       verified --edit's preconditions (TTY stdin, no --no-edit) before
+       any prompt or editor could run.
+    2. `--readme-file` alone — the file's contents verbatim, no editor.
+       cmd_pack read and validated the file up front (missing or empty
+       fails loudly there), so args._readme_file_body is non-empty
+       whenever it is not None.
+    3. Wizard engaged and not --no-edit — the §7.3 y/N prompt; on y,
+       $EDITOR opens with a scaffold pre-populated from the wizard
+       answers. Empty buffer omits, same as branch 1.
+    4. Otherwise None — the fully-specified path with no README flags
+       has no README, exactly as before v0.2.4; `--no-edit` forces skip
+       of the wizard's step regardless (per §7.3).
+    """
     scaffold = _PACK_README_SCAFFOLD.format(
-        goal=goal,
-        constraints=", ".join(constraints) if constraints else "(none)",
-        out_of_scope=", ".join(out_of_scope) if out_of_scope else "(none)",
+        goal=args.goal,
+        constraints=", ".join(args.constraint) if args.constraint else "(none)",
+        out_of_scope=(
+            ", ".join(args.out_of_scope) if args.out_of_scope else "(none)"
+        ),
     )
-    body = open_in_editor(
-        scaffold,
-        abort_hint="answer 'n' at the README prompt to skip it",
-    )
-    return body if body else None
+
+    if args.edit:
+        seed = (
+            args._readme_file_body
+            if args._readme_file_body is not None
+            else scaffold
+        )
+        body = open_in_editor(
+            seed,
+            abort_hint="drop --edit to pack without the editor step",
+        )
+        return body if body else None
+
+    if args._readme_file_body is not None:
+        return args._readme_file_body
+
+    if wizard_engaged and not args.no_edit:
+        if not confirm_yn("Add a README with prose context?", default_no=True):
+            return None
+        body = open_in_editor(
+            scaffold,
+            abort_hint="answer 'n' at the README prompt to skip it",
+        )
+        return body if body else None
+
+    return None
 
 
 def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
@@ -1785,13 +1849,18 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     verified stdin is a TTY.
 
     Prompt order matches the §7.3 example: goal → slug → exclude →
-    constraints → out_of_scope → README. Each prompt is skipped if its
-    CLI counterpart was already supplied — a user who ran `bale pack
-    "my goal" --constraint foo` only sees the slug/exclude/out_of_scope/
-    README prompts. The exclude prompt previews any persisted
-    `.baleignore` so the user sees what's already filtered before adding
-    session-only patterns; persistence happens via `bale config init`,
-    not here."""
+    constraints → out_of_scope. Each prompt is skipped if its CLI
+    counterpart was already supplied — a user who ran `bale pack
+    "my goal" --constraint foo` only sees the slug/exclude/out_of_scope
+    prompts. The exclude prompt previews any persisted `.baleignore` so
+    the user sees what's already filtered before adding session-only
+    patterns; persistence happens via `bale config init`, not here.
+
+    The README step — historically the wizard's last prompt — moved to
+    _resolve_readme_body in v0.2.4, which cmd_pack calls right after
+    this function returns, so the user-visible prompt order is
+    unchanged. The move exists because --readme-file and --edit make
+    README resolution reachable outside the wizard."""
     print("[bale pack] interactive mode — fill missing fields. ^C to abort.")
     print()
 
@@ -1824,15 +1893,6 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
         args.out_of_scope = _wizard_input_list(
             "Any out-of-scope concerns? (one per line, blank to finish)"
         )
-
-    # README is the last step and is what threads $EDITOR into pack. It
-    # has no CLI equivalent (the wizard's y/N prompt is the only way to
-    # produce a request-tarball README), so it always runs when the
-    # wizard is engaged — unless --no-edit suppresses it.
-    args._readme_body = _wizard_readme_body(
-        args.goal, list(args.constraint), list(args.out_of_scope),
-        no_edit=args.no_edit,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -2058,6 +2118,49 @@ def cmd_pack(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
 
+    # README-flag validation, before anything can prompt (the git-init
+    # walkthrough below is interactive) and before the wizard could
+    # collect answers a doomed command line would then throw away.
+    # Fail-fast: a contradictory or unusable flag combination should
+    # cost the user zero keystrokes.
+    if args.edit and args.no_edit:
+        fail(
+            "--edit and --no-edit are contradictory: one forces the "
+            "README $EDITOR step, the other suppresses it. Drop one."
+        )
+    if args.edit and not sys.stdin.isatty():
+        fail(
+            "--edit needs a TTY (it opens $EDITOR); stdin is not one. "
+            "For non-interactive packs, supply prose via --readme-file "
+            "instead."
+        )
+    # Read --readme-file up front so a bad path or empty file fails here,
+    # not after the wizard/editor. Empty is a hard failure rather than a
+    # silent omit: the flag is an explicit request to ship prose, so an
+    # empty file means something upstream (a generator, a redirect) went
+    # wrong — per the no-silent-skips rule. Deliberate omission is
+    # spelled "don't pass the flag". The body is stashed on args for
+    # _resolve_readme_body, the same private-attr idiom as _readme_body.
+    args._readme_file_body = None
+    if args.readme_file is not None:
+        readme_path = Path(args.readme_file).expanduser()
+        try:
+            file_body = readme_path.read_text(encoding="utf-8")
+        except OSError as e:
+            fail(f"could not read --readme-file {args.readme_file!r}: {e}")
+        except UnicodeDecodeError as e:
+            fail(
+                f"--readme-file {args.readme_file!r} is not UTF-8 text: {e}. "
+                f"The request README is prose; point the flag at a text file."
+            )
+        if not file_body.strip():
+            fail(
+                f"--readme-file {args.readme_file!r} is empty. The flag "
+                f"asks bale to ship prose context; omit the flag to pack "
+                f"without a README."
+            )
+        args._readme_file_body = file_body
+
     repo = repo_root(cwd)
     if repo is None:
         # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
@@ -2082,12 +2185,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
     # fields (goal positional, --slug) is missing AND stdin is a TTY.
     # The wizard fills in the missing fields plus walks the optionals
-    # (excludes, constraints, out_of_scope, README), skipping any field
-    # already supplied on the command line. _readme_body is attached to
-    # args by the wizard so the build step can pick it up downstream;
-    # the non-wizard path leaves it None.
-    args._readme_body = None
-    if args.goal is None or args.slug is None:
+    # (excludes, constraints, out_of_scope), skipping any field already
+    # supplied on the command line. README resolution happens just below
+    # via _resolve_readme_body on both paths — wizard_engaged tells the
+    # resolver whether its lowest-precedence branch (the §7.3 y/N +
+    # $EDITOR flow) is on the table.
+    wizard_engaged = args.goal is None or args.slug is None
+    if wizard_engaged:
         if not sys.stdin.isatty():
             missing = []
             if args.goal is None:
@@ -2100,6 +2204,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"on the command line and re-run."
             )
         _wizard_fill_args(args, repo)
+
+    # README resolution (BALE.md §7.3; precedence lives in the resolver's
+    # docstring). Runs after the wizard so a wizard-collected goal /
+    # constraints / out_of_scope can seed the $EDITOR scaffold, and so
+    # the user-visible prompt order matches the pre-v0.2.4 wizard, where
+    # README was the last step. _readme_body rides on args to the build
+    # step downstream, exactly as before.
+    args._readme_body = _resolve_readme_body(args, wizard_engaged=wizard_engaged)
 
     # Input validation.
     if not is_valid_slug(args.slug):
@@ -2175,9 +2287,11 @@ def cmd_pack(args: argparse.Namespace) -> int:
     #      - n: abort.
     #   4. No breach → break out of loop, proceed.
     # The loop terminates either via `break` (continue/abort decision
-    # made) or via `fail()` (hard breach without --force, or user abort).
-    # Piped mode never enters [e] — the warn-and-proceed branch breaks
-    # immediately. --force also bypasses the prompt entirely.
+    # made) or via `fail()` (hard breach without --force, piped-mode soft
+    # breach, or user abort). Piped mode never enters [e] — a soft breach
+    # without a TTY fails outright (v0.2.4), since no prompt can run and
+    # warn-and-proceed defeats the cap exactly where nobody is watching.
+    # --force bypasses the prompt and the piped refusal entirely.
     while True:
         projection = walk_for_pack(
             repo, args.include, caps=caps, force=args.force, matcher=matcher,
@@ -2281,9 +2395,24 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 # action == "y" — proceed past the breach.
                 break
             else:
-                # Piped mode: the warning already went to stderr above; proceed.
-                sys.stderr.write("[bale] piped mode: proceeding past soft breach.\n")
-                break
+                # Piped mode (v0.2.4): refuse rather than warn-and-proceed.
+                # A soft cap exists to make a human look at the scope before
+                # packing; in automation there is no human at the prompt and
+                # a stderr warning is read by nobody, so proceeding silently
+                # ships exactly the oversized pack the cap exists to catch.
+                # The projection block is already on stderr above. Escape
+                # hatches: narrow with --exclude / .baleignore, or pass
+                # --force to proceed at this scope deliberately (which is
+                # logged as a FORCE event and never reaches this branch).
+                fail(
+                    "soft threshold breach: "
+                    + "; ".join(projection.soft_breaches)
+                    + ". stdin is not a TTY, so the [y]/[e]/[n] prompt "
+                    "cannot run and bale will not proceed past a scope "
+                    "warning unattended. Narrow the pack with --exclude "
+                    "or .baleignore, or re-run with --force to proceed "
+                    "at this scope deliberately."
+                )
         else:
             # No breach. Proceed.
             break
@@ -5351,11 +5480,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Whether the session expects a probe.",
     )
     p_pack.add_argument(
+        "--readme-file", default=None, metavar="PATH",
+        help="Read the request README's prose from PATH (UTF-8 text) "
+             "instead of the wizard's $EDITOR step — the non-interactive "
+             "way to ship prose context. Fails loudly on a missing, "
+             "unreadable, or empty file (omit the flag to pack without a "
+             "README). Combines with --edit to review the file in $EDITOR "
+             "before packing.",
+    )
+    p_pack.add_argument(
+        "--edit", action="store_true",
+        help="Force the README $EDITOR step even when goal and --slug are "
+             "fully specified on the command line (where the wizard never "
+             "engages). Seeded with --readme-file's content when given, "
+             "with the standard scaffold otherwise; saving an empty buffer "
+             "omits the README. Needs a TTY; conflicts with --no-edit.",
+    )
+    p_pack.add_argument(
         "--no-edit", action="store_true",
         help="In the wizard's README step, skip the y/N prompt and $EDITOR "
              "entirely. Useful for non-interactive automation that still "
-             "wants the wizard to walk the structured fields. No-op outside "
-             "the wizard, since the non-wizard path has no $EDITOR step.",
+             "wants the wizard to walk the structured fields. Compatible "
+             "with --readme-file (the file's prose still ships — no editor "
+             "opens); conflicts with --edit. No-op on the fully specified "
+             "path, which has no $EDITOR step unless --edit asks for one.",
     )
     # Threshold caps (BALE.md §7.4). Each --max-* sets the hard cap; the soft
     # caps (which drive the y/N prompt) stay at the defaults. --force
