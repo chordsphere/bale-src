@@ -245,7 +245,7 @@ Session-scoped artifacts:
   a log. Edit rules and section shape live in `DOCS.md` section 3.
 
 Bale does not, by default, archive response artifacts (`README.md`,
-`notes.md`, `next-prompt.md`) into `claude/responses/`; archival is
+`notes.md`) into `claude/responses/`; archival is
 opt-in per project.
 Casual projects with no `claude/` structure simply read the response
 notes during apply's walkthrough and don't archive at all.
@@ -254,7 +254,8 @@ Prior session context flows in only when relevant. Default: *don't
 include prior session notes*. When the current session builds
 directly on a recent one — fixing something the last session
 deferred, extending a component it just created — I include the
-relevant `notes.md` and `next-prompt.md` in `context/`. Older
+relevant `notes.md` in `context/` (its Proposals section, if any,
+carries the suggestions the earlier session queued). Older
 sessions live in `claude/responses/` as archive, not in working
 context.
 
@@ -342,7 +343,7 @@ live in `TARBALL.md` section 8 and `DOCS.md` section 9.
 
 The protocol mechanics are rigid; the writing inside them is not.
 
-`README.md`, `notes.md`, `next-prompt.md` read like email between two
+`README.md` and `notes.md` read like email between two
 careful adults. Claude writes what it actually thought, what
 surprised it, where it's uncertain — not corporate hedging, not "I've
 successfully completed your request." If Claude doesn't know whether

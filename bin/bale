@@ -2418,8 +2418,9 @@ def working_tree_clean(repo: Path) -> tuple[bool, str]:
 # printed, where the terminal cursor and the reader's eye come to rest* — lives
 # in one place instead of being re-implemented per command.
 #
-# Callers that also emit bulky reference material (the walkthrough's notes.md /
-# next-prompt.md bodies and diffstat, the bailout's handoff excerpt) print that
+# Callers that also emit bulky reference material (the walkthrough's notes.md
+# body — plus legacy next-prompt.md, tolerated per TARBALL.md §5.5 — and
+# diffstat, the bailout's handoff excerpt) print that
 # material FIRST and call this LAST, so a long reference body never pushes the
 # scannable verdict off the top of the screen. This helper is a pure string
 # builder — it prints nothing; the caller prints what it returns.
@@ -2553,7 +2554,8 @@ def format_walkthrough_summary(
     """
     # Reference material first, crisp verdict last. Everything appended to
     # `ref` below is the scrollable detail — the per-check claims table, the
-    # diffstat, the notes.md / next-prompt.md bodies, the inspect commands. The
+    # diffstat, the notes.md body (and legacy next-prompt.md, if a
+    # pre-retirement response ships one), the inspect commands. The
     # one-glance verdict block is built afterwards and returned *last*, so it
     # lands at the bottom of the output where the cursor and the eye settle.
     # (Before this change the [PASS]/[HOLD] headline printed first and a long
@@ -2596,25 +2598,36 @@ def format_walkthrough_summary(
     else:
         ref.append("    (empty)")
 
-    # notes.md and next-prompt.md from the response — surfaced inline per
-    # BALE.md §8.7. Silent skip when absent; absence is the canonical signal
-    # of "nothing extra to surface" (TARBALL.md §5.1, §5.4, §5.5). These are
-    # the longest things the walkthrough prints, which is exactly why they
-    # sit up here in the reference block rather than just above the prompt.
+    # notes.md from the response — surfaced inline per BALE.md §8.7. Silent
+    # skip when absent; absence is the canonical signal of "nothing extra to
+    # surface" (TARBALL.md §5.1, §5.4). This is the longest thing the
+    # walkthrough prints, which is exactly why it sits up here in the
+    # reference block rather than just above the prompt.
+    #
+    # next-prompt.md was retired as a response artifact (TARBALL.md §5.5):
+    # nothing new ships it, and follow-up suggestions now ride in notes.md's
+    # Proposals section (TARBALL.md §5.4.1). The walkthrough still reads it,
+    # by design — pre-retirement response tarballs remain reviewable during
+    # the transition — but labels the body deprecated rather than blending
+    # it in silently. Drop it from this tuple when the archive of legacy
+    # responses no longer matters.
     for fname in ("notes.md", "next-prompt.md"):
         fpath = response_dir / fname
         if not fpath.is_file():
             continue
+        header = fname
+        if fname == "next-prompt.md":
+            header = f"{fname} (deprecated — retired per TARBALL.md §5.5)"
         try:
             body = fpath.read_text(encoding="utf-8").rstrip()
         except OSError as e:
             ref.append("")
-            ref.append(f"  --- {fname} (unreadable: {e}) ---")
+            ref.append(f"  --- {header} (unreadable: {e}) ---")
             continue
         if not body:
             continue  # present but empty — treat as silent skip
         ref.append("")
-        ref.append(f"  --- {fname} ---")
+        ref.append(f"  --- {header} ---")
         for ln in body.splitlines():
             ref.append(f"  {ln}" if ln else "")
         ref.append(f"  --- end {fname} ---")

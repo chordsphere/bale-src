@@ -184,13 +184,19 @@ honored as a recoverable risk.
 shape, with a `manifest.json` (§3.2) assembled from its flags. It's
 documented here so its callers can cite a real command instead of
 guessing. By default that caller is Claude: authoring `bale pack`
-commands is Claude's responsibility (`CLAUDE.md` §4), and Claude emits
-them in two places — a rescope offer when the pre-flight scope check
-(`CLAUDE.md` §11.2) decides a goal needs splitting, and a queued
-`next-prompt.md` (§5.5) when the follow-up is a fresh tarball-mode
-session. The architect authoring a session by hand is the minority
-case — less common now that Claude emits the command, but fully
-supported, with the same flags and the same single-line form.
+commands is Claude's responsibility (`CLAUDE.md` §4), and Claude
+emits a runnable one in exactly one place — the rescope offer, when
+the pre-flight scope check (`CLAUDE.md` §11.2) decides a goal needs
+splitting. That emission is pre-work and conversational: the session
+has declined to build anything, so the command is a scoping proposal
+the architect reads and fires deliberately, not an artifact riding
+beside reviewed output. Post-work is the opposite case — once a
+session has landed work, its follow-up suggestions flow as prose
+Proposals in `notes.md` (§5.4.1), never as a runnable command; §5.5
+carries the reasoning for that line. The architect authoring a
+session by hand is fully supported, with the same flags and the same
+single-line form — the normal case for sequencing packs the architect
+composes from a response's proposals.
 
 The flags below are the stable surface; each maps to a manifest field
 or a packing behavior:
@@ -209,9 +215,8 @@ or a packing behavior:
 | `--force` | Override the `--max-*` guard rails when the architect knowingly wants a pack past a cap. |
 
 **Commands are single-line.** Every `bale pack` invocation — the
-architect's, the one Claude emits in a rescope offer (`CLAUDE.md`
-§11.2), and the one Claude emits in a queued `next-prompt.md`
-(§5.5) — is written as one line with no backslash continuations, so
+architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
+§11.2) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
 the same line; they do not wrap.
 
@@ -232,7 +237,8 @@ bale pack "Add a debounced search box to the catalog page" --slug catalog-search
 ```
 
 A rescope pack — the first session of a split the pre-flight check
-proposed, with the deferred half named in `--out-of-scope`:
+proposed, as Claude would emit it in a §11.2 offer, with the deferred
+half named in `--out-of-scope`:
 
 ```
 bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --out-of-scope "tests for the endpoint layer" --expects-probe no
@@ -353,7 +359,6 @@ response-NNN/
     ...
   README.md            # optional; color/context beyond manifest.summary
   notes.md             # optional; include when there's something to surface
-  next-prompt.md       # optional; include when there's a follow-up queued
 ```
 
 `files/` mirrors the project structure from the repo root. If Claude
@@ -362,11 +367,12 @@ touches `src/components/Foo.vue` and `package.json`, they appear at
 then `cp -r response-NNN/files/. <project>/` — no path translation
 required.
 
-The three optional artifacts (README, notes, next-prompt) follow the
-stub-averse principle: include them when there's content; omit them
-otherwise. Absence carries meaning — no extra prose, no surprises,
-no follow-up. Bale shows them in the apply walkthrough if present
-and stays silent if absent.
+The two optional artifacts (README, notes) follow the stub-averse
+principle: include them when there's content; omit them otherwise.
+Absence carries meaning — no extra prose, no surprises, no proposal
+queued. Bale shows them in the apply walkthrough if present and
+stays silent if absent. (`next-prompt.md`, a third optional artifact
+in earlier versions of this contract, is retired — §5.5.)
 
 **File changes go inside the tarball, not alongside it.** When the
 response delivers code or content changes, those changes belong in
@@ -485,7 +491,7 @@ contract.
   "deferred": [
     {
       "what": "tests for Foo.vue",
-      "why": "test setup not yet decided — see next-prompt.md"
+      "why": "test setup not yet decided — proposed in notes.md (§5.4.1)"
     }
   ],
   "validation_will_run": [
@@ -635,29 +641,90 @@ Conversational when included. Use it for:
 - Any `unknown` entry in `claims` — what Claude would need to predict
   with confidence.
 - Things the manifest's structured `reason` field couldn't carry.
+- Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
 If a session has any of the above, write the file. If a session is
 small enough that none of the above apply, don't write a stub.
 
-### 5.5 next-prompt.md (optional)
+#### 5.4.1 The Proposals section
 
-If more work is queued, include `next-prompt.md` with the literal
-text I should paste next. When the follow-up is a fresh tarball-mode
-session — the common case — that text is a single-line `bale pack`
-command (§3.4), authored by Claude (`CLAUDE.md` §4) so I paste rather
-than compose: its flags already carry which files to `--include` and
-the `--expects-probe` setting, so the command runs as-is. When the
-follow-up is conversational instead, `next-prompt.md` is the plain
-prompt to paste, with no `bale pack` wrapper, since no tarball is
-being packed.
+Workers discover things at completion that a top-down planner cannot
+know: a seam visible only from inside the code, an out-of-scope fix
+worth doing, a test deferred and exactly why. When a session surfaces
+follow-up work worth suggesting, `notes.md` carries it under a
+`## Proposals` heading. Each proposal is a short block:
 
-If nothing's queued, omit the file. Absence means *"no follow-up;
-this session stands alone."*
+- **What** — the suggested follow-up, in one or two sentences.
+- **Why** — the rationale, grounded in something this session
+  actually saw. A proposal without a reason is a wish, not a signal.
+- **Scope hints** — optional: the files or seams involved, and any
+  ordering dependency on other work ("only after X lands").
 
-`next-prompt.md` is for queued follow-up work after a *successful*
-session. It is **not** the same as `handoff.md` (§5.7), which is
-the artifact of a *bailed* session. Different reader posture
-(myself vs. a fresh Claude), different content, different file.
+Proposals are prose suggestions with rationale, **never ready-to-run
+commands** — no `bale pack` line, no literal paste-this text. The
+planner (the architect today, an orchestrator later) reads proposals
+as *input*, decides sequencing, and authors its own pack commands
+(§3.4) from its own understanding. This is deliberate: the worker
+that built a session does not frame the scope or the includes of the
+session that follows it — §5.5 carries the full reasoning.
+
+Proposals are distinct from the manifest's `deferred` list (§5.2):
+`deferred` names in-goal work the session considered and didn't do;
+Proposals name work the session's vantage point revealed, whether or
+not the goal asked for it. An item can appear in both — deferred for
+the record, proposed with the rationale — when the worker thinks it
+should be near the top of the queue.
+
+If nothing is worth proposing, omit the section, the same way an
+uneventful session omits the file: absence means *no suggestion*.
+
+### 5.5 next-prompt.md (retired)
+
+Retired as of session `2026-07-06-retire-next-prompt-006`. Responses
+do not ship `next-prompt.md`; Claude does not produce it. The section
+number is kept so older cross-references stay resolvable.
+
+The artifact carried "the literal text to paste next" — usually a
+ready-to-run `bale pack` command for session N+1, authored by the
+worker that had just built session N. That shape had two problems.
+It invited blind firing: the command arrived inside a response
+tarball at apply time, surfaced in the walkthrough beside a diff and
+a PASS banner — exactly the moment a satisfied reviewer is primed to
+paste and go. And it let the entity under review frame the scope and
+includes of the follow-up that extends or judges its own work — a
+soft version of the self-oracle problem. Sequencing authority belongs
+to the planner: deciding what's next is the architect's call, with
+Claude's suggestion (`CLAUDE.md` §4).
+
+What survives is the channel, not the file. Worker-side discoveries
+that a top-down planner can't know flow through `notes.md`'s
+Proposals section (§5.4.1) as prose suggestions with rationale, never
+runnable commands; the planner authors its own pack commands (§3.4)
+from its own understanding, with the proposals as input.
+
+The line this retirement draws is pre-work vs post-work, not command
+vs no-command. Claude still authors `bale pack` commands (`CLAUDE.md`
+§4) and still emits a runnable one in exactly one place: the
+pre-flight rescope offer (`CLAUDE.md` §11.2). That emission has
+neither hazard above — it is pre-work, so the session has built
+nothing the command could frame, and it arrives as the whole point of
+a conversational reply, so the planner cannot fire it without reading
+it. Once work has landed, follow-up flows only as prose proposals.
+An orchestration layer consuming rescope offers should re-derive the
+command from the proposed seam rather than fire the worker's verbatim
+— doctrine for when an orchestrator exists, not a change to the human
+path, which needs the paste-ready command.
+
+Transition tolerance: response tarballs produced before the
+retirement may still contain `next-prompt.md`. Bale's apply
+walkthrough tolerates them — the body is surfaced, labeled deprecated
+— so pre-retirement archives stay reviewable. Nothing new ships the
+file.
+
+The retirement does not touch bailouts. Queued follow-up after a
+*successful* session was this artifact's job; unfinished work from a
+*bailed* session was always `handoff.md`'s (§5.7), and that path is
+unchanged.
 
 ### 5.6 Bailout response
 
@@ -685,10 +752,10 @@ Bale's apply step branches on it: instead of applying changes, it
 displays the handoff summary and prompts the user to run
 `bale handoff <response-NNN>` to package a fresh session.
 
-`README.md` and `next-prompt.md` are absent in bailouts —
-`handoff.md` carries the forward-looking content for the next
-Claude, and `notes.md` (if present) carries the user-facing
-commentary.
+`README.md` is absent in bailouts — `handoff.md` carries the
+forward-looking content for the next Claude, and `notes.md` (if
+present) carries the user-facing commentary. (`next-prompt.md` is
+retired everywhere, §5.5.)
 
 #### 5.6.2 Manifest specifics for bailouts
 
@@ -898,10 +965,10 @@ are what's *absent*:
 no project-level checks run for a markdown typo. `validation_will_run`
 covers only what `validation.sh` actually does for this change (file
 syntax). `apply.sh` is the no-op script — no deletes, no renames, and
-no executable bits to restore (see §5.1.1). `README.md`, `notes.md`,
-and `next-prompt.md` are absent — nothing surprising happened, no
-follow-up is queued, and the manifest's `summary` field covers what
-the response delivers.
+no executable bits to restore (see §5.1.1). `README.md` and
+`notes.md` are absent — nothing surprising happened, nothing needed
+surfacing and no proposal was worth queuing (§5.4.1), and the
+manifest's `summary` field covers what the response delivers.
 
 The protocol still applies. The floor is the floor.
 
@@ -1115,10 +1182,12 @@ won't catch them.
    `claims`.
 5. Write `apply.sh` for deletes (or a no-op script if none).
 6. Write `validation.sh` honoring the contract in section 7.
-7. Optionally write `notes.md` if there are surprises, decisions, or
-   `unknown` claims to surface. Skip the file otherwise.
-8. Optionally write `next-prompt.md` if work is queued. Skip the file
-   otherwise.
+7. Optionally write `notes.md` if there are surprises, decisions,
+   `unknown` claims, or follow-up proposals (§5.4.1) to surface. Skip
+   the file otherwise.
+8. Do not write `next-prompt.md` — retired (§5.5). Follow-up
+   suggestions go in the Proposals section of `notes.md`, as prose
+   with rationale, never as a pack command.
 9. Optionally write `README.md` if there's color beyond
    `manifest.summary` worth keeping. Skip otherwise.
 10. **Self-check the manifest's internal consistency** — a computed
