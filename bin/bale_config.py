@@ -26,8 +26,8 @@ top-level execution is at the moment of import.
 
 Sections:
   1. Imports + constants                              (~line  60)
-  2. Configurables: load and merge                    (~line 115)
-  3. `bale config init` wizard                        (~line 340)
+  2. Configurables: load and merge                    (~line 140)
+  3. `bale config init` wizard                        (~line 430)
 
 Constants exported for `bin/bale`'s use (referenced by `run_hook` for
 layer detection, and by `build_parser` for command dispatch):
@@ -120,6 +120,18 @@ APPLY_VALUES = (
     # receives a relative tarball name. Tried in order; first match wins.
     # Absolute paths bypass search entirely.
     "search_paths",
+    # Bool. Per-config opt-in to non-interactive apply mode (BALE.md §5.4 /
+    # §8.7) — the same mode `bale apply --no-interact` / `bale retry
+    # --no-interact` enable per invocation. In the mode, the walkthrough
+    # takes its default action and the pre-hook confirmation resolves from
+    # hook_auto_accept below; every bypassed prompt logs the decision taken
+    # and its source. Absent/false = prompt normally.
+    "no_interact",
+    # Bool. Consulted only when non-interactive mode is active: true =
+    # accept the pre-hook confirmation without prompting; absent/false =
+    # decline, matching the interactive prompt's decline default.
+    # Interactive runs always prompt regardless of this key.
+    "hook_auto_accept",
 )
 
 
@@ -253,16 +265,19 @@ def merged_config(repo: Path) -> dict:
     if out_hooks:
         merged["hooks"] = out_hooks
 
-    # [apply] — list-shaped keys, replace semantics. Pass values through
-    # untouched; get_apply_search_paths handles expansion + strict shape
-    # checking at read time.
+    # [apply] — value-shaped keys, per-key replacement (lists replace fully;
+    # bools have no empty-suppress form because `false` at the project layer
+    # is itself the override for an inherited `true`). Pass values through
+    # untouched; the typed accessors (get_apply_search_paths, the bool
+    # readers) handle expansion + strict shape checking at read time.
     g_apply = g.get("apply") if isinstance(g.get("apply"), dict) else {}
     p_apply = p.get("apply") if isinstance(p.get("apply"), dict) else {}
     out_apply: dict = {}
-    if "search_paths" in p_apply:
-        out_apply["search_paths"] = p_apply["search_paths"]
-    elif "search_paths" in g_apply:
-        out_apply["search_paths"] = g_apply["search_paths"]
+    for key in APPLY_VALUES:
+        if key in p_apply:
+            out_apply[key] = p_apply[key]
+        elif key in g_apply:
+            out_apply[key] = g_apply[key]
     if out_apply:
         merged["apply"] = out_apply
 
@@ -343,6 +358,74 @@ def get_apply_search_paths(cfg: dict) -> list[str]:
         # gets the ~ expanded by the second step.
         expanded.append(os.path.expanduser(os.path.expandvars(e)))
     return expanded
+
+
+def _get_apply_bool(cfg: dict, key: str) -> Optional[bool]:
+    """Shared strict reader for bool-shaped [apply] keys.
+
+    Absent section or absent key returns None (unset). A TOML boolean
+    returns as-is. Any other shape is fatal — same contract as
+    get_apply_search_paths: a typo must not silently disable (or, worse
+    here, silently *enable*) a behavior the user thought they configured.
+    A string like "true" is a typo in TOML terms, not a boolean.
+    """
+    from __main__ import fail
+
+    apply_section = cfg.get("apply")
+    if apply_section is None:
+        return None
+    if not isinstance(apply_section, dict):
+        fail(f"{BALE_CONFIG}: [apply] must be a table, got {type(apply_section).__name__}")
+    raw = apply_section.get(key)
+    if raw is None:
+        return None
+    if not isinstance(raw, bool):
+        fail(f"{BALE_CONFIG}: apply.{key} must be a boolean (true/false), "
+             f"got {type(raw).__name__}")
+    return raw
+
+
+def get_apply_no_interact(cfg: dict) -> bool:
+    """Return [apply].no_interact from the merged config; absent → False.
+
+    True opts every `bale apply` / `bale retry` into non-interactive mode
+    without the per-invocation --no-interact flag. Bool-shaped, so there is
+    no empty-suppress form: an explicit `false` at the project layer is the
+    override for an inherited global `true` (per-key replacement covers it).
+    """
+    return bool(_get_apply_bool(cfg, "no_interact"))
+
+
+def get_apply_hook_auto_accept(cfg: dict) -> bool:
+    """Return [apply].hook_auto_accept from the merged config; absent → False.
+
+    Consulted only when non-interactive mode is active: True means run_hook
+    accepts the pre-hook confirmation without prompting; False/absent means
+    it declines, matching the interactive prompt's decline default.
+    Interactive runs never consult this key — they always prompt.
+    """
+    return bool(_get_apply_bool(cfg, "hook_auto_accept"))
+
+
+def apply_bool_source(repo: Path, key: str) -> Optional[str]:
+    """Return "project" or "global" — the layer whose bale.toml supplies
+    [apply].<key> under the per-key merge — or None if neither layer sets it.
+
+    Logging/display helper for the non-interactive apply mode: merged_config
+    deliberately erases provenance, but the mode's contract is that every
+    bypassed prompt logs the decision taken *and its source*, which needs the
+    layer back. Re-reads the two config files; both loads are cheap and
+    already validated fatal-on-malformed by the time any caller here runs.
+    """
+    p = load_config(repo)
+    g = load_global_config()
+    p_apply = p.get("apply") if isinstance(p.get("apply"), dict) else {}
+    g_apply = g.get("apply") if isinstance(g.get("apply"), dict) else {}
+    if key in p_apply:
+        return "project"
+    if key in g_apply:
+        return "global"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +530,66 @@ def _prompt_value(label: str, *, current: Optional[str],
               f"value is inherited. No global value is set for this key; keeping current.")
         return current
     return val
+
+
+def _prompt_bool(label: str, *, current: Optional[bool],
+                 inherited: Optional[bool] = None,
+                 description: list[str]) -> Optional[bool]:
+    """Boolean prompt for the wizard, mirroring `_prompt_value` semantics.
+
+    States at this layer:
+      - None  — key absent. Inherit if a lower layer sets it; unset otherwise.
+      - True / False — key set.
+
+    No 'x' suppress sigil: booleans have no empty form, and an explicit
+    `false` at the project layer already overrides an inherited `true`
+    (per-key replacement). The prompt says so when an inherited value shows.
+
+    Input semantics:
+      - Enter               → keep current (None/True/False as passed in).
+      - true/t/yes/y/1      → True.
+      - false/f/no/n/0      → False.
+      - '-'                 → None (clear at this layer).
+      - anything else       → keep current, with a hint.
+      - EOF/^C              → keep current (safer than clearing).
+    """
+    def _show(v: Optional[bool]) -> str:
+        return "(unset)" if v is None else ("true" if v else "false")
+
+    print(f"[{label}]")
+    for line in description:
+        print(f"  {line}")
+
+    print(f"  current at this layer: {_show(current)}")
+    if inherited is not None:
+        print(f"  inherited from global: {_show(inherited)}")
+
+    effective = current if current is not None else inherited
+    print(f"  effective: {'(unset — off)' if effective is None else _show(effective)}")
+
+    print(f"  Enter to keep. Type true or false to set. Type '-' to clear "
+          f"(unset at this layer).")
+    if inherited is not None:
+        print(f"  (No 'x' sigil for booleans — an explicit 'false' here already "
+              f"overrides the inherited value.)")
+
+    try:
+        raw = input(f"  > ")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return current
+    val = raw.strip().lower()
+    if val == "":
+        return current
+    if val == "-":
+        return None
+    if val in ("true", "t", "yes", "y", "1"):
+        return True
+    if val in ("false", "f", "no", "n", "0"):
+        return False
+    print(f"  '{raw.strip()}' is not a boolean; expected true/false (or Enter "
+          f"to keep, '-' to clear). Keeping current.")
+    return current
 
 
 def _prompt_path_list(label: str, *, current: Optional[list[str]],
@@ -712,6 +855,59 @@ def walk_configurables(existing: dict, *, layer: str,
         # the renderer emits search_paths = [...] either way.
         new.setdefault("apply", {})["search_paths"] = val_list
 
+    # ---- [apply].no_interact -----------------------------------------------
+    # Bool keys read defensively like the list above: a hand-edited
+    # non-boolean shows as "unset" here rather than crashing the wizard; the
+    # strict typed accessor is what apply-time reads go through.
+    raw_cur_b = existing_apply.get("no_interact")
+    current_b = raw_cur_b if isinstance(raw_cur_b, bool) else None
+    raw_inh_b = inherited_apply.get("no_interact")
+    inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
+
+    val_b = _prompt_bool(
+        "apply.no_interact",
+        current=current_b,
+        inherited=inh_b,
+        description=[
+            "Optional. Enter to skip.",
+            "true = `bale apply` and `bale retry` run non-interactively",
+            "by default: the walkthrough takes its default action (merge",
+            "on PASS; hold for inspection on HOLD) and the pre-hook",
+            "confirmation is decided by apply.hook_auto_accept below.",
+            "Every bypassed prompt logs the decision taken and its source.",
+            "Same effect as passing --no-interact per invocation.",
+            "false/unset = prompt normally (false also overrides an",
+            "inherited true).",
+        ],
+    )
+    if val_b is not None:
+        new.setdefault("apply", {})["no_interact"] = val_b
+
+    # ---- [apply].hook_auto_accept ------------------------------------------
+    raw_cur_b = existing_apply.get("hook_auto_accept")
+    current_b = raw_cur_b if isinstance(raw_cur_b, bool) else None
+    raw_inh_b = inherited_apply.get("hook_auto_accept")
+    inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
+
+    val_b = _prompt_bool(
+        "apply.hook_auto_accept",
+        current=current_b,
+        inherited=inh_b,
+        description=[
+            "Optional. Enter to skip.",
+            "Consulted only in non-interactive mode (--no-interact or",
+            "apply.no_interact = true). true = hooks run without their",
+            "confirmation prompt; false/unset = hooks are declined,",
+            "matching the interactive prompt's decline default. Interactive",
+            "runs always prompt regardless. The decision and its source",
+            "are logged either way. Only opt in if you trust every hook",
+            "wired in bale.toml — the per-run prompt is the safety net",
+            "this trades away.",
+        ],
+    )
+    if val_b is not None:
+        new.setdefault("apply", {})["hook_auto_accept"] = val_b
+
     return new
 
 
@@ -802,6 +998,11 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
             # committed file is portable across machines.
             rendered_array = "[" + ", ".join(json.dumps(p) for p in paths) + "]"
             parts.append(f"search_paths = {rendered_array}")
+        # Bool keys, in APPLY_VALUES order. json.dumps(True) == "true" — a
+        # valid TOML boolean literal, so the same serializer covers them.
+        for key in ("no_interact", "hook_auto_accept"):
+            if key in apply_section:
+                parts.append(f"{key} = {json.dumps(apply_section[key])}")
         parts.append("")
 
     return "\n".join(parts)
