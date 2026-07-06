@@ -445,7 +445,14 @@ The following flags apply across multiple commands:
   output live; wiring it across the other commands listed here is future
   work.)
 - `--no-interact` — non-TTY mode. Skips prompts; the default action
-  (Enter key equivalent) is taken at every prompt point.
+  (Enter key equivalent) is taken at every prompt point. (Landed
+  apply-scoped in v0.2.5 — `bale apply --no-interact` and `bale retry
+  --no-interact`, also enable-able per config via `apply.no_interact`
+  in bale.toml; wiring it across the other commands listed here is
+  future work. In this mode the pre-hook confirmation resolves from
+  `apply.hook_auto_accept` — unset/false takes the prompt's decline
+  default — and every bypassed prompt logs the decision taken and its
+  source to the terminal and the session log.)
 - `--staging-dir <path>` — override the default `./staging/`
   location.
 - `--clean` — remove the staging directory after a successful apply.
@@ -955,6 +962,15 @@ Then prompt:
 
 In `--no-interact` mode (or non-TTY): on PASS, auto-merge. On HOLD,
 exit non-zero with the branch held for inspection.
+
+In `--no-interact` mode (per invocation, or per config via
+`apply.no_interact = true`) the post-apply hook confirmation is
+likewise not prompted: it resolves from `apply.hook_auto_accept` in
+bale.toml (unset or false = decline, the prompt's default), and every
+bypassed prompt — walkthrough and hook alike — logs the decision taken
+and its source. Plain non-TTY without the mode keeps the pre-existing
+behavior: walkthrough defaults taken silently, hook prompts declined
+on EOF.
 
 ### 8.8 Terminal actions
 

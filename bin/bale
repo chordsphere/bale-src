@@ -233,6 +233,28 @@ none of the new flags present is unchanged; --edit refuses without a
 TTY (use --readme-file for non-interactive prose) and conflicts with
 --no-edit.
 
+v0.2.5 lands the non-interactive apply mode (BALE.md §5.4 / §8.7):
+`--no-interact` on `bale apply` and `bale retry` (apply-scoped for
+now, the same landing pattern --verbose took in v0.2.1), plus a
+per-config opt-in via two new bool keys under bale.toml's [apply]
+table — `no_interact` (turn the mode on for every invocation) and
+`hook_auto_accept` (consulted only in the mode: accept the pre-hook
+confirmation instead of taking its decline default). The mode covers
+exactly the apply pipeline's two prompt points: the walkthrough
+terminal action takes its existing default (merge on PASS, inspect on
+HOLD — the BALE.md §8.7 piped-mode contract) and the pre-hook
+confirmation resolves from config. Every bypassed prompt logs the
+decision taken and its source (flag vs config, with the config layer
+named via bale_config.apply_bool_source) through log(), so the
+terminal and the session log both carry the audit trail. Default
+behavior is unchanged: with neither the flag nor the config keys,
+every prompt behaves exactly as before, including the silent non-TTY
+defaults (walkthrough default taken, hooks declined on EOF). The keys
+ride the existing configurables mechanism — APPLY_VALUES, typed
+accessors, wizard walk, renderer, all in bale_config — and the
+walkthrough/review artifacts are untouched: non-interactive mode
+still prints the full summary, notes.md surfacing, and banners.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -254,32 +276,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  382)
-   2. Logging                                          (~line  461)
-   3. Shell / git helpers                              (~line  548)
-   4. Hashing                                          (~line  587)
-   5. Session IDs and the per-day counter              (~line  603)
-   6. Lock handling                                    (~line  661)
-   7. .gitignore handling for the .bale/ directory     (~line  692)
-   8. Path-safety checks                               (~line  722)
-   9. Editor invocation                                (~line  770)
-  10. Pack: file enumeration and filtering             (~line  831)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1208)
-  12. Pack: slug validation                            (~line 1491)
-  13. Pack: manifest and tarball construction          (~line 1504)
-  14. Pack: wizard                                     (~line 1619)
-  15. Pack                                             (~line 1899)
-  16. Apply: helpers                                   (~line 2523)
-  17. Apply: pipeline                                  (~line 3166)
-  18. Apply                                            (~line 3499)
-  19. Revert                                           (~line 3717)
-  20. Retry                                            (~line 3910)
-  21. Unlock                                           (~line 3959)
-  22. Handoff                                          (~line 4061)
-  23. Hook invocation                                  (~line 4486)
-  24. Help and completion                              (~line 4609)
-  25. Status                                          (~line 5012)
-  26. CLI                                              (~line 5419)
+   1. Imports + constants                              (~line  404)
+   2. Logging                                          (~line  483)
+   3. Shell / git helpers                              (~line  570)
+   4. Hashing                                          (~line  609)
+   5. Session IDs and the per-day counter              (~line  625)
+   6. Lock handling                                    (~line  683)
+   7. .gitignore handling for the .bale/ directory     (~line  714)
+   8. Path-safety checks                               (~line  744)
+   9. Editor invocation                                (~line  792)
+  10. Pack: file enumeration and filtering             (~line  853)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1230)
+  12. Pack: slug validation                            (~line 1513)
+  13. Pack: manifest and tarball construction          (~line 1526)
+  14. Pack: wizard                                     (~line 1641)
+  15. Pack                                             (~line 1921)
+  16. Apply: helpers                                   (~line 2545)
+  17. Apply: pipeline                                  (~line 3222)
+  18. Apply                                            (~line 3570)
+  19. Revert                                           (~line 3801)
+  20. Retry                                            (~line 3994)
+  21. Unlock                                           (~line 4053)
+  22. Handoff                                          (~line 4155)
+  23. Hook invocation                                  (~line 4580)
+  24. Help and completion                              (~line 4734)
+  25. Status                                          (~line 5137)
+  26. CLI                                              (~line 5544)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -382,7 +404,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.4"
+VERSION = "0.2.5"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2799,7 +2821,8 @@ def format_walkthrough_summary(
     return "\n".join(ref) + "\n" + summary_block + "\n"
 
 
-def prompt_walkthrough_action(state: str) -> str:
+def prompt_walkthrough_action(state: str, *, no_interact: bool = False,
+                              no_interact_source: str = "") -> str:
     """Prompt the user for the terminal walkthrough action.
 
     Returns one of "merge" (PASS only), "inspect" (HOLD only), or "revert"
@@ -2809,11 +2832,23 @@ def prompt_walkthrough_action(state: str) -> str:
       - PASS path → default "merge" (auto-merge into origin).
       - HOLD path → default "inspect" (exit non-zero with branch held).
 
+    `no_interact` (BALE.md §5.4 / §8.7) skips the prompt and takes the same
+    default, but *logs* the bypassed prompt's decision and its source
+    (`no_interact_source`, e.g. "--no-interact flag" or the bale.toml key
+    and layer) — the audit trail the interactive prompt would otherwise be.
+    The plain non-TTY branch below stays a silent default on purpose: it is
+    the unchanged legacy path for runs that did not opt in.
+
     `state` is "PASS" or "HOLD"; any other value is a caller bug.
     """
     if state not in ("PASS", "HOLD"):
         raise ValueError(f"prompt_walkthrough_action: bad state {state!r}")
     default = "merge" if state == "PASS" else "inspect"
+
+    if no_interact:
+        log(f"walkthrough prompt skipped ({no_interact_source}): taking "
+            f"default action {default!r} ({state} default)")
+        return default
 
     if not sys.stdin.isatty():
         # Piped/non-interactive: take the default silently. The summary
@@ -2905,6 +2940,27 @@ def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
     fail("\n".join(lines))
     # fail() does sys.exit; this return is unreachable but keeps mypy happy.
     return cwd_candidate  # pragma: no cover
+
+
+def resolve_no_interact(repo: Path, cfg: dict, flag: bool) -> tuple[bool, str]:
+    """Resolve whether non-interactive apply mode is active, and its source.
+
+    Shared by cmd_apply and cmd_retry (BALE.md §5.4 / §8.7). Returns
+    (active, source): `active` says whether the mode is on; `source` is the
+    human-readable provenance string the pipeline logs beside every bypassed
+    prompt ("" when the mode is off). Precedence: the per-invocation
+    --no-interact flag wins by being checked first; otherwise the merged
+    config's apply.no_interact enables the mode for every invocation, with
+    the supplying layer named via apply_bool_source. There is deliberately
+    no per-invocation "force interactive" negation over a config true — if
+    that need is real it earns a flag later (see the v0.2.5 session notes).
+    """
+    if flag:
+        return True, "no-interact via --no-interact flag"
+    if bale_config.get_apply_no_interact(cfg):
+        layer = bale_config.apply_bool_source(repo, "no_interact") or "config"
+        return True, f"no-interact via apply.no_interact=true ({layer} bale.toml)"
+    return False, ""
 
 
 def first_section_of_handoff(handoff_md_text: str) -> str:
@@ -3168,7 +3224,9 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
 
 def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     staging_override: Optional[str], *,
-                    dry_run: bool = False, verbose: bool = False) -> int:
+                    dry_run: bool = False, verbose: bool = False,
+                    no_interact: bool = False,
+                    no_interact_source: str = "") -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
     + clean-tree guards) and cmd_retry (after _discard_hold_state has
@@ -3189,7 +3247,15 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     --verbose) is forwarded to run_validation_sh, which streams
     validation.sh output live to the terminal in addition to the session log
     (BALE.md §8.5 step 4); it has no effect under dry_run, which never runs
-    validation.sh. cmd_retry passes neither, so its behavior is unchanged.
+    validation.sh.
+
+    `no_interact` / `no_interact_source` (BALE.md §5.4 / §8.7; --no-interact
+    or apply.no_interact in bale.toml, resolved by the caller) thread to the
+    pipeline's two prompt points — prompt_walkthrough_action and the
+    post_apply_pass run_hook — which skip their prompts and log the decision
+    taken plus `no_interact_source`. No effect under dry_run, which returns
+    before either prompt. All keywords default off, so callers that pass
+    nothing (and older call shapes) keep the interactive behavior unchanged.
 
     Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
@@ -3393,7 +3459,10 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             staging=staging,
             repo=repo,
         ))
-        action = prompt_walkthrough_action(state)
+        action = prompt_walkthrough_action(
+            state, no_interact=no_interact,
+            no_interact_source=no_interact_source,
+        )
         log(f"walkthrough action: {action}")
 
         # 8.8 terminal actions. Merge (PASS only), inspect (HOLD only),
@@ -3420,7 +3489,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             #
             # merged_config layers global under project so a single config
             # call covers both `<install>/user/bale.toml` and `<repo>/bale.toml`.
-            run_hook(repo, bale_config.merged_config(repo), "post_apply_pass", locked_sid)
+            run_hook(repo, bale_config.merged_config(repo), "post_apply_pass",
+                     locked_sid, no_interact=no_interact,
+                     no_interact_source=no_interact_source)
 
             print(format_summary_block(
                 [
@@ -3690,10 +3761,22 @@ def cmd_apply(args: argparse.Namespace) -> int:
     log(f"{'dry-run validating' if args.dry_run else 'applying'} "
         f"{tarball_path.name} against session {locked_sid}")
 
+    # Non-interactive mode (BALE.md §5.4 / §8.7): per-invocation flag or
+    # per-config opt-in, resolved once so every bypassed prompt logs the
+    # same source string. Logged at activation (after set_log_file, so the
+    # session log carries it) — the mode changes what the rest of this
+    # command will do at its prompt points, and that should be on the
+    # record before any of them is reached.
+    no_interact, no_interact_source = resolve_no_interact(
+        repo, cfg, args.no_interact)
+    if no_interact:
+        log(f"non-interactive apply mode active ({no_interact_source})")
+
     # `--dry-run`: run the read-only front half of the pipeline (validate,
     # report the plan) and stop before any git or worktree side effect. It
     # touches neither the working tree nor `.bale/`, so the clean-tree guard
-    # a real apply needs is skipped here.
+    # a real apply needs is skipped here. (Non-interactive mode has no
+    # effect on this path — a dry-run reaches no prompt point.)
     if args.dry_run:
         return _apply_pipeline(
             repo, tarball_path, locked_sid, args.staging_dir,
@@ -3709,7 +3792,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
 
     return _apply_pipeline(
         repo, tarball_path, locked_sid, args.staging_dir,
-        verbose=args.verbose,
+        verbose=args.verbose, no_interact=no_interact,
+        no_interact_source=no_interact_source,
     )
 
 
@@ -3946,13 +4030,23 @@ def cmd_retry(args: argparse.Namespace) -> int:
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
     log(f"retrying session {locked_sid} with {tarball_path.name}")
 
+    # Non-interactive mode: same resolution and logging contract as
+    # cmd_apply — retry reruns the same pipeline with the same two prompt
+    # points, so it takes the same flag and honors the same config keys.
+    no_interact, no_interact_source = resolve_no_interact(
+        repo, cfg, args.no_interact)
+    if no_interact:
+        log(f"non-interactive apply mode active ({no_interact_source})")
+
     # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
     # never tried apply). In that case retry behaves like apply.
     status = _discard_hold_state(repo, locked_sid)
     if not status["branch_existed"]:
         log("no prior apply attempt for this session; retry equivalent to apply")
 
-    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir)
+    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir,
+                           no_interact=no_interact,
+                           no_interact_source=no_interact_source)
 
 
 # ---------------------------------------------------------------------------
@@ -4512,7 +4606,8 @@ def confirm_yn(prompt: str, *, default_no: bool = True) -> bool:
     return ans in ("y", "yes")
 
 
-def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
+def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
+             no_interact: bool = False, no_interact_source: str = "") -> None:
     """Run the named hook if configured. Silent no-op when absent.
 
     Expects the merged config (from merged_config), so the hook value is
@@ -4524,6 +4619,15 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
     (no failure). A configured-but-missing or non-executable script is logged
     and skipped rather than failing — bale's primary work has already
     succeeded by the time this runs, and a broken hook shouldn't unwind it.
+
+    `no_interact` (BALE.md §5.4 / §8.7) replaces the prompt with a configured
+    decision: apply.hook_auto_accept = true accepts; anything else declines,
+    matching the prompt's decline default (default_no=True). Either way the
+    bypassed prompt logs the decision taken and its source — the mode source
+    in `no_interact_source` plus where the hook_auto_accept value came from
+    (config layer, or the built-in default when unset). The apply pipeline is
+    the only caller that passes the mode; pack- and handoff-side post_pack
+    invocations keep the interactive contract unchanged.
     """
     script = bale_config.get_hook(cfg, name)
     if script is None:
@@ -4574,7 +4678,28 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str) -> None:
     print(f"  This script runs as your user. It may write outside the repo,")
     print(f"  install software, or perform any action its author chose.")
     print(f"  Inspect the script before approving.")
-    if not confirm_yn("  run this hook?", default_no=True):
+    if no_interact:
+        # Non-interactive mode: the pre-hook confirmation resolves from
+        # config instead of a prompt. The banner above still printed, so the
+        # terminal (and any CI capture) carries what would have run; the log
+        # lines below carry the decision and its source per the mode's
+        # contract. Unset hook_auto_accept declines — the same bias as the
+        # interactive prompt's default_no=True.
+        if bale_config.get_apply_hook_auto_accept(cfg):
+            layer = bale_config.apply_bool_source(repo, "hook_auto_accept") or "config"
+            log(f"[hook {name}] prompt skipped ({no_interact_source}): "
+                f"auto-accepted per apply.hook_auto_accept=true "
+                f"({layer} bale.toml)")
+        else:
+            layer = bale_config.apply_bool_source(repo, "hook_auto_accept")
+            if layer:
+                reason = f"apply.hook_auto_accept=false ({layer} bale.toml)"
+            else:
+                reason = "built-in default (apply.hook_auto_accept unset)"
+            log(f"[hook {name}] prompt skipped ({no_interact_source}): "
+                f"declined per {reason}; not invoking.")
+            return
+    elif not confirm_yn("  run this hook?", default_no=True):
         log(f"[hook {name}] declined; not invoking.")
         return
 
@@ -5588,6 +5713,17 @@ def build_parser() -> argparse.ArgumentParser:
              "summary carries the verdict. No effect with --dry-run, which "
              "does not run validation.sh.",
     )
+    p_apply.add_argument(
+        "--no-interact", action="store_true",
+        help="Run without prompting (BALE.md §5.4/§8.7): the walkthrough "
+             "takes its default action (merge on PASS; hold for inspection "
+             "on HOLD, exiting non-zero) and the post-apply hook "
+             "confirmation resolves from apply.hook_auto_accept in "
+             "bale.toml (unset/false = decline). Every bypassed prompt "
+             "logs the decision taken and its source to the terminal and "
+             "the session log. The mode can also be enabled per config "
+             "via apply.no_interact = true; run `bale config init`.",
+    )
     p_apply.set_defaults(func=cmd_apply)
 
     # retry
@@ -5611,6 +5747,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--staging-dir", default=None,
         help="Where to stage the apply (default: <repo>/.bale/staging). "
              "An explicit path is resolved relative to cwd.",
+    )
+    p_retry.add_argument(
+        "--no-interact", action="store_true",
+        help="Run without prompting — same semantics as `bale apply "
+             "--no-interact` (retry reruns the same pipeline): walkthrough "
+             "takes its default action, the post-apply hook confirmation "
+             "resolves from apply.hook_auto_accept, and every bypassed "
+             "prompt logs its decision and source.",
     )
     p_retry.set_defaults(func=cmd_retry)
 

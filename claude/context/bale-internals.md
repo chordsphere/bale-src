@@ -168,8 +168,12 @@ is *for* — and stays stable as the per-section line numbers drift:
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
-`get_hook`, `get_apply_search_paths`); the wizard (`_prompt_value`,
-`_prompt_path_list`, `walkthrough_git_identity`, `walk_configurables`,
+`get_hook`, `get_apply_search_paths`, the bool accessors
+`get_apply_no_interact` / `get_apply_hook_auto_accept` over a shared
+`_get_apply_bool`, and `apply_bool_source`, the layer-provenance
+helper the non-interactive apply mode's decision logging uses); the
+wizard (`_prompt_value`, `_prompt_bool`, `_prompt_path_list`,
+`walkthrough_git_identity`, `walk_configurables`,
 `render_bale_toml`, `walkthrough_baleignore`, `cmd_config_init` and
 its layer-specific implementations); and the module-level constants
 listed above (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
@@ -296,6 +300,12 @@ plus hand-edits is the entire surface. If the need is real, they land later.
   `search_paths`, its list wins fully (including the empty-list suppress
   form). No mixed-list semantics — append across machines would mean
   unpredictable order, and order matters for first-match-wins lookups.
+- **Bool-shaped configs need no empty-suppress form.** `false` at the
+  project layer is itself the override for an inherited global `true`,
+  so plain per-key replacement covers suppression. The bool accessors
+  treat absent as unset (falling back to the mode's built-in default)
+  and any non-boolean TOML value as fatal — `"true"` the string is a
+  typo, not an opt-in.
 - **Hook paths resolve at merge time** against the layer that owns them.
   Project hooks resolve against `<repo>/`; global hooks resolve against
   `<install>/user/`. `merged_config` returns absolute filesystem paths so
@@ -328,6 +338,8 @@ post_apply_pass = "scripts/reinstall.sh"
 
 [apply]
 search_paths = ["~/Downloads"]
+no_interact = false
+hook_auto_accept = false
 ```
 
 The schema is identical at both layers. The only thing that differs is
@@ -335,6 +347,15 @@ what hook paths resolve against (the file's own directory). Future
 sessions add more keys under `[hooks]` and (potentially) new top-level
 sections; each new key extends `walk_configurables()` in the same session
 so the discoverable surface stays in sync.
+
+The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
+mode: `no_interact = true` opts `bale apply` and `bale retry` into the
+mode per config (the `--no-interact` flag is the per-invocation form);
+`hook_auto_accept = true` — consulted only when the mode is active —
+accepts the pre-hook confirmation instead of taking its decline
+default. Every prompt the mode bypasses logs the decision taken and
+its source (flag vs config, with the supplying layer named). Both keys
+absent, or the mode off, means every prompt behaves as it always has.
 
 The wizard owns the discoverable surface at both layers. If you add a key
 without extending `walk_configurables()`, there is no canonical way for a
@@ -375,6 +396,17 @@ classify these ex ante. The prompt is the safety net.
 Decline at the prompt is silent and logged but not an error. The
 bale operation that triggered the hook (e.g. a PASS apply) has already
 succeeded; declining the hook just means "skip the post-step."
+
+The non-interactive apply mode (v0.2.5) is the one deliberate
+exception, and only on the apply pipeline's `post_apply_pass`
+invocation: with `--no-interact` (or `apply.no_interact = true`), the
+prompt is replaced by a configured decision — `apply.hook_auto_accept
+= true` accepts, anything else declines, matching the prompt's decline
+default — and the decision plus its source is logged. The safety net
+becomes the explicit config opt-in plus the audit log instead of a
+per-run prompt; the pre-invocation banner (script path, env, warning)
+still prints. Pack- and handoff-side `post_pack` invocations are
+untouched and always prompt.
 
 ### 3.3 Environment
 
