@@ -596,6 +596,10 @@ The inputs:
   entire working tree (minus baked-in and `.baleignore` exclusions).
 - **excludes** (list of patterns) — appended to the always-excluded
   set for this session only.
+- **readme prose** (optional) — the request's `README.md` body.
+  Suppliable non-interactively via `--readme-file <path>`, or
+  interactively via the wizard's `$EDITOR` step (§7.3); `--edit`
+  forces the editor step on a fully specified command.
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by Claude when
@@ -640,6 +644,30 @@ helper, so users see one editor-resolution behavior across the tool.
 
 `--no-edit` forces skip regardless.
 
+Two flags (v0.2.4) give the README a CLI surface beyond the wizard:
+
+- **`--readme-file <path>`** packs the file's contents (UTF-8 text)
+  as the request's `README.md` — the non-interactive way to ship
+  prose context, e.g. from an orchestrator or a pre-written note. A
+  missing, unreadable, or empty file fails loudly before any prompt
+  runs; deliberate omission is spelled "don't pass the flag."
+  Compatible with `--no-edit` (the prose ships, no editor opens) and
+  with the wizard (the README y/N prompt is skipped, since content
+  is already supplied).
+- **`--edit`** forces the `$EDITOR` step even on a fully specified
+  command (goal and `--slug` present, where the wizard never
+  engages). Seeded with `--readme-file`'s content when both are
+  given — a review-then-pack flow — and with the standard scaffold
+  otherwise. Saving an empty buffer omits the file, same as the
+  wizard's step. Requires a TTY (use `--readme-file` for
+  non-interactive prose); contradicts `--no-edit`, and passing both
+  is an error.
+
+Resolution precedence, first match wins: `--edit` → `--readme-file`
+alone → the wizard's y/N prompt (when the wizard engaged and
+`--no-edit` is absent) → no README. With none of these flags, the
+interactive flow is exactly the pre-v0.2.4 wizard.
+
 ### 7.4 Scope projection and threshold check
 
 Before building the tarball, bale walks the included paths with all
@@ -657,7 +685,7 @@ run is interactive or piped.
 
 | Threshold | Default | Behavior on breach |
 |-----------|---------|---------------------|
-| File count (soft) | 10,000 | Interactive: prompt; piped: warn |
+| File count (soft) | 10,000 | Interactive: prompt; piped: refuse (v0.2.4) |
 | File count (hard) | 100,000 | Interactive: refuse, offer override; piped: refuse |
 | Size (soft) | 100 MB | Same as above |
 | Size (hard) | 1 GB | Same as above |
@@ -696,10 +724,17 @@ Largest directories:
 If `e`: bale takes new patterns and re-walks. Loop until the user is
 satisfied or aborts.
 
-**Piped-mode behavior:**
+**Piped-mode behavior (stdin not a TTY):**
 
-- Soft breach: print a warning with the same projection block to
-  stderr; proceed.
+- Soft breach: print the projection block and a refusal to stderr;
+  exit non-zero (v0.2.4 — previously warn-and-proceed). No prompt can
+  run, and a stderr warning nobody reads is not a check: proceeding
+  silently ships exactly the oversized pack the cap exists to catch,
+  in the one context (automation) where nobody is watching. The
+  caller narrows the scope with `--exclude` / `.baleignore`, or
+  re-runs with `--force` to proceed at that scope deliberately —
+  `--force` is the explicit, logged "I mean it" that the silent
+  proceed never was.
 - Hard breach: print a refusal with the projection block to stderr;
   exit non-zero. The user re-runs with `--max-*` or `--force`.
 
@@ -719,11 +754,12 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 5. Walk the include paths; apply exclusions (baked-in, `.baleignore`,
    user-supplied for this session); copy matching files into
    `context/`.
-6. If the user opened `$EDITOR` and saved non-empty prose, include
-   it as `README.md`. If `--no-edit` was passed or the editor was
-   skipped, omit the file entirely (the manifest's `goal`,
-   `constraints`, and `out_of_scope` fields carry the structured
-   intent).
+6. If README prose was resolved — from `--readme-file`, from
+   `$EDITOR` (the wizard's y-path or `--edit`), or the combination —
+   include it as `README.md`. Otherwise omit the file entirely (the
+   manifest's `goal`, `constraints`, and `out_of_scope` fields carry
+   the structured intent); `--no-edit`, an `n` at the wizard prompt,
+   and an emptied editor buffer all land here.
 7. Tar with `tar -czf request-NNN.tar.gz request-NNN/`.
 
 ### 7.6 Persist session state
