@@ -7,9 +7,10 @@ pipelines: the shared end-of-run summary formatter every command finishes on
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
 bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
 report (`format_dry_run_report`), the machine-readable pack report
-(`format_pack_json`, added in v0.2.7 for `bale pack --json`) and its apply
-twin (`format_apply_json`, added in v0.2.8 for `bale apply --json`), plus the
-json-mode stream-discipline state the two machine reports share
+(`format_pack_json`, added in v0.2.7 for `bale pack --json`), its apply
+twin (`format_apply_json`, added in v0.2.8 for `bale apply --json`), and its
+status sibling (`format_status_json`, added in v0.2.9 for `bale status
+--json`), plus the json-mode stream-discipline state the machine reports share
 (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8). The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
@@ -37,20 +38,22 @@ deliberate exception (it prints), because its output interleaves reference
 material and the summary block in a fixed §5.6.3 order that no caller
 should have to re-derive.
 
-The two json renderers (`format_pack_json`, `format_apply_json`) sit outside
+The json renderers (`format_pack_json`, `format_apply_json`,
+`format_status_json`) sit outside
 that rule because for a machine consumer the verdict is the whole report:
 each renders its command's outcome as ONE line of JSON whose keys are a
 stable contract for downstream tooling (see their docstrings). Since v0.2.8
 json mode also carries STREAM DISCIPLINE, owned here as three tiny state
-functions: `enable_json_mode()` (called once by cmd_pack/cmd_apply when
---json is passed) saves the real stdout and rebinds `sys.stdout` to
+functions: `enable_json_mode()` (called once by cmd_pack/cmd_apply/cmd_status
+when --json is passed) saves the real stdout and rebinds `sys.stdout` to
 `sys.stderr`, so every `[bale] ` log line, prompt, hook banner, and human
 reference block the command produces lands on stderr without any print site
 changing; `emit_json_line()` writes the one report line to the saved real
 stdout; `json_mode()` is the accessor pass-through call sites gate on. The
 consumer contract is therefore: on the reporting paths, stdout carries
 exactly one JSON line (pack: exit 0; apply: exit 0, plus the held/reverted
-exit-1 outcomes), and error paths exit through fail() — stderr, non-zero —
+exit-1 outcomes; status: exit 0), and error paths exit through fail() —
+stderr, non-zero —
 with nothing on stdout. Human (non---json) mode is untouched: the swap never
 happens and every stream keeps its pre-v0.2.8 behavior byte-for-byte.
 
@@ -58,8 +61,9 @@ Behavior-preserving move: the functions keep the signatures, bodies, and
 call sites they had in `bin/bale`. The public entry points
 (`format_summary_block`, `format_walkthrough_summary`,
 `print_bailout_banner`, `format_dry_run_report`, since v0.2.7
-`format_pack_json`, and since v0.2.8 `format_apply_json` plus the json-mode
-trio `enable_json_mode` / `json_mode` / `emit_json_line`) are pulled back into
+`format_pack_json`, since v0.2.8 `format_apply_json` plus the json-mode
+trio `enable_json_mode` / `json_mode` / `emit_json_line`, and since v0.2.9
+`format_status_json`) are pulled back into
 `bin/bale`'s namespace via `from bale_report import ...`, so every caller —
 the pack summary, the apply pipeline's walkthrough and terminal-action
 banners, the dry-run path, revert, unlock, handoff, and status — still
@@ -530,9 +534,10 @@ def format_pack_json(
                      through fail() (stderr + non-zero) or the interactive
                      abort (stderr + exit 1) before this renders, so a
                      consumer sees this line only on exit 0. The outcome
-                     vocabulary across both json renderers is owned in this
+                     vocabulary across the json renderers is owned in this
                      module — "packed" here; "applied", "held", "reverted",
-                     "bailout", "dry-run" in format_apply_json (v0.2.8) —
+                     "bailout", "dry-run" in format_apply_json (v0.2.8);
+                     "status" in format_status_json (v0.2.9) —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -650,5 +655,148 @@ def format_apply_json(
         "log": str(log_path),
         "verdict": verdict,
         "merge": merge,
+    }
+    return json.dumps(payload)
+
+
+def format_status_json(report) -> str:
+    """Render the `bale status --json` report as ONE line of JSON.
+
+    The status sibling of format_pack_json / format_apply_json (v0.2.9):
+    same stability rules (existing keys are never renamed or removed; new
+    keys may be added), same one-compact-line shape, same emission path
+    (the caller emits it via emit_json_line so it reaches the real stdout
+    under json mode's stream discipline — module docstring). `report` is
+    bin/bale's StatusReport — the facts `bale status` gathers once and
+    renders once. This function reads its attributes and performs no I/O
+    of its own, preserving status's gather/render seam (all of status's
+    I/O lives in _gather_status; this renderer stays the pure,
+    unit-testable half ADR 0003 anticipates). It takes the report object
+    rather than an unpacked kwarg per field because status reports the
+    whole gathered state and the dataclass is already its one canonical
+    carrier — unlike the pack/apply reports, whose handful of fields have
+    no such holder at the call site.
+
+    Keys reuse the pack/apply vocabulary where concepts overlap (outcome,
+    sid) and follow format_apply_json's nullable-object pattern for facts
+    that may not apply. The set:
+
+      outcome  "status" — always. Status has no failure outcome of its
+               own: a successful read exits 0 in both modes, and error
+               paths exit through fail() (stderr, non-zero, nothing on
+               stdout). Part of the one-place outcome vocabulary this
+               module owns (see format_pack_json).
+      version  the bale VERSION string.
+      sid      the open session id — the lock state, in the same key
+               pack and apply use — or null when no session is open.
+      repo     null outside a git repository; else an object:
+                 root               absolute repo root path
+                 branch             current branch name
+                 tree_clean         bool
+                 tree_change_count  count of `git status --porcelain`
+                                    lines
+                 bale_initialised   whether .bale/ exists
+      session  null outside a git repository; else an object, present
+               even when idle — the lifecycle state is a fact either way:
+                 state          "idle" | "packed" | "held" | "orphan"
+                                (BALE.md §9.5; the SESSION_STATE_*
+                                constants in bin/bale)
+                 goal           the stamped request manifest's goal, or
+                                null (no open session, or no readable
+                                stamped manifest)
+                 expects_probe  the stamped manifest's expects_probe
+                                value, or null likewise
+               The human rows' prose — the state description and the
+               next-step hint — is deliberately NOT in the contract: a
+               machine consumer dispatches on the state enum, and the
+               prose wording must stay free to change without breaking
+               anyone.
+      staging  null outside a git repository; else an object:
+                 present  whether the default staging directory exists
+                          (an inspectable staging left in place by a
+                          previous apply, or mid-apply state)
+                 path     the default staging location,
+                          <repo>/.bale/staging. A --staging-dir override
+                          on a past apply is invisible to status, so
+                          this reports the default — which is also the
+                          location bale apply itself resolves absent the
+                          flag.
+      outbox   null outside a git repository; else the full sorted list
+               of request tarball names in .bale/outbox/. Unlike the
+               human block it is not capped: STATUS_OUTBOX_LIST_CAP is
+               presentation, not data, and a machine consumer gets
+               everything.
+      applied  null outside a git repository; else an object:
+                 count   number of applied/<sid> tags
+                 latest  most recent applied sid (by tag creation date,
+                         matching `bale rollback --list`'s ordering), or
+                         null when none
+      config   always an object (the global layer exists outside repos):
+                 project         absolute path of <repo>/bale.toml, or
+                                 null when absent or outside a repo
+                 global          absolute path of the install-layer
+                                 bale.toml, or null when absent
+                 hooks_wired     hook names with a script wired in the
+                                 effective (merged) config
+                 search_paths    count of configured apply search paths
+                 baleignore      whether <repo>/.baleignore exists
+                                 (false outside a repo)
+                 summary_failed  true when the effective-config summary
+                                 could not be computed (malformed
+                                 bale.toml). The presence facts above
+                                 are still valid; hooks_wired /
+                                 search_paths are then empty/zero —
+                                 unknown rather than known-absent.
+
+    Pure: builds a string, prints nothing; the caller emits it, which
+    supplies the trailing newline.
+    """
+    repo_obj = None
+    session_obj = None
+    staging_obj = None
+    outbox = None
+    applied_obj = None
+    if report.repo_root is not None:
+        repo_obj = {
+            "root": str(report.repo_root),
+            "branch": report.branch,
+            "tree_clean": report.tree_clean,
+            "tree_change_count": report.tree_change_count,
+            "bale_initialised": report.bale_initialised,
+        }
+        session_obj = {
+            "state": report.session_state,
+            "goal": report.session_goal,
+            "expects_probe": report.session_expects_probe,
+        }
+        staging_obj = {
+            "present": report.staging_present,
+            "path": (str(report.staging_path)
+                     if report.staging_path is not None else None),
+        }
+        outbox = list(report.outbox_tarballs)
+        applied_obj = {
+            "count": report.applied_count,
+            "latest": report.applied_latest,
+        }
+    payload = {
+        "outcome": "status",
+        "version": report.version,
+        "sid": report.session_sid,
+        "repo": repo_obj,
+        "session": session_obj,
+        "staging": staging_obj,
+        "outbox": outbox,
+        "applied": applied_obj,
+        "config": {
+            "project": (str(report.project_config)
+                        if report.project_config is not None else None),
+            "global": (str(report.global_config)
+                       if report.global_config is not None else None),
+            "hooks_wired": list(report.hooks_wired),
+            "search_paths": report.search_path_count,
+            "baleignore": report.baleignore,
+            "summary_failed": report.config_summary_failed,
+        },
     }
     return json.dumps(payload)

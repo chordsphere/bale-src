@@ -135,7 +135,13 @@ is *for* — and stays stable as the per-section line numbers drift:
     end-of-run summary for the one-line machine-readable report
     rendered by `bale_report.format_pack_json` — flag wiring and
     pass-through only in this file; the rendering and key contract
-    live in the sibling module.
+    live in the sibling module. From v0.2.8 `bale apply` carries the
+    same flag (rendered by `bale_report.format_apply_json`), and from
+    v0.2.9 so does `bale status` (rendered by
+    `bale_report.format_status_json`) — same flag-wiring-only division
+    each time, with all three sharing the v0.2.8 json-mode stream
+    discipline: every human-facing line goes to stderr under a --json
+    run, so stdout carries exactly the report line.
     From v0.2.2, the `help` and `completion` subparsers
     (`func=cmd_help`, `func=cmd_completion`) wire the discoverability
     surface that cluster 17 implements.
@@ -164,9 +170,17 @@ is *for* — and stays stable as the per-section line numbers drift:
     lifecycle state — idle/packed/held/orphan, BALE.md §9.5 — from three
     booleans), the `StatusReport` dataclass, `_gather_status` (the only
     I/O: reads lock, outbox, the `bale/<sid>` branch, `applied/*` tags,
-    the stamped request manifest's goal, and config presence/effective
-    values), and `_render_status` (turns the report into a
-    `format_summary_block`). `bale status` is read-only — no lock, no git
+    the stamped request manifest's goal, config presence/effective
+    values, and — v0.2.9 — whether the default staging directory,
+    `.bale/staging`, is present), and `_render_status` (turns the report
+    into a `format_summary_block`). From v0.2.9 `bale status --json`
+    swaps the human block for the one-line machine report rendered by
+    `bale_report.format_status_json` (which owns the key contract; the
+    staging-presence fields are consumed only there, keeping human
+    output unchanged), under the shared json-mode stream discipline —
+    cmd_status calls `enable_json_mode` before gathering, so any
+    `[bale] ` line gathering emits goes to stderr and stdout carries
+    exactly the JSON line. `bale status` is read-only — no lock, no git
     or filesystem writes, no clean-tree requirement — and degrades
     gracefully outside a git repo and on a malformed `bale.toml` (config
     summary catches the `fail()`-driven `SystemExit` so the rest of the
@@ -270,19 +284,26 @@ shared end-of-run summary formatter every command finishes on
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
 bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
-report (`format_dry_run_report`), and — since v0.2.7 — the machine-readable
-`bale pack --json` report (`format_pack_json`, which owns the stable JSON
-key contract: outcome, sid, tarball, log, session_dir, context_files; one
-line on stdout, parsed as the last line on exit 0). The
+report (`format_dry_run_report`), and the machine-readable json reports —
+pack's (`format_pack_json`, v0.2.7: outcome, sid, tarball, log,
+session_dir, context_files), apply's (`format_apply_json`, v0.2.8:
+outcome, sid, log, verdict, merge), and status's (`format_status_json`,
+v0.2.9: outcome, version, sid, repo, session, staging, outbox, applied,
+config) — each one compact line of JSON on stdout whose keys are a stable
+downstream contract, plus the json-mode stream-discipline state the three
+share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
+human-facing line goes to stderr under a --json run, so stdout carries
+exactly the report line). The
 reference-material-first / crisp-verdict-last rule that drives the
 human-facing renderers is stated once, in the module docstring; the JSON
-renderer sits outside it, being verdict-only by design. A single cohesive
+renderers sit outside it, being verdict-only by design. A single cohesive
 cluster, it carries only a module docstring (no index header — CODE.md
-§2.1). `bin/bale` imports the five
+§2.1). `bin/bale` imports the
 public entry points by name (`from bale_report import ...`) so every call
 site — the pack summary (human or `--json`), the apply pipeline's
-walkthrough and
-terminal-action banners, the dry-run path, revert, unlock, handoff, and
+walkthrough,
+terminal-action banners, and json emission points, the dry-run path,
+revert, unlock, handoff, and
 status — stays unqualified; `_wrap_value_lines` stays private (its only
 caller is `format_summary_block`). The shared `bin/bale` helpers it needs —
 `git` in the walkthrough summary's one `git diff --stat` call, and `fail`
@@ -308,9 +329,10 @@ because both are bale-wide discoverability surfaces, not configuration
 operations; `bale help` shows top-level usage, `bale help <cmd>` shows
 one command's `--help`, and `bale completion bash` prints the bash
 completion script to stdout. `status` (added v0.2.3) is likewise a
-top-level read-only surface — a no-flag dashboard of the working
-directory's bale state — and, carrying no flags, it surfaces in `help`
-and `completion` for free (cluster 18).
+top-level read-only surface — a dashboard of the working directory's
+bale state, flagless until v0.2.9 added `--json` — and it surfaces in
+`help` and `completion` for free (cluster 18), the flag included, since
+both read the one argparse parser.
 
 ---
 

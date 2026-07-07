@@ -322,6 +322,26 @@ stdout to stderr under json mode. Inspection flags (--show-validator /
 IS a script body on stdout. `bale retry` does not take --json this
 session (see the session notes).
 
+v0.2.9 extends `bale status` with the json output mode pack and apply
+already carry: `bale status --json` swaps the human summary block for
+one line of JSON on stdout, rendered by `bale_report.format_status_json`
+(which owns the stable key contract: outcome "status", version, sid,
+repo, session — lifecycle state, goal, expects_probe — staging, outbox,
+applied, config), under the shared v0.2.8 stream discipline —
+enable_json_mode engages before any line can print, so the `[bale] `
+lines gathering can emit go to stderr and stdout carries exactly the
+JSON line. Status still always exits 0 on a successful read, in both
+modes. Human-mode status output is untouched: the non-json path runs
+the identical print(_render_status(...)) code, and the one new gathered
+fact — _gather_status now records whether the default staging directory
+(.bale/staging) is present — is consumed only by the json renderer; the
+human renderer does not read the new fields. This file gained the
+subparser flag, the enable/emit pass-through in cmd_status, and that
+gathering; the gathering sits here rather than in bale_report because
+all of status's I/O lives in _gather_status by design (the ADR 0003
+test seam) — see the session notes on how that squares with the
+flag-wiring-only constraint.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -343,32 +363,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  504)
-   2. Logging                                         (~line  583)
-   3. Shell / git helpers                             (~line  670)
-   4. Hashing                                         (~line  709)
-   5. Session IDs and the per-day counter             (~line  725)
-   6. Lock handling                                   (~line  783)
-   7. .gitignore handling for the .bale/ directory    (~line  814)
-   8. Path-safety checks                              (~line  844)
-   9. Editor invocation                               (~line  892)
-  10. Pack: file enumeration and filtering            (~line  953)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1330)
-  12. Pack: slug validation                           (~line 1613)
-  13. Pack: manifest and tarball construction         (~line 1626)
-  14. Pack: wizard                                    (~line 1741)
-  15. Pack                                            (~line 2021)
-  16. Apply: helpers                                  (~line 2669)
-  17. Apply: pipeline                                 (~line 3060)
-  18. Apply                                           (~line 3467)
-  19. Revert                                          (~line 3647)
-  20. Retry                                           (~line 3840)
-  21. Unlock                                          (~line 3899)
-  22. Handoff                                         (~line 4001)
-  23. Hook invocation                                 (~line 4426)
-  24. Help and completion                             (~line 4585)
-  25. Status                                          (~line 4988)
-  26. CLI                                             (~line 5395)
+   1. Imports + constants                             (~line  528)
+   2. Logging                                         (~line  607)
+   3. Shell / git helpers                             (~line  694)
+   4. Hashing                                         (~line  733)
+   5. Session IDs and the per-day counter             (~line  749)
+   6. Lock handling                                   (~line  807)
+   7. .gitignore handling for the .bale/ directory    (~line  838)
+   8. Path-safety checks                              (~line  868)
+   9. Editor invocation                               (~line  916)
+  10. Pack: file enumeration and filtering            (~line  977)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1354)
+  12. Pack: slug validation                           (~line 1637)
+  13. Pack: manifest and tarball construction         (~line 1650)
+  14. Pack: wizard                                    (~line 1765)
+  15. Pack                                            (~line 2045)
+  16. Apply: helpers                                  (~line 2693)
+  17. Apply: pipeline                                 (~line 3084)
+  18. Apply                                           (~line 3491)
+  19. Revert                                          (~line 3671)
+  20. Retry                                           (~line 3864)
+  21. Unlock                                          (~line 3923)
+  22. Handoff                                         (~line 4025)
+  23. Hook invocation                                 (~line 4450)
+  24. Help and completion                             (~line 4609)
+  25. Status                                          (~line 5012)
+  26. CLI                                             (~line 5449)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -403,13 +423,16 @@ section (section 25). The undo-family tag bookkeeping (applied/ → reverted/
 
 The end-of-command result-reporting surface lives in the sibling
 `bale_report.py` module (extracted in v0.2.6 — the fifth sibling, the
-fourth extraction). This file imports its five public entry points —
+fourth extraction). This file imports its public entry points —
 `format_summary_block`, `format_walkthrough_summary`,
-`print_bailout_banner`, `format_dry_run_report`, and (since v0.2.7)
-`format_pack_json` — by name so the call sites in the pack, apply,
-revert, unlock, handoff, and status sections read unqualified, matching
-the `bale_validate`/`bale_staging` convention. `_wrap_value_lines`
-stays private to that module.
+`print_bailout_banner`, `format_dry_run_report`, the three
+machine-readable report renderers (`format_pack_json` since v0.2.7,
+`format_apply_json` since v0.2.8, `format_status_json` since v0.2.9),
+and the json-mode stream-discipline trio (`enable_json_mode`,
+`json_mode`, `emit_json_line`, v0.2.8) — by name so the call sites in
+the pack, apply, revert, unlock, handoff, and status sections read
+unqualified, matching the `bale_validate`/`bale_staging` convention.
+`_wrap_value_lines` stays private to that module.
 """
 
 from __future__ import annotations
@@ -493,6 +516,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_apply_json,
     format_dry_run_report,
     format_pack_json,
+    format_status_json,
     format_summary_block,
     format_walkthrough_summary,
     json_mode,
@@ -504,7 +528,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.8"
+VERSION = "0.2.9"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -5108,6 +5132,16 @@ class StatusReport:
     search_path_count: int = 0
     config_summary_failed: bool = False
     baleignore: bool = False
+    # Default staging directory state (v0.2.9): whether <repo>/.bale/staging
+    # exists, and that path. Gathered here so all of status's I/O stays in
+    # _gather_status (the ADR 0003 seam), but consumed only by the json
+    # renderer (bale_report.format_status_json) — _render_status deliberately
+    # does not read these fields, which is what keeps human-mode status
+    # output unchanged. A --staging-dir override on a past apply is invisible
+    # to status; this reports the default location, the same default
+    # cmd_apply resolves.
+    staging_path: Optional[Path] = None
+    staging_present: bool = False
 
 
 def _branch_exists(repo: Path, branch: str) -> bool:
@@ -5214,6 +5248,11 @@ def _gather_status(cwd: Path) -> StatusReport:
         [ln for ln in status_output.splitlines() if ln.strip()]
     )
     report.bale_initialised = (repo / ".bale").is_dir()
+
+    # Default staging directory (json mode consumes this; the human renderer
+    # does not — see the StatusReport field comment).
+    report.staging_path = repo / ".bale" / "staging"
+    report.staging_present = report.staging_path.is_dir()
 
     # Open session + its lifecycle state.
     lock_sid = read_lock(repo)
@@ -5385,9 +5424,24 @@ def cmd_status(args) -> int:
     exits 0 on a successful read: status reports problems (an abandoned lock, a
     malformed config) as rows rather than as a non-zero exit, so it stays usable
     as the first thing you run when a repo's bale state is unclear.
+
+    --json (v0.2.9) swaps the human summary block for one line of JSON on
+    stdout, rendered by bale_report.format_status_json (which owns the key
+    contract), under the shared json-mode stream discipline: enable_json_mode
+    engages before _gather_status can log anything, so the `[bale] ` lines
+    gathering can emit (e.g. an unreadable stamped manifest) go to stderr and
+    stdout carries exactly the JSON line. Exit semantics are unchanged in
+    both modes.
     """
+    # Stream discipline first, before any line can print (matches cmd_pack /
+    # cmd_apply).
+    if args.json:
+        enable_json_mode()
     report = _gather_status(Path.cwd())
-    print(_render_status(report))
+    if args.json:
+        emit_json_line(format_status_json(report))
+    else:
+        print(_render_status(report))
     return 0
 
 
@@ -5858,10 +5912,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     # status — read-only dashboard for the working directory's bale (section
     # 25). No lock, no git/filesystem writes; degrades gracefully outside a git
-    # repo. Like `help` and `completion` it carries no flags, so it needs no
-    # special-casing in the completion generator (section 24) — it surfaces in
-    # `bale help`, `bale help status`, and `bale completion bash` for free, the
-    # whole point of those two reading from this one parser.
+    # repo. Since v0.2.9 it carries one flag, --json; like every other flag it
+    # needs no special-casing in the completion generator (section 24) — it
+    # surfaces in `bale help`, `bale help status`, and `bale completion bash`
+    # for free, the whole point of those two reading from this one parser.
     p_status = sub.add_parser(
         "status",
         help="Show a read-only summary of this repo's bale state.",
@@ -5874,6 +5928,19 @@ def build_parser() -> argparse.ArgumentParser:
             "or in a not-yet-initialised one. Always exits 0 on a successful "
             "read — problems are reported as rows, not as a failing exit code."
         ),
+    )
+    p_status.add_argument(
+        "--json", action="store_true",
+        help="Emit the status report as one line of JSON on stdout instead "
+             "of the human summary block. Keys are a stable contract for "
+             "downstream tooling: outcome ('status'), version, sid (the "
+             "lock state; null when no session is open), repo, session "
+             "(lifecycle state, goal, expects_probe), staging (whether the "
+             "default .bale/staging directory is present), outbox, applied, "
+             "config. Stream discipline matches pack/apply --json: "
+             "'[bale] ' lines go to stderr and stdout carries exactly the "
+             "JSON line. Gathering is unchanged — still read-only, still "
+             "exit 0 on a successful read.",
     )
     p_status.set_defaults(func=cmd_status)
 
