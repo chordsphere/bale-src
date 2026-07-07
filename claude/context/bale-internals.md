@@ -131,6 +131,11 @@ is *for* — and stays stable as the per-section line numbers drift:
     latter takes gitignore-style patterns parsed by the same
     `BaleignoreMatcher` (cluster 10), composes them with the
     repo's `.baleignore`, and applies them session-scope only.
+    From v0.2.7, `bale pack` also accepts `--json`, which swaps the
+    end-of-run summary for the one-line machine-readable report
+    rendered by `bale_report.format_pack_json` — flag wiring and
+    pass-through only in this file; the rendering and key contract
+    live in the sibling module.
     From v0.2.2, the `help` and `completion` subparsers
     (`func=cmd_help`, `func=cmd_completion`) wire the discoverability
     surface that cluster 17 implements.
@@ -264,13 +269,19 @@ shared end-of-run summary formatter every command finishes on
 (`format_summary_block`, with its private word-wrap helper
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
-bailout banner (`print_bailout_banner`), and the `bale apply --dry-run` plan
-report (`format_dry_run_report`). The reference-material-first /
-crisp-verdict-last rule that drives the whole cluster is stated once, in the
-module docstring. A single cohesive cluster, it carries only a module
-docstring (no index header — CODE.md §2.1). `bin/bale` imports the four
+bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
+report (`format_dry_run_report`), and — since v0.2.7 — the machine-readable
+`bale pack --json` report (`format_pack_json`, which owns the stable JSON
+key contract: outcome, sid, tarball, log, session_dir, context_files; one
+line on stdout, parsed as the last line on exit 0). The
+reference-material-first / crisp-verdict-last rule that drives the
+human-facing renderers is stated once, in the module docstring; the JSON
+renderer sits outside it, being verdict-only by design. A single cohesive
+cluster, it carries only a module docstring (no index header — CODE.md
+§2.1). `bin/bale` imports the five
 public entry points by name (`from bale_report import ...`) so every call
-site — the pack summary, the apply pipeline's walkthrough and
+site — the pack summary (human or `--json`), the apply pipeline's
+walkthrough and
 terminal-action banners, the dry-run path, revert, unlock, handoff, and
 status — stays unqualified; `_wrap_value_lines` stays private (its only
 caller is `format_summary_block`). The shared `bin/bale` helpers it needs —
