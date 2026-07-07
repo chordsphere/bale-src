@@ -5,7 +5,8 @@ pipelines: the shared end-of-run summary formatter every command finishes on
 (`format_summary_block`, with its private word-wrap helper
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
-bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
+bailout banner (`print_bailout_banner`), its §5.9.3 clarification sibling
+(`print_clarification_banner`), the `bale apply --dry-run` plan
 report (`format_dry_run_report`), the machine-readable pack report
 (`format_pack_json`, added in v0.2.7 for `bale pack --json`), its apply
 twin (`format_apply_json`, added in v0.2.8 for `bale apply --json`), and its
@@ -23,7 +24,7 @@ dedicated output-formatting home when the natural moment arrives."
 One rule drives the human-facing renderers, and it is stated here so it
 lives in one place: the crisp summary is the LAST thing printed, where the
 terminal cursor and the reader's eye come to rest. Every command that finishes with a
-status report — pack, apply (its PASS / HOLD / REVERT / BAILOUT banners and
+status report — pack, apply (its PASS / HOLD / REVERT / BAILOUT / CLARIFICATION banners and
 the walkthrough summary), revert, unlock, handoff, status — ends on the same
 shape: a leading blank line, an optional `[STATUS] <sid>` headline, a block
 of two-space-indented, colon-aligned label/value rows, and optional verbatim
@@ -33,10 +34,11 @@ next-prompt.md, tolerated per TARBALL.md §5.5 — and diffstat, the bailout's
 handoff excerpt) print that material FIRST and the summary block LAST, so a
 long reference body never pushes the scannable verdict off the top of the
 screen. The builders here are pure string assemblers — they print nothing;
-the caller prints what they return. `print_bailout_banner` is the one
-deliberate exception (it prints), because its output interleaves reference
-material and the summary block in a fixed §5.6.3 order that no caller
-should have to re-derive.
+the caller prints what they return. `print_bailout_banner` and
+`print_clarification_banner` are the deliberate exceptions (they print),
+because their output interleaves reference material and the summary block
+in a fixed order (§5.6.3 / §5.9.3) that no caller should have to
+re-derive.
 
 The json renderers (`format_pack_json`, `format_apply_json`,
 `format_status_json`) sit outside
@@ -384,19 +386,90 @@ def print_bailout_banner(manifest: dict, handoff_path: Path,
     print()
 
 
-def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
+def print_clarification_banner(manifest: dict) -> None:
+    """Per TARBALL.md §5.9.3 steps 1-2: the manifest.summary, the questions
+    block rendered inline, a clear banner identifying the response as a
+    clarification, and the explicit next step.
+
+    The bailout banner's sibling, and the same layout rule applies: the
+    bulky reference material (the summary paragraph and the questions, which
+    can run long) prints FIRST, and the crisp `[CLARIFICATION]` banner plus
+    the next step print LAST via format_summary_block, so the eye lands on
+    the verdict and the action. Unlike the bailout there is no companion
+    file to read — the questions ride in the manifest, already
+    schema-validated and shape-checked (bale_validate) before the apply
+    pipeline forks here — so this printer takes only the manifest.
+
+    Prints (the deliberate exception to the build-a-string rule, same as
+    print_bailout_banner): the output interleaves reference material and
+    the summary block in a fixed §5.9.3 order no caller should re-derive.
+    """
+    print()
+    print(f"  --- summary ---")
+    for line in manifest["summary"].splitlines() or [""]:
+        print(f"  {line}")
+
+    questions = manifest.get("questions", []) or []
+    print()
+    print(f"  --- questions ({len(questions)}) ---")
+    for i, q in enumerate(questions, start=1):
+        if i > 1:
+            print()
+        # First line of the question carries the [n] marker; continuation
+        # lines and the three follow-up fields indent under it. Values are
+        # printed as-authored (no re-wrapping), matching the summary and
+        # handoff excerpts above and in the bailout banner.
+        q_lines = q["question"].splitlines() or [""]
+        print(f"  [{i}] {q_lines[0]}")
+        for ln in q_lines[1:]:
+            print(f"      {ln}")
+        for label, key in (("while doing", "context"),
+                           ("would assume", "default_assumption"),
+                           ("why blocked", "why_blocked")):
+            v_lines = q[key].splitlines() or [""]
+            print(f"      {label}: {v_lines[0]}")
+            for ln in v_lines[1:]:
+                print(f"      {' ' * (len(label) + 2)}{ln}")
+
+    # Crisp banner + next step LAST. The load-bearing line is the session
+    # row: unlike a bailout, the lock is retained — the session stays open
+    # for the worker's follow-up response (TARBALL.md §5.9.3 step 4).
+    print(format_summary_block(
+        [
+            ("applied", "no changes — apply.sh and validation.sh were not run"),
+            ("session", "still open — lock retained for the follow-up response"),
+        ],
+        status="CLARIFICATION",
+        sid=manifest["session_id"],
+        trailer=[
+            "  Next step:",
+            "    answer the questions in the worker's chat, then apply its",
+            "    follow-up response against this same session",
+            "    (`bale unlock` and repack if the gap invalidates the request)",
+        ],
+    ))
+    print()
+
+
+def format_dry_run_report(manifest: dict, sid: str, *, response_kind: str) -> str:
     """Build the `--dry-run` plan summary as a single string.
 
     Reports what a real `bale apply` would do with this tarball, having
     already passed every read-only pre-flight check (extract, syntax,
     manifest schema, responds_to, presence/sha256/path-safety). Pure — the
     caller prints the returned string and returns 0.
+
+    `response_kind` is the manifest's (defaulted) kind — "normal",
+    "bailout", or "clarification" — passed explicitly by the caller, which
+    has already resolved the `.get(..., "normal")` default at its fork
+    point. (Signature changed from `is_bailout: bool` when the
+    clarification kind landed; a three-way kind doesn't reduce to a bool.)
     """
     lines: list[str] = [""]
     lines.append(f"  [DRY RUN] {sid}")
     lines.append(f"  summary: {manifest.get('summary', '(no summary)')}")
 
-    if is_bailout:
+    if response_kind == "bailout":
         # A bailout carries no files and isn't applied; a real apply would
         # print the §5.6.3 handoff banner and stop. Say so rather than
         # listing an empty change set as if it were applicable.
@@ -405,6 +478,23 @@ def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
         lines.append("  apply would: print the handoff banner and stop "
                      "(no files applied).")
         lines.append("  next step:   bale handoff <tarball>")
+        lines.append("")
+        lines.append("  DRY RUN — nothing applied, working tree untouched.")
+        lines.append("")
+        return "\n".join(lines)
+
+    if response_kind == "clarification":
+        # A clarification carries no files either; a real apply would print
+        # the §5.9.3 questions banner and stop — and, unlike a bailout,
+        # leave the session open (the lock is retained for the worker's
+        # follow-up response).
+        questions = manifest.get("questions", []) or []
+        lines.append("")
+        lines.append("  response_kind: clarification")
+        lines.append(f"  apply would: print the questions banner "
+                     f"({len(questions)} question(s)) and stop "
+                     "(no files applied; the session stays open).")
+        lines.append("  next step:   answer the questions in the worker's chat")
         lines.append("")
         lines.append("  DRY RUN — nothing applied, working tree untouched.")
         lines.append("")
@@ -600,22 +690,25 @@ def format_apply_json(
                "reverted"  the walkthrough ended in revert, from either
                            verdict (exit 1)
                "bailout"   response_kind=bailout; nothing applied (exit 0)
-               "dry-run"   the --dry-run plan report, normal or bailout
-                           shape (exit 0)
+               "clarification"
+                           response_kind=clarification; nothing applied,
+                           session stays open (exit 0)
+               "dry-run"   the --dry-run plan report, normal, bailout,
+                           or clarification shape (exit 0)
                Together with pack's "packed" these are the whole outcome
                vocabulary; extend it here, never with caller-side literals.
       sid      the session id the response was applied against.
       log      absolute path to the session log — where validation.sh's
                full output and the claim/verdict reconciliation live.
       verdict  validation.sh's result, or null when it did not run
-               (bailout, dry-run). An object:
+               (bailout, clarification, dry-run). An object:
                  state      "PASS" | "HOLD"
                  exit_code  validation.sh's exit code (TARBALL.md §7.5)
                  claims     the manifest's claims map — the prediction
                             side of the TARBALL.md §5.3 claim/verdict
                             split; the verdict detail is in the log
       merge    the terminal git result, or null when no walkthrough ran
-               (bailout, dry-run). An object:
+               (bailout, clarification, dry-run). An object:
                  action         "merge" | "inspect" | "revert" — the
                                 walkthrough action taken
                  merged         true only when the session landed in
@@ -626,8 +719,8 @@ def format_apply_json(
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites
-    both are None together (bailout, dry-run) or set together (the three
-    walkthrough outcomes). Consumer contract: on the reporting paths
+    both are None together (bailout, clarification, dry-run) or set
+    together (the three walkthrough outcomes). Consumer contract: on the reporting paths
     stdout is exactly this line — present on exit 0 AND on the
     held/reverted exit-1 outcomes, since a machine consumer needs the HOLD
     report as much as the PASS one; error paths exit through fail()

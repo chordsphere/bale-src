@@ -5,8 +5,8 @@ bale handles: it loads the JSON Schema files shipped under
 `<install>/schemas/` (request, response, diagnostics), runs a small
 stdlib-only schema validator over a manifest, and layers the cross-field
 invariants a per-instance schema can't express (sha256-conditional-on-
-action, `claims` ⊆ `validation_will_run`, the bailout-empties rules,
-stripped-non-empty reasons) on top. Extracted from `bin/bale`'s apply-helpers
+action, `claims` ⊆ `validation_will_run`, the bailout-empties and
+clarification-shape rules, stripped-non-empty reasons) on top. Extracted from `bin/bale`'s apply-helpers
 section in v0.1.2 to apply CODE.md §4.2 to a section that had grown past the
 threshold — the extraction sibling of the v0.0.4 `bale_config` move. The
 public entry points (`validate_request_manifest`, `validate_response_manifest`,
@@ -58,8 +58,8 @@ INSTALL_ROOT = Path(__file__).resolve().parent.parent
 # symlinked bale on PATH still finds them. These schemas are canonical for
 # manifest *shape*; TARBALL.md prose stays canonical for field semantics, and
 # bale's cross-field invariants (sha256-by-action, claims subset, path-safety,
-# stripped-non-empty reasons, bailout-shape rules) stay in Python — see the
-# validators below.
+# stripped-non-empty reasons, bailout-shape and clarification-shape rules)
+# stay in Python — see the validators below.
 SCHEMAS_DIR = INSTALL_ROOT / "schemas"
 REQUEST_MANIFEST_SCHEMA = "request-manifest.schema.json"
 RESPONSE_MANIFEST_SCHEMA = "response-manifest.schema.json"
@@ -73,8 +73,9 @@ DIAGNOSTICS_SCHEMA = "diagnostics.schema.json"
 # schemas are canonical for shape; TARBALL.md prose stays canonical for field
 # semantics. Cross-field invariants that a per-instance schema can't express —
 # sha256-conditional-on-action, claims ⊆ validation_will_run, stripped-non-
-# empty reasons, the bailout-empties rules, path-safety — stay in the Python
-# validators below, layered on top of the schema pass.
+# empty reasons, the bailout-empties and clarification-shape rules,
+# path-safety — stay in the Python validators below, layered on top of the
+# schema pass.
 #
 # The validator is a deliberately small subset of JSON Schema Draft 2020-12:
 # enough keywords to express our envelopes (type, enum, required, properties,
@@ -325,7 +326,9 @@ def validate_response_manifest(manifest: dict) -> None:
        cover shape and Python covers invariants):
          - sha256 conditional on action (deleted → null; else → non-empty);
          - claims keys ⊆ validation_will_run (BALE.md §11 row 15);
-         - the bailout-empties rules (TARBALL.md §5.6.2);
+         - the bailout-empties rules (TARBALL.md §5.6.2) and the
+           clarification-shape rules (TARBALL.md §5.9.2), including the
+           questions[]-only-on-clarification conditional;
          - stripped-non-empty on summary / reason / deferred text. minLength:1
            in the schema rejects "" but admits whitespace-only "   "; the
            stripped check here is the stronger rule. "non-empty reason" is
@@ -398,3 +401,53 @@ def validate_response_manifest(manifest: dict) -> None:
         if manifest["claims"]:
             fail("manifest.response_kind=bailout requires claims{} to be empty "
                  "(TARBALL.md §5.6.2): no validation runs, so nothing to claim")
+
+    # Clarification-shape rules (TARBALL.md §5.9.2) — the bailout block's
+    # sibling. A clarification's payload is the questions[] block riding in
+    # this manifest (there are no extra artifact files, unlike a bailout),
+    # so the shape check here is the whole enforcement surface: the apply
+    # path branches before staging/validation, and an out-of-shape
+    # clarification — claiming changes, or carrying no questions — would
+    # otherwise mislead both the walkthrough reader and the aggregation
+    # tooling that reads the preserved manifests later.
+    questions = manifest.get("questions", [])
+    if response_kind == "clarification":
+        if manifest["changes"]:
+            fail("manifest.response_kind=clarification requires changes[] to be "
+                 "empty (TARBALL.md §5.9.2): no files are applied for a "
+                 "clarification")
+        if manifest["deferred"]:
+            fail("manifest.response_kind=clarification requires deferred[] to be "
+                 "empty (TARBALL.md §5.9.2): no work was done, so nothing was "
+                 "considered-and-deferred")
+        if manifest["validation_will_run"]:
+            fail("manifest.response_kind=clarification requires "
+                 "validation_will_run[] to be empty (TARBALL.md §5.9.2): no "
+                 "validation runs")
+        if manifest["claims"]:
+            fail("manifest.response_kind=clarification requires claims{} to be "
+                 "empty (TARBALL.md §5.9.2): no validation runs, so nothing to "
+                 "claim")
+        if not questions:
+            fail("manifest.response_kind=clarification requires a non-empty "
+                 "questions[] (TARBALL.md §5.9.2): the questions are the "
+                 "payload — a clarification with nothing to ask is a normal "
+                 "response")
+        # The schema pass guaranteed each entry carries the four required
+        # string fields; the stripped-non-empty rule is the stronger check,
+        # same as summary/reason/deferred above.
+        for i, q in enumerate(questions):
+            for k in ("question", "context", "default_assumption", "why_blocked"):
+                if not q[k].strip():
+                    fail(f"manifest.questions[{i}].{k} must be non-empty after "
+                         f"stripping")
+    else:
+        # questions[] is the clarification's payload and nothing else's. A
+        # normal or bailout manifest carrying questions is out of shape —
+        # most likely a response_kind that should have been "clarification",
+        # which the reader and the apply path would otherwise silently
+        # ignore.
+        if questions:
+            fail(f"manifest.questions is only valid when "
+                 f"response_kind=clarification "
+                 f"(got response_kind={response_kind!r})")
