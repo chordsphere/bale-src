@@ -32,6 +32,7 @@ a paused session.
 | Producing a normal response tarball | Sections 1, 2, 5, 7 |
 | Returning a probe instead of a response | Sections 1, 2, 4 |
 | Returning a bailout response (`CLAUDE.md` §11 triggered) | Sections 1, 2, 5.6, 5.7, 5.8 |
+| Returning a clarification response (blocking intent gap) | Sections 1, 2, 5.9 |
 | Handling a request tarball I received | Sections 1, 2, 3 |
 | Authoring a request, or citing a `bale pack` rescope (`CLAUDE.md` §11.2) | Section 3.4 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
@@ -276,9 +277,13 @@ The trade is never close.
 
 Two boundaries keep the default-to-ask posture from sprawling:
 
-- **Conceptual and scope gaps are conversations, not probes.** If the
-  question is what the goal means, which option the architect
-  prefers, or whether something is in scope, ask in chat.
+- **Conceptual and scope gaps are not probes.** If the question is
+  what the goal means, which option the architect prefers, or whether
+  something is in scope, no script against the environment can answer
+  it. Quick, non-blocking questions resolve in chat; a gap of this
+  kind that *blocks* trustworthy work takes the clarification response
+  (§5.9) — the intent-gap sibling of the probe, same default-to-ask
+  doctrine, different recourse.
 - **`expects_probe: no` still forbids probing** (§3.3). The doctrine
   sets the default; the manifest overrides it per session, and the
   collision path in §3.3 is unchanged.
@@ -484,8 +489,10 @@ This rule is narrow on purpose. Tarball mode does not mean *only*
 tarballs come out of it. A probe (section 4) is the right response
 when an environment-specific fact the work depends on is missing,
 stale, or unclear. A conversational reply is the right response when a scope question
-needs answering, a concern needs surfacing, or a clarification needs
-asking before any code lands. The constraint is on the *deliverable's
+needs answering, a concern needs surfacing, or a quick clarification needs
+asking before any code lands — and when such an intent gap is
+*blocking*, the clarification response (§5.9) is that ask given a
+durable wire shape. The constraint is on the *deliverable's
 shape*: when code is the response, the tarball is the response,
 without a parallel copy in chat.
 
@@ -495,6 +502,14 @@ and `diagnostics.json`. It is the response Claude returns when the
 session can't fit the goal within its context budget — see
 `CLAUDE.md` §11. Bale's apply step treats bailouts as informational
 rather than applicable.
+
+A **clarification** response (§5.9) is the bailout's structural
+sibling for a different failure: the *request* is blocking — an
+intent gap, not a budget or environment gap. Same empty change
+surfaces, but its payload rides in the manifest as a `questions[]`
+block, and unlike a bailout it does not consume the session: the
+lock stays held, the architect answers, and the same session
+continues to a normal response.
 
 ### 5.1.1 apply.sh
 
@@ -635,8 +650,10 @@ Field semantics:
   happened.
 - **`response_kind`** — `"normal"` (default) for an ordinary
   response. `"bailout"` when Claude could not fit the goal in this
-  session's context budget (see `CLAUDE.md` §11). Bailout responses
-  follow the distinct shape in section 5.6.
+  session's context budget (see `CLAUDE.md` §11); bailout responses
+  follow the distinct shape in section 5.6. `"clarification"` when a
+  blocking intent gap in the request prevents trustworthy work;
+  clarification responses follow the distinct shape in section 5.9.
 
 ### 5.2.1 Computing size_bytes and sha256
 
@@ -1036,6 +1053,143 @@ are honest estimates rather than measurements. Aggregation across
 sessions is left to the user (jq, notebook, eventual `bale stats`
 command).
 
+### 5.9 Clarification response
+
+A clarification response is what Claude returns when a **blocking
+intent gap** in the request prevents trustworthy work. It is the
+third distinguished response kind, structurally the bailout's
+sibling, and it completes a taxonomy in which each kind of blocking
+gap has exactly one recourse:
+
+| The gap is in… | Recourse |
+|----------------|----------|
+| the **environment** — a fact about the architect's machine or repo (file contents, versions, tree state) | probe (§4) |
+| the **request** — the intent itself is ambiguous, contradictory, or assumes knowledge the worker was never given | clarification (§5.9) |
+| the **budget** — the goal won't fit the context window | bailout (§5.6) |
+
+#### 5.9.1 When it engages
+
+Canonical intent-gap triggers: an undefined term in the goal; a
+constraint that conflicts with an included file; a decision the
+packer made but did not transport into the request. No script
+against the environment can answer these — which is exactly why
+they are not probes.
+
+**Questions must be blocking.** A clarification response asserts:
+*this session cannot produce trustworthy work without these
+answers.* Nice-to-know questions go in `notes.md` Proposals on a
+full response (§5.4.1), not here. The precedent from practice is
+the session that correctly refused to fabricate rationale it was
+never given; this response kind is that refusal given a wire
+format.
+
+Chat remains available, and for a quick question in a
+human-attended session it is often the cheapest path (`CLAUDE.md`
+§3: ask, in one sentence). The clarification response is the same
+move given a durable, structured shape: the apply walkthrough
+surfaces it, the record persists for aggregation (§5.9.4), and a
+programmatic courier can carry it where a chat aside cannot go.
+When the gap is blocking and the session is producing a
+tarball-mode deliverable, the clarification response is the
+default shape for the ask.
+
+The same default-to-ask doctrine that governs probes (§4.1)
+governs clarifications: proceeding on a guessed intent is the
+confidently wrong response this workflow exists to prevent, and
+asking beats guessing. `expects_probe: no` does **not** forbid a
+clarification — that flag governs probes against the environment
+(§3.2), not questions about the request. For a gap too small to
+earn the artifact, the lightweight fallbacks stand: ask in chat, or
+proceed on the most plausible assumption named explicitly in
+`notes.md` and flagged for review — the same recoverable-risk
+posture §3.3 takes.
+
+#### 5.9.2 Shape and manifest specifics
+
+```
+response-NNN/
+  manifest.json        # response_kind: "clarification", questions[] payload
+  apply.sh             # no-op
+  validation.sh        # no-op
+  files/               # absent or empty
+  notes.md             # optional, addressed to me
+```
+
+Unlike the bailout there are no companion artifacts: the payload is
+the manifest's own `questions[]` block. When
+`response_kind: "clarification"`:
+
+- **`summary`** — one paragraph: what the session was asked to do,
+  and that it is blocked on the questions below.
+- **`changes`**, **`deferred`**, **`validation_will_run`**,
+  **`claims`** — all empty, for the §5.6.2 reasons: nothing was
+  applied, nothing ran, nothing to claim. Bale rejects a
+  clarification that violates these.
+- **`questions`** — required, non-empty. Forbidden (or empty) on
+  every other response kind. Each entry:
+
+```json
+{
+  "question": "stated so it can be answered in one short paragraph or less",
+  "context": "what the worker was trying to do when it hit the gap",
+  "default_assumption": "what the worker would have assumed absent an answer",
+  "why_blocked": "why it declined to proceed on that assumption"
+}
+```
+
+The `default_assumption` field is load-bearing: it lets the planner
+answer with a single *"your assumption is correct"* when that is
+the case, and it surfaces the worker's reasoning for audit. A
+question without a stated default is a question the planner has to
+research instead of ratify.
+
+#### 5.9.3 Apply-time UX (contract for bale)
+
+When bale's apply step encounters `response_kind: "clarification"`,
+it:
+
+1. Prints a clear banner identifying the response as a
+   clarification. No changes are applied; `apply.sh` and
+   `validation.sh` are not run against the project.
+2. Prints the `manifest.summary` and the questions inline — each
+   question with its context, default assumption, and why it
+   blocked — as it does bailout handoffs.
+3. Preserves the manifest under
+   `.bale/clarifications/<sid>/NNN.json`. Deliberately *not* under
+   `.bale/sessions/<sid>/`: the eventual normal-PASS merge wipes
+   the session dir, and the clarification record must outlive the
+   session it suspended (its longitudinal value is precisely
+   aggregation across completed sessions, §5.9.4). `NNN` increments
+   so a session that clarifies more than once keeps every round.
+4. **Retains the lock — the session stays open.** This is the one
+   deliberate divergence from the bailout, and it is the point: a
+   bailout consumes its session (next step `bale handoff`, fresh
+   sid); a clarification suspends it. The explicit next step is
+   answering the questions in the worker's chat; the session then
+   continues to a normal response applied against this same sid.
+   If the gap invalidates the request's framing, the recourse is
+   `bale unlock` and a repack — the architect's call.
+
+#### 5.9.4 Posture and the answer path
+
+A clarification is respectable, not a failure — the intent-gap
+analog of a probe. It is also a signal about the *request*, not
+just the worker: clarifications clustering against one packer or
+one kind of request indicate a packing or decomposition problem.
+The preserved manifests under `.bale/clarifications/` are the
+aggregation surface for that signal (jq across
+`.bale/clarifications/*/*.json`), parallel to the role
+`diagnostics.json` plays for bail triggers.
+
+The answer path is courier-agnostic, mirroring the probe's §4.6:
+manual today (the architect reads the questions in the apply
+walkthrough, answers in the worker's chat, and the session
+continues — or repacks if the framing was wrong), programmatic
+later (the orchestrator receives the clarification, answers from
+its own context or escalates to the human, and re-prompts the
+worker). The artifact is identical in both worlds; only the
+courier changes.
+
 ---
 
 ## 6. Worked Example: Smallest Plausible Response
@@ -1327,3 +1481,21 @@ won't catch them.
 4. Stop. The probe's output is needed before any response can be
    built. When it arrives, the eventual response's `notes.md` records
    what the probe established (§4.5).
+
+### 10.3 Returning a clarification instead
+
+1. Confirm the gap is in the *request* — an intent gap per §5.9.1,
+   not an environment fact (that's a probe, §4) and not a budget
+   problem (that's a bailout, §5.6) — and that it is **blocking**.
+   Nice-to-know goes in `notes.md` Proposals on a full response
+   (§5.4.1).
+2. Build the manifest: `response_kind: "clarification"`; `changes`,
+   `deferred`, `validation_will_run`, `claims` all empty; a
+   non-empty `questions[]` with all four fields per entry —
+   question, context, default_assumption, why_blocked (§5.9.2).
+3. Ship no `files/`, a no-op `apply.sh`, and a no-op
+   `validation.sh`. `notes.md` is optional, addressed to the
+   architect.
+4. Stop. The answers arrive in the chat; the session stays open and
+   continues to a normal response against the same request. Do not
+   guess ahead of the answers.

@@ -82,13 +82,22 @@ deleted.
   a policy violation. File-based probe-output/ survives as the fallback.
   Status: Proposed. Pull when touching the probe contract, probe posture
   language in the global docs, or the future probe tool-call surface.
+- `context/adr/0011-clarification-response-kind.md` — a third distinguished
+  response kind for blocking intent gaps: `response_kind: "clarification"`
+  with a manifest `questions[]` payload (question / context /
+  default_assumption / why_blocked), bailout-sibling shape, apply surfaces
+  the questions and retains the lock (the session stays open), records
+  preserved under `.bale/clarifications/<sid>/`. Status: Proposed. Pull when
+  touching response kinds, the apply fork, the response-manifest schema, or
+  intent-gap doctrine.
 
-ADRs 0002–0010 are Proposed pending the architect's ratification on review;
-0001 is Accepted. Of the Proposed set, only 0010 has landed — the doctrine
-it records shipped in the same session, in the global docs and the pack
-help text. The rest are unimplemented: 0002–0005 precede any test code,
-0006–0008 precede the concurrency implementation, and 0009 defers the doc
-it is about.
+ADRs 0002–0011 are Proposed pending the architect's ratification on review;
+0001 is Accepted. Of the Proposed set, only 0010 and 0011 have landed — each
+records doctrine that shipped in its own session (0010 in the global docs and
+the pack help text; 0011 in TARBALL.md §5.9, the response-manifest schema,
+and the bin/bale apply fork). The rest are unimplemented: 0002–0005 precede
+any test code, 0006–0008 precede the concurrency implementation, and 0009
+defers the doc it is about.
 
 ## Explainers
 
@@ -126,10 +135,11 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md, two explainers, and ten ADRs (0001–0005 the first in the
+is BALE.md, two explainers, and eleven ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
 them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
-set, and 0010 the probe-doctrine flip). Testing doctrine itself lives in the global
+set, 0010 the probe-doctrine flip, and 0011 the clarification response
+kind). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or

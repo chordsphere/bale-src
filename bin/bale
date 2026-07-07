@@ -122,7 +122,7 @@ time pre-flight belongs with the staging cluster it gates. `bin/bale_staging.py`
 joins `bin/bale`, `bin/bale_config.py`, and `bin/bale_validate.py` in the
 install.sh / validate.sh / scripts/reinstall.sh layout checks. Section 16 now
 holds `current_branch`, `working_tree_clean`, and the apply-walkthrough /
-bailout / tarball-resolution helpers.
+bailout / clarification / tarball-resolution helpers.
 
 v0.2.0 cuts the BALE.md §13 v0.2 rollback phase: the `bale rollback [sid]`
 command (`git revert` of an applied/merged session, BALE.md §9.2), with
@@ -342,6 +342,32 @@ all of status's I/O lives in _gather_status by design (the ADR 0003
 test seam) — see the session notes on how that squares with the
 flag-wiring-only constraint.
 
+v0.2.10 lands the clarification response kind (TARBALL.md §5.9) — the
+intent-gap sibling of the bailout. A worker blocked by an ambiguous,
+contradictory, or under-transported request returns
+`response_kind: "clarification"` with a `questions[]` block in the
+manifest (per question: the question, what the worker was doing, what it
+would have assumed, why it declined to proceed on that assumption); the
+apply pipeline forks on the kind exactly as it does for bailouts —
+nothing staged, nothing validated, nothing merged — with one deliberate
+divergence: the session stays OPEN. `_apply_clarification` (section 16)
+preserves the manifest under `.bale/clarifications/<sid>/NNN.json` (a
+home the normal-PASS session-dir wipe can't reach, so the record
+survives the session it suspended — the aggregation surface §5.9.4
+names), prints the §5.9.3 questions banner
+(`bale_report.print_clarification_banner`), and retains the lock: the
+architect answers in the worker's chat and the same sid receives the
+follow-up response. Shape enforcement mirrors the bailout's split —
+the `questions` block and the widened `response_kind` enum land in
+response-manifest.schema.json, and the cross-field rules (empty change
+surfaces, questions required non-empty on a clarification and forbidden
+elsewhere) land in `bale_validate.validate_response_manifest`.
+`format_dry_run_report`'s `is_bailout: bool` keyword became
+`response_kind: str` (a three-way kind doesn't reduce to a bool; both
+call sites updated in the same session), `format_apply_json` gains the
+"clarification" outcome, and `bale apply --dry-run` reports the
+questions-banner plan without side effects.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -363,32 +389,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  528)
-   2. Logging                                         (~line  607)
-   3. Shell / git helpers                             (~line  694)
-   4. Hashing                                         (~line  733)
-   5. Session IDs and the per-day counter             (~line  749)
-   6. Lock handling                                   (~line  807)
-   7. .gitignore handling for the .bale/ directory    (~line  838)
-   8. Path-safety checks                              (~line  868)
-   9. Editor invocation                               (~line  916)
-  10. Pack: file enumeration and filtering            (~line  977)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1354)
-  12. Pack: slug validation                           (~line 1637)
-  13. Pack: manifest and tarball construction         (~line 1650)
-  14. Pack: wizard                                    (~line 1765)
-  15. Pack                                            (~line 2045)
-  16. Apply: helpers                                  (~line 2693)
-  17. Apply: pipeline                                 (~line 3084)
-  18. Apply                                           (~line 3491)
-  19. Revert                                          (~line 3671)
-  20. Retry                                           (~line 3864)
-  21. Unlock                                          (~line 3923)
-  22. Handoff                                         (~line 4025)
-  23. Hook invocation                                 (~line 4450)
-  24. Help and completion                             (~line 4609)
-  25. Status                                          (~line 5012)
-  26. CLI                                             (~line 5449)
+   1. Imports + constants                             (~line  555)
+   2. Logging                                         (~line  634)
+   3. Shell / git helpers                             (~line  721)
+   4. Hashing                                         (~line  760)
+   5. Session IDs and the per-day counter             (~line  776)
+   6. Lock handling                                   (~line  834)
+   7. .gitignore handling for the .bale/ directory    (~line  865)
+   8. Path-safety checks                              (~line  895)
+   9. Editor invocation                               (~line  943)
+  10. Pack: file enumeration and filtering            (~line 1004)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1381)
+  12. Pack: slug validation                           (~line 1664)
+  13. Pack: manifest and tarball construction         (~line 1677)
+  14. Pack: wizard                                    (~line 1792)
+  15. Pack                                            (~line 2072)
+  16. Apply: helpers                                  (~line 2720)
+  17. Apply: pipeline                                 (~line 3180)
+  18. Apply                                           (~line 3615)
+  19. Revert                                          (~line 3795)
+  20. Retry                                           (~line 3988)
+  21. Unlock                                          (~line 4047)
+  22. Handoff                                         (~line 4149)
+  23. Hook invocation                                 (~line 4574)
+  24. Help and completion                             (~line 4733)
+  25. Status                                          (~line 5136)
+  26. CLI                                             (~line 5573)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -500,7 +526,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 
 # The end-of-command result-reporting surface — the shared summary-block
 # formatter, the pack/apply outcome renderers (walkthrough summary, bailout
-# banner, dry-run report), the two machine-readable json reports, and the
+# and clarification banners, dry-run report), the two machine-readable json reports, and the
 # json-mode stream-discipline state (enable_json_mode / json_mode /
 # emit_json_line, v0.2.8) — lives in the sibling bale_report module (extracted
 # in v0.2.6, the fifth sibling, same sys.path-insert mechanism as the four
@@ -521,6 +547,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_walkthrough_summary,
     json_mode,
     print_bailout_banner,
+    print_clarification_banner,
 )
 
 
@@ -528,7 +555,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.9"
+VERSION = "0.2.10"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3080,6 +3107,75 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     return 0
 
 
+def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
+    """Apply-time handler for `response_kind: "clarification"` per TARBALL.md
+    §5.9.3 — the branch _apply_pipeline takes when the manifest declares a
+    clarification: blocking intent-gap questions, nothing to apply.
+
+    Structurally _apply_bailout's sibling, with two deliberate differences:
+
+    - **No artifact checks here.** The clarification's payload is the
+      manifest's own questions[] block, which validate_response_manifest
+      already schema-validated and shape-checked (non-empty, four fields per
+      entry) before the pipeline forked — there is no handoff.md /
+      diagnostics.json analog to verify.
+    - **The lock is NOT cleared — the session stays open.** A bailout
+      consumes its session (the next step is `bale handoff` against a fresh
+      sid); a clarification suspends it. The architect answers the questions
+      in the worker's chat and the session continues to a normal response
+      applied against this same sid. If the gap invalidates the request's
+      framing, the user runs `bale unlock` and repacks — their call, not
+      ours.
+
+    What this handler does:
+
+      1. Preserve the manifest under `.bale/clarifications/<sid>/NNN.json`
+         (NOT under `.bale/sessions/<sid>/`, which the eventual normal-PASS
+         merge wipes — the clarification record must outlive the session it
+         suspended, since its whole longitudinal value is aggregation across
+         *completed* sessions, TARBALL.md §5.9.4). NNN increments so a
+         session that clarifies more than once keeps every round.
+      2. Print the §5.9.3 banner (`print_clarification_banner`).
+      3. Under json output mode, emit the one-line machine report — outcome
+         "clarification", verdict and merge null since no validation ran and
+         no walkthrough decided anything.
+      4. Return 0. No `apply.sh`, no staging, no validation, no branch, no
+         lock change.
+
+    No `git_head_at_apply` / `origin_branch` / `staging_path` metadata is
+    written — same as the bailout, nothing was applied so there is nothing
+    for `bale revert` to chase.
+    """
+    # Preserve the manifest for the aggregation surface. Sequence numbering
+    # keeps repeat clarifications within one session distinct; the count of
+    # existing entries + 1 is race-free enough for a single-user CLI.
+    clar_dir = repo / ".bale" / "clarifications" / sid
+    clar_dir.mkdir(parents=True, exist_ok=True)
+    seq = len(list(clar_dir.glob("*.json"))) + 1
+    record_path = clar_dir / f"{seq:03d}.json"
+    record_path.write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+    )
+    log(f"clarification manifest preserved at {record_path}")
+
+    print_clarification_banner(manifest)
+
+    # Deliberately no clear_lock(repo): the session stays open (§5.9.3
+    # step 4). `bale status` will keep reporting the sid as an open session,
+    # which is correct — it *is* still awaiting its applicable response.
+    log(f"clarification {sid}: session stays open; lock retained")
+
+    if json_mode():
+        # Terminal json report, emitted after the §5.9.3 banner (which json
+        # mode routed to stderr) so the stdout line a consumer waits on is
+        # the last thing this command does.
+        emit_json_line(format_apply_json(
+            outcome="clarification", sid=sid,
+            log_path=repo / ".bale" / "logs" / f"{sid}.log",
+        ))
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # 17. Apply: pipeline
 # ---------------------------------------------------------------------------
@@ -3207,7 +3303,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 # the lock, all of which are side effects. Report the plan
                 # instead.
                 print(format_dry_run_report(manifest, locked_sid,
-                                            is_bailout=True))
+                                            response_kind="bailout"))
                 log("dry-run: bailout response; no side effects performed")
                 if json_mode():
                     # No validation ran and no walkthrough decided anything,
@@ -3221,6 +3317,34 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
             )
 
+        # Clarification fork — TARBALL.md §5.9.3, the bailout fork's sibling.
+        # response_kind="clarification" means blocking intent-gap questions
+        # ride in the manifest (already schema-validated and shape-checked
+        # above); nothing is applied, and — the one deliberate divergence
+        # from the bailout — the session stays OPEN: _apply_clarification
+        # does not clear the lock, because the architect answers in the
+        # worker's chat and this same sid receives the follow-up response.
+        # The early branch keeps the clarification path free of staging side
+        # effects, exactly as the bailout branch above does.
+        if manifest.get("response_kind", "normal") == "clarification":
+            if dry_run:
+                # Don't run _apply_clarification under dry-run — it preserves
+                # the manifest under .bale/clarifications/ and prints the
+                # live §5.9.3 banner, both side effects. Report the plan
+                # instead.
+                print(format_dry_run_report(manifest, locked_sid,
+                                            response_kind="clarification"))
+                log("dry-run: clarification response; no side effects performed")
+                if json_mode():
+                    # No validation ran and no walkthrough decided anything,
+                    # so verdict and merge are null (format_apply_json).
+                    emit_json_line(format_apply_json(
+                        outcome="dry-run", sid=locked_sid,
+                        log_path=session_log,
+                    ))
+                return 0
+            return _apply_clarification(repo, manifest, locked_sid)
+
         # 8.1 steps 7, 8, 9: file presence, sha256, path safety (incl.
         # .baleignore match per BALE.md §11 rule 14).
         verify_files_against_manifest(repo, response_dir, manifest)
@@ -3233,7 +3357,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # real apply.
         if dry_run:
             print(format_dry_run_report(manifest, locked_sid,
-                                        is_bailout=False))
+                                        response_kind="normal"))
             log("dry-run: validated; no git side effects performed")
             if json_mode():
                 # Plan only: validation.sh never ran and no walkthrough

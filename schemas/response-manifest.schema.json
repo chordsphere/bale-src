@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/anthropics/bale/schemas/response-manifest.schema.json",
   "title": "bale response manifest",
-  "description": "Shape of response-NNN/manifest.json per TARBALL.md sections 5.2 and 5.6.2. Field semantics live in TARBALL.md; this schema constrains only the universal envelope. Cross-field invariants (sha256 file match, path-safety, claims subset of validation_will_run, stripped-non-empty reasons, bailout-shape rules) stay in bale's Python validators.",
+  "description": "Shape of response-NNN/manifest.json per TARBALL.md sections 5.2, 5.6.2, and 5.9.2. Field semantics live in TARBALL.md; this schema constrains only the universal envelope. Cross-field invariants (sha256 file match, path-safety, claims subset of validation_will_run, stripped-non-empty reasons, bailout-shape and clarification-shape rules) stay in bale's Python validators.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -32,8 +32,8 @@
     },
     "response_kind": {
       "type": "string",
-      "enum": ["normal", "bailout"],
-      "description": "Optional, defaults to 'normal' if absent so v0.0.5-shaped manifests pass through. 'bailout' triggers TARBALL.md section 5.6's distinct shape (enforced in Python)."
+      "enum": ["normal", "bailout", "clarification"],
+      "description": "Optional, defaults to 'normal' if absent so v0.0.5-shaped manifests pass through. 'bailout' triggers TARBALL.md section 5.6's distinct shape; 'clarification' triggers section 5.9's (both enforced in Python)."
     },
     "summary": {
       "type": "string",
@@ -95,6 +95,37 @@
       "additionalProperties": {
         "type": "string",
         "enum": ["pass", "fail", "untested", "unknown"]
+      }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Blocking intent-gap questions per TARBALL.md section 5.9.2. Present and non-empty exactly when response_kind='clarification'; forbidden otherwise (the conditional rule is enforced in Python — this schema only constrains entry shape).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "context", "default_assumption", "why_blocked"],
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The question itself, stated so it can be answered in one short paragraph or less."
+          },
+          "context": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What the worker was trying to do when it hit the gap."
+          },
+          "default_assumption": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What the worker would have assumed absent an answer. Load-bearing: lets the planner answer with a single 'your assumption is correct'."
+          },
+          "why_blocked": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why the worker declined to proceed on that assumption."
+          }
+        }
       }
     }
   }
