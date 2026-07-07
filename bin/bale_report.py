@@ -5,8 +5,10 @@ pipelines: the shared end-of-run summary formatter every command finishes on
 (`format_summary_block`, with its private word-wrap helper
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
-bailout banner (`print_bailout_banner`), and the `bale apply --dry-run` plan
-report (`format_dry_run_report`). Extracted from `bin/bale`'s sections 16
+bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
+report (`format_dry_run_report`), and the machine-readable pack report
+(`format_pack_json`, added in v0.2.7 for `bale pack --json`). The human-facing
+four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
 (v0.1.2), and `bale_staging` (v0.1.3), using the same sibling-import
@@ -14,9 +16,9 @@ mechanism. The move also resolves the note that had sat on
 `format_summary_block` since the formatter landed: "promote this into a
 dedicated output-formatting home when the natural moment arrives."
 
-One rule drives the whole cluster, and it is stated here so it lives in one
-place: the crisp summary is the LAST thing printed, where the terminal
-cursor and the reader's eye come to rest. Every command that finishes with a
+One rule drives the human-facing renderers, and it is stated here so it
+lives in one place: the crisp summary is the LAST thing printed, where the
+terminal cursor and the reader's eye come to rest. Every command that finishes with a
 status report — pack, apply (its PASS / HOLD / REVERT / BAILOUT banners and
 the walkthrough summary), revert, unlock, handoff, status — ends on the same
 shape: a leading blank line, an optional `[STATUS] <sid>` headline, a block
@@ -32,10 +34,20 @@ deliberate exception (it prints), because its output interleaves reference
 material and the summary block in a fixed §5.6.3 order that no caller
 should have to re-derive.
 
+`format_pack_json` sits outside that rule because for a machine consumer the
+verdict is the whole report: it renders the pack outcome as ONE line of JSON
+whose keys are a stable contract for downstream tooling (see its docstring).
+The reference-first ordering still holds trivially — the JSON line is the
+last thing pack prints — but the `[bale] ` informational lines that precede
+it on stdout are not suppressed (suppressing them would be a behavior
+change, and `--json` changes output format only). The consumer contract is
+therefore: parse the LAST line of stdout on exit 0.
+
 Behavior-preserving move: the functions keep the signatures, bodies, and
-call sites they had in `bin/bale`. The four public entry points
+call sites they had in `bin/bale`. The public entry points
 (`format_summary_block`, `format_walkthrough_summary`,
-`print_bailout_banner`, `format_dry_run_report`) are pulled back into
+`print_bailout_banner`, `format_dry_run_report`, and — since v0.2.7 —
+`format_pack_json`) are pulled back into
 `bin/bale`'s namespace via `from bale_report import ...`, so every caller —
 the pack summary, the apply pipeline's walkthrough and terminal-action
 banners, the dry-run path, revert, unlock, handoff, and status — still
@@ -68,6 +80,7 @@ See claude/context/bale-internals.md for how this module sits next to
 
 from __future__ import annotations
 
+import json
 import subprocess
 import textwrap
 from pathlib import Path
@@ -413,3 +426,53 @@ def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
                  "to the worktree, no commit.")
     lines.append("")
     return "\n".join(lines)
+
+
+def format_pack_json(
+    *,
+    sid: str,
+    tarball: Path,
+    log_path: Path,
+    session_dir: Path,
+    context_files: int,
+) -> str:
+    """Render the `bale pack --json` end-of-run report as ONE line of JSON.
+
+    The keys are a STABLE CONTRACT for downstream tooling (request-011's
+    manifest names sid, artifact paths, and outcome as the floor). Existing
+    keys are never renamed or removed; new keys may be added. The set:
+
+      outcome        "packed" — the only state that reaches pack's
+                     end-of-run report today. Every failure path exits
+                     through fail() (stderr + non-zero) or the interactive
+                     abort (stderr + exit 1) before this renders, so a
+                     consumer sees this line only on exit 0. The value
+                     vocabulary is owned here so future outcomes (or the
+                     out-of-scope apply json mode) extend one enum in one
+                     place rather than scattering literals across callers.
+      sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
+      tarball        absolute path to the request tarball in .bale/outbox/.
+      log            absolute path to the session log in .bale/logs/.
+      session_dir    absolute path to .bale/sessions/<sid>/ (holds the
+                     stamped request manifest.json).
+      context_files  number of files packed under context/ — the same count
+                     the human summary's "files" row reports.
+
+    Emitted as a single compact line (no indent) so the consumer contract
+    stays line-oriented: `[bale] ` informational lines share stdout with it
+    (module docstring — suppressing them would be a behavior change), so
+    tooling parses the LAST stdout line, e.g. `bale pack ... --json | tail
+    -n 1 | jq -r .tarball`. Path values are stringified exactly as pack
+    resolved them — absolute, since cmd_pack derives them from the resolved
+    repo root. Pure: builds a string, prints nothing; the caller prints it,
+    which supplies the trailing newline.
+    """
+    payload = {
+        "outcome": "packed",
+        "sid": sid,
+        "tarball": str(tarball),
+        "log": str(log_path),
+        "session_dir": str(session_dir),
+        "context_files": context_files,
+    }
+    return json.dumps(payload)

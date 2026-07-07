@@ -285,6 +285,20 @@ scripts/reinstall.sh layout checks via a follow-up — those scripts
 were outside the extraction session's scope (see that session's
 notes).
 
+v0.2.7 lands `bale pack --json` — the machine-readable pack report the
+v0.2.6 extraction pre-positioned. Output format only, never behavior:
+the flag swaps the end-of-run human summary block for one line of JSON
+on stdout (keys are a stable downstream contract: outcome, sid,
+tarball, log, session_dir, context_files) and changes nothing else —
+walks, caps, prompts, wizard, hooks, lock, and every failure path are
+untouched, and the `[bale] ` informational lines still print, so the
+consumer contract is "parse the last stdout line on exit 0". This file
+gained only the subparser flag and the pass-through branch at the
+summary call site; the rendering and the key contract live in
+`bale_report.format_pack_json`, per the flag-wiring-only constraint on
+the session that landed it. Apply-side json output is a deliberate
+non-goal of v0.2.7.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -366,12 +380,13 @@ section (section 25). The undo-family tag bookkeeping (applied/ → reverted/
 
 The end-of-command result-reporting surface lives in the sibling
 `bale_report.py` module (extracted in v0.2.6 — the fifth sibling, the
-fourth extraction). This file imports its four public entry points —
+fourth extraction). This file imports its five public entry points —
 `format_summary_block`, `format_walkthrough_summary`,
-`print_bailout_banner`, `format_dry_run_report` — by name so the call
-sites in the pack, apply, revert, unlock, handoff, and status sections
-read unqualified, matching the `bale_validate`/`bale_staging`
-convention. `_wrap_value_lines` stays private to that module.
+`print_bailout_banner`, `format_dry_run_report`, and (since v0.2.7)
+`format_pack_json` — by name so the call sites in the pack, apply,
+revert, unlock, handoff, and status sections read unqualified, matching
+the `bale_validate`/`bale_staging` convention. `_wrap_value_lines`
+stays private to that module.
 """
 
 from __future__ import annotations
@@ -448,6 +463,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # from __main__, the same idiom the other siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_dry_run_report,
+    format_pack_json,
     format_summary_block,
     format_walkthrough_summary,
     print_bailout_banner,
@@ -458,7 +474,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.6"
+VERSION = "0.2.7"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2522,7 +2538,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # so the session journal has the override events even though they
     # preceded sid allocation.
     sid = next_session_id(repo, args.slug)
-    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    log_path = repo / ".bale" / "logs" / f"{sid}.log"
+    set_log_file(log_path)
     log(f"session id: {sid}")
 
     # Manifest.
@@ -2578,20 +2595,33 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
     run_hook(repo, bale_config.merged_config(repo), "post_pack", sid)
 
-    # User-facing summary. Built through the shared formatter so pack ends on
-    # the same shape as apply/handoff; the actionable next step is the trailer,
-    # so it is the last thing printed.
-    print(format_summary_block(
-        [
-            ("session id", sid),
-            ("tarball", str(tarball_path)),
-            ("files", f"{len(files)} in context/"),
-        ],
-        trailer=[
-            "Send the tarball to Claude. When the response tarball comes back,",
-            "run: bale apply <response-tarball>",
-        ],
-    ))
+    # User-facing summary. --json swaps the format of this one report and
+    # nothing else (everything above ran identically): pass-through to
+    # bale_report.format_pack_json, which owns the rendering and the stable
+    # key contract (outcome, sid, tarball, log, session_dir, context_files).
+    # Otherwise the shared formatter, so pack ends on the same shape as
+    # apply/handoff; the actionable next step is the trailer, so it is the
+    # last thing printed.
+    if args.json:
+        print(format_pack_json(
+            sid=sid,
+            tarball=tarball_path,
+            log_path=log_path,
+            session_dir=repo / ".bale" / "sessions" / sid,
+            context_files=len(files),
+        ))
+    else:
+        print(format_summary_block(
+            [
+                ("session id", sid),
+                ("tarball", str(tarball_path)),
+                ("files", f"{len(files)} in context/"),
+            ],
+            trailer=[
+                "Send the tarball to Claude. When the response tarball comes back,",
+                "run: bale apply <response-tarball>",
+            ],
+        ))
     return 0
 
 
@@ -5352,6 +5382,16 @@ def build_parser() -> argparse.ArgumentParser:
              "override is logged prominently to the session log. Use for "
              "legitimate cases (dotfiles repo, deliberately large pack); "
              "do not use to silence a soft-breach prompt without thinking.",
+    )
+    p_pack.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run pack report as one line of JSON on stdout "
+             "instead of the human summary block. Keys are a stable contract "
+             "for downstream tooling: outcome, sid, tarball, log, "
+             "session_dir, context_files. Output format only — packing "
+             "behavior, prompts, caps, and hooks are unchanged, and the "
+             "informational '[bale] ' lines still print, so consumers parse "
+             "the LAST stdout line on exit 0.",
     )
     p_pack.set_defaults(func=cmd_pack)
 
