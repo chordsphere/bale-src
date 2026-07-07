@@ -42,7 +42,7 @@
         },
         "previous_probe": {
           "type": ["string", "null"],
-          "description": "Session ID of a prior probe whose output is in context/, or null. Probes are session-scoped (TARBALL.md section 4.2) so this is rarely populated."
+          "description": "Session ID of a prior probe whose output is in context/, or null. Probe output is normally pasted back within the probing session (TARBALL.md section 4.2), so this is populated mainly when the file-based fallback (section 4.4) shipped output in this request's context/."
         }
       }
     },

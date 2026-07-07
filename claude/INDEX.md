@@ -75,11 +75,20 @@ deleted.
   is recorded in the ADR; explainer at harness time, global doc when
   orchestration is real. Status: Proposed. Pull when planning orchestration
   or harness work, or deciding whether an orchestration doc should exist yet.
+- `context/adr/0010-paste-back-probes.md` — probes default to a strictly
+  read-only paste-back block (sentinels, bounded output, integrity trailer)
+  and the engagement doctrine flips to default-to-ask: the worker treats the
+  architect's environment as its own, and working around missing context is
+  a policy violation. File-based probe-output/ survives as the fallback.
+  Status: Proposed. Pull when touching the probe contract, probe posture
+  language in the global docs, or the future probe tool-call surface.
 
-ADRs 0002–0009 are Proposed pending the architect's ratification on review;
-0001 is Accepted. None of these is implemented — 0002–0005 precede any test
-code, 0006–0008 precede the concurrency implementation, and 0009 defers the
-doc it is about.
+ADRs 0002–0010 are Proposed pending the architect's ratification on review;
+0001 is Accepted. Of the Proposed set, only 0010 has landed — the doctrine
+it records shipped in the same session, in the global docs and the pack
+help text. The rest are unimplemented: 0002–0005 precede any test code,
+0006–0008 precede the concurrency implementation, and 0009 defers the doc
+it is about.
 
 ## Explainers
 
@@ -117,10 +126,10 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md, two explainers, and nine ADRs (0001–0005 the first in the
+is BALE.md, two explainers, and ten ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
-them, per DOCS.md §4.1/§4.5 — and 0006–0009 the concurrency-architecture
-set). Testing doctrine itself lives in the global
+them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
+set, and 0010 the probe-doctrine flip). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or

@@ -5507,7 +5507,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_pack.add_argument(
         "--expects-probe", choices=("yes", "no", "claude-decides"),
         default="claude-decides",
-        help="Whether the session expects a probe.",
+        help="Whether the session expects a probe. The default, "
+             "claude-decides, has the worker probe whenever an "
+             "environment gap surfaces rather than guess around it "
+             "(TARBALL.md section 4.1).",
     )
     p_pack.add_argument(
         "--readme-file", default=None, metavar="PATH",

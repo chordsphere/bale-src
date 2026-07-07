@@ -62,7 +62,7 @@ a paused session.
 | Artifact | Direction | When |
 |----------|-----------|------|
 | Request tarball | me → Claude | start of a tarball-mode session |
-| Probe | Claude → me | only when Tier 1+2 reading left a real gap |
+| Probe | Claude → me | whenever an environment-specific fact is missing, stale, or unclear (§4.1) |
 | Response tarball | Claude → me | every tarball-mode response |
 
 ---
@@ -157,7 +157,7 @@ Field semantics:
   reason about than presence.
 - **`expects_probe`** — `yes` forces a probe before any build work.
   `no` forbids probing this session (see 3.3). `claude-decides`
-  (default) means Claude uses judgment.
+  (default) means Claude probes whenever a §4.1 trigger fires.
 - **`context_included`** — declarative list of what's in `context/`.
   If Claude needs something not listed, it checks `INDEX.md`, then
   names it in the response (either in a probe request or in
@@ -250,74 +250,152 @@ bale pack "Migrate the auth module to the new token format — types and store o
 
 ### 4.1 When a probe engages
 
-Return a probe instead of a response when, and only when:
+The worker treats the architect's environment as its own: anything
+readable there is available on request, and a probe is how the worker
+reads it. Return a probe whenever an environment-specific fact the
+response depends on is missing, stale, or unclear — and documentation
+can't settle it. Canonical triggers:
 
-1. The request's Tier 1 + Tier 2 reading left a gap Claude can't fill
-   from documentation alone.
-2. The gap is environment-specific or working-tree-specific — facts
-   that documentation couldn't capture (tool versions, current file
-   contents, install state, what shell is actually available).
-3. Proceeding without the gap filled risks a confidently wrong
-   answer.
+- A file the work needs wasn't included in `context/`, or the
+  included copy looks stale against what the goal implies.
+- A tool, runtime, or dependency version the change depends on is
+  unknown.
+- The working-tree state matters and isn't captured — uncommitted
+  changes, current branch, install state.
+- Any other fact only the environment can answer: what shell is
+  actually available, whether a path exists, what a config resolves
+  to.
 
-If the gap is conceptual or scope-related, that's a conversation in
-chat, not a probe.
+Working around a gap like these is a **policy violation, not
+resourcefulness**. Guessing an API from memory because the file
+wasn't included, or writing to the more plausible of two layouts,
+produces exactly the confidently wrong response this workflow exists
+to prevent. A probe round-trip costs the architect one paste each
+way; a wrong response costs a review, a rejection, and a re-attempt.
+The trade is never close.
 
-### 4.2 Probe shape
+Two boundaries keep the default-to-ask posture from sprawling:
 
-Probes are session-scoped only. They are not archived in the project
-file structure; the script is pasted into the user's terminal and
-the output is pasted back into the next message. No `claude/probes/`
-directory, no bale subcommand for probes.
+- **Conceptual and scope gaps are conversations, not probes.** If the
+  question is what the goal means, which option the architect
+  prefers, or whether something is in scope, ask in chat.
+- **`expects_probe: no` still forbids probing** (§3.3). The doctrine
+  sets the default; the manifest overrides it per session, and the
+  collision path in §3.3 is unchanged.
 
-The probe Claude returns is a fenced script in chat:
+### 4.2 The paste-back probe (default shape)
+
+Probes are session-scoped only: no `claude/probes/` directory, no
+bale subcommand, no artifact in the project tree. The default
+transport is a **single copy-pasteable shell block**. The architect
+pastes it into a terminal and pastes stdout back into the chat; the
+worker reads the paste and proceeds. No files change hands.
+
+The block Claude returns is one fenced, self-contained script with
+these required properties:
+
+- **Strictly read-only — zero writes.** stdout is the only output
+  channel. No `probe-output/`, no temp files, no state mutation of
+  any kind. (This hardens the earlier contract, which permitted
+  writes under `./probe-output/`; that shape survives only as the
+  §4.4 fallback.) Read-only is what keeps the architect's
+  read-before-paste audit a two-second job.
+- **Purpose header.** A comment block at the top stating what the
+  probe asks, why the session needs it, and confirming the script is
+  read-only. The architect audits this before pasting.
+- **Self-delimiting.** `PROBE BEGIN`/`PROBE END` sentinel lines
+  bracket the whole output, and each question gets its own labeled
+  section so the worker can map answers back to gaps.
+- **Bounded output.** Every command's output is capped (`head`,
+  `tail`, or equivalent), with an explicit truncation marker printed
+  when the cap bites. Terminal paste is a lossy transport; an
+  unbounded `cat` is how a paste gets mangled.
+- **Integrity trailer.** The final line inside the sentinels reports
+  a line count (or checksum) of the emitted output, so the receiving
+  session can detect a truncated or partial paste and re-request
+  instead of reasoning from half an environment.
+
+The canonical skeleton — the body runs inside a function so the
+trailer can count the real output before anything is printed:
 
 ```bash
 #!/usr/bin/env bash
-# What this probe asks, why, and what it writes.
-# Only writes to ./probe-output/. Read-only outside that dir.
+# PROBE <session-slug>: <what this asks, in one line>.
+# Why: <the gap this fills, in one line>.
+# Read-only: writes nothing anywhere; stdout is the only output.
 
-mkdir -p probe-output
-# checks here, each line logged to stdout
+probe() {
+  echo "--- section: node ---"
+  node --version 2>&1 | head -n 2
+
+  echo "--- section: git-state ---"
+  git status --porcelain=v1 2>&1 | head -n 40
+  n=$(git status --porcelain=v1 2>/dev/null | wc -l)
+  [ "$n" -gt 40 ] && echo "[truncated: $n lines total, showing 40]"
+
+  echo "--- section: vite-config ---"
+  ls -l vite.config.* 2>&1 | head -n 5
+}
+
+out="$(probe 2>&1)"
+echo "=== PROBE BEGIN <session-slug> ==="
+printf '%s\n' "$out"
+printf -- '--- integrity: %s lines ---\n' "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+echo "=== PROBE END <session-slug> ==="
 ```
 
-`probe.ps1` is conditional. Most environments (Linux container,
-macOS, WSL) run the bash variant natively. Offer a PowerShell
-variant only when the request or `STATE.md` indicates Windows-native
-execution.
-
-The probe's preamble in chat explicitly lists every location the
-probe will write to (should only be `./probe-output/`) and every
-external tool it invokes. No surprises.
+The sections, caps, and slug vary per probe; the shape — header,
+function body, sentinels, integrity trailer — does not.
 
 ### 4.3 Probe script rules
 
-- **Read-only outside `./probe-output/`.** No writes anywhere else.
-  No installs. No network calls unless explicitly justified in the
-  preamble and gated behind a flag.
+These apply to both the paste-back shape and the §4.4 fallback:
+
+- **Read-only per shape.** Paste-back: zero writes anywhere. Fallback:
+  writes only under `./probe-output/`. Neither shape installs
+  anything or makes network calls unless explicitly justified in the
+  purpose header and gated behind a flag.
 - **Self-contained.** Uses only tools that exist everywhere: `ls`,
   `cat`, `find`, `git`, `node --version`, `tree` (with `find`
-  fallback). If a tool is missing, degrade gracefully and record the
-  gap in `probe-output/meta.json`.
+  fallback). If a tool is missing, degrade gracefully and report the
+  gap in that question's labeled section (paste-back) or in
+  `meta.json` (fallback) — never silently.
 - **Idempotent.** Running it twice gives the same output (modulo
   timestamps).
 - **Environment-aware.** Detects shell, OS, and container/host
-  classification and records it in `meta.json`. If the environment
-  can't be classified, the probe records that fact rather than
-  guessing.
-- **Copy-pasteable.** The script body should be pasteable into a
-  terminal as-is. No argument parsing required for the happy path.
+  classification and reports it in a labeled section (or `meta.json`
+  in the fallback). If the environment can't be classified, the
+  probe records that fact rather than guessing.
+- **Copy-pasteable.** The script body pastes into a terminal as-is.
+  No argument parsing required for the happy path.
 - **Secrets-aware.** Skips `.env*`, `*.pem`, anything matching common
   secret patterns. Records *presence* (`OPENAI_API_KEY: set`), never
   values.
-- **Logged.** Every step prints a line: `[probe] checking node…
-  found v20.11.0`. Silent operations are bugs.
+- **Logged.** Every step prints a line. Silent operations are bugs.
 
-### 4.4 Probe output shape
+`probe.ps1` is conditional. Most environments (Linux container,
+macOS, WSL) run the bash variant natively. Offer a PowerShell variant
+only when the request or `STATE.md` indicates Windows-native
+execution.
 
-The actual contract is `meta.json` plus whatever files the probe
-collected, declared in `meta.json`. The shape below is illustrative
-(Node-flavored); the specific file set varies by project type.
+### 4.4 The file-based fallback
+
+For genuinely large or binary output — a full dependency tree, a
+generated fixture, anything past what a terminal paste carries
+intact — the earlier file-based shape remains valid, explicitly as
+the fallback: the script writes to `./probe-output/` and the
+architect returns the contents (pasted as text if small enough, or
+included in the next request tarball's `context/`). Paste-back is
+the default; the worker picks the fallback **only when output size
+or format demands it, and says so** — the chat preamble names the
+reason, every location the script writes to (only
+`./probe-output/`), and every external tool it invokes. No
+surprises.
+
+The fallback's output contract is `meta.json` plus whatever files the
+probe collected, declared in `meta.json`. The shape below is
+illustrative (Node-flavored); the specific file set varies by project
+type.
 
 ```
 probe-output/
@@ -339,8 +417,28 @@ probe-output/
 - list of gaps (tools missing, files unreadable, checks skipped)
 - exit status of every step
 
-I paste `probe-output/` contents into the next message as text, or
-include the directory in the next request tarball if it's large.
+### 4.5 Provenance
+
+Pasted probe output is **chat-ephemeral** — it exists in the
+conversation and nowhere durable. The eventual response's `notes.md`
+must record what the probe established: the facts the response relied
+on, not the raw dump. That record is how the probe's findings survive
+the chat.
+
+The `depends_on.previous_probe` field and its semantics are
+unchanged. Its populated case is now mainly the fallback path — a
+prior probe whose `probe-output/` shipped in this request's
+`context/`; a paste-back probe resolves within its own session and
+leaves the field null.
+
+### 4.6 The probe as a tool call
+
+In the orchestrated workflow, the probe becomes a tool call the
+harness executes and feeds back automatically. The paste-back shape
+is the manual-transport analog of that: **same contract, different
+courier**. Nothing in this section assumes the courier is human —
+the sentinels, bounded output, and integrity trailer are exactly the
+properties a harness needs to validate a machine round-trip too.
 
 ---
 
@@ -384,8 +482,8 @@ duplicate is pure friction.
 
 This rule is narrow on purpose. Tarball mode does not mean *only*
 tarballs come out of it. A probe (section 4) is the right response
-when Tier 1+2 reading left an environment-specific gap. A
-conversational reply is the right response when a scope question
+when an environment-specific fact the work depends on is missing,
+stale, or unclear. A conversational reply is the right response when a scope question
 needs answering, a concern needs surfacing, or a clarification needs
 asking before any code lands. The constraint is on the *deliverable's
 shape*: when code is the response, the tarball is the response,
@@ -1143,7 +1241,7 @@ caught at review, not by bale.
 | Tarballs are immutable once delivered | my discipline |
 | `validation_will_run` is honest and complete | review |
 | Tarball mode without `TARBALL.md` loaded — pause and ask | Claude's own check at the start of a response |
-| Probe is read-only outside `./probe-output/` | probe self-check + my review |
+| Probe is strictly read-only; the file-based fallback (§4.4) writes only under `./probe-output/` | probe self-check + my review |
 | `apply.sh` operations limited to deletes and other manifest-declared file ops — no `mv`, no installs, no builds | review (with bale's post-`apply.sh` reconciliation against the manifest, §5.1.1, catching tree violations) |
 
 Rule labels follow `CLAUDE.md` section 6. Claude should surface
@@ -1216,10 +1314,16 @@ won't catch them.
 
 ### 10.2 Returning a probe instead
 
-1. Confirm the gap is real and environment-specific, not conceptual.
-2. Write the probe script inline in chat (bash; PowerShell variant
-   if Windows-native is in play).
-3. List in the chat preamble what the probe writes to (only
-   `./probe-output/`) and every tool it invokes.
+1. Confirm a §4.1 trigger fired — the gap is environment-specific,
+   not conceptual or scope — and the manifest doesn't set
+   `expects_probe: no` (§3.3).
+2. Write the paste-back block per §4.2: purpose header, sentinels,
+   labeled sections, bounded output, integrity trailer. Bash by
+   default; PowerShell variant only when Windows-native is in play.
+3. Only if output size or format demands the file-based fallback
+   (§4.4): say so, and list in the chat preamble every location the
+   script writes to (only `./probe-output/`) and every tool it
+   invokes.
 4. Stop. The probe's output is needed before any response can be
-   built.
+   built. When it arrives, the eventual response's `notes.md` records
+   what the probe established (§4.5).

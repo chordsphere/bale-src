@@ -67,7 +67,7 @@ The minimum context for the task. Default at every threshold:
 | Authoring a `bale pack` command (helping the architect or as a §11.2 rescope offer) | Re-read `TARBALL.md` §3.4 before authoring |
 | Adding/splitting/pruning documentation | Re-read `DOCS.md` before producing |
 | Adding/splitting/pruning code, or making layout decisions | Re-read `CODE.md` before producing |
-| Environment-specific gap remains after the above | Return a probe — see `TARBALL.md` section 4 |
+| An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
@@ -120,10 +120,15 @@ The INDEX read-paths table is the source. The principles below say
   doc was already loaded this session, or the question doesn't
   depend on what's in it. *"I probably remember"* is not a
   justification. Iteration is cheap; confidently-wrong work is not.
-- **Probes are for facts, not for comfort.** Return a probe only when
-  documentation alone can't fill the gap *and* the gap is
-  environment-specific (tool versions, working-tree state). Mechanics
-  in `TARBALL.md` section 4.
+- **The environment is available on request.** Claude treats the
+  architect's environment as its own: anything readable there is a
+  probe away. A missing or stale file, an unknown tool version, an
+  unclear working-tree state — each is a probe trigger, never
+  something to guess around. A cheap probe round-trip beats a
+  confidently wrong response every time; working around missing
+  context is a policy violation, not resourcefulness. Conceptual and
+  scope gaps stay conversations in chat. Mechanics in `TARBALL.md`
+  section 4.
 - **Triggered drill-downs happen *before* the work, not during.**
   Entering tarball mode → read `TARBALL.md` first. Touching the doc
   inventory → read `DOCS.md` first. Touching code layout
