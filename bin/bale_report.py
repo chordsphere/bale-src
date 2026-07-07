@@ -6,8 +6,11 @@ pipelines: the shared end-of-run summary formatter every command finishes on
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
 bailout banner (`print_bailout_banner`), the `bale apply --dry-run` plan
-report (`format_dry_run_report`), and the machine-readable pack report
-(`format_pack_json`, added in v0.2.7 for `bale pack --json`). The human-facing
+report (`format_dry_run_report`), the machine-readable pack report
+(`format_pack_json`, added in v0.2.7 for `bale pack --json`) and its apply
+twin (`format_apply_json`, added in v0.2.8 for `bale apply --json`), plus the
+json-mode stream-discipline state the two machine reports share
+(`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8). The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -34,20 +37,29 @@ deliberate exception (it prints), because its output interleaves reference
 material and the summary block in a fixed §5.6.3 order that no caller
 should have to re-derive.
 
-`format_pack_json` sits outside that rule because for a machine consumer the
-verdict is the whole report: it renders the pack outcome as ONE line of JSON
-whose keys are a stable contract for downstream tooling (see its docstring).
-The reference-first ordering still holds trivially — the JSON line is the
-last thing pack prints — but the `[bale] ` informational lines that precede
-it on stdout are not suppressed (suppressing them would be a behavior
-change, and `--json` changes output format only). The consumer contract is
-therefore: parse the LAST line of stdout on exit 0.
+The two json renderers (`format_pack_json`, `format_apply_json`) sit outside
+that rule because for a machine consumer the verdict is the whole report:
+each renders its command's outcome as ONE line of JSON whose keys are a
+stable contract for downstream tooling (see their docstrings). Since v0.2.8
+json mode also carries STREAM DISCIPLINE, owned here as three tiny state
+functions: `enable_json_mode()` (called once by cmd_pack/cmd_apply when
+--json is passed) saves the real stdout and rebinds `sys.stdout` to
+`sys.stderr`, so every `[bale] ` log line, prompt, hook banner, and human
+reference block the command produces lands on stderr without any print site
+changing; `emit_json_line()` writes the one report line to the saved real
+stdout; `json_mode()` is the accessor pass-through call sites gate on. The
+consumer contract is therefore: on the reporting paths, stdout carries
+exactly one JSON line (pack: exit 0; apply: exit 0, plus the held/reverted
+exit-1 outcomes), and error paths exit through fail() — stderr, non-zero —
+with nothing on stdout. Human (non---json) mode is untouched: the swap never
+happens and every stream keeps its pre-v0.2.8 behavior byte-for-byte.
 
 Behavior-preserving move: the functions keep the signatures, bodies, and
 call sites they had in `bin/bale`. The public entry points
 (`format_summary_block`, `format_walkthrough_summary`,
-`print_bailout_banner`, `format_dry_run_report`, and — since v0.2.7 —
-`format_pack_json`) are pulled back into
+`print_bailout_banner`, `format_dry_run_report`, since v0.2.7
+`format_pack_json`, and since v0.2.8 `format_apply_json` plus the json-mode
+trio `enable_json_mode` / `json_mode` / `emit_json_line`) are pulled back into
 `bin/bale`'s namespace via `from bale_report import ...`, so every caller —
 the pack summary, the apply pipeline's walkthrough and terminal-action
 banners, the dry-run path, revert, unlock, handoff, and status — still
@@ -82,6 +94,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 from typing import Optional
@@ -428,6 +441,76 @@ def format_dry_run_report(manifest: dict, sid: str, *, is_bailout: bool) -> str:
     return "\n".join(lines)
 
 
+# --- json output mode (v0.2.8) ---
+#
+# Shared state for `bale pack --json` and `bale apply --json`. The stream-
+# discipline half of the json-mode contract lives in these three functions;
+# the report-rendering half lives in format_pack_json / format_apply_json
+# below. See the module docstring for the consumer contract.
+
+_json_real_stdout = None  # saved by enable_json_mode; where emit_json_line writes
+
+
+def enable_json_mode() -> None:
+    """Switch this process into json output mode (the stream-discipline half).
+
+    Json mode is a two-part contract (v0.2.8): stdout carries exactly one
+    line of JSON — the machine-readable end-of-run report — and every other
+    line the command produces (`[bale] ` log lines, prompts, hook banners,
+    the human reference blocks) goes to stderr. This function implements the
+    "every other line" half in one move: it saves the real stdout and
+    rebinds `sys.stdout` to `sys.stderr`, so every existing `print()` /
+    `input()`-prompt / `sys.stdout.write` in bale and its sibling modules
+    lands on stderr without any print site changing — which is also what
+    keeps human mode byte-identical: when the swap never happens, no code
+    path differs. `emit_json_line` writes to the saved real stdout.
+
+    Called once, by cmd_pack / cmd_apply, as soon as the --json flag is
+    known and before any output. Idempotent: a second call is a no-op, so
+    the saved handle can never be clobbered with the already-swapped
+    stream. There is deliberately no disable — the mode is per-process,
+    decided by the CLI flag, and lasts until exit.
+
+    Two surfaces the sys-level rebinding does not reach, by design of the
+    mechanism rather than oversight: session-log journaling (log() writes
+    the same lines to the log file regardless of which terminal stream the
+    copy went to — unchanged, and correct), and child processes that
+    inherit the real file descriptors (hook scripts; run_hook in bin/bale
+    routes their stdout to stderr under json mode for exactly this reason).
+    """
+    global _json_real_stdout
+    if _json_real_stdout is not None:
+        return
+    _json_real_stdout = sys.stdout
+    sys.stdout = sys.stderr
+
+
+def json_mode() -> bool:
+    """True when enable_json_mode() has switched this process into json
+    output mode. The pass-through call sites in bin/bale (the apply
+    pipeline's terminal reporting points, run_hook's fd routing) gate on
+    this accessor instead of threading a flag through _apply_pipeline's
+    signature."""
+    return _json_real_stdout is not None
+
+
+def emit_json_line(line: str) -> None:
+    """Write `line` plus a newline to the REAL stdout and flush.
+
+    In json mode this is the only writer that reaches the process's
+    original stdout stream; everything else was rebound to stderr by
+    enable_json_mode. Outside json mode (defensive — every current caller
+    is gated on the --json flag or json_mode()) it degrades to a plain
+    stdout write, which is still the correct stream for a report line.
+    The flush matters: the JSON line is the machine consumer's entire
+    signal and must not sit in a buffer while a post-report step (a hook,
+    a prompt) runs or the process exits.
+    """
+    out = _json_real_stdout if _json_real_stdout is not None else sys.stdout
+    out.write(line + "\n")
+    out.flush()
+
+
 def format_pack_json(
     *,
     sid: str,
@@ -446,10 +529,12 @@ def format_pack_json(
                      end-of-run report today. Every failure path exits
                      through fail() (stderr + non-zero) or the interactive
                      abort (stderr + exit 1) before this renders, so a
-                     consumer sees this line only on exit 0. The value
-                     vocabulary is owned here so future outcomes (or the
-                     out-of-scope apply json mode) extend one enum in one
-                     place rather than scattering literals across callers.
+                     consumer sees this line only on exit 0. The outcome
+                     vocabulary across both json renderers is owned in this
+                     module — "packed" here; "applied", "held", "reverted",
+                     "bailout", "dry-run" in format_apply_json (v0.2.8) —
+                     so new outcomes extend an enum in one place rather
+                     than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
       tarball        absolute path to the request tarball in .bale/outbox/.
       log            absolute path to the session log in .bale/logs/.
@@ -459,13 +544,16 @@ def format_pack_json(
                      the human summary's "files" row reports.
 
     Emitted as a single compact line (no indent) so the consumer contract
-    stays line-oriented: `[bale] ` informational lines share stdout with it
-    (module docstring — suppressing them would be a behavior change), so
-    tooling parses the LAST stdout line, e.g. `bale pack ... --json | tail
-    -n 1 | jq -r .tarball`. Path values are stringified exactly as pack
-    resolved them — absolute, since cmd_pack derives them from the resolved
-    repo root. Pure: builds a string, prints nothing; the caller prints it,
-    which supplies the trailing newline.
+    stays line-oriented. Since v0.2.8 json mode carries stream discipline
+    (module docstring): the `[bale] ` informational lines — and every other
+    human-facing line — go to stderr, and stdout carries exactly this one
+    line, which the caller emits via emit_json_line so it reaches the real
+    stdout that enable_json_mode saved. The v0.2.7 consumer recipe
+    (`bale pack ... --json | tail -n 1 | jq -r .tarball`) keeps working:
+    the last stdout line is now the only stdout line. Path values are
+    stringified exactly as pack resolved them — absolute, since cmd_pack
+    derives them from the resolved repo root. Pure: builds a string, prints
+    nothing; the caller emits it, which supplies the trailing newline.
     """
     payload = {
         "outcome": "packed",
@@ -474,5 +562,93 @@ def format_pack_json(
         "log": str(log_path),
         "session_dir": str(session_dir),
         "context_files": context_files,
+    }
+    return json.dumps(payload)
+
+
+def format_apply_json(
+    *,
+    outcome: str,
+    sid: str,
+    log_path: Path,
+    state: Optional[str] = None,
+    exit_code: Optional[int] = None,
+    claims: Optional[dict] = None,
+    action: Optional[str] = None,
+    merged: bool = False,
+    tag: Optional[str] = None,
+    origin_branch: Optional[str] = None,
+) -> str:
+    """Render the `bale apply --json` end-of-run report as ONE line of JSON.
+
+    The apply twin of format_pack_json (v0.2.8): same stability rules
+    (existing keys are never renamed or removed; new keys may be added),
+    same one-compact-line shape, same emission path (the caller emits it
+    via emit_json_line so it reaches the real stdout under json mode's
+    stream discipline — module docstring). Per the request-011 lineage the
+    key set reuses the pack vocabulary where concepts overlap (outcome,
+    sid, log) and adds the two apply-specific fields, verdict and merge:
+
+      outcome  which terminal reporting point produced this line —
+               "applied"   the PASS walkthrough ended in merge (exit 0)
+               "held"      the HOLD walkthrough ended in inspect (exit 1)
+               "reverted"  the walkthrough ended in revert, from either
+                           verdict (exit 1)
+               "bailout"   response_kind=bailout; nothing applied (exit 0)
+               "dry-run"   the --dry-run plan report, normal or bailout
+                           shape (exit 0)
+               Together with pack's "packed" these are the whole outcome
+               vocabulary; extend it here, never with caller-side literals.
+      sid      the session id the response was applied against.
+      log      absolute path to the session log — where validation.sh's
+               full output and the claim/verdict reconciliation live.
+      verdict  validation.sh's result, or null when it did not run
+               (bailout, dry-run). An object:
+                 state      "PASS" | "HOLD"
+                 exit_code  validation.sh's exit code (TARBALL.md §7.5)
+                 claims     the manifest's claims map — the prediction
+                            side of the TARBALL.md §5.3 claim/verdict
+                            split; the verdict detail is in the log
+      merge    the terminal git result, or null when no walkthrough ran
+               (bailout, dry-run). An object:
+                 action         "merge" | "inspect" | "revert" — the
+                                walkthrough action taken
+                 merged         true only when the session landed in
+                                origin (merged and tagged)
+                 tag            "applied/<sid>" when merged, else null
+                 origin_branch  the branch a merge landed on (or, for
+                                inspect/revert, would have)
+
+    `state` None means "validation.sh did not run" and yields verdict:
+    null; `action` None likewise yields merge: null. At today's call sites
+    both are None together (bailout, dry-run) or set together (the three
+    walkthrough outcomes). Consumer contract: on the reporting paths
+    stdout is exactly this line — present on exit 0 AND on the
+    held/reverted exit-1 outcomes, since a machine consumer needs the HOLD
+    report as much as the PASS one; error paths exit through fail()
+    (stderr, non-zero) with nothing on stdout. Pure: builds a string,
+    prints nothing.
+    """
+    verdict: Optional[dict] = None
+    if state is not None:
+        verdict = {
+            "state": state,
+            "exit_code": exit_code,
+            "claims": claims or {},
+        }
+    merge: Optional[dict] = None
+    if action is not None:
+        merge = {
+            "action": action,
+            "merged": merged,
+            "tag": tag,
+            "origin_branch": origin_branch,
+        }
+    payload = {
+        "outcome": outcome,
+        "sid": sid,
+        "log": str(log_path),
+        "verdict": verdict,
+        "merge": merge,
     }
     return json.dumps(payload)

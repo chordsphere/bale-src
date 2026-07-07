@@ -299,6 +299,29 @@ summary call site; the rendering and the key contract live in
 the session that landed it. Apply-side json output is a deliberate
 non-goal of v0.2.7.
 
+v0.2.8 lands `bale apply --json` plus the json-mode stream discipline
+both json surfaces now share. Apply gains a machine-readable end-of-run
+report (rendered by `bale_report.format_apply_json`; keys reuse the
+pack vocabulary where concepts overlap — outcome, sid, log — with
+verdict and merge added), emitted at each of apply's terminal reporting
+points: merge ("applied"), inspect ("held"), revert ("reverted"),
+bailout, and --dry-run. Stream discipline — json mode only; human-mode
+output is byte-identical: every `[bale] ` log line, prompt, hook
+banner, and human reference block goes to stderr, and stdout carries
+exactly one JSON line. Implemented in `bale_report.enable_json_mode`,
+which rebinds sys.stdout to sys.stderr once at command start, with
+`emit_json_line` writing the report to the saved real stdout — so no
+human-facing print site changed, which is also the proof the human path
+is untouched. This tightens pack --json's v0.2.7 consumer contract from
+"parse the LAST stdout line" to "stdout is the JSON line" (tail -n 1
+recipes keep working). This file gained only flag wiring and
+pass-through emission gated on json_mode(), plus one fd-level detail
+the sys swap can't reach: run_hook routes the hook child's inherited
+stdout to stderr under json mode. Inspection flags (--show-validator /
+--show-apply-script) are documented as outside json mode — their output
+IS a script body on stdout. `bale retry` does not take --json this
+session (see the session notes).
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -320,32 +343,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                              (~line  456)
-   2. Logging                                          (~line  535)
-   3. Shell / git helpers                              (~line  622)
-   4. Hashing                                          (~line  661)
-   5. Session IDs and the per-day counter              (~line  677)
-   6. Lock handling                                    (~line  735)
-   7. .gitignore handling for the .bale/ directory     (~line  766)
-   8. Path-safety checks                               (~line  796)
-   9. Editor invocation                                (~line  844)
-  10. Pack: file enumeration and filtering             (~line  905)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1282)
-  12. Pack: slug validation                            (~line 1565)
-  13. Pack: manifest and tarball construction          (~line 1578)
-  14. Pack: wizard                                     (~line 1693)
-  15. Pack                                             (~line 1973)
-  16. Apply: helpers                                   (~line 2597)
-  17. Apply: pipeline                                  (~line 2976)
-  18. Apply                                            (~line 3324)
-  19. Revert                                           (~line 3494)
-  20. Retry                                            (~line 3687)
-  21. Unlock                                           (~line 3746)
-  22. Handoff                                          (~line 3848)
-  23. Hook invocation                                  (~line 4273)
-  24. Help and completion                              (~line 4427)
-  25. Status                                          (~line 4830)
-  26. CLI                                              (~line 5237)
+   1. Imports + constants                             (~line  504)
+   2. Logging                                         (~line  583)
+   3. Shell / git helpers                             (~line  670)
+   4. Hashing                                         (~line  709)
+   5. Session IDs and the per-day counter             (~line  725)
+   6. Lock handling                                   (~line  783)
+   7. .gitignore handling for the .bale/ directory    (~line  814)
+   8. Path-safety checks                              (~line  844)
+   9. Editor invocation                               (~line  892)
+  10. Pack: file enumeration and filtering            (~line  953)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1330)
+  12. Pack: slug validation                           (~line 1613)
+  13. Pack: manifest and tarball construction         (~line 1626)
+  14. Pack: wizard                                    (~line 1741)
+  15. Pack                                            (~line 2021)
+  16. Apply: helpers                                  (~line 2669)
+  17. Apply: pipeline                                 (~line 3060)
+  18. Apply                                           (~line 3467)
+  19. Revert                                          (~line 3647)
+  20. Retry                                           (~line 3840)
+  21. Unlock                                          (~line 3899)
+  22. Handoff                                         (~line 4001)
+  23. Hook invocation                                 (~line 4426)
+  24. Help and completion                             (~line 4585)
+  25. Status                                          (~line 4988)
+  26. CLI                                             (~line 5395)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -453,19 +476,26 @@ from bale_staging import (  # noqa: E402 — sys.path tweak above is load-bearin
 from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-bearing
 
 # The end-of-command result-reporting surface — the shared summary-block
-# formatter and the pack/apply outcome renderers (walkthrough summary, bailout
-# banner, dry-run report) — lives in the sibling bale_report module (extracted
+# formatter, the pack/apply outcome renderers (walkthrough summary, bailout
+# banner, dry-run report), the two machine-readable json reports, and the
+# json-mode stream-discipline state (enable_json_mode / json_mode /
+# emit_json_line, v0.2.8) — lives in the sibling bale_report module (extracted
 # in v0.2.6, the fifth sibling, same sys.path-insert mechanism as the four
 # above). Imported by name so every call site — the pack summary, the apply
-# pipeline's walkthrough and terminal-action banners, revert, unlock, handoff,
-# status — stays unqualified, exactly as before the extraction. The module
-# reaches back for shared helpers (git, fail, first_section_of_handoff) lazily
-# from __main__, the same idiom the other siblings use.
+# pipeline's walkthrough, terminal-action banners, and json emission points,
+# revert, unlock, handoff, status — stays unqualified, exactly as before the
+# extraction. The module reaches back for shared helpers (git, fail,
+# first_section_of_handoff) lazily from __main__, the same idiom the other
+# siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
+    emit_json_line,
+    enable_json_mode,
+    format_apply_json,
     format_dry_run_report,
     format_pack_json,
     format_summary_block,
     format_walkthrough_summary,
+    json_mode,
     print_bailout_banner,
 )
 
@@ -474,7 +504,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.2.7"
+VERSION = "0.2.8"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2207,6 +2237,13 @@ def git_init_walkthrough(cwd: Path, *, force: bool) -> Path:
 # --- cmd_pack ----------------------------------------------------------------
 
 def cmd_pack(args: argparse.Namespace) -> int:
+    # json output mode (v0.2.8): stream discipline engages first, before
+    # any line can print — from here on the [bale] logs, prompts, and
+    # banners this command produces go to stderr, and stdout is reserved
+    # for the one-line report emitted at the summary site below. The mode
+    # state and the rendering live in bale_report.
+    if args.json:
+        enable_json_mode()
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
 
@@ -2595,15 +2632,18 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
     run_hook(repo, bale_config.merged_config(repo), "post_pack", sid)
 
-    # User-facing summary. --json swaps the format of this one report and
-    # nothing else (everything above ran identically): pass-through to
+    # User-facing summary. --json swaps the format of this one report
+    # (everything above ran identically): pass-through to
     # bale_report.format_pack_json, which owns the rendering and the stable
-    # key contract (outcome, sid, tarball, log, session_dir, context_files).
+    # key contract (outcome, sid, tarball, log, session_dir, context_files),
+    # emitted via emit_json_line so it reaches the real stdout — under json
+    # mode's stream discipline (v0.2.8) every other line this command
+    # printed went to stderr, making the report the only stdout line.
     # Otherwise the shared formatter, so pack ends on the same shape as
     # apply/handoff; the actionable next step is the trailer, so it is the
     # last thing printed.
     if args.json:
-        print(format_pack_json(
+        emit_json_line(format_pack_json(
             sid=sid,
             tarball=tarball_path,
             log_path=log_path,
@@ -2949,7 +2989,10 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
       4. Clear the lock — the session is consumed. The user's explicit
          next action is `bale handoff <tarball>`, which acquires a fresh
          lock against a new sid.
-      5. Return 0. No `apply.sh`, no staging, no validation, no branch.
+      5. Under json output mode (v0.2.8), emit the one-line machine
+         report — outcome "bailout", verdict and merge null since no
+         validation ran and no walkthrough decided anything.
+      6. Return 0. No `apply.sh`, no staging, no validation, no branch.
 
     No `git_head_at_apply` / `origin_branch` / `staging_path` metadata is
     written — no branch is created so there's nothing for `bale revert`
@@ -3001,6 +3044,15 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     # hand if the user decides the lineage is done.
     clear_lock(repo)
     log(f"bailout {sid}: lock cleared")
+
+    if json_mode():
+        # Terminal json report (v0.2.8), emitted after the §5.6.3 banner
+        # (which json mode routed to stderr) so the stdout line a consumer
+        # waits on is the last thing this command does.
+        emit_json_line(format_apply_json(
+            outcome="bailout", sid=sid,
+            log_path=repo / ".bale" / "logs" / f"{sid}.log",
+        ))
     return 0
 
 
@@ -3043,8 +3095,21 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     before either prompt. All keywords default off, so callers that pass
     nothing (and older call shapes) keep the interactive behavior unchanged.
 
+    Under json output mode (cmd_apply --json; bale_report.enable_json_mode
+    already rebound the human streams to stderr by the time this runs) each
+    terminal reporting point below — dry-run, bailout, merge, inspect,
+    revert — additionally emits the one-line machine report via
+    emit_json_line(format_apply_json(...)). The human banners still render
+    (landing on stderr); the emission is a pass-through addition gated on
+    bale_report.json_mode(), so nothing threads through this signature and
+    cmd_retry — which never enables the mode — is untouched.
+
     Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
+    # The session log path as the json reports cite it (absolute) — the
+    # same file cmd_apply/cmd_retry already wired set_log_file to.
+    session_log = repo / ".bale" / "logs" / f"{locked_sid}.log"
+
     # Extract and validate the tarball into a temp dir.
     with tempfile.TemporaryDirectory() as tmpdir:
         # 8.1 step 1: tar integrity.
@@ -3120,6 +3185,13 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 print(format_dry_run_report(manifest, locked_sid,
                                             is_bailout=True))
                 log("dry-run: bailout response; no side effects performed")
+                if json_mode():
+                    # No validation ran and no walkthrough decided anything,
+                    # so verdict and merge are null (format_apply_json).
+                    emit_json_line(format_apply_json(
+                        outcome="dry-run", sid=locked_sid,
+                        log_path=session_log,
+                    ))
                 return 0
             return _apply_bailout(
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
@@ -3139,6 +3211,12 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             print(format_dry_run_report(manifest, locked_sid,
                                         is_bailout=False))
             log("dry-run: validated; no git side effects performed")
+            if json_mode():
+                # Plan only: validation.sh never ran and no walkthrough
+                # decided anything, so verdict and merge are null.
+                emit_json_line(format_apply_json(
+                    outcome="dry-run", sid=locked_sid, log_path=session_log,
+                ))
             return 0
 
         # 8.2 stamp session.
@@ -3289,6 +3367,17 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 status="PASS",
                 sid=locked_sid,
             ))
+            if json_mode():
+                # Terminal json report (v0.2.8), emitted after the human
+                # banner (now on stderr) so the stdout line a consumer
+                # waits on is the last thing this command does.
+                emit_json_line(format_apply_json(
+                    outcome="applied", sid=locked_sid, log_path=session_log,
+                    state=state, exit_code=exit_code,
+                    claims=manifest.get("claims", {}) or {},
+                    action="merge", merged=True,
+                    tag=f"applied/{locked_sid}", origin_branch=origin_branch,
+                ))
             return 0
 
         if action == "inspect":
@@ -3309,6 +3398,17 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 status="HOLD",
                 sid=locked_sid,
             ))
+            if json_mode():
+                # Emitted on the exit-1 path deliberately: a machine
+                # consumer needs the HOLD report as much as the PASS one
+                # (format_apply_json's consumer contract).
+                emit_json_line(format_apply_json(
+                    outcome="held", sid=locked_sid, log_path=session_log,
+                    state=state, exit_code=exit_code,
+                    claims=manifest.get("claims", {}) or {},
+                    action="inspect", merged=False,
+                    origin_branch=origin_branch,
+                ))
             return 1
 
         # action == "revert" — BALE.md §8.8: "Delete the branch (forcefully),
@@ -3349,6 +3449,17 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             status="REVERT",
             sid=locked_sid,
         ))
+        if json_mode():
+            # Revert is reachable from both verdicts, so state/exit_code
+            # still report what validation.sh found before the user (or
+            # the non-interactive default) backed the work out.
+            emit_json_line(format_apply_json(
+                outcome="reverted", sid=locked_sid, log_path=session_log,
+                state=state, exit_code=exit_code,
+                claims=manifest.get("claims", {}) or {},
+                action="revert", merged=False,
+                origin_branch=origin_branch,
+            ))
         return 1
 
 
@@ -3472,6 +3583,16 @@ def cmd_apply(args: argparse.Namespace) -> int:
             show_apply=args.show_apply_script,
             show_validator=args.show_validator,
         )
+
+    # json output mode (v0.2.8): enabled after the inspection branch above
+    # on purpose — --show-validator / --show-apply-script print a script
+    # body as their whole output, which is its own stdout contract, so
+    # --json is documented as having no effect there. From here down the
+    # stream discipline holds: [bale] logs, prompts, and the human banners
+    # go to stderr; stdout is reserved for the one-line report the apply
+    # pipeline emits at its terminal reporting point.
+    if args.json:
+        enable_json_mode()
 
     # 8.1 step 4: lock must exist (a session was opened with `bale pack`).
     # Required for a real apply, a retry, and a dry-run alike — the
@@ -4439,11 +4560,16 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
         # No capture: stream the hook's stdout/stderr to the user's terminal
         # so a long-running install shows progress. The session log already
         # records the invocation; the hook's own output is the hook's
-        # responsibility.
+        # responsibility. Under json output mode (v0.2.8) the hook child's
+        # stdout is routed to stderr: the child inherits the process's real
+        # file descriptors, which bale_report.enable_json_mode's sys-level
+        # stream swap cannot reach, and json mode reserves stdout for the
+        # one-line report. Human mode passes None — inherit, as always.
         result = subprocess.run(
             [str(script_path)],
             cwd=str(repo),
             env=env,
+            stdout=(sys.stderr if json_mode() else None),
         )
     except OSError as e:
         log(f"[hook {name}] failed to launch: {e}")
@@ -5388,10 +5514,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Emit the end-of-run pack report as one line of JSON on stdout "
              "instead of the human summary block. Keys are a stable contract "
              "for downstream tooling: outcome, sid, tarball, log, "
-             "session_dir, context_files. Output format only — packing "
-             "behavior, prompts, caps, and hooks are unchanged, and the "
-             "informational '[bale] ' lines still print, so consumers parse "
-             "the LAST stdout line on exit 0.",
+             "session_dir, context_files. Packing behavior, prompts, caps, "
+             "and hooks are unchanged; json mode's stream discipline sends "
+             "the informational '[bale] ' lines and any prompts to stderr, "
+             "so stdout carries exactly the JSON line on exit 0 (tail -n 1 "
+             "recipes from v0.2.7 keep working).",
     )
     p_pack.set_defaults(func=cmd_pack)
 
@@ -5458,6 +5585,22 @@ def build_parser() -> argparse.ArgumentParser:
              "logs the decision taken and its source to the terminal and "
              "the session log. The mode can also be enabled per config "
              "via apply.no_interact = true; run `bale config init`.",
+    )
+    p_apply.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run apply report as one line of JSON on "
+             "stdout. Keys are a stable contract for downstream tooling: "
+             "outcome (applied|held|reverted|bailout|dry-run), sid, log, "
+             "verdict (validation.sh state/exit_code/claims; null when it "
+             "did not run), merge (walkthrough action/merged/tag/"
+             "origin_branch; null when no walkthrough ran). Stream "
+             "discipline: '[bale] ' lines, prompts, and the human banners "
+             "go to stderr; stdout carries exactly the JSON line on the "
+             "reporting paths — exit 0, plus the held/reverted exit-1 "
+             "outcomes. Error paths exit through stderr with nothing on "
+             "stdout. Pair with --no-interact for scripted runs. No effect "
+             "with --show-validator/--show-apply-script, whose whole "
+             "output is a script body on stdout.",
     )
     p_apply.set_defaults(func=cmd_apply)
 
