@@ -56,14 +56,16 @@ deleted.
 - `context/adr/0006-session-registry.md` — replace the single
   `current_session` lock with a per-sid registry of open sessions plus one
   repo-level integration lock; single-session behavior preserved. Status:
-  Proposed. Pull when touching the lock lifecycle, pack or apply pre-flight,
-  or any concurrency work. First of the four concurrency ADRs; its Context
-  carries the motivating goal for the set.
+  Accepted (registry landed in v0.3.0; revert/retry/unlock/handoff sid
+  disambiguation still deferred). Pull when touching the lock lifecycle,
+  pack or apply pre-flight, or any concurrency work. First of the four
+  concurrency ADRs; its Context carries the motivating goal for the set.
 - `context/adr/0007-scope-disjointness.md` — disjoint session scope as a
   mechanical contract: pack-time intersection refusal (includes as a
   conservative proxy) and apply-time collision rejection (the real guard
-  against the whole-file clobber). Status: Proposed. Pull when touching pack
-  scope projection, apply pre-flight, or any concurrency work.
+  against the whole-file clobber). Status: Accepted (landed in v0.3.1 —
+  BALE.md §7.1 step 5, §8.1 step 7, §11 rows 3 and 19). Pull when touching
+  pack scope projection, apply pre-flight, or any concurrency work.
 - `context/adr/0008-checkout-free-integration.md` — integrate via a temp
   worktree or plumbing under the integration lock instead of consuming the
   user's checkout; clean-tree requirement relaxes; HOLD inspection surface
@@ -91,13 +93,16 @@ deleted.
   touching response kinds, the apply fork, the response-manifest schema, or
   intent-gap doctrine.
 
-ADRs 0002–0011 are Proposed pending the architect's ratification on review;
-0001 is Accepted. Of the Proposed set, only 0010 and 0011 have landed — each
-records doctrine that shipped in its own session (0010 in the global docs and
-the pack help text; 0011 in TARBALL.md §5.9, the response-manifest schema,
-and the bin/bale apply fork). The rest are unimplemented: 0002–0005 precede
-any test code, 0006–0008 precede the concurrency implementation, and 0009
-defers the doc it is about.
+ADRs 0002–0005 and 0008–0011 are Proposed pending the architect's
+ratification on review; 0001, 0006, and 0007 are Accepted. Of the Proposed
+set, only 0010 and 0011 have landed — each records doctrine that shipped in
+its own session (0010 in the global docs and the pack help text; 0011 in
+TARBALL.md §5.9, the response-manifest schema, and the bin/bale apply fork).
+0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
+disjointness contract in v0.3.1) and were flipped to Accepted with the
+0007 landing. The rest are unimplemented: 0002–0005 precede any test code,
+0008 precedes the checkout-free-integration work, and 0009 defers the doc
+it is about.
 
 ## Explainers
 

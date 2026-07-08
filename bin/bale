@@ -396,6 +396,34 @@ byte-identical). With exactly one session open, observable behavior
 matches the old lock semantics exactly — the ADR's single-session
 equivalence constraint.
 
+v0.3.1 lands the ADR-0007 scope-disjointness contract, the correctness
+precondition that makes ADR-0006's concurrent sessions safe (the two
+ship as a designed pair; 0006 without 0007 was a loaded footgun the
+v0.3.0 unconditional refusal kept disarmed). Pack's pre-flight refusal
+on any open session becomes a scope gate: a new pack is admitted
+exactly when its resolved include set — the normalized --include paths,
+or ["."] for a default whole-tree pack — is disjoint from every open
+session's recorded scope, with directory entries covering subtrees and
+"." covering everything (includes are a deliberately conservative proxy
+for change scope). The scope is persisted at
+.bale/sessions/<sid>/scope.json via persist_pack_session; a session
+without one (handoff-opened) reads as whole-tree, degrading toward
+refusal rather than permissiveness. Apply gains the real guard: a new
+pre-flight step (BALE.md §8.1 step 7, §11 row 19) rejects a response
+whose changes[] paths collide with another open session's scope —
+bale's overlay is whole-file replacement, so a stale-snapshot apply
+would otherwise silently clobber the sibling's work. With several
+sessions open, cmd_apply resolves which one a response answers from the
+manifest's own responds_to (_peek_responds_to reads the one member
+in-memory pre-pipeline; the pipeline re-checks after extraction), and
+close_session repoints the compatibility pointer to the oldest
+remaining open session instead of clearing it, keeping the unthreaded
+commands (revert/retry/unlock/handoff — sid disambiguation still
+deferred) pointed at an open session. Single-session behavior is
+unchanged: with one session open there is nothing to collide with at
+apply, and the pack gate only engages where the unconditional refusal
+did — on a second pack, which is the ADRs' one deliberate delta.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -417,32 +445,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  585)
-   2. Logging                                         (~line  664)
-   3. Shell / git helpers                             (~line  751)
-   4. Hashing                                         (~line  790)
-   5. Session IDs and the per-day counter             (~line  806)
-   6. Session registry + locks                        (~line  864)
-   7. .gitignore handling for the .bale/ directory    (~line 1068)
-   8. Path-safety checks                              (~line 1098)
-   9. Editor invocation                               (~line 1146)
-  10. Pack: file enumeration and filtering            (~line 1207)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1584)
-  12. Pack: slug validation                           (~line 1867)
-  13. Pack: manifest and tarball construction         (~line 1880)
-  14. Pack: wizard                                    (~line 1995)
-  15. Pack                                            (~line 2275)
-  16. Apply: helpers                                  (~line 2940)
-  17. Apply: pipeline                                 (~line 3403)
-  18. Apply                                           (~line 3862)
-  19. Revert                                          (~line 4053)
-  20. Retry                                           (~line 4246)
-  21. Unlock                                          (~line 4305)
-  22. Handoff                                         (~line 4407)
-  23. Hook invocation                                 (~line 4832)
-  24. Help and completion                             (~line 4991)
-  25. Status                                          (~line 5394)
-  26. CLI                                             (~line 5886)
+   1. Imports + constants                             (~line  613)
+   2. Logging                                         (~line  692)
+   3. Shell / git helpers                             (~line  779)
+   4. Hashing                                         (~line  818)
+   5. Session IDs and the per-day counter             (~line  834)
+   6. Session registry + locks                        (~line  892)
+   7. .gitignore handling for the .bale/ directory    (~line 1254)
+   8. Path-safety checks                              (~line 1284)
+   9. Editor invocation                               (~line 1332)
+  10. Pack: file enumeration and filtering            (~line 1393)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1770)
+  12. Pack: slug validation                           (~line 2053)
+  13. Pack: manifest and tarball construction         (~line 2066)
+  14. Pack: wizard                                    (~line 2191)
+  15. Pack                                            (~line 2471)
+  16. Apply: helpers                                  (~line 3170)
+  17. Apply: pipeline                                 (~line 3676)
+  18. Apply                                           (~line 4181)
+  19. Revert                                          (~line 4382)
+  20. Retry                                           (~line 4575)
+  21. Unlock                                          (~line 4634)
+  22. Handoff                                         (~line 4736)
+  23. Hook invocation                                 (~line 5161)
+  24. Help and completion                             (~line 5320)
+  25. Status                                          (~line 5723)
+  26. CLI                                             (~line 6217)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -585,7 +613,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -876,14 +904,35 @@ def parse_session_id(sid: str) -> tuple[str, str, str]:
 # (_apply_bailout) while the session is closed.
 #
 # .bale/current_session survives as a COMPATIBILITY POINTER, kept in
-# lockstep with the registry by the wrappers below. While at most one
-# session is open — which the pack pre-flight guarantees until ADR-0007's
-# disjointness gate lands — the pointer always equals the registry's single
-# entry, so the commands not yet threaded through the registry (revert,
-# retry, unlock, handoff) resolve "the" session exactly as before.
-# ADR-0006 explicitly leaves the file's survival as an implementation
-# choice; keeping it is what lets those commands stay untouched this
-# session.
+# lockstep with the registry by the wrappers below. With ADR-0007's
+# disjointness gate landed (v0.3.1), several sessions can be open at
+# once, so the pointer's contract is now: EMPTY when no session is open,
+# otherwise NAMING ONE OPEN SESSION — the most recently opened, with
+# close_session repointing it to the oldest remaining open session when
+# the named one closes. While at most one session is open the pointer
+# equals the registry's single entry exactly as before, so the commands
+# not yet threaded through the registry (revert, retry, unlock, handoff)
+# are unchanged for single-session workflows; with several open they
+# operate on whichever session the pointer names, a documented sharp
+# edge until those commands grow sid disambiguation (deferred, see
+# ADR-0006's consequences). ADR-0006 explicitly leaves the file's
+# survival as an implementation choice.
+#
+# ADR-0007 (claude/context/adr/0007-scope-disjointness.md) adds the
+# third piece of registry state: PER-SESSION SCOPE, persisted at
+# .bale/sessions/<sid>/scope.json as the pack's resolved include set —
+# the normalized --include paths, or ["."] for a default
+# include-everything pack. Two gates read it. Pack pre-flight refuses a
+# new pack whose scope intersects any open session's scope (includes are
+# a deliberately conservative proxy for change scope); apply pre-flight
+# rejects a response whose changes[] paths collide with ANOTHER open
+# session's scope — the real guard against the whole-file clobber, since
+# bale's overlay is whole-file replacement, not a diff. Intersection is
+# over paths, with directory entries covering their subtrees and "."
+# covering everything. A session with no scope.json (e.g. one opened by
+# `bale handoff`, which is not threaded through scope recording) reads
+# as ["."]: conservative, so it refuses concurrency rather than permit a
+# clobber.
 #
 # The second piece of ADR-0006 state is the repo-level INTEGRATION LOCK:
 # .bale/integration.lock, held only across the short git mutation window of
@@ -922,7 +971,10 @@ def register_session(repo: Path, sid: str) -> None:
     an unlock that sees no session — so the marker, being authoritative,
     goes last here and first in close_session. The marker body is the
     ISO-8601 UTC open time — informational for a human poking at .bale/,
-    not contract; presence alone is what the registry reads.
+    not contract; presence alone is what the registry reads. Opening a
+    session while others are open (admitted since ADR-0007's pack gate)
+    overwrites the pointer, so it names the most recently opened session
+    — the pointer contract close_session maintains from the other side.
     """
     p = lock_path(repo)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -938,23 +990,35 @@ def register_session(repo: Path, sid: str) -> None:
 def close_session(repo: Path, sid: str) -> None:
     """Close `sid` in the registry; idempotent.
 
-    Removes the open marker if present and clears the compatibility
-    pointer when it names this sid (leaving a pointer at some *other*
-    sid alone — defensive; unreachable while pack refuses a second open
-    session). Marker first, pointer second, the mirror of
-    register_session's ordering and for the same reason: a crash between
-    the steps then leaves the benign pointer-without-marker state rather
-    than a registry entry no unthreaded command can clear. Callers that
-    also wipe .bale/sessions/<sid>/ (merge, revert, unlock) call this
-    first so the close is explicit in the log of operations rather than
-    a side effect of the rmtree.
+    Removes the open marker if present, then reconciles the
+    compatibility pointer: when it names this sid, repoint it to the
+    oldest remaining open session, or clear it when none remain. The
+    repoint is what keeps the pointer's contract (empty ⇔ nothing open;
+    otherwise names an open session) true now that ADR-0007's gate can
+    admit several open sessions — without it, closing the pointer's
+    session while a sibling stayed open would leave an empty pointer
+    that `bale handoff`'s guard and the unthreaded commands would
+    misread as "nothing open". A pointer naming some *other* sid is
+    left alone. Marker first, pointer second, the mirror of
+    register_session's ordering and for the same reason: a crash
+    between the steps then leaves the benign pointer-without-marker
+    state rather than a registry entry no unthreaded command can clear.
+    Callers that also wipe .bale/sessions/<sid>/ (merge, revert,
+    unlock) call this first so the close is explicit in the log of
+    operations rather than a side effect of the rmtree.
     """
     marker = open_marker_path(repo, sid)
     if marker.exists():
         marker.unlink()
     p = lock_path(repo)
     if p.exists() and p.read_text().strip() == sid:
-        p.write_text("")
+        remaining = open_sessions(repo)
+        if remaining:
+            p.write_text(f"{remaining[0]}\n")
+            log(f"compatibility pointer repointed to {remaining[0]} "
+                f"({len(remaining)} session(s) still open)")
+        else:
+            p.write_text("")
 
 
 def open_sessions(repo: Path) -> list[str]:
@@ -1016,6 +1080,117 @@ def clear_lock(repo: Path) -> None:
         p = lock_path(repo)
         if p.exists():
             p.write_text("")
+
+
+# --- Per-session scope (ADR-0007) --------------------------------------------
+
+def scope_path(p: str) -> str:
+    """Normalize one path for scope comparison.
+
+    Repo-relative, forward-slash, no trailing slash, no leading `./`;
+    the empty string and `.` both normalize to `.` (the whole tree).
+    Used on both sides of every intersection check so pack-time
+    includes and apply-time changes[] paths compare in one canonical
+    form.
+    """
+    s = os.path.normpath(p.strip()).replace(os.sep, "/")
+    return "." if s in ("", ".") else s
+
+
+def resolved_scope(includes: list[str]) -> list[str]:
+    """The ADR-0007 scope of a pack: its resolved include set.
+
+    Normalized, deduplicated, sorted declared includes; a pack with no
+    --include (bale's default whole-tree scope, BALE.md §7.2) resolves
+    to ["."], as does any include list that names the repo root — "."
+    covers everything, so listing siblings beside it would only blur
+    the refusal messages the gates build from these entries.
+
+    Declared includes — not the walked file list — are deliberately
+    the recorded form: a directory include covers files *created*
+    under it later, which a snapshot of walked files could not, and
+    the conservatism (a session rarely changes everything it was
+    shown) is the ADR's stated trade.
+    """
+    if not includes:
+        return ["."]
+    scope = sorted({scope_path(i) for i in includes})
+    return ["."] if "." in scope else scope
+
+
+def scope_paths_intersect(a: str, b: str) -> bool:
+    """True when two normalized scope paths overlap.
+
+    Overlap: either is ".", they are equal, or one is a directory
+    ancestor of the other — directory entries cover their subtrees
+    (ADR-0007). The check is symmetric because scope entries can be
+    files or directories on both sides.
+    """
+    if a == "." or b == ".":
+        return True
+    return a == b or b.startswith(a + "/") or a.startswith(b + "/")
+
+
+def scope_intersection(scope_a: list[str],
+                       scope_b: list[str]) -> list[tuple[str, str]]:
+    """Every colliding (entry_a, entry_b) pair between two scopes.
+
+    Empty list ⇔ the scopes are disjoint. The pairs — not a bool — are
+    the return value so refusal messages can name exactly which
+    entries collide; scopes are include lists, small by construction,
+    so the quadratic pairing is fine.
+    """
+    return [
+        (a, b)
+        for a in scope_a
+        for b in scope_b
+        if scope_paths_intersect(a, b)
+    ]
+
+
+def scope_file_path(repo: Path, sid: str) -> Path:
+    return sessions_root(repo) / sid / "scope.json"
+
+
+def persist_session_scope(repo: Path, sid: str, scope: list[str]) -> None:
+    """Record `sid`'s resolved include set for the ADR-0007 gates."""
+    p = scope_file_path(repo, sid)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
+    log(f"recorded session scope for {sid}: {', '.join(scope)}")
+
+
+def read_session_scope(repo: Path, sid: str) -> list[str]:
+    """Read `sid`'s recorded scope; degrade to ["."], never to permissive.
+
+    Missing scope.json (a session opened by a path that doesn't record
+    scope, e.g. `bale handoff`) and malformed scope.json both read as
+    the whole tree. The failure direction matters: a scope the gates
+    can't read must widen to "collides with everything" — refusing a
+    pack or an apply the architect can rescope — rather than narrow to
+    "collides with nothing", which is exactly the silent whole-file
+    clobber ADR-0007 exists to prevent. Both degradations are logged;
+    neither is silent.
+    """
+    p = scope_file_path(repo, sid)
+    if not p.exists():
+        log(f"session {sid} has no recorded scope; treating its scope "
+            f"as the whole tree (conservative)")
+        return ["."]
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        log(f"session {sid}'s scope.json is unreadable ({e}); treating "
+            f"its scope as the whole tree (conservative)")
+        return ["."]
+    if (not isinstance(data, list)
+            or not data
+            or not all(isinstance(x, str) and x.strip() for x in data)):
+        log(f"session {sid}'s scope.json is malformed (expected a "
+            f"non-empty list of paths); treating its scope as the "
+            f"whole tree (conservative)")
+        return ["."]
+    return resolved_scope(data)
 
 
 # --- Integration lock (ADR-0006) ---------------------------------------------
@@ -1992,14 +2167,24 @@ def build_request_tarball(
             tf.add(str(request_dir), arcname=f"request-{nnn}")
 
 
-def persist_pack_session(repo: Path, sid: str, manifest: dict) -> None:
+def persist_pack_session(repo: Path, sid: str, manifest: dict,
+                         scope: Optional[list[str]] = None) -> None:
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
-    the lock — see BALE.md section 7.6."""
+    the lock — see BALE.md section 7.6.
+
+    `scope` is the pack's resolved include set (ADR-0007), recorded via
+    persist_session_scope so the disjointness gates can read it. None —
+    the `bale handoff` call site, which is not threaded through scope
+    recording — writes no scope.json; read_session_scope then reads that
+    session as whole-tree, the conservative default.
+    """
     sessions_dir = repo / ".bale" / "sessions" / sid
     sessions_dir.mkdir(parents=True, exist_ok=True)
     (sessions_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
     )
+    if scope is not None:
+        persist_session_scope(repo, sid, scope)
 
 
 # ---------------------------------------------------------------------------
@@ -2567,27 +2752,51 @@ def cmd_pack(args: argparse.Namespace) -> int:
         repo = git_init_walkthrough(cwd, force=args.force)
     refuse_system_dir(repo, force=args.force)
 
-    # Open-session check (BALE.md 7.1 step 5), read from the ADR-0006
-    # session registry rather than the current_session sentinel. The
-    # refusal stays UNCONDITIONAL on any open session: ADR-0006 removes
-    # the single-lock mechanism, but a second concurrent pack remains
-    # refused until ADR-0007's scope-disjointness gate lands to make it
-    # safe. With one session open, the message matches the old lock
-    # refusal verbatim.
+    # Scope-disjointness gate (BALE.md 7.1 step 5, ADR-0007), read from
+    # the ADR-0006 session registry. This replaces the unconditional
+    # refusal that stood here: a pack is now admitted alongside open
+    # sessions exactly when its declared scope — resolved_scope of its
+    # --include set — is disjoint from every open session's recorded
+    # scope. Includes are a deliberately conservative proxy for change
+    # scope (a session rarely changes everything it was shown), so the
+    # gate can false-positive; the cheap remedy is a narrower --include
+    # set or waiting for the intersecting session to close. A default
+    # include-everything pack resolves to ["."] and therefore intersects
+    # every open session — broad scope and concurrency are mutually
+    # exclusive by design. With no session open, behavior is unchanged.
+    # The pack's ADR-0007 scope. --include is CLI-only (the wizard below
+    # never collects includes), so the scope is final here; it drives
+    # the gate now and is recorded via persist_pack_session further down.
+    pack_scope = resolved_scope(list(args.include))
     open_sids = open_sessions(repo)
     if open_sids:
-        if len(open_sids) == 1:
-            fail(
-                f"a session is already open: {open_sids[0]}. "
-                f"Apply its response with `bale apply <tarball>`, or run "
-                f"`bale unlock` if the session was abandoned."
+        conflicts: list[tuple[str, list[tuple[str, str]]]] = []
+        for open_sid in open_sids:
+            pairs = scope_intersection(
+                pack_scope, read_session_scope(repo, open_sid))
+            if pairs:
+                conflicts.append((open_sid, pairs))
+        if conflicts:
+            detail = "; ".join(
+                f"{osid} ({', '.join(sorted({f'{a} ~ {b}' for a, b in pairs}))})"
+                for osid, pairs in conflicts
             )
-        fail(
-            f"{len(open_sids)} sessions are already open: "
-            f"{', '.join(open_sids)}. Apply their responses with "
-            f"`bale apply <tarball>`, or run `bale unlock` for an "
-            f"abandoned one."
-        )
+            fail(
+                f"pack scope intersects {len(conflicts)} open "
+                f"session(s): {detail}. Concurrent sessions require "
+                f"disjoint scope (ADR-0007). Narrow this pack with "
+                f"--include paths disjoint from the open scope(s), apply "
+                f"the open session's response first, or run `bale "
+                f"unlock` if it was abandoned. Note: a pack without "
+                f"--include scopes the whole tree and conflicts with "
+                f"every open session."
+            )
+        # Journaled below, once the session log is open (sid allocation
+        # happens further down; an informational line logged here would
+        # reach stdout but never the session journal).
+        admitted_alongside = (pack_scope, list(open_sids))
+    else:
+        admitted_alongside = None
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
     # fields (goal positional, --slug) is missing AND stdin is a TTY.
@@ -2856,6 +3065,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
     log_path = repo / ".bale" / "logs" / f"{sid}.log"
     set_log_file(log_path)
     log(f"session id: {sid}")
+    if admitted_alongside is not None:
+        gate_scope, gate_open_sids = admitted_alongside
+        log(f"scope-disjointness gate passed (ADR-0007): pack scope "
+            f"({', '.join(gate_scope)}) is disjoint from "
+            f"{len(gate_open_sids)} open session(s): "
+            f"{', '.join(gate_open_sids)}")
+        log("note: revert/retry/unlock/handoff resolve the session the "
+            "compatibility pointer names (the most recently opened) "
+            "while several are open; sid disambiguation for them is "
+            "deferred (ADR-0006)")
 
     # Manifest.
     manifest = build_request_manifest(
@@ -2899,7 +3118,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # leaves no open session and the user just retries). register_session
     # writes the ADR-0006 open marker plus the current_session
     # compatibility pointer in one step.
-    persist_pack_session(repo, sid, manifest)
+    persist_pack_session(repo, sid, manifest, scope=pack_scope)
     register_session(repo, sid)
     log(f"opened session {sid} in the registry (lock pointer written)")
 
@@ -3094,6 +3313,49 @@ def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
     fail("\n".join(lines))
     # fail() does sys.exit; this return is unreachable but keeps mypy happy.
     return cwd_candidate  # pragma: no cover
+
+
+def _peek_responds_to(tarball_path: Path) -> str:
+    """Read `responds_to` from a response tarball's manifest, pre-pipeline.
+
+    The multi-open resolution path (ADR-0007): when the registry holds
+    more than one open session, cmd_apply needs the response's own
+    `responds_to` to know which session log to wire and which sid the
+    pipeline runs against — before _apply_pipeline extracts anything.
+    This reads exactly one member (response-NNN/manifest.json) from the
+    archive in memory; nothing is extracted to disk, and every check
+    here is re-run in full by the pipeline's own pre-flight. Failures
+    are fatal with the same voice the pipeline would use — a tarball
+    this helper can't read was never going to survive pre-flight.
+    """
+    try:
+        with tarfile.open(tarball_path, "r:gz") as tf:
+            member = None
+            for m in tf.getmembers():
+                parts = Path(m.name).parts
+                if (m.isfile() and len(parts) == 2
+                        and parts[0].startswith("response-")
+                        and parts[1] == "manifest.json"):
+                    member = m
+                    break
+            if member is None:
+                fail("tarball has no response-NNN/manifest.json; cannot "
+                     "resolve which open session it responds to")
+            extracted = tf.extractfile(member)
+            if extracted is None:
+                fail(f"could not read {member.name} from the tarball")
+            raw = extracted.read()
+    except (tarfile.TarError, OSError) as e:
+        fail(f"tarball is unreadable: {e}")
+    try:
+        manifest = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        fail(f"manifest.json in the tarball is not valid JSON: {e}")
+    responds_to = manifest.get("responds_to")
+    if not isinstance(responds_to, str) or not responds_to.strip():
+        fail("manifest.responds_to is missing or empty; cannot resolve "
+             "which open session this response answers")
+    return responds_to
 
 
 def resolve_no_interact(repo: Path, cfg: dict, flag: bool) -> tuple[bool, str]:
@@ -3493,7 +3755,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             fail(f"top-level directory must be named response-NNN/, "
                  f"got {response_dir.name}/")
 
-        # 8.1 step 11: required files present.
+        # 8.1 step 12: required files present.
         for required in ("manifest.json", "apply.sh", "validation.sh"):
             if not (response_dir / required).is_file():
                 fail(f"missing required file in tarball: {required}")
@@ -3511,15 +3773,60 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         validate_response_manifest(manifest)
         log("manifest schema validation passed")
 
-        # 8.1 step 6 / §11 row 9, re-read against the ADR-0006 registry:
-        # the sid the response names must be an open session. `locked_sid`
-        # is the registry's (single) open entry, resolved by the caller,
-        # so equality against it IS the registry lookup while at most one
-        # session can be open; when ADR-0007 admits several, resolution
-        # moves to responds_to itself and this becomes a membership check.
+        # 8.1 step 6 / §11 row 9, read against the ADR-0006 registry: the
+        # sid the response names must be an open session. With several
+        # sessions open (ADR-0007), cmd_apply already resolved
+        # `locked_sid` from the manifest's own responds_to via
+        # _peek_responds_to, so this equality re-checks the full pipeline
+        # extraction against the peek — defense in depth; with one open
+        # session it is the same check it always was.
         if manifest["responds_to"] != locked_sid:
             fail(f"manifest.responds_to={manifest['responds_to']!r} does not "
                  f"match the open session {locked_sid!r}")
+
+        # 8.1 step 7 / §11 row 19 (ADR-0007): cross-session scope
+        # collision. Whatever this response's worker did, its changes may
+        # not land on files ANOTHER open session has in scope — bale's
+        # overlay is whole-file replacement, so a later apply authored
+        # against a stale snapshot would silently clobber the sibling's
+        # work and the --no-ff merge would land clean. This is the real
+        # guard; the pack-time gate is only the conservative early one.
+        # Own-scope drift (changes outside this session's own scope with
+        # no sibling claiming the path) remains policy, caught at review
+        # (BALE.md §2.2, TARBALL.md §8) — unchanged by ADR-0007. With at
+        # most one session open there are no siblings and this is a
+        # no-op; bailout and clarification manifests carry empty
+        # changes[], so they pass vacuously. Runs under --dry-run too —
+        # read-only, and a dry-run should predict the rejection.
+        sibling_sids = [s for s in open_sessions(repo) if s != locked_sid]
+        if sibling_sids and manifest.get("changes"):
+            collisions: list[tuple[str, list[str]]] = []
+            for sib_sid in sibling_sids:
+                sib_scope = read_session_scope(repo, sib_sid)
+                hit_paths = sorted({
+                    change["path"] for change in manifest["changes"]
+                    if any(scope_paths_intersect(scope_path(change["path"]),
+                                                 entry)
+                           for entry in sib_scope)
+                })
+                if hit_paths:
+                    collisions.append((sib_sid, hit_paths))
+            if collisions:
+                detail = "; ".join(
+                    f"{sib_sid} claims {', '.join(paths)}"
+                    for sib_sid, paths in collisions
+                )
+                fail(
+                    f"[REJECT] cross-session scope collision (ADR-0007): "
+                    f"changes[] lands on paths in another open session's "
+                    f"scope — {detail}. Apply or close the sibling "
+                    f"session(s) first (`bale apply <its tarball>`, `bale "
+                    f"revert <sid>`, or `bale unlock`), then re-run this "
+                    f"apply."
+                )
+            log(f"cross-session scope collision check passed against "
+                f"{len(sibling_sids)} sibling session(s): "
+                f"{', '.join(sibling_sids)}")
 
         # Bailout fork — TARBALL.md §5.6.3. response_kind="bailout" means no
         # files, no apply.sh effect, no validation.sh run; the response is a
@@ -3584,7 +3891,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 return 0
             return _apply_clarification(repo, manifest, locked_sid)
 
-        # 8.1 steps 7, 8, 9: file presence, sha256, path safety (incl.
+        # 8.1 steps 8, 9, 10: file presence, sha256, path safety (incl.
         # .baleignore match per BALE.md §11 rule 14).
         verify_files_against_manifest(repo, response_dir, manifest)
         log("file presence, sha256, and path safety verified")
@@ -3687,8 +3994,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         #
         # The ADR-0006 integration lock guards this window (§8.6–§8.8): from
         # the checkout below through the terminal action's git work, the
-        # user's checkout is being mutated, and concurrent integrations must
-        # serialize here once ADR-0007 admits them. Released explicitly at
+        # user's checkout is being mutated, and concurrent integrations
+        # (reachable since ADR-0007's pack gate landed) serialize here.
+        # Released explicitly at
         # each terminal action once its git work is done — and deliberately
         # NOT from a finally: an abnormal exit inside the window (a git
         # failure, a crash) leaves the checkout mid-mutation, and a held
@@ -4004,20 +4312,30 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # resolved from the ADR-0006 session registry — §11 row 7 re-read as
     # "the sid this response names is open". Required for a real apply, a
     # retry, and a dry-run alike — the responds_to check a dry-run performs
-    # needs the open sid to compare against. The multi-open branch is
-    # defensive and unreachable until ADR-0007 lets a second pack through;
-    # the session that lands 0007 replaces it with resolution by the
-    # response's own responds_to.
+    # needs the open sid to compare against. With exactly one session open
+    # the resolution is exactly what it always was: the registry's sole
+    # entry. With several open (reachable since ADR-0007's pack gate
+    # landed), the response itself says which session it answers:
+    # _peek_responds_to reads responds_to from the tarball's manifest, and
+    # membership in the open set is the §11 row 9 registry lookup, made
+    # here so the session log wires to the right sid before the pipeline
+    # runs. The pipeline re-checks responds_to against the resolved sid
+    # after its own full extraction (defense in depth).
     open_sids = open_sessions(repo)
     if not open_sids:
         fail("no session is open. Run `bale pack` first to open one.")
-    if len(open_sids) > 1:
-        fail(
-            f"{len(open_sids)} sessions are open ({', '.join(open_sids)}); "
-            f"resolving which one a response answers is not supported "
-            f"until the ADR-0007 concurrency work lands."
-        )
-    locked_sid = open_sids[0]
+    if len(open_sids) == 1:
+        locked_sid = open_sids[0]
+    else:
+        responds_to = _peek_responds_to(tarball_path)
+        if responds_to not in open_sids:
+            fail(
+                f"manifest.responds_to={responds_to!r} does not name an "
+                f"open session. Open sessions: {', '.join(open_sids)}. "
+                f"The response answers a session that is not open here — "
+                f"wrong repo, already-applied session, or a stale tarball."
+            )
+        locked_sid = responds_to
 
     # Wire logging to the session log from here on.
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
@@ -5536,10 +5854,11 @@ class StatusReport:
     staging_path: Optional[Path] = None
     staging_present: bool = False
     # ADR-0006 session registry (v0.3.0): every open sid, oldest-first.
-    # With at most one session open — guaranteed until ADR-0007 — this is
-    # [] or [session_sid], so the single-session human block is unchanged;
-    # the human renderer adds a listing row only for the 2+ case, and the
-    # json report always carries the full list under a new additive key.
+    # With at most one session open this is [] or [session_sid], so the
+    # single-session human block is unchanged; the human renderer adds a
+    # listing row only for the 2+ case — reachable since ADR-0007's pack
+    # gate landed (v0.3.1) — and the json report always carries the full
+    # list under its additive key.
     open_sids: list[str] = field(default_factory=list)
     # ADR-0006 integration lock: None when not held (the normal state —
     # it is held only across apply's §8.6–§8.8 git window, or left stale
@@ -5662,10 +5981,11 @@ def _gather_status(cwd: Path) -> StatusReport:
 
     # Open session(s) + lifecycle state, read from the ADR-0006 session
     # registry. The lifecycle classification below stays a single-session
-    # concern: with at most one session open (guaranteed until ADR-0007)
-    # the registry's sole entry is "the" session, exactly what the
-    # current_session pointer used to say. The full open set rides in
-    # open_sids for the renderers.
+    # concern: it classifies the OLDEST open session (open_sids[0]) — with
+    # at most one open, the registry's sole entry, exactly what the
+    # current_session pointer used to say; with several open (reachable
+    # since ADR-0007's pack gate landed) the remainder ride in open_sids
+    # for the listing row, unclassified.
     report.open_sids = open_sessions(repo)
     lock_sid = report.open_sids[0] if report.open_sids else None
     report.session_sid = lock_sid
@@ -5762,10 +6082,10 @@ def _render_status(report: StatusReport) -> str:
         rows.append(("session", report.session_desc or "idle — no open session"))
         if len(report.open_sids) > 1:
             # ADR-0006: the registry can hold several open sessions; list
-            # them all. Unreachable until ADR-0007 lets a second pack
-            # through — with 0 or 1 open the single "session" row above IS
-            # the list, keeping the human block byte-identical to the
-            # pre-registry shape. Value rendering lives in bale_report
+            # them all. Reachable since ADR-0007's pack gate landed — with
+            # 0 or 1 open the single "session" row above IS the list,
+            # keeping the human block byte-identical to the pre-registry
+            # shape. Value rendering lives in bale_report
             # (format_open_sessions_value) with the other status surfaces.
             rows.append(
                 ("open sessions",

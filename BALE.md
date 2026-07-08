@@ -301,6 +301,11 @@ Every project sees the new docs on its next pack.
       open                     # session-registry marker: present ⇔ the
                                # session is open (ADR-0006)
       manifest.json            # persisted inbound manifest
+      scope.json               # the pack's resolved include set — the
+                               # session's scope, read by the ADR-0007
+                               # disjointness gates (absent for
+                               # handoff-opened sessions, which read as
+                               # whole-tree)
       origin_branch            # branch user was on before staging
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
@@ -312,10 +317,15 @@ open sessions: a session is open exactly while its
 defines openness, because a consumed bailout keeps its session
 directory for `bale handoff`'s lineage chase. `current_session`
 survives as a compatibility pointer kept in lockstep with the
-registry; the commands not yet threaded through the registry (revert,
-retry, unlock, handoff) still resolve "the" session through it, which
-is exact while at most one session is open — guaranteed until
-ADR-0007's disjointness gate admits a second pack.
+registry: empty when nothing is open, otherwise naming one open
+session — the most recently opened, repointed to the oldest remaining
+open session when the named one closes. The commands not yet threaded
+through the registry (revert, retry, unlock, handoff) still resolve
+"the" session through it, which is exact while at most one session is
+open; with several open (admitted since ADR-0007's disjointness gate
+landed) they operate on whichever session the pointer names — a
+documented sharp edge until those commands grow sid disambiguation
+(deferred, per ADR-0006's consequences).
 
 `.bale/` is gitignored. The git-init walkthrough adds it to
 `.gitignore` automatically. The tool offers to add it on any first
@@ -595,12 +605,23 @@ pastes output back. Bale does not have a `probe-apply` or
 4. If not in a git repo: run the git-init walkthrough (section 10).
    The walkthrough re-applies the path-location and home-directory
    refusals before initializing.
-5. Check the session registry (ADR-0006): no session may be open —
-   no `.bale/sessions/<sid>/open` marker present. If any session is
-   open, exit with a message pointing at `bale unlock` or
-   `bale apply <pending tarball>`. The refusal is still unconditional
-   on any open session; replacing it with ADR-0007's scope-disjointness
-   gate is that ADR's implementing session, not this check.
+5. Scope-disjointness gate (ADR-0007), read from the session
+   registry (ADR-0006). With no session open, proceed — unchanged
+   behavior. With open sessions, admit the pack exactly when its
+   declared scope — the resolved include set: normalized `--include`
+   paths, or `.` (the whole tree) for a default pack — is disjoint
+   from every open session's recorded scope (`sessions/<sid>/scope.json`).
+   Intersection is over paths, with directory entries covering their
+   subtrees and `.` covering everything; a session without a recorded
+   scope reads as whole-tree (conservative). On intersection, refuse
+   with a message naming the colliding session(s) and entries and the
+   remedies: narrower `--include`, apply the open session's response,
+   or `bale unlock` an abandoned one. Includes are a deliberately
+   conservative proxy for change scope, so the gate can
+   false-positive; a pack it admits is one whose workers were never
+   shown overlapping files. A default whole-tree pack intersects
+   every open session — broad scope and concurrency are mutually
+   exclusive by design.
 6. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
    exists but doesn't list `.bale/`, bale appends `.bale/` to it with
    a single-line user confirmation in interactive mode (or auto-
@@ -794,7 +815,10 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 After the tarball is on disk and validated for structure:
 
 1. Write `.bale/sessions/<sid>/manifest.json` (the request's
-   manifest, for `bale apply` to verify the response against).
+   manifest, for `bale apply` to verify the response against) and
+   `.bale/sessions/<sid>/scope.json` (the resolved include set — the
+   session's scope, which the ADR-0007 gates read; step 5 of §7.1 and
+   step 7 of §8.1).
 2. Open the session in the registry (ADR-0006): write the
    `.bale/current_session` compatibility pointer, then the
    `.bale/sessions/<sid>/open` marker.
@@ -831,9 +855,14 @@ Pipeline steps:
    complete, every `reason` non-empty.
 4. Verify an open session exists in the registry (ADR-0006): at
    least one `.bale/sessions/<sid>/open` marker. If none, reject —
-   no session was open to receive this response. (Until ADR-0007
-   admits concurrent sessions, more than one open session is
-   unreachable and apply rejects it defensively.)
+   no session was open to receive this response. With exactly one
+   open, it is the session this apply runs against, as before. With
+   several open (ADR-0007), resolve which session the response
+   answers from the tarball manifest's own `responds_to`: bale reads
+   that one member in memory pre-pipeline, requires it to name an
+   open session, and rejects otherwise. The pipeline re-checks
+   `responds_to` against the resolved sid after its own extraction
+   (step 6).
 5. Verify the working tree is clean. Run `git status --porcelain`;
    if non-empty, reject with a message naming the dirty paths and
    pointing the user at `git stash` / `git commit` / `--force`. This
@@ -845,25 +874,38 @@ Pipeline steps:
 6. Verify `responds_to` in the manifest names an open session in the
    registry (ADR-0006 — the generalization of the old "matches the
    locked sid" comparison; with a single open session the two are
-   the same check).
-7. Verify every `changes[]` path appears in `files/` exactly when it
+   the same check, and with several it re-checks the step-4
+   resolution against the pipeline's own extraction).
+7. Cross-session scope collision (ADR-0007): verify no `changes[]`
+   path intersects **another** open session's recorded scope
+   (`sessions/<sid>/scope.json`; same path semantics as §7.1 step 5 —
+   directory entries cover subtrees, `.` covers everything, a missing
+   scope reads as whole-tree). This is the real guard against the
+   whole-file clobber: bale's overlay is whole-file replacement, so a
+   response authored against a stale snapshot would silently
+   overwrite a sibling session's work and the `--no-ff` merge would
+   land clean. With at most one session open there are no siblings
+   and the check is a no-op. Own-scope drift — a change outside this
+   session's own scope that no sibling claims — remains a policy
+   concern caught at review (§2.2, `TARBALL.md` §8), unchanged.
+8. Verify every `changes[]` path appears in `files/` exactly when it
    should (created/modified ⇒ present in `files/`; deleted ⇒ absent
    from `files/`). Verify every file in `files/` is declared in
    `changes[]`.
-8. Verify every `changes[].sha256` matches the actual sha256 of the
+9. Verify every `changes[].sha256` matches the actual sha256 of the
    corresponding `files/` entry.
-9. Verify path safety on every `changes[].path`: no `..` escape, no
-   `.git/` prefix, no `.bale/` prefix, no `.baleignore` match.
-10. Verify `claims` is a subset of `validation_will_run`: every key in
+10. Verify path safety on every `changes[].path`: no `..` escape, no
+    `.git/` prefix, no `.bale/` prefix, no `.baleignore` match.
+11. Verify `claims` is a subset of `validation_will_run`: every key in
     `claims` appears in `validation_will_run`. The reverse is not
     required — `validation_will_run` may list tautological checks
     (e.g., file syntax) that are omitted from `claims` per
     `TARBALL.md` 5.3.
-11. Verify `manifest.json`, `apply.sh`, and `validation.sh` exist in
+12. Verify `manifest.json`, `apply.sh`, and `validation.sh` exist in
     the tarball. `README.md`, `notes.md`, and `next-prompt.md` are
     optional per `TARBALL.md` 5.1 and not required to exist.
 
-If any of 1–11 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–12 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
 staging branch, no file modifications.
 
@@ -1145,9 +1187,13 @@ With ADR-0006 the lifecycle below holds **per session**: each state
 row reads against a session's registry entry (its
 `sessions/<sid>/open` marker) rather than the repo-wide sentinel, and
 the `current_session` compatibility pointer tracks the registry in
-lockstep. While at most one session is open — the case until ADR-0007
-lands — the table is observably identical to the old single-lock
-reading. The three reachable states per session:
+lockstep (naming the most recently opened session, repointed on
+close — §3.4). While at most one session is open, the table is
+observably identical to the old single-lock reading; with several
+open (admitted since ADR-0007's gate landed) each session moves
+through the same states independently, and integrations serialize
+under the §8.6 integration lock. The three reachable states per
+session:
 
 | State | Registry / pointer | Branch | How you got here | How you leave |
 |-------|---------------|--------|-------------------|----------------|
@@ -1267,20 +1313,20 @@ related.
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–11 of section 8.1) or before commit (sections
+before staging (steps 1–12 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
 |---|-------|-------|
 | 1 | Path-location refusal (cwd / repo root not a system directory) | pack pre-flight |
 | 2 | Home-directory refusal (cwd not exactly `$HOME`, unless `--force`) | pack pre-flight |
-| 3 | Session registry has no open session (ADR-0006; refusal stays unconditional until ADR-0007's disjointness gate replaces it) | pack pre-flight |
+| 3 | Scope disjointness (ADR-0007): the pack's resolved include set is disjoint from every open session's recorded scope — directory entries cover subtrees, `.` covers everything, includes as a conservative proxy for change scope | pack pre-flight |
 | 4 | Threshold caps (file count, size, depth) within configured limits | pack scope projection |
 | 5 | Tar archive integrity (extractable, no path-traversal entries) | apply pre-flight |
 | 6 | Manifest schema valid (all required keys, no unknowns) | apply pre-flight |
 | 7 | An open session exists in the registry (ADR-0006) | apply pre-flight |
 | 8 | Working tree clean (`git status --porcelain` empty), unless `--force` | apply pre-flight |
-| 9 | `responds_to` names an open session in the registry (ADR-0006; with one open session, identical to the old locked-sid match) | apply pre-flight |
+| 9 | `responds_to` names an open session in the registry (ADR-0006; with one open session, identical to the old locked-sid match — with several, it is the resolution key per §8.1 step 4) | apply pre-flight |
 | 10 | Every `changes[]` path is in `files/` per its action (or absent for deletes) | apply pre-flight |
 | 11 | Every `files/` entry is declared in `changes[]` | apply pre-flight |
 | 12 | Every `changes[].sha256` matches the actual file | apply pre-flight |
@@ -1290,6 +1336,7 @@ before staging (steps 1–11 of section 8.1) or before commit (sections
 | 16 | `manifest.json`, `apply.sh`, and `validation.sh` exist in the tarball (README/notes/next-prompt are optional) | apply pre-flight |
 | 17 | `apply.sh` exits 0 | apply stage |
 | 18 | Post-`apply.sh` staging state matches the manifest — every created/deleted/modified path matches a `changes[]` entry, no undeclared writes/deletes (this is where `apply.sh` operations are constrained: no `mv`, no untracked file changes) | apply post-stage |
+| 19 | Cross-session scope collision (ADR-0007): no `changes[]` path intersects another open session's recorded scope — the apply-time guard against the whole-file clobber (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
