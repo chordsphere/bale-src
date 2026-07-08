@@ -82,27 +82,33 @@ deleted.
   and the engagement doctrine flips to default-to-ask: the worker treats the
   architect's environment as its own, and working around missing context is
   a policy violation. File-based probe-output/ survives as the fallback.
-  Status: Proposed. Pull when touching the probe contract, probe posture
-  language in the global docs, or the future probe tool-call surface.
+  Status: Accepted (landed in the global docs and the pack help text — the
+  TARBALL.md §4 rewrite with its cross-references aligned, CLAUDE.md's
+  probe-posture lines, the previous_probe schema description, and the
+  --expects-probe help text; no behavioral CLI changes). Pull when touching
+  the probe contract, probe posture language in the global docs, or the
+  future probe tool-call surface.
 - `context/adr/0011-clarification-response-kind.md` — a third distinguished
   response kind for blocking intent gaps: `response_kind: "clarification"`
   with a manifest `questions[]` payload (question / context /
   default_assumption / why_blocked), bailout-sibling shape, apply surfaces
   the questions and retains the lock (the session stays open), records
-  preserved under `.bale/clarifications/<sid>/`. Status: Proposed. Pull when
-  touching response kinds, the apply fork, the response-manifest schema, or
-  intent-gap doctrine.
+  preserved under `.bale/clarifications/<sid>/`. Status: Accepted (landed
+  in v0.2.10 — TARBALL.md §5.9, the response-manifest schema, the
+  clarification-shape validation rules, and the bin/bale apply fork; the
+  CLAUDE.md §3 and BALE.md §8/§11 follow-ups named in the ADR remain open).
+  Pull when touching response kinds, the apply fork, the response-manifest
+  schema, or intent-gap doctrine.
 
-ADRs 0002–0005 and 0008–0011 are Proposed pending the architect's
-ratification on review; 0001, 0006, and 0007 are Accepted. Of the Proposed
-set, only 0010 and 0011 have landed — each records doctrine that shipped in
-its own session (0010 in the global docs and the pack help text; 0011 in
-TARBALL.md §5.9, the response-manifest schema, and the bin/bale apply fork).
+ADRs 0002–0005, 0008, and 0009 are Proposed pending the architect's
+ratification on review; 0001, 0006, 0007, 0010, and 0011 are Accepted.
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
 disjointness contract in v0.3.1) and were flipped to Accepted with the
-0007 landing. The rest are unimplemented: 0002–0005 precede any test code,
-0008 precedes the checkout-free-integration work, and 0009 defers the doc
-it is about.
+0007 landing; 0010 and 0011 each landed in its own session (0010 in the
+global docs and the pack help text, 0011 in v0.2.10) and were flipped to
+Accepted together on ratification. The remaining Proposed set is
+unimplemented: 0002–0005 precede any test code, 0008 precedes the
+checkout-free-integration work, and 0009 defers the doc it is about.
 
 ## Explainers
 
