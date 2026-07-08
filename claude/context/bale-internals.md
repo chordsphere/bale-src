@@ -53,8 +53,15 @@ is *for* — and stays stable as the per-section line numbers drift:
 4. **Hashing.** `sha256_file()`, `sha256_bytes()`.
 5. **Session IDs + the per-day counter.** `next_session_id()` —
    `YYYY-MM-DD-<slug>-NNN`.
-6. **Lock handling.** `.bale/current_session` is the active-session
-   sentinel; one lock per repo.
+6. **Session registry + locks.** The ADR-0006 per-sid registry of
+   open sessions (`.bale/sessions/<sid>/open` markers), the
+   `.bale/current_session` compatibility pointer the unthreaded
+   commands still resolve through, the repo-level integration lock,
+   and — since v0.3.1 — the ADR-0007 per-session scope machinery:
+   `scope.json` persistence plus the normalization/intersection
+   helpers (`resolved_scope`, `scope_paths_intersect`,
+   `scope_intersection`, `read_session_scope`) both disjointness
+   gates read.
 7. **`.gitignore` for `.bale/`.** Bale auto-appends `.bale/` to
    `.gitignore` on first `pack` if missing.
 8. **Path-safety checks.** `refuse_system_dir()`, `is_path_safe()`.
