@@ -129,8 +129,9 @@ moves bytes safely.
 - Revert staged-not-merged snaps (discard the branch).
 - Unlock abandoned sessions (clear lock, no git side effects).
 - Git-init walkthrough for first-time users in non-git directories.
-- Session lock enforcement (one open session at a time, easily
-  abortable).
+- Session-registry enforcement (per-session open markers, ADR-0006;
+  concurrent sessions admitted only with disjoint scopes, ADR-0007;
+  every session easily abortable via revert/unlock).
 
 ### 2.2 Out of scope
 
@@ -292,20 +293,23 @@ Every project sees the new docs on its next pack.
 ```
 <repo>/
   .bale/
-    current_session            # compatibility pointer: the open sid when
-                               # exactly one session is open (ADR-0006)
+    current_session            # compatibility pointer: informational;
+                               # names the most recently opened session
+                               # (ADR-0006)
     integration.lock           # present only while apply's git merge
                                # window (§8.6–§8.8) is running, or stale
-                               # after an interrupted apply (ADR-0006)
+                               # after an interrupted apply (ADR-0006;
+                               # clear with `bale unlock --integration`)
     sessions/<sid>/
       open                     # session-registry marker: present ⇔ the
                                # session is open (ADR-0006)
       manifest.json            # persisted inbound manifest
-      scope.json               # the pack's resolved include set — the
-                               # session's scope, read by the ADR-0007
-                               # disjointness gates (absent for
-                               # handoff-opened sessions, which read as
-                               # whole-tree)
+      scope.json               # the session's resolved scope, read by
+                               # the ADR-0007 disjointness gates — the
+                               # include set for a pack, the
+                               # reading-plan file set for a handoff;
+                               # absent (pre-threading sessions) reads
+                               # as whole-tree
       origin_branch            # branch user was on before staging
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
@@ -319,13 +323,16 @@ directory for `bale handoff`'s lineage chase. `current_session`
 survives as a compatibility pointer kept in lockstep with the
 registry: empty when nothing is open, otherwise naming one open
 session — the most recently opened, repointed to the oldest remaining
-open session when the named one closes. The commands not yet threaded
-through the registry (revert, retry, unlock, handoff) still resolve
-"the" session through it, which is exact while at most one session is
-open; with several open (admitted since ADR-0007's disjointness gate
-landed) they operate on whichever session the pointer names — a
-documented sharp edge until those commands grow sid disambiguation
-(deferred, per ADR-0006's consequences).
+open session when the named one closes. Every command resolves
+sessions through the registry: pack, apply, and status since the
+registry landed, and revert, retry, unlock, and handoff since the
+threading session — the three that target "the" session take an
+optional sid, resolving implicitly when exactly one session is open
+and requiring the sid (listing the candidates) when several are. The
+pointer is therefore informational only; the one operational reader
+left is `bale unlock`'s stale-pointer sweep, which clears a non-empty
+pointer with no matching open marker (the benign half-state an
+interrupted pack can leave, §9.3).
 
 `.bale/` is gitignored. The git-init walkthrough adds it to
 `.gitignore` automatically. The tool offers to add it on any first
@@ -430,10 +437,10 @@ forward-looking entry.
 |---------|---------|-------|
 | `bale pack` | Build a request tarball from the project + user-specified scope. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the branch staged for inspection. | v0.0.1 |
-| `bale retry <tarball>` | Re-attempt a HOLDed session with a corrected response tarball, preserving the lock so the new attempt lands in the same session id. | v0.0.x |
-| `bale revert <sid>` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). | v0.0.1 |
+| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). | v0.0.x |
+| `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. | v0.2 |
-| `bale unlock` | Clear an abandoned session lock. | v0.0.5 |
+| `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. | v0.0.5 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 
@@ -866,7 +873,7 @@ Pipeline steps:
 5. Verify the working tree is clean. Run `git status --porcelain`;
    if non-empty, reject with a message naming the dirty paths and
    pointing the user at `git stash` / `git commit` / `--force`. This
-   check is here — adjacent to the lock check, before any tarball-
+   check is here — adjacent to the registry check, before any tarball-
    specific work — because it concerns the user's state, not the
    tarball, and it's the cheapest failure to resolve. `--force`
    overrides (logged prominently); the per-file `cp` in section 8.6
@@ -985,8 +992,9 @@ Integrations serialize under it; with one open session it is
 uncontended. It releases at each terminal action once the git work is
 done. A crash inside the window leaves it held, and the acquire-time
 refusal message is the stale-lock story: it names the recorded holder
-(sid, pid, acquire time) and the manual clear — removing the file is
-safe whenever no apply is running.
+(sid, pid, acquire time) and the clear surface — `bale unlock
+--integration` removes the stale file through the tool (removing it by
+hand is equally safe whenever no apply is running).
 
 If validation exited 0:
 
@@ -1069,9 +1077,11 @@ on EOF.
   held state is guarded by the registry entry plus the branch
   itself. The user investigates the failure,
   then chooses: discard via `bale revert <sid>` (branch deleted,
-  lock cleared, project back to origin), or send Claude the failure
-  context and request a corrected response. The corrected-response
-  path is always: `bale revert <sid>` first, then `bale pack` a new
+  session closed in the registry, project back to origin), send a
+  corrected response through `bale retry <tarball>` in the same
+  session, or send Claude the failure
+  context and request a corrected response as a fresh session. That
+  fresh-session path is: `bale revert <sid>` first, then `bale pack` a new
   request that includes the failure context, then apply the new
   response. That new response's manifest sets `corrects: <held_sid>`
   as a history pointer — the corrected work itself runs as a fresh
@@ -1091,13 +1101,20 @@ on EOF.
 Three commands cover three distinct "undo" cases. The distinctions
 matter because they operate on different git states.
 
-### 9.1 `bale revert <sid>` — staged, not yet merged
+### 9.1 `bale revert [sid]` — staged, not yet merged
 
 For a bale branch that exists but hasn't been merged into the origin
 branch yet. The common case is a held branch after a failed
 validation when inspection is done. Passed-and-kept is no longer a
 state in the current design — passing snaps merge or revert within
 the apply walkthrough.
+
+The sid is optional (ADR-0006 threading): with exactly one session
+open it resolves implicitly, and with several open an explicit sid is
+required — the refusal lists the candidates. An explicit sid may also
+name a session the registry no longer shows open; revert's own
+metadata and branch checks below then decide whether there is
+anything to discard.
 
 Steps:
 1. Read `origin_branch` from `.bale/sessions/<sid>/origin_branch`.
@@ -1110,7 +1127,11 @@ Steps:
    the checkout.
 5. `git branch -D bale/<sid>` (force delete).
 6. Wipe `.bale/sessions/<sid>/`.
-7. Clear the lock if this sid is the current one.
+7. Close the session in the registry if it was open: remove its
+   `open` marker (already gone with step 6's wipe; the close is what
+   reconciles the compatibility pointer, repointing it to the oldest
+   remaining open session or clearing it). The close targets this
+   sid, never whichever session the pointer happens to name.
 
 The function owns the full flow — the user doesn't switch branches
 or run any preliminary command. A single `bale revert <sid>` leaves
@@ -1151,23 +1172,48 @@ toggle freely.
 **`--list`:** show recent `applied/<sid>` tags with rollback status
 (reverted, re-applied, untouched).
 
-### 9.3 `bale unlock` — abandoned session
+### 9.3 `bale unlock [sid]` — abandoned session
 
 For when the user ran `bale pack`, got distracted, and never sent or
-applied the tarball. The lock exists but there's no git side effect
-to undo.
+applied the tarball. The session is open in the registry but there's
+no git side effect to undo.
+
+The sid is optional (ADR-0006 threading): with exactly one session
+open it resolves implicitly, with several open an explicit sid is
+required (the refusal lists the candidates), and an explicit sid must
+name an open session.
 
 Steps:
-1. Read `.bale/current_session`.
-2. If empty: no-op, exit cleanly.
-3. If the sid has a corresponding `bale/<sid>` branch: refuse. This
-   means apply ran but didn't reach a terminal state. The user should
-   use `bale revert <sid>` instead.
-4. Otherwise: clear `.bale/current_session`, remove
+1. Read the session registry.
+2. If no sid was given and nothing is open: benign no-op, exit
+   cleanly — after one cleanup duty. A non-empty `current_session`
+   pointer with no matching open marker is the crash-debris
+   half-state an interrupted pack can leave (§7.6's write ordering
+   confines interruptions to exactly this benign shape); unlock
+   clears the stale pointer and says so. The named sid's session
+   directory, if any, is left alone: with no open marker it is
+   either the same inert debris or a consumed bailout's record,
+   which `bale handoff`'s lineage chase still reads.
+3. Resolve the target session (explicit sid, or the single open
+   one). If the sid has a corresponding `bale/<sid>` branch: refuse.
+   This means apply ran but didn't reach a terminal state. The user
+   should use `bale revert <sid>` instead.
+4. Otherwise: close the session in the registry (its `open` marker
+   is removed and the compatibility pointer reconciled — repointed
+   to the oldest remaining open session, or cleared), then remove
    `.bale/sessions/<sid>/`. Done. No git operations.
 
 `--force` overrides the step-3 refusal, but with a prominent warning
 and a note in the log.
+
+**`bale unlock --integration`** is the second unlock surface: it
+clears the repo-level integration lock (§8.6) left stale by an
+interrupted apply — the stale-lock story ADR-0006 called for, and
+the command the acquire-time refusal names. It takes no sid (passing
+one is an error: the integration lock is repo-level state, not a
+session), reports the recorded holder it cleared, is a benign no-op
+when the lock isn't held, and reminds the user it is only safe while
+no `bale apply` is running. It touches no session and no git state.
 
 ### 9.4 Why three commands instead of one smart command
 
@@ -1185,21 +1231,23 @@ them differently makes the cost visible.
 
 With ADR-0006 the lifecycle below holds **per session**: each state
 row reads against a session's registry entry (its
-`sessions/<sid>/open` marker) rather than the repo-wide sentinel, and
-the `current_session` compatibility pointer tracks the registry in
+`sessions/<sid>/open` marker) rather than the repo-wide sentinel. The
+`current_session` compatibility pointer tracks the registry in
 lockstep (naming the most recently opened session, repointed on
-close — §3.4). While at most one session is open, the table is
-observably identical to the old single-lock reading; with several
-open (admitted since ADR-0007's gate landed) each session moves
-through the same states independently, and integrations serialize
-under the §8.6 integration lock. The three reachable states per
-session:
+close — §3.4) but is informational only; every command resolves
+sessions through the registry itself, with revert/retry/unlock taking
+an optional sid that is required only when several sessions are open.
+While at most one session is open, the table is observably identical
+to the old single-lock reading; with several open (admitted since
+ADR-0007's gate landed) each session moves through the same states
+independently, and integrations serialize under the §8.6 integration
+lock. The three reachable states per session:
 
-| State | Registry / pointer | Branch | How you got here | How you leave |
+| State | Registry | Branch | How you got here | How you leave |
 |-------|---------------|--------|-------------------|----------------|
-| Closed | no `open` marker; pointer empty | none | initial, post-merge, post-revert, post-unlock, post-bailout | `bale pack` |
-| Open, no branch | marker present; pointer = sid | none | post-`bale pack`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock` |
-| Open, with HOLD branch | marker present; pointer = sid | `bale/<sid>` w/ uncommitted staged changes | `bale apply` hit validation failure; user chose inspect | `bale revert <sid>` or apply a corrected response (after `bale revert <sid>`) |
+| Closed | no `open` marker | none | initial, post-merge, post-revert, post-unlock, post-bailout | `bale pack` |
+| Open, no branch | marker present | none | post-`bale pack` / post-`bale handoff`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock [sid]` |
+| Open, with HOLD branch | marker present | `bale/<sid>` w/ uncommitted staged changes | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball> [--sid]` with a corrected response, or apply a corrected response (after `bale revert [sid]`) |
 
 Passed-and-kept is not a state. The apply walkthrough resolves
 PASS to either merge (→ empty + `applied/<sid>` tag) or revert
@@ -1208,7 +1256,7 @@ PASS to either merge (→ empty + `applied/<sid>` tag) or revert
 `bale unlock` is for the middle state only — it refuses on the
 third state (use `bale revert` instead). `bale rollback` operates
 on the durable record (`applied/<sid>` tags) and doesn't touch the
-lock at all.
+registry at all.
 
 ---
 
