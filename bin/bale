@@ -424,16 +424,47 @@ unchanged: with one session open there is nothing to collide with at
 apply, and the pack gate only engages where the unconditional refusal
 did — on a second pack, which is the ADRs' one deliberate delta.
 
+v0.3.2 finishes the ADR-0006 threading: revert, retry, unlock, and
+handoff resolve sessions through the registry, retiring the "operate
+on whichever session the pointer names" sharp edge v0.3.0 documented.
+The three session-targeting commands share one resolution path
+(resolve_open_session, section 6): an explicit sid wins; with exactly
+one session open it resolves implicitly, so the single-session
+zero-argument flow is byte-for-byte unchanged; with several open the
+command refuses and lists the candidates. Revert's positional sid
+became optional (nargs="?"), retry grew --sid, unlock grew an optional
+positional sid — no surface was removed. Closes are targeted:
+revert/unlock close the named session via close_session rather than
+whatever the pointer said, and handoff's already-open guard reads the
+registry (naming every open session when several are). With no
+operational reader left, the write_lock/clear_lock compatibility
+wrappers were pruned (no remaining callers); read_lock survives for
+`bale unlock`'s stale-pointer sweep, which clears the benign
+pointer-without-marker crash state without touching session dirs (a
+markerless dir may be a consumed bailout's lineage record). Handoff now
+records ADR-0007 scope for the session it opens — the resolved
+reading-plan file set, ["."] when the plan cited none — so a
+handoff-opened session no longer forces the whole-tree-conservative
+read. `bale unlock --integration` lands the deferred integration-lock
+clear surface (the stale-lock story ADR-0006 called for), sharing one
+holder read (read_integration_lock_info) and one holder phrase
+(bale_report.format_integration_holder) with the acquire-time refusal
+and status. `bale status` renders per-session scope: a `scope` row for
+the classified session, per-sid scope in the 2+ open-sessions listing
+(format_open_sessions_value grew a scopes mapping), and an additive
+`scopes` key in --json — all rendering in bale_report per the standing
+division.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
 
     bale pack <goal> --include <paths>
     bale apply <tarball>
-    bale revert <sid>
+    bale revert [sid]
     bale rollback [sid]
-    bale retry <tarball>
-    bale unlock
+    bale retry <tarball> [--sid <sid>]
+    bale unlock [sid | --integration]
     bale handoff <bailout-tarball>
     bale config init
 
@@ -445,32 +476,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  613)
-   2. Logging                                         (~line  692)
-   3. Shell / git helpers                             (~line  779)
-   4. Hashing                                         (~line  818)
-   5. Session IDs and the per-day counter             (~line  834)
-   6. Session registry + locks                        (~line  892)
-   7. .gitignore handling for the .bale/ directory    (~line 1254)
-   8. Path-safety checks                              (~line 1284)
-   9. Editor invocation                               (~line 1332)
-  10. Pack: file enumeration and filtering            (~line 1393)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1770)
-  12. Pack: slug validation                           (~line 2053)
-  13. Pack: manifest and tarball construction         (~line 2066)
-  14. Pack: wizard                                    (~line 2191)
-  15. Pack                                            (~line 2471)
-  16. Apply: helpers                                  (~line 3170)
-  17. Apply: pipeline                                 (~line 3676)
-  18. Apply                                           (~line 4181)
-  19. Revert                                          (~line 4382)
-  20. Retry                                           (~line 4575)
-  21. Unlock                                          (~line 4634)
-  22. Handoff                                         (~line 4736)
-  23. Hook invocation                                 (~line 5161)
-  24. Help and completion                             (~line 5320)
-  25. Status                                          (~line 5723)
-  26. CLI                                             (~line 6217)
+   1. Imports + constants                             (~line  646)
+   2. Logging                                         (~line  725)
+   3. Shell / git helpers                             (~line  812)
+   4. Hashing                                         (~line  851)
+   5. Session IDs and the per-day counter             (~line  867)
+   6. Session registry + locks                        (~line  925)
+   7. .gitignore handling for the .bale/ directory    (~line 1331)
+   8. Path-safety checks                              (~line 1361)
+   9. Editor invocation                               (~line 1409)
+  10. Pack: file enumeration and filtering            (~line 1470)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1847)
+  12. Pack: slug validation                           (~line 2130)
+  13. Pack: manifest and tarball construction         (~line 2143)
+  14. Pack: wizard                                    (~line 2269)
+  15. Pack                                            (~line 2549)
+  16. Apply: helpers                                  (~line 3248)
+  17. Apply: pipeline                                 (~line 3754)
+  18. Apply                                           (~line 4259)
+  19. Revert                                          (~line 4460)
+  20. Retry                                           (~line 4675)
+  21. Unlock                                          (~line 4796)
+  22. Handoff                                         (~line 4981)
+  23. Hook invocation                                 (~line 5426)
+  24. Help and completion                             (~line 5585)
+  25. Status                                          (~line 5988)
+  26. CLI                                             (~line 6500)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -597,9 +628,11 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     enable_json_mode,
     format_apply_json,
     format_dry_run_report,
+    format_integration_holder,
     format_integration_lock_value,
     format_open_sessions_value,
     format_pack_json,
+    format_scope_value,
     format_status_json,
     format_summary_block,
     format_walkthrough_summary,
@@ -613,7 +646,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -909,14 +942,15 @@ def parse_session_id(sid: str) -> tuple[str, str, str]:
 # once, so the pointer's contract is now: EMPTY when no session is open,
 # otherwise NAMING ONE OPEN SESSION — the most recently opened, with
 # close_session repointing it to the oldest remaining open session when
-# the named one closes. While at most one session is open the pointer
-# equals the registry's single entry exactly as before, so the commands
-# not yet threaded through the registry (revert, retry, unlock, handoff)
-# are unchanged for single-session workflows; with several open they
-# operate on whichever session the pointer names, a documented sharp
-# edge until those commands grow sid disambiguation (deferred, see
-# ADR-0006's consequences). ADR-0006 explicitly leaves the file's
-# survival as an implementation choice.
+# the named one closes. Since v0.3.2 every command resolves sessions
+# through the registry (revert, retry, unlock, and handoff joined
+# pack/apply/status via resolve_open_session below), so nothing
+# operational reads the pointer any more: it is informational state for
+# a human poking at .bale/, plus the one crash-debris case `bale
+# unlock` still clears (a stale non-empty pointer with no open marker,
+# the benign half-state register_session's ordering confines crashes
+# to). ADR-0006 explicitly leaves the file's survival as an
+# implementation choice; it survives as exactly that convenience.
 #
 # ADR-0007 (claude/context/adr/0007-scope-disjointness.md) adds the
 # third piece of registry state: PER-SESSION SCOPE, persisted at
@@ -929,10 +963,12 @@ def parse_session_id(sid: str) -> tuple[str, str, str]:
 # session's scope — the real guard against the whole-file clobber, since
 # bale's overlay is whole-file replacement, not a diff. Intersection is
 # over paths, with directory entries covering their subtrees and "."
-# covering everything. A session with no scope.json (e.g. one opened by
-# `bale handoff`, which is not threaded through scope recording) reads
-# as ["."]: conservative, so it refuses concurrency rather than permit a
-# clobber.
+# covering everything. Both request-building paths record scope: `bale
+# pack` records its resolved include set, and (since v0.3.2) `bale
+# handoff` records the reading-plan files it pre-packed — or ["."]
+# when the plan cited none. A session with no scope.json (opened by an
+# older bale, or hand-rolled state) reads as ["."]: conservative, so
+# it refuses concurrency rather than permit a clobber.
 #
 # The second piece of ADR-0006 state is the repo-level INTEGRATION LOCK:
 # .bale/integration.lock, held only across the short git mutation window of
@@ -940,8 +976,9 @@ def parse_session_id(sid: str) -> tuple[str, str, str]:
 # branch teardown). Integrations serialize under it; with one open session
 # it is uncontended and unobservable. A crash inside the window leaves it
 # held — the stale-lock story is the acquire-time failure message below,
-# which names the holder and how to clear it (analogous in spirit to `bale
-# unlock` for the session lock; a dedicated unlock surface is deferred).
+# which names the holder, plus the dedicated clear surface: `bale unlock
+# --integration` (v0.3.2) removes a stale lock through the tool itself,
+# the integration-lock analogue of `bale unlock` for the session lock.
 #
 # See BALE.md section 3.4 and section 9.5 (per-session lifecycle).
 
@@ -1037,49 +1074,66 @@ def session_is_open(repo: Path, sid: str) -> bool:
     return open_marker_path(repo, sid).exists()
 
 
-def read_lock(repo: Path) -> Optional[str]:
-    """Compatibility read of the .bale/current_session pointer.
+def resolve_open_session(repo: Path, requested: Optional[str], *,
+                         command: str, require_open: bool = True,
+                         none_open_hint: str = "") -> str:
+    """Resolve which open session a command targets (ADR-0006 threading).
 
-    Still the resolution path for the commands ADR-0006's implementing
-    session deliberately did not thread through the registry (revert,
-    retry, unlock, handoff). register_session/close_session keep the
-    pointer in lockstep with the registry, so while at most one session
-    is open this equals `open_sessions(repo)[0] if any else None`.
+    The one sid-resolution path for the commands that act on "the"
+    session (revert, retry, unlock): an explicit sid always wins; with
+    none given, exactly one open session resolves implicitly — the
+    single-session workflow keeps its zero-argument muscle memory —
+    and two or more open sessions fail() demanding an explicit sid,
+    listing the candidates. Zero open sessions fail() with the
+    command-specific `none_open_hint` appended (cmd_unlock never
+    reaches that arm: it pre-checks the empty registry for its benign
+    no-op-and-exit-0 contract).
+
+    `require_open` guards the explicit-sid arm. True (retry, unlock —
+    surfaces whose sid argument is new in v0.3.2) rejects a sid the
+    registry doesn't show open, listing what is. False (revert, whose
+    positional sid predates the registry) passes the sid through
+    untouched, preserving revert's pre-registry ability to act on
+    metadata-only states its own checks then vet.
+    """
+    opens = open_sessions(repo)
+    if requested is not None:
+        if require_open and not session_is_open(repo, requested):
+            listing = (f" Open session(s): {', '.join(opens)}."
+                       if opens else " No sessions are open.")
+            fail(f"session {requested} is not open; nothing to "
+                 f"{command}.{listing}")
+        return requested
+    if not opens:
+        hint = f" {none_open_hint}" if none_open_hint else ""
+        fail(f"no session is open; nothing to {command}.{hint}")
+    if len(opens) == 1:
+        return opens[0]
+    fail(
+        f"{len(opens)} sessions are open; `bale {command}` needs an "
+        f"explicit session id when more than one is open. "
+        f"Open sessions (oldest first): {', '.join(opens)}."
+    )
+
+
+def read_lock(repo: Path) -> Optional[str]:
+    """Read the .bale/current_session compatibility pointer.
+
+    No command resolves sessions through the pointer any more — every
+    lifecycle command reads the registry (resolve_open_session /
+    open_sessions) since v0.3.2. The one remaining operational reader
+    is `bale unlock`'s stale-pointer sweep, which uses this to detect
+    the crash-debris pointer-without-marker state and clear it. The
+    write_lock / clear_lock wrappers that once routed the unthreaded
+    commands through the pointer were pruned with the threading (no
+    remaining callers); register_session / close_session keep the
+    pointer in lockstep with the registry directly.
     """
     p = lock_path(repo)
     if not p.exists():
         return None
     s = p.read_text().strip()
     return s or None
-
-
-def write_lock(repo: Path, sid: str) -> None:
-    """Compatibility wrapper: opening a session IS registering it.
-
-    Kept so callers not threaded through the registry this session
-    (`bale handoff`'s new-session acquisition) open their sessions in
-    the one authoritative place — a handoff-packed session must be
-    registry-visible or the registry-based apply would reject its
-    response.
-    """
-    register_session(repo, sid)
-
-
-def clear_lock(repo: Path) -> None:
-    """Compatibility wrapper: close whichever session the pointer names.
-
-    Resolution path for the not-yet-threaded commands (revert, unlock),
-    which close "the" session without holding a sid beyond the pointer.
-    A no-op when no session is open, matching the old truncate-the-file
-    behavior.
-    """
-    sid = read_lock(repo)
-    if sid is not None:
-        close_session(repo, sid)
-    else:
-        p = lock_path(repo)
-        if p.exists():
-            p.write_text("")
 
 
 # --- Per-session scope (ADR-0007) --------------------------------------------
@@ -1163,9 +1217,9 @@ def persist_session_scope(repo: Path, sid: str, scope: list[str]) -> None:
 def read_session_scope(repo: Path, sid: str) -> list[str]:
     """Read `sid`'s recorded scope; degrade to ["."], never to permissive.
 
-    Missing scope.json (a session opened by a path that doesn't record
-    scope, e.g. `bale handoff`) and malformed scope.json both read as
-    the whole tree. The failure direction matters: a scope the gates
+    Missing scope.json (a session opened by a pre-v0.3.2 bale, whose
+    handoff path recorded no scope, or hand-rolled state) and malformed
+    scope.json both read as the whole tree. The failure direction matters: a scope the gates
     can't read must widen to "collides with everything" — refusing a
     pack or an apply the architect can rescope — rather than narrow to
     "collides with nothing", which is exactly the silent whole-file
@@ -1199,6 +1253,33 @@ def integration_lock_path(repo: Path) -> Path:
     return repo / ".bale" / "integration.lock"
 
 
+def read_integration_lock_info(repo: Path) -> Optional[dict]:
+    """Read the integration lock's holder record; None when not held.
+
+    When held, the dict always carries "path" and, when the lock file
+    parses, whichever of sid/pid/acquired_at it recorded — the same
+    degrade-to-presence contract _gather_status established: an
+    unreadable lock file still means "held", so the fact is reported
+    with just the path rather than dropped (CLAUDE.md §6: silent skips
+    are bugs). Shared by the acquire-time refusal, `bale status`'s
+    gather, and `bale unlock --integration`, so all three read one
+    parse of the record.
+    """
+    p = integration_lock_path(repo)
+    if not p.exists():
+        return None
+    info: dict = {"path": str(p)}
+    try:
+        parsed = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(parsed, dict):
+            for key in ("sid", "pid", "acquired_at"):
+                if key in parsed:
+                    info[key] = parsed[key]
+    except (OSError, json.JSONDecodeError):
+        log(f"could not parse {p}; reporting presence only")
+    return info
+
+
 def acquire_integration_lock(repo: Path, sid: str) -> None:
     """Take the repo-level integration lock for the §8.6–§8.8 git window.
 
@@ -1224,18 +1305,14 @@ def acquire_integration_lock(repo: Path, sid: str) -> None:
     try:
         fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
     except FileExistsError:
-        holder = "unknown holder"
-        try:
-            info = json.loads(p.read_text(encoding="utf-8"))
-            holder = (f"session {info.get('sid')!r}, pid {info.get('pid')}, "
-                      f"acquired {info.get('acquired_at')}")
-        except (OSError, json.JSONDecodeError):
-            pass
+        info = read_integration_lock_info(repo) or {"path": str(p)}
+        holder = format_integration_holder(info)
         fail(
             f"integration lock is held ({holder}) at {p}. Another `bale "
             f"apply` may be integrating; if none is running, the lock is "
-            f"stale from an interrupted apply — remove the file "
-            f"(`rm {p}`) and re-run."
+            f"stale from an interrupted apply — clear it with "
+            f"`bale unlock --integration` (or remove the file: `rm {p}`) "
+            f"and re-run."
         )
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(payload)
@@ -2172,11 +2249,12 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
 
-    `scope` is the pack's resolved include set (ADR-0007), recorded via
-    persist_session_scope so the disjointness gates can read it. None —
-    the `bale handoff` call site, which is not threaded through scope
-    recording — writes no scope.json; read_session_scope then reads that
-    session as whole-tree, the conservative default.
+    `scope` is the session's resolved include set (ADR-0007), recorded
+    via persist_session_scope so the disjointness gates can read it.
+    Both request-building call sites pass one since v0.3.2 — pack its
+    resolved --include set, handoff its resolved reading-plan file set.
+    None writes no scope.json, in which case read_session_scope reads
+    the session as whole-tree, the conservative default.
     """
     sessions_dir = repo / ".bale" / "sessions" / sid
     sessions_dir.mkdir(parents=True, exist_ok=True)
@@ -4387,9 +4465,11 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
 
     Resets uncommitted changes on bale/<sid> if checked out, deletes the
     branch, wipes the session dir, wipes the recorded staging directory.
-    Lock is intentionally preserved — callers manage that. cmd_revert
-    clears it after calling this helper; cmd_retry leaves it for
-    _apply_pipeline.
+    The registry close is intentionally NOT performed here — callers
+    manage it. cmd_revert closes the session (close_session) after
+    calling this helper, capturing openness beforehand since the
+    session-dir wipe below removes the open marker; cmd_retry leaves
+    the session open for _apply_pipeline to land the re-attempt in.
 
     fail()s if bale/<sid> is already merged into the recorded origin
     branch: that case means apply already PASSed, and either revert or
@@ -4516,7 +4596,15 @@ def cmd_revert(args: argparse.Namespace) -> int:
         fail("not in a git repo. `bale revert` requires the project repo.")
     refuse_system_dir(repo)
 
-    sid = args.sid
+    # ADR-0006 threading: the sid is optional. With exactly one open
+    # session it resolves implicitly (the zero-argument single-session
+    # flow); with several open an explicit sid is required. An explicit
+    # sid passes through unvetted (require_open=False) — revert's own
+    # metadata and branch checks below have always been its gate, and
+    # they still let it clean up states the registry no longer shows
+    # open.
+    sid = resolve_open_session(repo, args.sid, command="revert",
+                               require_open=False)
     sid_branch = f"bale/{sid}"
     sessions_dir = repo / ".bale" / "sessions" / sid
 
@@ -4541,15 +4629,27 @@ def cmd_revert(args: argparse.Namespace) -> int:
         fail(f"no branch {sid_branch}. If the session was already applied, "
              f"use `bale rollback {sid}` to undo a merged session (v0.2+).")
 
+    # Capture registry openness BEFORE the shared cleanup: the session
+    # dir wipe inside _discard_hold_state removes the open marker along
+    # with everything else, so checking afterwards would always read
+    # closed and leave the compatibility pointer stale.
+    was_open = session_is_open(repo, sid)
+
     # Shared cleanup (9.1 steps 2-6, plus staging cleanup).
     status = _discard_hold_state(repo, sid)
 
-    # 9.1 step 7: clear the lock if this sid is currently locked.
-    locked = read_lock(repo)
-    lock_cleared = locked == sid
+    # 9.1 step 7: close this sid in the registry if it was open. Threaded
+    # (ADR-0006): the close targets the reverted session itself, never
+    # whichever session the compatibility pointer happened to name — with
+    # one open session the two were always the same sid, so the
+    # single-session behavior is unchanged. close_session is idempotent
+    # over the already-gone marker; what this call does post-wipe is
+    # reconcile the pointer (repoint to the oldest remaining open
+    # session, or clear it).
+    lock_cleared = was_open
     if lock_cleared:
-        clear_lock(repo)
-        log(f"cleared lock (was {sid})")
+        close_session(repo, sid)
+        log(f"closed session {sid} in the registry")
 
     # End-of-run summary through the shared formatter (see the
     # "Shared end-of-run summary formatting" section) so `bale revert`
@@ -4579,7 +4679,10 @@ def cmd_revert(args: argparse.Namespace) -> int:
 # same session id. Without this command the user must `bale revert` + re-
 # `pack` + `apply`, which mints a fresh sid and forces `corrects` to
 # point across sessions even though the intent and goal didn't change.
-# Retry preserves the lock so the new apply lands in the same session.
+# Retry keeps the session open in the registry so the new apply lands in
+# the same session id. Threaded (ADR-0006, v0.3.2): the target resolves
+# through resolve_open_session — implicit with one session open, --sid
+# with several.
 
 def cmd_retry(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
@@ -4599,13 +4702,20 @@ def cmd_retry(args: argparse.Namespace) -> int:
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
-    # Retry requires an open session, same as apply. The lock identifies
-    # which session this retry is for — no separate <sid> argument.
-    locked_sid = read_lock(repo)
-    if locked_sid is None:
-        fail("no session is open; nothing to retry. `bale retry` is for "
-             "re-attempting a packed session. If you have a tarball but "
-             "no open session, run `bale pack` first and then `bale apply`.")
+    # Retry requires an open session, same as apply. Threaded (ADR-0006):
+    # the registry identifies which session this retry is for — implicit
+    # with exactly one open, --sid required with several, and an explicit
+    # --sid must name an open session (retry preserves the open session
+    # and re-runs the pipeline inside it, so a closed sid has nothing to
+    # retry into).
+    locked_sid = resolve_open_session(
+        repo, args.sid, command="retry",
+        none_open_hint=(
+            "`bale retry` is for re-attempting a packed session. If you "
+            "have a tarball but no open session, run `bale pack` first "
+            "and then `bale apply`."
+        ),
+    )
 
     # Wire logging to the same session log apply/revert use.
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
@@ -4619,11 +4729,63 @@ def cmd_retry(args: argparse.Namespace) -> int:
     if no_interact:
         log(f"non-interactive apply mode active ({no_interact_source})")
 
+    # Preserve the session's durable records across the HOLD cleanup.
+    # _discard_hold_state wipes .bale/sessions/<sid>/ wholesale — the
+    # right cleanup for the per-attempt state (origin_branch,
+    # staging_path, the prior response manifest, all re-stamped by the
+    # pipeline) but it also takes the open marker, the stamped request
+    # manifest, and the ADR-0007 scope with it. Pre-threading that gap
+    # was papered over by the compatibility pointer, which still named
+    # the sid; with resolution registry-based, a retry window whose
+    # marker is gone would read as "no session open" to every command
+    # (and to a concurrent pack's disjointness gate). So: read the two
+    # durable records first, discard, then re-persist and re-open.
+    sessions_dir = repo / ".bale" / "sessions" / locked_sid
+    stamped_manifest: Optional[dict] = None
+    mpath = sessions_dir / "manifest.json"
+    if mpath.is_file():
+        try:
+            stamped_manifest = json.loads(mpath.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            log(f"could not read stamped request manifest at {mpath} "
+                f"({e}); it will not survive the retry cleanup")
+    preserved_scope: Optional[list] = None
+    spath = scope_file_path(repo, locked_sid)
+    if spath.is_file():
+        try:
+            raw_scope = json.loads(spath.read_text(encoding="utf-8"))
+            if (isinstance(raw_scope, list) and raw_scope
+                    and all(isinstance(x, str) and x.strip()
+                            for x in raw_scope)):
+                preserved_scope = raw_scope
+            else:
+                log(f"scope.json at {spath} is malformed; not preserved "
+                    f"across the retry (the session will read as "
+                    f"whole-tree, conservative)")
+        except (OSError, json.JSONDecodeError) as e:
+            log(f"could not read {spath} ({e}); scope not preserved "
+                f"across the retry (the session will read as "
+                f"whole-tree, conservative)")
+
     # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
     # never tried apply). In that case retry behaves like apply.
     status = _discard_hold_state(repo, locked_sid)
     if not status["branch_existed"]:
         log("no prior apply attempt for this session; retry equivalent to apply")
+
+    # Re-persist the durable records and re-open the session, so the
+    # registry never shows a mid-retry session as closed. Whatever the
+    # new attempt does — PASS (close_session at merge), HOLD (stays
+    # open for inspect/revert/another retry), or a pre-flight rejection
+    # (stays open, exactly the packed/held state the user can act on) —
+    # the registry now tells the truth throughout.
+    if stamped_manifest is not None:
+        persist_pack_session(repo, locked_sid, stamped_manifest,
+                             scope=preserved_scope)
+    elif preserved_scope is not None:
+        persist_session_scope(repo, locked_sid, preserved_scope)
+    register_session(repo, locked_sid)
+    log(f"re-opened session {locked_sid} in the registry for the retry")
 
     return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir,
                            no_interact=no_interact,
@@ -4634,15 +4796,64 @@ def cmd_retry(args: argparse.Namespace) -> int:
 # 21. Unlock
 # ---------------------------------------------------------------------------
 #
-# Clear an abandoned session lock — the "held, no branch" state from
+# Clear an abandoned session — the "open, no branch" state from
 # BALE.md §9.5 (user ran `bale pack`, never applied, never reverted).
-# Cleans `.bale/current_session` and `.bale/sessions/<sid>/` without
-# touching git. Refuses on the HOLD-with-branch state (a `bale/<sid>`
-# branch exists) — that's `bale revert` territory; `--force` overrides
-# the refusal but leaves the branch in place, since deleting branches
-# is precisely what `bale revert` exists to do safely. The `--force`
-# path is logged with the FORCE: prefix so the override is auditable
-# alongside other --force events in the session log.
+# Threaded through the ADR-0006 registry (v0.3.2): the sid is optional,
+# resolving implicitly with exactly one open session and required with
+# several; the close removes the target session's open marker and
+# reconciles the compatibility pointer via close_session, then wipes
+# `.bale/sessions/<sid>/`. No git is touched. Refuses on the
+# HOLD-with-branch state (a `bale/<sid>` branch exists) — that's
+# `bale revert` territory; `--force` overrides the refusal but leaves
+# the branch in place, since deleting branches is precisely what
+# `bale revert` exists to do safely. The `--force` path is logged with
+# the FORCE: prefix so the override is auditable alongside other
+# --force events in the session log.
+#
+# `bale unlock --integration` (v0.3.2) is the second unlock surface:
+# it clears the repo-level integration lock (ADR-0006), the stale-lock
+# story the acquire-time refusal promises. A different object from a
+# session — the two forms don't combine.
+
+def _unlock_integration(repo: Path) -> int:
+    """Clear the repo-level integration lock (`bale unlock --integration`).
+
+    The lock is held only across apply's §8.6–§8.8 git window, so
+    outside a running apply any sighting is stale debris from an
+    interrupted integration. Clearing it is always safe once no apply
+    is running — the lock guards concurrent integrations, not repo
+    integrity — and that caveat is the one thing the summary insists
+    on. Benign no-op (exit 0) when the lock is not held, matching the
+    session form's nothing-to-unlock contract.
+    """
+    info = read_integration_lock_info(repo)
+    if info is None:
+        print()
+        print("  integration lock is not held; nothing to unlock.")
+        return 0
+    holder = format_integration_holder(info)
+    release_integration_lock(repo)
+    log(f"cleared integration lock (was {holder})")
+    # The [UNLOCK] <sid> headline needs a sid; an unparseable lock file
+    # yields none, and format_summary_block (correctly) refuses half a
+    # headline — so degrade to rows-only in that case rather than crash
+    # while clearing the very debris the command exists to clear.
+    headline_kwargs = (
+        {"status": "UNLOCK", "sid": info["sid"]}
+        if info.get("sid") else {}
+    )
+    print(format_summary_block(
+        [
+            ("integration lock", f"cleared (was held by {holder})"),
+        ],
+        trailer=[
+            "Only clear this while no `bale apply` is running; a live",
+            "integration whose lock vanishes will fail loudly mid-merge.",
+        ],
+        **headline_kwargs,
+    ))
+    return 0
+
 
 def cmd_unlock(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
@@ -4653,14 +4864,44 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         fail("not in a git repo. `bale unlock` requires the project repo.")
     refuse_system_dir(repo)
 
-    # BALE.md §9.3 step 1: read the lock.
-    sid = read_lock(repo)
+    # --integration clears the repo-level integration lock (ADR-0006's
+    # stale-lock story) — a different object from a session, so
+    # combining it with a sid is a contradiction, not a combination.
+    if args.integration and args.sid is not None:
+        fail("`bale unlock --integration` clears the repo-level "
+             "integration lock and takes no session id. Run the two "
+             "forms separately: `bale unlock [sid]` for a session, "
+             "`bale unlock --integration` for the integration lock.")
+    if args.integration:
+        return _unlock_integration(repo)
 
-    # BALE.md §9.3 step 2: empty lock → no-op.
-    if sid is None:
+    # BALE.md §9.3 step 1: read the registry (ADR-0006 threading).
+    opens = open_sessions(repo)
+
+    # BALE.md §9.3 step 2: nothing open and no sid asked for → benign
+    # no-op, with one cleanup duty first: a non-empty compatibility
+    # pointer with no open marker is the crash-debris half-state
+    # register_session's write ordering confines interruptions to, and
+    # clearing it is exactly the job that function's docstring promises
+    # `bale unlock` performs. The named sid's session directory — if one
+    # even exists — is deliberately left alone: with no open marker it
+    # is either the same crash debris (inert) or a consumed bailout's
+    # record, which `bale handoff`'s lineage chase still reads.
+    if args.sid is None and not opens:
+        stale = read_lock(repo)
+        if stale is not None:
+            lock_path(repo).write_text("")
+            log(f"cleared stale compatibility pointer (named {stale}; "
+                f"no session is open)")
         print()
         print("  no open session; nothing to unlock.")
         return 0
+
+    # Resolve which open session to unlock: explicit sid (which must be
+    # open — the argument is new in v0.3.2, so strictness costs no
+    # compatibility), or the single open session, or a refusal listing
+    # the candidates when several are open.
+    sid = resolve_open_session(repo, args.sid, command="unlock")
 
     # Wire logging into the session log now that we have a sid. The log
     # file at .bale/logs/<sid>.log lives outside .bale/sessions/<sid>/,
@@ -4699,10 +4940,14 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             force=True,
         )
 
-    # BALE.md §9.3 step 4: clear the lock, wipe the session dir. No git
-    # operations — that's the whole point of unlock vs revert.
-    clear_lock(repo)
-    log(f"cleared lock (was {sid})")
+    # BALE.md §9.3 step 4: close the session in the registry, wipe the
+    # session dir. No git operations — that's the whole point of unlock
+    # vs revert. Threaded (ADR-0006): close_session removes this sid's
+    # open marker and reconciles the compatibility pointer (repointing
+    # to the oldest remaining open session, or clearing it) — with one
+    # open session, observably identical to the old pointer truncate.
+    close_session(repo, sid)
+    log(f"closed session {sid} in the registry")
 
     if sessions_dir.exists():
         shutil.rmtree(sessions_dir)
@@ -4861,18 +5106,29 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
-    # Handoff acquires a new lock; refuse if one is already held.
-    # `bale apply` on a bailout already cleared the lock, so the normal
-    # workflow doesn't trip this — but a user who skipped apply and
-    # invoked handoff directly would, and the failure message points them
-    # at the right next step. Matches `bale pack`'s guard verbatim so the
-    # two locking surfaces stay symmetric.
-    existing = read_lock(repo)
-    if existing:
+    # Handoff opens a new session; refuse while any session is open.
+    # Threaded (ADR-0006): the guard reads the registry rather than the
+    # compatibility pointer, so with several sessions open it names them
+    # all instead of whichever one the pointer happened to record. The
+    # refusal itself is unchanged — `bale apply` on the bailout already
+    # closed its session, so the normal workflow doesn't trip this; a
+    # user who skipped apply and invoked handoff directly does, and the
+    # failure message points at the right next step. (Admitting a
+    # handoff beside a scope-disjoint open session — pack's ADR-0007
+    # gate — is deliberately not extended here; see this session's
+    # notes.)
+    opens = open_sessions(repo)
+    if opens:
+        if len(opens) == 1:
+            fail(
+                f"a session is already open: {opens[0]}. "
+                f"Apply its response with `bale apply <tarball>`, or run "
+                f"`bale unlock` if the session was abandoned."
+            )
         fail(
-            f"a session is already open: {existing}. "
-            f"Apply its response with `bale apply <tarball>`, or run "
-            f"`bale unlock` if the session was abandoned."
+            f"{len(opens)} sessions are already open: {', '.join(opens)}. "
+            f"Apply their responses with `bale apply <tarball>`, or run "
+            f"`bale unlock <sid>` for any that were abandoned."
         )
 
     # Same .bale/ gitignore guard `bale pack` runs. handoff writes under
@@ -5110,13 +5366,22 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             fail(f"failed to build request tarball: {e}")
         log(f"wrote {tarball_out}")
 
-        # Persist the new session and acquire its lock — same ordering
-        # `bale pack` uses (persist before lock, lock last). The lock
-        # acquired here is for the new sid; the bailout's lock was
-        # cleared by `bale apply`'s bailout branch.
-        persist_pack_session(repo, new_sid, new_manifest)
-        write_lock(repo, new_sid)
-        log(f"acquired session lock")
+        # Persist the new session — with its scope (ADR-0007, v0.3.2) —
+        # and open it in the registry, the same persist-then-open
+        # ordering `bale pack` uses. The session's scope is the resolved
+        # set of reading-plan files pre-packed above: the handoff
+        # analogue of pack's include set, since those files are what the
+        # next session is shown. A plan that cited no files resolves to
+        # ["."] (whole tree) — conservative, exactly what a missing
+        # scope.json would have read as, so pre-v0.3.2 bailout tarballs
+        # degrade to the old behavior rather than to a permissive gate.
+        # The session opened here is for the new sid; the bailout's own
+        # session was closed by `bale apply`'s bailout branch.
+        handoff_scope = resolved_scope(included_paths)
+        persist_pack_session(repo, new_sid, new_manifest,
+                             scope=handoff_scope)
+        register_session(repo, new_sid)
+        log(f"opened session {new_sid} in the registry")
 
         # post_pack hook fires for handoff too — same lifecycle position
         # as in `bale pack` (after tarball-on-disk AND lock-acquired). A
@@ -5860,6 +6125,14 @@ class StatusReport:
     # gate landed (v0.3.1) — and the json report always carries the full
     # list under its additive key.
     open_sids: list[str] = field(default_factory=list)
+    # ADR-0007 per-session scope (v0.3.2): sid → recorded scope entries,
+    # one entry per open sid, read via read_session_scope (so a missing
+    # or malformed scope.json reads as ["."], the same conservative
+    # degradation the gates use). Rendered as a `scope` row for the
+    # classified session, per-sid in the 2+ open-sessions listing, and
+    # under the json report's additive `scopes` key — the visibility an
+    # architect needs to plan the next concurrent pack's includes.
+    session_scopes: dict = field(default_factory=dict)
     # ADR-0006 integration lock: None when not held (the normal state —
     # it is held only across apply's §8.6–§8.8 git window, or left stale
     # by an interrupted apply). When held, a dict with whatever of
@@ -5991,24 +6264,21 @@ def _gather_status(cwd: Path) -> StatusReport:
     report.session_sid = lock_sid
     has_branch = _branch_exists(repo, f"bale/{lock_sid}") if lock_sid else False
 
+    # Per-session scope (ADR-0007, v0.3.2), one read per open sid.
+    # read_session_scope owns the degradation story: a missing or
+    # malformed scope.json logs and reads as ["."], so legacy sessions
+    # surface as whole-tree here exactly as the gates see them.
+    report.session_scopes = {
+        sid: read_session_scope(repo, sid) for sid in report.open_sids
+    }
+
     # Integration lock (ADR-0006): held only across apply's git window, so
     # any sighting here is either a concurrent apply mid-merge or a stale
-    # lock from an interrupted one — both worth a row.
-    int_lock = integration_lock_path(repo)
-    if int_lock.exists():
-        info: dict = {"path": str(int_lock)}
-        try:
-            parsed = json.loads(int_lock.read_text(encoding="utf-8"))
-            if isinstance(parsed, dict):
-                for key in ("sid", "pid", "acquired_at"):
-                    if key in parsed:
-                        info[key] = parsed[key]
-        except (OSError, json.JSONDecodeError):
-            # An unreadable lock file still means "held"; report the fact
-            # with just the path rather than dropping it (CLAUDE.md §6:
-            # silent skips are bugs).
-            log(f"status: could not parse {int_lock}; reporting presence only")
-        report.integration_lock = info
+    # lock from an interrupted one — both worth a row. The read (and its
+    # report-presence-on-unparseable degradation) lives in
+    # read_integration_lock_info, shared with the acquire-time refusal
+    # and `bale unlock --integration`.
+    report.integration_lock = read_integration_lock_info(repo)
 
     outbox_dir = repo / ".bale" / "outbox"
     if outbox_dir.is_dir():
@@ -6082,14 +6352,18 @@ def _render_status(report: StatusReport) -> str:
         rows.append(("session", report.session_desc or "idle — no open session"))
         if len(report.open_sids) > 1:
             # ADR-0006: the registry can hold several open sessions; list
-            # them all. Reachable since ADR-0007's pack gate landed — with
-            # 0 or 1 open the single "session" row above IS the list,
-            # keeping the human block byte-identical to the pre-registry
-            # shape. Value rendering lives in bale_report
-            # (format_open_sessions_value) with the other status surfaces.
+            # them all, each with its recorded scope (ADR-0007, v0.3.2) —
+            # the fact that decides what a next concurrent pack may
+            # include. With 0 or 1 open the single "session" row above IS
+            # the list; the classified session's own scope renders as the
+            # dedicated `scope` row below. Value rendering lives in
+            # bale_report (format_open_sessions_value) with the other
+            # status surfaces.
             rows.append(
                 ("open sessions",
-                 format_open_sessions_value(report.open_sids)))
+                 format_open_sessions_value(
+                     report.open_sids,
+                     scopes=report.session_scopes)))
         if report.integration_lock is not None:
             # Held only across apply's git window (or stale from an
             # interrupted apply), so this row is absent from every normal
@@ -6101,6 +6375,15 @@ def _render_status(report: StatusReport) -> str:
             rows.append(("goal", report.session_goal))
         if report.session_expects_probe:
             rows.append(("expects probe", report.session_expects_probe))
+        if report.session_sid is not None:
+            # Per-session scope (ADR-0007, v0.3.2) for the classified
+            # session — with several open, the oldest, matching the
+            # session/goal rows above; the per-sid listing carries the
+            # rest. Rendering lives in bale_report (format_scope_value).
+            rows.append(
+                ("scope",
+                 format_scope_value(
+                     report.session_scopes.get(report.session_sid, ["."]))))
 
         if report.outbox_tarballs:
             # Newest first (session IDs are date-prefixed, so a reverse sort is
@@ -6435,17 +6718,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Re-attempt a HOLDed session with a new response tarball "
              "(same session id, no repack).",
         description=(
-            "Discard the HOLDed apply state for the currently locked "
-            "session — reset the bale/<sid> branch, wipe the session's "
-            "staging — and run the apply pipeline against a new response "
-            "tarball, preserving the lock so the new attempt lands in "
-            "the same session id. The new tarball's manifest.responds_to "
-            "must match the locked sid (same as `bale apply`). The tarball "
-            "argument is resolved against apply.search_paths in bale.toml "
-            "the same way `bale apply` does."
+            "Discard the HOLDed apply state for an open session — reset "
+            "the bale/<sid> branch, wipe the session's staging — and run "
+            "the apply pipeline against a new response tarball, keeping "
+            "the session open so the new attempt lands in the same "
+            "session id. With exactly one session open it is the target; "
+            "with several open, --sid picks which (ADR-0006). The new "
+            "tarball's manifest.responds_to must match the target session "
+            "(same as `bale apply`). The tarball argument is resolved "
+            "against apply.search_paths in bale.toml the same way `bale "
+            "apply` does."
         ),
     )
     p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
+    p_retry.add_argument(
+        "--sid", default=None,
+        help="Session id to retry. Optional with exactly one session "
+             "open (it resolves implicitly); required when several are "
+             "open. Must name an open session.",
+    )
     p_retry.add_argument(
         "--staging-dir", default=None,
         help="Where to stage the apply (default: <repo>/.bale/staging). "
@@ -6465,8 +6756,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_revert = sub.add_parser(
         "revert",
         help="Discard a held bale branch.",
+        description=(
+            "Discard a held bale branch and close its session. The sid "
+            "is optional with exactly one session open (it resolves "
+            "implicitly, ADR-0006) and required when several are open; "
+            "an explicit sid may also name an already-closed session "
+            "whose branch or metadata needs cleaning up."
+        ),
     )
-    p_revert.add_argument("sid", help="Session ID to revert.")
+    p_revert.add_argument(
+        "sid", nargs="?", default=None,
+        help="Session ID to revert. Optional with exactly one session "
+             "open; required when several are open.",
+    )
     p_revert.set_defaults(func=cmd_revert)
 
     # rollback — git revert an applied (merged) session. BALE.md §9.2.
@@ -6525,24 +6827,44 @@ def build_parser() -> argparse.ArgumentParser:
     # unlock
     p_unlock = sub.add_parser(
         "unlock",
-        help="Clear an abandoned session lock (no git side effects).",
+        help="Clear an abandoned session (no git side effects), or "
+             "--integration for a stale integration lock.",
         description=(
-            "Clear the session lock for a `bale pack` that was never "
-            "applied. Removes .bale/current_session and the matching "
-            ".bale/sessions/<sid>/ directory; performs no git operations. "
-            "Refuses if a bale/<sid> branch exists — that means `bale "
-            "apply` ran far enough to create the branch but didn't reach "
-            "a terminal state, and the right command for that state is "
-            "`bale revert <sid>`. --force overrides the refusal but "
-            "leaves the orphan branch in place; delete it with "
-            "`git branch -D bale/<sid>` if you no longer want it."
+            "Close an abandoned session — a `bale pack` that was never "
+            "applied. Removes the session's registry entry (its open "
+            "marker, reconciling the .bale/current_session pointer) and "
+            "the matching .bale/sessions/<sid>/ directory; performs no "
+            "git operations. The sid is optional with exactly one "
+            "session open and required when several are open "
+            "(ADR-0006). Refuses if a bale/<sid> branch exists — that "
+            "means `bale apply` ran far enough to create the branch but "
+            "didn't reach a terminal state, and the right command for "
+            "that state is `bale revert <sid>`. --force overrides the "
+            "refusal but leaves the orphan branch in place; delete it "
+            "with `git branch -D bale/<sid>` if you no longer want it. "
+            "--integration instead clears the repo-level integration "
+            "lock left stale by an interrupted apply (ADR-0006); it "
+            "takes no sid and touches no session."
         ),
     )
     p_unlock.add_argument(
+        "sid", nargs="?", default=None,
+        help="Session ID to unlock. Optional with exactly one session "
+             "open; required when several are open. Must name an open "
+             "session.",
+    )
+    p_unlock.add_argument(
         "--force", action="store_true",
-        help="Clear the lock even if a bale/<sid> branch exists. The "
+        help="Clear the session even if a bale/<sid> branch exists. The "
              "branch is left in place; you'll need to delete it manually. "
              "The override is logged with the FORCE: prefix.",
+    )
+    p_unlock.add_argument(
+        "--integration", action="store_true",
+        help="Clear the repo-level integration lock "
+             "(.bale/integration.lock) instead of a session — the "
+             "stale-lock recovery for an interrupted apply. Only safe "
+             "while no `bale apply` is running. Takes no sid.",
     )
     p_unlock.set_defaults(func=cmd_unlock)
 
@@ -6559,8 +6881,8 @@ def build_parser() -> argparse.ArgumentParser:
             "TARBALL.md §5.6.3) and build a new request tarball that "
             "ships its handoff.md as the sole context entry, inheriting "
             "the original session's goal verbatim. The new session id "
-            "keeps the slug and bumps the date/counter. Refuses if a "
-            "session is already locked (bale pack/apply must be quiet "
+            "keeps the slug and bumps the date/counter. Refuses while "
+            "any session is open in the registry (apply or unlock them "
             "first). Warns — but proceeds — if the bailout's predecessor "
             "was also a bailout; chained handoffs are a smell, and the "
             "warning is informational only (no flag suppresses or escalates "

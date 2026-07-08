@@ -16,7 +16,13 @@ status sibling (`format_status_json`, added in v0.2.9 for `bale status
 with the ADR-0006 session registry — the two status human-row value
 formatters (`format_open_sessions_value`, `format_integration_lock_value`),
 placed here because status rendering, human rows and json keys alike, is
-this module's surface. The human-facing
+this module's surface. v0.3.2 (the ADR-0006 command threading) adds two
+more to that status family: `format_scope_value`, rendering one session's
+recorded ADR-0007 scope (used for status's `scope` row, per-sid in
+`format_open_sessions_value`'s listing — which grew an optional `scopes`
+mapping — and reflected in `format_status_json`'s additive `scopes` key),
+and `format_integration_holder`, the one holder phrase the acquire-time
+refusal, the status row, and `bale unlock --integration` all share. The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -835,6 +841,14 @@ def format_status_json(report) -> str:
                one session open (guaranteed until ADR-0007) this list is
                [] or [sid]. A machine consumer of the multi-session
                world reads this key.
+      scopes   (additive, v0.3.2 — ADR-0007) null outside a git
+               repository; else an object mapping each open sid to its
+               recorded scope entries (normalized repo-relative paths,
+               ["."] for whole-tree — including sessions with no
+               readable scope.json, which degrade conservatively
+               exactly as the disjointness gates read them). Keys match
+               the `sessions` list; both are empty when nothing is
+               open.
       integration_lock  (additive, v0.3.0 — ADR-0006) null when the
                repo-level integration lock is not held (the normal
                state; it is held only across apply's §8.6–§8.8 git
@@ -869,6 +883,7 @@ def format_status_json(report) -> str:
     outbox = None
     applied_obj = None
     sessions = None
+    scopes = None
     integration_lock_obj = None
     if report.repo_root is not None:
         repo_obj = {
@@ -894,6 +909,10 @@ def format_status_json(report) -> str:
             "latest": report.applied_latest,
         }
         sessions = list(report.open_sids)
+        scopes = {
+            str(sid): list(entries)
+            for sid, entries in report.session_scopes.items()
+        }
         if report.integration_lock is not None:
             integration_lock_obj = {
                 "sid": report.integration_lock.get("sid"),
@@ -911,6 +930,7 @@ def format_status_json(report) -> str:
         "outbox": outbox,
         "applied": applied_obj,
         "sessions": sessions,
+        "scopes": scopes,
         "integration_lock": integration_lock_obj,
         "config": {
             "project": (str(report.project_config)
@@ -928,7 +948,26 @@ def format_status_json(report) -> str:
 
 # --- status: session-registry human-value formatters (v0.3.0, ADR-0006) ---
 
-def format_open_sessions_value(open_sids: list) -> str:
+def format_scope_value(scope: list) -> str:
+    """Render one session's recorded scope (ADR-0007) as a row value.
+
+    Scope entries are the session's resolved include set as
+    read_session_scope returns them — normalized repo-relative paths,
+    or ["."] for a whole-tree session (a default pack, a handoff whose
+    reading plan cited no files, or a session with no recorded scope at
+    all). The whole-tree case is spelled out rather than left as a bare
+    dot, since "." reads as noise to anyone not versed in the gate's
+    normal form; everything else is the entries verbatim, comma-joined.
+    Used for the single classified session's `scope` row and per-sid in
+    format_open_sessions_value's listing.
+    """
+    entries = [str(s) for s in scope] if scope else ["."]
+    if entries == ["."]:
+        return ". (whole tree)"
+    return ", ".join(entries)
+
+
+def format_open_sessions_value(open_sids: list, scopes: dict = None) -> str:
     """Render the human `open sessions` row value for `bale status`.
 
     Lives here rather than in bin/bale's _render_status because status
@@ -936,7 +975,11 @@ def format_open_sessions_value(open_sids: list) -> str:
     human side — is this module's surface. One sid per line, oldest-first
     as gathered from the registry, with a count headline; the multi-line
     value wraps under its label via format_summary_block, the same shape
-    the outbox listing uses. The caller only emits this row for 2+ open
+    the outbox listing uses. When `scopes` (sid → recorded scope entries,
+    ADR-0007 — v0.3.2) is given, each line carries the session's scope
+    via format_scope_value, the fact that decides what a next concurrent
+    pack may include; a sid absent from the mapping renders without one
+    rather than guess. The caller only emits this row for 2+ open
     sessions (with 0 or 1 the existing single-session rows already carry
     the fact), so no singular/empty phrasing is needed — but render those
     shapes sensibly anyway rather than assume the caller.
@@ -945,7 +988,33 @@ def format_open_sessions_value(open_sids: list) -> str:
     if n == 0:
         return "none"
     noun = "session" if n == 1 else "sessions"
-    return f"{n} open {noun}:\n" + "\n".join(str(s) for s in open_sids)
+    lines = []
+    for s in open_sids:
+        if scopes is not None and s in scopes:
+            lines.append(f"{s} — scope: {format_scope_value(scopes[s])}")
+        else:
+            lines.append(str(s))
+    return f"{n} open {noun}:\n" + "\n".join(lines)
+
+
+def format_integration_holder(info: dict) -> str:
+    """Render the integration lock's holder record as one phrase.
+
+    `info` is the read_integration_lock_info dict: "path" always, plus
+    whichever of sid/pid/acquired_at the lock file yielded. Shared by
+    the acquire-time refusal in bin/bale, the status row below, and
+    `bale unlock --integration`'s summary, so all three name a holder
+    identically.
+    """
+    held_by = []
+    if info.get("sid"):
+        held_by.append(f"session {info['sid']}")
+    if info.get("pid") is not None:
+        held_by.append(f"pid {info['pid']}")
+    if info.get("acquired_at"):
+        held_by.append(f"since {info['acquired_at']}")
+    return (", ".join(held_by) if held_by
+            else "holder unknown (unparseable lock file)")
 
 
 def format_integration_lock_value(info: dict) -> str:
@@ -955,16 +1024,11 @@ def format_integration_lock_value(info: dict) -> str:
     sid/pid/acquired_at when the lock file parsed. The lock is held only
     across apply's §8.6–§8.8 git window, so a sighting outside a running
     apply is stale — the rendered value says how to clear it, matching
-    the acquire-time failure message in bin/bale.
+    the acquire-time failure message in bin/bale. Holder phrasing is
+    format_integration_holder, the shared form.
     """
-    held_by = []
-    if info.get("sid"):
-        held_by.append(f"session {info['sid']}")
-    if info.get("pid") is not None:
-        held_by.append(f"pid {info['pid']}")
-    if info.get("acquired_at"):
-        held_by.append(f"since {info['acquired_at']}")
-    holder = ", ".join(held_by) if held_by else "holder unknown (unparseable lock file)"
+    holder = format_integration_holder(info)
     path = info.get("path", ".bale/integration.lock")
     return (f"HELD — {holder}. If no `bale apply` is running, the lock is "
-            f"stale; clear it with `rm {path}`.")
+            f"stale; clear it with `bale unlock --integration` "
+            f"(or `rm {path}`).")
