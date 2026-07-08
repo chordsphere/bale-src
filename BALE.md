@@ -487,8 +487,9 @@ The following flags apply across multiple commands:
   `apply.hook_auto_accept` — unset/false takes the prompt's decline
   default — and every bypassed prompt logs the decision taken and its
   source to the terminal and the session log.)
-- `--staging-dir <path>` — override the default `./staging/`
-  location.
+- `--staging-dir <path>` — override the default
+  `<repo>/.bale/staging/<sid>/` location (section 8.3). The override
+  is used verbatim — no `<sid>` suffix — and refused if it exists.
 - `--clean` — remove the staging directory after a successful apply.
   Default keeps it for inspection.
 - `--max-files <N>` / `--max-size <bytes>` / `--max-depth <N>` —
@@ -929,8 +930,25 @@ staging branch, no file modifications.
 
 ### 8.3 Stage
 
-1. Create staging directory (default `./staging/`, overridable with
-   `--staging-dir`). If it exists, fail loudly — don't overwrite.
+1. Resolve the staging directory. The default is per-session:
+   `<repo>/.bale/staging/<sid>/`, where `<sid>` is the open session
+   the response answers (the `responds_to` resolution of §8.1). Stale
+   cleanup is per-session too: under the staging root
+   (`.bale/staging/`), the sid's own directory is removed if present
+   (rebuilding it is correct on a retry of an errored stage and on a
+   HOLD the user is moving past — re-invoking apply is the signal),
+   and any entry no *open* session owns is removed with a log line
+   (closed sessions' preserved-for-inspection leftovers, and a bare
+   pre-per-session tree at the root itself, which no session under
+   this layout can own). A sibling open session's staging directory
+   is never touched — with the shared pre-per-session default, a
+   second session's apply would have removed the first session's
+   live HOLD staging as "stale".
+   `--staging-dir <path>` overrides: the path is used verbatim (no
+   `<sid>` suffix), resolves relative to cwd, and if it exists the
+   apply fails loudly — bale never removes a user-specified
+   directory. Two open sessions both overriding to the same
+   directory is therefore the user's collision to own.
 2. `cp -r <project>/. staging/` (full project state minus `.bale/`).
 3. `cp -r response-NNN/files/. staging/` (overlay the changes).
 4. Run `bash apply.sh` with `cwd=staging/`. This handles deletes and
@@ -1126,7 +1144,11 @@ Steps:
 4. If currently on `bale/<sid>`, `git checkout <origin_branch>`. Log
    the checkout.
 5. `git branch -D bale/<sid>` (force delete).
-6. Wipe `.bale/sessions/<sid>/`.
+6. Wipe the session's recorded staging directory (the `staging_path`
+   the apply stamped under `.bale/sessions/<sid>/` — since the
+   per-session default, `.bale/staging/<sid>/`, or the `--staging-dir`
+   override if one was used; only this sid's directory, never a
+   sibling session's), then wipe `.bale/sessions/<sid>/` itself.
 7. Close the session in the registry if it was open: remove its
    `open` marker (already gone with step 6's wipe; the close is what
    reconciles the compatibility pointer, repointing it to the oldest

@@ -814,16 +814,35 @@ def format_status_json(report) -> str:
                machine consumer dispatches on the state enum, and the
                prose wording must stay free to change without breaking
                anyone.
-      staging  null outside a git repository; else an object:
-                 present  whether the default staging directory exists
-                          (an inspectable staging left in place by a
-                          previous apply, or mid-apply state)
-                 path     the default staging location,
-                          <repo>/.bale/staging. A --staging-dir override
-                          on a past apply is invisible to status, so
-                          this reports the default — which is also the
-                          location bale apply itself resolves absent the
-                          flag.
+      staging  null outside a git repository; else an object. Since
+               v0.3.3 the default staging layout is per-session
+               (<repo>/.bale/staging/<sid>), and this object reports
+               the layout: the two v0.2.9 keys survive with their
+               literal values unchanged — `path` is the same
+               <repo>/.bale/staging string as before, now glossed as
+               the staging *root*, and `present` is the same
+               directory-exists computation on it — and two additive
+               keys carry the per-session state. A --staging-dir
+               override on a past apply is invisible to status, so
+               this reports the default layout — which is also the
+               layout bale apply itself resolves absent the flag:
+                 present   whether the staging root exists
+                 path      the staging root, <repo>/.bale/staging
+                 sessions  object mapping each open sid to
+                             present  whether that session's staging
+                                      directory exists (its HOLD under
+                                      inspection, or an apply
+                                      mid-flight)
+                             path     <repo>/.bale/staging/<sid>
+                           Keys match the `sessions` list; empty when
+                           nothing is open.
+                 stale     sorted top-level entries under the root no
+                           open session owns — closed sessions'
+                           preserved-for-inspection leftovers and bare
+                           pre-v0.3.3 trees; exactly what the next
+                           default-path apply will remove (the
+                           "inspectable staging left in place" fact
+                           the v0.2.9 `present` key used to carry).
       outbox   null outside a git repository; else the full sorted list
                of request tarball names in .bale/outbox/. Unlike the
                human block it is not capped: STATUS_OUTBOX_LIST_CAP is
@@ -902,6 +921,19 @@ def format_status_json(report) -> str:
             "present": report.staging_present,
             "path": (str(report.staging_path)
                      if report.staging_path is not None else None),
+            # Additive (v0.3.3, per-session staging): per open sid, plus
+            # the root entries no open session owns. The v0.2.9 keys
+            # above keep their literal values (path is now the root —
+            # the same <repo>/.bale/staging string as before).
+            "sessions": {
+                str(sid): {
+                    "present": bool(info.get("present")),
+                    "path": (str(info.get("path"))
+                             if info.get("path") is not None else None),
+                }
+                for sid, info in report.staging_sessions.items()
+            },
+            "stale": list(report.staging_stale),
         }
         outbox = list(report.outbox_tarballs)
         applied_obj = {

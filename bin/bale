@@ -455,6 +455,34 @@ the classified session, per-sid scope in the 2+ open-sessions listing
 `scopes` key in --json — all rendering in bale_report per the standing
 division.
 
+v0.3.3 moves the default apply staging path to a per-session
+directory: `<repo>/.bale/staging/<sid>`, where `<sid>` is the open
+session the response answers (the same resolution apply already
+performs). The shared default was the last surface concurrent open
+sessions (ADR-0006/0007) collided on — the old "pre-existing default
+staging is unambiguously stale" reasoning was sound under
+single-session semantics and false under multi-open, where session
+B's apply would remove session A's live HOLD staging. Stale cleanup
+becomes per-session: at stage time, apply rebuilds only its own sid's
+directory and removes staging-root entries no open session owns
+(closed sessions' preserved-for-inspection leftovers — the same
+things the next apply removed before — plus bare pre-v0.3.3 trees at
+`.bale/staging` itself, whose contents no session under the new
+layout can own); a sibling open session's directory is never touched.
+`--staging-dir` semantics are unchanged, including refuse-if-exists;
+the revert path already wipes only the staging path stamped under
+`.bale/sessions/<sid>/`, which now names the per-sid directory.
+`bale status`'s gather reports per-session staging state
+additively: the json `staging` object keeps `path` (now the staging
+*root* — same literal value as before) and `present` (root exists —
+same computation), and gains `sessions` (per open sid: path +
+present) and `stale` (root entries no open session owns).
+Human-mode status output is byte-identical — the staging fields
+remain json-only — and all rendering stays in bale_report per the
+standing division; this file gained the path helpers
+(default_staging_root / default_staging_dir / clean_staging_root,
+section 16), the pipeline rewiring, and the gathering.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -476,32 +504,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  646)
-   2. Logging                                         (~line  725)
-   3. Shell / git helpers                             (~line  812)
-   4. Hashing                                         (~line  851)
-   5. Session IDs and the per-day counter             (~line  867)
-   6. Session registry + locks                        (~line  925)
-   7. .gitignore handling for the .bale/ directory    (~line 1331)
-   8. Path-safety checks                              (~line 1361)
-   9. Editor invocation                               (~line 1409)
-  10. Pack: file enumeration and filtering            (~line 1470)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1847)
-  12. Pack: slug validation                           (~line 2130)
-  13. Pack: manifest and tarball construction         (~line 2143)
-  14. Pack: wizard                                    (~line 2269)
-  15. Pack                                            (~line 2549)
-  16. Apply: helpers                                  (~line 3248)
-  17. Apply: pipeline                                 (~line 3754)
-  18. Apply                                           (~line 4259)
-  19. Revert                                          (~line 4460)
-  20. Retry                                           (~line 4675)
-  21. Unlock                                          (~line 4796)
-  22. Handoff                                         (~line 4981)
-  23. Hook invocation                                 (~line 5426)
-  24. Help and completion                             (~line 5585)
-  25. Status                                          (~line 5988)
-  26. CLI                                             (~line 6500)
+   1. Imports + constants                             (~line  674)
+   2. Logging                                         (~line  753)
+   3. Shell / git helpers                             (~line  840)
+   4. Hashing                                         (~line  879)
+   5. Session IDs and the per-day counter             (~line  895)
+   6. Session registry + locks                        (~line  953)
+   7. .gitignore handling for the .bale/ directory    (~line 1359)
+   8. Path-safety checks                              (~line 1389)
+   9. Editor invocation                               (~line 1437)
+  10. Pack: file enumeration and filtering            (~line 1498)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1875)
+  12. Pack: slug validation                           (~line 2158)
+  13. Pack: manifest and tarball construction         (~line 2171)
+  14. Pack: wizard                                    (~line 2297)
+  15. Pack                                            (~line 2577)
+  16. Apply: helpers                                  (~line 3276)
+  17. Apply: pipeline                                 (~line 3870)
+  18. Apply                                           (~line 4376)
+  19. Revert                                          (~line 4577)
+  20. Retry                                           (~line 4792)
+  21. Unlock                                          (~line 4913)
+  22. Handoff                                         (~line 5098)
+  23. Hook invocation                                 (~line 5543)
+  24. Help and completion                             (~line 5702)
+  25. Status                                          (~line 6105)
+  26. CLI                                             (~line 6643)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -646,7 +674,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3750,6 +3778,94 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     return 0
 
 
+# --- Per-session default staging (v0.3.3) ------------------------------------
+#
+# The default apply staging path is per-session: <repo>/.bale/staging/<sid>,
+# with .bale/staging itself demoted to a parent ("the staging root"). The
+# shared default was the last surface concurrent open sessions (ADR-0006 /
+# ADR-0007) collided on: with sessions A and B both open, B's apply removed
+# A's live HOLD staging as "stale". These three helpers are the single
+# source for the layout — the apply pipeline (BALE.md §8.3) and the status
+# gather both resolve through them, so the path status reports is by
+# construction the path apply uses.
+
+def default_staging_root(repo: Path) -> Path:
+    """The parent directory per-session staging lives under (BALE.md §8.3).
+
+    Pre-v0.3.3 this exact path WAS the staging directory; a bare project
+    tree found here now is a leftover of that layout, and
+    clean_staging_root removes it (no session under the per-sid layout
+    can own it).
+    """
+    return repo / ".bale" / "staging"
+
+
+def default_staging_dir(repo: Path, sid: str) -> Path:
+    """The default staging directory for one session (BALE.md §8.3).
+
+    Only the default: a --staging-dir override bypasses the root layout
+    entirely and keeps its own refuse-if-exists contract.
+    """
+    return default_staging_root(repo) / sid
+
+
+def clean_staging_root(repo: Path, root: Path, sid: str) -> None:
+    """Remove the staging-root entries the apply for `sid` may clear.
+
+    Called by the apply pipeline at the 8.3 stage step, default path
+    only, before stage_response builds `root/<sid>` fresh. The rule is
+    ownership by *open* sessions (the ADR-0006 registry):
+
+      - an entry that is a directory named for an open session OTHER
+        than `sid` is a live sibling's staging (its HOLD under
+        inspection, or its apply mid-flight) — never touched. This is
+        the clobber window the per-session layout closes.
+      - `sid`'s own directory is removed: rebuilding this session's
+        staging is correct on a retry of an errored stage and on a HOLD
+        the user is moving past (re-invoking apply is the signal) —
+        the surviving two thirds of the old shared-path trichotomy.
+      - everything else is stale and removed with a log line: closed
+        sessions' preserved-for-inspection leftovers (exactly what the
+        next apply removed under the shared path — merge/revert keep
+        the durable record in git), and any bare pre-v0.3.3 tree at the
+        root itself, whose top-level entries are project files and
+        directories no open session's name matches.
+
+    Failure to remove is fatal (fail()), matching the old stale-staging
+    removal: proceeding would hand stage_response a dirty tree its
+    exists()-precondition rejects anyway. A missing root is a no-op; a
+    root that exists as a non-directory is itself stale junk and is
+    removed.
+    """
+    if not root.exists():
+        return
+    if not root.is_dir():
+        log(f"removing non-directory at staging root {root}")
+        try:
+            root.unlink()
+        except OSError as e:
+            fail(f"could not remove stale staging entry {root}: {e}")
+        return
+    keep = set(open_sessions(repo)) - {sid}
+    removed: list[str] = []
+    for entry in sorted(root.iterdir(), key=lambda p: p.name):
+        if entry.is_dir() and not entry.is_symlink() and entry.name in keep:
+            continue  # a sibling open session's staging — never touched
+        try:
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+        except OSError as e:
+            fail(f"could not remove stale staging entry {entry}: {e}")
+        removed.append(entry.name)
+    if removed:
+        shown = ", ".join(removed[:5])
+        if len(removed) > 5:
+            shown += f", ... ({len(removed)} entries total)"
+        log(f"cleaned staging root {root}: removed stale {shown}")
+
+
 # ---------------------------------------------------------------------------
 # 17. Apply: pipeline
 # ---------------------------------------------------------------------------
@@ -4002,31 +4118,32 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
 
-        # 8.3 stage. Default is <repo>/.bale/staging so the tree lives
-        # inside the already-gitignored .bale/ directory; --staging-dir
-        # overrides and resolves relative to cwd as before.
+        # 8.3 stage. Default is <repo>/.bale/staging/<sid> — per-session
+        # since v0.3.3 — so the tree lives inside the already-gitignored
+        # .bale/ directory and concurrent open sessions (ADR-0006/0007)
+        # cannot collide on it. The old shared default's "pre-existing
+        # staging is unambiguously stale" trichotomy was sound under
+        # single-session semantics and false under multi-open: with A and
+        # B both open, A can sit in HOLD (staging present, awaiting
+        # inspection) while B's apply runs, and B would have removed A's
+        # live staging. clean_staging_root keeps the two per-sid legs of
+        # that reasoning (retry of an errored stage; a HOLD this session
+        # is moving past) and scopes them to `locked_sid`'s own directory,
+        # removes root entries no open session owns (closed sessions'
+        # preserved-for-inspection leftovers, bare pre-v0.3.3 trees), and
+        # never touches a sibling open session's directory. The `bale
+        # revert` path has its own cleanup, driven by the staging_path
+        # stamped below. A user-specified --staging-dir, by contrast, is
+        # the user's directory, taken verbatim (no <sid> suffix), resolved
+        # relative to cwd, and refused rather than removed if it exists —
+        # unchanged semantics; two open sessions both overriding to the
+        # same directory is the user's collision to own (BALE.md §8.3).
         if staging_override is None:
-            staging = repo / ".bale" / "staging"
+            staging = default_staging_dir(repo, locked_sid)
+            clean_staging_root(repo, default_staging_root(repo), locked_sid)
         else:
             staging = Path(staging_override).resolve()
-        if staging.exists():
-            # Default-path staging from a prior session is unambiguously stale
-            # at this point: either the previous session PASSed (its session
-            # dir has already been removed by the PASS path below, with the
-            # merge commit plus applied/<sid> tag as the durable record), or this is a
-            # retry of an apply that errored mid-stage (rebuilding identical
-            # staging from inputs is correct), or it's a HOLD the user has
-            # decided to move past (re-invoking apply is the signal). The
-            # `bale revert` path has its own staging cleanup. A user-specified
-            # --staging-dir, by contrast, is the user's directory and we
-            # refuse rather than nuke it.
-            if staging_override is None:
-                log(f"removing stale staging at {staging}")
-                try:
-                    shutil.rmtree(staging)
-                except OSError as e:
-                    fail(f"could not remove stale staging at {staging}: {e}")
-            else:
+            if staging.exists():
                 fail(f"staging directory already exists: {staging}. "
                      f"Remove it or pass a different --staging-dir.")
         # Record staging path under the session dir so `bale revert` can
@@ -6108,16 +6225,26 @@ class StatusReport:
     search_path_count: int = 0
     config_summary_failed: bool = False
     baleignore: bool = False
-    # Default staging directory state (v0.2.9): whether <repo>/.bale/staging
-    # exists, and that path. Gathered here so all of status's I/O stays in
-    # _gather_status (the ADR 0003 seam), but consumed only by the json
-    # renderer (bale_report.format_status_json) — _render_status deliberately
-    # does not read these fields, which is what keeps human-mode status
-    # output unchanged. A --staging-dir override on a past apply is invisible
-    # to status; this reports the default location, the same default
-    # cmd_apply resolves.
+    # Default staging state (v0.2.9; per-session since v0.3.3): staging_path
+    # is the default staging ROOT, <repo>/.bale/staging — the same literal
+    # path v0.2.9 reported when the root itself was the staging directory —
+    # and staging_present is whether it exists, the same computation as
+    # before. staging_sessions maps each open sid to its per-session default
+    # staging directory ({"path": Path, "present": bool}); staging_stale
+    # lists the root's top-level entries no open session owns (closed
+    # sessions' preserved-for-inspection leftovers, bare pre-v0.3.3 trees) —
+    # exactly what the next default-path apply will remove. Gathered here so
+    # all of status's I/O stays in _gather_status (the ADR 0003 seam), but
+    # consumed only by the json renderer (bale_report.format_status_json) —
+    # _render_status deliberately does not read these fields, which is what
+    # keeps human-mode status output unchanged. A --staging-dir override on
+    # a past apply is invisible to status; this reports the default layout,
+    # the same layout cmd_apply resolves through default_staging_root /
+    # default_staging_dir.
     staging_path: Optional[Path] = None
     staging_present: bool = False
+    staging_sessions: dict = field(default_factory=dict)
+    staging_stale: list[str] = field(default_factory=list)
     # ADR-0006 session registry (v0.3.0): every open sid, oldest-first.
     # With at most one session open this is [] or [session_sid], so the
     # single-session human block is unchanged; the human renderer adds a
@@ -6247,11 +6374,6 @@ def _gather_status(cwd: Path) -> StatusReport:
     )
     report.bale_initialised = (repo / ".bale").is_dir()
 
-    # Default staging directory (json mode consumes this; the human renderer
-    # does not — see the StatusReport field comment).
-    report.staging_path = repo / ".bale" / "staging"
-    report.staging_present = report.staging_path.is_dir()
-
     # Open session(s) + lifecycle state, read from the ADR-0006 session
     # registry. The lifecycle classification below stays a single-session
     # concern: it classifies the OLDEST open session (open_sids[0]) — with
@@ -6271,6 +6393,27 @@ def _gather_status(cwd: Path) -> StatusReport:
     report.session_scopes = {
         sid: read_session_scope(repo, sid) for sid in report.open_sids
     }
+
+    # Default staging layout (v0.2.9; per-session since v0.3.3 — json mode
+    # consumes all of this; the human renderer does not, see the
+    # StatusReport field comment). Gathered after open_sids because the
+    # per-session and stale classifications read the registry. The path
+    # helpers are the same ones the apply pipeline resolves through, so
+    # what status reports is by construction what apply uses.
+    report.staging_path = default_staging_root(repo)
+    report.staging_present = report.staging_path.is_dir()
+    report.staging_sessions = {
+        sid: {"path": default_staging_dir(repo, sid),
+              "present": default_staging_dir(repo, sid).is_dir()}
+        for sid in report.open_sids
+    }
+    if report.staging_present:
+        owned = set(report.open_sids)
+        report.staging_stale = sorted(
+            entry.name for entry in report.staging_path.iterdir()
+            if not (entry.is_dir() and not entry.is_symlink()
+                    and entry.name in owned)
+        )
 
     # Integration lock (ADR-0006): held only across apply's git window, so
     # any sighting here is either a concurrent apply mid-merge or a stale
@@ -6650,8 +6793,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_apply.add_argument("tarball", help="Path to response-NNN.tar.gz.")
     p_apply.add_argument(
         "--staging-dir", default=None,
-        help="Where to stage the apply (default: <repo>/.bale/staging). "
-             "An explicit path is resolved relative to cwd.",
+        help="Where to stage the apply (default: <repo>/.bale/staging/<sid>, "
+             "per open session). An explicit path is resolved relative to "
+             "cwd, is used verbatim (no <sid> suffix), and is refused if it "
+             "already exists.",
     )
     p_apply.add_argument(
         "--show-validator", action="store_true",
@@ -6739,8 +6884,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_retry.add_argument(
         "--staging-dir", default=None,
-        help="Where to stage the apply (default: <repo>/.bale/staging). "
-             "An explicit path is resolved relative to cwd.",
+        help="Where to stage the apply (default: <repo>/.bale/staging/<sid>, "
+             "per open session). An explicit path is resolved relative to "
+             "cwd, is used verbatim (no <sid> suffix), and is refused if it "
+             "already exists.",
     )
     p_retry.add_argument(
         "--no-interact", action="store_true",
@@ -7028,8 +7175,9 @@ def build_parser() -> argparse.ArgumentParser:
              "of the human summary block. Keys are a stable contract for "
              "downstream tooling: outcome ('status'), version, sid (the "
              "lock state; null when no session is open), repo, session "
-             "(lifecycle state, goal, expects_probe), staging (whether the "
-             "default .bale/staging directory is present), outbox, applied, "
+             "(lifecycle state, goal, expects_probe), staging (the default "
+             ".bale/staging root plus per-open-session staging state and "
+             "stale entries), outbox, applied, "
              "config. Stream discipline matches pack/apply --json: "
              "'[bale] ' lines go to stderr and stdout carries exactly the "
              "JSON line. Gathering is unchanged — still read-only, still "
