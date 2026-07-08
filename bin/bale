@@ -483,6 +483,28 @@ standing division; this file gained the path helpers
 (default_staging_root / default_staging_dir / clean_staging_root,
 section 16), the pipeline rewiring, and the gathering.
 
+v0.3.4 lands the generated-artifact denial: apply's pre-flight
+(BALE.md §8.1 step 13, §11 row 20) rejects a response whose
+changes[] paths include generated artifacts — any __pycache__ /
+node_modules / dist / build directory component, or a *.pyc / *.pyo
+basename — naming the offending paths. Deliberately a conservative
+deny-list, not a heuristic: a false refusal costs the worker a
+repack, a false pass costs nothing new (review still exists), so the
+list stays short and obvious. `.bale/` paths are already rejected by
+path safety (§11 row 14) and are not duplicated. The check is
+manifest-only, sits with the other manifest checks ahead of the
+response_kind forks (bailout/clarification manifests carry empty
+changes[] and pass vacuously), runs under --dry-run so the plan
+report predicts the rejection, and is pre-staging by construction —
+no side effects on rejection. Accepted-tarball output is
+byte-identical (no pass-path log line); a rejection exits through
+fail() like every other pre-flight refusal, so the --json apply
+report is untouched — error paths were already stderr-plus-nonzero
+with nothing on stdout. This file gained the deny constants and the
+pure matcher (generated_artifact_paths, section 16) plus the
+pipeline call; the builder-side rule lands in TARBALL.md §5.1 in the
+same session.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -504,32 +526,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  674)
-   2. Logging                                         (~line  753)
-   3. Shell / git helpers                             (~line  840)
-   4. Hashing                                         (~line  879)
-   5. Session IDs and the per-day counter             (~line  895)
-   6. Session registry + locks                        (~line  953)
-   7. .gitignore handling for the .bale/ directory    (~line 1359)
-   8. Path-safety checks                              (~line 1389)
-   9. Editor invocation                               (~line 1437)
-  10. Pack: file enumeration and filtering            (~line 1498)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1875)
-  12. Pack: slug validation                           (~line 2158)
-  13. Pack: manifest and tarball construction         (~line 2171)
-  14. Pack: wizard                                    (~line 2297)
-  15. Pack                                            (~line 2577)
-  16. Apply: helpers                                  (~line 3276)
-  17. Apply: pipeline                                 (~line 3870)
-  18. Apply                                           (~line 4376)
-  19. Revert                                          (~line 4577)
-  20. Retry                                           (~line 4792)
-  21. Unlock                                          (~line 4913)
-  22. Handoff                                         (~line 5098)
-  23. Hook invocation                                 (~line 5543)
-  24. Help and completion                             (~line 5702)
-  25. Status                                          (~line 6105)
-  26. CLI                                             (~line 6643)
+   1. Imports + constants                             (~line  696)
+   2. Logging                                         (~line  775)
+   3. Shell / git helpers                             (~line  862)
+   4. Hashing                                         (~line  901)
+   5. Session IDs and the per-day counter             (~line  917)
+   6. Session registry + locks                        (~line  975)
+   7. .gitignore handling for the .bale/ directory    (~line 1381)
+   8. Path-safety checks                              (~line 1411)
+   9. Editor invocation                               (~line 1459)
+  10. Pack: file enumeration and filtering            (~line 1520)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1897)
+  12. Pack: slug validation                           (~line 2180)
+  13. Pack: manifest and tarball construction         (~line 2193)
+  14. Pack: wizard                                    (~line 2319)
+  15. Pack                                            (~line 2599)
+  16. Apply: helpers                                  (~line 3298)
+  17. Apply: pipeline                                 (~line 3938)
+  18. Apply                                           (~line 4465)
+  19. Revert                                          (~line 4666)
+  20. Retry                                           (~line 4881)
+  21. Unlock                                          (~line 5002)
+  22. Handoff                                         (~line 5187)
+  23. Hook invocation                                 (~line 5632)
+  24. Help and completion                             (~line 5791)
+  25. Status                                          (~line 6194)
+  26. CLI                                             (~line 6732)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -593,7 +615,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 # Ensure the sibling bin/ directory is on the import path even when bale is
 # invoked via a symlink (e.g. ~/.local/bin/bale → ~/bale/bin/bale). The default
@@ -674,7 +696,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3866,6 +3888,52 @@ def clean_staging_root(repo: Path, root: Path, sid: str) -> None:
         log(f"cleaned staging root {root}: removed stale {shown}")
 
 
+# --- Generated-artifact denial (v0.3.4) ---------------------------------------
+#
+# Response tarballs ship source, never generated artifacts — bytecode,
+# dependency trees, build output (TARBALL.md §5.1 carries the builder-side
+# rule; BALE.md §8.1 step 13 / §11 row 20 is the enforcement). The deny
+# list is deliberately conservative — short, obvious names, not a
+# heuristic — because the two failure costs are asymmetric: a false
+# refusal costs the worker a repack, while a false pass costs nothing new
+# (the architect's review still exists). `.bale/` paths are an obvious
+# offender too but are NOT duplicated here: path safety (BALE.md §11
+# row 14) already rejects them, and one rejection per cause keeps the
+# refusal messages unambiguous.
+
+# Directory names denied as any non-final path component (a file INSIDE
+# one of these is generated; a file merely NAMED like one — `scripts/build`,
+# say — is not, which is the conservative side of the line).
+GENERATED_ARTIFACT_DIRS = frozenset({
+    "__pycache__", "node_modules", "dist", "build",
+})
+
+# Basename globs denied on the final path component.
+GENERATED_ARTIFACT_FILE_GLOBS = ("*.pyc", "*.pyo")
+
+
+def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
+    """Return the sorted subset of `paths` that name generated artifacts.
+
+    A path offends when any non-final component is in
+    GENERATED_ARTIFACT_DIRS, or its basename matches a
+    GENERATED_ARTIFACT_FILE_GLOBS pattern. Pure — no filesystem access;
+    the inputs are manifest `changes[].path` strings, which path safety
+    (is_path_safe) has already normalized expectations for. Empty input
+    (bailout/clarification manifests) returns empty.
+    """
+    offending: set[str] = set()
+    for p in paths:
+        parts = Path(p).parts
+        if any(part in GENERATED_ARTIFACT_DIRS for part in parts[:-1]):
+            offending.add(p)
+            continue
+        if parts and any(fnmatch.fnmatch(parts[-1], pat)
+                         for pat in GENERATED_ARTIFACT_FILE_GLOBS):
+            offending.add(p)
+    return sorted(offending)
+
+
 # ---------------------------------------------------------------------------
 # 17. Apply: pipeline
 # ---------------------------------------------------------------------------
@@ -3888,8 +3956,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
       - logging already wired to the session log file
 
     `dry_run` (cmd_apply --dry-run) runs only the read-only front half —
-    extract, syntax pre-flight, manifest schema, responds_to, and the
-    presence/sha256/path-safety verification — then prints the plan and
+    extract, syntax pre-flight, manifest schema, responds_to, the
+    generated-artifact denial, and the presence/sha256/path-safety
+    verification — then prints the plan and
     returns 0 before the session stamp, staging, branch, validation run, or
     commit. No git or filesystem side effects. `verbose` (cmd_apply
     --verbose) is forwarded to run_validation_sh, which streams
@@ -4021,6 +4090,26 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             log(f"cross-session scope collision check passed against "
                 f"{len(sibling_sids)} sibling session(s): "
                 f"{', '.join(sibling_sids)}")
+
+        # 8.1 step 13 / §11 row 20: generated-artifact denial. Response
+        # tarballs ship source, never generated artifacts (TARBALL.md
+        # §5.1); a manifest-only check like the scope gate above, so it
+        # sits with the other manifest checks before the response_kind
+        # forks (bailout/clarification carry empty changes[] and pass
+        # vacuously) and runs under --dry-run, which should predict the
+        # rejection. Rejection here is pre-staging by construction —
+        # nothing below 8.2 has run — and adds no output on the pass
+        # path, keeping accepted-tarball output byte-identical.
+        offending = generated_artifact_paths(
+            change["path"] for change in manifest.get("changes", []))
+        if offending:
+            fail(
+                f"[REJECT] generated artifacts in changes[]: "
+                f"{', '.join(offending)}. Response tarballs ship source, "
+                f"not generated artifacts (TARBALL.md §5.1) — bytecode, "
+                f"dependency trees, and build output are rebuilt by the "
+                f"project's toolchain. Remove them and repack the response."
+            )
 
         # Bailout fork — TARBALL.md §5.6.3. response_kind="bailout" means no
         # files, no apply.sh effect, no validation.sh run; the response is a

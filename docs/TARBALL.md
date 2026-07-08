@@ -470,6 +470,21 @@ touches `src/components/Foo.vue` and `package.json`, they appear at
 then `cp -r response-NNN/files/. <project>/` — no path translation
 required.
 
+**`files/` carries source, never generated artifacts.** No bytecode
+(`__pycache__/`, `*.pyc`, `*.pyo`), no dependency trees
+(`node_modules/`), no build output (`dist/`, `build/`). Generated
+artifacts are products of the project's toolchain — the receiving
+side rebuilds them; shipping them bloats the tarball and plants
+stale-artifact bugs the content checks can't see past apply time.
+This is a **contract** rule (label per `CLAUDE.md` §6): bale's apply
+pre-flight rejects a response whose `changes[]` paths include one,
+naming the offending paths, before any staging happens. The deny
+list is deliberately short and obvious — the names above — rather
+than a heuristic, so a legitimate source file that merely resembles
+one (a script named `build`, a `pyc_utils.py`) passes. `.bale/`
+paths are also never shipped, but that rejection belongs to path
+safety, not to this rule.
+
 The two optional artifacts (README, notes) follow the stub-averse
 principle: include them when there's content; omit them otherwise.
 Absence carries meaning — no extra prose, no surprises, no proposal
@@ -705,6 +720,14 @@ separate fields so disagreement is itself diagnostic.
 only. The mechanical checks Claude wrote the manifest for (manifest
 consistency, file syntax) are tautological — a `pass` claim adds no
 information and they're omitted.
+
+When the project has no project-level checks at all — no lint,
+typecheck, build, or test surface yet — `claims` covers the
+response's session-specific assertions (§7.2 item 6) instead of
+shipping empty: those are genuine predictions about non-tautological
+checks, and an empty block wastes the calibration signal the field
+exists for. The verbatim-match rule below is unchanged — each such
+claim's key is the assertion's `validation_will_run` entry.
 
 A `claims` key is not free text: it is the **canonical identifier**
 of the check it predicts, and that identifier is the check's
@@ -1384,9 +1407,9 @@ and rejects a malformed tarball before `validation.sh` runs, so the
 builder's job is to satisfy them, not to recite them. They cover
 manifest schema and field agreement, sha256 and size match against
 `files/`, a non-empty `reason` on every change, path safety, the
-`files/`↔`changes[]` correspondence, and the post-`apply.sh`
-reconciliation of §5.1.1. The rules below are instead *policy*:
-caught at review, not by bale.
+generated-artifact denial (§5.1), the `files/`↔`changes[]`
+correspondence, and the post-`apply.sh` reconciliation of §5.1.1.
+The rules below are instead *policy*: caught at review, not by bale.
 
 | Rule | Enforcement |
 |------|-------------|

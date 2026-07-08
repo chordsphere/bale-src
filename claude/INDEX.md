@@ -57,7 +57,7 @@ deleted.
   `current_session` lock with a per-sid registry of open sessions plus one
   repo-level integration lock; single-session behavior preserved. Status:
   Accepted (registry landed in v0.3.0; revert/retry/unlock/handoff sid
-  disambiguation still deferred). Pull when touching the lock lifecycle,
+  disambiguation landed in v0.3.2). Pull when touching the lock lifecycle,
   pack or apply pre-flight, or any concurrency work. First of the four
   concurrency ADRs; its Context carries the motivating goal for the set.
 - `context/adr/0007-scope-disjointness.md` — disjoint session scope as a

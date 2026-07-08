@@ -98,7 +98,13 @@ is *for* — and stays stable as the per-section line numbers drift:
     (`prompt_walkthrough_action`), the handoff.md heading slicers
     (`first_section_of_handoff`, `reading_plan_section`, and the
     reading-plan path extractor), the tarball-resolution and
-    non-interactive-mode helpers, and `_apply_bailout`), the apply
+    non-interactive-mode helpers, the per-session default staging
+    path helpers (`default_staging_root` / `default_staging_dir` /
+    `clean_staging_root`, v0.3.3), the generated-artifact deny list
+    and its pure matcher (`GENERATED_ARTIFACT_DIRS` /
+    `GENERATED_ARTIFACT_FILE_GLOBS` / `generated_artifact_paths`,
+    v0.3.4 — the BALE.md §8.1 step 13 pre-flight check reads it),
+    and `_apply_bailout`), the apply
     pipeline proper (`_apply_pipeline`, shared with
     retry), and `cmd_apply`. Manifest validation (the schema-loading and
     request/response/diagnostics validators now live in the sibling
@@ -178,8 +184,13 @@ is *for* — and stays stable as the per-section line numbers drift:
     booleans), the `StatusReport` dataclass, `_gather_status` (the only
     I/O: reads lock, outbox, the `bale/<sid>` branch, `applied/*` tags,
     the stamped request manifest's goal, config presence/effective
-    values, and — v0.2.9 — whether the default staging directory,
-    `.bale/staging`, is present), and `_render_status` (turns the report
+    values, and — v0.2.9, per-session since v0.3.3 — staging state:
+    whether the staging root, `.bale/staging`, is present, plus each
+    open session's `.bale/staging/<sid>` directory (the
+    `staging_sessions` report field) and any root entries no open
+    session owns (`staging_stale`), resolved through the same
+    `default_staging_root` / `default_staging_dir` helpers the apply
+    pipeline uses), and `_render_status` (turns the report
     into a `format_summary_block`). From v0.2.9 `bale status --json`
     swaps the human block for the one-line machine report rendered by
     `bale_report.format_status_json` (which owns the key contract; the

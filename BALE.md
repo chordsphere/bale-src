@@ -912,8 +912,22 @@ Pipeline steps:
 12. Verify `manifest.json`, `apply.sh`, and `validation.sh` exist in
     the tarball. `README.md`, `notes.md`, and `next-prompt.md` are
     optional per `TARBALL.md` 5.1 and not required to exist.
+13. Verify no `changes[]` path names a generated artifact: no
+    `__pycache__`, `node_modules`, `dist`, or `build` directory
+    component, and no `*.pyc` / `*.pyo` basename. Response tarballs
+    ship source, never generated artifacts (`TARBALL.md` §5.1 carries
+    the builder-side rule); the deny list is deliberately a short,
+    obvious set rather than a heuristic, because the failure costs are
+    asymmetric — a false refusal costs the worker a repack, a false
+    pass costs nothing new (review still exists). The rejection names
+    the offending paths. `.bale/` paths are an obvious offender too
+    but are already rejected by step 10's path safety (§11 row 14)
+    and are not duplicated here. Manifest-only, so it runs under
+    `--dry-run` (the plan report predicts the rejection) and passes
+    vacuously for bailout and clarification manifests, whose
+    `changes[]` is empty.
 
-If any of 1–12 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–13 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
 staging branch, no file modifications.
 
@@ -1383,7 +1397,7 @@ related.
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–12 of section 8.1) or before commit (sections
+before staging (steps 1–13 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
@@ -1407,6 +1421,7 @@ before staging (steps 1–12 of section 8.1) or before commit (sections
 | 17 | `apply.sh` exits 0 | apply stage |
 | 18 | Post-`apply.sh` staging state matches the manifest — every created/deleted/modified path matches a `changes[]` entry, no undeclared writes/deletes (this is where `apply.sh` operations are constrained: no `mv`, no untracked file changes) | apply post-stage |
 | 19 | Cross-session scope collision (ADR-0007): no `changes[]` path intersects another open session's recorded scope — the apply-time guard against the whole-file clobber (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
+| 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
