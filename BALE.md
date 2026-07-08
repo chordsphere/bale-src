@@ -292,13 +292,30 @@ Every project sees the new docs on its next pack.
 ```
 <repo>/
   .bale/
-    current_session            # lock file: contains the active sid, or empty
+    current_session            # compatibility pointer: the open sid when
+                               # exactly one session is open (ADR-0006)
+    integration.lock           # present only while apply's git merge
+                               # window (§8.6–§8.8) is running, or stale
+                               # after an interrupted apply (ADR-0006)
     sessions/<sid>/
+      open                     # session-registry marker: present ⇔ the
+                               # session is open (ADR-0006)
       manifest.json            # persisted inbound manifest
       origin_branch            # branch user was on before staging
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
 ```
+
+The **session registry** (ADR-0006) is the authoritative record of
+open sessions: a session is open exactly while its
+`sessions/<sid>/open` marker exists. The marker — not the directory —
+defines openness, because a consumed bailout keeps its session
+directory for `bale handoff`'s lineage chase. `current_session`
+survives as a compatibility pointer kept in lockstep with the
+registry; the commands not yet threaded through the registry (revert,
+retry, unlock, handoff) still resolve "the" session through it, which
+is exact while at most one session is open — guaranteed until
+ADR-0007's disjointness gate admits a second pack.
 
 `.bale/` is gitignored. The git-init walkthrough adds it to
 `.gitignore` automatically. The tool offers to add it on any first
@@ -578,9 +595,12 @@ pastes output back. Bale does not have a `probe-apply` or
 4. If not in a git repo: run the git-init walkthrough (section 10).
    The walkthrough re-applies the path-location and home-directory
    refusals before initializing.
-5. Check session lock: `.bale/current_session` must be empty (no
-   active session). If non-empty, exit with a message pointing at
-   `bale unlock` or `bale apply <pending tarball>`.
+5. Check the session registry (ADR-0006): no session may be open —
+   no `.bale/sessions/<sid>/open` marker present. If any session is
+   open, exit with a message pointing at `bale unlock` or
+   `bale apply <pending tarball>`. The refusal is still unconditional
+   on any open session; replacing it with ADR-0007's scope-disjointness
+   gate is that ADR's implementing session, not this check.
 6. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
    exists but doesn't list `.bale/`, bale appends `.bale/` to it with
    a single-line user confirmation in interactive mode (or auto-
@@ -773,14 +793,18 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 
 After the tarball is on disk and validated for structure:
 
-1. Write `.bale/current_session` with the new sid.
-2. Write `.bale/sessions/<sid>/manifest.json` (the request's
+1. Write `.bale/sessions/<sid>/manifest.json` (the request's
    manifest, for `bale apply` to verify the response against).
+2. Open the session in the registry (ADR-0006): write the
+   `.bale/current_session` compatibility pointer, then the
+   `.bale/sessions/<sid>/open` marker.
 3. Log to `.bale/logs/<sid>.log`.
 
-The lock is written **last**, after the tarball is built and
-validated. If pack fails earlier, no lock exists and the user can
-just retry — no `bale unlock` required.
+The registry open happens **last**, after the tarball is built and
+validated — and within it the authoritative marker is written after
+the pointer, so an interrupted pack can only leave the benign
+pointer-without-marker state. If pack fails earlier, no session is
+open and the user can just retry — no `bale unlock` required.
 
 ### 7.7 Output
 
@@ -805,8 +829,11 @@ Pipeline steps:
 3. Read `manifest.json`. Validate against the schema in `TARBALL.md`
    5.2: every key present, no unknown keys, every `changes[]` entry
    complete, every `reason` non-empty.
-4. Verify a session lock exists. If `.bale/current_session` is empty,
-   reject — no session was open to receive this response.
+4. Verify an open session exists in the registry (ADR-0006): at
+   least one `.bale/sessions/<sid>/open` marker. If none, reject —
+   no session was open to receive this response. (Until ADR-0007
+   admits concurrent sessions, more than one open session is
+   unreachable and apply rejects it defensively.)
 5. Verify the working tree is clean. Run `git status --porcelain`;
    if non-empty, reject with a message naming the dirty paths and
    pointing the user at `git stash` / `git commit` / `--force`. This
@@ -815,7 +842,10 @@ Pipeline steps:
    tarball, and it's the cheapest failure to resolve. `--force`
    overrides (logged prominently); the per-file `cp` in section 8.6
    will overwrite without warning when overridden.
-6. Verify `responds_to` in the manifest matches the locked session ID.
+6. Verify `responds_to` in the manifest names an open session in the
+   registry (ADR-0006 — the generalization of the old "matches the
+   locked sid" comparison; with a single open session the two are
+   the same check).
 7. Verify every `changes[]` path appears in `files/` exactly when it
    should (created/modified ⇒ present in `files/`; deleted ⇒ absent
    from `files/`). Verify every file in `files/` is declared in
@@ -906,6 +936,16 @@ The commit step is driven per-manifest-entry from `changes[]` rather
 than by a tree-level diff. The manifest is the contract; the commit
 shape follows it directly.
 
+The **integration lock** (`.bale/integration.lock`, ADR-0006) is
+acquired before the checkout below and held across the §8.6–§8.8
+window — the stretch where bale mutates the user's checkout.
+Integrations serialize under it; with one open session it is
+uncontended. It releases at each terminal action once the git work is
+done. A crash inside the window leaves it held, and the acquire-time
+refusal message is the stale-lock story: it names the recorded holder
+(sid, pid, acquire time) and the manual clear — removing the file is
+safe whenever no apply is running.
+
 If validation exited 0:
 
 1. `git checkout bale/<sid>` (the branch was created at the original
@@ -975,13 +1015,17 @@ on EOF.
 ### 8.8 Terminal actions
 
 - **Merge** (PASS only). `git checkout <origin>; git merge --no-ff
-  bale/<sid>`, then `git tag applied/<sid>`, clean up
-  `.bale/sessions/<sid>/`, clear the lock, delete `bale/<sid>`
-  branch. The `applied/<sid>` tag is the durable record. Final line
-  to the user: *"To roll back this bale: `bale rollback <sid>` or
-  `bale rollback` for the most recent."*
-- **Inspect** (HOLD only). Lock stays held; branch persists with
-  staged uncommitted changes. The user investigates the failure,
+  bale/<sid>`, then `git tag applied/<sid>`, close the session in the
+  registry (marker removed, pointer cleared — ADR-0006), clean up
+  `.bale/sessions/<sid>/`, release the integration lock, delete
+  `bale/<sid>` branch. The `applied/<sid>` tag is the durable record.
+  Final line to the user: *"To roll back this bale: `bale rollback
+  <sid>` or `bale rollback` for the most recent."*
+- **Inspect** (HOLD only). The session stays open in the registry;
+  branch persists with staged uncommitted changes. The integration
+  lock releases — this invocation's git mutation is over, and the
+  held state is guarded by the registry entry plus the branch
+  itself. The user investigates the failure,
   then chooses: discard via `bale revert <sid>` (branch deleted,
   lock cleared, project back to origin), or send Claude the failure
   context and request a corrected response. The corrected-response
@@ -994,7 +1038,8 @@ on EOF.
   `bale revert <sid>` when done. If sending a corrected response,
   the new response should set `corrects: <this_sid>` for history."*
 - **Revert.** Delete the branch (forcefully), wipe
-  `.bale/sessions/<sid>/`, clear the lock. Same operation regardless
+  `.bale/sessions/<sid>/`, close the session in the registry, release
+  the integration lock. Same operation regardless
   of whether validation passed or held.
 
 ---
@@ -1096,14 +1141,19 @@ them differently makes the cost visible.
 
 ### 9.5 Lock state lifecycle
 
-The lock has three reachable states. Knowing which one you're in
-tells you which command applies.
+With ADR-0006 the lifecycle below holds **per session**: each state
+row reads against a session's registry entry (its
+`sessions/<sid>/open` marker) rather than the repo-wide sentinel, and
+the `current_session` compatibility pointer tracks the registry in
+lockstep. While at most one session is open — the case until ADR-0007
+lands — the table is observably identical to the old single-lock
+reading. The three reachable states per session:
 
-| State | Lock contents | Branch | How you got here | How you leave |
+| State | Registry / pointer | Branch | How you got here | How you leave |
 |-------|---------------|--------|-------------------|----------------|
-| Empty | (empty file) | none | initial, post-merge, post-revert, post-unlock | `bale pack` |
-| Held, no branch | sid | none | post-`bale pack`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock` |
-| Held, with HOLD branch | sid | `bale/<sid>` w/ uncommitted staged changes | `bale apply` hit validation failure; user chose inspect | `bale revert <sid>` or apply a corrected response (after `bale revert <sid>`) |
+| Closed | no `open` marker; pointer empty | none | initial, post-merge, post-revert, post-unlock, post-bailout | `bale pack` |
+| Open, no branch | marker present; pointer = sid | none | post-`bale pack`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock` |
+| Open, with HOLD branch | marker present; pointer = sid | `bale/<sid>` w/ uncommitted staged changes | `bale apply` hit validation failure; user chose inspect | `bale revert <sid>` or apply a corrected response (after `bale revert <sid>`) |
 
 Passed-and-kept is not a state. The apply walkthrough resolves
 PASS to either merge (→ empty + `applied/<sid>` tag) or revert
@@ -1224,13 +1274,13 @@ before staging (steps 1–11 of section 8.1) or before commit (sections
 |---|-------|-------|
 | 1 | Path-location refusal (cwd / repo root not a system directory) | pack pre-flight |
 | 2 | Home-directory refusal (cwd not exactly `$HOME`, unless `--force`) | pack pre-flight |
-| 3 | Session lock empty (no active session) | pack pre-flight |
+| 3 | Session registry has no open session (ADR-0006; refusal stays unconditional until ADR-0007's disjointness gate replaces it) | pack pre-flight |
 | 4 | Threshold caps (file count, size, depth) within configured limits | pack scope projection |
 | 5 | Tar archive integrity (extractable, no path-traversal entries) | apply pre-flight |
 | 6 | Manifest schema valid (all required keys, no unknowns) | apply pre-flight |
-| 7 | Session lock exists (a session is open) | apply pre-flight |
+| 7 | An open session exists in the registry (ADR-0006) | apply pre-flight |
 | 8 | Working tree clean (`git status --porcelain` empty), unless `--force` | apply pre-flight |
-| 9 | `responds_to` matches the locked sid | apply pre-flight |
+| 9 | `responds_to` names an open session in the registry (ADR-0006; with one open session, identical to the old locked-sid match) | apply pre-flight |
 | 10 | Every `changes[]` path is in `files/` per its action (or absent for deletes) | apply pre-flight |
 | 11 | Every `files/` entry is declared in `changes[]` | apply pre-flight |
 | 12 | Every `changes[].sha256` matches the actual file | apply pre-flight |

@@ -12,7 +12,11 @@ report (`format_dry_run_report`), the machine-readable pack report
 twin (`format_apply_json`, added in v0.2.8 for `bale apply --json`), and its
 status sibling (`format_status_json`, added in v0.2.9 for `bale status
 --json`), plus the json-mode stream-discipline state the machine reports share
-(`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8). The human-facing
+(`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8), and — v0.3.0,
+with the ADR-0006 session registry — the two status human-row value
+formatters (`format_open_sessions_value`, `format_integration_lock_value`),
+placed here because status rendering, human rows and json keys alike, is
+this module's surface. The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -824,6 +828,21 @@ def format_status_json(report) -> str:
                  latest  most recent applied sid (by tag creation date,
                          matching `bale rollback --list`'s ordering), or
                          null when none
+      sessions  (additive, v0.3.0 — ADR-0006) null outside a git
+               repository; else the full list of open sids from the
+               session registry, oldest-first. `sid` above remains the
+               single-open pointer for existing consumers; with at most
+               one session open (guaranteed until ADR-0007) this list is
+               [] or [sid]. A machine consumer of the multi-session
+               world reads this key.
+      integration_lock  (additive, v0.3.0 — ADR-0006) null when the
+               repo-level integration lock is not held (the normal
+               state; it is held only across apply's §8.6–§8.8 git
+               window) or outside a git repository; else an object with
+               sid / pid / acquired_at (each null when the lock file
+               would not parse) and path (always present). A non-null
+               value during no running apply is a stale lock from an
+               interrupted integration.
       config   always an object (the global layer exists outside repos):
                  project         absolute path of <repo>/bale.toml, or
                                  null when absent or outside a repo
@@ -849,6 +868,8 @@ def format_status_json(report) -> str:
     staging_obj = None
     outbox = None
     applied_obj = None
+    sessions = None
+    integration_lock_obj = None
     if report.repo_root is not None:
         repo_obj = {
             "root": str(report.repo_root),
@@ -872,6 +893,14 @@ def format_status_json(report) -> str:
             "count": report.applied_count,
             "latest": report.applied_latest,
         }
+        sessions = list(report.open_sids)
+        if report.integration_lock is not None:
+            integration_lock_obj = {
+                "sid": report.integration_lock.get("sid"),
+                "pid": report.integration_lock.get("pid"),
+                "acquired_at": report.integration_lock.get("acquired_at"),
+                "path": report.integration_lock.get("path"),
+            }
     payload = {
         "outcome": "status",
         "version": report.version,
@@ -881,6 +910,8 @@ def format_status_json(report) -> str:
         "staging": staging_obj,
         "outbox": outbox,
         "applied": applied_obj,
+        "sessions": sessions,
+        "integration_lock": integration_lock_obj,
         "config": {
             "project": (str(report.project_config)
                         if report.project_config is not None else None),
@@ -893,3 +924,47 @@ def format_status_json(report) -> str:
         },
     }
     return json.dumps(payload)
+
+
+# --- status: session-registry human-value formatters (v0.3.0, ADR-0006) ---
+
+def format_open_sessions_value(open_sids: list) -> str:
+    """Render the human `open sessions` row value for `bale status`.
+
+    Lives here rather than in bin/bale's _render_status because status
+    rendering — the key contract on the json side, the row values on the
+    human side — is this module's surface. One sid per line, oldest-first
+    as gathered from the registry, with a count headline; the multi-line
+    value wraps under its label via format_summary_block, the same shape
+    the outbox listing uses. The caller only emits this row for 2+ open
+    sessions (with 0 or 1 the existing single-session rows already carry
+    the fact), so no singular/empty phrasing is needed — but render those
+    shapes sensibly anyway rather than assume the caller.
+    """
+    n = len(open_sids)
+    if n == 0:
+        return "none"
+    noun = "session" if n == 1 else "sessions"
+    return f"{n} open {noun}:\n" + "\n".join(str(s) for s in open_sids)
+
+
+def format_integration_lock_value(info: dict) -> str:
+    """Render the human `integration lock` row value for `bale status`.
+
+    `info` is StatusReport.integration_lock: always carries "path", plus
+    sid/pid/acquired_at when the lock file parsed. The lock is held only
+    across apply's §8.6–§8.8 git window, so a sighting outside a running
+    apply is stale — the rendered value says how to clear it, matching
+    the acquire-time failure message in bin/bale.
+    """
+    held_by = []
+    if info.get("sid"):
+        held_by.append(f"session {info['sid']}")
+    if info.get("pid") is not None:
+        held_by.append(f"pid {info['pid']}")
+    if info.get("acquired_at"):
+        held_by.append(f"since {info['acquired_at']}")
+    holder = ", ".join(held_by) if held_by else "holder unknown (unparseable lock file)"
+    path = info.get("path", ".bale/integration.lock")
+    return (f"HELD — {holder}. If no `bale apply` is running, the lock is "
+            f"stale; clear it with `rm {path}`.")
