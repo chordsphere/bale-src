@@ -254,16 +254,13 @@ def format_walkthrough_summary(
         for check, claim in claims.items():
             ref.append(f"    {check:<{width}}  claim={claim}")
 
-    # Diffstat between origin and the bale branch. On the HOLD path the bale
-    # branch's HEAD is identical to origin's HEAD (no commit was made), so
-    # the rev-range diff is empty; in that case run a diff against the index
-    # so the user still sees what's staged. PASS path always has a commit.
-    if state == "PASS":
-        diff_args = ["diff", "--stat", f"{origin_branch}..{sid_branch}"]
-        diff_label = f"origin..{sid_branch}"
-    else:
-        diff_args = ["diff", "--stat", "--cached"]
-        diff_label = "staged (uncommitted)"
+    # Diffstat between origin and the bale branch. Both verdicts hold a
+    # session commit on the bale branch since ADR-0008 (a HOLD is a
+    # committed branch nothing has checked out, not staged changes in the
+    # user's checkout), so one rev-range diff covers PASS and HOLD alike —
+    # and it matches the inspection command the walkthrough prints.
+    diff_args = ["diff", "--stat", f"{origin_branch}..{sid_branch}"]
+    diff_label = f"origin..{sid_branch}"
     try:
         diffstat = git(diff_args, cwd=repo, check=False).stdout.rstrip()
     except subprocess.CalledProcessError as e:
@@ -331,7 +328,8 @@ def format_walkthrough_summary(
         validation_row = f"exit={exit_code} (no project-level claims)"
     branch_state = (
         f"{sid_branch} (committed; ready to merge)" if state == "PASS"
-        else f"{sid_branch} (uncommitted; staged changes held)"
+        else f"{sid_branch} (committed; held for inspection — "
+             f"checkout untouched)"
     )
     summary_block = format_summary_block(
         [

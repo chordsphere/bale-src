@@ -66,11 +66,18 @@ deleted.
   against the whole-file clobber). Status: Accepted (landed in v0.3.1 —
   BALE.md §7.1 step 5, §8.1 step 7, §11 rows 3 and 19). Pull when touching
   pack scope projection, apply pre-flight, or any concurrency work.
-- `context/adr/0008-checkout-free-integration.md` — integrate via a temp
-  worktree or plumbing under the integration lock instead of consuming the
-  user's checkout; clean-tree requirement relaxes; HOLD inspection surface
-  moves. Status: Proposed. Pull when touching the apply pipeline's
-  commit/merge steps, the HOLD path, or revert/retry semantics.
+- `context/adr/0008-checkout-free-integration.md` — integrate via plumbing
+  under the integration lock instead of consuming the user's checkout: the
+  session commit is built in a temporary index and the no-ff merge is a
+  two-parent commit-tree advanced by compare-and-swap (or a fast-forward
+  through a clean on-target checkout); the blanket clean-tree requirement
+  becomes the narrow tracked-dirty-on-target refusal; HOLD commits to
+  `bale/<sid>` and is inspected via branch diff plus the preserved per-sid
+  staging. Status: Accepted (landed in v0.3.5 — BALE.md §7.6, §8.1 step 5,
+  §8.2, §8.5, §8.6, §8.8, §9.1, §11 row 8; the walkthrough/inspection
+  polish and full docs sweep are the ratified follow-up session's). Pull
+  when touching the apply pipeline's commit/merge steps, the HOLD path, or
+  revert/retry semantics.
 - `context/adr/0009-orchestration-doc-plan.md` — defer a standalone
   ORCHESTRATION.md per the ADR-0001 precedent; the doctrine skeleton (seam
   decomposition, blind checkpoints, HOLD triage, escalation, trust phasing)
@@ -100,15 +107,18 @@ deleted.
   Pull when touching response kinds, the apply fork, the response-manifest
   schema, or intent-gap doctrine.
 
-ADRs 0002–0005, 0008, and 0009 are Proposed pending the architect's
-ratification on review; 0001, 0006, 0007, 0010, and 0011 are Accepted.
+ADRs 0002–0005 and 0009 are Proposed pending the architect's
+ratification on review; 0001, 0006, 0007, 0008, 0010, and 0011 are
+Accepted.
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
 disjointness contract in v0.3.1) and were flipped to Accepted with the
-0007 landing; 0010 and 0011 each landed in its own session (0010 in the
+0007 landing; 0008 was ratified for implementation and landed in v0.3.5
+(flipped to Accepted with the landing, per the 0006/0007 precedent);
+0010 and 0011 each landed in its own session (0010 in the
 global docs and the pack help text, 0011 in v0.2.10) and were flipped to
 Accepted together on ratification. The remaining Proposed set is
-unimplemented: 0002–0005 precede any test code, 0008 precedes the
-checkout-free-integration work, and 0009 defers the doc it is about.
+unimplemented: 0002–0005 precede any test code, and 0009 defers the doc
+it is about.
 
 ## Explainers
 

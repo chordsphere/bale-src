@@ -823,10 +823,17 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 After the tarball is on disk and validated for structure:
 
 1. Write `.bale/sessions/<sid>/manifest.json` (the request's
-   manifest, for `bale apply` to verify the response against) and
+   manifest, for `bale apply` to verify the response against),
    `.bale/sessions/<sid>/scope.json` (the resolved include set — the
    session's scope, which the ADR-0007 gates read; step 5 of §7.1 and
-   step 7 of §8.1).
+   step 7 of §8.1), and `.bale/sessions/<sid>/origin_branch` (the
+   branch checked out at pack time — the session's integration
+   target, ADR-0008; skipped on a detached checkout, in which case
+   apply falls back to the branch current at apply time). The target
+   is fixed at pack because the pack's content was gathered from that
+   branch and integration no longer consumes the checkout — the user
+   may be on any branch, clean or dirty, when the response is applied
+   (§8.1 step 5).
 2. Open the session in the registry (ADR-0006): write the
    `.bale/current_session` compatibility pointer, then the
    `.bale/sessions/<sid>/open` marker.
@@ -871,14 +878,24 @@ Pipeline steps:
    open session, and rejects otherwise. The pipeline re-checks
    `responds_to` against the resolved sid after its own extraction
    (step 6).
-5. Verify the working tree is clean. Run `git status --porcelain`;
-   if non-empty, reject with a message naming the dirty paths and
-   pointing the user at `git stash` / `git commit` / `--force`. This
-   check is here — adjacent to the registry check, before any tarball-
-   specific work — because it concerns the user's state, not the
-   tarball, and it's the cheapest failure to resolve. `--force`
-   overrides (logged prominently); the per-file `cp` in section 8.6
-   will overwrite without warning when overridden.
+5. The narrow dirty-on-target rule (ADR-0008; replaces the blanket
+   clean-tree requirement). Resolve the session's integration target
+   (the pack-time `origin_branch` stamp, §7.6; fallback: the branch
+   current at apply time — refuse if that fallback is needed on a
+   detached checkout). Then refuse only the one genuinely entangled
+   case: the checkout is on the target branch AND has **tracked**
+   changes (staged or unstaged; untracked files never block) — moving
+   the branch ref under a dirty checkout of that same branch would
+   desynchronize the user's tree from its own branch. The refusal
+   names the dirty paths and the remedies: stash, commit, or switch
+   branches. Every other state proceeds: on-target and tracked-clean
+   (the checkout is fast-forwarded to the new ref at merge, §8.8), or
+   on any other branch or detached, dirty or not — integration never
+   touches the checkout. This check is here — adjacent to the
+   registry check, before any tarball-specific work — because it
+   concerns the user's state, not the tarball, and it's the cheapest
+   failure to resolve. `bale retry` runs the same rule (a HOLD no
+   longer dirties the worktree, §8.6).
 6. Verify `responds_to` in the manifest names an open session in the
    registry (ADR-0006 — the generalization of the old "matches the
    locked sid" comparison; with a single open session the two are
@@ -933,12 +950,18 @@ staging branch, no file modifications.
 
 ### 8.2 Stamp session
 
-1. Record current `HEAD` as `git_head_at_apply` in
-   `.bale/sessions/<sid>/manifest.json`.
-2. Record the current branch as
+1. Resolve the integration target (ADR-0008): the session's pack-time
+   `origin_branch` stamp (§7.6), falling back to the current branch
+   for sessions packed before the stamp existed. Record it as
    `.bale/sessions/<sid>/origin_branch`. This is the branch the apply
-   wizard will merge into (on PASS) and the branch `bale revert`
-   returns to.
+   wizard will merge into (on PASS); `bale revert` reads it too.
+2. Record the **target branch's tip** as `git_head_at_apply` in
+   `.bale/sessions/<sid>/`. This is the base the session branch, the
+   session commit, and the merge are all built against; it equals the
+   checkout's `HEAD` only when the user happens to be on the target.
+   When the checkout has diverged from the target, apply logs a note
+   that validation (which runs in the working-tree-sourced staging
+   copy, §8.3) exercised the checkout's content.
 3. Persist the response manifest at
    `.bale/sessions/<sid>/response-manifest.json`.
 
@@ -991,11 +1014,12 @@ point — no git side effects.
 ### 8.5 Validate
 
 Validation runs in the staging copy. The bale branch is created at
-HEAD but not checked out until validation passes — this keeps the
-working tree clean on failure.
+the target branch's tip (§8.2) and is never checked out — under
+ADR-0008 the commit and merge are built with plumbing, so the user's
+working tree is untouched regardless of outcome.
 
-1. Create the bale branch: `git branch bale/<sid> HEAD`. Do not check
-   it out yet.
+1. Create the bale branch: `git branch bale/<sid>
+   <git_head_at_apply>`.
 2. Place the response manifest at `staging/.bale-manifest.json` so
    `validation.sh` can read the claims for the reconciliation block.
 3. Run `bash validation.sh` with `cwd=staging/`. Capture stdout,
@@ -1018,39 +1042,47 @@ than by a tree-level diff. The manifest is the contract; the commit
 shape follows it directly.
 
 The **integration lock** (`.bale/integration.lock`, ADR-0006) is
-acquired before the checkout below and held across the §8.6–§8.8
-window — the stretch where bale mutates the user's checkout.
-Integrations serialize under it; with one open session it is
-uncontended. It releases at each terminal action once the git work is
-done. A crash inside the window leaves it held, and the acquire-time
-refusal message is the stale-lock story: it names the recorded holder
-(sid, pid, acquire time) and the clear surface — `bale unlock
---integration` removes the stale file through the tool (removing it by
-hand is equally safe whenever no apply is running).
+acquired before the commit build below and held across the §8.6–§8.8
+window — the stretch where bale mutates refs (`bale/<sid>`, and on
+merge the target branch, plus the clean-on-target checkout
+fast-forward). Integrations serialize under it; with one open session
+it is uncontended. It releases at each terminal action once the git
+work is done. A crash inside the window leaves it held, and the
+acquire-time refusal message is the stale-lock story: it names the
+recorded holder (sid, pid, acquire time) and the clear surface —
+`bale unlock --integration` removes the stale file through the tool
+(removing it by hand is equally safe whenever no apply is running). A
+mid-window crash never leaves the user's checkout mid-mutation — the
+checkout is not consumed by the pipeline (ADR-0008).
 
-If validation exited 0:
+Both validation outcomes build the session commit the same way, with
+plumbing, never through a checkout:
 
-1. `git checkout bale/<sid>` (the branch was created at the original
-   HEAD in 8.5).
-2. For each `manifest.changes[]` entry, apply per-file to the working
-   tree:
-   - `created` or `modified`:
-     `cp staging/<path> <project>/<path>; git add <path>`
-   - `deleted`:
-     `git rm <path>` (removes the file and stages the deletion)
-3. `git commit -m "[bale <sid>] <summary>"` where `<summary>` is
-   `manifest.summary`.
-4. Mark the branch as `[PASS]` for the walkthrough.
+1. In a temporary index (`GIT_INDEX_FILE`) seeded from the base tree
+   (`git read-tree <git_head_at_apply>`), apply each
+   `manifest.changes[]` entry with content from the validated staging
+   copy:
+   - `created` or `modified`: `git hash-object -w` the staging file
+     (mode from the staging copy's own bits — `100755` when
+     executable, `120000` for a symlink), then
+     `git update-index --add --cacheinfo <mode> <blob> <path>`.
+   - `deleted`: `git update-index --force-remove <path>` (a no-op
+     when the path isn't in the base tree, mirroring the old
+     `--ignore-unmatch` tolerance).
+2. `git write-tree`, then `git commit-tree <tree> -p
+   <git_head_at_apply> -m "[bale <sid>] <summary>"` where `<summary>`
+   is `manifest.summary`.
+3. Move the branch onto the commit with a compare-and-swap:
+   `git update-ref refs/heads/bale/<sid> <commit>
+   <git_head_at_apply>`.
 
-If validation exited 1 or 2:
-
-1. The branch already exists at HEAD (from 8.5). `git checkout
-   bale/<sid>`.
-2. Apply changes to the working tree using the same per-manifest-entry
-   approach as the PASS path above, but **do not commit**. The branch
-   carries staged-but-uncommitted changes so the user can inspect
-   exactly what would have landed.
-3. Mark as `[HOLD]` with the reason from validation output.
+If validation exited 0: mark the branch as `[PASS]` for the
+walkthrough. If validation exited 1 or 2: mark as `[HOLD]` with the
+reason from validation output. A HOLD is a commit on `bale/<sid>` —
+inert, since nothing has the branch checked out — and inspection is
+identical in UX to PASS inspection: `git diff <origin>..bale/<sid>`,
+`git log bale/<sid>`, plus the per-sid staging directory, which is
+preserved for open sessions (§8.3).
 
 ### 8.7 Walkthrough
 
@@ -1096,20 +1128,39 @@ on EOF.
 
 ### 8.8 Terminal actions
 
-- **Merge** (PASS only). `git checkout <origin>; git merge --no-ff
-  bale/<sid>`, then `git tag applied/<sid>`, close the session in the
+- **Merge** (PASS only). Checkout-free (ADR-0008): build the merge
+  commit with `git commit-tree <session-tree> -p <old-target-tip> -p
+  <session-commit>` — the exact two-parent, first-parent-is-old-tip
+  topology and `"Merge bale <sid>"` message a `git merge --no-ff`
+  would produce — then advance the target ref. If the user's checkout
+  is on the target branch (tracked-clean by pre-flight), the advance
+  goes through the checkout as `git merge --ff-only <merge-commit>`,
+  so ref, index, and working tree move together under git's own
+  safety checks and the post-apply state matches the old pipeline's
+  (logged as a fast-forward). Otherwise `git update-ref
+  refs/heads/<origin> <merge-commit> <old-tip>` advances the ref
+  without touching the checkout. Both advances are compare-and-swap:
+  if the target moved during the apply (or the fast-forward is
+  declined), bale refuses, releases the lock, and leaves the session
+  commit on `bale/<sid>` with the session open — recoverable with
+  `bale retry <tarball>` or `bale revert <sid>`. On success:
+  `git tag applied/<sid> <merge-commit>`, close the session in the
   registry (marker removed, pointer cleared — ADR-0006), clean up
   `.bale/sessions/<sid>/`, release the integration lock, delete
-  `bale/<sid>` branch. The `applied/<sid>` tag is the durable record.
-  Final line to the user: *"To roll back this bale: `bale rollback
-  <sid>` or `bale rollback` for the most recent."*
+  `bale/<sid>` (force-delete — the merge commit and tag anchor the
+  history; `-d`'s merged-into-HEAD check is meaningless when HEAD may
+  be an unrelated checkout). The `applied/<sid>` tag is the durable
+  record. Final line to the user: *"To roll back this bale: `bale
+  rollback <sid>` or `bale rollback` for the most recent."*
 - **Inspect** (HOLD only). The session stays open in the registry;
-  branch persists with staged uncommitted changes. The integration
+  branch persists with the committed session changes; the user's
+  checkout was never switched. The integration
   lock releases — this invocation's git mutation is over, and the
   held state is guarded by the registry entry plus the branch
   itself. The user investigates the failure,
   then chooses: discard via `bale revert <sid>` (branch deleted,
-  session closed in the registry, project back to origin), send a
+  session closed in the registry; the checkout was never moved, so
+  there is nothing to switch back), send a
   corrected response through `bale retry <tarball>` in the same
   session, or send Claude the failure
   context and request a corrected response as a fresh session. That
@@ -1133,11 +1184,14 @@ on EOF.
 Three commands cover three distinct "undo" cases. The distinctions
 matter because they operate on different git states.
 
-### 9.1 `bale revert [sid]` — staged, not yet merged
+### 9.1 `bale revert [sid]` — committed to the bale branch, not yet merged
 
 For a bale branch that exists but hasn't been merged into the origin
 branch yet. The common case is a held branch after a failed
-validation when inspection is done. Passed-and-kept is no longer a
+validation when inspection is done — since ADR-0008 a HOLD is a
+session commit on `bale/<sid>` and the user's checkout was never
+switched, so revert has strictly less to undo: force-delete the
+branch, close the session. Passed-and-kept is no longer a
 state in the current design — passing snaps merge or revert within
 the apply walkthrough.
 
@@ -1153,18 +1207,18 @@ Steps:
 2. Verify `bale/<sid>` is **not** an ancestor of `origin_branch`. If
    it is, that means it was already merged; redirect the user to
    `bale rollback <sid>`.
-3. Refuse on a dirty working tree by default (a dirty tree would
-   block the checkout in step 4 anyway). `--force` overrides.
-4. If currently on `bale/<sid>`, `git checkout <origin_branch>`. Log
-   the checkout.
-5. `git branch -D bale/<sid>` (force delete).
-6. Wipe the session's recorded staging directory (the `staging_path`
+3. If currently on `bale/<sid>` (a manual checkout during inspection,
+   or a pre-ADR-0008 HOLD in flight), reset local changes and
+   `git checkout <origin_branch>`, logged. Otherwise the checkout is
+   not touched — under ADR-0008 the apply never switched it.
+4. `git branch -D bale/<sid>` (force delete).
+5. Wipe the session's recorded staging directory (the `staging_path`
    the apply stamped under `.bale/sessions/<sid>/` — since the
    per-session default, `.bale/staging/<sid>/`, or the `--staging-dir`
    override if one was used; only this sid's directory, never a
    sibling session's), then wipe `.bale/sessions/<sid>/` itself.
-7. Close the session in the registry if it was open: remove its
-   `open` marker (already gone with step 6's wipe; the close is what
+6. Close the session in the registry if it was open: remove its
+   `open` marker (already gone with step 5's wipe; the close is what
    reconciles the compatibility pointer, repointing it to the oldest
    remaining open session or clearing it). The close targets this
    sid, never whichever session the pointer happens to name.
@@ -1283,7 +1337,7 @@ lock. The three reachable states per session:
 |-------|---------------|--------|-------------------|----------------|
 | Closed | no `open` marker | none | initial, post-merge, post-revert, post-unlock, post-bailout | `bale pack` |
 | Open, no branch | marker present | none | post-`bale pack` / post-`bale handoff`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock [sid]` |
-| Open, with HOLD branch | marker present | `bale/<sid>` w/ uncommitted staged changes | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball> [--sid]` with a corrected response, or apply a corrected response (after `bale revert [sid]`) |
+| Open, with HOLD branch | marker present | `bale/<sid>` w/ the session commit (checkout untouched — ADR-0008) | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball> [--sid]` with a corrected response, or apply a corrected response (after `bale revert [sid]`) |
 
 Passed-and-kept is not a state. The apply walkthrough resolves
 PASS to either merge (→ empty + `applied/<sid>` tag) or revert
@@ -1409,7 +1463,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 5 | Tar archive integrity (extractable, no path-traversal entries) | apply pre-flight |
 | 6 | Manifest schema valid (all required keys, no unknowns) | apply pre-flight |
 | 7 | An open session exists in the registry (ADR-0006) | apply pre-flight |
-| 8 | Working tree clean (`git status --porcelain` empty), unless `--force` | apply pre-flight |
+| 8 | Narrow dirty-on-target refusal (ADR-0008): no **tracked** changes while the checkout is on the session's integration target branch (untracked files never block; any other branch or detached never blocks — integration doesn't touch the checkout) | apply pre-flight |
 | 9 | `responds_to` names an open session in the registry (ADR-0006; with one open session, identical to the old locked-sid match — with several, it is the resolution key per §8.1 step 4) | apply pre-flight |
 | 10 | Every `changes[]` path is in `files/` per its action (or absent for deletes) | apply pre-flight |
 | 11 | Every `files/` entry is declared in `changes[]` | apply pre-flight |

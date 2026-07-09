@@ -8,8 +8,10 @@ building the staging tree and running the response's `apply.sh` over it
 (`stage_response`), the post-`apply.sh` reconciliation of staging against the
 manifest (`reconcile_staging_against_manifest`, with its private tree-snapshot
 helper `_walk_tree_sha256`), running the response's `validation.sh` in staging
-(`run_validation_sh`), and copying the validated changes out into the working
-tree (`apply_changes_to_worktree`). Extracted from `bin/bale`'s section 16
+(`run_validation_sh`), and building the session commit from the validated
+staging content via git plumbing (`build_session_commit`, which replaced the
+checkout-consuming `apply_changes_to_worktree` when ADR-0008 landed in
+v0.3.5). Extracted from `bin/bale`'s section 16
 ("Apply: helpers") in v0.1.3 to continue bringing that section back under
 CODE.md §4.2's size threshold — the third extraction sibling after
 `bale_config` (v0.0.4) and `bale_validate` (v0.1.2), using the same sibling-
@@ -19,7 +21,7 @@ Behavior-preserving move: the functions keep the signatures and call sites they
 had in `bin/bale`. The six public entry points (`check_response_shell_syntax`,
 `verify_files_against_manifest`, `stage_response`,
 `reconcile_staging_against_manifest`, `run_validation_sh`,
-`apply_changes_to_worktree`) are pulled back into `bin/bale`'s namespace via
+`build_session_commit`) are pulled back into `bin/bale`'s namespace via
 `from bale_staging import ...`, so the apply-pipeline callers still write them
 unqualified — the by-name convention `bale_validate` established, chosen here
 over `bale_config`'s qualified style precisely because it leaves the call sites
@@ -59,7 +61,9 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+from typing import Optional
 
 
 def check_response_shell_syntax(response_dir: Path) -> None:
@@ -501,26 +505,86 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     return result.returncode
 
 
-def apply_changes_to_worktree(repo: Path, staging: Path, manifest: dict) -> None:
-    """Apply each manifest entry to the working tree. Used by both PASS and HOLD;
-    the caller decides whether to commit afterward.
+def build_session_commit(repo: Path, staging: Path, manifest: dict,
+                         base_sha: str, message: str) -> str:
+    """Build the session commit via git plumbing — never through a checkout.
+
+    ADR-0008: the commit is constructed in a temporary index seeded from the
+    integration target's tree (`base_sha`), updated per-manifest-entry with
+    content taken from the validated staging copy, written out with
+    `write-tree`, and committed with `commit-tree -p base_sha`. Neither the
+    user's checkout nor the real index is touched; the only durable side
+    effects are loose objects. Used by both PASS and HOLD (BALE.md §8.6) —
+    the caller moves the `bale/<sid>` ref to the returned commit and decides
+    whether to merge.
+
+    Per-manifest-entry, not tree-level: the manifest is the contract, and the
+    commit shape follows its `changes[]` directly (BALE.md §8.6). Files the
+    manifest doesn't name keep their `base_sha` content even when the staging
+    copy (built from the working tree, §8.3) diverges from the target branch.
+
+    Mode bits: the entry mode is derived from the staging copy's own mode —
+    `100755` when any execute bit is set, `100644` otherwise, `120000` for a
+    symlink — so an executable restored by the response's `apply.sh`
+    (TARBALL.md §5.1.1) lands executable in the commit. stage_response
+    preserves mode bits going into staging; this is the matching half on the
+    way into the object database. Blob content for regular files is hashed
+    with `--path=<repo path>` so the attribute-driven conversions `git add`
+    would apply at that path apply here too.
+
+    A delete whose path isn't in the base tree is a no-op
+    (`--force-remove` tolerates it), mirroring the old `git rm
+    --ignore-unmatch` tolerance for an already-absent file.
+
+    Raises subprocess.CalledProcessError on any git failure; the caller owns
+    the integration-lock release/hold decision for that case. Returns the new
+    commit sha.
     """
-    from __main__ import git
-    for change in manifest["changes"]:
-        path = change["path"]
-        action = change["action"]
-        if action in ("created", "modified"):
-            src = staging / path
-            dst = repo / path
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            # copy2 + follow_symlinks=False preserves the staging copy's mode
-            # bits so an executable file from files/ lands in the worktree
-            # still executable. stage_response already preserves mode bits
-            # going into staging; this is the matching half on the way out.
-            shutil.copy2(src, dst, follow_symlinks=False)
-            git(["add", path], cwd=repo)
-        elif action == "deleted":
-            # `git rm` removes from working tree AND stages the deletion.
-            # If the file is already absent from the working tree (e.g. someone
-            # deleted it manually), --ignore-unmatch keeps us from erroring.
-            git(["rm", "-f", "--ignore-unmatch", path], cwd=repo)
+    from __main__ import log
+    fd, index_path = tempfile.mkstemp(prefix="bale-index-")
+    os.close(fd)
+    os.unlink(index_path)  # git creates the index file itself
+    env = {**os.environ, "GIT_INDEX_FILE": index_path}
+
+    def pgit(args: list[str], *, input_text: Optional[str] = None) -> str:
+        r = subprocess.run(
+            ["git", *args], cwd=str(repo), env=env,
+            capture_output=True, text=True, input=input_text,
+        )
+        if r.returncode != 0:
+            raise subprocess.CalledProcessError(
+                r.returncode, ["git", *args], r.stdout, r.stderr)
+        return r.stdout
+
+    try:
+        pgit(["read-tree", base_sha])
+        for change in manifest["changes"]:
+            path = change["path"]
+            action = change["action"]
+            if action in ("created", "modified"):
+                src = staging / path
+                if src.is_symlink():
+                    mode = "120000"
+                    blob = pgit(["hash-object", "-w", "--stdin"],
+                                input_text=os.readlink(src)).strip()
+                else:
+                    mode = "100755" if (src.stat().st_mode & 0o111) else "100644"
+                    blob = pgit(["hash-object", "-w", f"--path={path}",
+                                 "--", str(src)]).strip()
+                # Three-argument --cacheinfo form: the comma-joined
+                # single-argument form can't carry a path containing a comma.
+                pgit(["update-index", "--add", "--cacheinfo",
+                      mode, blob, path])
+            elif action == "deleted":
+                pgit(["update-index", "--force-remove", "--", path])
+        tree = pgit(["write-tree"]).strip()
+        commit = pgit(["commit-tree", tree, "-p", base_sha,
+                       "-m", message]).strip()
+        log(f"built session commit {commit[:7]} (tree {tree[:7]}, "
+            f"parent {base_sha[:7]}) via temporary index")
+        return commit
+    finally:
+        try:
+            os.unlink(index_path)
+        except FileNotFoundError:
+            pass

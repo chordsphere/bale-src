@@ -505,6 +505,41 @@ pure matcher (generated_artifact_paths, section 16) plus the
 pipeline call; the builder-side rule lands in TARBALL.md §5.1 in the
 same session.
 
+v0.3.5 lands ADR-0008, checkout-free integration: apply builds the
+session commit and the no-fast-forward merge via git plumbing instead
+of consuming the user's checkout. The session commit is constructed in
+a temporary index seeded from the target branch's tree and updated
+per-manifest-entry from the validated staging copy
+(bale_staging.build_session_commit, replacing
+apply_changes_to_worktree); the merge is a two-parent commit-tree
+whose first parent is the old target tip — the exact `git merge
+--no-ff` topology — advanced with a compare-and-swap update-ref, or,
+when the user's (clean) checkout sits on the target branch, with a
+`git merge --ff-only` in that checkout so ref, index, and tree move
+together and the post-apply state matches the old pipeline's. What
+integration produces is unchanged: the bale/<sid> branch, the merge
+topology and message shape, the applied/<sid> tag, and the rollback
+story over them. Both verdicts now commit: a HOLD is a commit on
+bale/<sid> — inert, since nothing has it checked out — inspectable
+with `git diff <origin>..bale/<sid>` plus the preserved per-sid
+staging directory, and reverted exactly as before with strictly less
+to undo. The blanket clean-tree apply pre-flight (§8.1 step 5, §11
+row 8) is replaced by the narrow rule: refuse only tracked changes
+while checked out on the target branch itself (untracked files never
+block; a dirty checkout on any other branch never blocks). The
+integration target is fixed per session: pack and handoff stamp
+.bale/sessions/<sid>/origin_branch (persist_pack_session), apply
+resolves it with a current-branch fallback for pre-stamp sessions
+(resolve_target_branch), and retry preserves it across the HOLD
+discard. The ADR-0006 integration lock now guards the ref/branch
+window rather than a checkout-mutation window; a refused merge
+(target moved mid-apply, or the fast-forward declined) releases the
+lock and leaves the committed branch and the open session in place —
+recoverable with `bale retry` or `bale revert`. Staging semantics are
+deliberately untouched; when the checkout has diverged from the
+target, apply logs that validation ran against the checkout's
+content.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -526,32 +561,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  696)
-   2. Logging                                         (~line  775)
-   3. Shell / git helpers                             (~line  862)
-   4. Hashing                                         (~line  901)
-   5. Session IDs and the per-day counter             (~line  917)
-   6. Session registry + locks                        (~line  975)
-   7. .gitignore handling for the .bale/ directory    (~line 1381)
-   8. Path-safety checks                              (~line 1411)
-   9. Editor invocation                               (~line 1459)
-  10. Pack: file enumeration and filtering            (~line 1520)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1897)
-  12. Pack: slug validation                           (~line 2180)
-  13. Pack: manifest and tarball construction         (~line 2193)
-  14. Pack: wizard                                    (~line 2319)
-  15. Pack                                            (~line 2599)
-  16. Apply: helpers                                  (~line 3298)
-  17. Apply: pipeline                                 (~line 3938)
-  18. Apply                                           (~line 4465)
-  19. Revert                                          (~line 4666)
-  20. Retry                                           (~line 4881)
-  21. Unlock                                          (~line 5002)
-  22. Handoff                                         (~line 5187)
-  23. Hook invocation                                 (~line 5632)
-  24. Help and completion                             (~line 5791)
-  25. Status                                          (~line 6194)
-  26. CLI                                             (~line 6732)
+   1. Imports + constants                             (~line  732)
+   2. Logging                                         (~line  811)
+   3. Shell / git helpers                             (~line  898)
+   4. Hashing                                         (~line  937)
+   5. Session IDs and the per-day counter             (~line  953)
+   6. Session registry + locks                        (~line 1011)
+   7. .gitignore handling for the .bale/ directory    (~line 1417)
+   8. Path-safety checks                              (~line 1447)
+   9. Editor invocation                               (~line 1495)
+  10. Pack: file enumeration and filtering            (~line 1556)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1933)
+  12. Pack: slug validation                           (~line 2216)
+  13. Pack: manifest and tarball construction         (~line 2229)
+  14. Pack: wizard                                    (~line 2368)
+  15. Pack                                            (~line 2648)
+  16. Apply: helpers                                  (~line 3348)
+  17. Apply: pipeline                                 (~line 4073)
+  18. Apply                                           (~line 4717)
+  19. Revert                                          (~line 4918)
+  20. Retry                                           (~line 5140)
+  21. Unlock                                          (~line 5292)
+  22. Handoff                                         (~line 5477)
+  23. Hook invocation                                 (~line 5923)
+  24. Help and completion                             (~line 6082)
+  25. Status                                          (~line 6485)
+  26. CLI                                             (~line 7023)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -643,8 +678,11 @@ from bale_validate import (  # noqa: E402 — sys.path tweak above is load-beari
 # name rather than as a qualified module so the apply-pipeline call sites stay
 # unqualified — the public surface bin/bale uses is exactly these six entry
 # points (the _walk_tree_sha256 helper they share stays private to the module).
+# build_session_commit replaced apply_changes_to_worktree in v0.3.5 (ADR-0008):
+# the validated staging content is committed via plumbing instead of copied
+# into the user's checkout.
 from bale_staging import (  # noqa: E402 — sys.path tweak above is load-bearing
-    apply_changes_to_worktree,
+    build_session_commit,
     check_response_shell_syntax,
     reconcile_staging_against_manifest,
     run_validation_sh,
@@ -696,7 +734,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2295,7 +2333,8 @@ def build_request_tarball(
 
 
 def persist_pack_session(repo: Path, sid: str, manifest: dict,
-                         scope: Optional[list[str]] = None) -> None:
+                         scope: Optional[list[str]] = None,
+                         origin_branch: Optional[str] = None) -> None:
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
 
@@ -2305,6 +2344,16 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     resolved --include set, handoff its resolved reading-plan file set.
     None writes no scope.json, in which case read_session_scope reads
     the session as whole-tree, the conservative default.
+
+    `origin_branch` is the session's integration target (ADR-0008,
+    v0.3.5): the branch checked out when the request was packed, which is
+    the branch its content was gathered from and the branch its response
+    merges into — fixed at pack time so a later apply run from an
+    unrelated (even dirty) checkout still knows where it lands. Both
+    request-building call sites pass current_branch(repo). None or the
+    detached-HEAD sentinel "HEAD" writes no stamp; resolve_target_branch
+    then falls back to the branch current at apply time, the pre-stamp
+    behavior.
     """
     sessions_dir = repo / ".bale" / "sessions" / sid
     sessions_dir.mkdir(parents=True, exist_ok=True)
@@ -2313,6 +2362,8 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     )
     if scope is not None:
         persist_session_scope(repo, sid, scope)
+    if origin_branch and origin_branch != "HEAD":
+        (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -3246,7 +3297,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # leaves no open session and the user just retries). register_session
     # writes the ADR-0006 open marker plus the current_session
     # compatibility pointer in one step.
-    persist_pack_session(repo, sid, manifest, scope=pack_scope)
+    persist_pack_session(repo, sid, manifest, scope=pack_scope,
+                         origin_branch=current_branch(repo))
     register_session(repo, sid)
     log(f"opened session {sid} in the registry (lock pointer written)")
 
@@ -3308,6 +3360,91 @@ def working_tree_clean(repo: Path) -> tuple[bool, str]:
     """Return (clean, status_output). Clean means git status --porcelain is empty."""
     r = git(["status", "--porcelain"], cwd=repo)
     return (not r.stdout.strip(), r.stdout)
+
+
+def tracked_dirty_paths(repo: Path) -> list[str]:
+    """Paths with tracked modifications — staged or unstaged — i.e. every
+    `git status --porcelain` line whose XY status is not `??` (untracked).
+
+    ADR-0008's narrow pre-flight cares only about tracked dirt: untracked
+    files are invisible to a branch ref, so moving the ref under a checkout
+    that merely has untracked files cannot desynchronize the checkout from
+    its own branch. (An untracked file that would collide with merged
+    content is caught later, by `git merge --ff-only`'s own safety checks
+    on the fast-forward path.)
+    """
+    r = git(["status", "--porcelain"], cwd=repo)
+    paths: list[str] = []
+    for line in r.stdout.splitlines():
+        if not line.strip() or line.startswith("??"):
+            continue
+        paths.append(line[3:].strip())
+    return paths
+
+
+def resolve_target_branch(repo: Path, sid: str) -> str:
+    """The branch this session's integration merges into (ADR-0008).
+
+    Reads the session's recorded origin branch —
+    `.bale/sessions/<sid>/origin_branch`, stamped at pack time since v0.3.5
+    (persist_pack_session) and re-stamped by apply's §8.2 — so the target is
+    fixed by the session, independent of whatever branch the user's checkout
+    happens to be on. That independence is what makes the §8.1 step 5 narrow
+    rule's cases meaningful: "switch branches" is a valid remedy, and an
+    apply run from an unrelated dirty branch proceeds without touching the
+    checkout.
+
+    Fallback for sessions packed before the stamp existed (including the
+    one-apply-behind session that lands this code): the current branch —
+    exactly the target the old checkout-consuming pipeline would have used.
+    A detached checkout with no stamp has no determinable target and is
+    refused (the old pipeline's behavior there was accidental, not
+    contractual).
+    """
+    stamp = repo / ".bale" / "sessions" / sid / "origin_branch"
+    if stamp.is_file():
+        b = stamp.read_text().strip()
+        if b:
+            exists = git(["rev-parse", "--verify", "--quiet",
+                          f"refs/heads/{b}"], cwd=repo, check=False)
+            if exists.returncode != 0:
+                fail(f"the session's recorded target branch {b!r} no longer "
+                     f"exists. Recreate it, or `bale unlock {sid}` and "
+                     f"re-pack against the branch you mean to target.")
+            return b
+    cur = current_branch(repo)
+    if cur == "HEAD":
+        fail(f"cannot determine the integration target for {sid}: the "
+             f"session has no recorded origin branch and the checkout is "
+             f"detached. Check out the branch this session should merge "
+             f"into and re-run.")
+    return cur
+
+
+def refuse_dirty_on_target(repo: Path, target_branch: str) -> None:
+    """The ADR-0008 narrow pre-flight (BALE.md §8.1 step 5, §11 row 8),
+    replacing the blanket clean-tree requirement.
+
+    Refuses only the one genuinely entangled case: the checkout is on the
+    target branch AND has tracked changes — moving the ref under a dirty
+    checkout of that same branch would desynchronize the user's tree from
+    its own branch (git would report the inverse diff as local changes).
+    Every other state proceeds: another branch or detached (integration
+    never touches the checkout), or on-target but tracked-clean (the
+    checkout is fast-forwarded to the new ref at merge, §8.8).
+    """
+    if current_branch(repo) != target_branch:
+        return
+    dirty = tracked_dirty_paths(repo)
+    if dirty:
+        fail(
+            f"working tree has tracked changes while checked out on the "
+            f"integration target {target_branch!r} — merging would move "
+            f"the branch ref under a dirty checkout of that same branch "
+            f"and desynchronize it. Stash or commit the changes, or "
+            f"switch to another branch, then re-run:\n  "
+            + "\n  ".join(dirty)
+        )
 
 
 # --- Apply walkthrough (BALE.md §8.7) ----------------------------------------
@@ -3950,8 +4087,12 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 
     Expects, on entry:
       - lock held on `locked_sid`
-      - working tree clean (not required when dry_run — a dry-run touches
-        neither the worktree nor .bale/)
+      - the ADR-0008 narrow pre-flight already passed: no tracked changes
+        while checked out on the session's target branch
+        (refuse_dirty_on_target; not required when dry_run — a dry-run
+        touches neither the worktree nor .bale/). Any other checkout
+        state, dirty or not, is fine: integration never consumes the
+        checkout.
       - no bale/<sid> branch (revert/retry deleted it if needed)
       - logging already wired to the session log file
 
@@ -4196,16 +4337,39 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 ))
             return 0
 
-        # 8.2 stamp session.
+        # 8.2 stamp session. The integration target is the session's own
+        # (ADR-0008): resolve_target_branch reads the pack-time
+        # origin_branch stamp when present, falling back to the current
+        # branch for pre-stamp sessions — under the old checkout-consuming
+        # pipeline those were always the same branch. The recorded base is
+        # the TARGET branch's tip, not the checkout's HEAD; they coincide
+        # only when the user happens to be on the target. The session
+        # branch, the session commit, and the merge are all built against
+        # this base.
         sessions_dir = repo / ".bale" / "sessions" / locked_sid
         sessions_dir.mkdir(parents=True, exist_ok=True)
-        head = git(["rev-parse", "HEAD"], cwd=repo).stdout.strip()
-        origin_branch = current_branch(repo)
-        (sessions_dir / "git_head_at_apply").write_text(head + "\n")
+        origin_branch = resolve_target_branch(repo, locked_sid)
+        base_sha = git(["rev-parse", f"refs/heads/{origin_branch}"],
+                       cwd=repo).stdout.strip()
+        (sessions_dir / "git_head_at_apply").write_text(base_sha + "\n")
         (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
         (sessions_dir / "response-manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
+        head_now = git(["rev-parse", "HEAD"], cwd=repo).stdout.strip()
+        if head_now != base_sha:
+            # Staging semantics are deliberately unchanged this session
+            # (§8.3 copies the working tree — untracked build/dependency
+            # state has to ride into staging for validation to run). When
+            # the checkout has diverged from the target branch, that means
+            # validation.sh exercises the checkout's content while the
+            # commit itself is built per-manifest-entry against the target
+            # base. Say so rather than let the mismatch pass silently.
+            log(f"note: checkout HEAD ({head_now[:7]}) differs from the "
+                f"target branch tip ({base_sha[:7]}); staging copies the "
+                f"working tree, so validation runs against the checkout's "
+                f"content while the commit is built against "
+                f"{origin_branch}'s tip")
 
         # 8.3 stage. Default is <repo>/.bale/staging/<sid> — per-session
         # since v0.3.3 — so the tree lives inside the already-gitignored
@@ -4255,49 +4419,71 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             shutil.rmtree(staging, ignore_errors=True)
             fail(str(e))
 
-        # 8.5: create bale/<sid> branch at HEAD (don't check out yet).
+        # 8.5: create bale/<sid> branch at the target base (never checked
+        # out — ADR-0008; the ref is moved onto the plumbing-built session
+        # commit after validation).
         sid_branch = f"bale/{locked_sid}"
         try:
-            git(["branch", sid_branch, "HEAD"], cwd=repo)
+            git(["branch", sid_branch, base_sha], cwd=repo)
         except subprocess.CalledProcessError as e:
             fail(f"could not create branch {sid_branch}: "
                  f"{e.stderr or e.stdout or e}")
-        log(f"created branch {sid_branch} at HEAD ({head[:7]})")
+        log(f"created branch {sid_branch} at {origin_branch} tip "
+            f"({base_sha[:7]})")
 
         # Run validation.sh in staging.
         exit_code = run_validation_sh(repo, response_dir, staging, manifest,
                                       locked_sid, verbose=verbose)
         log(f"validation.sh exit code: {exit_code}")
 
-        # 8.6 commit-or-hold + 8.7 walkthrough. Both validation outcomes
-        # check out bale/<sid> and apply the manifest's changes to the
-        # working tree; PASS additionally commits so the branch carries a
-        # merge-ready commit before the walkthrough prompts. HOLD leaves the
-        # changes staged but uncommitted, matching BALE.md §8.6 step 2 of
-        # the HOLD path.
+        # 8.6 commit-or-hold + 8.7 walkthrough — checkout-free (ADR-0008).
+        # Both validation outcomes build the session commit via plumbing
+        # (build_session_commit: temporary index seeded from the base tree,
+        # per-manifest-entry updates from staging, write-tree/commit-tree)
+        # and move bale/<sid> onto it. PASS proceeds to the merge decision;
+        # HOLD stops there — the committed branch, inert because nothing
+        # has it checked out, IS the inspection surface, alongside the
+        # preserved per-sid staging directory. The user's checkout is never
+        # switched, applied to, or committed through.
         #
         # The ADR-0006 integration lock guards this window (§8.6–§8.8): from
-        # the checkout below through the terminal action's git work, the
-        # user's checkout is being mutated, and concurrent integrations
-        # (reachable since ADR-0007's pack gate landed) serialize here.
-        # Released explicitly at
-        # each terminal action once its git work is done — and deliberately
-        # NOT from a finally: an abnormal exit inside the window (a git
-        # failure, a crash) leaves the checkout mid-mutation, and a held
-        # lock naming the holder is the honest signal of that state. The
-        # acquire-time failure message is the recovery path (stale-lock
-        # story, ADR-0006).
+        # the commit build below through the terminal action's git work,
+        # bale is mutating refs (bale/<sid>, and on merge the target branch
+        # — plus, in the clean-on-target case, a fast-forward of the user's
+        # checkout), and concurrent integrations (reachable since ADR-0007's
+        # pack gate landed) serialize here. Released explicitly at each
+        # terminal action once its git work is done — and deliberately NOT
+        # from a finally: an abnormal exit inside the window (a git
+        # failure, a crash) leaves the ref work possibly half-done, and a
+        # held lock naming the holder is the honest signal of that state.
+        # The acquire-time failure message is the recovery path (stale-lock
+        # story, ADR-0006). The one exception is the commit build itself:
+        # if it raises, no ref has moved and the checkout was never
+        # touched, so the lock releases before the fail — nothing is
+        # mid-mutation.
         acquire_integration_lock(repo, locked_sid)
-        git(["checkout", sid_branch], cwd=repo)
-        apply_changes_to_worktree(repo, staging, manifest)
+        commit_msg = f"[bale {locked_sid}] {manifest['summary']}"
+        try:
+            session_commit = build_session_commit(
+                repo, staging, manifest, base_sha, commit_msg)
+            # Guarded ref move: bale/<sid> was created at base_sha in 8.5;
+            # anything else there means outside interference — refuse
+            # atomically rather than clobber.
+            git(["update-ref", f"refs/heads/{sid_branch}",
+                 session_commit, base_sha], cwd=repo)
+        except subprocess.CalledProcessError as e:
+            release_integration_lock(repo)
+            fail(f"could not build the session commit for {sid_branch}: "
+                 f"{e.stderr or e.stdout or e}")
         state = "PASS" if exit_code == 0 else "HOLD"
         if state == "PASS":
-            commit_msg = f"[bale {locked_sid}] {manifest['summary']}"
-            git(["commit", "-m", commit_msg], cwd=repo)
-            log(f"committed changes to {sid_branch}")
+            log(f"committed changes to {sid_branch} "
+                f"({session_commit[:7]}; checkout untouched)")
         else:
-            log(f"validation FAILED (exit={exit_code}); held on {sid_branch} "
-                f"with staged uncommitted changes")
+            log(f"validation FAILED (exit={exit_code}); held as commit "
+                f"{session_commit[:7]} on {sid_branch} — inspect with "
+                f"`git diff {origin_branch}..{sid_branch}`; checkout "
+                f"untouched")
 
         # 8.7 walkthrough — print summary, prompt for terminal action.
         # Both PASS and HOLD go through the same summary path so the user
@@ -4325,13 +4511,78 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         if action == "merge":
             # PASS → merge into origin, tag the applied sid, delete the
             # bale branch, clean up session dir + lock, fire the hook.
-            # Order matches the pre-walkthrough PASS path so the hook keeps
-            # firing after a durable git state is in place.
-            git(["checkout", origin_branch], cwd=repo)
-            git(["merge", "--no-ff", sid_branch, "-m",
-                 f"Merge bale {locked_sid}"], cwd=repo)
-            git(["tag", f"applied/{locked_sid}"], cwd=repo)
-            git(["branch", "-d", sid_branch], cwd=repo)
+            # Checkout-free (ADR-0008): the merge commit is built with
+            # plumbing — a two-parent commit-tree whose first parent is the
+            # old target tip and whose tree is the session commit's tree,
+            # exactly the topology `git merge --no-ff` produces — and the
+            # target ref is advanced without going through any checkout of
+            # the target branch (git refuses to check one out in a second
+            # worktree anyway, when the user is sitting on it).
+            #
+            # Two guards, both refuse-and-preserve: if the target moved
+            # during this apply, the session commit's parent is stale and
+            # merging would silently drop the new tip's content from the
+            # merge tree — refuse. And the ref advance itself is
+            # compare-and-swap (update-ref with the expected old value /
+            # --ff-only), so a race inside the window refuses rather than
+            # clobbers. Either refusal leaves the session commit on
+            # bale/<sid> and the session open — recoverable with
+            # `bale retry <tarball>` or `bale revert <sid>` — and since no
+            # ref moved and the checkout was never touched, the lock
+            # releases before the fail.
+            cur_target_sha = git(["rev-parse", f"refs/heads/{origin_branch}"],
+                                 cwd=repo).stdout.strip()
+            if cur_target_sha != base_sha:
+                release_integration_lock(repo)
+                fail(f"target branch {origin_branch!r} moved during this "
+                     f"apply ({base_sha[:7]} → {cur_target_sha[:7]}); "
+                     f"refusing to merge a commit built against the old "
+                     f"tip. The session commit is held on {sid_branch} and "
+                     f"the session is open — `bale revert {locked_sid}` to "
+                     f"discard, then re-pack against the new tip.")
+            tree_sha = git(["rev-parse", f"{session_commit}^{{tree}}"],
+                           cwd=repo).stdout.strip()
+            merge_commit = git(
+                ["commit-tree", tree_sha, "-p", base_sha,
+                 "-p", session_commit, "-m", f"Merge bale {locked_sid}"],
+                cwd=repo).stdout.strip()
+            if current_branch(repo) == origin_branch:
+                # The checked-out-target case, clean by pre-flight: advance
+                # the ref THROUGH the checkout with a fast-forward merge, so
+                # ref, index, and working tree move together under git's own
+                # safety checks (a mid-pipeline tracked edit or a colliding
+                # untracked file refuses here instead of desynchronizing).
+                try:
+                    git(["merge", "--ff-only", merge_commit], cwd=repo)
+                except subprocess.CalledProcessError as e:
+                    release_integration_lock(repo)
+                    fail(f"could not fast-forward the checkout on "
+                         f"{origin_branch} to the merge commit: "
+                         f"{e.stderr or e.stdout or e}\nThe session commit "
+                         f"is held on {sid_branch} and the session is open "
+                         f"— clean the working tree, then `bale retry "
+                         f"<tarball>`, or `bale revert {locked_sid}`.")
+                log(f"fast-forwarded checkout on {origin_branch} to merge "
+                    f"commit {merge_commit[:7]}")
+            else:
+                try:
+                    git(["update-ref", f"refs/heads/{origin_branch}",
+                         merge_commit, cur_target_sha], cwd=repo)
+                except subprocess.CalledProcessError as e:
+                    release_integration_lock(repo)
+                    fail(f"could not advance {origin_branch!r} to the merge "
+                         f"commit: {e.stderr or e.stdout or e}\nThe session "
+                         f"commit is held on {sid_branch} and the session "
+                         f"is open — `bale retry <tarball>` or `bale revert "
+                         f"{locked_sid}`.")
+                log(f"advanced {origin_branch} to merge commit "
+                    f"{merge_commit[:7]} without touching the checkout "
+                    f"(currently on {current_branch(repo)})")
+            git(["tag", f"applied/{locked_sid}", merge_commit], cwd=repo)
+            # -D, not -d: branch -d checks merged-into-HEAD, and HEAD may be
+            # an unrelated checkout now. The merge commit and the tag above
+            # already anchor the session's history.
+            git(["branch", "-D", sid_branch], cwd=repo)
             close_session(repo, locked_sid)
             shutil.rmtree(sessions_dir, ignore_errors=True)
             release_integration_lock(repo)
@@ -4374,19 +4625,22 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             return 0
 
         if action == "inspect":
-            # HOLD → leave branch checked out with staged changes for the
-            # user to investigate. Exit non-zero per BALE.md §8.7 piped-mode
-            # contract; the session stays open and the branch persists until
-            # the user retries with a corrected response or reverts. This
-            # invocation's git mutation is complete, so the integration lock
-            # releases here — the held state is guarded by the session's
-            # registry entry plus the branch itself, not by the lock.
+            # HOLD → leave the session commit on bale/<sid> for the user to
+            # investigate (branch diff plus the preserved staging dir — the
+            # checkout was never switched, ADR-0008). Exit non-zero per
+            # BALE.md §8.7 piped-mode contract; the session stays open and
+            # the branch persists until the user retries with a corrected
+            # response or reverts. This invocation's git mutation is
+            # complete, so the integration lock releases here — the held
+            # state is guarded by the session's registry entry plus the
+            # branch itself, not by the lock.
             release_integration_lock(repo)
             print(format_summary_block(
                 [
                     ("validation", f"exited {exit_code}"),
-                    ("branch", f"{sid_branch} (uncommitted; "
-                               f"`git diff --cached` to inspect)"),
+                    ("branch", f"{sid_branch} (committed; `git diff "
+                               f"{origin_branch}..{sid_branch}` to inspect "
+                               f"— checkout untouched)"),
                     ("log", f".bale/logs/{locked_sid}.log"),
                     ("staging", f"{staging} (preserved)"),
                     ("retry", "bale retry <new-tarball>"),
@@ -4417,14 +4671,14 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # is the caller's responsibility per _discard_hold_state's
         # docstring contract.
         #
-        # Why this is safe on the PASS path: PASS just committed on
-        # bale/<sid>, so sid_sha != origin_sha and _discard_hold_state's
-        # ancestor guard recognises this as an unmerged branch (the
-        # guard's purpose is to refuse already-merged sessions, which
-        # this isn't — origin still points at HEAD-pre-apply). On the
-        # HOLD path, sid_sha == origin_sha so the guard's "is_ancestor"
-        # branch short-circuits as designed. Either way the cleanup
-        # runs.
+        # Why this is safe on both paths: PASS and HOLD alike hold a
+        # session commit on bale/<sid> (ADR-0008), so sid_sha !=
+        # origin_sha and _discard_hold_state's ancestor guard recognises
+        # an unmerged branch (the guard's purpose is to refuse
+        # already-merged sessions, which this isn't — origin still points
+        # at the pre-apply base). Either way the cleanup runs, and since
+        # the checkout was never switched there is nothing to reset or
+        # check back out on the common path.
         #
         # Exit code: 1, matching the stub this replaces. The work did
         # not land in origin; a scripted `bale apply $TARBALL && deploy`
@@ -4648,12 +4902,12 @@ def cmd_apply(args: argparse.Namespace) -> int:
             dry_run=True, verbose=args.verbose,
         )
 
-    # 8.1 step 5: working tree clean. (cmd_retry skips this guard because
-    # a HOLDed session's worktree is dirty by construction; retry's
-    # _discard_hold_state cleans it before calling _apply_pipeline.)
-    clean, status = working_tree_clean(repo)
-    if not clean:
-        fail("working tree is not clean. Commit or stash before applying:\n" + status)
+    # 8.1 step 5 — the ADR-0008 narrow rule, replacing the blanket
+    # clean-tree requirement: refuse only tracked changes on the target
+    # branch itself. Untracked files never block; a dirty checkout on any
+    # OTHER branch never blocks (integration no longer touches the
+    # checkout). cmd_retry runs the same guard.
+    refuse_dirty_on_target(repo, resolve_target_branch(repo, locked_sid))
 
     return _apply_pipeline(
         repo, tarball_path, locked_sid, args.staging_dir,
@@ -4727,13 +4981,17 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
         if not origin_branch:
             fail(f"origin_branch file at {origin_branch_file} is empty")
 
-        # Refuse if already merged into origin. Tricky: in a HOLD the bale
-        # branch and origin point at the SAME commit (no commit was made
-        # on the bale branch), so the literal `is-ancestor` check is
-        # trivially true even though nothing was merged. The intent is
-        # "merged via a merge commit so deleting the branch would lose
-        # history that's threaded through origin" — which only applies
-        # when the SHAs differ. So guard the ancestor check accordingly.
+        # Refuse if already merged into origin. Since ADR-0008 a HOLD
+        # carries a commit on the bale branch (sid_sha != origin_sha, and
+        # is-ancestor is false because origin is behind — the guard passes
+        # it through as unmerged, correctly). The sid_sha == origin_sha
+        # short-circuit stays for the pre-ADR-0008 HOLD shape, where branch
+        # and origin pointed at the SAME commit and the literal
+        # `is-ancestor` check would be trivially true even though nothing
+        # was merged — the transition case one-apply-behind can hand us.
+        # The intent either way is "merged via a merge commit so deleting
+        # the branch would lose history that's threaded through origin",
+        # which only applies when the SHAs differ.
         sid_sha = git(["rev-parse", sid_branch], cwd=repo).stdout.strip()
         origin_sha = git(["rev-parse", origin_branch], cwd=repo).stdout.strip()
         if sid_sha != origin_sha:
@@ -4744,10 +5002,13 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
                      f"this session was already merged. Use "
                      f"`bale rollback {sid}` to undo a merged session.")
 
-        # If on the bale branch, reset HOLD's staged changes and switch to
-        # origin. (cmd_revert previously had a --force override note for
-        # other dirty-tree cases; we don't touch other branches' WIP
-        # because we don't check them out.)
+        # If on the bale branch, reset any local changes and switch to
+        # origin before deleting it. Since ADR-0008 bale never puts the
+        # user on bale/<sid> — this path covers a manual checkout during
+        # inspection, and the pre-ADR-0008 HOLD shape (staged changes on a
+        # checked-out bale branch) that one-apply-behind can hand us. (We
+        # don't touch other branches' WIP because we don't check them
+        # out.)
         current = current_branch(repo)
         if current == sid_branch:
             log(f"on {sid_branch}; resetting staged changes and switching to {origin_branch}")
@@ -4841,10 +5102,10 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # closed and leave the compatibility pointer stale.
     was_open = session_is_open(repo, sid)
 
-    # Shared cleanup (9.1 steps 2-6, plus staging cleanup).
+    # Shared cleanup (9.1 steps 2-5, plus staging cleanup).
     status = _discard_hold_state(repo, sid)
 
-    # 9.1 step 7: close this sid in the registry if it was open. Threaded
+    # 9.1 step 6: close this sid in the registry if it was open. Threaded
     # (ADR-0006): the close targets the reverted session itself, never
     # whichever session the compatibility pointer happened to name — with
     # one open session the two were always the same sid, so the
@@ -4937,10 +5198,12 @@ def cmd_retry(args: argparse.Namespace) -> int:
 
     # Preserve the session's durable records across the HOLD cleanup.
     # _discard_hold_state wipes .bale/sessions/<sid>/ wholesale — the
-    # right cleanup for the per-attempt state (origin_branch,
-    # staging_path, the prior response manifest, all re-stamped by the
-    # pipeline) but it also takes the open marker, the stamped request
-    # manifest, and the ADR-0007 scope with it. Pre-threading that gap
+    # right cleanup for the per-attempt state (staging_path and the prior
+    # response manifest, both re-stamped by the pipeline) but it also
+    # takes the open marker, the stamped request manifest, the ADR-0007
+    # scope, and — since ADR-0008 made it the session's fixed integration
+    # target rather than per-attempt state — the origin_branch stamp with
+    # it. Pre-threading that gap
     # was papered over by the compatibility pointer, which still named
     # the sid; with resolution registry-based, a retry window whose
     # marker is gone would read as "no session open" to every command
@@ -4973,6 +5236,27 @@ def cmd_retry(args: argparse.Namespace) -> int:
                 f"across the retry (the session will read as "
                 f"whole-tree, conservative)")
 
+    # ADR-0008 (v0.3.5): origin_branch joins the records preserved across
+    # the discard. It is durable — the session's integration target, fixed
+    # at pack — but 8.2 historically stamped it per-attempt, so the wipe
+    # takes it and the re-persist below restores it. Read it before the
+    # discard.
+    preserved_origin: Optional[str] = None
+    opath = sessions_dir / "origin_branch"
+    if opath.is_file():
+        stamped_origin = opath.read_text().strip()
+        if stamped_origin:
+            preserved_origin = stamped_origin
+
+    # 8.1 step 5 — the same ADR-0008 narrow rule cmd_apply runs: refuse
+    # tracked changes on the target branch itself, before any HOLD state
+    # is discarded. The old blanket guard was skipped here because a HOLD
+    # dirtied the worktree by construction; a HOLD is a committed branch
+    # now, so retry runs the guard like apply does. (A pre-ADR-0008 HOLD
+    # in flight has the user parked on bale/<sid> — not the target — so
+    # the transition case passes and _discard_hold_state resets it.)
+    refuse_dirty_on_target(repo, resolve_target_branch(repo, locked_sid))
+
     # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
     # never tried apply). In that case retry behaves like apply.
     status = _discard_hold_state(repo, locked_sid)
@@ -4990,6 +5274,14 @@ def cmd_retry(args: argparse.Namespace) -> int:
                              scope=preserved_scope)
     elif preserved_scope is not None:
         persist_session_scope(repo, locked_sid, preserved_scope)
+    if preserved_origin is not None:
+        # Written directly (not via persist_pack_session's origin_branch
+        # param) so it restores in every branch above, including the
+        # no-stamped-manifest case.
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        (sessions_dir / "origin_branch").write_text(preserved_origin + "\n")
+        log(f"preserved integration target {preserved_origin!r} across "
+            f"the retry")
     register_session(repo, locked_sid)
     log(f"re-opened session {locked_sid} in the registry for the retry")
 
@@ -5585,7 +5877,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # session was closed by `bale apply`'s bailout branch.
         handoff_scope = resolved_scope(included_paths)
         persist_pack_session(repo, new_sid, new_manifest,
-                             scope=handoff_scope)
+                             scope=handoff_scope,
+                             origin_branch=current_branch(repo))
         register_session(repo, new_sid)
         log(f"opened session {new_sid} in the registry")
 
