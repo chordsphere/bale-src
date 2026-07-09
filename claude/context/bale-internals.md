@@ -85,8 +85,13 @@ is *for* — and stays stable as the per-section line numbers drift:
     with a preview of any persisted `.baleignore`); and
     `cmd_pack` itself (which also hosts the git-init walkthrough
     per BALE.md §10, the §7.4 soft-cap `[y]/[e]/[n]` loop where
-    `[e]` collects more session-only excludes and re-walks, and
-    the force-include of `.baleignore` into context when present).
+    `[e]` collects more session-only excludes and re-walks, the
+    force-include of `.baleignore` into context when present, and —
+    v0.3.6 — the `--readme-file` resolution through the shared
+    inbound-path resolver (`resolve_inbound_path` over
+    `apply.search_paths`, cluster 11), with the repo-root walk-up
+    hoisted ahead of the flag validation so the project config
+    layer is readable there).
 11. **Apply pipeline.** Three sections in the body: apply helpers (the
     staging-tree, reconciliation, `validation.sh`-run,
     session-commit-build, response-verification, and
@@ -103,8 +108,11 @@ is *for* — and stays stable as the per-section line numbers drift:
     the walkthrough prompt
     (`prompt_walkthrough_action`), the handoff.md heading slicers
     (`first_section_of_handoff`, `reading_plan_section`, and the
-    reading-plan path extractor), the tarball-resolution and
-    non-interactive-mode helpers, the per-session default staging
+    reading-plan path extractor), the inbound-path resolution helper
+    (`resolve_inbound_path`, renamed from `resolve_tarball_path` in
+    v0.3.6 when pack's `--readme-file` became its second consumer
+    alongside the apply/retry/handoff tarball arguments — cluster 10)
+    and the non-interactive-mode helpers, the per-session default staging
     path helpers (`default_staging_root` / `default_staging_dir` /
     `clean_staging_root`, v0.3.3), the generated-artifact deny list
     and its pure matcher (`GENERATED_ARTIFACT_DIRS` /
@@ -459,10 +467,18 @@ hook_auto_accept = false
 ```
 
 The schema is identical at both layers. The only thing that differs is
-what hook paths resolve against (the file's own directory). Future
-sessions add more keys under `[hooks]` and (potentially) new top-level
-sections; each new key extends `walk_configurables()` in the same session
-so the discoverable surface stays in sync.
+what hook paths resolve against (the file's own directory).
+`search_paths` names the machine's inbound directories: it is consulted
+by every relative inbound-file argument — the tarball for `bale apply`
+/ `bale retry` / `bale handoff`, and (v0.3.6) the prose file for
+`bale pack --readme-file` — through one resolver
+(`resolve_inbound_path` in `bin/bale`). The key keeps its historical
+`apply.` spelling; the tarball resolver was its first consumer, and
+renaming or aliasing it would cost a migration layer for zero
+behavioral gain. Future sessions add more keys under `[hooks]` and
+(potentially) new top-level sections; each new key extends
+`walk_configurables()` in the same session so the discoverable surface
+stays in sync.
 
 The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
 mode: `no_interact = true` opts `bale apply` and `bale retry` into the

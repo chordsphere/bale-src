@@ -381,7 +381,9 @@ The intended onboarding is two-to-three steps:
    wide layer that every project inherits per-key. Useful when you
    want, e.g., `~/Downloads` in `apply.search_paths` once for every
    bale-using project on the machine, rather than re-typing it in
-   every `<repo>/bale.toml`.
+   every `<repo>/bale.toml`. The key names the machine's inbound
+   directories, consulted by every relative inbound-file argument:
+   apply/retry/handoff's tarball and pack's `--readme-file` (§7.3).
 
 After step 2 (and optionally 3), `bale pack` / `bale apply` /
 `bale retry` / `bale revert` work normally. The wizard is the
@@ -673,7 +675,9 @@ The inputs:
 - **readme prose** (optional) — the request's `README.md` body.
   Suppliable non-interactively via `--readme-file <path>`, or
   interactively via the wizard's `$EDITOR` step (§7.3); `--edit`
-  forces the editor step on a fully specified command.
+  forces the editor step on a fully specified command. A relative
+  `--readme-file` path resolves through the configured inbound
+  directories exactly like apply's tarball argument (§7.3).
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by Claude when
@@ -723,7 +727,15 @@ Two flags (v0.2.4) give the README a CLI surface beyond the wizard:
 - **`--readme-file <path>`** packs the file's contents (UTF-8 text)
   as the request's `README.md` — the non-interactive way to ship
   prose context, e.g. from an orchestrator or a pre-written note. A
-  missing, unreadable, or empty file fails loudly before any prompt
+  relative path resolves through the same inbound search paths as
+  apply's tarball argument (`apply.search_paths`, v0.3.6): absolute
+  paths bypass search, cwd is tried first, then each configured
+  directory in order, first existing file wins, and a name that
+  matches nowhere fails naming every directory consulted — so a
+  worker can author `--readme-file request-brief.md` without knowing
+  where the architect's downloads land. With no search paths
+  configured, resolution is against cwd, as before. A missing,
+  unreadable, or empty file fails loudly before any prompt
   runs; deliberate omission is spelled "don't pass the flag."
   Compatible with `--no-edit` (the prose ships, no editor opens) and
   with the wizard (the README y/N prompt is skipped, since content
