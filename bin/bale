@@ -608,7 +608,8 @@ sibling `bale_staging.py` module (extracted in v0.1.3). This file imports its
 six public entry points — `check_response_shell_syntax`,
 `verify_files_against_manifest`, `stage_response`,
 `reconcile_staging_against_manifest`, `run_validation_sh`,
-`apply_changes_to_worktree` — by name so the apply-section call sites read
+`build_session_commit` (which replaced `apply_changes_to_worktree` in
+v0.3.5 — ADR-0008) — by name so the apply-section call sites read
 unqualified, matching the `bale_validate` convention.
 
 The `bale rollback` command lives in the sibling `bale_rollback.py` module
@@ -4560,10 +4561,13 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                          f"{origin_branch} to the merge commit: "
                          f"{e.stderr or e.stdout or e}\nThe session commit "
                          f"is held on {sid_branch} and the session is open "
-                         f"— clean the working tree, then `bale retry "
+                         f"— resolve what git reports above (an untracked "
+                         f"file colliding with the merge is the common "
+                         f"case: move it aside), then `bale retry "
                          f"<tarball>`, or `bale revert {locked_sid}`.")
                 log(f"fast-forwarded checkout on {origin_branch} to merge "
                     f"commit {merge_commit[:7]}")
+                merged_note = "checkout fast-forwarded"
             else:
                 try:
                     git(["update-ref", f"refs/heads/{origin_branch}",
@@ -4578,6 +4582,10 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 log(f"advanced {origin_branch} to merge commit "
                     f"{merge_commit[:7]} without touching the checkout "
                     f"(currently on {current_branch(repo)})")
+                cur_after = current_branch(repo)
+                merged_note = ("detached checkout untouched"
+                               if cur_after == "HEAD"
+                               else f"checkout on {cur_after!r} untouched")
             git(["tag", f"applied/{locked_sid}", merge_commit], cwd=repo)
             # -D, not -d: branch -d checks merged-into-HEAD, and HEAD may be
             # an unrelated checkout now. The merge commit and the tag above
@@ -4604,12 +4612,16 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             print(format_summary_block(
                 [
                     ("tag", f"applied/{locked_sid}"),
-                    ("branch", f"{origin_branch} (merged)"),
+                    ("branch", f"{origin_branch} (merged — {merged_note})"),
                     ("files", f"{len(manifest['changes'])} changed"),
                     ("staging", f"{staging} (preserved for inspection)"),
                 ],
                 status="PASS",
                 sid=locked_sid,
+                trailer=[
+                    f"To roll back this bale: `bale rollback {locked_sid}`, "
+                    f"or `bale rollback` for the most recent.",
+                ],
             ))
             if json_mode():
                 # Terminal json report (v0.2.8), emitted after the human

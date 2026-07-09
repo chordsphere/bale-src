@@ -73,9 +73,12 @@ deleted.
   through a clean on-target checkout); the blanket clean-tree requirement
   becomes the narrow tracked-dirty-on-target refusal; HOLD commits to
   `bale/<sid>` and is inspected via branch diff plus the preserved per-sid
-  staging. Status: Accepted (landed in v0.3.5 — BALE.md §7.6, §8.1 step 5,
-  §8.2, §8.5, §8.6, §8.8, §9.1, §11 row 8; the walkthrough/inspection
-  polish and full docs sweep are the ratified follow-up session's). Pull
+  staging. Status: Accepted (mechanism landed in v0.3.5 — BALE.md §7.6,
+  §8.1 step 5, §8.2, §8.5, §8.6, §8.8, §9.1, §11 row 8; the ratified
+  follow-up session landed the walkthrough/inspection polish and the
+  docs sweep, so §1, §3.4, §5, §6.2, §8.3's fidelity caveat, §8.7, §9's
+  unlock-vs-revert line, and §10 now narrate the checkout-free
+  pipeline). Pull
   when touching the apply pipeline's commit/merge steps, the HOLD path, or
   revert/retry semantics.
 - `context/adr/0009-orchestration-doc-plan.md` — defer a standalone

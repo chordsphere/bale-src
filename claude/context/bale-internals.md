@@ -96,7 +96,8 @@ is *for* — and stays stable as the per-section line numbers drift:
     bailout-banner renderers to the sibling `bale_report` module in
     v0.2.6, both imported by name; what remains in this section is
     `current_branch`, `working_tree_clean` (kept for
-    `bale_rollback`'s pre-flight — apply no longer calls it), the
+    `bale_rollback`'s pre-flight and `bale status`'s gather — apply
+    no longer calls it), the
     ADR-0008 narrow pre-flight trio (`tracked_dirty_paths`,
     `resolve_target_branch`, `refuse_dirty_on_target`, v0.3.5),
     the walkthrough prompt
@@ -696,12 +697,18 @@ The full loop with everything wired up:
 4. User runs `bale apply <response.tar.gz>`:
    1. Tarball validated, manifest schema-checked, `apply.sh` and
       `validation.sh` syntax-checked, sha256s verified.
-   2. Project state copied into `.bale/staging/`, response files
-      overlaid, deletes applied.
+   2. Project state copied into the per-sid staging directory
+      (`.bale/staging/<sid>/`, per-session since v0.3.3), response
+      files overlaid, deletes applied.
    3. `validation.sh` runs in staging. PASS or HOLD.
-   4. PASS path: changes applied to working tree on `bale/<sid>`
-      branch, committed, merged into origin with `--no-ff`, tagged
-      `applied/<sid>`, lock cleared, session dir wiped.
+   4. PASS path: the session commit is built with plumbing against
+      the target branch's tip and lands on the `bale/<sid>` branch
+      (`build_session_commit`, ADR-0008 — the user's checkout is
+      never consumed); the merge is a two-parent `commit-tree`
+      advanced by compare-and-swap `update-ref`, or by
+      `git merge --ff-only` through a clean on-target checkout;
+      tagged `applied/<sid>`, session closed in the registry,
+      session dir wiped.
    5. **`run_hook(repo, merged_config(repo), "post_apply_pass", sid)`**
       — `merged_config` layers `<install>/user/bale.toml` under
       `<repo>/bale.toml`, resolves hook paths against their owning
