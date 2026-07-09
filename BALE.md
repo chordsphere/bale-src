@@ -99,9 +99,10 @@ A session is:
    slice of the project into a request tarball. Hand the tarball to
    Claude (via copy-paste, upload, whatever).
 2. **Receive** — Claude returns a response tarball.
-3. **Apply** — validate the response mechanically, stage the changes
-   to a git branch, run the response's `apply.sh` and `validation.sh`
-   in a staging copy, commit if clean, walk through merge/keep/revert.
+3. **Apply** — validate the response mechanically, run the response's
+   `apply.sh` and `validation.sh` in a staging copy, commit the result
+   to a session branch with git plumbing (the user's checkout is never
+   consumed — ADR-0008), walk through merge/inspect/revert.
 4. **Rollback** (later, if needed) — undo an applied bale via
    `git revert`, tracked and itself undoable.
 
@@ -126,7 +127,7 @@ moves bytes safely.
 - Apply response tarballs (validate manifest, path-safety, staging
   copy, run `apply.sh` + `validation.sh`, commit or hold).
 - Rollback applied snaps (`git revert`, tagged, undoable).
-- Revert staged-not-merged snaps (discard the branch).
+- Revert committed-not-merged snaps (discard the session branch).
 - Unlock abandoned sessions (clear lock, no git side effects).
 - Git-init walkthrough for first-time users in non-git directories.
 - Session-registry enforcement (per-session open markers, ADR-0006;
@@ -310,7 +311,13 @@ Every project sees the new docs on its next pack.
                                # reading-plan file set for a handoff;
                                # absent (pre-threading sessions) reads
                                # as whole-tree
-      origin_branch            # branch user was on before staging
+      origin_branch            # the session's integration target,
+                               # stamped at pack/handoff time
+                               # (ADR-0008, §7.6); absent for
+                               # pre-stamp sessions and detached-
+                               # checkout packs — apply then falls
+                               # back to the branch current at
+                               # apply time (§8.1 step 5)
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
 ```
@@ -436,12 +443,12 @@ forward-looking entry.
 | Command | Purpose | Phase |
 |---------|---------|-------|
 | `bale pack` | Build a request tarball from the project + user-specified scope. | v0.0.1 |
-| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the branch staged for inspection. | v0.0.1 |
+| `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). | v0.0.x |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. | v0.0.5 |
-| `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. | v0.0.6 |
+| `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6). | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 
 No `status`, no `log`, no `blame`, no `diag`. Inspection is a Claude
@@ -471,8 +478,16 @@ no tool.
 
 The following flags apply across multiple commands:
 
-- `--force` — bypass safety refusals (system-dir, home-dir,
-  threshold caps, dirty-tree checks). Logged prominently.
+- `--force` — bypass a command's overridable safety refusals; the
+  override is logged prominently with a `FORCE:` prefix. Per command:
+  pack and handoff bypass the home-directory refusal and the
+  threshold caps; rollback bypasses its dirty-tree refusal (without
+  stashing) and the already-reverted / already-re-applied refusals
+  (§9.2); unlock bypasses the branch-exists refusal (§9.3). The
+  system-directory refusal has no override anywhere (§7.1), and
+  `bale apply` takes no `--force` at all — the narrow dirty-on-target
+  rule (§8.1 step 5) has no bypass; its remedies are stash, commit,
+  or switch branches.
 - `--verbose` — stream validation output and other long-running
   command output to stdout in addition to the log file. (Landed
   apply-scoped in v0.2.1 — `bale apply --verbose` streams `validation.sh`
@@ -532,16 +547,19 @@ Per `TARBALL.md` section 5.1:
 
 ```
 response-NNN/
-  README.md
   manifest.json
-  apply.sh             # deletes; never mv (renames decompose into files/ + rm)
+  apply.sh             # deletes + exec-bit restores; never mv (renames decompose into files/ + rm)
   validation.sh        # Claude's session-scoped checks against staging
   files/               # mirrors project tree from repo root
-  notes.md
-  next-prompt.md
+  README.md            # optional
+  notes.md             # optional
 ```
 
 `manifest.json` schema is `TARBALL.md` section 5.2. Bale enforces it.
+`next-prompt.md` is retired (TARBALL.md §5.5); nothing new ships it. A
+pre-retirement response that still carries one is tolerated at apply —
+the walkthrough surfaces the body labeled deprecated (§8.7) rather
+than rejecting the tarball or blending it in silently.
 
 ### 6.3 Session ID
 
@@ -882,7 +900,9 @@ Pipeline steps:
    clean-tree requirement). Resolve the session's integration target
    (the pack-time `origin_branch` stamp, §7.6; fallback: the branch
    current at apply time — refuse if that fallback is needed on a
-   detached checkout). Then refuse only the one genuinely entangled
+   detached checkout, and refuse a stamp naming a branch that no
+   longer exists, with the remedies: recreate the branch, or
+   `bale unlock` and re-pack against the intended target). Then refuse only the one genuinely entangled
    case: the checkout is on the target branch AND has **tracked**
    changes (staged or unstaged; untracked files never block) — moving
    the branch ref under a dirty checkout of that same branch would
@@ -927,8 +947,9 @@ Pipeline steps:
     (e.g., file syntax) that are omitted from `claims` per
     `TARBALL.md` 5.3.
 12. Verify `manifest.json`, `apply.sh`, and `validation.sh` exist in
-    the tarball. `README.md`, `notes.md`, and `next-prompt.md` are
-    optional per `TARBALL.md` 5.1 and not required to exist.
+    the tarball. `README.md` and `notes.md` are optional per
+    `TARBALL.md` 5.1, and a legacy `next-prompt.md` is tolerated
+    (§6.2); none of the three is required to exist.
 13. Verify no `changes[]` path names a generated artifact: no
     `__pycache__`, `node_modules`, `dist`, or `build` directory
     component, and no `*.pyc` / `*.pyo` basename. Response tarballs
@@ -993,6 +1014,18 @@ staging branch, no file modifications.
    the exit code and output to the session log, wipes staging, and
    rejects the tarball — no git side effects, no reconciliation
    attempted.
+
+**Validation-fidelity caveat.** Staging copies the **working tree**
+(step 2) while the session commit and the merge are built against the
+**target branch's tip** (§8.2, §8.6). The two coincide only when the
+checkout sits at the target tip; when it has diverged, `validation.sh`
+exercises the checkout's content while the commit lands the manifest's
+entries on the target base, and apply logs a note saying so (§8.2
+step 2) rather than letting the mismatch pass silently. Copying the
+working tree is deliberate — untracked build and dependency state has
+to ride into staging for validation to run at all. A
+staging-from-target-base strategy that would close the gap is a queued
+proposal, not current behavior.
 
 ### 8.4 Verify apply.sh outcome against manifest
 
@@ -1086,32 +1119,47 @@ preserved for open sessions (§8.3).
 
 ### 8.7 Walkthrough
 
-Print a summary block:
+Both outcomes print the same summary, built by
+`bale_report.format_walkthrough_summary`: **reference material first,
+crisp verdict last**, so the eye lands on the verdict and the prompt
+instead of scrolling back for them past a long `notes.md`.
 
-- The sid, the origin branch, and `manifest.summary`.
-- Each validation check with its `[PASS] / [FAIL] / [SKIP]` status.
-- The claims-vs-verdict reconciliation table.
-- A diffstat between `origin_branch` and `bale/<sid>`.
-- `notes.md` contents if the file exists (skipped silently otherwise).
-- `next-prompt.md` contents if the file exists (skipped silently
-  otherwise — absence means no follow-up).
-- Inspection commands for the user (`git diff <origin>..bale/<sid>`,
-  `git log bale/<sid>`, `cat staging/.validation-logs/...`).
+The reference block, in order:
 
-Then prompt:
+- The **claims table** — each `claims` key with Claude's prediction,
+  plus a pointer to `.bale/logs/<sid>.log` for the verdicts. The
+  per-check `[PASS] / [FAIL] / [SKIP]` lines and the §7.3-style
+  claims-vs-verdict reconciliation live in that log, streamed there
+  while `validation.sh` ran (§8.5 step 4); the walkthrough surfaces
+  the claims side so review is self-contained.
+- A **diffstat** over `origin..bale/<sid>` — the same rev range as
+  the inspection command below. PASS and HOLD alike are commits on
+  the session branch (§8.6), so one range covers both outcomes.
+- **`notes.md`**, inline, if the response shipped one (skipped
+  silently otherwise — absence means nothing needed surfacing). A
+  legacy `next-prompt.md`, if a pre-retirement response carries one,
+  is surfaced with its header labeled deprecated (TARBALL.md §5.5) —
+  tolerated for old archives, never blended in silently.
+- The **inspection commands**, naming both surfaces of the committed
+  session: the branch (`git diff <origin>..bale/<sid>`,
+  `git log bale/<sid>`), the session log
+  (`cat .bale/logs/<sid>.log`), and the per-sid staging directory
+  (`ls .bale/staging/<sid>/`, §8.3 — or the `--staging-dir` override).
+
+Then the verdict block — `[PASS]`/`[HOLD]` headline with the sid, the
+origin branch, the branch state (*committed; ready to merge*, or
+*committed; held for inspection — checkout untouched*),
+`manifest.summary`, and a one-line validation roll-up — and the
+prompt:
 
 **If passed (`[PASS]`):**
 ```
-[Enter/m] merge into <origin> (default)
-[r]       revert — discard branch and commits
+[Enter/m] merge into origin (default)   [r] revert — discard branch
 ```
 
 **If held (`[HOLD]`):**
 ```
-[Enter/i] inspect — exit with branch held for review; clean up
-                    later with `bale revert <sid>` or send a
-                    corrected response
-[r]       revert — discard branch and staged patches now
+[Enter/i] inspect — hold for review (default)   [r] revert — discard branch
 ```
 
 In `--no-interact` mode (or non-TTY): on PASS, auto-merge. On HOLD,
@@ -1150,8 +1198,14 @@ on EOF.
   `bale/<sid>` (force-delete — the merge commit and tag anchor the
   history; `-d`'s merged-into-HEAD check is meaningless when HEAD may
   be an unrelated checkout). The `applied/<sid>` tag is the durable
-  record. Final line to the user: *"To roll back this bale: `bale
-  rollback <sid>` or `bale rollback` for the most recent."*
+  record. The closing `[PASS]` banner names the tag, the merged
+  branch with how it advanced (*checkout fast-forwarded* on-target,
+  *checkout on '<branch>' untouched* otherwise — the line that keeps
+  a first checkout-free apply from reading as a malfunction: the
+  merge landed even though the files in front of the user didn't
+  move), the change count, the preserved staging path, and the
+  rollback hint: *"To roll back this bale: `bale rollback <sid>`, or
+  `bale rollback` for the most recent."*
 - **Inspect** (HOLD only). The session stays open in the registry;
   branch persists with the committed session changes; the user's
   checkout was never switched. The integration
@@ -1169,9 +1223,11 @@ on EOF.
   response. That new response's manifest sets `corrects: <held_sid>`
   as a history pointer — the corrected work itself runs as a fresh
   session against origin, not layered onto the discarded branch.
-  Final line: *"Branch `bale/<sid>` is held for inspection. Run
-  `bale revert <sid>` when done. If sending a corrected response,
-  the new response should set `corrects: <this_sid>` for history."*
+  The closing `[HOLD]` banner names both inspection surfaces — the
+  committed branch with its diff command (`git diff
+  <origin>..bale/<sid>` — checkout untouched) and the preserved
+  per-sid staging path — plus the session log and the two ways
+  forward (`bale retry <new-tarball>`, `bale revert <sid>`).
 - **Revert.** Delete the branch (forcefully), wipe
   `.bale/sessions/<sid>/`, close the session in the registry, release
   the integration lock. Same operation regardless
@@ -1183,6 +1239,15 @@ on EOF.
 
 Three commands cover three distinct "undo" cases. The distinctions
 matter because they operate on different git states.
+
+The line between unlock and revert is whether an apply ran: a session
+abandoned **before** any apply — packed, never applied, no
+`bale/<sid>` branch — closes with `bale unlock`; a session whose
+apply left a commit on `bale/<sid>` — a HOLD under inspection, or a
+refused merge — is discarded with `bale revert`. Unlock refuses when
+the branch exists and points at revert (§9.3 step 3); the checkout is
+never part of the question, since integration doesn't touch it
+(ADR-0008).
 
 ### 9.1 `bale revert [sid]` — committed to the bale branch, not yet merged
 
@@ -1442,9 +1507,16 @@ Details:
   walkthrough."* and exits 0.
 
 The walkthrough is the **only** non-bale-related git action bale
-performs. After this, bale only runs `git branch`, `git checkout`,
-`git commit`, `git merge`, `git revert`, `git tag` — all session-
-related.
+performs. After this, bale's git surface is all session-related:
+branch creation and force-deletion (`git branch` / `branch -D`), the
+plumbing that builds session and merge commits (`read-tree`,
+`hash-object`, `update-index`, `write-tree`, `commit-tree` under a
+temporary index — §8.6, §8.8), compare-and-swap ref advances
+(`update-ref`), the clean-on-target fast-forward
+(`git merge --ff-only`, §8.8), tags (`git tag`), rollback's
+`git revert` (§9.2), the legacy-HOLD `git checkout` in revert's
+transition path (§9.1 step 3), and read-only queries (`status`,
+`rev-parse`, `diff`, `log`).
 
 ---
 
@@ -1692,8 +1764,9 @@ but not landed:
   more care since the secret patterns are non-negotiable per §6.4).
 - An optional response-archive location (e.g.
   `archive_dir = "claude/responses"`) so the apply pipeline can copy
-  whichever of `README.md`, `notes.md`, and `next-prompt.md` the
-  response actually included into the project's archive convention.
+  whichever of `README.md` and `notes.md` (plus a legacy
+  `next-prompt.md`, §6.2) the response actually included into the
+  project's archive convention.
 
 Any addition extends `bale_config.walk_configurables()` and
 `render_bale_toml()` in the same session — the wizard owns the
