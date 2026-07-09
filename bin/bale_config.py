@@ -116,9 +116,14 @@ HOOK_NAMES = (
 # bale.toml format generalizes by adding sections + typed accessors, not by
 # abstracting away the difference between section types.
 APPLY_VALUES = (
-    # List of directories to search when `bale apply` or `bale retry`
-    # receives a relative tarball name. Tried in order; first match wins.
-    # Absolute paths bypass search entirely.
+    # List of directories to search when a command receives a relative
+    # inbound-file argument: the tarball for `bale apply` / `bale retry` /
+    # `bale handoff`, and (v0.3.6) the prose file for `bale pack
+    # --readme-file`. Tried in order; first match wins; cwd is always
+    # tried first implicitly. Absolute paths bypass search entirely. The
+    # key keeps its historical `apply.` spelling — it named the tarball
+    # resolver first — but semantically it is "the machine's inbound
+    # directories", one key consulted by every inbound-file surface.
     "search_paths",
     # Bool. Per-config opt-in to non-interactive apply mode (BALE.md §5.4 /
     # §8.7) — the same mode `bale apply --no-interact` / `bale retry
@@ -314,6 +319,12 @@ def get_hook(cfg: dict, name: str) -> Optional[str]:
 
 def get_apply_search_paths(cfg: dict) -> list[str]:
     """Return the configured [apply].search_paths, expanded.
+
+    Consumed by every inbound-file resolution surface — the tarball
+    argument of `bale apply` / `bale retry` / `bale handoff`, and (since
+    v0.3.6) `bale pack --readme-file` — all through bin/bale's
+    resolve_inbound_path. The key keeps its historical `apply.` spelling;
+    see APPLY_VALUES above.
 
     Absent section or absent key returns []. Malformed shape is fatal —
     same contract as load_config's "typo shouldn't silently disable a
@@ -839,15 +850,17 @@ def walk_configurables(existing: dict, *, layer: str,
         inherited=inh_list,
         description=[
             "Optional. Enter to skip; you can wire one up later.",
-            "Directories `bale apply` and `bale retry` search when given a",
-            "relative tarball name. Tried in order; first match wins. An",
+            "Directories bale searches when a command is given a relative",
+            "inbound-file name: the tarball for `bale apply` / `bale",
+            "retry` / `bale handoff`, and the prose file for `bale pack",
+            "--readme-file`. Tried in order; first match wins. An",
             "absolute path argument bypasses search. Cwd is always tried",
             "first implicitly — you don't need to list it.",
             "Tilde (~/Downloads) and env vars ($HOME/Downloads) expand at",
             "use time, so the committed file stays portable across machines.",
-            "Use case: a `post_pack` hook drops the request tarball in",
-            "~/Downloads; with ~/Downloads in search_paths, the matching",
-            "`bale apply request-NNN.tar.gz` works from anywhere in the repo.",
+            "Use case: worker files land in ~/Downloads; with ~/Downloads",
+            "here, `bale apply request-NNN.tar.gz` and `bale pack ...",
+            "--readme-file brief.md` both work from anywhere in the repo.",
         ],
     )
     if val_list is not None:

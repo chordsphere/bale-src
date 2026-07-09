@@ -540,6 +540,32 @@ deliberately untouched; when the checkout has diverged from the
 target, apply logs that validation ran against the checkout's
 content.
 
+v0.3.6 threads `bale pack --readme-file` through the same inbound
+search-path resolution apply, retry, and handoff use for their
+tarball argument: `resolve_tarball_path` (section 16) generalizes to
+`resolve_inbound_path` with a `kind` keyword that changes only the
+not-found noun, and cmd_pack resolves the flag's path through it over
+the existing `apply.search_paths` key — absolute paths bypass, cwd
+first, then each configured directory in order, and a miss fails
+naming every directory consulted. No new config key: the README file
+is the same class of inbound artifact as a response tarball (a
+worker-produced file the user downloaded somewhere bale can be told
+about once), so the shared key is the semantics, not a shortcut —
+existing configs gain the behavior with no edit, and a pack-scoped
+sibling key would have duplicated the same directory in practice
+(see the session's notes.md for the shape decision). Two small
+consequences at the flag: the path argument is no longer
+expanduser()'d (aligning with the resolver's the-shell-already-
+expanded contract; an unquoted `~` still works, a quoted one is now
+taken literally, per the identical-semantics constraint), and the
+repo-root walk-up in cmd_pack moved ahead of the flag validation so
+the project config layer is readable — the interactive git-init
+walkthrough stays where it was, and outside a repo only the global
+layer is consulted. Everything else — precedence with --edit /
+--no-edit / the wizard, empty-file hard failure, UTF-8 requirement —
+is unchanged, as is tarball resolution for apply/retry/handoff
+(same function, same semantics, new name).
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -561,32 +587,32 @@ which since v0.1.0's 3.10-compat work means Python 3.10+ (3.11+ uses stdlib
 `bale_config`).
 
 Sections:
-   1. Imports + constants                             (~line  732)
-   2. Logging                                         (~line  811)
-   3. Shell / git helpers                             (~line  898)
-   4. Hashing                                         (~line  937)
-   5. Session IDs and the per-day counter             (~line  953)
-   6. Session registry + locks                        (~line 1011)
-   7. .gitignore handling for the .bale/ directory    (~line 1417)
-   8. Path-safety checks                              (~line 1447)
-   9. Editor invocation                               (~line 1495)
-  10. Pack: file enumeration and filtering            (~line 1556)
-  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1933)
-  12. Pack: slug validation                           (~line 2216)
-  13. Pack: manifest and tarball construction         (~line 2229)
-  14. Pack: wizard                                    (~line 2368)
-  15. Pack                                            (~line 2648)
-  16. Apply: helpers                                  (~line 3348)
-  17. Apply: pipeline                                 (~line 4073)
-  18. Apply                                           (~line 4717)
-  19. Revert                                          (~line 4918)
-  20. Retry                                           (~line 5140)
-  21. Unlock                                          (~line 5292)
-  22. Handoff                                         (~line 5477)
-  23. Hook invocation                                 (~line 5923)
-  24. Help and completion                             (~line 6082)
-  25. Status                                          (~line 6485)
-  26. CLI                                             (~line 7023)
+   1. Imports + constants                              (~line  761)
+   2. Logging                                          (~line  840)
+   3. Shell / git helpers                              (~line  927)
+   4. Hashing                                          (~line  966)
+   5. Session IDs and the per-day counter              (~line  982)
+   6. Session registry + locks                         (~line 1040)
+   7. .gitignore handling for the .bale/ directory     (~line 1446)
+   8. Path-safety checks                               (~line 1476)
+   9. Editor invocation                                (~line 1524)
+  10. Pack: file enumeration and filtering             (~line 1585)
+  11. Pack: scope projection + threshold caps (BALE.md section 7.4) (~line 1962)
+  12. Pack: slug validation                            (~line 2245)
+  13. Pack: manifest and tarball construction          (~line 2258)
+  14. Pack: wizard                                     (~line 2397)
+  15. Pack                                             (~line 2679)
+  16. Apply: helpers                                   (~line 3408)
+  17. Apply: pipeline                                  (~line 4144)
+  18. Apply                                            (~line 4799)
+  19. Revert                                           (~line 5000)
+  20. Retry                                            (~line 5222)
+  21. Unlock                                           (~line 5374)
+  22. Handoff                                          (~line 5559)
+  23. Hook invocation                                  (~line 6005)
+  24. Help and completion                              (~line 6164)
+  25. Status                                           (~line 6567)
+  26. CLI                                              (~line 7105)
 
 Configurables (loader/merger + wizard) live in the sibling
 `bale_config.py` module; sections that ran in this file at v0.0.3
@@ -735,7 +761,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.5"
+VERSION = "0.3.6"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2550,9 +2576,11 @@ def _resolve_readme_body(args: argparse.Namespace, *,
        verified --edit's preconditions (TTY stdin, no --no-edit) before
        any prompt or editor could run.
     2. `--readme-file` alone — the file's contents verbatim, no editor.
-       cmd_pack read and validated the file up front (missing or empty
-       fails loudly there), so args._readme_file_body is non-empty
-       whenever it is not None.
+       cmd_pack resolved the path (through the inbound search paths,
+       resolve_inbound_path over apply.search_paths — v0.3.6) and read
+       and validated the file up front (missing or empty fails loudly
+       there), so args._readme_file_body is non-empty whenever it is
+       not None.
     3. Wizard engaged and not --no-edit — the §7.3 y/N prompt; on y,
        $EDITOR opens with a scaffold pre-populated from the wizard
        answers. Empty buffer omits, same as branch 1.
@@ -2893,6 +2921,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "For non-interactive packs, supply prose via --readme-file "
             "instead."
         )
+    # Resolve the repo root before the README-flag read below: the flag's
+    # path resolution consults the merged config, and the project layer of
+    # that config lives at the root. This is only the walk-up — the
+    # interactive git-init walkthrough stays where it was, after the flag
+    # validation, preserving fail-fast (a doomed --readme-file still costs
+    # zero keystrokes).
+    repo = repo_root(cwd)
+
     # Read --readme-file up front so a bad path or empty file fails here,
     # not after the wizard/editor. Empty is a hard failure rather than a
     # silent omit: the flag is an explicit request to ship prose, so an
@@ -2900,9 +2936,31 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # wrong — per the no-silent-skips rule. Deliberate omission is
     # spelled "don't pass the flag". The body is stashed on args for
     # _resolve_readme_body, the same private-attr idiom as _readme_body.
+    #
+    # Since v0.3.6 the path resolves through the same inbound search paths
+    # apply/retry/handoff use for their tarball argument
+    # (resolve_inbound_path over apply.search_paths): absolute paths
+    # bypass, cwd is tried first, then each configured directory in order,
+    # and a bare filename that matches nowhere fails naming every
+    # directory consulted. This lets a worker author `--readme-file
+    # request-brief.md` without knowing where the architect's downloads
+    # land. With no search paths configured, resolution is against cwd —
+    # the pre-v0.3.6 behavior, minus one deliberate alignment: the flag
+    # argument is no longer expanduser()'d here, matching the resolver's
+    # contract that the shell already expanded an unquoted `~` and a
+    # quoted one was deliberate. Outside a git repo (the git-init
+    # walkthrough case) only the global config layer can exist, so that
+    # is what's consulted.
     args._readme_file_body = None
     if args.readme_file is not None:
-        readme_path = Path(args.readme_file).expanduser()
+        if repo is not None:
+            pack_cfg = bale_config.merged_config(repo)
+        else:
+            pack_cfg = bale_config.load_global_config()
+        readme_search_paths = bale_config.get_apply_search_paths(pack_cfg)
+        readme_path = resolve_inbound_path(
+            args.readme_file, cwd, readme_search_paths, kind="readme file"
+        )
         try:
             file_body = readme_path.read_text(encoding="utf-8")
         except OSError as e:
@@ -2920,7 +2978,6 @@ def cmd_pack(args: argparse.Namespace) -> int:
             )
         args._readme_file_body = file_body
 
-    repo = repo_root(cwd)
     if repo is None:
         # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
         # The walkthrough re-applies refuse_system_dir as defense in depth
@@ -3528,16 +3585,27 @@ def prompt_walkthrough_action(state: str, *, no_interact: bool = False,
     return default
 
 
-def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
-    """Resolve a CLI tarball argument against `apply.search_paths`.
+def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
+                         *, kind: str = "tarball") -> Path:
+    """Resolve a CLI file argument against the configured inbound
+    directories (`apply.search_paths`).
 
-    Used by `bale apply` and `bale retry`. The semantics are layered so that
-    a user with no search_paths configured sees identical behavior to the
-    pre-search-paths era:
+    Used by `bale apply`, `bale retry`, and `bale handoff` for their
+    tarball argument, and by `bale pack --readme-file` for its prose file
+    (v0.3.6) — both kinds are
+    files a worker produced and the user downloaded somewhere bale can be
+    told about once, rather than paths the worker could know. `kind` is
+    the noun the not-found error leads with ("tarball", "readme file");
+    it changes wording only, never semantics. Renamed from
+    resolve_tarball_path when the pack consumer landed — one resolver so
+    the two surfaces can't drift.
+
+    The semantics are layered so that a user with no search_paths
+    configured sees identical behavior to the pre-search-paths era:
 
       1. Absolute path → returned as-is. Search is bypassed entirely (per
          the bale.toml contract). The caller checks existence and emits
-         its normal "tarball not found" error if the path doesn't exist.
+         its normal "<kind> not found" error if the path doesn't exist.
       2. Relative path AND no search_paths configured → resolved against
          cwd. Same behavior as the original `Path(arg).resolve()` plus
          the caller's existence check.
@@ -3572,7 +3640,7 @@ def resolve_tarball_path(arg: str, cwd: Path, search_paths: list[str]) -> Path:
     # Nothing matched. The error names every directory that was searched —
     # per the explicit constraint, the user should never be left guessing
     # which paths bale consulted.
-    lines = [f"tarball not found: {arg}", "  searched:"]
+    lines = [f"{kind} not found: {arg}", "  searched:"]
     lines.append(f"    {cwd}  (cwd)")
     for sp in search_paths:
         lines.append(f"    {sp}")
@@ -4829,7 +4897,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # before any session work.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
+    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
         # Only reachable for the absolute-path branch (relative + search
         # paths configured already fails inside the helper); the empty-
@@ -5177,7 +5245,7 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # global+project config.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
+    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
@@ -5612,7 +5680,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     # the muscle memory.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_tarball_path(args.tarball, cwd, search_paths)
+    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
@@ -7104,10 +7172,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--readme-file", default=None, metavar="PATH",
         help="Read the request README's prose from PATH (UTF-8 text) "
              "instead of the wizard's $EDITOR step — the non-interactive "
-             "way to ship prose context. Fails loudly on a missing, "
-             "unreadable, or empty file (omit the flag to pack without a "
-             "README). Combines with --edit to review the file in $EDITOR "
-             "before packing.",
+             "way to ship prose context. A relative PATH resolves like "
+             "apply's tarball argument: cwd first, then each configured "
+             "apply.search_paths directory in order (absolute paths "
+             "bypass search; not-found names every directory consulted). "
+             "Fails loudly on a missing, unreadable, or empty file (omit "
+             "the flag to pack without a README). Combines with --edit "
+             "to review the file in $EDITOR before packing.",
     )
     p_pack.add_argument(
         "--edit", action="store_true",
