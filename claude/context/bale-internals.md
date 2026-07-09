@@ -88,13 +88,18 @@ is *for* — and stays stable as the per-section line numbers drift:
     `[e]` collects more session-only excludes and re-walks, and
     the force-include of `.baleignore` into context when present).
 11. **Apply pipeline.** Three sections in the body: apply helpers (the
-    staging-tree, reconciliation, `validation.sh`-run, worktree-apply,
-    response-verification, and shell-syntax-pre-flight helpers were
+    staging-tree, reconciliation, `validation.sh`-run,
+    session-commit-build, response-verification, and
+    shell-syntax-pre-flight helpers were
     extracted to the sibling `bale_staging` module in v0.1.3, and the
     end-of-run summary formatter plus the walkthrough-summary and
     bailout-banner renderers to the sibling `bale_report` module in
     v0.2.6, both imported by name; what remains in this section is
-    `current_branch`, `working_tree_clean`, the walkthrough prompt
+    `current_branch`, `working_tree_clean` (kept for
+    `bale_rollback`'s pre-flight — apply no longer calls it), the
+    ADR-0008 narrow pre-flight trio (`tracked_dirty_paths`,
+    `resolve_target_branch`, `refuse_dirty_on_target`, v0.3.5),
+    the walkthrough prompt
     (`prompt_walkthrough_action`), the handoff.md heading slicers
     (`first_section_of_handoff`, `reading_plan_section`, and the
     reading-plan path extractor), the tarball-resolution and
@@ -113,14 +118,24 @@ is *for* — and stays stable as the per-section line numbers drift:
     path safety (including the `.baleignore` match check per
     BALE.md §11 rule 14, which rejects a response declaring a
     path the user-managed exclusion file says shouldn't ride
-    through bale), staging, validation, commit-or-hold logic,
+    through bale), staging, validation, commit-or-hold logic (both
+    verdicts commit to `bale/<sid>` via plumbing since v0.3.5 —
+    ADR-0008; the merge is a two-parent `commit-tree` advanced by
+    compare-and-swap `update-ref`, or `merge --ff-only` through a
+    clean on-target checkout),
     and walkthrough.
 12. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
     session entirely (and clears the lock); retry discards the same
     HOLD state but preserves the lock and reruns the apply pipeline
     against a corrected response tarball. Both call a shared
     `_discard_hold_state()` helper for the destructive cleanup; the
-    lock-clear and post-cleanup steps are caller policy.
+    lock-clear and post-cleanup steps are caller policy. Retry runs
+    the same ADR-0008 narrow dirty-on-target pre-flight as apply
+    (v0.3.5 — a HOLD no longer dirties the worktree, so the old
+    skip-the-guard rationale is gone) and preserves the session's
+    durable records — the stamped request manifest, the ADR-0007
+    scope, and the `origin_branch` integration target — across the
+    wipe.
 13. **`cmd_unlock`.** Clears an abandoned session lock — the
     "held, no branch" state from BALE.md §9.5. Removes
     `.bale/current_session` and `.bale/sessions/<sid>/`; touches no
@@ -254,7 +269,8 @@ by the extraction — it was a behavior-preserving move.
 
 `bin/bale_staging.py` is likewise a single cohesive cluster with only a
 module docstring (no index header — CODE.md §2.1). It owns the apply
-pipeline's staging and worktree mechanics: the `bash -n` pre-flight on the
+pipeline's staging and session-commit mechanics: the `bash -n` pre-flight
+on the
 response's `apply.sh`/`validation.sh` (`check_response_shell_syntax`), the
 response-vs-manifest presence/sha256/path-safety checks
 (`verify_files_against_manifest`), staging-tree construction plus the
@@ -262,7 +278,11 @@ response-vs-manifest presence/sha256/path-safety checks
 reconciliation of staging against the manifest
 (`reconcile_staging_against_manifest` and its private `_walk_tree_sha256`
 snapshot helper), the `validation.sh` run in staging (`run_validation_sh`),
-and the worktree apply (`apply_changes_to_worktree`). `bin/bale` imports the
+and the plumbing session-commit builder (`build_session_commit`, which
+replaced the checkout-consuming `apply_changes_to_worktree` in v0.3.5 —
+ADR-0008: temporary index seeded from the base tree, per-manifest-entry
+`hash-object`/`update-index` with mode bits taken from the validated
+staging copy, `write-tree` + `commit-tree`). `bin/bale` imports the
 six public entry points by name (`from bale_staging import ...`) so the
 apply-pipeline call sites stay unqualified — `_walk_tree_sha256` stays
 private — the same convention as `bale_validate`. The shared `bin/bale`

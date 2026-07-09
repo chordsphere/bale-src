@@ -1,6 +1,7 @@
 # ADR-0008: Checkout-free integration — merge without touching the user's working tree
 
-- **Status:** Proposed
+- **Status:** Accepted (implemented in bale v0.3.5, session
+  2026-07-09-checkout-free-mechanism-001)
 - **Date:** 2026-07-06
 - **Supersedes:** —
 - **Superseded by:** —
@@ -77,3 +78,26 @@ Out of scope: any change to what integration *produces* — the branch,
 the `--no-ff` merge, the `applied/<sid>` tag, and the rollback story
 over them (§9) are all unchanged; only the mechanism that produces them
 moves off the checkout.
+
+## Landing note (2026-07-09, appended at acceptance)
+
+Implemented in bale v0.3.5 (session
+2026-07-09-checkout-free-mechanism-001) with both open edges resolved
+by architect ratification: the checked-out-target case takes the
+narrow rule (refuse tracked-dirty-on-target at pre-flight;
+fast-forward a clean on-target checkout at merge; never touch any
+other checkout state), and HOLD commits to `bale/<sid>` — inspection
+identical in UX to PASS inspection, `bale revert` unchanged with less
+to undo. Mechanism as implemented: the session commit is built in a
+temporary index (`GIT_INDEX_FILE` + read-tree/hash-object/
+update-index/write-tree/commit-tree) rather than a temp worktree, and
+the merge is a two-parent `commit-tree` advanced by compare-and-swap
+`update-ref` (or `merge --ff-only` through the clean on-target
+checkout) — plumbing throughout, for the uniform failure story: a
+refused advance leaves refs unmoved, the checkout untouched, and the
+session recoverable. One consequence the implementation forced into
+the open: the merge target is now fixed per session (`origin_branch`
+stamped at pack, current-branch fallback for pre-stamp sessions),
+since "the branch checked out at apply time" stops being well-defined
+once applies run from arbitrary checkouts. Walkthrough/inspection
+polish and the full docs sweep are the ratified follow-up session's.
