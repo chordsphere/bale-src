@@ -16,7 +16,7 @@ also a change to the tool that ran the session. The request was packed
 by some version of bale, the response is applied by the same version,
 and — assuming `post_apply_pass` fires — the *next* session runs under
 the modified version. CLAUDE.md's META section calls this out obliquely
-("the three global docs evolve only via bale sessions targeting the bale
+(the four global docs "evolve only via bale sessions targeting the bale
 tool's own repository"); this doc is the longer form.
 
 bale-src has a few properties no normal project has as a result, and the
