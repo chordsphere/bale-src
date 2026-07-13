@@ -566,6 +566,45 @@ layer is consulted. Everything else — precedence with --edit /
 is unchanged, as is tarball resolution for apply/retry/handoff
 (same function, same semantics, new name).
 
+v0.3.7 lands the opt-in `target-base` staging strategy (BALE.md §8.3
+step 2), closing the validation-fidelity gap the old §8.3 caveat
+paragraph queued: with the working-tree default, a checkout that has
+diverged from the session's target branch means `validation.sh`
+exercises the checkout's content while the commit is built against
+the target tip (§8.2, §8.6). Two new keys under a bale.toml
+`[staging]` table — `strategy` ("working-tree", the default and
+byte-identical to the historical behavior, or "target-base") and
+`untracked_inputs` (repo-relative paths of untracked build/dependency
+state that must ride into staging for validation to run; a pure
+git-archive tree carries none, so the declaration mechanism is
+load-bearing). Under target-base, staging is materialized from the
+target tip's tree (`git archive` streamed through stdlib tarfile —
+no shell pipeline, no external tar), `.git` is copied alongside (so
+git invocations from validation.sh resolve in staging instead of
+discovering upward into the real repo), and each declared input is
+validated — path-safe, present in the working tree, untracked at the
+target tip — and overlaid; every violation fails the stage loudly,
+per the silent-skip rule. The §8.4 reconciliation baseline follows
+the strategy: stage_response returns a pre-overlay snapshot of the
+materialized base and reconcile_staging_against_manifest compares
+against it (the manifest is authored against the target tip;
+diffing target-base staging against a diverged working tree would
+misreport the divergence as undeclared changes); the working-tree
+default keeps its historical repo walk. The opt-in surface is
+config-only, no CLI flag: the strategy is a property of the
+project's validation posture, and because apply and retry both
+re-resolve it from the merged config at stage time, retry inherits
+the strategy structurally — same config, identical staged content.
+The §8.2 divergence note stays and becomes strategy-aware: under
+target-base it reports that validation exercises the content the
+commit lands. This file gained only wiring (config resolution at
+the stage step, the two threaded call sites, the conditional note);
+the mechanics live in bale_staging (materialize/copy-.git/overlay
+helpers, the strategy branch in stage_response, the reconcile
+baseline parameter) and bale_config (STAGING_STRATEGIES /
+STAGING_VALUES, the [staging] merge, two typed accessors, wizard
+walk blocks, renderer branch).
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -761,7 +800,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.6"
+VERSION = "0.3.7"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4426,19 +4465,41 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
         head_now = git(["rev-parse", "HEAD"], cwd=repo).stdout.strip()
+        # Resolve the staging strategy (BALE.md §8.3 step 2) from the
+        # merged config here, ahead of the divergence note below, since
+        # the note's claim about what validation will exercise depends on
+        # it. Re-resolved per invocation rather than threaded from
+        # cmd_apply/cmd_retry — both callers already run merged_config for
+        # search paths, the re-read is two small files, and resolving at
+        # stage time is what makes retry inherit the strategy structurally
+        # (same config, same strategy, identical staged content).
+        staging_cfg = bale_config.merged_config(repo)
+        staging_strategy = bale_config.get_staging_strategy(staging_cfg)
+        staging_untracked = bale_config.get_staging_untracked_inputs(staging_cfg)
+        if staging_strategy != "working-tree":
+            log(f"staging strategy: {staging_strategy} "
+                f"(bale.toml [staging]; default is working-tree)")
         if head_now != base_sha:
-            # Staging semantics are deliberately unchanged this session
-            # (§8.3 copies the working tree — untracked build/dependency
-            # state has to ride into staging for validation to run). When
-            # the checkout has diverged from the target branch, that means
-            # validation.sh exercises the checkout's content while the
-            # commit itself is built per-manifest-entry against the target
-            # base. Say so rather than let the mismatch pass silently.
-            log(f"note: checkout HEAD ({head_now[:7]}) differs from the "
-                f"target branch tip ({base_sha[:7]}); staging copies the "
-                f"working tree, so validation runs against the checkout's "
-                f"content while the commit is built against "
-                f"{origin_branch}'s tip")
+            if staging_strategy == "target-base":
+                log(f"note: checkout HEAD ({head_now[:7]}) differs from "
+                    f"the target branch tip ({base_sha[:7]}); "
+                    f"staging.strategy=target-base materializes the "
+                    f"target tip's tree, so validation exercises the "
+                    f"same content the commit lands")
+            else:
+                # Default-strategy semantics are deliberately unchanged
+                # (§8.3 copies the working tree — untracked
+                # build/dependency state has to ride into staging for
+                # validation to run). When the checkout has diverged from
+                # the target branch, that means validation.sh exercises
+                # the checkout's content while the commit itself is built
+                # per-manifest-entry against the target base. Say so
+                # rather than let the mismatch pass silently.
+                log(f"note: checkout HEAD ({head_now[:7]}) differs from the "
+                    f"target branch tip ({base_sha[:7]}); staging copies the "
+                    f"working tree, so validation runs against the checkout's "
+                    f"content while the commit is built against "
+                    f"{origin_branch}'s tip")
 
         # 8.3 stage. Default is <repo>/.bale/staging/<sid> — per-session
         # since v0.3.3 — so the tree lives inside the already-gitignored
@@ -4473,7 +4534,12 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # stage that errors out still leaves a trail for revert to follow.
         (sessions_dir / "staging_path").write_text(str(staging) + "\n")
         try:
-            stage_response(repo, response_dir, staging)
+            staging_baseline = stage_response(
+                repo, response_dir, staging,
+                strategy=staging_strategy,
+                untracked_inputs=staging_untracked,
+                base_sha=base_sha,
+            )
         except Exception as e:
             shutil.rmtree(staging, ignore_errors=True)
             fail(f"failed to stage response: {e}")
@@ -4481,9 +4547,13 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 
         # 8.4 reconcile the post-apply.sh staging tree against the manifest
         # (BALE.md §11 rule 18). Runs before branch creation so a failure
-        # leaves no git side effects — wipe staging, exit non-zero.
+        # leaves no git side effects — wipe staging, exit non-zero. The
+        # baseline is stage_response's pre-overlay snapshot under
+        # target-base staging, and None (working-tree walk, historical
+        # behavior) under the default.
         try:
-            reconcile_staging_against_manifest(repo, staging, manifest)
+            reconcile_staging_against_manifest(repo, staging, manifest,
+                                               baseline=staging_baseline)
         except Exception as e:
             shutil.rmtree(staging, ignore_errors=True)
             fail(str(e))
