@@ -20,9 +20,8 @@ Every session, in this order:
 3. **The session prompt and any project docs** the manifest's
    `context_included` names.
 4. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
-   `CODE.md` — never pre-emptively. They're 24–28K each; most
-   sessions don't touch most of them. The INDEX table below says
-   when each one engages.
+   `CODE.md` — never pre-emptively. Most sessions don't touch most
+   of them. The INDEX table below says when each one engages.
 
 Reading the manifest first is the single most important budget
 discipline: it prevents drilling into a doc the session doesn't
@@ -42,9 +41,11 @@ Claude does not modify these in response tarballs; they evolve only
 via bale sessions targeting the bale tool's own repository.
 `INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs, and schemas are
 project-specific. Bale includes whatever the user names; nothing
-is auto-detected. A casual project (one script, a data folder) may
-have none of the project-specific docs and ship just the four
-global docs + the session prompt + the relevant source files.
+is auto-detected. Drill further into project docs only when the
+read-paths table says to. A casual project (one script, a data
+folder) may have none of the project-specific docs and ship just
+the four global docs + the session prompt + the relevant source
+files.
 
 ---
 
@@ -63,11 +64,12 @@ The minimum context for the task. Default at every threshold:
 | Task touches a past decision | + relevant `adr/NNNN-*.md` |
 | Task touches a schema or API | + relevant schema sections (not the whole file) |
 | Task modifies source files | + those files (named in the request) |
-| Code is meant to land in the project | Re-read `TARBALL.md` before producing |
-| Authoring a `bale pack` command (helping the architect or as a §11.2 rescope offer) | Re-read `TARBALL.md` §3.4 before authoring |
-| Adding/splitting/pruning documentation | Re-read `DOCS.md` before producing |
-| Adding/splitting/pruning code, or making layout decisions | Re-read `CODE.md` before producing |
+| Code is meant to land in the project | Re-read `TARBALL.md` per its INDEX read-paths before producing |
+| Authoring a `bale pack` command (on request, or unsolicited only as a §11.2 rescope offer) | Re-read `TARBALL.md` §3.4 before authoring |
+| Documentation is the work — adding, splitting, pruning, updating, or auditing docs | Re-read `DOCS.md` before producing |
+| Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
+| A blocking intent gap in the request | Return a clarification response rather than guess at the intent — see `TARBALL.md` §5.9 |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
@@ -124,11 +126,10 @@ The INDEX read-paths table is the source. The principles below say
   architect's environment as its own: anything readable there is a
   probe away. A missing or stale file, an unknown tool version, an
   unclear working-tree state — each is a probe trigger, never
-  something to guess around. A cheap probe round-trip beats a
-  confidently wrong response every time; working around missing
-  context is a policy violation, not resourcefulness. Conceptual and
-  scope gaps stay conversations in chat. Mechanics in `TARBALL.md`
-  section 4.
+  something to guess around. The doctrine — why working around a gap
+  is a violation rather than resourcefulness, and where conceptual
+  and scope gaps go instead — lives in `TARBALL.md` §4.1; mechanics
+  in `TARBALL.md` section 4.
 - **Triggered drill-downs happen *before* the work, not during.**
   Entering tarball mode → read `TARBALL.md` first. Touching the doc
   inventory → read `DOCS.md` first. Touching code layout
@@ -169,15 +170,17 @@ ordinary chat replies can all surface as files depending on the
 request shape; the file-delivery surface is incidental to the mode.
 
 When Claude decides tarball mode is engaging, **Claude re-reads
-`TARBALL.md` before producing the response.** `TARBALL.md` is always
+`TARBALL.md` per its INDEX read-paths before producing the
+response.** `TARBALL.md` is always
 present (bale injects it), but the act of re-engaging with the
 contract before producing matters — drill-down beats recall.
 
-Within tarball mode, three response shapes are possible: a full
+Within tarball mode, four response shapes are possible: a full
 response tarball (the default, when work landed), a probe
 (`TARBALL.md` section 4, when an environment gap blocks the work),
-and a bailout response (§11, when the budget won't carry the work
-through).
+a clarification response (`TARBALL.md` §5.9, when a blocking intent
+gap in the request prevents trustworthy work), and a bailout
+response (§11, when the budget won't carry the work through).
 
 ### When Claude is unsure which mode
 
@@ -208,8 +211,10 @@ When a conversational exchange transitions to tarball mode mid-session
 — Claude names the transition explicitly (*"switching to tarball
 mode; let me re-read `TARBALL.md` before producing"*) and pauses for
 the request tarball. The design conversation may inform the new
-request's `README.md`, but I write that summary, not Claude — the
-conversation is my context for the request, not a deliverable inside it.
+request's `README.md` — a shared prose-context tool authored by
+either party: the planner (today, me) directly, or the worker
+(Claude) on request, delivered as a downloadable file and shipped
+via `--readme-file` (`TARBALL.md` §3.4).
 
 ---
 
@@ -221,7 +226,7 @@ conversation is my context for the request, not a deliverable inside it.
 | Writing tests         | Claude |
 | Writing scaffolding   | Claude |
 | Exploratory commands  | Claude (via probe) |
-| Authoring `bale pack` commands | Claude |
+| Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4) |
 | Architectural choices | Me, with Claude's input |
 | Reviewing changes     | Me |
 | Validating tarballs   | Me, mechanically |
@@ -274,13 +279,16 @@ lane, contracts under time pressure) — the underlying values still
 hold in conversational discussions. Tarball-specific *mechanical*
 rules live in `TARBALL.md` section 8.
 
-Hard rules come in two kinds. **Contract** rules are caught
+Hard rules come in three kinds. **Contract** rules are caught
 mechanically — either by the bale tool (which validates the
 tarball's shape: manifest consistency, sha256 matches, reason
-populated, scope) or by `validation.sh` (which validates the project
+populated) or by `validation.sh` (which validates the project
 state with changes applied: lint, typecheck, build, tests).
 **Policy** rules are caught at my review — they exist precisely
-because mechanical checks can't see them. Each rule below is
+because mechanical checks can't see them. **Operator discipline**
+rules bind the operator's own behavior — whoever runs pack and
+apply, today me — and are caught by no one else: validate before
+apply; tarballs are immutable once delivered. Each rule below is
 labeled.
 
 - **Maintainability is the highest-value time investment.** Tests,
@@ -320,8 +328,9 @@ labeled.
 
 These are all **policy** — caught at my review, since the rules
 they encode are about taste and judgment that mechanical checks
-can't see. Contract rules (bale-enforced and `validation.sh`-enforced)
-live in `TARBALL.md` section 8 and `DOCS.md` section 9.
+can't see. Contract rules are enforced by bale and described in
+`TARBALL.md` §8's prose; the policy tables live in `TARBALL.md` §8,
+`DOCS.md` §9, and `CODE.md` §10.
 
 ---
 
@@ -388,14 +397,8 @@ the conversation doesn't have to.
 
 ## 10. What to include in a request tarball
 
-Bale injects `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md`
-into every request from its own installation. They are always
-present; Claude never has to ask for them.
-
-Project docs (`INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs,
-schemas) are included by the user if the project has them, omitted
-otherwise. Drill further into project docs only when the read-paths
-table says to.
+Covered in META's "Global vs project docs." This section stands as
+a pointer to preserve §11's numbering.
 
 ---
 
@@ -490,18 +493,14 @@ in chat:
    the deliverable; the split is only as good as the boundary it
    names.
 2. **A concrete `bale pack` rescope.** For the *first* session of the
-   split, a real, copy-pasteable `bale pack` command — a single line,
-   no backslash continuations — that the architect can paste to
-   create the narrower request. The command's flags and their mapping
-   to manifest fields live in `TARBALL.md` §3.4; the offer cites that
-   reference rather than inventing syntax. Framing goes in the prose
-   around the command, never inside the fenced block, so the block
-   holds only the line to paste. A typical offer reads: *splitting at
-   the types/endpoints seam, the first session is*
-
-   ```
-   bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --expects-probe no
-   ```
+   split, a real, copy-pasteable `bale pack` command the architect
+   can paste to create the narrower request. The command's form,
+   flags, and their mapping to manifest fields — including the
+   single-line rule and a worked rescope example — live in
+   `TARBALL.md` §3.4; the offer follows that reference rather than
+   inventing syntax. Framing goes in the prose around the command,
+   never inside the fenced block, so the block holds only the line
+   to paste.
 
 This is **not** a bailout. A bailout (§11.4) is a tarball Claude
 ships after work is underway and the budget gave out mid-flight; it
@@ -530,6 +529,11 @@ barely fits,"* Claude treats it exactly as a goal that won't fit —
 staying in conversational mode and returning the split proposal above
 — rather than betting the window on the estimate having been
 generous. Only a comfortable margin proceeds.
+
+As with §3's manifest rule, the gate is a default, not a wall: the
+architect can direct Claude past it explicitly ("proceed despite the
+tight fit, on my authority"), and Claude proceeds under that
+authority.
 
 ### 11.3 Bail triggers
 
@@ -587,8 +591,8 @@ Two artifacts are mandatory in a bailout:
   trigger, exploration paths, tool-call summary. Aggregated across
   sessions as a calibration signal. Spec: `TARBALL.md` section 5.8.
 
-The bailout response carries no `files/` (or an empty one) and a
-no-op `validation.sh`. Nothing is applied to the project. The
+The bailout response's empty change surfaces are specified in
+`TARBALL.md` §5.6.1. Nothing is applied to the project. The
 follow-on action is `bale handoff <response-NNN>` to package the
 handoff into a fresh session with full budget.
 
@@ -658,19 +662,14 @@ sha256s, and the `claims` block. A hash remembered across a
 compaction is a hash invented from a summary, and `TARBALL.md`
 §5.2.1 rejects invented hashes for exactly this reason. So before
 presenting anything, Claude re-runs the full manifest
-internal-consistency set — the same one `TARBALL.md` §10.1
-self-checks before any pack. It re-runs the `TARBALL.md` §5.2.1
-computation against the real `files/` to repopulate every
-`size_bytes` and `sha256`; confirms `files/` and `changes[]` agree
-both directions — every file declared, no file undeclared; re-derives
-each `claims` entry from what the changes actually do (`TARBALL.md`
-§5.3); and confirms `set(claims) ⊆ validation_will_run`, every
-`claims` key still verbatim-matching a `validation_will_run` entry. A
-compaction is exactly the event that desyncs a `claims` key from the
-check it names, so the subset is re-checked here, not assumed to have
-survived. The claim/verdict contract (`TARBALL.md` §7.3) only
-holds if the claims were derived from the *present* change set, not
-from the one Claude remembers making.
+internal-consistency set — `TARBALL.md` §10.1 step 10, computed
+against the real `files/` and the present change set, never
+recalled. A compaction is exactly the event that desyncs a `claims`
+key from the check it names, so that set's subset relation is
+re-checked there, not assumed to have survived. The claim/verdict
+contract (`TARBALL.md` §7.3) only holds if the claims were derived
+from the *present* change set, not from the one Claude remembers
+making.
 
 **Hold the response until re-grounded.** A post-compaction response
 is held back until the re-reading and the re-derivation above are
