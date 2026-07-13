@@ -1,6 +1,6 @@
 # ADR-0007: Scope disjointness as a mechanical contract, pack-time and apply-time
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-06
 - **Supersedes:** —
 - **Superseded by:** —
@@ -88,3 +88,5 @@ Out of scope for this ADR: any scheduling policy beyond disjointness
 deferred queue-behind behavior, when an orchestrator exists to want it,
 is a superseding or extending ADR, not a reinterpretation of the
 hard-refuse policy here.
+
+2026-07-13 — implemented in bin/bale by v0.3.6; exercised 2026-07-13 with three concurrent scope-disjoint doc sessions; recorded per the audit cleanup session (2026-07-13-multi-agent-docs-007).

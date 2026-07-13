@@ -1,6 +1,6 @@
 # ADR-0006: Session registry — per-sid open sessions plus one integration lock
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-06
 - **Supersedes:** —
 - **Superseded by:** —
@@ -101,3 +101,5 @@ than a new mechanism. What actually retires is the `current_session`
 sentinel as a *mutex*; whether the file itself survives in some
 compatibility role (e.g. as a convenience pointer when exactly one
 session is open) is an implementation choice, not contract.
+
+2026-07-13 — implemented in bin/bale by v0.3.6; exercised 2026-07-13 with three concurrent scope-disjoint doc sessions; recorded per the audit cleanup session (2026-07-13-multi-agent-docs-007).
