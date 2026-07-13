@@ -1,6 +1,6 @@
 # ADR-0011: The clarification response kind for blocking intent gaps
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-07
 - **Supersedes:** —
 - **Superseded by:** —
@@ -112,3 +112,5 @@ doctrine for when an orchestrator exists — ADR-0009's plan — not a
 change to the human path. The artifact is identical in both worlds;
 only the courier changes, the same courier-agnostic framing as the
 probe's TARBALL.md §4.6.
+
+2026-07-13 — implemented in bin/bale by v0.2.10; probe-confirmed 2026-07-13 on bale 0.3.6 (apply fork, .bale/clarifications/ records, banner, lock retention, questions[] schema rules); recorded per the audit cleanup session (2026-07-13-multi-agent-docs-007).

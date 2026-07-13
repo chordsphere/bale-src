@@ -491,7 +491,10 @@ in chat:
    too big," but "these two pieces are independent; the first is X,
    the second is Y, and Y depends on X landing first." The seam is
    the deliverable; the split is only as good as the boundary it
-   names.
+   names. A split proposed at file-disjoint seams is not just
+   sequential rescoping: disjoint slices can run as concurrently
+   open sessions — the scope gates admit them side by side
+   (`TARBALL.md` §3.2) — which is what seam quality buys.
 2. **A concrete `bale pack` rescope.** For the *first* session of the
    split, a real, copy-pasteable `bale pack` command the architect
    can paste to create the narrower request. The command's form,

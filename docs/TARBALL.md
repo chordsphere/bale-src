@@ -188,7 +188,15 @@ Field semantics:
 - **`context_included`** — declarative list of what's in `context/`.
   If Claude needs something not listed, it checks `INDEX.md`, then
   names it in the response (either in a probe request or in
-  `notes.md` if Claude proceeded with an assumption).
+  `notes.md` if Claude proceeded with an assumption). The resolved
+  include set behind this list is also the session's declared
+  **scope**: bale records it in the session registry at pack time,
+  and two mechanical gates read it — pack refuses a new session
+  whose scope intersects an open session's, and apply rejects a
+  response whose `changes[]` paths collide with a *sibling*
+  session's scope. Own-scope drift — a change outside this session's
+  own scope that no sibling claims — remains stay-in-the-lane policy
+  (section 8), not a mechanical check.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -250,7 +258,7 @@ or a packing behavior:
 |------|----------------|
 | `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). Omitted on a TTY, pack enters the interactive wizard; required when piped. |
 | `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. Omitted on a TTY, the wizard prompts for it; required when piped. |
-| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. |
+| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. The resolved set doubles as the session's declared scope (§3.2) — see the scope-planning note below the table. |
 | `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
@@ -261,6 +269,15 @@ or a packing behavior:
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
+
+**Scope planning for concurrency.** Multiple sessions may be open at
+once; integrations serialize (§3.2 carries the scope contract).
+Concurrency therefore requires scope-disjoint include sets: the
+pack-time gate admits a new session only when its resolved includes
+are disjoint from every open session's scope. A default or
+broad-scoped pack intersects everything and is concurrency-exclusive
+by design — a pack meant to run alongside others is packed with
+narrow `--include` sets along file-disjoint seams.
 
 README precedence, first match wins: `--edit` > `--readme-file` >
 the wizard's y/N prompt > omit.

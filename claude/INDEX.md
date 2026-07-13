@@ -109,17 +109,31 @@ deleted.
   CLAUDE.md §3 and BALE.md §8/§11 follow-ups named in the ADR remain open).
   Pull when touching response kinds, the apply fork, the response-manifest
   schema, or intent-gap doctrine.
+- `context/adr/0012-agent-driven-substrate.md` — the agent-driven
+  direction ratified: bale is a substrate an orchestrating Claude can
+  drive; standing commitments (transport-agnostic CLI, role-neutral
+  planner/worker/operator language, manual workflow as fallback and
+  ground truth); explicit that no orchestration harness exists yet.
+  Complements ADR-0009, whose doc plan and promotion triggers stand
+  unchanged. Status: Accepted. Pull when planning orchestration or
+  harness work, or when a session needs the ratified direction rather
+  than ADR-0006's motivating context.
 
 ADRs 0002–0005 and 0009 are Proposed pending the architect's
-ratification on review; 0001, 0006, 0007, 0008, 0010, and 0011 are
-Accepted.
+ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, and 0012
+are Accepted.
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
 disjointness contract in v0.3.1) and were flipped to Accepted with the
 0007 landing; 0008 was ratified for implementation and landed in v0.3.5
 (flipped to Accepted with the landing, per the 0006/0007 precedent);
 0010 and 0011 each landed in its own session (0010 in the
 global docs and the pack help text, 0011 in v0.2.10) and were flipped to
-Accepted together on ratification. The remaining Proposed set is
+Accepted together on ratification; the 0006/0007 and 0010/0011 status
+flips reached the ADR files themselves in the 2026-07-13 audit cleanup
+session (0010/0011 on the architect's explicit scope override,
+probe-confirmed), which also recorded 0012 (Accepted at creation — the
+direction was stated by the architect directly). The remaining
+Proposed set is
 unimplemented: 0002–0005 precede any test code, and 0009 defers the doc
 it is about.
 
@@ -159,11 +173,11 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md, two explainers, and eleven ADRs (0001–0005 the first in the
+is BALE.md, two explainers, and twelve ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
 them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
-set, 0010 the probe-doctrine flip, and 0011 the clarification response
-kind). Testing doctrine itself lives in the global
+set, 0010 the probe-doctrine flip, 0011 the clarification response
+kind, and 0012 the agent-driven direction). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or

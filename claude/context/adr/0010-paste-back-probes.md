@@ -1,6 +1,6 @@
 # ADR-0010: Paste-back probes and default-to-ask engagement
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-07
 - **Supersedes:** —
 - **Superseded by:** —
