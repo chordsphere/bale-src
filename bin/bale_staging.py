@@ -5,9 +5,13 @@ the staging tree and the working tree: the apply-time `bash -n` pre-flight on
 the response's shell scripts (`check_response_shell_syntax`), the response-vs-
 manifest presence/sha256/path-safety checks (`verify_files_against_manifest`),
 building the staging tree and running the response's `apply.sh` over it
-(`stage_response`), the post-`apply.sh` reconciliation of staging against the
-manifest (`reconcile_staging_against_manifest`, with its private tree-snapshot
-helper `_walk_tree_sha256`), running the response's `validation.sh` in staging
+(`stage_response`, which since v0.3.7 also owns the opt-in `target-base`
+staging strategy — BALE.md §8.3 step 2 — via the private helpers
+`_materialize_target_tree`, `_copy_git_dir`, and
+`_overlay_declared_untracked`), the post-`apply.sh` reconciliation of staging
+against the manifest (`reconcile_staging_against_manifest`, with its private
+tree-snapshot helper `_walk_tree_sha256`), running the response's
+`validation.sh` in staging
 (`run_validation_sh`), and building the session commit from the validated
 staging content via git plumbing (`build_session_commit`, which replaced the
 checkout-consuming `apply_changes_to_worktree` when ADR-0008 landed in
@@ -61,9 +65,10 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 
 def check_response_shell_syntax(response_dir: Path) -> None:
@@ -171,17 +176,223 @@ def verify_files_against_manifest(
                      f"actual={actual[:12]}...")
 
 
-def stage_response(repo: Path, response_dir: Path, staging: Path) -> None:
-    """Build the staging tree: cp project, overlay files/, run apply.sh.
+def _materialize_target_tree(repo: Path, base_sha: str, staging: Path) -> None:
+    """Extract the target tip's tree (`git archive <base_sha>`) into staging.
 
-    BALE.md section 8.3. After cp-overlay, apply.sh runs from response_dir
-    with cwd=staging — it handles deletes and any other manifest-declared
+    The target-base half of BALE.md §8.3 step 2: instead of copying the
+    working tree, materialize exactly the tree the session commit will be
+    built against (§8.2's `git_head_at_apply`). `git archive --format=tar`
+    is core plumbing (as old as rev-parse) and preserves file modes and
+    symlinks; extraction goes through stdlib `tarfile` reading the
+    subprocess pipe directly — no shell pipeline, no external `tar`
+    dependency.
+
+    Member names are validated defensively before extraction (no absolute
+    paths, no `..` components) even though the archive comes from the
+    project's own object database; where the running Python supports
+    extraction filters (3.12+, and backported 3.10.12+/3.11.4+), the
+    stdlib `tar` filter is applied as a second belt.
+
+    Raises RuntimeError on any git or extraction failure; the caller
+    wipes staging and rejects the tarball, matching the apply.sh failure
+    contract.
+    """
+    extract_kwargs = {}
+    if hasattr(tarfile, "tar_filter"):
+        # The stdlib extraction-filter API exists on this Python; the
+        # "tar" filter blocks absolute names and .. escapes (and silences
+        # the 3.12/3.13 no-filter DeprecationWarning) while preserving
+        # modes and symlinks, which the commit-side mode derivation in
+        # build_session_commit depends on.
+        extract_kwargs["filter"] = "tar"
+    proc = subprocess.Popen(
+        ["git", "archive", "--format=tar", base_sha],
+        cwd=str(repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdout is not None  # stdout=PIPE above; guard for mypy
+    try:
+        with tarfile.open(fileobj=proc.stdout, mode="r|") as tf:
+            for member in tf:
+                name = member.name
+                if name.startswith("/") or ".." in Path(name).parts:
+                    raise RuntimeError(
+                        f"git archive emitted an unsafe member path "
+                        f"{name!r}; refusing to extract"
+                    )
+                tf.extract(member, path=str(staging), **extract_kwargs)
+    except tarfile.TarError as e:
+        proc.kill()
+        proc.wait()
+        raise RuntimeError(
+            f"could not extract git archive of {base_sha[:12]}: {e}"
+        )
+    stderr = proc.stderr.read() if proc.stderr is not None else b""
+    returncode = proc.wait()
+    if returncode != 0:
+        detail = stderr.decode("utf-8", "replace").strip() or "(no output)"
+        raise RuntimeError(
+            f"git archive {base_sha[:12]} exited {returncode}: {detail}"
+        )
+
+
+def _copy_git_dir(repo: Path, staging: Path) -> None:
+    """Copy the repo's `.git` (directory, or gitfile in a linked worktree)
+    into staging.
+
+    Target-base staging only. The working-tree strategy copies `.git`
+    incidentally (it copies everything but `.bale/`), and its presence is
+    load-bearing in a way that is easy to miss: the default staging
+    directory lives *inside* the repo (`.bale/staging/<sid>`), and a git
+    invocation from a `validation.sh` running in a staging tree with no
+    `.git` of its own would discover *upward* to the real repo — exactly
+    the surface validation must never operate on (TARBALL.md §9). Copying
+    `.git` keeps git-in-staging resolving to staging under both
+    strategies. `git status` inside a target-base staging will report the
+    base-vs-index divergence; that is cosmetic, and the same class of
+    noise the working-tree copy shows mid-edit.
+    """
+    src = repo / ".git"
+    if src.is_dir() and not src.is_symlink():
+        shutil.copytree(src, staging / ".git", symlinks=True)
+    elif src.exists() or src.is_symlink():
+        # Linked-worktree checkouts have .git as a file pointing at the
+        # main repository's git dir; copy it as-is.
+        shutil.copy2(src, staging / ".git", follow_symlinks=False)
+
+
+def _overlay_declared_untracked(repo: Path, staging: Path,
+                                untracked_inputs: Sequence[str],
+                                base_sha: str) -> None:
+    """Overlay each declared untracked input from the working tree onto the
+    materialized target-base staging (BALE.md §8.3 step 2, target-base).
+
+    The declaration mechanism is load-bearing, not polish: a pure
+    git-archive tree carries no untracked build or dependency state, and
+    without that state validation cannot run at all for most projects.
+    Every declared entry is validated before copying, and every violation
+    is loud (the silent-skip rule, CLAUDE.md §6):
+
+      - the path must be safe and repo-relative (`is_path_safe`: no
+        absolute paths, no `..`, not under `.git/` or `.bale/`);
+      - it must exist in the working tree — a missing declared input is
+        a hard stage failure, never a skip;
+      - it must be untracked at the target tip (`git ls-tree` of
+        `base_sha` finds nothing at or under it) — overlaying a tracked
+        path would replace committed content with working-tree content,
+        re-opening exactly the fidelity gap this strategy closes;
+      - it must not be the staging directory itself or contain it —
+        the copy-into-itself hazard the working-tree strategy guards
+        with its own resolve() check.
+
+    Entries are copied verbatim (dirs recursively, symlinks preserved).
+    Declared paths are expected to be disjoint; a nested pair (e.g.
+    `.venv` and `.venv/lib`) fails on the second copy's FileExistsError,
+    which propagates as a stage failure naming the collision.
+
+    Raises RuntimeError on any violation; the caller wipes staging and
+    rejects the tarball.
+    """
+    from __main__ import is_path_safe, log
+    staging_resolved = staging.resolve()
+    for raw in untracked_inputs:
+        rel = raw.strip().strip("/")
+        if not rel or not is_path_safe(rel):
+            raise RuntimeError(
+                f"staging.untracked_inputs entry {raw!r} is not a safe "
+                f"repo-relative path (no absolute paths, no '..', not "
+                f"under .git/ or .bale/)"
+            )
+        src = repo / rel
+        if not src.exists() and not src.is_symlink():
+            raise RuntimeError(
+                f"declared untracked input {rel!r} is missing from the "
+                f"working tree. Declared inputs are required at stage "
+                f"time — build it, or remove it from "
+                f"staging.untracked_inputs in bale.toml"
+            )
+        src_resolved = src.resolve()
+        if (src_resolved == staging_resolved
+                or staging_resolved in src_resolved.parents
+                or src_resolved in staging_resolved.parents):
+            raise RuntimeError(
+                f"declared untracked input {rel!r} overlaps the staging "
+                f"directory {staging}; refusing the copy-into-itself"
+            )
+        r = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", base_sha, "--", rel],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if r.returncode != 0:
+            detail = (r.stderr or r.stdout or "").strip() or "(no output)"
+            raise RuntimeError(
+                f"git ls-tree {base_sha[:12]} -- {rel!r} exited "
+                f"{r.returncode}: {detail}"
+            )
+        if r.stdout.strip():
+            raise RuntimeError(
+                f"declared untracked input {rel!r} is tracked at the "
+                f"target tip ({base_sha[:12]}); overlaying it would "
+                f"replace committed content with working-tree content. "
+                f"Remove it from staging.untracked_inputs in bale.toml — "
+                f"tracked content already rides in via the materialized "
+                f"tree"
+            )
+        dst = staging / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            if src.is_dir() and not src.is_symlink():
+                shutil.copytree(src, dst, symlinks=True)
+            else:
+                shutil.copy2(src, dst, follow_symlinks=False)
+        except FileExistsError as e:
+            raise RuntimeError(
+                f"declared untracked input {rel!r} collides with content "
+                f"already staged (nested or duplicate declaration?): {e}"
+            )
+        log(f"overlaid declared untracked input: {rel}")
+
+
+def stage_response(repo: Path, response_dir: Path, staging: Path, *,
+                   strategy: str = "working-tree",
+                   untracked_inputs: Sequence[str] = (),
+                   base_sha: Optional[str] = None,
+                   ) -> Optional[dict[str, str]]:
+    """Build the staging tree, overlay files/, run apply.sh.
+
+    BALE.md section 8.3. The staging *base* is built per `strategy`:
+
+      - "working-tree" (default): cp the project's working tree, minus
+        `.bale/` — byte-identical to the historical behavior, and the
+        documented fallback and ground truth. `untracked_inputs` is
+        redundant here (the copy already carries all untracked state)
+        and is logged as such rather than silently ignored.
+      - "target-base" (opt-in, bale.toml [staging]): materialize the
+        target tip's tree (`base_sha`, required — §8.2's
+        git_head_at_apply) via git archive, copy `.git` alongside it,
+        then overlay the declared `untracked_inputs` from the working
+        tree. Validation then exercises exactly the content the session
+        commit lands, closing the §8.3 validation-fidelity gap.
+
+    Returns the reconciliation baseline for the target-base strategy — a
+    {path: sha256} snapshot of the staging base taken *before* the
+    files/ overlay, which reconcile_staging_against_manifest() must use
+    in place of its working-tree walk (the manifest's changes are
+    authored against the target tip, and diffing a target-base staging
+    against a diverged working tree would report the divergence as
+    undeclared changes). Returns None for the working-tree strategy,
+    whose baseline remains the working-tree walk, unchanged.
+
+    After the base is built, apply.sh runs from response_dir with
+    cwd=staging — it handles deletes and any other manifest-declared
     file operations the cp mirror can't express. The post-stage
     reconciliation in reconcile_staging_against_manifest() (BALE.md §8.4,
     §11 rule 18) verifies the resulting tree matches the manifest exactly,
     so apply.sh can't quietly touch undeclared files.
 
-    Raises RuntimeError on apply.sh non-zero exit (BALE.md §11 rule 17).
+    Raises RuntimeError on apply.sh non-zero exit (BALE.md §11 rule 17)
+    and on any target-base materialization or declared-input failure.
     The caller wipes staging and rejects the tarball — no git side
     effects, no reconciliation attempted.
 
@@ -196,20 +407,49 @@ def stage_response(repo: Path, response_dir: Path, staging: Path) -> None:
     staging.mkdir(parents=True)
     staging_resolved = staging.resolve()
 
-    # cp project state into staging, minus .bale/ (BALE.md 8.3 step 2 spec).
-    # Also skip the staging directory itself if it lives inside the repo —
-    # otherwise iterdir() yields it (we just created it) and we'd copy it
-    # into itself.
-    for item in repo.iterdir():
-        if item.name == ".bale":
-            continue
-        if item.resolve() == staging_resolved:
-            continue
-        dst = staging / item.name
-        if item.is_dir():
-            shutil.copytree(item, dst, symlinks=True)
-        else:
-            shutil.copy2(item, dst, follow_symlinks=False)
+    baseline: Optional[dict[str, str]] = None
+    if strategy == "target-base":
+        if not base_sha:
+            raise RuntimeError(
+                "target-base staging requires the resolved target tip "
+                "(base_sha); caller must pass §8.2's git_head_at_apply"
+            )
+        _materialize_target_tree(repo, base_sha, staging)
+        _copy_git_dir(repo, staging)
+        _overlay_declared_untracked(repo, staging, untracked_inputs,
+                                    base_sha)
+        # The reconciliation baseline is this pre-overlay base — the
+        # same walk (and the same .git skip) the post-apply.sh snapshot
+        # uses, so the comparison is symmetric.
+        baseline = _walk_tree_sha256(staging, {staging / ".git"})
+        log(f"staged from target base {base_sha[:7]} "
+            f"({len(untracked_inputs)} declared untracked input(s); "
+            f"baseline snapshot: {len(baseline)} files)")
+    elif strategy == "working-tree":
+        if untracked_inputs:
+            log("staging.untracked_inputs is configured but "
+                "staging.strategy is working-tree; the declaration is "
+                "redundant (the working-tree copy already carries all "
+                "untracked state) and is ignored")
+        # cp project state into staging, minus .bale/ (BALE.md 8.3 step 2
+        # spec). Also skip the staging directory itself if it lives inside
+        # the repo — otherwise iterdir() yields it (we just created it)
+        # and we'd copy it into itself.
+        for item in repo.iterdir():
+            if item.name == ".bale":
+                continue
+            if item.resolve() == staging_resolved:
+                continue
+            dst = staging / item.name
+            if item.is_dir():
+                shutil.copytree(item, dst, symlinks=True)
+            else:
+                shutil.copy2(item, dst, follow_symlinks=False)
+    else:
+        raise RuntimeError(
+            f"unknown staging strategy {strategy!r}; expected "
+            f"'working-tree' or 'target-base'"
+        )
 
     # Overlay files/ from the response (BALE.md 8.3 step 3).
     files_dir = response_dir / "files"
@@ -246,6 +486,7 @@ def stage_response(repo: Path, response_dir: Path, staging: Path) -> None:
             f"apply.sh exited {result.returncode} in staging: {detail}"
         )
     log(f"apply.sh exited 0")
+    return baseline
 
 
 def _walk_tree_sha256(root: Path, skip_paths: set[Path]) -> dict[str, str]:
@@ -290,26 +531,35 @@ def _walk_tree_sha256(root: Path, skip_paths: set[Path]) -> dict[str, str]:
 
 
 def reconcile_staging_against_manifest(repo: Path, staging: Path,
-                                       manifest: dict) -> None:
+                                       manifest: dict, *,
+                                       baseline: Optional[dict[str, str]]
+                                       = None) -> None:
     """Verify the post-apply.sh staging tree matches the manifest exactly.
 
     BALE.md §8.4 and §11 rule 18: every created/deleted/modified path in
-    staging vs the pre-apply project state must correspond to a manifest
-    entry of the matching action and sha256, with no undeclared writes,
-    deletes, or modifications. Fails with a clear message naming every
+    staging vs the staging base must correspond to a manifest entry of
+    the matching action and sha256, with no undeclared writes, deletes,
+    or modifications. Fails with a clear message naming every
     discrepancy so the user can find them.
 
-    Pre-apply state is the project tree itself, skipping `.bale/` (per
-    BALE.md 8.3 step 2 — never copied into staging) and the staging dir
-    if it lives inside the repo (the user-set `--staging-dir` case;
-    default `<repo>/.bale/staging/` is already covered by the `.bale/`
-    skip). Both walks also skip `.git/`: the path-safety rule (§11 rule
-    14) already prohibits `.git/`-prefixed paths in the manifest, so
-    anything there can't be declared anyway, and the cp preserves it
-    byte-for-byte — walking it just costs sha256 time on every apply
-    against a mature repo. The two snapshots use the same walk function
-    so the baseline is symmetric with what stage_response actually
-    copied (modulo the symmetric `.git/` skip).
+    The comparison base depends on how staging was built (BALE.md §8.3
+    step 2). With `baseline=None` — the working-tree strategy — the base
+    is the project tree itself, skipping `.bale/` (per BALE.md 8.3 step 2
+    — never copied into staging) and the staging dir if it lives inside
+    the repo (the user-set `--staging-dir` case; default
+    `<repo>/.bale/staging/` is already covered by the `.bale/` skip),
+    exactly the historical behavior. With a `baseline` dict — the
+    target-base strategy — the base is stage_response's pre-overlay
+    snapshot of the materialized staging (target tree plus declared
+    untracked inputs): the manifest was authored against the target tip,
+    and walking a diverged working tree here would misreport the
+    divergence itself as undeclared changes. Both walks skip `.git/`:
+    the path-safety rule (§11 rule 14) already prohibits `.git/`-prefixed
+    paths in the manifest, so anything there can't be declared anyway,
+    and the cp preserves it byte-for-byte — walking it just costs sha256
+    time on every apply against a mature repo. The two snapshots use the
+    same walk function so the baseline is symmetric with what
+    stage_response actually built (modulo the symmetric `.git/` skip).
 
     Reasoning per action:
       - created: must be absent from project, present in staging, with
@@ -327,13 +577,18 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
     authorized to touch.
     """
     from __main__ import log
-    # Build symmetric snapshots. Skip `.bale/` in the project (never copied
-    # into staging) and the staging dir itself if it's inside the repo.
-    # Skip `.git/` in both — see the docstring rationale (rule 14 prohibits
-    # `.git/` paths in the manifest, the cp preserves it byte-for-byte).
-    project_state = _walk_tree_sha256(
-        repo, {repo / ".bale", repo / ".git", staging}
-    )
+    # Build symmetric snapshots. The working-tree base walks the project,
+    # skipping `.bale/` (never copied into staging) and the staging dir
+    # itself if it's inside the repo; the target-base base is the
+    # pre-overlay snapshot stage_response handed us. Skip `.git/` in all
+    # walks — see the docstring rationale (rule 14 prohibits `.git/`
+    # paths in the manifest, the cp preserves it byte-for-byte).
+    if baseline is not None:
+        project_state = baseline
+    else:
+        project_state = _walk_tree_sha256(
+            repo, {repo / ".bale", repo / ".git", staging}
+        )
     staging_state = _walk_tree_sha256(staging, {staging / ".git"})
 
     project_paths = set(project_state)

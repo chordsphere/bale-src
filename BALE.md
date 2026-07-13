@@ -1019,7 +1019,30 @@ staging branch, no file modifications.
    apply fails loudly — bale never removes a user-specified
    directory. Two open sessions both overriding to the same
    directory is therefore the user's collision to own.
-2. `cp -r <project>/. staging/` (full project state minus `.bale/`).
+2. Build the staging base per the project's staging strategy —
+   `bale.toml`'s `[staging] strategy`, resolved from the merged config
+   at stage time by both `bale apply` and `bale retry` (so a retry
+   re-stages under the same strategy and exercises identical content):
+   - **`working-tree`** (default): `cp -r <project>/. staging/` (full
+     project state minus `.bale/`) — byte-identical to the historical
+     behavior, and the documented fallback and ground truth.
+   - **`target-base`** (opt-in): materialize the **target branch tip's
+     tree** (`git archive` of the §8.2 base, streamed through stdlib
+     tarfile) into staging; copy `.git` alongside it, so git
+     invocations from `validation.sh` resolve inside staging rather
+     than discovering upward into the real repo; then overlay each
+     entry of `[staging] untracked_inputs` from the working tree —
+     the declared untracked build and dependency state validation
+     needs (a pure git-archive tree carries none, so the declaration
+     mechanism is load-bearing, not polish). Each declared input must
+     be a safe repo-relative path (no globs; no `..`, `.git/`, or
+     `.bale/`), present in the working tree, and untracked at the
+     target tip — any violation fails the stage loudly, per the
+     silent-skip rule; nothing is skipped. A pre-overlay snapshot of
+     this materialized base is recorded as the §8.4 reconciliation
+     baseline, since the manifest's changes are authored against the
+     target tip and diffing against a diverged working tree would
+     misreport the divergence as undeclared changes.
 3. `cp -r response-NNN/files/. staging/` (overlay the changes).
 4. Run `bash apply.sh` with `cwd=staging/`. This handles deletes and
    any non-cp operations. If `apply.sh` exits non-zero, bale captures
@@ -1027,17 +1050,21 @@ staging branch, no file modifications.
    rejects the tarball — no git side effects, no reconciliation
    attempted.
 
-**Validation-fidelity caveat.** Staging copies the **working tree**
-(step 2) while the session commit and the merge are built against the
-**target branch's tip** (§8.2, §8.6). The two coincide only when the
-checkout sits at the target tip; when it has diverged, `validation.sh`
-exercises the checkout's content while the commit lands the manifest's
-entries on the target base, and apply logs a note saying so (§8.2
-step 2) rather than letting the mismatch pass silently. Copying the
-working tree is deliberate — untracked build and dependency state has
-to ride into staging for validation to run at all. A
-staging-from-target-base strategy that would close the gap is a queued
-proposal, not current behavior.
+**Validation-fidelity rationale (why the default stays
+`working-tree`).** The default stages the **working tree** while the
+session commit and the merge are built against the **target branch's
+tip** (§8.2, §8.6). The two coincide only when the checkout sits at
+the target tip; when it has diverged, `validation.sh` exercises the
+checkout's content while the commit lands the manifest's entries on
+the target base, and apply logs a note saying so (§8.2 step 2) rather
+than letting the mismatch pass silently. Copying the working tree is
+a deliberate default — untracked build and dependency state has to
+ride into staging for validation to run at all, and the working-tree
+copy carries it without any declaration. The `target-base` strategy
+closes the fidelity gap for projects that opt in: validation then
+exercises exactly the content the commit lands, with untracked state
+riding via the explicit `untracked_inputs` declaration, and the
+divergence note reports that fidelity instead of the caveat.
 
 ### 8.4 Verify apply.sh outcome against manifest
 

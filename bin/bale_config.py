@@ -139,6 +139,38 @@ APPLY_VALUES = (
     "hook_auto_accept",
 )
 
+# The two admissible values of staging.strategy (BALE.md §8.3 step 2).
+# "working-tree" is the default and the documented fallback/ground truth;
+# "target-base" is the opt-in validation-fidelity strategy. The tuple is
+# the single source of truth the typed accessor and the wizard both
+# validate against.
+STAGING_STRATEGIES = ("working-tree", "target-base")
+
+# Value-shaped configurables under the [staging] section — the opt-in
+# surface for the apply pipeline's staging strategy (BALE.md §8.3 step 2).
+# Same trio contract as APPLY_VALUES: each key has a typed accessor, a
+# walk_configurables() block, and a render_bale_toml() branch.
+STAGING_VALUES = (
+    # String enum, one of STAGING_STRATEGIES. Absent/empty = "working-tree"
+    # (byte-identical to the historical behavior). "target-base"
+    # materializes the target tip's tree into staging plus the declared
+    # untracked_inputs below, so validation exercises exactly the content
+    # the session commit lands. Config-only by design: the strategy is a
+    # property of the project's validation posture, not of one invocation,
+    # and because apply and retry both re-resolve it from the merged
+    # config at stage time, a retry re-stages under the same strategy —
+    # no per-session stamp needed.
+    "strategy",
+    # List of repo-relative paths (files or directories; no globs, no
+    # tilde/env expansion — entries are repo-relative literals). Only
+    # meaningful with strategy = "target-base": each entry is untracked
+    # build or dependency state that must ride into staging for
+    # validation to run (a pure git-archive tree carries none). Entries
+    # must exist in the working tree and be untracked at the target tip
+    # at stage time; violations fail the stage loudly.
+    "untracked_inputs",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -285,6 +317,21 @@ def merged_config(repo: Path) -> dict:
             out_apply[key] = g_apply[key]
     if out_apply:
         merged["apply"] = out_apply
+
+    # [staging] — same per-key replacement as [apply]: a key set at the
+    # project layer wins; absent inherits global; the empty-string /
+    # empty-list forms pass through and read as "unset" in the typed
+    # accessors, giving the project layer its suppress form.
+    g_staging = g.get("staging") if isinstance(g.get("staging"), dict) else {}
+    p_staging = p.get("staging") if isinstance(p.get("staging"), dict) else {}
+    out_staging: dict = {}
+    for key in STAGING_VALUES:
+        if key in p_staging:
+            out_staging[key] = p_staging[key]
+        elif key in g_staging:
+            out_staging[key] = g_staging[key]
+    if out_staging:
+        merged["staging"] = out_staging
 
     return merged
 
@@ -437,6 +484,87 @@ def apply_bool_source(repo: Path, key: str) -> Optional[str]:
     if key in g_apply:
         return "global"
     return None
+
+
+def _staging_section(cfg: dict) -> dict:
+    """Return cfg's [staging] table as a dict, failing on a non-table shape.
+
+    Shared strict reader for the two [staging] accessors below, matching
+    the [apply] readers' posture: a hand-edited misshape is fatal, never a
+    silent fallback to defaults — a typo must not silently flip the
+    staging strategy back to the default the user thought they'd left.
+    """
+    from __main__ import fail
+
+    staging_section = cfg.get("staging")
+    if staging_section is None:
+        return {}
+    if not isinstance(staging_section, dict):
+        fail(f"{BALE_CONFIG}: [staging] must be a table, "
+             f"got {type(staging_section).__name__}")
+    return staging_section
+
+
+def get_staging_strategy(cfg: dict) -> str:
+    """Return [staging].strategy from the merged config; absent → the
+    "working-tree" default (byte-identical to the historical staging
+    behavior, BALE.md §8.3 step 2).
+
+    Empty string reads as unset (the wizard's suppress form at the
+    project layer — collapse to the default, overriding any inherited
+    global value). Any other value must be one of STAGING_STRATEGIES;
+    a typo is fatal, not a silent fallback — the whole point of the
+    opt-in is that the user knows which content validation exercised.
+    """
+    from __main__ import fail
+
+    raw = _staging_section(cfg).get("strategy")
+    if raw is None:
+        return "working-tree"
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: staging.strategy must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    if not val:
+        return "working-tree"
+    if val not in STAGING_STRATEGIES:
+        fail(f"{BALE_CONFIG}: staging.strategy must be one of "
+             f"{', '.join(repr(s) for s in STAGING_STRATEGIES)}; "
+             f"got {val!r}")
+    return val
+
+
+def get_staging_untracked_inputs(cfg: dict) -> list[str]:
+    """Return [staging].untracked_inputs from the merged config; absent or
+    empty → [].
+
+    Strict shape check, same posture as get_apply_search_paths: the list
+    must be strings, and a blank entry is fatal rather than dropped — a
+    declared input that silently disappears is exactly the silent skip
+    the declaration mechanism exists to prevent. Unlike search_paths, no
+    tilde or env-var expansion: entries are repo-relative literals
+    resolved against the repo at stage time (bale_staging validates
+    path safety, existence, and untracked-at-target there).
+    """
+    from __main__ import fail
+
+    raw = _staging_section(cfg).get("untracked_inputs")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        fail(f"{BALE_CONFIG}: staging.untracked_inputs must be an array "
+             f"of strings, got {type(raw).__name__}")
+    out: list[str] = []
+    for i, entry in enumerate(raw):
+        if not isinstance(entry, str):
+            fail(f"{BALE_CONFIG}: staging.untracked_inputs[{i}] must be a "
+                 f"string, got {type(entry).__name__}")
+        s = entry.strip()
+        if not s:
+            fail(f"{BALE_CONFIG}: staging.untracked_inputs[{i}] is empty; "
+                 f"remove the entry or name a repo-relative path")
+        out.append(s)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -921,6 +1049,69 @@ def walk_configurables(existing: dict, *, layer: str,
     if val_b is not None:
         new.setdefault("apply", {})["hook_auto_accept"] = val_b
 
+    # ---- [staging].strategy -------------------------------------------------
+    # A string enum rather than a free value; _prompt_value is generic, so
+    # the enum check runs after the prompt, keeping current on an invalid
+    # entry with a hint (the same reject-with-hint posture _prompt_bool
+    # takes for a non-boolean).
+    existing_staging = existing.get("staging") if isinstance(existing.get("staging"), dict) else {}
+    inherited_staging = inherited.get("staging") if isinstance(inherited.get("staging"), dict) else {}
+
+    raw_cur = existing_staging.get("strategy")
+    current = raw_cur if isinstance(raw_cur, str) else None
+    raw_inh = inherited_staging.get("strategy")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
+    val = _prompt_value(
+        "staging.strategy",
+        current=current,
+        inherited=inh,
+        description=[
+            "Optional. Enter to skip (default: working-tree).",
+            "How `bale apply` builds the staging tree validation.sh runs",
+            "in (BALE.md 8.3). 'working-tree' (default) copies the",
+            "checkout as-is — untracked state rides in for free, but if",
+            "the checkout has diverged from the session's target branch,",
+            "validation exercises the checkout's content, not what the",
+            "commit lands. 'target-base' materializes the target tip's",
+            "tree plus the declared staging.untracked_inputs below, so",
+            "validation exercises exactly the content the commit lands.",
+        ],
+    )
+    if val not in (None, "") and val.strip() not in STAGING_STRATEGIES:
+        print(f"  '{val}' is not a staging strategy; expected one of: "
+              f"{', '.join(STAGING_STRATEGIES)}. Keeping current.")
+        val = current
+    if val is not None:
+        new.setdefault("staging", {})["strategy"] = val
+
+    # ---- [staging].untracked_inputs ------------------------------------------
+    raw_cur_list = existing_staging.get("untracked_inputs") if "untracked_inputs" in existing_staging else None
+    current_list = _coerce_path_list(raw_cur_list) if raw_cur_list is not None else None
+
+    raw_inh_list = inherited_staging.get("untracked_inputs") if "untracked_inputs" in inherited_staging else None
+    inh_list = _coerce_path_list(raw_inh_list) if raw_inh_list is not None else None
+    if inh_list == []:
+        inh_list = None
+
+    val_list = _prompt_path_list(
+        "staging.untracked_inputs",
+        current=current_list,
+        inherited=inh_list,
+        description=[
+            "Optional. Enter to skip. Only used when staging.strategy is",
+            "'target-base'. Repo-relative paths (files or directories, no",
+            "globs) of UNTRACKED build or dependency state that must ride",
+            "into staging for validation to run — e.g. .venv or",
+            "node_modules. Each entry must exist in the working tree and",
+            "be untracked on the session's target branch at apply time;",
+            "a missing or tracked entry fails the apply loudly rather",
+            "than being skipped.",
+        ],
+    )
+    if val_list is not None:
+        new.setdefault("staging", {})["untracked_inputs"] = val_list
+
     return new
 
 
@@ -1016,6 +1207,22 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         for key in ("no_interact", "hook_auto_accept"):
             if key in apply_section:
                 parts.append(f"{key} = {json.dumps(apply_section[key])}")
+        parts.append("")
+
+    # [staging] section (BALE.md §8.3 step 2). Same serialization shapes
+    # the [apply] section already covers: json.dumps for the string
+    # scalar (including the empty-string suppress form), the TOML-array
+    # rendering for the path list (including the empty-list suppress
+    # form). Emitted in STAGING_VALUES order.
+    staging_section = cfg.get("staging") or {}
+    if staging_section:
+        parts.append("[staging]")
+        if "strategy" in staging_section:
+            parts.append(f"strategy = {json.dumps(staging_section['strategy'])}")
+        if "untracked_inputs" in staging_section:
+            inputs = staging_section["untracked_inputs"]
+            rendered_array = "[" + ", ".join(json.dumps(p) for p in inputs) + "]"
+            parts.append(f"untracked_inputs = {rendered_array}")
         parts.append("")
 
     return "\n".join(parts)
