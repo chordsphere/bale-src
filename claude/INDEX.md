@@ -7,6 +7,16 @@ This is bale-src — the source repo for the bale CLI. The project itself
 evolves through bale-on-bale sessions, so the doc inventory is small and
 will stay that way for a while.
 
+## Master session
+
+- `MASTER.md` — the master-session gameplan and handoff state:
+  ultimate goal, board, ratified contracts, orchestration
+  evidence pile. Edited in place at milestones (supersedes the
+  Downloads-carried dated copies). Pull when a session needs the
+  ratified direction, the board, or master-sitting context; keep
+  out of ordinary worker sessions by default — it is master
+  context, not worker context.
+
 ## Tool design
 
 - `BALE.md` (repo root) — the bale tool's canonical design document.
@@ -173,7 +183,8 @@ listed here (see above).
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
-is BALE.md, two explainers, and twelve ADRs (0001–0005 the first in the
+is BALE.md, MASTER.md (the master-session state doc), two
+explainers, and twelve ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
 them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
 set, 0010 the probe-doctrine flip, 0011 the clarification response
