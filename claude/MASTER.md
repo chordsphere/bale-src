@@ -4,7 +4,9 @@ Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately.
+it needs to be carried separately. This regeneration (2026-07-13,
+session master-state-deltas) supersedes nothing structurally — same
+v3 doc, deltas applied in place.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -74,20 +76,25 @@ it are §5.
 Version at sitting close: 0.3.6 — verify with bale --version at the
 next sitting's start rather than trusting this line.
 
-**Carried loose end (from v2, still open):** the
-generated-artifacts-rule session's notes.md was never relayed to a
-master — its judgment calls (deny-list contents, doc-rule placement)
-were never ratified. Next master: skim its notes.md from the session
-archive and ratify retroactively. (If the 2026-07-13 audit cleanup
-already covered this, close the item with a line here; do not assume
-it did.)
+**Carried loose end (from v2): CLOSED 2026-07-13.** The
+generated-artifacts-rule session's notes.md was relayed to the master
+and ratified retroactively — all decisions ratified as shipped. The
+pass-path aggregate-line follow-up was declined (byte-identical
+output wins); the craft_response fixture-seed proposal is absorbed
+into board item 11.
 
 ## 3. In flight
 
-Session `master-doc-landing` (packed from the 008 conversation):
-lands this document at `claude/MASTER.md`, adds its `INDEX.md` entry,
-and applies the TARBALL.md §5.7 handoff-authority fix (§5, new
-contracts). Nothing else open.
+Session `master-doc-landing` has APPLIED — verified against the
+repo: `claude/MASTER.md` present with its `INDEX.md` entry, the
+TARBALL.md §5.7 amendment in place, bale 0.3.6.
+
+Currently open — scope-disjoint and running concurrently, the second
+live concurrency exercise:
+
+- `staging-from-target-base` (board item 1) — packed and building.
+- `master-state-deltas` (this session) — the doc-edit session that
+  landed this regeneration.
 
 ## 4. The board
 
@@ -246,7 +253,13 @@ compression sitting before harness scoping.
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
     them); next-prompt.md renderer-tuple + §6.2/§8.1 legacy-note
-    removal once pre-retirement archives stop mattering.
+    removal once pre-retirement archives stop mattering; lift the
+    generated-artifacts session's craft_response recipe (init repo →
+    pack → craft a §5.2-shaped response programmatically → apply)
+    into the ADR-0004 fixture layer when the v0.4 harness lands —
+    its response-manifest schema-shape assumption becomes
+    mechanically checked at that point. Precondition intact:
+    ADR-0002–0005 ratified first.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -339,6 +352,14 @@ hygiene; (9) masters externalize their own state.
     session shipped bin/bale without its four import siblings; the
     snapshot harness could only skip cleanly worker-side. Packer
     (master) error, worker handled via named-assumption path.
+    Second occurrence, packer-attributed: the generated-artifacts-rule
+    request shipped without schemas/ and four sibling modules, so the
+    worker's sandbox ran functional stubs and one E2E assumption (the
+    schema accepts the §5.2 shape) went unverified — handled
+    worker-side via the named-assumption path with loud-and-contained
+    failure. Two occurrences upgrade this from incident toward class;
+    board 4's packer-attributed telemetry field is the counter for
+    it.
 14. **Commands authored from a stale picture of the repo carry
     stale scope statements** — the prior master's per-sid command
     said "out of scope: lifting the multi-open gate" AFTER the gate
