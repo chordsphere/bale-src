@@ -1020,9 +1020,10 @@ discarded. Verbatim where possible. If nothing is salvageable,
 write: "Nothing to salvage — restart from the reading plan."]
 ```
 
-The next Claude reads `handoff.md` as the first `context/` doc and
-treats its reading plan as authoritative for that session, unless
-the request manifest overrides it.
+The next Claude reads `handoff.md` as the first `context/` doc. Its
+reading plan is high-value input, ratified by the planner at
+`bale handoff` time — the request manifest remains authoritative,
+and where the two disagree the manifest wins.
 
 ### 5.8 diagnostics.json (required in bailout responses)
 
