@@ -1,7 +1,7 @@
 # DOCS.md
 
 > Documentation philosophy and patterns.
-> Read whenever docs are the work, regardless of project shape.
+> Read when `CLAUDE.md`'s INDEX says so.
 > For the *why* behind any of this, see `CLAUDE.md`.
 
 ---
@@ -71,7 +71,7 @@ behaves once present.
 | **Architectural decisions** | `0001-vue-over-react.md` | Append-only; new file per decision; old files never edited (superseded instead) | `claude/context/adr/` | `NNNN-lowercase-hyphenated.md` |
 | **Schemas / data contracts** | `dist-api.openapi.yaml`, `dist-meta.schema.json` | Edited when the underlying contract changes | `claude/context/schemas/` | `lowercase-hyphenated.<ext>` |
 | **Long-form explainers** | `surface-modes.md` | Edited when the subject evolves | `claude/context/` | `lowercase-hyphenated.md` |
-| **Session notes** | `notes.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once; archived, never edited | `claude/responses/response-NNN/` | conventional (`.md`, plus `.json` for `diagnostics.json`) |
+| **Session notes** | `notes.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once, never edited; archival is opt-in per project, off by default (`CLAUDE.md` §5) | `claude/responses/response-NNN/` (when archival is adopted) | conventional (`.md`, plus `.json` for `diagnostics.json`) |
 
 If a needed document doesn't fit any row, that's a signal — either it
 belongs in a category Claude didn't recognize, or it's the seed of a
@@ -398,6 +398,18 @@ fine. A 200-line doc that mixes philosophy and mechanics isn't.
   given rule goes in, the seam is wrong and the doc shouldn't split
   yet.
 
+### 6.4 Section numbers are stable
+
+Once a section number is cross-referenced — from another doc, an
+ADR, a manifest `reason`, or session notes — it is permanent.
+Splits, merges, and retirements never renumber the surviving
+sections. Content that leaves a numbered section leaves a one-line
+pointer tombstone in its place — a retirement or relocation notice
+naming where the content went — so every existing reference still
+resolves. Precedents: `TARBALL.md` §5.5 (a retired artifact,
+tombstoned in place) and `CODE.md` §13 (a provisional section
+placed last so its future lift renumbers nothing).
+
 ---
 
 ## 7. Pruning a Document
@@ -492,8 +504,9 @@ Strict enough to be predictable; loose enough not to be a tax.
   starting at 0001. Never renumbered.
 - **Schemas** — `lowercase-hyphenated.<format>` (`.openapi.yaml`,
   `.schema.json`, etc.).
-- **Session artifacts** — `request-NNN`, `probe-NNN`, `response-NNN`,
-  3-digit zero-padded, sequential per project.
+- **Session artifacts** — `request-NNN`, `response-NNN`, 3-digit
+  zero-padded, sequential per project. (No `probe-NNN`: probes
+  produce no artifact, `TARBALL.md` §4.2.)
 
 If tempted to invent a new naming pattern, **don't.** Use the closest
 existing pattern and note the awkwardness in `notes.md`.
@@ -506,19 +519,27 @@ Bale is project-agnostic and does not enforce doc-inventory rules
 itself. The mechanical checks in the table below run in the
 response's `validation.sh` — Claude includes the corresponding
 assertions per-session for projects that adopt the DOCS.md
-workflow. The universal bale-enforced rules (manifest agreement,
-sha256, reason populated, path safety, out-of-scope, `apply.sh`
-reconciliation) live in `TARBALL.md` section 8.
+workflow. The universal bale-enforced rules live in `TARBALL.md`
+section 8, which owns their enumeration.
 
 | Rule | Type | Enforcement |
 |------|------|-------------|
 | INDEX.md lists every doc — a doc isn't real until INDEX lists it | contract | response's `validation.sh`: every doc in `files/` has an INDEX entry; every INDEX entry resolves to a file |
 | STATE.md is edited, not appended — no dated sections | policy | review |
-| ADRs are append-only — old ADRs are superseded, never rewritten | contract | response's `validation.sh`: modifications to existing ADR files are rejected unless the only changes are flipping `Status` to `Superseded` and populating `Superseded by` |
+| ADRs are append-only — old ADRs are superseded, never rewritten | contract | response's `validation.sh`: modifications to existing ADR files are rejected unless the diff is confined to one of two shapes — the ratification flip (`Status` `Proposed` → `Accepted`, optionally plus a single appended dated landing-note line in Notes) or the supersession flip (`Status` to `Superseded` plus populating `Superseded by`) |
 | Cross-reference, don't duplicate — every rule has one home | policy | review |
 | Pruning is always declared — every removal distinguishes archive from delete in its `reason` | contract | response's `validation.sh`: deletes have non-empty reasons matching one of the two patterns |
 | Don't invent doc categories silently — surface in `notes.md` first | policy | review |
 | New ADR numbers are sequential and never reused | contract | response's `validation.sh`: ADR filename N is the max existing number + 1 |
+
+The one-home rule has a sanctioned exception: deliberate cross-doc
+parallelism, where two docs state the same shape for their own
+subjects so each stands alone (the model is `CODE.md` META's
+sanctioned-overlap note). Parallel copies must agree; a change to
+one propagates to its twin in the same session, or the parallelism
+has become drift. Sanctioned pairs today: this section's preamble
+and closing with `CODE.md` §10's; §8's framing with `CODE.md` §9's;
+§7's pruning sentences with `CODE.md` §6's.
 
 Rule labels follow `CLAUDE.md` section 6. A project that wants these
 rules enforced asks Claude to include the corresponding assertions

@@ -1,8 +1,7 @@
 # CODE.md
 
 > Code organization and refactoring philosophy.
-> Read whenever code structure is the work, or when adding code that
-> changes layout.
+> Read when `CLAUDE.md`'s INDEX says so.
 > For the *why* behind any of this, see `CLAUDE.md`.
 
 ---
@@ -506,9 +505,8 @@ Bale is project-agnostic and does not enforce code-layout rules
 itself. The mechanical checks in the table below run in the
 response's `validation.sh` — Claude includes the corresponding
 assertions per-session for projects that adopt this doc's
-philosophy. The universal bale-enforced rules (manifest
-agreement, sha256, reason populated, path safety, out-of-scope,
-`apply.sh` reconciliation) live in `TARBALL.md` section 8.
+philosophy. The universal bale-enforced rules live in `TARBALL.md`
+section 8, which owns their enumeration.
 
 | Rule | Type | Enforcement |
 |------|------|-------------|
@@ -570,8 +568,8 @@ wait until it's been touched a few times.
 > workflow doc). Placing it last keeps that future extraction a pure
 > lift with no renumbering of §§1–12. The promotion trigger is in
 > §13.4. The decision to defer `TESTS.md` and house doctrine here is
-> recorded in each adopting project's ADRs — for bale-src,
-> `claude/context/adr/0001-defer-tests-doc.md`.
+> recorded in each adopting project's ADRs (e.g., an
+> `adr/NNNN-defer-tests-doc.md` in the project's ADR directory).
 
 `CLAUDE.md` section 6 carries the value — *tests ship with code.* This
 section carries the **layout** half of that value: where test code
