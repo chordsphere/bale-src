@@ -48,23 +48,35 @@ a paused session.
 - **Session IDs.** `YYYY-MM-DD-<slug>-NNN`, e.g.
   `2026-05-12-vue-scaffold-001`. The slug is short and kebab-cased.
   NNN is a per-day monotonic counter maintained by bale.
-- **Artifact directories.** `request-NNN/`, `response-NNN/`,
-  `probe-NNN/` use the same NNN as the session ID, zero-padded to
-  three digits. A response is numbered to match the request it
-  answers; a probe shares the session's NNN.
+- **Artifact directories.** `request-NNN/` and `response-NNN/` use
+  the same NNN as the session ID, zero-padded to three digits. A
+  response is numbered to match the request it answers. Probes
+  produce no artifact directory (§4.2).
+- **Roles.** Three roles recur here and in `CLAUDE.md`: the
+  **planner** decomposes goals, authors packs, and reviews — today
+  the human architect; the **worker** builds responses — Claude; the
+  **operator** runs pack/apply and holds the mechanical steps
+  between them — today the same human as the planner, later possibly
+  a harness. "Architect" and "planner", "Claude" and "worker" are
+  synonyms throughout; the docs use whichever a sentence inherited.
 - **Examples are examples.** Schemas below reference Vue/Vite/etc. to
   make shapes concrete. They are illustrative, not normative.
   Substitute the project's actual stack.
 
 ---
 
-## 2. Three Artifacts
+## 2. Three Exchanges
 
-| Artifact | Direction | When |
+| Exchange | Direction | When |
 |----------|-----------|------|
-| Request tarball | me → Claude | start of a tarball-mode session |
-| Probe | Claude → me | whenever an environment-specific fact is missing, stale, or unclear (§4.1) |
-| Response tarball | Claude → me | every tarball-mode response |
+| Request tarball | planner → worker | start of a tarball-mode session |
+| Probe | worker → planner | whenever an environment-specific fact is missing, stale, or unclear (§4.1) |
+| Response tarball | worker → planner | every tarball-mode response |
+
+The two tarballs are artifacts; the probe is not — it is a
+paste-back script and its pasted output, chat-ephemeral by design
+(§4.2). It sits in this table because it is the third thing that
+crosses the wire, not because anything durable ships.
 
 ---
 
@@ -81,7 +93,7 @@ request-NNN/
   CODE.md              # injected by bale
   context/             # everything the user chose to include
     <project files and any project docs the user named>
-  README.md            # optional; user's voice beyond the manifest's `goal` field
+  README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
 ```
 
 The first five slots are reserved for bale-injected global docs and
@@ -90,11 +102,17 @@ including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
 level slots are reserved for project docs; bale is project-agnostic.
 
-`README.md` is optional. Include it only when the user has prose
-worth keeping that doesn't fit the manifest's `goal`, `constraints`,
-or `out_of_scope` fields — typically when the session has a story
-that wouldn't reduce cleanly to structured fields. Most sessions
-will skip it; the wizard offers `$EDITOR` for the user to opt in.
+`README.md` is optional prose context: whatever is worth keeping
+that doesn't reduce cleanly to the manifest's `goal`, `constraints`,
+or `out_of_scope` fields. Either party authors it. The planner
+writes it directly — the pack wizard offers `$EDITOR` to opt in —
+or the worker writes it on request, delivering the brief as a
+downloadable file the planner ships with `--readme-file` (§3.4).
+That flag's search-path resolution exists for exactly this hand-off:
+a relative path is looked up through the configured
+`apply.search_paths`, so a brief sitting in the planner's downloads
+directory packs by bare name. Most sessions skip the README
+entirely.
 
 A project that has adopted the DOCS.md workflow might fill `context/`
 with paths like:
@@ -151,6 +169,14 @@ Field semantics:
 
 - **`goal`** — one sentence. If it doesn't fit in one sentence, the
   scope is wrong.
+- **`depends_on`** — links this request to prior session artifacts;
+  both fields default `null`. `previous_response` names the response
+  session this request builds on — a session packed after a bailout
+  points it at the bailout (§5.6.2). `previous_probe` is populated
+  mainly on the fallback path: a prior probe whose `probe-output/`
+  ships in this request's `context/` (§4.4). A paste-back probe
+  resolves within its own session and leaves the field `null`
+  (§4.5).
 - **`constraints`** — things I commit to up front. Claude stays
   within them or surfaces a conflict in `notes.md`.
 - **`out_of_scope`** — explicit list of *near-by* concerns Claude
@@ -166,13 +192,19 @@ Field semantics:
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
-If the request forbids probing but Claude finds an environment-
-specific gap documentation can't fill, Claude does not probe and does
-not silently guess. Claude either:
+If the request forbids probing but the worker finds an environment-
+specific gap documentation can't fill, the worker does not probe and
+does not silently guess. The worker either:
 
 1. **Stops and asks in chat** — if the gap is small enough to resolve
    inline.
-2. **Proceeds against the most plausible assumption** — names the
+2. **Returns a clarification response** (§5.9) — if the gap is
+   blocking and the ask should ride the durable shape (the
+   orchestrated default, §5.9.1). Environment questions are
+   admissible there when probing is unavailable: the recourse
+   taxonomy keys on mechanics (§5.9), and the planner can read the
+   environment the worker was forbidden to script against.
+3. **Proceeds against the most plausible assumption** — names the
    assumption explicitly in `notes.md` and flags it as the first
    thing for me to check on review.
 
@@ -184,36 +216,54 @@ honored as a recoverable risk.
 `bale pack` is the command that produces a request tarball — the §3.1
 shape, with a `manifest.json` (§3.2) assembled from its flags. It's
 documented here so its callers can cite a real command instead of
-guessing. By default that caller is Claude: authoring `bale pack`
-commands is Claude's responsibility (`CLAUDE.md` §4), and Claude
-emits a runnable one in exactly one place — the rescope offer, when
-the pre-flight scope check (`CLAUDE.md` §11.2) decides a goal needs
-splitting. That emission is pre-work and conversational: the session
-has declined to build anything, so the command is a scoping proposal
-the architect reads and fires deliberately, not an artifact riding
-beside reviewed output. Post-work is the opposite case — once a
-session has landed work, its follow-up suggestions flow as prose
-Proposals in `notes.md` (§5.4.1), never as a runnable command; §5.5
-carries the reasoning for that line. The architect authoring a
-session by hand is fully supported, with the same flags and the same
-single-line form — the normal case for sequencing packs the architect
-composes from a response's proposals.
+guessing. Authoring pack commands is available to either party, and
+the line that governs it is **solicited vs unsolicited**. Asked in
+chat to draft a pack command, the worker authors it — solicited
+authoring is always the worker's job (`CLAUDE.md` §4), with the same
+flags and the same single-line form as a planner-authored pack.
+Unsolicited, the worker emits a runnable command in exactly one
+place: the rescope offer, when the pre-flight scope check
+(`CLAUDE.md` §11.2) decides a goal needs splitting. Inside response
+tarballs, follow-ups are prose Proposals in `notes.md` (§5.4.1),
+never runnable commands.
+
+The reasoning behind that single unsolicited place: a runnable
+command arriving *inside a response tarball* has two hazards. It
+invites blind firing — it surfaces in the apply walkthrough beside a
+diff and a PASS banner, exactly the moment a satisfied reviewer is
+primed to paste and go. And it lets the entity under review frame
+the scope and includes of the follow-up that extends or judges its
+own work — a soft version of the self-oracle problem. Sequencing
+authority belongs to the planner (`CLAUDE.md` §4). The rescope offer
+has neither hazard: it is pre-work, so the session has built nothing
+the command could frame, and it arrives as the whole point of a
+conversational reply, so the planner cannot fire it without reading
+it. An orchestration layer consuming rescope offers should still
+re-derive the command from the proposed seam rather than fire the
+worker's verbatim — doctrine for when an orchestrator exists, not a
+change to the human path, which needs the paste-ready command.
 
 The flags below are the stable surface; each maps to a manifest field
 or a packing behavior:
 
 | Flag | Maps to / does |
 |------|----------------|
-| `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). |
-| `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. |
+| `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). Omitted on a TTY, pack enters the interactive wizard; required when piped. |
+| `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. Omitted on a TTY, the wizard prompts for it; required when piped. |
 | `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. |
 | `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
 | `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
-| `--no-edit` | Skips the optional `$EDITOR` step for `README.md` (§3.1) — pack non-interactively with no prose beyond the structured fields. |
+| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Combines with `--edit` to review the file before packing. |
+| `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
+| `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
+| `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
-| `--force` | Override the `--max-*` guard rails when the architect knowingly wants a pack past a cap. |
+| `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
+
+README precedence, first match wins: `--edit` > `--readme-file` >
+the wizard's y/N prompt > omit.
 
 **Commands are single-line.** Every `bale pack` invocation — the
 architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
@@ -301,10 +351,9 @@ these required properties:
 
 - **Strictly read-only — zero writes.** stdout is the only output
   channel. No `probe-output/`, no temp files, no state mutation of
-  any kind. (This hardens the earlier contract, which permitted
-  writes under `./probe-output/`; that shape survives only as the
-  §4.4 fallback.) Read-only is what keeps the architect's
-  read-before-paste audit a two-second job.
+  any kind — writes belong exclusively to the §4.4 fallback.
+  Read-only is what keeps the planner's read-before-paste audit a
+  two-second job.
 - **Purpose header.** A comment block at the top stating what the
   probe asks, why the session needs it, and confirming the script is
   read-only. The architect audits this before pasting.
@@ -430,11 +479,9 @@ must record what the probe established: the facts the response relied
 on, not the raw dump. That record is how the probe's findings survive
 the chat.
 
-The `depends_on.previous_probe` field and its semantics are
-unchanged. Its populated case is now mainly the fallback path — a
-prior probe whose `probe-output/` shipped in this request's
-`context/`; a paste-back probe resolves within its own session and
-leaves the field null.
+`depends_on.previous_probe` (§3.2) is how a fallback probe's output,
+shipped in a later request's `context/`, is declared; a paste-back
+probe resolves within its own session and leaves the field null.
 
 ### 4.6 The probe as a tool call
 
@@ -716,41 +763,30 @@ separate fields so disagreement is itself diagnostic.
 | `untested` | The check will be skipped in my environment |
 | `unknown` | Claude genuinely can't tell |
 
-`claims` covers project-level checks (lint, typecheck, build, tests)
-only. The mechanical checks Claude wrote the manifest for (manifest
-consistency, file syntax) are tautological — a `pass` claim adds no
-information and they're omitted.
+One rule scopes the block: `claims` covers the project-level checks
+(lint, typecheck, build, tests), and when the project has none — no
+lint, typecheck, build, or test surface yet — it covers the
+response's session-specific assertions (§7.2 item 6) instead. Either
+way the keys are genuine predictions about non-tautological checks;
+an empty block while claimable checks ran wastes the calibration
+signal the field exists for. The mechanical checks the worker wrote
+the manifest for (manifest consistency, file syntax) are tautological
+— a `pass` claim adds no information — and are never claimed.
 
-When the project has no project-level checks at all — no lint,
-typecheck, build, or test surface yet — `claims` covers the
-response's session-specific assertions (§7.2 item 6) instead of
-shipping empty: those are genuine predictions about non-tautological
-checks, and an empty block wastes the calibration signal the field
-exists for. The verbatim-match rule below is unchanged — each such
-claim's key is the assertion's `validation_will_run` entry.
+A `claims` key is not free text: it is the check's **canonical
+identifier** — its `validation_will_run` entry, reused **verbatim**
+(same characters, same spacing) as the `claims` key and again as the
+verdict label §7.3 reconciles against. That one shared string is
+what makes the reconciliation well-defined; a key with no verbatim
+match in `validation_will_run` is unpairable — a prediction about a
+check the manifest never says will run.
 
-A `claims` key is not free text: it is the **canonical identifier**
-of the check it predicts, and that identifier is the check's
-`validation_will_run` entry. The two must verbatim-match — same
-characters, same spacing — so the entry string is the single
-canonical name a check is known by, reused unchanged as the `claims`
-key and again as the verdict label §7.3 reconciles against. That one
-shared string is what makes the reconciliation well-defined: a claim
-and its verdict pair because they name the check identically, not
-because anything matches a paraphrase. A `claims` key with no
-verbatim match in `validation_will_run` is unpairable — a prediction
-about a check the manifest never says will run.
-
-The match is one-directional, and the scoping is the point. Every
-`claims` key must appear in `validation_will_run`, so
-`set(claims) ⊆ set(validation_will_run)`; the converse does not hold.
-`validation_will_run` also lists the mechanical checks (file syntax,
-manifest consistency) the paragraph above excludes from `claims`, and
-those entries therefore stand as run-but-unclaimed — correct, not a
-gap. So the invariant binds only the claimable project-level checks:
-claimed checks are always a subset of run checks, never a superset.
-This subset relation is what §10.1 self-checks before packing and
-`CLAUDE.md` §11.6 re-derives after a compaction.
+The match is one-directional, and the scoping is the point:
+`set(claims) ⊆ set(validation_will_run)`, never the converse.
+`validation_will_run` also lists the mechanical checks excluded from
+`claims` above, and those entries stand as run-but-unclaimed —
+correct, not a gap. This subset relation is what §10.1 self-checks
+before packing and `CLAUDE.md` §11.6 re-derives after a compaction.
 
 A claim disagreeing with the verdict doesn't reject the tarball; it's
 flagged in validation's end-of-run report. The pattern of
@@ -799,12 +835,10 @@ follow-up work worth suggesting, `notes.md` carries it under a
   ordering dependency on other work ("only after X lands").
 
 Proposals are prose suggestions with rationale, **never ready-to-run
-commands** — no `bale pack` line, no literal paste-this text. The
-planner (the architect today, an orchestrator later) reads proposals
-as *input*, decides sequencing, and authors its own pack commands
-(§3.4) from its own understanding. This is deliberate: the worker
-that built a session does not frame the scope or the includes of the
-session that follows it — §5.5 carries the full reasoning.
+commands** — no `bale pack` line, no literal paste-this text; §3.4
+carries the reasoning. The planner (the architect today, an
+orchestrator later) reads proposals as *input*, decides sequencing,
+and authors its own pack commands (§3.4) from its own understanding.
 
 Proposals are distinct from the manifest's `deferred` list (§5.2):
 `deferred` names in-goal work the session considered and didn't do;
@@ -819,50 +853,21 @@ uneventful session omits the file: absence means *no suggestion*.
 ### 5.5 next-prompt.md (retired)
 
 Retired as of session `2026-07-06-retire-next-prompt-006`. Responses
-do not ship `next-prompt.md`; Claude does not produce it. The section
-number is kept so older cross-references stay resolvable.
-
-The artifact carried "the literal text to paste next" — usually a
-ready-to-run `bale pack` command for session N+1, authored by the
-worker that had just built session N. That shape had two problems.
-It invited blind firing: the command arrived inside a response
-tarball at apply time, surfaced in the walkthrough beside a diff and
-a PASS banner — exactly the moment a satisfied reviewer is primed to
-paste and go. And it let the entity under review frame the scope and
-includes of the follow-up that extends or judges its own work — a
-soft version of the self-oracle problem. Sequencing authority belongs
-to the planner: deciding what's next is the architect's call, with
-Claude's suggestion (`CLAUDE.md` §4).
-
-What survives is the channel, not the file. Worker-side discoveries
-that a top-down planner can't know flow through `notes.md`'s
-Proposals section (§5.4.1) as prose suggestions with rationale, never
-runnable commands; the planner authors its own pack commands (§3.4)
-from its own understanding, with the proposals as input.
-
-The line this retirement draws is pre-work vs post-work, not command
-vs no-command. Claude still authors `bale pack` commands (`CLAUDE.md`
-§4) and still emits a runnable one in exactly one place: the
-pre-flight rescope offer (`CLAUDE.md` §11.2). That emission has
-neither hazard above — it is pre-work, so the session has built
-nothing the command could frame, and it arrives as the whole point of
-a conversational reply, so the planner cannot fire it without reading
-it. Once work has landed, follow-up flows only as prose proposals.
-An orchestration layer consuming rescope offers should re-derive the
-command from the proposed seam rather than fire the worker's verbatim
-— doctrine for when an orchestrator exists, not a change to the human
-path, which needs the paste-ready command.
+do not ship `next-prompt.md`; the worker does not produce it. The
+artifact carried a ready-to-run `bale pack` command inside the
+response tarball — an *unsolicited, post-work* runnable command,
+exactly the shape §3.4 confines to the pre-flight rescope offer and
+whose hazards (blind firing, the self-oracle problem) §3.4 explains.
+Follow-up flows as prose Proposals in `notes.md` (§5.4.1); the
+retirement does not touch bailouts, whose unfinished work was always
+`handoff.md`'s job (§5.7). This section number is kept so older
+cross-references stay resolvable.
 
 Transition tolerance: response tarballs produced before the
 retirement may still contain `next-prompt.md`. Bale's apply
-walkthrough tolerates them — the body is surfaced, labeled deprecated
-— so pre-retirement archives stay reviewable. Nothing new ships the
-file.
-
-The retirement does not touch bailouts. Queued follow-up after a
-*successful* session was this artifact's job; unfinished work from a
-*bailed* session was always `handoff.md`'s (§5.7), and that path is
-unchanged.
+walkthrough tolerates them — the body is surfaced, labeled
+deprecated — so pre-retirement archives stay reviewable. Nothing new
+ships the file.
 
 ### 5.6 Bailout response
 
@@ -1014,12 +1019,12 @@ calibrate where budget actually goes. Schema:
   "bail_narrative": "one paragraph in Claude's voice: what was noticed, when, why bailing beat pushing through.",
   "context_loaded": [
     {
-      "path": "context/docs/CLAUDE.md",
+      "path": "CLAUDE.md",
       "verdict": "necessary",
       "note": "the operating manual; can't skip"
     },
     {
-      "path": "context/docs/TARBALL.md",
+      "path": "TARBALL.md",
       "verdict": "wasted",
       "note": "drilled prematurely; the session turned out to be conversational"
     }
@@ -1078,17 +1083,24 @@ command).
 
 ### 5.9 Clarification response
 
-A clarification response is what Claude returns when a **blocking
-intent gap** in the request prevents trustworthy work. It is the
-third distinguished response kind, structurally the bailout's
-sibling, and it completes a taxonomy in which each kind of blocking
-gap has exactly one recourse:
+A clarification response is what the worker returns when a
+**blocking intent gap** in the request prevents trustworthy work. It
+is the third distinguished response kind, structurally the bailout's
+sibling, and it completes a taxonomy of recourses keyed on
+**mechanics — what can answer the gap — not on where the gap
+originated**:
 
-| The gap is in… | Recourse |
-|----------------|----------|
-| the **environment** — a fact about the architect's machine or repo (file contents, versions, tree state) | probe (§4) |
-| the **request** — the intent itself is ambiguous, contradictory, or assumes knowledge the worker was never given | clarification (§5.9) |
-| the **budget** — the goal won't fit the context window | bailout (§5.6) |
+| Recourse | Mechanics | Typical gap |
+|----------|-----------|-------------|
+| probe (§4) | a read-only script run against the environment | an environment fact — file contents, versions, tree state |
+| clarification (§5.9) | questions put to the planner | an intent gap — the request is ambiguous, contradictory, or assumes knowledge the worker was never given |
+| bailout (§5.6) | a budget handoff to a fresh session | the goal won't fit the context window |
+
+Keying on mechanics is what makes the edge case well-defined: a
+blocking environment gap under `expects_probe: no` (§3.3) may take
+the clarification shape, because with scripting forbidden, questions
+to the planner — who can read their own environment — are the
+recourse that remains.
 
 #### 5.9.1 When it engages
 
@@ -1096,7 +1108,12 @@ Canonical intent-gap triggers: an undefined term in the goal; a
 constraint that conflicts with an included file; a decision the
 packer made but did not transport into the request. No script
 against the environment can answer these — which is exactly why
-they are not probes.
+they are not probes. The converse admission also holds: when
+probing is unavailable (`expects_probe: no`, §3.3), a blocking
+environment gap is admissible here — the taxonomy keys on
+mechanics (§5.9), and questions to the planner, who can read the
+environment the worker can't script against, are the recourse that
+remains.
 
 **Questions must be blocking.** A clarification response asserts:
 *this session cannot produce trustworthy work without these
@@ -1106,15 +1123,17 @@ the session that correctly refused to fabricate rationale it was
 never given; this response kind is that refusal given a wire
 format.
 
-Chat remains available, and for a quick question in a
-human-attended session it is often the cheapest path (`CLAUDE.md`
-§3: ask, in one sentence). The clarification response is the same
-move given a durable, structured shape: the apply walkthrough
+Which surface carries the ask defaults on the **courier**. In a
+human-attended session, chat is the default — even for a blocking
+gap, a question the planner is present to answer resolves cheapest
+inline (`CLAUDE.md` §3: ask, in one sentence). In an orchestrated
+session, the artifact is the default: the apply walkthrough
 surfaces it, the record persists for aggregation (§5.9.4), and a
 programmatic courier can carry it where a chat aside cannot go.
-When the gap is blocking and the session is producing a
-tarball-mode deliverable, the clarification response is the
-default shape for the ask.
+When a blocking ask resolves in chat, the eventual response's
+`notes.md` records the question and its answer — the §4.5
+provenance rule applied to clarifications: chat is ephemeral, and
+the record is how the answer survives it.
 
 The same default-to-ask doctrine that governs probes (§4.1)
 governs clarifications: proceeding on a guessed intent is the
@@ -1236,8 +1255,10 @@ are what's *absent*:
 }
 ```
 
-`deferred` and `claims` are both empty — nothing was held back, and
-no project-level checks run for a markdown typo. `validation_will_run`
+`deferred` and `claims` are both empty — nothing was held back, no
+project-level checks run for a markdown typo, and the session ships
+no session-specific assertions either, so nothing is claimable and
+the empty block is correct (§5.3). `validation_will_run`
 covers only what `validation.sh` actually does for this change (file
 syntax). `apply.sh` is the no-op script — no deletes, no renames, and
 no executable bits to restore (see §5.1.1). `README.md` and
@@ -1277,7 +1298,8 @@ Validation never writes to the real project. The full pipeline:
    configurable via `--staging-dir`).
 2. Bale copies the current project state into staging.
 3. Bale applies `files/` over the staging copy, then runs `apply.sh`
-   in staging to handle deletes.
+   in staging for the operations the mirror can't express — deletes,
+   the removal half of renames, exec-bit restores (§5.1.1).
 4. Bale reconciles the post-`apply.sh` staging tree against the
    manifest: every created/deleted/modified path must match a
    manifest entry, and no others. Mismatches reject the tarball
@@ -1324,8 +1346,10 @@ not found`. Never silently passes. Never installs anything.
 
 ### 7.3 Claim/verdict reconciliation
 
-After checks 2-5 run, validation compares each verdict against
-`manifest.claims`. Bale places the response manifest at
+After the checks run, validation compares the verdict of **every
+claimed check** — whichever checks `manifest.claims` names, the
+project-level checks and any claimed session-specific assertions
+alike (§5.3) — against its claim. Bale places the response manifest at
 `staging/.bale-manifest.json` before invoking `validation.sh`, so
 the script can read the claims and produce the reconciliation block.
 The end-of-run summary includes a `claims` block:
@@ -1409,21 +1433,23 @@ manifest schema and field agreement, sha256 and size match against
 `files/`, a non-empty `reason` on every change, path safety, the
 generated-artifact denial (§5.1), the `files/`↔`changes[]`
 correspondence, and the post-`apply.sh` reconciliation of §5.1.1.
-The rules below are instead *policy*: caught at review, not by bale.
+The rules below are instead *policy* or *operator discipline*
+(labels per `CLAUDE.md` §6): caught at the planner's review, or held
+by the operator's own procedure with no downstream catch — not by
+bale.
 
-| Rule | Enforcement |
-|------|-------------|
-| The tarball is the contract — no side commands, no pasted snippets, no hand-edits | review |
-| Validate before apply, always | my discipline |
-| Tarballs are immutable once delivered | my discipline |
-| `validation_will_run` is honest and complete | review |
-| Tarball mode without `TARBALL.md` loaded — pause and ask | Claude's own check at the start of a response |
-| Probe is strictly read-only; the file-based fallback (§4.4) writes only under `./probe-output/` | probe self-check + my review |
-| `apply.sh` operations limited to deletes and other manifest-declared file ops — no `mv`, no installs, no builds | review (with bale's post-`apply.sh` reconciliation against the manifest, §5.1.1, catching tree violations) |
+| Rule | Type | Enforcement |
+|------|------|-------------|
+| The tarball is the contract — no side commands, no pasted snippets, no hand-edits | policy | review |
+| Validate before apply, always | operator discipline | the operator's own procedure; no downstream catch |
+| Tarballs are immutable once delivered | operator discipline | the operator's own procedure; no downstream catch |
+| `validation_will_run` is honest and complete | policy | review |
+| Tarball mode without `TARBALL.md` loaded — pause and ask | policy | the worker's own check at the start of a response |
+| Probe is strictly read-only; the file-based fallback (§4.4) writes only under `./probe-output/` | policy | planner review; mechanical component: the probe's self-check — the purpose header and logged steps declare every write, §4.3 |
+| `apply.sh` operations limited to deletes and other manifest-declared file ops — no `mv`, no installs, no builds | policy | review; mechanical component: bale's post-`apply.sh` reconciliation against the manifest (§5.1.1) catches tree violations |
 
-Rule labels follow `CLAUDE.md` section 6. Claude should surface
-policy concerns in `notes.md` precisely because mechanical checks
-won't catch them.
+The worker surfaces policy concerns in `notes.md` precisely because
+mechanical checks won't catch them.
 
 ---
 
@@ -1444,10 +1470,14 @@ won't catch them.
 
 ## 10. Quick Reference
 
+> Derived checklists. Where a step compresses a section, the cited
+> section wins.
+
 ### 10.1 Building a response tarball
 
-1. Confirm `CLAUDE.md` and `TARBALL.md` are in the request, or pause
-   and ask.
+1. Confirm the bale-injected globals are present: `CLAUDE.md`,
+   `TARBALL.md`, `DOCS.md`, `CODE.md`. The first two are the minimum
+   for building a response — pause and ask if either is missing.
 2. Plan: list every file that will change, decide deferrals up front,
    decide what to claim for each project-level check.
 3. Build `files/` mirroring the project tree (when there are
@@ -1455,7 +1485,9 @@ won't catch them.
 4. Build `manifest.json` with reasons, sizes, sha256s (computed via
    §5.2.1, never by hand), deferrals, `validation_will_run`, and
    `claims`.
-5. Write `apply.sh` for deletes (or a no-op script if none).
+5. Write `apply.sh` for the operations the `files/` mirror can't
+   express — deletes, the removal half of renames, exec-bit restores
+   (§5.1.1) — or the no-op script if there are none.
 6. Write `validation.sh` honoring the contract in section 7.
 7. Optionally write `notes.md` if there are surprises, decisions,
    `unknown` claims, or follow-up proposals (§5.4.1) to surface. Skip
@@ -1476,10 +1508,10 @@ won't catch them.
       `files/` has a matching entry — no declared-but-absent file, no
       undeclared file. (`deleted` entries carry no `files/` member by
       §5.1.1.)
-    - **`set(claims) ⊆ validation_will_run`.** Every `claims` key
-      verbatim-matches a `validation_will_run` entry (§5.3). A key
-      with no match is the tell of a renamed or paraphrased check; the
-      fix is the key, not a new entry.
+    - **`set(claims) ⊆ validation_will_run`** — per §5.3's
+      canonical-identifier rule. A key with no match is the tell of a
+      renamed or paraphrased check; the fix is the key, not a new
+      entry.
     Bale's pre-flight (§8) independently re-checks the first two and
     bounces a tarball that fails either, so catching them here turns a
     rejected tarball into a fix before packing. The third is the
@@ -1507,11 +1539,12 @@ won't catch them.
 
 ### 10.3 Returning a clarification instead
 
-1. Confirm the gap is in the *request* — an intent gap per §5.9.1,
-   not an environment fact (that's a probe, §4) and not a budget
-   problem (that's a bailout, §5.6) — and that it is **blocking**.
-   Nice-to-know goes in `notes.md` Proposals on a full response
-   (§5.4.1).
+1. Confirm the gap is one only the planner can answer — an intent
+   gap per §5.9.1, or an environment gap when probing is unavailable
+   (`expects_probe: no`, §3.3) — not an environment fact a probe can
+   fetch (§4) and not a budget problem (§5.6) — and that it is
+   **blocking**. Nice-to-know goes in `notes.md` Proposals on a full
+   response (§5.4.1).
 2. Build the manifest: `response_kind: "clarification"`; `changes`,
    `deferred`, `validation_will_run`, `claims` all empty; a
    non-empty `questions[]` with all four fields per entry —
