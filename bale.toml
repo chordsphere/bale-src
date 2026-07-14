@@ -13,3 +13,6 @@
 
 [hooks]
 post_apply_pass = "scripts/reinstall.sh"
+
+[identity]
+packer = "chordsphere"
