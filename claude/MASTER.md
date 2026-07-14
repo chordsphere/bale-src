@@ -1,12 +1,12 @@
-# bale master-session state — v3 — 2026-07-13
+# bale master-session state — v3 — 2026-07-14
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately. This regeneration (2026-07-13,
-session master-state-deltas) supersedes nothing structurally — same
-v3 doc, deltas applied in place.
+it needs to be carried separately. This regeneration (2026-07-14,
+session master-regeneration-014) supersedes nothing structurally —
+same v3 doc, deltas applied in place.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -73,8 +73,33 @@ it are §5.
   in §8; every actionable item is absorbed into the board (§4) or the
   landing session.
 
-Version at sitting close: 0.3.6 — verify with bale --version at the
-next sitting's start rather than trusting this line.
+**Sitting summary, 2026-07-13/14 (this regeneration's deltas):**
+
+- **staging-from-target-base** — landed the target-base staging
+  strategy: config-only opt-in, tracked-at-tip guard. (Board item 1,
+  now done.)
+- **master-state-deltas** — the doc-edit session that landed the
+  prior regeneration of this document.
+- **response-lint** — `tools/response_lint.py` blind-authored from
+  the documented contract, not from bale_validate; 7 doc gaps found
+  in the process (feeds board 7's input pile).
+- **telemetry B1** — provenance stamping, the dual-stream feedback
+  block, the no-readme guard, six doc one-liners.
+- **telemetry B2** — durable records at `claude/telemetry/`, bailout
+  records included; contract at BALE.md §8.9.
+- **packaging-lists** — three runs: two compacted mid-build (both
+  notes ratified as design input), the third implemented the
+  master-pinned design: canonical RELEASE_FILES, derived and
+  asserted copies, tree-coverage guards, tools/ mirror.
+
+Version at sitting close: 0.3.9 per the pack-time provenance stamp,
+plus whatever packaging-lists-v2 set in the repo — verify with bale
+--version at the next sitting's start rather than trusting this line.
+
+**packaging-lists-v2 notes.md ratification: CLOSED 2026-07-14.** The
+notes were relayed and ratified in the closing master chat
+(architect-stated at pack time). No carried loose end for the next
+master.
 
 **Carried loose end (from v2): CLOSED 2026-07-13.** The
 generated-artifacts-rule session's notes.md was relayed to the master
@@ -85,30 +110,22 @@ into board item 11.
 
 ## 3. In flight
 
-Session `master-doc-landing` has APPLIED — verified against the
-repo: `claude/MASTER.md` present with its `INDEX.md` entry, the
-TARBALL.md §5.7 amendment in place, bale 0.3.6.
-
-Currently open — scope-disjoint and running concurrently, the second
-live concurrency exercise:
-
-- `staging-from-target-base` (board item 1) — packed and building.
-- `master-state-deltas` (this session) — the doc-edit session that
-  landed this regeneration.
+Nothing open. Every session in the §2 sitting summary has applied;
+the sitting closed at a milestone (evidence 15 executing). The one
+exception is this regeneration session itself
+(`master-regeneration-014`), which lands this document and the three
+TARBALL.md §3.4 flag rows and closes the sitting when it applies.
 
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
-compression sitting before harness scoping.
+compression sitting before harness scoping. Item numbers are
+identities, not sequence — they are cross-referenced from §5, §6,
+and §8, so done items keep their numbers as one-line pointers.
 
-1. **staging-from-target-base** (small; good first session of the
-   next sitting) — opt-in staging strategy materializing the target
-   tip's tree (git archive) plus declared untracked inputs, closing
-   the validation-fidelity gap: staging copies the WORKING TREE while
-   commit/merge build against the TARGET TIP, so a diverged checkout
-   means validation exercised different content (apply already logs a
-   note when HEAD != target tip). Scope: bale_staging.stage_response,
-   BALE.md §8.3. Worker-proposed, master-ratified.
+1. **staging-from-target-base — DONE** this sitting (§2 summary):
+   target-base strategy landed, config-only opt-in, tracked-at-tip
+   guard.
 
 2. **drift-to-contract apply gate** (small; second session) — apply
    pre-flight rejects any changes[] path outside the session's OWN
@@ -124,47 +141,18 @@ compression sitting before harness scoping.
    existed pre-apply") should name the likely sibling cause in its
    message — today it is safe but cryptic.
 
-3. **pack no-brief guard** (small UX) — bale pack should warn or
-   require an explicit --no-readme when neither the wizard nor
-   --readme-file supplies prose context. Rationale: briefless packs
-   are a recurring failure class (evidence 11). Could ride with
-   telemetry or stand alone.
+3. **pack no-brief guard — DONE** this sitting (rode telemetry B1;
+   §2 summary): the --no-readme acknowledgment, TTY/piped split per
+   BALE.md §7. The evidence-11 failure class now has its mechanical
+   counter.
 
-4. **Feedback telemetry + response lint** (prerequisite to stats;
-   design constraints ratified 2026-07-13, §5) — EVERY response
-   carries a structured feedback block, and the schema is
-   DUAL-STREAM from day one:
-   - **Mechanical stream** — derivable by bale or the lint from
-     artifacts it already has: response kind; probe/clarification
-     occurred and at what point; **claim/verdict agreement per check
-     (promoted from `.bale/logs/` to a first-class, durable field —
-     today the richest calibration signal in the system evaporates
-     into transient logs)**; includes shipped vs actually touched;
-     validation exit state.
-   - **Self-reported stream** — worker-authored: assumptions
-     proceeded on, judgment calls awaiting ratification, budget
-     pressure, includes missing.
-   - **Provenance stamped on every response from day one:** model
-     identity, contract-docs version/hash (bale stamps the injected
-     globals at pack time — they are unversioned today and
-     longitudinal data can't be re-segmented retroactively), packer
-     identity (the telemetry grades PACKERS as well as workers —
-     evidence 11 and 14 are packer-attributed), and work class.
-   - **Companion deliverable: `tools/response_lint.py`**, injected
-     into every request beside the four global docs. Runs TARBALL.md
-     §10.1 step 10 mechanically before pack: recompute size/sha256
-     against files/, verify files/ ↔ changes[] both directions, check
-     claims ⊆ validation_will_run verbatim, schema-validate the
-     manifest. The invariants already exist in bale_validate.py; this
-     is a repackaging so the WORKER can run them without bale
-     installed. It computes the mechanical stream, catches
-     compaction-corrupted manifests at the source, and gives a future
-     orchestrator a machine-checkable artifact to demand before
-     apply. TARBALL.md prose (§5.2.1, most of §10.1, half of
-     CLAUDE.md §11.6) then shrinks to "run the lint" — bank that in
-     the compression sitting (board 7).
-   This sitting's incident list (evidence 11–14) is the founding
-   evidence for the field set. Master writes the brief when reached.
+4. **Feedback telemetry + response lint — DONE** this sitting, in
+   three sessions (§2 summary): response-lint (the blind-authored
+   lint, injected per request), telemetry B1 (dual-stream feedback
+   block + day-one provenance stamping, per the §5 constraints), and
+   telemetry B2 (durable records at `claude/telemetry/`, BALE.md
+   §8.9). The response-lint prose savings still bank in the
+   compression sitting (board 7).
 
 5. **bale stats / the trust ledger** — aggregates diagnostics,
    clarifications, and telemetry into per-work-class rates; gates all
@@ -174,6 +162,11 @@ compression sitting before harness scoping.
    mechanical one — honest self-reporting is something a work class
    earns trust FOR, never the substrate trust rests on. (The
    self-oracle test, evidence 16, applied to the ledger itself.)
+   Notes from this sitting: dataset row one is packaging-lists-v2 —
+   the first apply after B2; aggregation should expect attempts[]
+   append semantics and reconciliation_parsed disambiguation per
+   BALE.md §8.9. Rider: a bailout banner telemetry row (ratified
+   trivial).
 
 6. **Blind validation checkpoints — doctrine to mechanics** — the §1
    floor's "validation checkpoints are authored blind" line has no
@@ -214,16 +207,19 @@ compression sitting before harness scoping.
    Target: 35–45% reduction of CLAUDE.md + TARBALL.md with zero
    normative loss. Section numbers are stable per DOCS.md §6.4 —
    compress in place, tombstone what moves.
+   Input pile from this sitting: response-lint's doc gaps 2 and 5,
+   plus the full doc-gap list in that session's notes.md.
 
-8. **bin/bale docstring prune** (small) — the top docstring is a
-   661-line / 41KB append-only version narrative: a changelog living
-   in code, 11% of the file, in direct violation of CLAUDE.md §7
-   ("git is the changelog") and CODE.md §2 (docstring = job + index).
-   Every bale-src request that includes bin/bale pays ~10K tokens for
-   history no session drills into. Cut to job + index header;
-   narrative to a CHANGELOG.md or nothing (it already exists in git
-   and session notes). Dedicated small session, or rides a
-   bin/bale-touching session as a declared opportunistic prune.
+8. **shrink-bin/bale arc** (elevated this sitting; slot before board
+   5 or 6) — the docstring prune plus pack-path/apply-path extraction
+   seams. The prune half is unchanged: the top docstring is a
+   661-line / 41KB append-only version narrative — a changelog living
+   in code, 11% of the file, violating CLAUDE.md §7 ("git is the
+   changelog") and CODE.md §2 (docstring = job + index); cut to job +
+   index header, narrative to a CHANGELOG.md or nothing. The
+   extraction half pulls the pack path and the apply path out of the
+   monolith along their seams. Elevated by B's pre-flight
+   demonstrating the size tax; serializes with all bin/ work.
 
 9. **Cross-project ADR + implementation** — LINKED sessions, not
    fused. Level 1: --link, shared link id, same interface-contract
@@ -260,6 +256,18 @@ compression sitting before harness scoping.
     its response-manifest schema-shape assumption becomes
     mechanically checked at that point. Precondition intact:
     ADR-0002–0005 ratified first.
+    Added this sitting, same v0.4-harness bucket: the staging
+    session's two assertion clusters + the diverged-checkout E2E;
+    response-lint's 17-fixture factory as seed corpus.
+    Deferred this sitting: --staging-strategy per-invocation escape
+    hatch (need-gated); a between-applies drift check (packaging
+    run-2 proposal: a standing hook or convention running build.sh's
+    guards between applies); validate.sh layout-rows mechanization
+    (recorded deferred in packaging-v2's manifest).
+
+12. **bale status staging row** (small) — bale status shows, per open
+    session, the staging strategy in effect and its declared
+    untracked inputs.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -359,7 +367,9 @@ hygiene; (9) masters externalize their own state.
     worker-side via the named-assumption path with loud-and-contained
     failure. Two occurrences upgrade this from incident toward class;
     board 4's packer-attributed telemetry field is the counter for
-    it.
+    it. Third occurrence, this sitting: a worker-authored rescope
+    command omitted load-time import siblings — the class now spans
+    architect, master, and worker as packer.
 14. **Commands authored from a stale picture of the repo carry
     stale scope statements** — the prior master's per-sid command
     said "out of scope: lifting the multi-open gate" AFTER the gate
@@ -394,6 +404,33 @@ New from the 008 audit:
     worker and eats the budget margin that keeps sessions clear of
     compaction. (Board 7 is this rule executing.)
 
+New from the 2026-07-13/14 sitting:
+
+19. **Masked drift.** The architect's install is refreshed by a hook
+    whose mirror set, not its file list, determines coverage;
+    omissions were invisible until a deliberate hard-fail made one
+    loud. validate.sh rows are the guard class.
+20. **Probe for mechanism, not residue.** A state snapshot was read
+    as revealing a refresh mechanism and the inference was wrong;
+    probes should read the configuration that does the thing (the
+    hook line, the script), not the tree it leaves behind.
+21. **A wrong fact in a brief is worse than a missing fact.** Missing
+    facts trigger probes; wrong facts trigger investigations the
+    worker cannot decline, at context prices — two compactions
+    resulted. Root cause both times: the master inferred file
+    behavior from grep fragments while holding the whole file.
+    Corollary for masters: read files whole before making claims
+    about them, and pin designs in briefs when the search has
+    already been done — open-ended design questions in a brief are
+    an invitation to spend the window searching.
+22. **Ship-vs-emit.** The mirror contract requires complete copies
+    on disk, not retyped through context; now normative in
+    TARBALL.md, born from a near-unnecessary split.
+23. **Master serialization is a claim.** Ordering constraints the
+    master imposes between sessions get stated with their rationale
+    so the architect can contest them; one over-serialization was
+    caught by the architect this sitting.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -405,8 +442,8 @@ New from the 008 audit:
   bale_rollback, _bale_toml. bin/bale imports bale_config,
   bale_validate, bale_staging, bale_rollback at LOAD — see evidence
   pile 13 before scoping any include set that must execute it.
-- This document: `claude/MASTER.md` in the repo once
-  master-doc-landing applies. Include it in any session that needs
+- This document: `claude/MASTER.md` in the repo, tracked and listed
+  in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
   context, not worker context, by default).
 - Master-session working style: master authors every pack command and
