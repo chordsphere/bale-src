@@ -14,5 +14,8 @@
 [hooks]
 post_apply_pass = "scripts/reinstall.sh"
 
+[staging]
+strategy = "target-base"
+
 [identity]
 packer = "chordsphere"
