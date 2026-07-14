@@ -8,8 +8,9 @@
 #
 # What it does:
 #   1. Validates the new tarball looks like a complete bale install
-#      (bin/bale and the schemas/ files are present — see the pre-flight
-#      member check below for why schemas/ is required up front).
+#      (bin/bale, the schemas/ files, and the worker lint are present —
+#      see the pre-flight member check below for why these are required
+#      up front, before the destructive swap).
 #   2. Moves <install>/user/ aside to <install>.user-backup/.
 #   3. rm -rf <install>/ and extracts the new tarball in its place.
 #   4. Moves user/ back into the new install.
@@ -111,15 +112,30 @@ fi
 # leaving a broken, half-upgraded install with the old schemas/ already
 # gone. Checking up front lets us refuse the swap with the existing install
 # still intact. This is the same pre-flight contract that already protected
-# bin/bale, extended to the files v0.1.1 made non-optional.
+# bin/bale, extended to the files v0.1.1 made non-optional — and again to
+# the three files v0.3.x made non-optional: bin/bale_report.py (a
+# load-time import of bin/bale), tools/response_lint.py (pack hard-fails
+# without it), and schemas/telemetry-record.schema.json (apply's close
+# fails at load_schema).
 TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
   || die "could not read $NEW_TARBALL as a gzip tar — is it a valid bale release tarball?"
 
+# This list is a DELIBERATE SUBSET of scripts/build.sh's RELEASE_FILES —
+# a pre-wipe spot check for the members whose absence bricks the install,
+# not a full layout check (install.sh does that after the swap). build.sh's
+# pre-flight asserts the subset relation on every release build, so an
+# entry here that leaves RELEASE_FILES is a failed build, not silent rot.
+# Format contract (build.sh extracts this block mechanically):
+# "REQUIRED_RELEASE_MEMBERS=(" at column 0, one bare path per line, ")"
+# at column 0.
 REQUIRED_RELEASE_MEMBERS=(
   bin/bale
+  bin/bale_report.py
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json
+  schemas/telemetry-record.schema.json
+  tools/response_lint.py
 )
 missing_members=()
 for member in "${REQUIRED_RELEASE_MEMBERS[@]}"; do

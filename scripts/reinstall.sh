@@ -39,10 +39,62 @@ log "source:     $REPO"
 log "target:     $BALE_INSTALL"
 log "session id: ${BALE_SESSION_ID:-(unset)}"
 
-# Sanity: the source layout must look like a bale install root.
-for f in bin/bale bin/bale_config.py bin/bale_validate.py bin/bale_staging.py bin/bale_rollback.py bin/_bale_toml.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
+# Sanity: the source layout must look like a bale install root. The file
+# list is DERIVED at run time from scripts/build.sh's RELEASE_FILES — the
+# canonical release list — instead of hand-copied here; the hand copy this
+# replaces is exactly the drift class the derivation removes. Extraction
+# depends on the format contract documented above RELEASE_FILES in
+# build.sh: "RELEASE_FILES=(" at column 0, one bare path per line, ")" at
+# column 0. If the block is missing, unterminated, reshaped, or extracts
+# empty, we die loudly rather than sanity-check against nothing.
+BUILD_SH="$REPO/scripts/build.sh"
+[[ -f "$BUILD_SH" ]] || die "cannot derive the release list: $BUILD_SH not found (not a bale-src checkout?)"
+
+RELEASE_FILES=()
+while IFS= read -r line; do
+  case "$line" in
+    ""|*[!A-Za-z0-9._/-]*)
+      die "unexpected RELEASE_FILES entry '$line' extracted from $BUILD_SH — array format changed? (format contract above RELEASE_FILES in build.sh)" ;;
+  esac
+  RELEASE_FILES+=("$line")
+done < <(
+  awk '
+    !inblock && $0 == "RELEASE_FILES=(" { inblock = 1; next }
+    inblock && $0 == ")"                { found = 1; exit }
+    inblock {
+      sub(/#.*$/, "")
+      gsub(/^[ \t]+|[ \t]+$/, "")
+      if ($0 != "") print
+    }
+    END { exit found ? 0 : 1 }
+  ' "$BUILD_SH"
+)
+# A process substitution's exit status is invisible to the loop, so a
+# missing/unterminated array surfaces as zero extracted lines — the
+# emptiness check below is the loud failure for that case too.
+[[ ${#RELEASE_FILES[@]} -gt 0 ]] \
+  || die "extracted an empty RELEASE_FILES from $BUILD_SH — array missing, empty, or format changed"
+
+for f in "${RELEASE_FILES[@]}"; do
   [[ -f "$REPO/$f" ]] || die "source layout missing: $REPO/$f"
 done
+log "source layout OK (${#RELEASE_FILES[@]} files, derived from scripts/build.sh)"
+
+# Tree coverage: every file on disk under the release-owned directories
+# must appear in the derived list. Same guard (and same __pycache__ /
+# *.pyc pruning) as build.sh's pre-flight; running it here makes the
+# "new file, in no list" drift loud at the next apply rather than the
+# next release.
+RELEASE_LIST_NL="$(printf '%s\n' "${RELEASE_FILES[@]}")"
+uncovered=""
+while IFS= read -r f; do
+  rel="${f#"$REPO"/}"
+  printf '%s\n' "$RELEASE_LIST_NL" | grep -qFx -- "$rel" || uncovered="$uncovered $rel"
+done < <(find "$REPO/bin" "$REPO/docs" "$REPO/schemas" "$REPO/tools" \
+           -name __pycache__ -prune -o -name '*.pyc' -prune -o -type f -print | sort)
+[[ -z "$uncovered" ]] \
+  || die "tree coverage: file(s) on disk but in no release list:$uncovered — add to scripts/build.sh's RELEASE_FILES (and install.sh's INSTALL_LAYOUT), or remove from the tree"
+log "tree coverage OK (bin/ docs/ schemas/ tools/ all covered)"
 
 # Refuse to install over a non-bale directory. If $BALE_INSTALL exists
 # but doesn't have bin/bale inside it, something else is at that path —
@@ -53,22 +105,24 @@ fi
 
 mkdir -p "$BALE_INSTALL"
 
-# Mirror the install-relevant pieces. Wipe bin/, docs/, and schemas/ first so
-# a rename in the source doesn't leave stale files in the install. The
-# top-level scripts and README are individual files so a plain cp suffices.
-# user/ is intentionally left alone — it's the global-config subtree owned
-# by the user, never in bale-src. This selective-mirror approach is what
-# makes reinstall.sh user/-safe by construction (vs. the rm -rf install
-# approach the README documents as an alternative).
-rm -rf "$BALE_INSTALL/bin" "$BALE_INSTALL/docs" "$BALE_INSTALL/schemas"
+# Mirror the install-relevant pieces. Wipe bin/, docs/, schemas/, and
+# tools/ first so a rename in the source doesn't leave stale files in the
+# install. The top-level scripts and README are individual files so a
+# plain cp suffices. user/ is intentionally left alone — it's the
+# global-config subtree owned by the user, never in bale-src. This
+# selective-mirror approach is what makes reinstall.sh user/-safe by
+# construction (vs. the rm -rf install approach the README documents as
+# an alternative).
+rm -rf "$BALE_INSTALL/bin" "$BALE_INSTALL/docs" "$BALE_INSTALL/schemas" "$BALE_INSTALL/tools"
 cp -R "$REPO/bin"     "$BALE_INSTALL/bin"
 cp -R "$REPO/docs"    "$BALE_INSTALL/docs"
 cp -R "$REPO/schemas" "$BALE_INSTALL/schemas"
+cp -R "$REPO/tools"   "$BALE_INSTALL/tools"
 cp    "$REPO/install.sh"  "$BALE_INSTALL/install.sh"
 cp    "$REPO/validate.sh" "$BALE_INSTALL/validate.sh"
 cp    "$REPO/upgrade.sh"  "$BALE_INSTALL/upgrade.sh"
 cp    "$REPO/README.md"   "$BALE_INSTALL/README.md"
-log "mirrored bin/, docs/, schemas/, install.sh, validate.sh, upgrade.sh, README.md (user/ left alone)"
+log "mirrored bin/, docs/, schemas/, tools/, install.sh, validate.sh, upgrade.sh, README.md (user/ left alone)"
 
 # Finalize via install.sh in non-interactive mode.
 # --no-symlink: an existing symlink (if any) was set on initial install
