@@ -65,6 +65,41 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "description": "Declarative list of what's in context/. Each entry is the in-tarball path (typically prefixed with context/)."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bale_version", "contract_docs", "packer", "work_class"],
+      "description": "Stamped by bale at pack time (v0.3.8+). Optional so pre-stamp requests and hand-rolled requests still validate; when bale builds the request, the block is always present. The response's feedback.mechanical.provenance echoes it (response-manifest.schema.json).",
+      "properties": {
+        "bale_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The VERSION constant of the bale that packed this request."
+        },
+        "contract_docs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+          "description": "sha256 (hex) of each injected global doc, hashed from the packing install at pack time — pins exactly which contract text the session was run under.",
+          "properties": {
+            "CLAUDE.md":  { "type": "string", "minLength": 1 },
+            "TARBALL.md": { "type": "string", "minLength": 1 },
+            "DOCS.md":    { "type": "string", "minLength": 1 },
+            "CODE.md":    { "type": "string", "minLength": 1 }
+          }
+        },
+        "packer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who authored this pack. Resolution: --packer flag > [identity].packer in <repo>/bale.toml > [identity].packer in the global bale.toml > the literal 'unconfigured' (logged with a hint to run `bale config init`)."
+        },
+        "work_class": {
+          "type": "string",
+          "enum": ["code", "doc", "contract-doc", "meta", "mixed"],
+          "description": "Coarse class of the session's intended work, from the --work-class flag; defaults to 'mixed' rather than being required. Seed enum — extend by schema edit, not free text."
+        }
+      }
     }
   }
 }

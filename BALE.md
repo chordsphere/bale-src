@@ -993,8 +993,8 @@ staging branch, no file modifications.
    session commit, and the merge are all built against; it equals the
    checkout's `HEAD` only when the user happens to be on the target.
    When the checkout has diverged from the target, apply logs a note
-   that validation (which runs in the working-tree-sourced staging
-   copy, §8.3) exercised the checkout's content.
+   that validation (which runs in the staging copy, built per §8.3's
+   strategy) exercised the checkout's content.
 3. Persist the response manifest at
    `.bale/sessions/<sid>/response-manifest.json`.
 
@@ -1587,6 +1587,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 18 | Post-`apply.sh` staging state matches the manifest — every created/deleted/modified path matches a `changes[]` entry, no undeclared writes/deletes (this is where `apply.sh` operations are constrained: no `mv`, no untracked file changes) | apply post-stage |
 | 19 | Cross-session scope collision (ADR-0007): no `changes[]` path intersects another open session's recorded scope — the apply-time guard against the whole-file clobber (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
 | 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
+| 21 | Declared-input violations fail the stage loudly (target-base strategy): every `staging.untracked_inputs` entry must exist in the working tree and be untracked at the target tip at stage time — a missing or tracked entry stops the stage rather than being silently skipped | apply stage |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

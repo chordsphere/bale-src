@@ -33,7 +33,9 @@ Schemas:
     standalone. If the project's schema files evolve, refresh the
     embedded copies (they are JSON-equal to the source files), or
     point --schema-dir at a directory containing the two files to
-    override the embedded copies at runtime.
+    override the embedded copies at runtime. validate.sh asserts the
+    JSON-equality on every run, so a schema edit that forgets the
+    refresh fails install validation loudly rather than drifting.
 
 Stdlib only. Python 3.10+. No network. No bale imports.
 """
@@ -159,7 +161,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
     },
     "questions": {
       "type": "array",
-      "description": "Blocking intent-gap questions per TARBALL.md section 5.9.2. Present and non-empty exactly when response_kind='clarification'; forbidden otherwise (the conditional rule is enforced in Python — this schema only constrains entry shape).",
+      "description": "Blocking intent-gap questions per TARBALL.md section 5.9.2. Required and non-empty when response_kind='clarification'; on every other kind the block is absent or an EMPTY array (an empty array is tolerated, matching the doc's 'Forbidden (or empty)' wording — the doc is the contract of record; the conditional rule is enforced in Python — this schema only constrains entry shape).",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -184,6 +186,144 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             "type": "string",
             "minLength": 1,
             "description": "Why the worker declined to proceed on that assumption."
+          }
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mechanical", "self_reported"],
+      "description": "Dual-stream session feedback (v0.3.8+, session B1). Optional so pre-B1 manifests validate; apply persists the block verbatim (the B2 telemetry record builds on it). Two streams by trust level: 'mechanical' holds values the lint (tools/response_lint.py) can recompute and verify; 'self_reported' holds worker-authored judgment the lint cannot check.",
+      "properties": {
+        "mechanical": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["response_kind", "schema_valid", "mirror_agreement", "claims_subset"],
+          "description": "Lint-computable results. The worker fills these by running the lint; the lint's feedback-block check recomputes each and flags any disagreement — a mismatch is the tell of a hand-filled or stale block.",
+          "properties": {
+            "response_kind": {
+              "type": "string",
+              "enum": ["normal", "bailout", "clarification"],
+              "description": "Echo of the manifest's effective response_kind (defaulted 'normal' when the top-level key is absent)."
+            },
+            "schema_valid": {
+              "type": "boolean",
+              "description": "Whether the manifest validates against this schema, as found by the lint's manifest-schema check."
+            },
+            "mirror_agreement": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["changes_to_files", "files_to_changes"],
+              "description": "The TARBALL.md section 10.1 both-directions mirror result, split by direction.",
+              "properties": {
+                "changes_to_files": {
+                  "type": "boolean",
+                  "description": "Every created/modified entry has its files/ member with matching size and recomputed sha256; deleted entries follow the section 5.2 shape. Vacuously true on kinds that ship no files/."
+                },
+                "files_to_changes": {
+                  "type": "boolean",
+                  "description": "Nothing under files/ is undeclared in changes[]. Vacuously true on kinds that ship no files/."
+                }
+              }
+            },
+            "claims_subset": {
+              "type": "boolean",
+              "description": "set(claims) is a verbatim subset of validation_will_run (TARBALL.md section 5.3)."
+            },
+            "linkage": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["kind", "point"],
+              "description": "Present when the session went through a probe or clarification round on the way to this response; null or absent otherwise. Self-reported placement data riding in mechanical because its shape is fixed even though the lint cannot verify it.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["probe", "clarification"],
+                  "description": "Which recourse the session used (TARBALL.md section 5.9's taxonomy)."
+                },
+                "point": {
+                  "type": "string",
+                  "enum": ["pre-read", "pre-build", "mid-build"],
+                  "description": "When in the session the gap surfaced: before any triggered drill-down reading, after reading but before building, or mid-build."
+                },
+                "depends_on": {
+                  "type": ["string", "null"],
+                  "description": "Session ID of the linked round when it exists as a durable artifact (a file-based probe or a shipped clarification response); null for a paste-back probe or an in-chat ask, which resolve within the session (TARBALL.md sections 4.5, 5.9.1)."
+                }
+              }
+            },
+            "provenance": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["bale_version", "contract_docs", "packer", "work_class", "model_identity"],
+              "description": "The request manifest's provenance block echoed verbatim, plus model_identity. Null when the request carried no provenance (packed by a pre-0.3.8 bale — the one-apply-behind bootstrap case).",
+              "properties": {
+                "bale_version": { "type": "string", "minLength": 1 },
+                "contract_docs": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+                  "properties": {
+                    "CLAUDE.md":  { "type": "string", "minLength": 1 },
+                    "TARBALL.md": { "type": "string", "minLength": 1 },
+                    "DOCS.md":    { "type": "string", "minLength": 1 },
+                    "CODE.md":    { "type": "string", "minLength": 1 }
+                  }
+                },
+                "packer": { "type": "string", "minLength": 1 },
+                "work_class": {
+                  "type": "string",
+                  "enum": ["code", "doc", "contract-doc", "meta", "mixed"]
+                },
+                "model_identity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "SELF-REPORTED AND UNVERIFIABLE TODAY: the worker states its own model identity; no mechanism attests it. Recorded for longitudinal aggregation, read with that caveat."
+                }
+              }
+            }
+          }
+        },
+        "self_reported": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assumptions", "judgment_calls", "budget_pressure", "includes_missing", "compaction_occurred"],
+          "description": "Worker-authored stream. Honest empties are meaningful ([] = none arose); the lint checks shape only, never content.",
+          "properties": {
+            "assumptions": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Assumptions the session proceeded on without confirmation (the recoverable-risk posture of TARBALL.md section 3.3 / 5.9.1), one per entry."
+            },
+            "judgment_calls": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Decisions the worker made that the planner should be able to find without reading the diff — design choices, tie-breaks, interpretations."
+            },
+            "budget_pressure": {
+              "type": "string",
+              "enum": ["none", "tight", "bailed"],
+              "description": "The session's own read of its context budget: comfortable throughout, felt the CLAUDE.md section 11.3 pressure without bailing, or this response is a bailout."
+            },
+            "includes_missing": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Files or docs the session wanted but the request did not include — packing signal for the planner, one path or description per entry."
+            },
+            "compaction_occurred": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["occurred"],
+              "description": "Whether the runtime compacted mid-session (CLAUDE.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
+              "properties": {
+                "occurred": { "type": "boolean" },
+                "disclosure_ref": {
+                  "type": ["string", "null"],
+                  "description": "Where the compaction disclosure was recorded (e.g. 'notes.md' or a chat pointer); null when occurred is false."
+                }
+              }
+            }
           }
         }
       }
@@ -705,9 +845,9 @@ def check_kind_shape(ctx: dict) -> list[dict]:
 
     §5.9.2 reads 'Forbidden (or empty) on every other response kind', so an
     empty questions array on a non-clarification kind passes; a non-empty
-    one fails. (The schema file's description says 'forbidden otherwise' —
-    a doc inconsistency recorded in this session's notes.md; the lint
-    implements TARBALL.md, per the authoring constraint.)
+    one fails. (The schema file's description was aligned to this wording
+    in session B1 — the doc is the contract of record, and the lint
+    implements TARBALL.md.)
     """
     manifest = ctx["manifest"]
     kind = ctx["kind"]
@@ -750,6 +890,14 @@ def check_kind_shape(ctx: dict) -> list[dict]:
     if kind == "clarification":
         out.extend(_empty_surface_findings(manifest, kind, "section 5.9.2"))
         out.extend(_files_surface_finding(ctx, kind, "section 5.9.2"))
+        if (rdir / "README.md").is_file():
+            out.append(finding(
+                "README_FORBIDDEN", "README.md",
+                "no README.md in a clarification response", "README.md present",
+                "TARBALL.md section 5.9.2: README.md is absent on a "
+                "clarification — the questions[] block is the payload and "
+                "notes.md is the optional prose channel",
+            ))
         if not (isinstance(questions, list) and len(questions) > 0):
             out.append(finding(
                 "QUESTIONS_REQUIRED", "manifest.json:$.questions",
@@ -790,9 +938,156 @@ def _check_diagnostics(ctx: dict) -> list[dict]:
     return out
 
 
+# Session B1 checks: generated-artifact deny list, retired next-prompt.md,
+# and the feedback-block verification.
+
+# Mirror of bin/bale's deny list (BALE.md section 11 row 20; TARBALL.md
+# section 5.1 carries the builder-side rule). Deliberately duplicated
+# rather than imported: this lint is a standalone second implementation
+# of the WRITTEN contract, never a bale import (see module docstring).
+GENERATED_ARTIFACT_DIRS = frozenset({
+    "__pycache__", "node_modules", "dist", "build",
+})
+GENERATED_ARTIFACT_FILE_SUFFIXES = (".pyc", ".pyo")
+
+
+def check_generated_artifacts(ctx: dict) -> list[dict]:
+    """No changes[] path names a generated artifact (TARBALL.md §5.1).
+
+    A path offends when any NON-FINAL component is one of the deny-list
+    directory names, or its basename ends in .pyc/.pyo. A source file
+    merely named like one (`scripts/build`, `pyc_utils.py`) passes —
+    the conservative side of the line, matching bale's apply pre-flight
+    (BALE.md §11 row 20) so the worker catches the rejection pre-pack.
+    """
+    manifest = ctx["manifest"]
+    changes = manifest.get("changes")
+    if not isinstance(changes, list):
+        return []  # schema check already filed the type violation
+    out = []
+    for i, ch in enumerate(changes):
+        p = ch.get("path") if isinstance(ch, dict) else None
+        if not isinstance(p, str) or not p:
+            continue  # schema check already filed these
+        parts = p.replace("\\", "/").split("/")
+        offends = any(part in GENERATED_ARTIFACT_DIRS for part in parts[:-1])
+        if not offends and parts:
+            offends = any(parts[-1].endswith(sfx)
+                          for sfx in GENERATED_ARTIFACT_FILE_SUFFIXES)
+        if offends:
+            out.append(finding(
+                "GENERATED_ARTIFACT", p,
+                "no generated-artifact paths in changes[] (no "
+                "__pycache__/node_modules/dist/build directory component, "
+                "no *.pyc/*.pyo basename)", p,
+                f"changes[{i}] names a generated artifact — files/ carries "
+                "source, never toolchain products (TARBALL.md section 5.1); "
+                "bale's apply pre-flight rejects this tarball (BALE.md "
+                "section 11 row 20)",
+            ))
+    return out
+
+
+def check_next_prompt_retired(ctx: dict) -> list[dict]:
+    """No next-prompt.md in the response (retired, TARBALL.md §5.5)."""
+    if (ctx["rdir"] / "next-prompt.md").is_file():
+        return [finding(
+            "NEXT_PROMPT_RETIRED", "next-prompt.md",
+            "no next-prompt.md (retired as of "
+            "2026-07-06-retire-next-prompt-006)", "next-prompt.md present",
+            "TARBALL.md section 5.5: responses do not ship next-prompt.md; "
+            "follow-up suggestions go in the Proposals section of notes.md "
+            "(section 5.4.1)",
+        )]
+    return []
+
+
+def check_feedback_block(ctx: dict) -> list[dict]:
+    """feedback.mechanical agrees with this lint's own recomputation.
+
+    Shape is the schema check's job (the feedback block is in
+    response-manifest.schema.json); this check verifies the four
+    lint-computable values against what the earlier checks actually
+    found in THIS run — a disagreement is the tell of a hand-filled or
+    stale block (e.g. carried across an edit, or across a compaction,
+    CLAUDE.md section 11.6). Absent block = nothing to verify: the
+    field is optional in B1, apply persists it verbatim, and B2 builds
+    the telemetry record on it. linkage and provenance are
+    self-reported placement/echo data the lint cannot verify, so they
+    are schema-checked only.
+
+    Runs last in the registry so ctx["findings"] (the shared list the
+    runner accumulates into) already holds every earlier check's
+    findings.
+    """
+    manifest = ctx["manifest"]
+    fb = manifest.get("feedback")
+    if not isinstance(fb, dict):
+        return []  # absent, or schema check already filed the type violation
+    mech = fb.get("mechanical")
+    if not isinstance(mech, dict):
+        return []  # schema check already filed it
+    prior = ctx.get("findings", [])
+    out = []
+
+    def _mismatch(field: str, expected, got) -> dict:
+        return finding(
+            "FEEDBACK_MECHANICAL_MISMATCH",
+            f"manifest.json:$.feedback.mechanical.{field}",
+            f"{expected!r} (recomputed by this lint run)", repr(got),
+            f"feedback.mechanical.{field} disagrees with what this lint "
+            "run found — mechanical values are computed, never "
+            "transcribed; refresh the block by re-running the lint "
+            "against the current response directory",
+        )
+
+    # response_kind echo.
+    effective_kind = manifest.get("response_kind", "normal")
+    got_kind = mech.get("response_kind")
+    if isinstance(got_kind, str) and got_kind != effective_kind:
+        out.append(_mismatch("response_kind", effective_kind, got_kind))
+
+    # schema_valid: no findings from the manifest-schema check.
+    expected_schema_valid = not any(
+        f.get("check") == "manifest-schema" for f in prior)
+    got_sv = mech.get("schema_valid")
+    if isinstance(got_sv, bool) and got_sv != expected_schema_valid:
+        out.append(_mismatch("schema_valid", expected_schema_valid, got_sv))
+
+    # mirror_agreement, split by direction: files_to_changes fails on
+    # MIRROR_UNDECLARED; changes_to_files fails on every other
+    # changes-mirror finding. Kinds that ship no files/ are vacuously
+    # true in both directions (the mirror check returns [] for them and
+    # kind-shape owns their file surfaces).
+    mirror_findings = [f for f in prior if f.get("check") == "changes-mirror"]
+    expected_f2c = not any(
+        f.get("code") == "MIRROR_UNDECLARED" for f in mirror_findings)
+    expected_c2f = not any(
+        f.get("code") != "MIRROR_UNDECLARED" for f in mirror_findings)
+    ma = mech.get("mirror_agreement")
+    if isinstance(ma, dict):
+        got_c2f = ma.get("changes_to_files")
+        if isinstance(got_c2f, bool) and got_c2f != expected_c2f:
+            out.append(_mismatch("mirror_agreement.changes_to_files",
+                                 expected_c2f, got_c2f))
+        got_f2c = ma.get("files_to_changes")
+        if isinstance(got_f2c, bool) and got_f2c != expected_f2c:
+            out.append(_mismatch("mirror_agreement.files_to_changes",
+                                 expected_f2c, got_f2c))
+
+    # claims_subset: no findings from the claims-subset check.
+    expected_cs = not any(f.get("check") == "claims-subset" for f in prior)
+    got_cs = mech.get("claims_subset")
+    if isinstance(got_cs, bool) and got_cs != expected_cs:
+        out.append(_mismatch("claims_subset", expected_cs, got_cs))
+
+    return out
+
+
 # The check registry. Session B adds rows (feedback block, provenance
 # stamping), it does not restructure the runner. Order matters only in
-# that manifest-parse gates everything after it.
+# that manifest-parse gates everything after it, and that feedback-block
+# runs last (it reads the shared findings list the earlier checks fed).
 CHECKS: tuple[tuple[str, str, object], ...] = (
     ("manifest-parse",
      "manifest.json exists and parses (TARBALL.md 5.1)",
@@ -815,6 +1110,17 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
      "response-kind shape rules: bailout 5.6.1/5.6.2, clarification 5.9.2, "
      "questions placement",
      check_kind_shape),
+    ("generated-artifacts",
+     "no changes[] path names a generated artifact (TARBALL.md 5.1 deny "
+     "list; BALE.md 11 row 20)",
+     check_generated_artifacts),
+    ("next-prompt-retired",
+     "no next-prompt.md in the response (retired, TARBALL.md 5.5)",
+     check_next_prompt_retired),
+    ("feedback-block",
+     "feedback.mechanical agrees with this run's recomputed results "
+     "(response_kind, schema_valid, mirror_agreement, claims_subset)",
+     check_feedback_block),
 )
 
 
@@ -825,6 +1131,8 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
 def lint_response_dir(rdir: Path, manifest_schema: dict,
                       diagnostics_schema: dict) -> dict:
     """Run every check; return the full report dict."""
+    checks_report = []
+    findings: list[dict] = []
     ctx = {
         "rdir": rdir,
         "manifest": None,
@@ -832,9 +1140,10 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
         "manifest_schema": manifest_schema,
         "diagnostics_schema": diagnostics_schema,
         "mirror_files": _list_mirror_files(rdir / "files"),
+        # The same list object the runner extends below — later checks
+        # (feedback-block) read earlier checks' findings through it.
+        "findings": findings,
     }
-    checks_report = []
-    findings: list[dict] = []
     for check_id, description, fn in CHECKS:
         if check_id != "manifest-parse" and ctx["manifest"] is None:
             checks_report.append({

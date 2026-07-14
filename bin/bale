@@ -800,7 +800,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.7"
+VERSION = "0.3.8"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -808,6 +808,15 @@ VERSION = "0.3.7"
 INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
+
+# The worker-side lint (TARBALL.md §10.1 step 10, mechanized), injected
+# into every request tarball beside the four globals (v0.3.8, session B1)
+# so the worker can self-check its response pre-pack without bale
+# installed. Lives at <install>/tools/ — the same sibling-of-bin layout
+# docs/ and schemas/ use; main()'s pack-time sanity check verifies it is
+# present, the same fail-loud posture as the missing-docs check.
+TOOLS_DIR = INSTALL_ROOT / "tools"
+INJECTED_TOOLS = ("response_lint.py",)
 
 # Baked-in exclusions for pack. From BALE.md section 6.4.
 # Directory names (matched by basename at any depth).
@@ -2306,17 +2315,24 @@ def build_request_manifest(
     expects_probe: str,
     context_paths: list[str],
     depends_on: Optional[dict] = None,
+    provenance: Optional[dict] = None,
 ) -> dict:
     """Per TARBALL.md section 3.2. `depends_on` defaults to the v0.0.1 shape
     ({previous_response: None, previous_probe: None}); `bale handoff` passes
     a populated dict pointing at the bailout it's continuing from, which is
-    the only path that sets `previous_response` non-null in v0.0.6."""
+    the only path that sets `previous_response` non-null in v0.0.6.
+
+    `provenance` (v0.3.8, session B1) is the pack-time stamp from
+    build_provenance_block; both request-building paths pass one, so the
+    key is present on every request bale builds. Optional here (and in
+    request-manifest.schema.json) so hand-rolled requests and pre-0.3.8
+    manifests remain valid — the schema change is additive."""
     if depends_on is None:
         depends_on = {
             "previous_response": None,
             "previous_probe": None,
         }
-    return {
+    manifest = {
         "session_id": sid,
         "project": project_name,
         "goal": goal,
@@ -2325,6 +2341,61 @@ def build_request_manifest(
         "out_of_scope": out_of_scope,
         "expects_probe": expects_probe,
         "context_included": [f"context/{p}" for p in context_paths],
+    }
+    if provenance is not None:
+        manifest["provenance"] = provenance
+    return manifest
+
+
+def build_provenance_block(
+    repo: Path,
+    *,
+    packer_flag: Optional[str] = None,
+    work_class: str = "mixed",
+) -> dict:
+    """Assemble the request manifest's provenance block (v0.3.8, B1).
+
+    Stamps four facts about the pack, per request-manifest.schema.json:
+
+    - `bale_version` — this install's VERSION constant.
+    - `contract_docs` — sha256 of each injected global doc, hashed from
+      the install at pack time. Pins exactly which contract text the
+      session ran under; a doc edit between two packs shows up as a
+      hash change in the longitudinal record.
+    - `packer` — flag > [identity].packer (project > global via the
+      merged config) > the literal "unconfigured", which is stamped
+      rather than omitted so the block's shape is uniform, with a
+      logged hint pointing at `bale config init`. A misconfigured
+      identity is loud at read time (get_identity_packer's fatal shape
+      check), never silently mis-attributed.
+    - `work_class` — the --work-class enum value; callers with no flag
+      surface (handoff) pass the "mixed" default.
+
+    Reads the merged config itself so both request-building call sites
+    stay wiring-thin. Doc hashing reads the same DOCS_DIR files
+    build_request_tarball injects, so the hashes describe the bytes the
+    worker actually receives.
+    """
+    contract_docs: dict[str, str] = {}
+    for doc in GLOBAL_DOCS:
+        h = hashlib.sha256()
+        h.update((DOCS_DIR / doc).read_bytes())
+        contract_docs[doc] = h.hexdigest()
+
+    packer = packer_flag.strip() if isinstance(packer_flag, str) else None
+    if not packer:
+        packer = bale_config.get_identity_packer(bale_config.merged_config(repo))
+    if not packer:
+        packer = "unconfigured"
+        log("provenance: no packer identity set — stamping "
+            "packer=\"unconfigured\". Set one with `bale config init` "
+            "([identity].packer) or pass --packer.")
+
+    return {
+        "bale_version": VERSION,
+        "contract_docs": contract_docs,
+        "packer": packer,
+        "work_class": work_class,
     }
 
 
@@ -2368,6 +2439,18 @@ def build_request_tarball(
         # copy below for why that matters for the rest of the tarball.
         for doc in GLOBAL_DOCS:
             shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
+
+        # Inject the worker-side lint beside the four globals (v0.3.8,
+        # session B1): request-NNN/tools/response_lint.py, per TARBALL.md
+        # §3.1. Same copy2 treatment so the tool arrives executable.
+        # main()'s pack-time sanity check verified presence, so a missing
+        # file here means the install broke mid-run — let the copy raise
+        # and the caller's failed-to-build handler surface it.
+        tools_dir = request_dir / "tools"
+        tools_dir.mkdir()
+        for tool in INJECTED_TOOLS:
+            shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
+                         follow_symlinks=False)
 
         # manifest.json.
         (request_dir / "manifest.json").write_text(
@@ -2634,6 +2717,14 @@ def _resolve_readme_body(args: argparse.Namespace, *,
             ", ".join(args.out_of_scope) if args.out_of_scope else "(none)"
         ),
     )
+
+    # --no-readme (v0.3.8): the explicit no-prose acknowledgment. Skips
+    # the wizard's y/N prompt too — the flag IS the answer — and
+    # cmd_pack's no-readme guard treats it as the deliberate case.
+    # Contradictory combinations (--readme-file, --edit) already failed
+    # in cmd_pack's flag validation.
+    if args.no_readme:
+        return None
 
     if args.edit:
         seed = (
@@ -2954,6 +3045,12 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "--edit and --no-edit are contradictory: one forces the "
             "README $EDITOR step, the other suppresses it. Drop one."
         )
+    if args.no_readme and (args.readme_file is not None or args.edit):
+        fail(
+            "--no-readme is contradictory with --readme-file/--edit: one "
+            "declares the pack deliberately ships no prose, the others "
+            "supply or edit prose. Drop one side."
+        )
     if args.edit and not sys.stdin.isatty():
         fail(
             "--edit needs a TTY (it opens $EDITOR); stdin is not one. "
@@ -3104,6 +3201,38 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # README was the last step. _readme_body rides on args to the build
     # step downstream, exactly as before.
     args._readme_body = _resolve_readme_body(args, wizard_engaged=wizard_engaged)
+
+    # No-readme guard (v0.3.8, board 3): a pack shipping no prose is
+    # either deliberate or an oversight, and the two must not look the
+    # same. --no-readme is the deliberate spelling; a wizard-path user
+    # who answered 'n' at the README prompt (or saved an empty buffer)
+    # made the choice interactively. What remains is the un-asked case:
+    # on a TTY, warn — the user is watching and can Ctrl-C to repack;
+    # piped, refuse — nobody reads a stderr warning in automation, the
+    # same posture as the piped soft-breach refusal above. The wizard
+    # exemption is scoped to paths where a prompt actually ran:
+    # wizard_engaged with --no-edit suppresses the prompt, so that
+    # combination is NOT exempt.
+    if args._readme_body is None:
+        if args.no_readme:
+            log("packing without a README (--no-readme)")
+        elif wizard_engaged and not args.no_edit:
+            log("packing without a README (declined at the wizard prompt)")
+        elif sys.stdin.isatty():
+            print(
+                "[bale] warning: packing without a README — the request "
+                "ships only the manifest's structured fields. Supply prose "
+                "via --readme-file or --edit, or pass --no-readme to "
+                "acknowledge and silence this.",
+                file=sys.stderr,
+            )
+        else:
+            fail(
+                "packing without a README and without --no-readme: stdin "
+                "is not a TTY, so the warning would be read by nobody. "
+                "Supply prose via --readme-file, or pass --no-readme to "
+                "declare the omission deliberate."
+            )
 
     # Input validation.
     if not is_valid_slug(args.slug):
@@ -3352,7 +3481,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "while several are open; sid disambiguation for them is "
             "deferred (ADR-0006)")
 
-    # Manifest.
+    # Manifest, with the pack-time provenance stamp (v0.3.8, B1):
+    # bale_version + contract-doc hashes + packer (--packer > [identity].
+    # packer > "unconfigured") + work_class from --work-class.
+    provenance = build_provenance_block(
+        repo, packer_flag=args.packer, work_class=args.work_class,
+    )
+    log(f"provenance: packer={provenance['packer']!r} "
+        f"work_class={provenance['work_class']!r} "
+        f"bale_version={provenance['bale_version']}")
     manifest = build_request_manifest(
         sid=sid,
         project_name=repo.name,
@@ -3361,6 +3498,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         out_of_scope=list(args.out_of_scope),
         expects_probe=args.expects_probe,
         context_paths=files,
+        provenance=provenance,
     )
 
     # Pack pre-flight schema check (BALE.md §11 row 6, request side). bale
@@ -5984,6 +6122,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
                 "previous_response": bailout_sid,
                 "previous_probe": None,
             },
+            # Handoff is the second request-building path, so it stamps
+            # provenance too (v0.3.8, B1) — same identity resolution,
+            # minus the flag surface (deliberately narrow, like
+            # constraints/out_of_scope above): packer from [identity].
+            # packer, work_class at its "mixed" default.
+            provenance=build_provenance_block(repo),
         )
 
         # Same pre-flight schema check as `bale pack` (BALE.md §11 row 6,
@@ -7267,6 +7411,30 @@ def build_parser() -> argparse.ArgumentParser:
              "opens); conflicts with --edit. No-op on the fully specified "
              "path, which has no $EDITOR step unless --edit asks for one.",
     )
+    p_pack.add_argument(
+        "--no-readme", action="store_true",
+        help="Declare the pack deliberately ships no README prose. Without "
+             "it, a pack that resolves no prose warns on a TTY and refuses "
+             "when piped — an accidental prose-less request should never "
+             "look like a deliberate one. Skips the wizard's README prompt "
+             "(the flag is the answer); conflicts with --readme-file and "
+             "--edit.",
+    )
+    p_pack.add_argument(
+        "--packer", default=None, metavar="NAME",
+        help="Packer identity stamped into the request manifest's "
+             "provenance block for this pack only. Precedence: this flag > "
+             "[identity].packer in <repo>/bale.toml > the global "
+             "bale.toml's [identity].packer (set either via `bale config "
+             "init`) > the literal 'unconfigured' (logged with a hint).",
+    )
+    p_pack.add_argument(
+        "--work-class", choices=("code", "doc", "contract-doc", "meta", "mixed"),
+        default="mixed",
+        help="Coarse class of the session's intended work, stamped into "
+             "the provenance block. Defaults to 'mixed' rather than being "
+             "required; the enum is a seed set — extend via schema edit.",
+    )
     # Threshold caps (BALE.md §7.4). Each --max-* sets the hard cap; the soft
     # caps (which drive the y/N prompt) stay at the defaults. --force
     # bypasses both threshold caps and the home-directory refusal; the
@@ -7739,13 +7907,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Sanity: the installation must have the global docs alongside.
+    # Sanity: the installation must have the global docs and the injected
+    # worker tools alongside. Both are pack-time injections; a missing
+    # file would otherwise surface as a mid-pack copy failure.
     if args.command == "pack":
         missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
+        missing += [f"tools/{t}" for t in INJECTED_TOOLS
+                    if not (TOOLS_DIR / t).exists()]
         if missing:
             fail(
-                f"installation is missing global docs in {DOCS_DIR}: "
-                f"{', '.join(missing)}. Reinstall bale."
+                f"installation is missing injected files under "
+                f"{INSTALL_ROOT}: {', '.join(missing)}. Reinstall bale."
             )
 
     return args.func(args)
