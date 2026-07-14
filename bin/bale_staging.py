@@ -680,9 +680,19 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
 
 
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
-                      manifest: dict, sid: str, *, verbose: bool = False) -> int:
+                      manifest: dict, sid: str, *,
+                      verbose: bool = False) -> tuple[int, str]:
     """Copy validation.sh into staging, place .bale-manifest.json for claims
-    access, run it, log output, return exit code.
+    access, run it, log output, return (exit code, captured output).
+
+    The output element (v0.3.9, B2) is the same text the session log
+    receives — stdout+stderr interleaved on the verbose path, stdout plus
+    any stderr on the default path — returned so the caller can promote the
+    TARBALL.md §7.3 claims-vs-verdict block into the telemetry record
+    (bale_report.parse_claim_verdict_block) without re-parsing the
+    append-mode session log, whose earlier attempts would make "which
+    block?" ambiguous. Both paths already collected the text; this returns
+    what was previously dropped.
 
     Output routing follows BALE.md §8.5 step 4: validation.sh's stdout/stderr
     always land in the session log (`.bale/logs/<sid>.log`); the terminal
@@ -739,7 +749,7 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
                     f"stdout+stderr interleaved) ---\n")
             f.write(merged)
             f.write(f"\n--- validation.sh exit code: {returncode} ---\n")
-        return returncode
+        return returncode, merged
 
     # Default: capture, log only, terminal stays quiet.
     result = subprocess.run(
@@ -757,7 +767,11 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
             f.write(result.stderr)
         f.write(f"\n--- validation.sh exit code: {result.returncode} ---\n")
 
-    return result.returncode
+    # stdout carries the check lines and the §7.3 reconciliation block;
+    # stderr rides along so a script-error trail (exit 2) is visible to the
+    # same consumer. Matches what the log received, minus the framing.
+    combined = result.stdout + (("\n" + result.stderr) if result.stderr else "")
+    return result.returncode, combined
 
 
 def build_session_commit(repo: Path, staging: Path, manifest: dict,

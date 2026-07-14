@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anthropics/bale/schemas/telemetry-record.schema.json",
+  "title": "bale per-session telemetry record",
+  "description": "Shape of claude/telemetry/<sid>.json — the durable per-session record bale writes at apply close (v0.3.9, session B2; BALE.md section 8.9). One file per sid; each apply-close event appends an entry to attempts[] rather than duplicating the file, so a HOLD followed by a retry accumulates both. INTENTIONALLY LOOSE, matching diagnostics.schema.json: additionalProperties is true at the top level and inside attempts[] entries so future fields can be added without breaking earlier aggregation across sessions (board 5 reads these longitudinally). record_version is the versioned evolution hook: bump it when a change is not purely additive; consumers filter or branch on it.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "record_version",
+    "session_id",
+    "created_at",
+    "updated_at",
+    "outcome",
+    "attempts"
+  ],
+  "properties": {
+    "record_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of the record shape. 1 is the B2 launch shape. Additive fields do not bump it; shape-breaking changes do."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The session this record describes. Matches the filename stem and the response manifest's responds_to."
+    },
+    "created_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 UTC timestamp of the first attempt written. Preserved across updates."
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO 8601 UTC timestamp of the most recent attempt written."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["applied", "held", "reverted", "rejected", "bailout"],
+      "description": "The latest attempt's outcome, mirrored to the envelope so aggregation can filter without descending into attempts[]. 'applied' = merged; 'held' = HOLD awaiting inspection (a later attempt supersedes it); 'reverted' = backed out (walkthrough revert or `bale revert`); 'rejected' = the apply exited through a pre-flight or pipeline error path (detail in the session log); 'bailout' = response_kind=bailout, session consumed."
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per apply-close event against this sid, in order. HOLD-then-retry appends rather than duplicates; the full attempt history is the point — a HOLD attempt's claim/verdict disagreement is calibration data even after a later attempt merges.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["at", "outcome", "command"],
+        "properties": {
+          "at": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ISO 8601 UTC timestamp of this apply-close event."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": ["applied", "held", "reverted", "rejected", "bailout"],
+            "description": "This attempt's outcome, same vocabulary as the envelope field."
+          },
+          "command": {
+            "type": "string",
+            "enum": ["apply", "retry", "revert"],
+            "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'."
+          },
+          "tarball": {
+            "type": ["string", "null"],
+            "description": "Basename of the response tarball this attempt processed, or null when no tarball was in play (the `bale revert` path)."
+          },
+          "validation": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "description": "What validation.sh found on this attempt, or null when it did not run (rejected before staging, bailout, `bale revert`).",
+            "required": ["state", "exit_code", "claims", "claim_verdict", "reconciliation_parsed"],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": ["PASS", "HOLD"],
+                "description": "PASS when validation.sh exited 0, HOLD otherwise (BALE.md section 8.6)."
+              },
+              "exit_code": {
+                "type": "integer",
+                "description": "validation.sh's exit code (TARBALL.md section 7.5: 0 pass, 1 check failed, 2 script errored)."
+              },
+              "claims": {
+                "type": "object",
+                "additionalProperties": { "type": "string" },
+                "description": "The manifest's claims map verbatim — the prediction side of the TARBALL.md section 5.3 split."
+              },
+              "claim_verdict": {
+                "type": "object",
+                "description": "Per-check agreement parsed from validation.sh's section 7.3 reconciliation block — the promotion of what previously lived only in the transient .bale/logs/ session log. Keys are check names; values carry the claim, the verdict, and the agreement tag as the block reported them.",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": ["claim", "verdict", "agreement"],
+                  "properties": {
+                    "claim": { "type": "string" },
+                    "verdict": { "type": "string" },
+                    "agreement": {
+                      "type": "string",
+                      "description": "The bracketed tag from the reconciliation line, normalized to lowercase without brackets: 'agree', 'disagree', or 'n/a'."
+                    }
+                  }
+                }
+              },
+              "reconciliation_parsed": {
+                "type": "boolean",
+                "description": "True when a section 7.3 'claims vs verdict:' block was found and parsed from validation.sh's output. False means claim_verdict is empty because the block was absent or unrecognizable — validation.sh authors the block per convention, not contract, so a parse miss is recorded rather than silently skipped."
+              }
+            }
+          },
+          "scope": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "The session's declared scope — the resolved include set recorded at pack time (the 'includes shipped' side of the includes-vs-changes comparison). Empty when no scope was recorded (pre-ADR-0007 sessions)."
+          },
+          "change_paths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Every changes[].path in the response manifest — the other side of the includes-vs-changes comparison. Aggregation computes the intersection or drift; the record stores both sides raw."
+          },
+          "feedback": {
+            "type": ["object", "null"],
+            "description": "The response manifest's feedback block, verbatim (response-manifest.schema.json, v0.3.8 B1). Null when the manifest carried none (pre-B1 responses) or when the manifest was unavailable (some rejected paths)."
+          },
+          "log": {
+            "type": ["string", "null"],
+            "description": "Repo-relative path to the session log where full validation output and rejection detail live."
+          }
+        }
+      }
+    }
+  }
+}

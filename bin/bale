@@ -605,6 +605,23 @@ baseline parameter) and bale_config (STAGING_STRATEGIES /
 STAGING_VALUES, the [staging] merge, two typed accessors, wizard
 walk blocks, renderer branch).
 
+v0.3.9 (session B2; v0.3.8 was session B1 — provenance stamping,
+the dual-stream feedback block, lint injection, the no-readme
+guard, narrated at its sites rather than here) lands the durable
+per-session telemetry record: at every apply close — merge, HOLD,
+revert (walkthrough and `bale revert`), rejection, bailout — bale
+appends an attempt to `claude/telemetry/<sid>.json` (schema
+`telemetry-record.schema.json`, semantics BALE.md §8.9), promoting
+the feedback block verbatim and the §7.3 claim/verdict
+reconciliation that previously lived only in the transient session
+log. This file gained only wiring: the terminal-point calls, the
+`invoked_by` thread, the cmd_apply/cmd_retry SystemExit wrapper
+(`_record_rejected_attempt`), and cmd_revert's pre-wipe reads. The
+mechanics — reconciliation parsing, attempt assembly, the
+read-append-write update semantics — live in bale_report's
+telemetry section; `run_validation_sh` (bale_staging) now returns
+its captured output alongside the exit code to feed the promotion.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -778,6 +795,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # first_section_of_handoff) lazily from __main__, the same idiom the other
 # siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
+    build_telemetry_attempt,
     emit_json_line,
     enable_json_mode,
     format_apply_json,
@@ -793,6 +811,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     json_mode,
     print_bailout_banner,
     print_clarification_banner,
+    write_telemetry_record,
 )
 
 
@@ -800,7 +819,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.8"
+VERSION = "0.3.9"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4027,7 +4046,8 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
 
 
 def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
-                   tarball_basename: str) -> int:
+                   tarball_basename: str, *,
+                   invoked_by: str = "apply") -> int:
     """Apply-time handler for `response_kind: "bailout"` per TARBALL.md §5.6.3.
 
     This is the branch _apply_pipeline takes when the manifest declares a
@@ -4102,6 +4122,24 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     close_session(repo, sid)
     log(f"bailout {sid}: session closed")
 
+    # Telemetry record (v0.3.9, B2 — BALE.md §8.9). A bailout consumes its
+    # session, so it is an apply close and it records: validation null
+    # (nothing ran), changes[] empty by §5.6.2, and — the piece that makes
+    # this branch worth recording — the feedback block verbatim, whose
+    # self_reported.budget_pressure="bailed" is exactly the longitudinal
+    # signal board 5 aggregates. Written after close_session so a telemetry
+    # failure (already non-fatal) cannot even reorder the session's real
+    # state changes.
+    telemetry_rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="bailout", command=invoked_by,
+            tarball=tarball_basename, manifest=manifest,
+            scope=read_session_scope(repo, sid),
+            log_path=f".bale/logs/{sid}.log",
+        ))
+    if telemetry_rel:
+        log(f"telemetry: recorded {telemetry_rel}")
+
     if json_mode():
         # Terminal json report (v0.2.8), emitted after the §5.6.3 banner
         # (which json mode routed to stderr) so the stdout line a consumer
@@ -4109,6 +4147,7 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
         emit_json_line(format_apply_json(
             outcome="bailout", sid=sid,
             log_path=repo / ".bale" / "logs" / f"{sid}.log",
+            telemetry=telemetry_rel,
         ))
     return 0
 
@@ -4325,7 +4364,8 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     staging_override: Optional[str], *,
                     dry_run: bool = False, verbose: bool = False,
                     no_interact: bool = False,
-                    no_interact_source: str = "") -> int:
+                    no_interact_source: str = "",
+                    invoked_by: str = "apply") -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
     + clean-tree guards) and cmd_retry (after _discard_hold_state has
@@ -4369,6 +4409,16 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     (landing on stderr); the emission is a pass-through addition gated on
     bale_report.json_mode(), so nothing threads through this signature and
     cmd_retry — which never enables the mode — is untouched.
+
+    `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
+    attempts[].command field — "apply" (default) or "retry" from cmd_retry.
+    Each terminal outcome below (merge, inspect, revert; plus the bailout
+    fork) also appends an attempt to claude/telemetry/<sid>.json via
+    build_telemetry_attempt + write_telemetry_record (BALE.md §8.9),
+    renders the returned path as one summary row, and passes it to
+    format_apply_json's additive `telemetry` key. Dry-run and clarification
+    write no record: a dry-run has no outcome, and a clarification suspends
+    rather than closes its session — the eventual normal response records.
 
     Returns the apply exit code: 0 on PASS (or a clean dry-run), 1 on HOLD.
     """
@@ -4531,6 +4581,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 return 0
             return _apply_bailout(
                 repo, response_dir, manifest, locked_sid, tarball_path.name,
+                invoked_by=invoked_by,
             )
 
         # Clarification fork — TARBALL.md §5.9.3, the bailout fork's sibling.
@@ -4708,10 +4759,17 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         log(f"created branch {sid_branch} at {origin_branch} tip "
             f"({base_sha[:7]})")
 
-        # Run validation.sh in staging.
-        exit_code = run_validation_sh(repo, response_dir, staging, manifest,
-                                      locked_sid, verbose=verbose)
+        # Run validation.sh in staging. The captured output feeds the
+        # telemetry record's §7.3 claim/verdict promotion (v0.3.9, B2).
+        exit_code, val_output = run_validation_sh(
+            repo, response_dir, staging, manifest,
+            locked_sid, verbose=verbose)
         log(f"validation.sh exit code: {exit_code}")
+
+        # Telemetry inputs read up front (v0.3.9, B2): the session scope
+        # lives under .bale/sessions/<sid>/, which the merge branch wipes —
+        # read it here, before any terminal action's cleanup.
+        session_scope = read_session_scope(repo, locked_sid)
 
         # 8.6 commit-or-hold + 8.7 walkthrough — checkout-free (ADR-0008).
         # Both validation outcomes build the session commit via plumbing
@@ -4885,12 +4943,25 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                      locked_sid, no_interact=no_interact,
                      no_interact_source=no_interact_source)
 
+            # Telemetry record (v0.3.9, B2 — BALE.md §8.9).
+            telemetry_rel = write_telemetry_record(
+                repo, locked_sid, build_telemetry_attempt(
+                    outcome="applied", command=invoked_by,
+                    tarball=tarball_path.name, manifest=manifest,
+                    scope=session_scope, validation_state=state,
+                    validation_exit_code=exit_code,
+                    validation_output=val_output,
+                    log_path=f".bale/logs/{locked_sid}.log",
+                ))
             print(format_summary_block(
                 [
                     ("tag", f"applied/{locked_sid}"),
                     ("branch", f"{origin_branch} (merged — {merged_note})"),
                     ("files", f"{len(manifest['changes'])} changed"),
                     ("staging", f"{staging} (preserved for inspection)"),
+                    ("telemetry",
+                     f"recorded {telemetry_rel}" if telemetry_rel
+                     else "write failed — see log"),
                 ],
                 status="PASS",
                 sid=locked_sid,
@@ -4909,6 +4980,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     claims=manifest.get("claims", {}) or {},
                     action="merge", merged=True,
                     tag=f"applied/{locked_sid}", origin_branch=origin_branch,
+                    telemetry=telemetry_rel,
                 ))
             return 0
 
@@ -4923,6 +4995,18 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # state is guarded by the session's registry entry plus the
             # branch itself, not by the lock.
             release_integration_lock(repo)
+            # Telemetry record (v0.3.9, B2 — BALE.md §8.9). The HOLD attempt
+            # is appended now; a later retry appends its own attempt to the
+            # same record rather than duplicating the file.
+            telemetry_rel = write_telemetry_record(
+                repo, locked_sid, build_telemetry_attempt(
+                    outcome="held", command=invoked_by,
+                    tarball=tarball_path.name, manifest=manifest,
+                    scope=session_scope, validation_state=state,
+                    validation_exit_code=exit_code,
+                    validation_output=val_output,
+                    log_path=f".bale/logs/{locked_sid}.log",
+                ))
             print(format_summary_block(
                 [
                     ("validation", f"exited {exit_code}"),
@@ -4931,6 +5015,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                                f"— checkout untouched)"),
                     ("log", f".bale/logs/{locked_sid}.log"),
                     ("staging", f"{staging} (preserved)"),
+                    ("telemetry",
+                     f"recorded {telemetry_rel}" if telemetry_rel
+                     else "write failed — see log"),
                     ("retry", "bale retry <new-tarball>"),
                     ("discard", f"bale revert {locked_sid}"),
                 ],
@@ -4947,6 +5034,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     claims=manifest.get("claims", {}) or {},
                     action="inspect", merged=False,
                     origin_branch=origin_branch,
+                    telemetry=telemetry_rel,
                 ))
             return 1
 
@@ -4980,11 +5068,28 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         release_integration_lock(repo)
         log(f"walkthrough revert: {locked_sid}; session closed")
 
+        # Telemetry record (v0.3.9, B2 — BALE.md §8.9). Validation DID run
+        # on this attempt (revert is reachable from both verdicts), so the
+        # attempt carries its state/exit/reconciliation alongside the
+        # reverted outcome — exactly the pairing the longitudinal signal
+        # wants ("validation said X and the human backed it out anyway").
+        telemetry_rel = write_telemetry_record(
+            repo, locked_sid, build_telemetry_attempt(
+                outcome="reverted", command=invoked_by,
+                tarball=tarball_path.name, manifest=manifest,
+                scope=session_scope, validation_state=state,
+                validation_exit_code=exit_code,
+                validation_output=val_output,
+                log_path=f".bale/logs/{locked_sid}.log",
+            ))
         print(format_summary_block(
             [
                 ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
                 ("lock", "cleared"),
                 ("staging", status['staging_status']),
+                ("telemetry",
+                 f"recorded {telemetry_rel}" if telemetry_rel
+                 else "write failed — see log"),
             ],
             status="REVERT",
             sid=locked_sid,
@@ -4999,6 +5104,7 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 claims=manifest.get("claims", {}) or {},
                 action="revert", merged=False,
                 origin_branch=origin_branch,
+                telemetry=telemetry_rel,
             ))
         return 1
 
@@ -5006,6 +5112,29 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 # ---------------------------------------------------------------------------
 # 18. Apply
 # ---------------------------------------------------------------------------
+
+def _record_rejected_attempt(repo: Path, sid: str, command: str,
+                             tarball_basename: str, exc: SystemExit) -> None:
+    """Record a rejected apply/retry in the telemetry record (BALE.md §8.9).
+
+    Called from cmd_apply/cmd_retry's SystemExit wrapper around
+    _apply_pipeline; the caller re-raises, so this must never mask the exit
+    — and write_telemetry_record already never raises. A SystemExit with
+    code 0 or None is a clean exit, not a rejection, and records nothing.
+    The attempt is minimal (validation null, feedback null): a rejected
+    tarball's manifest is unvalidated, and the rejection detail lives in
+    the session log fail() already wrote.
+    """
+    if exc.code in (None, 0):
+        return
+    write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="rejected", command=command,
+            tarball=tarball_basename,
+            scope=read_session_scope(repo, sid),
+            log_path=f".bale/logs/{sid}.log",
+        ))
+
 
 def _extract_response_dir(tmpdir: str, tarball_path: Path) -> Path:
     """Open `tarball_path`, scan for unsafe member paths, extract into
@@ -5197,11 +5326,25 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # checkout). cmd_retry runs the same guard.
     refuse_dirty_on_target(repo, resolve_target_branch(repo, locked_sid))
 
-    return _apply_pipeline(
-        repo, tarball_path, locked_sid, args.staging_dir,
-        verbose=args.verbose, no_interact=no_interact,
-        no_interact_source=no_interact_source,
-    )
+    # Telemetry on the rejected path (v0.3.9, B2 — BALE.md §8.9): every
+    # rejection or pipeline error exits through fail() → SystemExit, from
+    # many sites (pre-flight, reconciliation, merge guards) — too many to
+    # wire individually, and several sit inside module code. One wrapper at
+    # the invocation records outcome="rejected" uniformly and re-raises;
+    # detail stays in the session log, which fail() already writes to. The
+    # record is minimal by design: a rejected tarball's own manifest is
+    # unvalidated (possibly the reason for the rejection), so nothing from
+    # it is promoted. _record_rejected_attempt never raises.
+    try:
+        return _apply_pipeline(
+            repo, tarball_path, locked_sid, args.staging_dir,
+            verbose=args.verbose, no_interact=no_interact,
+            no_interact_source=no_interact_source,
+        )
+    except SystemExit as e:
+        _record_rejected_attempt(repo, locked_sid, "apply",
+                                 tarball_path.name, e)
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -5390,6 +5533,22 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # closed and leave the compatibility pointer stale.
     was_open = session_is_open(repo, sid)
 
+    # Telemetry inputs (v0.3.9, B2), read BEFORE the shared cleanup for the
+    # same reason as was_open: _discard_hold_state wipes the session dir,
+    # taking the stamped response manifest and scope.json with it. Best
+    # effort — a session reverted before any apply stamped a manifest
+    # records feedback: null.
+    stamped_manifest: Optional[dict] = None
+    stamped_path = sessions_dir / "response-manifest.json"
+    if stamped_path.is_file():
+        try:
+            stamped_manifest = json.loads(
+                stamped_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            log(f"telemetry: stamped response manifest unreadable ({e}); "
+                f"recording the revert without it")
+    revert_scope = read_session_scope(repo, sid)
+
     # Shared cleanup (9.1 steps 2-5, plus staging cleanup).
     status = _discard_hold_state(repo, sid)
 
@@ -5406,6 +5565,17 @@ def cmd_revert(args: argparse.Namespace) -> int:
         close_session(repo, sid)
         log(f"closed session {sid} in the registry")
 
+    # Telemetry record (v0.3.9, B2 — BALE.md §8.9). command="revert" and
+    # validation null: no validation ran in THIS invocation — the HOLD
+    # attempt that preceded a typical revert already recorded its own
+    # state/exit/reconciliation in the same file.
+    telemetry_rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="reverted", command="revert",
+            manifest=stamped_manifest, scope=revert_scope,
+            log_path=f".bale/logs/{sid}.log",
+        ))
+
     # End-of-run summary through the shared formatter (see the
     # "Shared end-of-run summary formatting" section) so `bale revert`
     # ends on the same [STATUS] sid shape as apply/handoff — and in
@@ -5419,6 +5589,9 @@ def cmd_revert(args: argparse.Namespace) -> int:
             ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
             ("lock", "cleared" if lock_cleared else "unchanged"),
             ("staging", status["staging_status"]),
+            ("telemetry",
+             f"recorded {telemetry_rel}" if telemetry_rel
+             else "write failed — see log"),
         ],
         status="REVERT",
         sid=sid,
@@ -5573,9 +5746,18 @@ def cmd_retry(args: argparse.Namespace) -> int:
     register_session(repo, locked_sid)
     log(f"re-opened session {locked_sid} in the registry for the retry")
 
-    return _apply_pipeline(repo, tarball_path, locked_sid, args.staging_dir,
-                           no_interact=no_interact,
-                           no_interact_source=no_interact_source)
+    # Same rejected-path telemetry wrapper as cmd_apply (BALE.md §8.9);
+    # invoked_by="retry" so the record's attempts distinguish the commands.
+    try:
+        return _apply_pipeline(repo, tarball_path, locked_sid,
+                               args.staging_dir,
+                               no_interact=no_interact,
+                               no_interact_source=no_interact_source,
+                               invoked_by="retry")
+    except SystemExit as e:
+        _record_rejected_attempt(repo, locked_sid, "retry",
+                                 tarball_path.name, e)
+        raise
 
 
 # ---------------------------------------------------------------------------

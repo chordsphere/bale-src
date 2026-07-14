@@ -743,6 +743,11 @@ Field semantics:
   follow the distinct shape in section 5.6. `"clarification"` when a
   blocking intent gap in the request prevents trustworthy work;
   clarification responses follow the distinct shape in section 5.9.
+- **`feedback`** — optional dual-stream session feedback (v0.3.8+).
+  The two streams, the trust split behind them, and the
+  fill-by-running-the-lint workflow are §5.2.2. Apply persists the
+  block verbatim into the session's telemetry record (BALE.md §8.9),
+  which is what makes filling it honestly worth the two minutes.
 
 ### 5.2.1 Computing size_bytes and sha256
 
@@ -774,6 +779,56 @@ as `src/Foo.vue`, paste-ready into `changes[].path`. On a host without
 emits them: set their `size_bytes` to `0` and `sha256` to `null` by
 hand per §5.2. Those two literals are the only size or hash values
 ever written rather than computed.
+
+### 5.2.2 The feedback block
+
+An optional top-level `feedback` object (v0.3.8; shape in
+`response-manifest.schema.json`) carries the session's own account of
+itself. It exists for the longitudinal record: bale's apply persists
+it verbatim into the session's telemetry record (BALE.md §8.9), where
+it aggregates across sessions. Pre-v0.3.8 manifests omit it and still
+validate; new responses include it.
+
+The block is **two streams split by trust level**, and the split is
+the design:
+
+- **`mechanical`** — values the lint (`tools/response_lint.py`,
+  shipped in every request per §3.1) can recompute and verify:
+  `response_kind` (echo of the manifest's effective kind),
+  `schema_valid`, `mirror_agreement` (the §10.1 both-directions
+  `files/` ↔ `changes[]` result, split by direction), and
+  `claims_subset` (the §5.3 subset rule). Two optional members ride
+  here because their *shape* is fixed even where their content is
+  self-reported: `linkage` (present when the session went through a
+  probe or clarification round — which recourse, and whether the gap
+  surfaced pre-read, pre-build, or mid-build) and `provenance` (the
+  request's provenance block echoed verbatim plus `model_identity`,
+  which is self-reported and unverifiable today — recorded for
+  aggregation, read with that caveat; null when the request carried
+  no provenance).
+- **`self_reported`** — worker-authored judgment the lint cannot
+  check: `assumptions` proceeded on without confirmation (the §3.3 /
+  §5.9.1 recoverable-risk posture), `judgment_calls` the planner
+  should find without reading the diff, `budget_pressure` (`none` |
+  `tight` | `bailed` — the session's own read of `CLAUDE.md` §11),
+  `includes_missing` (files the session wanted but the request didn't
+  ship — packing signal), and `compaction_occurred` (with a
+  `disclosure_ref` pointing at where the `CLAUDE.md` §11.6 disclosure
+  lives when true). Honest empties are meaningful: `[]` asserts
+  *none arose*, and the lint checks shape only, never content.
+
+**Fill the mechanical stream by running the lint, not by hand.** The
+workflow: build the response through §10.1 steps 1–9, run
+`python3 tools/response_lint.py <response-dir>`, copy the lint's
+computed results into `feedback.mechanical`, fill `self_reported`
+honestly, then run the lint once more — its feedback-block check
+recomputes every mechanical value against the directory as packed and
+flags any disagreement. A mismatch is the tell of a hand-filled or
+stale block (an edit made after the values were copied), and the fix
+is to re-run, not to adjust the values until the check goes quiet.
+The mechanical stream's worth *is* that it was computed; a
+transcribed guess poisons the calibration data the telemetry record
+exists to collect.
 
 ### 5.3 Claims vs verdict
 
