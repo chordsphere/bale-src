@@ -102,6 +102,24 @@ pair reads as one unit there; this module consumes, not owns, that slicing.
 Like `bale_staging`, this module needs no path constants from `bin/bale`;
 every path these functions touch derives from their arguments.
 
+v0.3.9 (session B2) adds the telemetry-record cluster — a third banner
+section at the end of the file: `telemetry_record_path`,
+`parse_claim_verdict_block` (promotes the TARBALL.md §7.3 claims-vs-verdict
+reconciliation out of the transient session log), `build_telemetry_attempt`
+(assembles one apply-close attempt entry from data the call site already
+holds), and `write_telemetry_record` (the read-append-write persistence of
+`claude/telemetry/<sid>.json`, schema `telemetry-record.schema.json`;
+update semantics in BALE.md §8.9). It lives here because the module's
+charter is end-of-command result assembly, and the record is exactly that —
+assembled once per terminal apply outcome, persisted instead of printed.
+`write_telemetry_record` is the second deliberate exception to the
+pure-string-assembler rule (after the two banner printers): it writes a
+file, never raises to its caller, and reports failure through the lazy
+`__main__` `log` plus a `None` return the call site renders honestly.
+`format_apply_json` gains the additive `telemetry` key in the same session
+— path string when a record was written, null otherwise — under the
+existing key-stability rules.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -109,9 +127,11 @@ See claude/context/bale-internals.md for how this module sits next to
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import textwrap
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -681,6 +701,7 @@ def format_apply_json(
     merged: bool = False,
     tag: Optional[str] = None,
     origin_branch: Optional[str] = None,
+    telemetry: Optional[str] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -724,6 +745,10 @@ def format_apply_json(
                  tag            "applied/<sid>" when merged, else null
                  origin_branch  the branch a merge landed on (or, for
                                 inspect/revert, would have)
+      telemetry (v0.3.9, additive) repo-relative path of the telemetry
+               record written for this apply-close event
+               (claude/telemetry/<sid>.json, BALE.md §8.9), or null when
+               none was written (dry-run, clarification, write failure).
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites
@@ -756,6 +781,11 @@ def format_apply_json(
         "log": str(log_path),
         "verdict": verdict,
         "merge": merge,
+        # v0.3.9 (B2), additive per the stability rules above: repo-relative
+        # path of the telemetry record this apply-close event wrote
+        # (claude/telemetry/<sid>.json), or null when no record was written
+        # (dry-run, clarification, or a write failure the log carries).
+        "telemetry": telemetry,
     }
     return json.dumps(payload)
 
@@ -1062,3 +1092,183 @@ def format_integration_lock_value(info: dict) -> str:
     return (f"HELD — {holder}. If no `bale apply` is running, the lock is "
             f"stale; clear it with `bale unlock --integration` "
             f"(or `rm {path}`).")
+
+
+# --- telemetry record (v0.3.9, session B2) ---
+#
+# The durable per-session record written at apply close — one file per sid
+# at claude/telemetry/<sid>.json, shape per schemas/telemetry-record.
+# schema.json, update semantics per BALE.md §8.9. This cluster assembles
+# and persists the record; the callers in bin/bale are wiring-thin: each
+# terminal apply outcome builds an attempt (build_telemetry_attempt) and
+# hands it to write_telemetry_record, then renders the returned path in its
+# own summary row and json key. Everything here is stdlib-pure and takes
+# data, not repo-inspection responsibilities: the one exception is the
+# lazy __main__ `log` import inside write_telemetry_record, the siblings'
+# established mechanism, used only to report a write failure — which never
+# propagates to the caller, because telemetry must not be able to break an
+# apply that already succeeded.
+
+RECORD_VERSION = 1
+
+# The §7.3 reconciliation line as validation.sh conventionally prints it:
+#   <check name>: claim=<word> verdict=<word> [tag]
+# The check name may contain spaces and colons; anchor on the last
+# "claim=... verdict=... [...]" triple instead of splitting on ":".
+_CLAIM_VERDICT_LINE = re.compile(
+    r"^\s+(?P<check>.+?):\s+claim=(?P<claim>\S+)\s+verdict=(?P<verdict>\S+)"
+    r"\s+\[(?P<tag>[^\]]+)\]\s*$"
+)
+
+
+def telemetry_record_path(repo: Path, sid: str) -> Path:
+    """Absolute path of the sid's telemetry record: claude/telemetry/<sid>.json."""
+    return repo / "claude" / "telemetry" / f"{sid}.json"
+
+
+def parse_claim_verdict_block(output: str) -> tuple[dict, bool]:
+    """Extract the TARBALL.md §7.3 claims-vs-verdict block from validation output.
+
+    Returns (claim_verdict, parsed): `claim_verdict` maps each check name to
+    {"claim", "verdict", "agreement"} — agreement is the bracketed tag
+    normalized to lowercase ("agree" / "disagree" / "n/a") — and `parsed`
+    is True when a "claims vs verdict:" header was found and at least one
+    line under it matched the conventional shape. The block is a
+    validation.sh authoring convention (TARBALL.md §7.3), not a bale-
+    enforced contract, so a miss is a recorded fact (parsed=False, empty
+    map), never an exception: the record's `reconciliation_parsed` field is
+    how aggregation distinguishes "no disagreements" from "block absent".
+
+    The LAST occurrence of the header wins — a validation.sh that prints
+    the block more than once (a re-run inside the script, say) is summarized
+    by its final reconciliation, matching how a human reads the log.
+    """
+    lines = output.splitlines()
+    header_idx = None
+    for i, line in enumerate(lines):
+        if line.strip().lower().startswith("claims vs verdict:"):
+            header_idx = i
+    if header_idx is None:
+        return {}, False
+    claim_verdict: dict = {}
+    for line in lines[header_idx + 1:]:
+        if not line.strip():
+            break  # blank line ends the block
+        m = _CLAIM_VERDICT_LINE.match(line)
+        if m is None:
+            # First non-matching, non-blank line ends the block: the §7.3
+            # shape is contiguous indented rows under the header.
+            break
+        claim_verdict[m.group("check").strip()] = {
+            "claim": m.group("claim"),
+            "verdict": m.group("verdict"),
+            "agreement": m.group("tag").strip().lower(),
+        }
+    return claim_verdict, bool(claim_verdict)
+
+
+def build_telemetry_attempt(
+    *,
+    outcome: str,
+    command: str,
+    tarball: Optional[str] = None,
+    manifest: Optional[dict] = None,
+    scope: Optional[list] = None,
+    validation_state: Optional[str] = None,
+    validation_exit_code: Optional[int] = None,
+    validation_output: Optional[str] = None,
+    log_path: Optional[str] = None,
+) -> dict:
+    """Assemble one attempts[] entry (telemetry-record.schema.json) from
+    facts the apply-close call site already holds.
+
+    `manifest` (the response manifest, when available) supplies the two
+    promoted verbatim pieces: the feedback block and the changes[] paths.
+    `scope` is the session's recorded include set (the caller reads it via
+    read_session_scope). `validation_*` are present only when validation.sh
+    ran this attempt; the §7.3 reconciliation is parsed here from
+    `validation_output` so no caller re-implements the promotion. A rejected
+    or reverted attempt passes validation_state=None and gets
+    validation: null.
+    """
+    validation: Optional[dict] = None
+    if validation_state is not None:
+        claim_verdict, parsed = parse_claim_verdict_block(
+            validation_output or "")
+        validation = {
+            "state": validation_state,
+            "exit_code": validation_exit_code,
+            "claims": (manifest or {}).get("claims", {}) or {},
+            "claim_verdict": claim_verdict,
+            "reconciliation_parsed": parsed,
+        }
+    return {
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "outcome": outcome,
+        "command": command,
+        "tarball": tarball,
+        "validation": validation,
+        "scope": list(scope or []),
+        "change_paths": [c.get("path") for c in
+                         (manifest or {}).get("changes", []) or []],
+        "feedback": (manifest or {}).get("feedback"),
+        "log": log_path,
+    }
+
+
+def write_telemetry_record(repo: Path, sid: str, attempt: dict) -> Optional[str]:
+    """Append one apply-close attempt to claude/telemetry/<sid>.json.
+
+    Update semantics (BALE.md §8.9): one file per sid, created on the first
+    apply-close event and APPENDED to on every later one — HOLD then retry
+    updates the same record rather than duplicating it, and the envelope's
+    `outcome`/`updated_at` mirror the latest attempt. An existing file that
+    fails to parse or has lost its attempts[] array is moved aside to
+    `<sid>.json.corrupt-<utc-stamp>` (logged, never silently discarded) and
+    a fresh record starts — a corrupt record must not block the apply that
+    discovered it, and must not be overwritten unexamined.
+
+    Returns the record's repo-relative path on success, None on failure.
+    Never raises: a telemetry write failure is logged via the lazy
+    __main__ `log` (force=True, so it reaches the terminal) and swallowed —
+    the record is longitudinal signal, and losing one entry is strictly
+    better than failing an apply whose git work already landed.
+    """
+    from __main__ import log
+    path = telemetry_record_path(repo, sid)
+    rel = str(path.relative_to(repo))
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    try:
+        record: Optional[dict] = None
+        if path.is_file():
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict) and isinstance(
+                        loaded.get("attempts"), list):
+                    record = loaded
+            except (OSError, json.JSONDecodeError):
+                record = None
+            if record is None:
+                stamp = now.replace(":", "").replace("+00:00", "Z")
+                aside = path.with_name(f"{path.name}.corrupt-{stamp}")
+                path.rename(aside)
+                log(f"telemetry: existing record at {rel} was unreadable; "
+                    f"moved aside to {aside.name} and starting fresh",
+                    force=True)
+        if record is None:
+            record = {
+                "record_version": RECORD_VERSION,
+                "session_id": sid,
+                "created_at": now,
+                "attempts": [],
+            }
+        record["attempts"].append(attempt)
+        record["updated_at"] = now
+        record["outcome"] = attempt["outcome"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        return rel
+    except OSError as e:
+        log(f"telemetry: could not write {rel}: {e} — the apply outcome "
+            f"stands; the record entry for this event is lost", force=True)
+        return None

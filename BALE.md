@@ -678,6 +678,21 @@ The inputs:
   forces the editor step on a fully specified command. A relative
   `--readme-file` path resolves through the configured inbound
   directories exactly like apply's tarball argument (§7.3).
+- **provenance identity** (v0.3.8) — two stamps for the manifest's
+  `provenance` block, alongside the ones bale computes itself
+  (`bale_version`, and the sha256 of each injected global doc, hashed
+  from the install at pack time so a contract-doc edit between two
+  packs is visible in the longitudinal record):
+  - `--packer <name>` names who authored this pack. Precedence:
+    the flag > `[identity].packer` in `<repo>/bale.toml` > the global
+    `bale.toml`'s `[identity].packer` (either set via `bale config
+    init`) > the literal `"unconfigured"`, stamped rather than
+    omitted so the block's shape stays uniform, with a logged hint
+    pointing at the config.
+  - `--work-class {code|doc|contract-doc|meta|mixed}` is the coarse
+    class of the session's intended work, defaulting to `mixed`
+    rather than being required. The enum is a seed set — extending it
+    is a schema edit, not a code change.
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by Claude when
@@ -753,6 +768,33 @@ Resolution precedence, first match wins: `--edit` → `--readme-file`
 alone → the wizard's y/N prompt (when the wizard engaged and
 `--no-edit` is absent) → no README. With none of these flags, the
 interactive flow is exactly the pre-v0.2.4 wizard.
+
+A third flag (v0.3.8) closes the loop on the no-prose case:
+
+- **`--no-readme`** declares the pack deliberately ships no README
+  prose. It skips the wizard's README y/N prompt (the flag is the
+  answer) and conflicts with `--readme-file` and `--edit` — asking
+  for prose and declaring its absence in one command is a
+  contradiction, refused up front.
+
+**The no-readme guard.** A pack that resolves no prose is either
+deliberate or an oversight, and the two must not look the same.
+`--no-readme` is the deliberate spelling; a wizard-path user who
+answered `n` at the README prompt (or saved an empty buffer) made
+the choice interactively and is exempt. What remains is the un-asked
+case, and the guard splits on the courier:
+
+- **On a TTY: warn.** The user is watching and can Ctrl-C and
+  repack; a stderr warning is a real check when someone reads it.
+- **Piped: refuse.** Nobody reads a stderr warning in automation —
+  the same posture as §7.4's piped soft-breach refusal. The caller
+  supplies prose via `--readme-file` or passes `--no-readme` to
+  declare the omission deliberate.
+
+The wizard exemption is scoped to paths where a prompt actually ran:
+the wizard with `--no-edit` suppresses the README prompt, so that
+combination is *not* exempt — it hits the guard like any other
+un-asked pack.
 
 ### 7.4 Scope projection and threshold check
 
@@ -1271,6 +1313,74 @@ on EOF.
   `.bale/sessions/<sid>/`, close the session in the registry, release
   the integration lock. Same operation regardless
   of whether validation passed or held.
+
+### 8.9 Telemetry record at apply close
+
+Every apply close writes (or updates) a durable per-session telemetry
+record — `claude/telemetry/<sid>.json`, shape in
+`schemas/telemetry-record.schema.json` (v0.3.9, session B2). The
+record promotes to a durable, aggregable surface the facts that
+previously lived only in the transient `.bale/logs/<sid>.log` and the
+short-lived `.bale/sessions/<sid>/` directory:
+
+- the response manifest's **feedback block, verbatim** (TARBALL.md
+  §5.2.2) — the worker's dual-stream self-account;
+- **claim/verdict agreement per check**, parsed from `validation.sh`'s
+  TARBALL.md §7.3 reconciliation block in the captured validation
+  output (with a `reconciliation_parsed` flag, since the block is an
+  authoring convention, not an enforced contract — a parse miss is
+  recorded, never silently skipped);
+- **validation exit state** (PASS/HOLD and the §7.5 exit code);
+- **includes shipped vs paths changed** — the session's recorded
+  scope (`sessions/<sid>/scope.json`) and every `changes[].path`,
+  both raw; aggregation computes the drift;
+- the **outcome**.
+
+**Every terminal outcome records.** `applied` (merge), `held`
+(inspect), `reverted` (the walkthrough's revert and `bale revert`
+alike), `rejected` (any apply/retry that exits through a `fail()`
+path — the record is minimal there, since a rejected tarball's
+manifest is unvalidated; detail stays in the session log), and
+`bailout` (the session is consumed, and the feedback block's
+`budget_pressure: "bailed"` is precisely the signal worth keeping).
+A clarification writes nothing: it suspends the session rather than
+closing it, and the eventual normal response records. `--dry-run`
+writes nothing: no outcome occurred.
+
+**Update semantics: one file per sid, append per event.** The first
+apply-close event creates the record; every later one against the
+same sid — a retry after a HOLD, a `bale revert` after either —
+appends an entry to `attempts[]` rather than duplicating or
+overwriting. The envelope's `outcome` and `updated_at` mirror the
+latest attempt; the history is deliberate, because a HOLD attempt's
+claim/verdict disagreement is calibration data even after a later
+attempt merges. An existing record that no longer parses is moved
+aside to `<sid>.json.corrupt-<stamp>` (logged) and a fresh record
+starts — corruption must neither block the apply that found it nor
+be overwritten unexamined. `record_version` (currently 1) is the
+evolution hook: additive fields don't bump it; shape breaks do.
+
+**Why `claude/telemetry/`, not `.bale/`.** `.bale/` is gitignored by
+construction (§7.1 step 6) and transient by convention — a record
+there dies with a clone or a fresh checkout and can never use git
+history as its substrate. The record's whole purpose is longitudinal
+aggregation across sessions (board 5 reads it), so it lives on the
+tracked side, riding the repo the way the project's own docs do. The
+cost is one small JSON file of diff noise per session; the benefit is
+that `git log claude/telemetry/` *is* the aggregation timeline.
+
+**The record is written to the working tree, not the merge commit.**
+The session commit is built per-manifest-entry from `changes[]`
+(§8.6); injecting a bale-generated file would desync the manifest
+from the commit and break the §8.4 reconciliation contract. So the
+record lands untracked at apply close, and the user commits it with
+their next ordinary commit. Telemetry can never break an apply: a
+write failure is logged loudly and the apply's outcome stands.
+
+**Rendering.** One summary-block row (`telemetry: recorded <path>`,
+or an honest `write failed — see log`) at each terminal banner, and
+one additive `telemetry` key (path or null) in the `--json` report —
+`bale_report` owns both, and the json stream discipline is unchanged.
 
 ---
 
