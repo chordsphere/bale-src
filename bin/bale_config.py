@@ -171,6 +171,22 @@ STAGING_VALUES = (
     "untracked_inputs",
 )
 
+# Value-shaped configurables under the [identity] section — pack-time
+# provenance (v0.3.8, session B1). Same trio contract as APPLY_VALUES /
+# STAGING_VALUES: each key has a typed accessor, a walk_configurables()
+# block, and a render_bale_toml() branch. Wizard-walked and
+# renderer-preserved per the [staging] precedent, so `bale config init`
+# re-runs keep the key rather than dropping it.
+IDENTITY_VALUES = (
+    # String. Who authors packs from this repo (project layer) or this
+    # install (global layer). Stamped into request manifests as
+    # provenance.packer; a --packer flag on `bale pack` overrides per
+    # invocation (flag > project > global). Set once; empty string at
+    # the project layer is the suppress form (collapses to the global
+    # value being ignored, same as hooks).
+    "packer",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -332,6 +348,21 @@ def merged_config(repo: Path) -> dict:
             out_staging[key] = g_staging[key]
     if out_staging:
         merged["staging"] = out_staging
+
+    # [identity] — same per-key replacement as [apply]/[staging]: a key
+    # set at the project layer wins; absent inherits global; the
+    # empty-string form passes through and reads as "unset" in the typed
+    # accessor, giving the project layer its suppress form.
+    g_identity = g.get("identity") if isinstance(g.get("identity"), dict) else {}
+    p_identity = p.get("identity") if isinstance(p.get("identity"), dict) else {}
+    out_identity: dict = {}
+    for key in IDENTITY_VALUES:
+        if key in p_identity:
+            out_identity[key] = p_identity[key]
+        elif key in g_identity:
+            out_identity[key] = g_identity[key]
+    if out_identity:
+        merged["identity"] = out_identity
 
     return merged
 
@@ -565,6 +596,37 @@ def get_staging_untracked_inputs(cfg: dict) -> list[str]:
                  f"remove the entry or name a repo-relative path")
         out.append(s)
     return out
+
+
+def get_identity_packer(cfg: dict) -> Optional[str]:
+    """Return [identity].packer from the merged config, or None if unset.
+
+    Consumed by `bale pack` / `bale handoff` when stamping the request
+    manifest's provenance block (v0.3.8): the flag > project > global
+    precedence puts this accessor behind the --packer flag. Empty string
+    reads as unset (the wizard's suppress form at the project layer —
+    overriding an inherited global value with "no configured identity").
+    A non-string shape is fatal, matching the [apply]/[staging] readers'
+    posture: a typo must not silently mis-attribute every pack from this
+    repo — provenance the packer thought was configured has to be either
+    right or loud.
+    """
+    from __main__ import fail
+
+    identity_section = cfg.get("identity")
+    if identity_section is None:
+        return None
+    if not isinstance(identity_section, dict):
+        fail(f"{BALE_CONFIG}: [identity] must be a table, "
+             f"got {type(identity_section).__name__}")
+    raw = identity_section.get("packer")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: identity.packer must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    return val or None
 
 
 # ---------------------------------------------------------------------------
@@ -1112,6 +1174,38 @@ def walk_configurables(existing: dict, *, layer: str,
     if val_list is not None:
         new.setdefault("staging", {})["untracked_inputs"] = val_list
 
+    # ---- [identity].packer ---------------------------------------------------
+    # Same _prompt_value mechanics as the hook keys: string value, ""
+    # suppress form when a global value is inherited. Walked at both
+    # layers (identity is meaningful install-wide AND per-repo), and
+    # renderer-preserved: a re-run of the wizard shows the current value
+    # and keeps it on Enter — the [staging] precedent, applied so
+    # `bale config init` re-runs never drop a set-once identity.
+    existing_identity = existing.get("identity") if isinstance(existing.get("identity"), dict) else {}
+    inherited_identity = inherited.get("identity") if isinstance(inherited.get("identity"), dict) else {}
+
+    raw_cur = existing_identity.get("packer")
+    current = raw_cur if isinstance(raw_cur, str) else None
+    raw_inh = inherited_identity.get("packer")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
+    val = _prompt_value(
+        "identity.packer",
+        current=current,
+        inherited=inh,
+        description=[
+            "Optional. Enter to skip; you can set it later.",
+            "Who authors packs here. Stamped into every request",
+            "manifest's provenance block (provenance.packer) so",
+            "longitudinal telemetry can attribute requests. A --packer",
+            "flag on `bale pack` overrides per invocation (flag >",
+            "project > global). Unset everywhere = requests stamp",
+            "'unconfigured' and pack logs a hint.",
+        ],
+    )
+    if val is not None:
+        new.setdefault("identity", {})["packer"] = val
+
     return new
 
 
@@ -1223,6 +1317,20 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
             inputs = staging_section["untracked_inputs"]
             rendered_array = "[" + ", ".join(json.dumps(p) for p in inputs) + "]"
             parts.append(f"untracked_inputs = {rendered_array}")
+        parts.append("")
+
+    # [identity] section (v0.3.8, pack-time provenance). Single string
+    # key; json.dumps covers it, including the empty-string suppress
+    # form. Emitted in IDENTITY_VALUES order. Renderer-preserved by
+    # construction: walk_configurables carries the existing value
+    # through on Enter, so a re-run never drops a set-once identity —
+    # the [staging] precedent.
+    identity_section = cfg.get("identity") or {}
+    if identity_section:
+        parts.append("[identity]")
+        for key in IDENTITY_VALUES:
+            if key in identity_section:
+                parts.append(f"{key} = {json.dumps(identity_section[key])}")
         parts.append("")
 
     return "\n".join(parts)

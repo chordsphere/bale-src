@@ -106,6 +106,42 @@ for s in request-manifest response-manifest diagnostics; do
   fi
 done
 
+# tools/response_lint.py — the worker-side lint `bale pack` injects into
+# every request beside the four globals (v0.3.8). Missing or non-executable
+# means every pack hard-fails at main()'s sanity check, so catch it here.
+if [[ -f "$INSTALL_DIR/tools/response_lint.py" ]]; then
+  pass "tools/response_lint.py present"
+  [[ -x "$INSTALL_DIR/tools/response_lint.py" ]] \
+    && pass "tools/response_lint.py executable" \
+    || fail "tools/response_lint.py executable"
+  # Embedded-schema drift guard (v0.3.8, session B1): the lint embeds
+  # verbatim copies of two schemas so it runs standalone on the worker
+  # side. A session that edits a shipped schema must refresh the embedded
+  # copy; this JSON-equality assertion is what makes forgetting that loud
+  # instead of a silent drift where the worker lints against a stale
+  # contract. Compared as parsed JSON (whitespace-insensitive), matching
+  # the lint header's "JSON-equal to the source files" contract.
+  for pair in "RESPONSE_MANIFEST_SCHEMA_JSON:response-manifest" \
+              "DIAGNOSTICS_SCHEMA_JSON:diagnostics"; do
+    const="${pair%%:*}"; s="${pair##*:}"
+    if python3 -c "
+import json, sys
+sys.path.insert(0, '$INSTALL_DIR/tools')
+import response_lint
+embedded = json.loads(getattr(response_lint, '$const'))
+shipped = json.load(open('$INSTALL_DIR/schemas/$s.schema.json'))
+sys.exit(0 if embedded == shipped else 1)
+" 2>/dev/null; then
+      pass "lint embedded $s schema is JSON-equal to schemas/$s.schema.json"
+    else
+      fail "lint embedded $s schema is JSON-equal to schemas/$s.schema.json" \
+           "refresh the embedded copy in tools/response_lint.py"
+    fi
+  done
+else
+  fail "tools/response_lint.py present" "pack injects it; every pack will refuse until it exists"
+fi
+
 section "user-owned layer (global config)"
 # user/ is optional on a fresh install — absence is reported, not failed.
 # Presence is reported; if a global bale.toml exists, syntax-check it.
@@ -225,6 +261,15 @@ check_output "pack --help mentions --force"     "--force"     "$BALE" pack --hel
 # the source. Parallels the per-subcommand spot-check for handoff
 # --edit-goal above.
 check_output "pack --help mentions --no-edit"   "--no-edit"   "$BALE" pack --help
+
+# pack --help should surface the v0.3.8 provenance + no-readme surface:
+# --no-readme (the deliberate no-prose acknowledgment the guard requires
+# when piped), --packer, and --work-class (the provenance stamps). A
+# missing flag string means the parser wiring regressed — the same
+# contract as the --max-* checks above.
+check_output "pack --help mentions --no-readme"  "--no-readme"  "$BALE" pack --help
+check_output "pack --help mentions --packer"     "--packer"     "$BALE" pack --help
+check_output "pack --help mentions --work-class" "--work-class" "$BALE" pack --help
 
 # unlock --help should mention --force (the only flag it takes; if the
 # parser wiring regressed and --force went missing, callers stuck in the

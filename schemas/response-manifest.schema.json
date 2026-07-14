@@ -99,7 +99,7 @@
     },
     "questions": {
       "type": "array",
-      "description": "Blocking intent-gap questions per TARBALL.md section 5.9.2. Present and non-empty exactly when response_kind='clarification'; forbidden otherwise (the conditional rule is enforced in Python — this schema only constrains entry shape).",
+      "description": "Blocking intent-gap questions per TARBALL.md section 5.9.2. Required and non-empty when response_kind='clarification'; on every other kind the block is absent or an EMPTY array (an empty array is tolerated, matching the doc's 'Forbidden (or empty)' wording — the doc is the contract of record; the conditional rule is enforced in Python — this schema only constrains entry shape).",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -124,6 +124,144 @@
             "type": "string",
             "minLength": 1,
             "description": "Why the worker declined to proceed on that assumption."
+          }
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mechanical", "self_reported"],
+      "description": "Dual-stream session feedback (v0.3.8+, session B1). Optional so pre-B1 manifests validate; apply persists the block verbatim (the B2 telemetry record builds on it). Two streams by trust level: 'mechanical' holds values the lint (tools/response_lint.py) can recompute and verify; 'self_reported' holds worker-authored judgment the lint cannot check.",
+      "properties": {
+        "mechanical": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["response_kind", "schema_valid", "mirror_agreement", "claims_subset"],
+          "description": "Lint-computable results. The worker fills these by running the lint; the lint's feedback-block check recomputes each and flags any disagreement — a mismatch is the tell of a hand-filled or stale block.",
+          "properties": {
+            "response_kind": {
+              "type": "string",
+              "enum": ["normal", "bailout", "clarification"],
+              "description": "Echo of the manifest's effective response_kind (defaulted 'normal' when the top-level key is absent)."
+            },
+            "schema_valid": {
+              "type": "boolean",
+              "description": "Whether the manifest validates against this schema, as found by the lint's manifest-schema check."
+            },
+            "mirror_agreement": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["changes_to_files", "files_to_changes"],
+              "description": "The TARBALL.md section 10.1 both-directions mirror result, split by direction.",
+              "properties": {
+                "changes_to_files": {
+                  "type": "boolean",
+                  "description": "Every created/modified entry has its files/ member with matching size and recomputed sha256; deleted entries follow the section 5.2 shape. Vacuously true on kinds that ship no files/."
+                },
+                "files_to_changes": {
+                  "type": "boolean",
+                  "description": "Nothing under files/ is undeclared in changes[]. Vacuously true on kinds that ship no files/."
+                }
+              }
+            },
+            "claims_subset": {
+              "type": "boolean",
+              "description": "set(claims) is a verbatim subset of validation_will_run (TARBALL.md section 5.3)."
+            },
+            "linkage": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["kind", "point"],
+              "description": "Present when the session went through a probe or clarification round on the way to this response; null or absent otherwise. Self-reported placement data riding in mechanical because its shape is fixed even though the lint cannot verify it.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["probe", "clarification"],
+                  "description": "Which recourse the session used (TARBALL.md section 5.9's taxonomy)."
+                },
+                "point": {
+                  "type": "string",
+                  "enum": ["pre-read", "pre-build", "mid-build"],
+                  "description": "When in the session the gap surfaced: before any triggered drill-down reading, after reading but before building, or mid-build."
+                },
+                "depends_on": {
+                  "type": ["string", "null"],
+                  "description": "Session ID of the linked round when it exists as a durable artifact (a file-based probe or a shipped clarification response); null for a paste-back probe or an in-chat ask, which resolve within the session (TARBALL.md sections 4.5, 5.9.1)."
+                }
+              }
+            },
+            "provenance": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["bale_version", "contract_docs", "packer", "work_class", "model_identity"],
+              "description": "The request manifest's provenance block echoed verbatim, plus model_identity. Null when the request carried no provenance (packed by a pre-0.3.8 bale — the one-apply-behind bootstrap case).",
+              "properties": {
+                "bale_version": { "type": "string", "minLength": 1 },
+                "contract_docs": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+                  "properties": {
+                    "CLAUDE.md":  { "type": "string", "minLength": 1 },
+                    "TARBALL.md": { "type": "string", "minLength": 1 },
+                    "DOCS.md":    { "type": "string", "minLength": 1 },
+                    "CODE.md":    { "type": "string", "minLength": 1 }
+                  }
+                },
+                "packer": { "type": "string", "minLength": 1 },
+                "work_class": {
+                  "type": "string",
+                  "enum": ["code", "doc", "contract-doc", "meta", "mixed"]
+                },
+                "model_identity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "SELF-REPORTED AND UNVERIFIABLE TODAY: the worker states its own model identity; no mechanism attests it. Recorded for longitudinal aggregation, read with that caveat."
+                }
+              }
+            }
+          }
+        },
+        "self_reported": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assumptions", "judgment_calls", "budget_pressure", "includes_missing", "compaction_occurred"],
+          "description": "Worker-authored stream. Honest empties are meaningful ([] = none arose); the lint checks shape only, never content.",
+          "properties": {
+            "assumptions": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Assumptions the session proceeded on without confirmation (the recoverable-risk posture of TARBALL.md section 3.3 / 5.9.1), one per entry."
+            },
+            "judgment_calls": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Decisions the worker made that the planner should be able to find without reading the diff — design choices, tie-breaks, interpretations."
+            },
+            "budget_pressure": {
+              "type": "string",
+              "enum": ["none", "tight", "bailed"],
+              "description": "The session's own read of its context budget: comfortable throughout, felt the CLAUDE.md section 11.3 pressure without bailing, or this response is a bailout."
+            },
+            "includes_missing": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Files or docs the session wanted but the request did not include — packing signal for the planner, one path or description per entry."
+            },
+            "compaction_occurred": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["occurred"],
+              "description": "Whether the runtime compacted mid-session (CLAUDE.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
+              "properties": {
+                "occurred": { "type": "boolean" },
+                "disclosure_ref": {
+                  "type": ["string", "null"],
+                  "description": "Where the compaction disclosure was recorded (e.g. 'notes.md' or a chat pointer); null when occurred is false."
+                }
+              }
+            }
           }
         }
       }

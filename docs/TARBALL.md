@@ -91,13 +91,19 @@ request-NNN/
   TARBALL.md           # injected by bale
   DOCS.md              # injected by bale
   CODE.md              # injected by bale
+  tools/
+    response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
   context/             # everything the user chose to include
     <project files and any project docs the user named>
   README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
 ```
 
 The first five slots are reserved for bale-injected global docs and
-the manifest. Everything else the user wants Claude to see —
+the manifest; `tools/response_lint.py` rides beside them (also
+bale-injected, from the install) so the worker can run the §10.1
+step-10 self-check mechanically against its response directory
+before packing, without bale installed. Everything else the user
+wants Claude to see —
 including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
 level slots are reserved for project docs; bale is project-agnostic.
@@ -719,7 +725,11 @@ Field semantics:
   distinct from what validation actually finds. See 5.3.
 - **`responds_to`** — the session ID of the request this response
   answers (full form: `YYYY-MM-DD-<slug>-NNN`). Bale verifies it
-  matches the locked session.
+  matches the locked session. `session_id` equals `responds_to` for
+  normal and bailout responses alike (both answer the request they
+  were built for), and for a clarification too — a clarification
+  suspends rather than consumes its session (§5.9.3), so it carries
+  the same sid the eventual normal response will.
 - **`corrects`** — optional, default `null`. If this response is a
   re-attempt at a previous response whose validation failed or
   whose application revealed a problem, this is the session ID of
@@ -1176,7 +1186,9 @@ response-NNN/
 ```
 
 Unlike the bailout there are no companion artifacts: the payload is
-the manifest's own `questions[]` block. When
+the manifest's own `questions[]` block. `README.md` is absent on a
+clarification in either direction — the questions are the payload and
+`notes.md` is the optional prose channel. When
 `response_kind: "clarification"`:
 
 - **`summary`** — one paragraph: what the session was asked to do,
@@ -1499,10 +1511,15 @@ mechanical checks won't catch them.
 2. Plan: list every file that will change, decide deferrals up front,
    decide what to claim for each project-level check.
 3. Build `files/` mirroring the project tree (when there are
-   created/modified entries).
+   created/modified entries). Build the mirror by copying the shipped
+   originals and editing in place with tools — never retype large
+   files through context; hashes are recomputed per step 10
+   regardless.
 4. Build `manifest.json` with reasons, sizes, sha256s (computed via
    §5.2.1, never by hand), deferrals, `validation_will_run`, and
-   `claims`.
+   `claims`. `changes[]` paths are unique; a duplicated path is
+   invalid (it makes the mirror correspondence below ambiguous — the
+   lint's DUPLICATE_PATH row).
 5. Write `apply.sh` for the operations the `files/` mirror can't
    express — deletes, the removal half of renames, exec-bit restores
    (§5.1.1) — or the no-op script if there are none.
