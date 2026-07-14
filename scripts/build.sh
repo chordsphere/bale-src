@@ -49,19 +49,38 @@ done
 log() { printf '[build] %s\n' "$*"; }
 die() { printf '[build] error: %s\n' "$*" >&2; exit 1; }
 
-# The files the release tarball contains (BALE.md §3.1). The same layout
-# is mirrored in three other places — install.sh's layout verifier,
-# validate.sh's filesystem-layout section, and scripts/reinstall.sh's
-# source-layout sanity check. When any of these lists drift apart it's
-# always a bug: one of them is wrong about what the release actually
-# contains. This list was the one that had drifted — it was missing the
-# three bin/ helper modules and the entire schemas/ directory.
+# The files the release tarball contains (BALE.md §3.1) — the CANONICAL
+# release list. The other places that need this layout no longer keep
+# free-floating copies:
+#   - scripts/reinstall.sh derives its source-layout sanity list from
+#     this array at run time (awk extraction; it dies loudly if the
+#     format contract below is broken or extraction comes back empty).
+#   - install.sh's INSTALL_LAYOUT stays a literal copy — build.sh does
+#     not exist at install time — and the list-agreement pre-flight
+#     below asserts it is exactly equal to this array on every build.
+#   - upgrade.sh's REQUIRED_RELEASE_MEMBERS is a deliberate subset (a
+#     pre-wipe spot check, not a full layout check); the pre-flight
+#     below asserts the subset relation holds.
+#   - validate.sh's filesystem-layout rows remain hand-maintained for
+#     now (deliberately deferred: drift there yields a missing check,
+#     never a broken install).
+# The tree-coverage pre-flight below closes the gap none of those
+# list-vs-list checks can see: a file on disk under bin/ docs/ schemas/
+# tools/ that never made it into ANY list.
 #
-# Those omissions are fatal, not cosmetic: bin/bale hard-imports
-# bale_validate, bale_staging, and bale_rollback at module load, and
-# resolves schemas/ relative to its install root at runtime. A release
-# missing any of them is dead on arrival — install.sh rejects the layout,
-# and even past that bin/bale would crash on its first import.
+# History: omissions here are fatal, not cosmetic. This list has drifted
+# twice — once missing three bin/ helper modules and all of schemas/
+# (bin/bale hard-imports the helpers at module load and resolves
+# schemas/ at runtime), and once missing bin/bale_report.py,
+# tools/response_lint.py, and schemas/telemetry-record.schema.json
+# (load-time import, pack's hard requirement, and apply's telemetry
+# schema respectively). The derivations and assertions above exist so a
+# third drift is a failed build, not a dead-on-arrival release.
+#
+# Format contract (extraction depends on it): the array opens with
+# "RELEASE_FILES=(" at column 0, holds one bare path per line (no
+# quoting, no globs, no inline elements), and closes with ")" at
+# column 0. Trailing comments on element lines are tolerated.
 #
 # No file count is hardcoded in this comment on purpose: a literal count
 # is just one more thing to drift. The verifier below derives it from the
@@ -72,6 +91,7 @@ RELEASE_FILES=(
   bin/bale_validate.py
   bin/bale_staging.py
   bin/bale_rollback.py
+  bin/bale_report.py
   bin/_bale_toml.py
   docs/CLAUDE.md
   docs/TARBALL.md
@@ -80,6 +100,8 @@ RELEASE_FILES=(
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json
+  schemas/telemetry-record.schema.json
+  tools/response_lint.py
   install.sh
   validate.sh
   upgrade.sh
@@ -94,7 +116,40 @@ EXECUTABLES=(
   install.sh
   validate.sh
   upgrade.sh
+  tools/response_lint.py
 )
+
+# Extract a bash array's elements from a file, one per line, per the
+# format contract documented above RELEASE_FILES: '<NAME>=(' at column 0,
+# one bare path per line, ')' at column 0. Trailing comments and blank
+# lines inside the block are tolerated. Exits non-zero when the block is
+# missing or unterminated; callers die on that and on empty output.
+#   usage: extract_bash_array FILE NAME
+extract_bash_array() {
+  awk -v name="$2" '
+    !inblock && $0 == name "=(" { inblock = 1; next }
+    inblock && $0 == ")"        { found = 1; exit }
+    inblock {
+      sub(/#.*$/, "")
+      gsub(/^[ \t]+|[ \t]+$/, "")
+      if ($0 != "") print
+    }
+    END { exit found ? 0 : 1 }
+  ' "$1"
+}
+
+# Die if stdin (one path per line) contains anything but plain relative
+# paths — the tell of a changed array format leaking through extraction.
+#   usage: printf '%s\n' "$list" | require_plain_paths LABEL
+require_plain_paths() {
+  local label="$1" line
+  while IFS= read -r line; do
+    case "$line" in
+      ""|*[!A-Za-z0-9._/-]*)
+        die "$label: unexpected entry '$line' — array format changed? (format contract above RELEASE_FILES)" ;;
+    esac
+  done
+}
 
 log "source: $REPO_ROOT"
 
@@ -104,6 +159,55 @@ for f in "${RELEASE_FILES[@]}"; do
   [[ -f "$REPO_ROOT/$f" ]] || die "missing source file: $f"
 done
 log "source layout OK (${#RELEASE_FILES[@]} files)"
+
+# Pre-flight: list agreement. RELEASE_FILES is canonical; the literal
+# copies elsewhere are asserted against it here so drift is a failed
+# build, not a broken release. (Rationale in the comment above
+# RELEASE_FILES; reinstall.sh needs no assertion — it derives.)
+log "pre-flight: list agreement"
+RELEASE_SORTED="$(printf '%s\n' "${RELEASE_FILES[@]}" | sort)"
+
+# install.sh's INSTALL_LAYOUT must be EXACTLY equal (as a set).
+INSTALL_LIST="$(extract_bash_array "$REPO_ROOT/install.sh" INSTALL_LAYOUT)" \
+  || die "could not extract INSTALL_LAYOUT from install.sh — array missing or format changed"
+[[ -n "$INSTALL_LIST" ]] || die "INSTALL_LAYOUT extracted empty from install.sh — format changed?"
+printf '%s\n' "$INSTALL_LIST" | require_plain_paths "install.sh INSTALL_LAYOUT"
+INSTALL_SORTED="$(printf '%s\n' "$INSTALL_LIST" | sort)"
+if [[ "$INSTALL_SORTED" != "$RELEASE_SORTED" ]]; then
+  only_release="$(comm -23 <(printf '%s\n' "$RELEASE_SORTED") <(printf '%s\n' "$INSTALL_SORTED") | tr '\n' ' ')"
+  only_install="$(comm -13 <(printf '%s\n' "$RELEASE_SORTED") <(printf '%s\n' "$INSTALL_SORTED") | tr '\n' ' ')"
+  die "install.sh INSTALL_LAYOUT disagrees with RELEASE_FILES — missing from install.sh: [${only_release% }] | extra in install.sh: [${only_install% }]"
+fi
+log "  install.sh INSTALL_LAYOUT matches RELEASE_FILES"
+
+# upgrade.sh's REQUIRED_RELEASE_MEMBERS is a deliberate subset.
+UPGRADE_LIST="$(extract_bash_array "$REPO_ROOT/upgrade.sh" REQUIRED_RELEASE_MEMBERS)" \
+  || die "could not extract REQUIRED_RELEASE_MEMBERS from upgrade.sh — array missing or format changed"
+[[ -n "$UPGRADE_LIST" ]] || die "REQUIRED_RELEASE_MEMBERS extracted empty from upgrade.sh — format changed?"
+printf '%s\n' "$UPGRADE_LIST" | require_plain_paths "upgrade.sh REQUIRED_RELEASE_MEMBERS"
+not_in_release=""
+while IFS= read -r m; do
+  printf '%s\n' "$RELEASE_SORTED" | grep -qFx -- "$m" || not_in_release="$not_in_release $m"
+done <<< "$UPGRADE_LIST"
+[[ -z "$not_in_release" ]] \
+  || die "upgrade.sh REQUIRED_RELEASE_MEMBERS is not a subset of RELEASE_FILES — not in RELEASE_FILES:$not_in_release"
+log "  upgrade.sh REQUIRED_RELEASE_MEMBERS is a subset of RELEASE_FILES"
+
+# Pre-flight: tree coverage. Every file on disk under the release-owned
+# directories must appear in RELEASE_FILES. This is the check that
+# catches "new file, in no list" — the drift class the list-vs-list
+# assertions above cannot see. __pycache__/ and *.pyc are generated
+# artifacts, pruned. reinstall.sh runs the same guard at apply time.
+log "pre-flight: tree coverage (bin/ docs/ schemas/ tools/)"
+uncovered=""
+while IFS= read -r f; do
+  rel="${f#"$REPO_ROOT"/}"
+  printf '%s\n' "$RELEASE_SORTED" | grep -qFx -- "$rel" || uncovered="$uncovered $rel"
+done < <(find "$REPO_ROOT/bin" "$REPO_ROOT/docs" "$REPO_ROOT/schemas" "$REPO_ROOT/tools" \
+           -name __pycache__ -prune -o -name '*.pyc' -prune -o -type f -print | sort)
+[[ -z "$uncovered" ]] \
+  || die "tree coverage: file(s) on disk but in no release list:$uncovered — add to RELEASE_FILES (and install.sh's INSTALL_LAYOUT), or remove from the tree"
+log "  every file under bin/ docs/ schemas/ tools/ is in RELEASE_FILES"
 
 # Resolve version. The canonical source is bin/bale's top-level
 # VERSION = "X.Y.Z" assignment. The sed pattern matches the one in
@@ -122,16 +226,17 @@ fi
 # ship a release whose first sign of trouble is a user's install.sh.
 # Syntax-check every Python source the release ships: the bin/bale entry
 # point (named explicitly — it has no .py extension) plus the helper
-# modules it imports at load time. The helper list is derived from
-# RELEASE_FILES rather than re-typed, so a module added to the release
-# above is checked here automatically — the exact drift the file list
-# itself just suffered. bin/bale hard-imports every helper, so a syntax
-# error in any one of them is a crash on first run; better to fail here
-# than at a user's install.sh.
+# modules it imports at load time, plus the tools/ Python the release
+# carries (the worker lint: pack hard-fails without a working copy). The
+# list is derived from RELEASE_FILES rather than re-typed, so a module
+# added to the release above is checked here automatically — the exact
+# drift the file list itself has suffered. bin/bale hard-imports every
+# helper, so a syntax error in any one of them is a crash on first run;
+# better to fail here than at a user's install.sh.
 log "syntax check: python files"
 PY_SOURCES=(bin/bale)
 for f in "${RELEASE_FILES[@]}"; do
-  [[ "$f" == bin/*.py ]] && PY_SOURCES+=("$f")
+  [[ "$f" == bin/*.py || "$f" == tools/*.py ]] && PY_SOURCES+=("$f")
 done
 for py in "${PY_SOURCES[@]}"; do
   python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$REPO_ROOT/$py" \

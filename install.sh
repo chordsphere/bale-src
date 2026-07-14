@@ -2,7 +2,7 @@
 # install.sh — finalize a bale install (bundled with the release tarball).
 #
 # Run this after extracting bale's release tarball. It does:
-#   - chmod +x bin/bale and validate.sh (extract can lose the bit)
+#   - chmod +x the shipped executables (extract can lose the bit)
 #   - On Termux, offer to rewrite shebangs to the Termux interpreter
 #   - Verify the install layout is intact
 #   - Offer a symlink at ~/.local/bin/bale, with caution if one exists
@@ -208,10 +208,40 @@ log "install dir: $INSTALL_DIR"
 # Verify expected layout. Catches a partial/corrupt extract before we do
 # anything. user/ is intentionally NOT in this list — it's user-owned and
 # absent on a fresh install; we report its state below but don't fail.
-for f in bin/bale bin/bale_config.py bin/bale_validate.py bin/bale_staging.py bin/bale_rollback.py bin/_bale_toml.py docs/CLAUDE.md docs/TARBALL.md docs/DOCS.md docs/CODE.md schemas/request-manifest.schema.json schemas/response-manifest.schema.json schemas/diagnostics.schema.json install.sh validate.sh upgrade.sh README.md; do
+#
+# INSTALL_LAYOUT is a LITERAL copy of scripts/build.sh's RELEASE_FILES —
+# literal because build.sh is not a release file and does not exist at
+# install time. build.sh's list-agreement pre-flight asserts the two are
+# exactly equal on every release build, so drift here is a failed build,
+# not a broken install. Format contract (build.sh extracts this block
+# mechanically): "INSTALL_LAYOUT=(" at column 0, one bare path per line,
+# ")" at column 0.
+INSTALL_LAYOUT=(
+  bin/bale
+  bin/bale_config.py
+  bin/bale_validate.py
+  bin/bale_staging.py
+  bin/bale_rollback.py
+  bin/bale_report.py
+  bin/_bale_toml.py
+  docs/CLAUDE.md
+  docs/TARBALL.md
+  docs/DOCS.md
+  docs/CODE.md
+  schemas/request-manifest.schema.json
+  schemas/response-manifest.schema.json
+  schemas/diagnostics.schema.json
+  schemas/telemetry-record.schema.json
+  tools/response_lint.py
+  install.sh
+  validate.sh
+  upgrade.sh
+  README.md
+)
+for f in "${INSTALL_LAYOUT[@]}"; do
   [[ -e "$INSTALL_DIR/$f" ]] || die "missing expected file: $INSTALL_DIR/$f"
 done
-log "layout OK"
+log "layout OK (${#INSTALL_LAYOUT[@]} files)"
 
 # Report user/ state. Present after an upgrade (upgrade.sh restored it).
 # Absent on a fresh install — `bale config init --global` creates it on
@@ -228,8 +258,10 @@ else
   log "no global config (no user/ subtree); run 'bale config init --global' to set one up"
 fi
 
-# Restore executable bits. Some filesystems (NTFS, FAT) drop them on extract.
-chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh"
+# Restore executable bits. Some filesystems (NTFS, FAT) drop them on
+# extract. tools/response_lint.py is executable by contract — validate.sh
+# asserts the bit, and pack refuses without a working lint.
+chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py"
 log "ensured executable bits"
 
 # Termux shebang rewrite (optional; only meaningful on Termux). Runs before the
@@ -240,10 +272,11 @@ if [[ "$DO_TERMUX_SHEBANG" == "1" ]] && is_termux; then
   if confirm "rewrite shebangs to the Termux interpreter so bale runs without termux-exec?"; then
     rewrote=0
     skipped=0
-    # bin/bale is the installed executable; the three .sh are the shipped
-    # scripts. install.sh rewrites its own shebang too — safe via the atomic
-    # rename in rewrite_shebang (see that function's header).
-    for f in "$BALE" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh"; do
+    # bin/bale and tools/response_lint.py are the installed executables;
+    # the three .sh are the shipped scripts. install.sh rewrites its own
+    # shebang too — safe via the atomic rename in rewrite_shebang (see
+    # that function's header).
+    for f in "$BALE" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py"; do
       rel="${f#"$INSTALL_DIR"/}"
       # `|| true`: rewrite_shebang prints an error-* token AND returns non-zero
       # on a filesystem failure. Whether `set -e` aborts on a failed command
@@ -340,7 +373,7 @@ log "---"
 log "install complete"
 log "  install dir: $INSTALL_DIR"
 log "  layout:      verified"
-log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh)"
+log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh, tools/response_lint.py)"
 log "  shebangs:    $SHEBANG_STATUS"
 log "  symlink:     $SYMLINK_STATUS"
 log "  validate:    $VALIDATE_STATUS"
