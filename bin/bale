@@ -647,6 +647,22 @@ pack-time gates are untouched. Ride-along: the reconcile-time
 names the likely concurrent-session cause and the inspection path —
 message text only.
 
+v0.3.11 (board item 12) surfaces the staging posture in `bale status`,
+per open session, display only: the human block gains a `staging` row
+for the classified session (and a per-sid suffix in the 2+ open-sessions
+listing) carrying the staging strategy in effect and, under target-base,
+the declared untracked inputs; `bale status --json` gains two additive
+keys on each staging.sessions per-session object — a `strategy` string
+and `untracked_inputs` as an always-present list, empty when none. The
+value is the *effective* merged-config resolution ([staging] is
+config-only by design, re-resolved at stage time — no per-session
+stamp), fanned out per sid, and degrades to unknown (row omitted,
+strategy null) when the config summary fails. No change to staging
+behavior, strategy selection, or the tracked-at-tip guard. This file
+gained only wiring: two StatusReport fields, their gather in
+_summarise_config, and the render call sites; the value rendering
+(format_staging_value) and the json key contract live in bale_report.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -831,6 +847,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_pack_json,
     format_scope_drift_refusal,
     format_scope_value,
+    format_staging_value,
     format_status_json,
     format_summary_block,
     format_walkthrough_summary,
@@ -845,7 +862,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.10"
+VERSION = "0.3.11"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -7135,7 +7152,8 @@ def cmd_completion(args) -> int:
 #
 # `bale status` is a read-only dashboard for the working directory's bale: the
 # tool version, the repo and whether its working tree is clean, the open
-# session (if any) and which lifecycle state it sits in, the outbox, a light
+# session (if any) and which lifecycle state it sits in — with the staging
+# posture in effect for it (v0.3.11, board 12) — the outbox, a light
 # pointer at applied history, and what's configured. It takes no lock, makes no
 # git or filesystem writes, and degrades gracefully outside a git repo or in a
 # not-yet-initialised one — the whole point is to answer "where does this repo
@@ -7273,6 +7291,26 @@ class StatusReport:
     staging_present: bool = False
     staging_sessions: dict = field(default_factory=dict)
     staging_stale: list[str] = field(default_factory=list)
+    # Effective staging posture (v0.3.11, board 12 — display only):
+    # staging_strategy is the [staging].strategy the merged config
+    # resolves to (BALE.md §8.3 step 2) — "working-tree" or
+    # "target-base" — and staging_untracked_inputs is the declared
+    # [staging].untracked_inputs in effect: non-empty only under
+    # target-base, where the declaration is load-bearing (under
+    # working-tree the stage step ignores it, so reporting it as in
+    # effect would misstate what validation will overlay). The strategy
+    # is config-derived at use time, not stamped per session, so the
+    # single effective pair here is fanned out per open sid by the
+    # renderers — the same values apply and retry would resolve at
+    # stage time. Gathered in _summarise_config (the one place merged
+    # config is already read with degradation): strategy is None —
+    # unknown, not known-default — when the config summary failed, and
+    # None outside a git repo, where no session can be open. Unlike the
+    # v0.3.3 fields above, these ARE read by the human renderer: the
+    # classified session's `staging` row and the 2+ listing's per-sid
+    # suffix (board 12's whole point is operator visibility).
+    staging_strategy: Optional[str] = None
+    staging_untracked_inputs: list[str] = field(default_factory=list)
     # ADR-0006 session registry (v0.3.0): every open sid, oldest-first.
     # With at most one session open this is [] or [session_sid], so the
     # single-session human block is unchanged; the human renderer adds a
@@ -7341,6 +7379,13 @@ def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
     config_summary_failed=True with the presence facts intact, rather than
     aborting the report. The degradation is reported, not swallowed (CLAUDE.md
     §6: silent skips are bugs).
+
+    Also fills the effective staging posture (v0.3.11, board 12 —
+    staging_strategy / staging_untracked_inputs; the StatusReport field
+    comment carries the semantics) here rather than in _gather_status,
+    because this is the one place the merged config is already read with
+    the degradation story the posture needs: default when unconfigured,
+    effective value when readable, unknown (None) when malformed.
     """
     report.project_config = (
         repo / bale_config.BALE_CONFIG
@@ -7354,6 +7399,16 @@ def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
     )
     if repo is not None:
         report.baleignore = (repo / BALEIGNORE_FILE).exists()
+        # Effective staging posture (v0.3.11, board 12): seed the
+        # no-config default up front — get_staging_strategy({}) is the
+        # accessor's own "working-tree" default, named through the
+        # accessor rather than a duplicated literal — so an entirely
+        # unconfigured repo reports the real effective strategy instead
+        # of unknown. Overridden from the merged config below when a
+        # layer exists; reset to unknown (None) if the summary fails.
+        # Repo-only: outside a git repo no session can be open, so the
+        # per-session posture has nothing to attach to.
+        report.staging_strategy = bale_config.get_staging_strategy({})
 
     # Nothing to summarise if neither layer has a file.
     if report.project_config is None and report.global_config is None:
@@ -7366,13 +7421,33 @@ def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
             if bale_config.get_hook(cfg, name) is not None
         ]
         report.search_path_count = len(bale_config.get_apply_search_paths(cfg))
+        if repo is not None:
+            # The effective pair the renderers fan out per open sid —
+            # the same merged-config resolution apply and retry perform
+            # at stage time (BALE.md §8.3 step 2). Untracked inputs are
+            # reported only under target-base, where the declaration is
+            # load-bearing; under working-tree the stage step ignores
+            # it, so the effective list is empty (the StatusReport
+            # field comment carries the reasoning).
+            report.staging_strategy = bale_config.get_staging_strategy(cfg)
+            if report.staging_strategy == "target-base":
+                report.staging_untracked_inputs = \
+                    bale_config.get_staging_untracked_inputs(cfg)
     except SystemExit:
         # merged_config / the typed accessors route malformed config through
         # fail(), which sys.exit()s. Catch it so status survives a broken
         # config and still reports the presence facts above.
         report.config_summary_failed = True
+        # A malformed layer could hold any staging posture; the seeded
+        # default would be a confident guess, so report unknown — the
+        # same "unknown rather than known-absent" posture hooks_wired /
+        # search_paths take on this path.
+        report.staging_strategy = None
+        report.staging_untracked_inputs = []
     except Exception:  # noqa: BLE001 — status must never crash on config shape
         report.config_summary_failed = True
+        report.staging_strategy = None
+        report.staging_untracked_inputs = []
 
 
 def _gather_status(cwd: Path) -> StatusReport:
@@ -7534,7 +7609,9 @@ def _render_status(report: StatusReport) -> str:
                 ("open sessions",
                  format_open_sessions_value(
                      report.open_sids,
-                     scopes=report.session_scopes)))
+                     scopes=report.session_scopes,
+                     staging_strategy=report.staging_strategy,
+                     staging_untracked_inputs=report.staging_untracked_inputs)))
         if report.integration_lock is not None:
             # Held only across apply's git window (or stale from an
             # interrupted apply), so this row is absent from every normal
@@ -7555,6 +7632,21 @@ def _render_status(report: StatusReport) -> str:
                 ("scope",
                  format_scope_value(
                      report.session_scopes.get(report.session_sid, ["."]))))
+            # Effective staging posture (v0.3.11, board 12) for the
+            # classified session, same convention as the scope row: the
+            # per-sid listing carries the rest when 2+ are open. One
+            # line in the common case (bare strategy); target-base with
+            # declared untracked inputs appends the list, wrapped by
+            # format_summary_block like any long value. Omitted — not
+            # guessed — when the strategy is unknown (config summary
+            # failed; the config row already says so). Rendering lives
+            # in bale_report (format_staging_value).
+            if report.staging_strategy is not None:
+                rows.append(
+                    ("staging",
+                     format_staging_value(
+                         report.staging_strategy,
+                         report.staging_untracked_inputs)))
 
         if report.outbox_tarballs:
             # Newest first (session IDs are date-prefixed, so a reverse sort is
