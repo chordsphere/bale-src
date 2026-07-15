@@ -141,9 +141,11 @@ moves bytes safely.
 - Doc-inventory categorization or detection.
 - Project structure assumptions beyond "must be a git repo."
 - Linting, typechecking, building, testing — all in `validation.sh`.
-- Status / log / blame / diag commands. Inspection is a Claude
-  session: ask Claude what's going on and paste output of `git log`
-  or similar. Bale does not duplicate git's read commands.
+- Log / blame / diag commands. Inspection beyond `bale status`'s
+  read-only dashboard (§5.5) is a Claude session: ask Claude what's
+  going on and paste output of `git log` or similar. Bale does not
+  duplicate git's read commands; `bale status` reports bale's own
+  state (sessions, outbox, staging, config), not git's history.
 - Probe handling. Probes are session-scoped only — Claude returns a
   script in chat, the user runs it, the user pastes output back into
   the next message. Bale does not see probes.
@@ -452,9 +454,11 @@ forward-looking entry.
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. | v0.0.5 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6). | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
+| `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
 
-No `status`, no `log`, no `blame`, no `diag`. Inspection is a Claude
-session.
+No `log`, no `blame`, no `diag`. Inspection beyond `bale status`'s
+read-only dashboard (§5.5) is a Claude session — bale does not
+duplicate git's read commands.
 
 ### 5.1 Help and version
 
@@ -525,6 +529,41 @@ The following flags apply across multiple commands:
 
 Flags scoped to a single command are documented in that command's
 section.
+
+### 5.5 `bale status`
+
+Read-only dashboard for the working directory's bale (v0.2.3). It
+takes no lock, makes no git or filesystem writes, has no clean-tree
+requirement, and degrades gracefully outside a git repository or in
+a repo that has never run bale. It always exits 0 on a successful
+read: problems — an abandoned lock, a malformed `bale.toml`, stale
+staging leftovers — surface as rows, not as a failing exit code, so
+it stays usable as the first thing run when a repo's bale state is
+unclear.
+
+The human output is one summary block, rows emitted only for facts
+that apply: the tool version; the repo (root, branch, working-tree
+cleanliness); the open session and its lifecycle state (the §9.5
+per-session lifecycle, classified for the oldest open session, with
+a per-sid listing carrying recorded scopes when several are open);
+the integration lock, only when sighted (it is held only across
+apply's git window, so a sighting is a concurrent apply or a stale
+lock); the stamped request's goal and `expects_probe`; the
+classified session's recorded scope and effective staging posture;
+the outbox (capped, newest first, the open session's own tarball
+pinned to the front); a light pointer at applied history, deferring
+the full applied/reverted view to `bale rollback --list`; and the
+config summary. A `[STATUS] <sid>` headline appears when a session
+is open, and the next-step hint is the trailing line.
+
+`--json` (v0.2.9) swaps the block for one line of JSON on stdout,
+under the same stream discipline pack and apply use: `[bale] ` lines
+go to stderr and stdout carries exactly the JSON line. **The
+`format_status_json` docstring in `bin/bale_report.py` owns the key
+contract** — the stable key set (existing keys never renamed or
+removed; additions only), including the per-session staging-posture
+keys added in v0.3.11. This doc deliberately does not duplicate the
+key list; consult the docstring, not a copy here.
 
 ---
 
