@@ -614,7 +614,14 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
         if action == "created":
             if in_project:
                 problems.append(
-                    f"declared created but existed pre-apply: {path}"
+                    f"declared created but existed pre-apply: {path} — "
+                    f"likely a concurrent session already landed this file, "
+                    f"so the response was authored against a snapshot that "
+                    f"predates it; inspect what landed with "
+                    f"`git log --oneline -- {path}` on the target branch "
+                    f"(or diff the sibling's held branch: "
+                    f"`git diff <origin>..bale/<sibling-sid>`), then "
+                    f"regenerate the response against the current tree"
                 )
             elif not in_staging:
                 problems.append(

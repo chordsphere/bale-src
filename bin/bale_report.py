@@ -120,6 +120,19 @@ file, never raises to its caller, and reports failure through the lazy
 — path string when a record was written, null otherwise — under the
 existing key-stability rules.
 
+v0.3.10 (board item 2, the own-scope drift gate) adds
+`format_scope_drift_refusal` — the human rendering of the apply
+pre-flight refusal (BALE.md §8.1 step 14, §11 row 22): offending paths,
+declared scope, any partially-admitted overrides, and the three remedies,
+built on `format_summary_block` per the module's rules (pure string
+assembler; the block is the whole output, so summary-last holds
+trivially). `format_apply_json` gains the `scope-drift-refused` outcome
+and the additive nullable `drift` key (the refusal's machine detail), and
+`build_telemetry_attempt` gains `overridden_paths` — the bale-computed
+stamp of what a per-invocation `--allow-out-of-scope` admitted, uniform
+empty-list shape when none. `bin/bale` keeps wiring only, per the
+standing division.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -563,6 +576,58 @@ def format_dry_run_report(manifest: dict, sid: str, *, response_kind: str) -> st
     return "\n".join(lines)
 
 
+def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
+                               overridden: list,
+                               telemetry: Optional[str],
+                               dry_run: bool = False) -> str:
+    """Render the own-scope drift refusal (BALE.md §8.1 step 14, §11 row 22).
+
+    The human face of the v0.3.10 drift-to-contract gate: a response's
+    changes[] landed on paths outside the session's own declared scope,
+    and the apply refused before any staging or git work. The block names
+    every offending path and the declared scope — the two facts the
+    operator dispatches on — plus any paths a partial --allow-out-of-scope
+    did admit, and closes with the three remedies as trailer lines. The
+    session stays open, which is why every remedy is a re-run rather than
+    a repack-from-scratch.
+
+    Follows the module's summary-block-last rule trivially (the block is
+    the whole output) and the pure-string-assembler rule: builds a string,
+    prints nothing; the json twin is format_apply_json's `drift` key, not
+    this renderer. Under `dry_run` the telemetry row reports that no
+    record was written (a dry-run has no outcome — BALE.md §8.9) and the
+    headline notes the prediction.
+    """
+    rows: list[tuple[str, str]] = [
+        ("out of scope", ", ".join(refused)),
+        ("declared scope", ", ".join(scope)),
+    ]
+    if overridden:
+        rows.append(("admitted by flag", ", ".join(overridden)))
+    if dry_run:
+        rows.append(("dry-run", "a real apply would refuse the same way"))
+        rows.append(("telemetry", "not recorded (dry-run has no outcome)"))
+    else:
+        rows.append(("telemetry",
+                     f"recorded {telemetry}" if telemetry
+                     else "write failed — see log"))
+    return format_summary_block(
+        rows,
+        status="SCOPE-DRIFT-REFUSED",
+        sid=sid,
+        trailer=[
+            "The session stays open; nothing was staged or committed. "
+            "Either:",
+            "  - regenerate the response inside the declared scope and "
+            "re-run `bale apply`,",
+            "  - admit specific paths deliberately: `bale apply <tarball> "
+            "--allow-out-of-scope <path>` (repeat per path),",
+            f"  - or rescope: `bale unlock {sid}` and re-pack with the "
+            f"includes the work actually needs.",
+        ],
+    )
+
+
 # --- json output mode (v0.2.8) ---
 #
 # Shared state for `bale pack --json` and `bale apply --json`. The stream-
@@ -702,6 +767,7 @@ def format_apply_json(
     tag: Optional[str] = None,
     origin_branch: Optional[str] = None,
     telemetry: Optional[str] = None,
+    drift: Optional[dict] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -724,6 +790,12 @@ def format_apply_json(
                            session stays open (exit 0)
                "dry-run"   the --dry-run plan report, normal, bailout,
                            or clarification shape (exit 0)
+               "scope-drift-refused"
+                           the own-scope drift gate refused (BALE.md §8.1
+                           step 14, §11 row 22; exit 1, session open —
+                           the dispatchable key an orchestrator branches
+                           on instead of parsing prose). Emitted under
+                           --dry-run too when the plan would refuse.
                Together with pack's "packed" these are the whole outcome
                vocabulary; extend it here, never with caller-side literals.
       sid      the session id the response was applied against.
@@ -749,14 +821,23 @@ def format_apply_json(
                record written for this apply-close event
                (claude/telemetry/<sid>.json, BALE.md §8.9), or null when
                none was written (dry-run, clarification, write failure).
+      drift    (v0.3.10, additive) the own-scope refusal detail on the
+               scope-drift-refused outcome, null on every other. An
+               object:
+                 out_of_scope_paths  the refused changes[] paths
+                 session_scope       the session's declared scope
+                 overridden_paths    paths a partial --allow-out-of-scope
+                                     did admit on this invocation
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites
-    both are None together (bailout, clarification, dry-run) or set
+    both are None together (bailout, clarification, dry-run,
+    scope-drift-refused) or set
     together (the three walkthrough outcomes). Consumer contract: on the reporting paths
     stdout is exactly this line — present on exit 0 AND on the
-    held/reverted exit-1 outcomes, since a machine consumer needs the HOLD
-    report as much as the PASS one; error paths exit through fail()
+    held/reverted/scope-drift-refused exit-1 outcomes, since a machine
+    consumer needs the refusal and HOLD
+    reports as much as the PASS one; error paths exit through fail()
     (stderr, non-zero) with nothing on stdout. Pure: builds a string,
     prints nothing.
     """
@@ -786,6 +867,10 @@ def format_apply_json(
         # (claude/telemetry/<sid>.json), or null when no record was written
         # (dry-run, clarification, or a write failure the log carries).
         "telemetry": telemetry,
+        # v0.3.10, additive: the own-scope drift refusal detail (BALE.md
+        # §8.1 step 14) — object on outcome=scope-drift-refused, null on
+        # every other outcome.
+        "drift": drift,
     }
     return json.dumps(payload)
 
@@ -1178,6 +1263,7 @@ def build_telemetry_attempt(
     validation_exit_code: Optional[int] = None,
     validation_output: Optional[str] = None,
     log_path: Optional[str] = None,
+    overridden_paths: Optional[list] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -1190,6 +1276,15 @@ def build_telemetry_attempt(
     `validation_output` so no caller re-implements the promotion. A rejected
     or reverted attempt passes validation_state=None and gets
     validation: null.
+
+    `overridden_paths` (v0.3.10, board 2) stamps the out-of-scope paths a
+    per-invocation `--allow-out-of-scope` admitted into the attempt's
+    mechanical (bale-computed) fields — always present as a list, empty
+    when no override was in play, so aggregation reads a uniform shape.
+    On a `scope-drift-refused` attempt it carries any paths a PARTIAL
+    override admitted while other drift still refused; the refused paths
+    themselves are recoverable from scope vs change_paths, both already
+    recorded raw.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -1209,6 +1304,7 @@ def build_telemetry_attempt(
         "tarball": tarball,
         "validation": validation,
         "scope": list(scope or []),
+        "overridden_paths": list(overridden_paths or []),
         "change_paths": [c.get("path") for c in
                          (manifest or {}).get("changes", []) or []],
         "feedback": (manifest or {}).get("feedback"),
