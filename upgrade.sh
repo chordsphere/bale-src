@@ -116,7 +116,8 @@ fi
 # the three files v0.3.x made non-optional: bin/bale_report.py (a
 # load-time import of bin/bale), tools/response_lint.py (pack hard-fails
 # without it), and schemas/telemetry-record.schema.json (apply's close
-# fails at load_schema).
+# fails at load_schema) — and to bin/bale_pack.py in v0.3.12 (the pack
+# path's new home, another load-time import of bin/bale).
 TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
   || die "could not read $NEW_TARBALL as a gzip tar — is it a valid bale release tarball?"
 
@@ -131,6 +132,7 @@ TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
 REQUIRED_RELEASE_MEMBERS=(
   bin/bale
   bin/bale_report.py
+  bin/bale_pack.py
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json

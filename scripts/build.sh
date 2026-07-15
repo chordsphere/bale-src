@@ -92,6 +92,7 @@ RELEASE_FILES=(
   bin/bale_staging.py
   bin/bale_rollback.py
   bin/bale_report.py
+  bin/bale_pack.py
   bin/_bale_toml.py
   docs/CLAUDE.md
   docs/TARBALL.md
