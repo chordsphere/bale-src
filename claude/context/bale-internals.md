@@ -6,9 +6,10 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`)
 
-Six Python files in `bin/`, no third-party dependencies. `bin/bale` is
+Seven Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
+shim), no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
 wizard (extracted in v0.0.4 to apply CODE.md §4.2 to the largest two
@@ -28,21 +29,35 @@ surface — the shared end-of-run summary formatter and the pack/apply
 outcome renderers: walkthrough summary, bailout banner, dry-run report
 (extracted in v0.2.6, the fourth extraction, same precedent and mechanism
 again; `bin/bale_rollback.py`, the fourth sibling, is net-new rather than
-an extraction and is described below). The top of `bin/bale` declares constants (paths, exclusions,
-version); the rest is organized as roughly-flat sections, each named with
+an extraction and is described below). `bin/bale_pack.py` is the sixth
+sibling, imported by `bin/bale` for the whole pack path — file
+enumeration and filtering, scope projection + threshold caps, manifest
+and tarball construction, the §7.3 wizard, and `cmd_pack` itself
+(extracted in v0.3.12, the fifth extraction, same precedent and
+mechanism again). The top of `bin/bale` declares constants (paths,
+version, path-safety refusals — the pack-side exclusion constants and
+threshold caps moved to `bale_pack` with the pack path);
+the rest is organized as roughly-flat sections, each named with
 a numbered banner comment. The index header in the file's top docstring
 lists every section with an approximate line number; that header is the
 canonical map and is kept in sync with the body by the response's
-`validation.sh` whenever a section is added, renamed, or moved. The list
+`validation.sh` whenever a section is added, renamed, or moved. Since the
+v0.3.12 pack extraction the banner numbers 11–15 are a deliberate gap:
+the old pack sections moved to `bale_pack.py` and the survivors kept
+their numbers (16–26), so every cross-file “section N” comment stays
+true without a renumbering sweep. The list
 below is the higher-level grouping of those sections — what each cluster
 is *for* — and stays stable as the per-section line numbers drift:
 
 1. **Imports + constants.** `VERSION`, `INSTALL_ROOT`, `DOCS_DIR`,
-   `GLOBAL_DOCS`, `BAKED_IN_EXCLUDE_DIRS`, `SECRET_PATTERNS`,
-   `SECRET_PATH_EXCLUDES`, `SYSTEM_DIRS`, plus the `PACK_MAX_*`
-   threshold caps. The `BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`,
-   `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, and
-   `APPLY_VALUES` constants live in `bale_config`.
+   `GLOBAL_DOCS`, `TOOLS_DIR`/`INJECTED_TOOLS`, `BALEIGNORE_FILE`, and
+   `SYSTEM_DIRS`. The pack-side constants (`BAKED_IN_EXCLUDE_DIRS`,
+   `SECRET_PATTERNS`, `SECRET_PATH_EXCLUDES`, and the `PACK_MAX_*`
+   threshold caps) moved to `bale_pack` with the pack path in v0.3.12;
+   `BALEIGNORE_FILE` stayed because the matcher it names is shared by
+   pack's filter chain and apply's rule-14 check. The `BALE_CONFIG`,
+   `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`,
+   `HOOK_NAMES`, and `APPLY_VALUES` constants live in `bale_config`.
 2. **Logging.** `log()`, `fail()`, `set_log_file()`. Logging is
    first-draft, not retrofit — every non-trivial action goes through
    them, and `log(..., force=True)` buffers FORCE: lines emitted
@@ -52,7 +67,12 @@ is *for* — and stays stable as the per-section line numbers drift:
    Subprocess wrappers with capture-and-text defaults.
 4. **Hashing.** `sha256_file()`, `sha256_bytes()`.
 5. **Session IDs + the per-day counter.** `next_session_id()` —
-   `YYYY-MM-DD-<slug>-NNN`.
+   `YYYY-MM-DD-<slug>-NNN` — plus `parse_session_id()` and, since the
+   v0.3.12 pack extraction, `is_valid_slug()`: the slug is part of the
+   sid format this cluster owns, `parse_session_id` rejects a malformed
+   slug with it, and the pack side (`bale_pack`'s wizard and `--slug`
+   validation) reaches it lazily from `__main__` like the other shared
+   helpers.
 6. **Session registry + locks.** The ADR-0006 per-sid registry of
    open sessions (`.bale/sessions/<sid>/open` markers), the
    `.bale/current_session` compatibility pointer the unthreaded
@@ -72,26 +92,27 @@ is *for* — and stays stable as the per-section line numbers drift:
    that adds the goal-specific empty-is-fatal check) and the pack
    wizard's README step. Lives in its own section because it
    straddles two clusters that would otherwise both want to own it.
-10. **Pack pipeline.** Six sections in the body, kept separate
-    because they grew past the threshold for one cluster: file
-    enumeration and filtering (including the `BaleignoreMatcher`
-    class and its `load_baleignore` / `build_pack_matcher` /
-    `is_baleignore_match` helpers — also consumed by the apply
-    pipeline at cluster 11); scope projection + threshold caps
-    (BALE.md §7.4); slug validation; manifest and tarball
-    construction; the §7.3 wizard (added in v0.0.9 — interactive
-    prompts for goal/slug/constraints/out_of_scope/README, plus
-    in v0.0.10 the previously-deferred excludes prompt seeded
-    with a preview of any persisted `.baleignore`); and
-    `cmd_pack` itself (which also hosts the git-init walkthrough
-    per BALE.md §10, the §7.4 soft-cap `[y]/[e]/[n]` loop where
-    `[e]` collects more session-only excludes and re-walks, the
-    force-include of `.baleignore` into context when present, and —
-    v0.3.6 — the `--readme-file` resolution through the shared
-    inbound-path resolver (`resolve_inbound_path` over
-    `apply.search_paths`, cluster 11), with the repo-root walk-up
-    hoisted ahead of the flag validation so the project config
-    layer is readable there).
+10. **Pack pipeline — extracted to `bale_pack.py` (v0.3.12).** The
+    six pack sections that lived here (file enumeration and
+    filtering; scope projection + threshold caps, BALE.md §7.4; slug
+    validation; manifest and tarball construction; the §7.3 wizard —
+    added in v0.0.9, with v0.0.10's excludes prompt seeded from a
+    preview of any persisted `.baleignore`; and `cmd_pack` itself,
+    which hosts the git-init walkthrough per BALE.md §10, the §7.4
+    soft-cap `[y]/[e]/[n]` loop where `[e]` collects more
+    session-only excludes and re-walks, the force-include of
+    `.baleignore` into context when present, and — v0.3.6 — the
+    `--readme-file` resolution through the shared inbound-path
+    resolver, `resolve_inbound_path` over `apply.search_paths`,
+    cluster 11) now live in the sibling `bale_pack` module,
+    described below with the other siblings. What stays in
+    `bin/bale`'s body here is the piece both pipelines share: the
+    `.baleignore` matcher cluster — the `BaleignoreMatcher` class
+    and its `load_baleignore` / `is_baleignore_match` helpers,
+    consumed by pack's filter chain and by the apply pipeline's
+    rule-14 check at cluster 11 (the file's banner section 10 is
+    retitled accordingly). Slug validation moved up to cluster 5
+    rather than out — `parse_session_id` needs it too.
 11. **Apply pipeline.** Three sections in the body: apply helpers (the
     staging-tree, reconciliation, `validation.sh`-run,
     session-commit-build, response-verification, and
@@ -111,7 +132,8 @@ is *for* — and stays stable as the per-section line numbers drift:
     reading-plan path extractor), the inbound-path resolution helper
     (`resolve_inbound_path`, renamed from `resolve_tarball_path` in
     v0.3.6 when pack's `--readme-file` became its second consumer
-    alongside the apply/retry/handoff tarball arguments — cluster 10)
+    alongside the apply/retry/handoff tarball arguments — the pack side
+    now calls it from `bale_pack`)
     and the non-interactive-mode helpers, the per-session default staging
     path helpers (`default_staging_root` / `default_staging_dir` /
     `clean_staging_root`, v0.3.3), the generated-artifact deny list
@@ -163,7 +185,10 @@ is *for* — and stays stable as the per-section line numbers drift:
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
 16. **CLI parser + `main`.** The `bale config init` subparser wires
-    `func=bale_config.cmd_config_init`. `bale pack` accepts both
+    `func=bale_config.cmd_config_init`; the `pack` subparser wires
+    `func=cmd_pack`, imported from `bale_pack` since v0.3.12 (the
+    `--max-*` flag help text reads `format_bytes` and the
+    `PACK_MAX_*` caps from the same import). `bale pack` accepts both
     `--include PATH` and (from v0.0.10) `--exclude PATTERN`; the
     latter takes gitignore-style patterns parsed by the same
     `BaleignoreMatcher` (cluster 10), composes them with the
@@ -365,6 +390,41 @@ interactive walkthrough prompt (`prompt_walkthrough_action`) and the
 apply-side file-content inspection (`inspect_response_scripts`) deliberately
 stayed in `bin/bale` — the seam is result assembly and rendering, not
 interaction or inspection.
+
+`bin/bale_pack.py` is the sixth sibling (extracted in v0.3.12 — the fifth
+extraction, and the largest: `bin/bale`'s six pack sections moved as a
+unit, behavior-preserving). It owns the `bale pack` path end to end: the
+pack-side constants (baked-in excluded dirs, secret patterns, the
+`PACK_MAX_*` threshold caps), file enumeration and filtering
+(`list_git_files`, the secret/exclude predicates, `build_pack_matcher`,
+`gather_files_for_pack`), scope projection + threshold caps
+(`PackCaps` / `PackProjection` / `walk_for_pack`, plus `parse_size_arg`,
+`format_bytes`, `format_projection_block`), manifest and tarball
+construction (`build_request_manifest`, `build_provenance_block`,
+`build_request_tarball`, `persist_pack_session`), the §7.3 wizard, and
+`cmd_pack` (with the BALE.md §10 git-init walkthrough). Unlike the
+single-cluster siblings it carries its own index header — six numbered
+banner sections, per CODE.md §2.1. `bin/bale` imports the public surface
+by name (`from bale_pack import ...`): `cmd_pack` for the CLI dispatch;
+the five build/persist entry points for `bale handoff` (the second
+request-building path) and `bale retry` (its record re-persist); and
+`format_bytes` + the `PACK_MAX_*` caps for the `--max-*` flag help. The
+module reaches back for `bin/bale`-owned shared helpers (logging, git,
+path safety, registry + scope, editor, `next_session_id`,
+`is_valid_slug`, `ensure_bale_gitignored`, `run_hook`, the baleignore
+matcher cluster, the doc/tool injection constants) lazily from
+`__main__`, the same idiom the other siblings use — with one refinement:
+entry points owned by *other siblings* (`bale_config`,
+`bale_report`'s pack-report renderers and json-mode state,
+`bale_validate`'s request validator) are imported lazily from their
+owning modules instead of through `__main__`, so `bin/bale` never has to
+keep imports it doesn't itself call just to re-export them. The
+dependency direction is one-way — `bin/bale` → `bale_pack`, and
+`bale_pack` imports nothing from the apply path (`bale_staging`,
+`bale_rollback`, or the apply clusters); the per-response
+`validation.sh` asserts that direction. The extraction was
+behavior-preserving; the CLI surface, wizard flow, `--json` stream
+discipline, and pack/handoff tarball bytes are unchanged.
 
 Two-level subparsing only — `bale <verb>` for eleven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
