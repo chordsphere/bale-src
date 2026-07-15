@@ -622,6 +622,31 @@ read-append-write update semantics — live in bale_report's
 telemetry section; `run_validation_sh` (bale_staging) now returns
 its captured output alongside the exit code to feed the promotion.
 
+v0.3.10 (board item 2) converts own-scope drift from policy to
+contract at apply pre-flight: every `changes[]` path must lie inside
+the session's OWN declared scope (the ADR-0007 pack-time include set
+in `sessions/<sid>/scope.json`), with created paths rejected the same
+as modified — the 008-audit clobber scenario is two sessions creating
+the same unclaimed file. The refusal names every offending path and
+the declared scope, keeps the session open with no git side effects,
+records a `scope-drift-refused` telemetry attempt, and in --json mode
+emits the one-line report with that dispatchable outcome (exit 1,
+like held/reverted). A per-invocation, repeatable
+`bale apply --allow-out-of-scope PATH` admits exactly the named
+paths — any other drift still refuses — with every use logged
+prominently and the overridden paths stamped into the telemetry
+attempt; deliberately no config key. This file gained the directional
+`scope_covers_path` helper (section 6, beside the ADR-0007
+intersection helpers, which are unchanged), the gate itself in
+section 17 (beside its step-7 sibling, the cross-session check), the
+flag wiring, and the `overridden_paths` thread to the terminal
+telemetry calls; the refusal rendering (human block and json drift
+detail) and the attempt-field mechanics live in bale_report. The
+pack-time gates are untouched. Ride-along: the reconcile-time
+"declared created but existed pre-apply" message (bale_staging) now
+names the likely concurrent-session cause and the inspection path —
+message text only.
+
 Per BALE.md section 13, the v0.0.x line implements just enough to
 apply its own response tarballs, plus the configurables wizard that
 successive bale-on-bale sessions evolve:
@@ -804,6 +829,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_integration_lock_value,
     format_open_sessions_value,
     format_pack_json,
+    format_scope_drift_refusal,
     format_scope_value,
     format_status_json,
     format_summary_block,
@@ -819,7 +845,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.9"
+VERSION = "0.3.10"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1382,6 +1408,28 @@ def scope_intersection(scope_a: list[str],
         for b in scope_b
         if scope_paths_intersect(a, b)
     ]
+
+
+def scope_covers_path(scope: list[str], path: str) -> bool:
+    """True when `path` (a changes[] file path) lies inside `scope`.
+
+    The own-scope drift gate's containment test (v0.3.10, board 2).
+    Directional, unlike scope_paths_intersect: a scope entry covers the
+    path when the entry is "." (the whole tree), equals the path, or is
+    a directory ancestor of it. The converse — the path being an
+    ancestor of a scope entry — is deliberately NOT coverage: changes[]
+    paths are files (they mirror files/), and a path shaped like an
+    ancestor of a scope entry sits outside that entry, not over it.
+    Both sides normalize through scope_path so pack-time includes and
+    apply-time changes[] paths compare in one canonical form. The
+    ADR-0007 intersection helpers above are unchanged; this is a new,
+    narrower question asked of the same recorded scope.
+    """
+    p = scope_path(path)
+    return any(
+        entry == "." or p == entry or p.startswith(entry + "/")
+        for entry in scope
+    )
 
 
 def scope_file_path(repo: Path, sid: str) -> Path:
@@ -4365,7 +4413,8 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     dry_run: bool = False, verbose: bool = False,
                     no_interact: bool = False,
                     no_interact_source: str = "",
-                    invoked_by: str = "apply") -> int:
+                    invoked_by: str = "apply",
+                    allow_out_of_scope: Optional[list[str]] = None) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
     + clean-tree guards) and cmd_retry (after _discard_hold_state has
@@ -4409,6 +4458,15 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     (landing on stderr); the emission is a pass-through addition gated on
     bale_report.json_mode(), so nothing threads through this signature and
     cmd_retry — which never enables the mode — is untouched.
+
+    `allow_out_of_scope` (v0.3.10, board 2; cmd_apply --allow-out-of-scope,
+    repeatable) names changes[] paths the own-scope drift gate below should
+    admit despite lying outside the session's declared scope. Per
+    invocation only — there is deliberately no config key — and any drift
+    path NOT named still refuses. None/empty means no override; cmd_retry
+    passes nothing, so a drifting corrected response refuses there too (the
+    refusal is pre-staging, so the operator can follow with a plain
+    `bale apply --allow-out-of-scope ...` in the still-open session).
 
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
@@ -4527,6 +4585,109 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             log(f"cross-session scope collision check passed against "
                 f"{len(sibling_sids)} sibling session(s): "
                 f"{', '.join(sibling_sids)}")
+
+        # 8.1 step 14 / §11 row 22 (v0.3.10, board 2): own-scope drift
+        # gate — the drift-to-contract conversion of the stay-in-the-lane
+        # rule, sited beside its step-7 sibling above. The 008 audit's
+        # finding 2: two sessions can each drift into the same UNCLAIMED
+        # file, pass every ADR-0007 declared-vs-declared gate, and the
+        # second whole-file overlay clobbers the first under a clean
+        # --no-ff merge. So: every changes[] path must lie inside THIS
+        # session's own declared scope (the pack-time include set,
+        # sessions/<sid>/scope.json — read conservatively as whole-tree
+        # when missing/unreadable, which also keeps default whole-tree
+        # packs entirely outside this gate's blast radius). Created paths
+        # are rejected the same as modified — the clobber scenario is
+        # precisely two sessions creating the same unclaimed file.
+        # --allow-out-of-scope (per-invocation, repeatable; no config
+        # key) admits exactly the named paths; any other drift still
+        # refuses. The refusal is pre-staging: no git side effects, the
+        # session stays open, and the remedies are a regenerated
+        # response, a deliberate per-path override, or an unlock+repack.
+        # Manifest-only, so it runs under --dry-run (same report, no
+        # telemetry — no outcome occurred) and passes vacuously for
+        # bailout and clarification manifests, whose changes[] is empty.
+        # session_scope read here doubles as the telemetry input the
+        # terminal actions promote (BALE.md §8.9) — read once, before
+        # any terminal action's cleanup can wipe it.
+        session_scope = read_session_scope(repo, locked_sid)
+        allow_norm = sorted({scope_path(p)
+                             for p in (allow_out_of_scope or [])})
+        drift_paths = sorted({
+            scope_path(change["path"])
+            for change in manifest.get("changes", []) or []
+            if not scope_covers_path(session_scope, change["path"])
+        })
+        overridden_paths = [p for p in drift_paths if p in allow_norm]
+        refused_paths = [p for p in drift_paths if p not in allow_norm]
+        unused_allow = [p for p in allow_norm if p not in drift_paths]
+        if unused_allow:
+            # Named but not drifting: harmless (in-scope or not in the
+            # change set at all), but say so — a silently ignored
+            # override flag is exactly the surprise the logging rules
+            # exist to prevent.
+            log(f"--allow-out-of-scope named path(s) with no matching "
+                f"out-of-scope change: {', '.join(unused_allow)} "
+                f"(no effect)")
+        if refused_paths:
+            log(f"[REJECT] own-scope drift (BALE.md §11 row 22): "
+                f"{len(refused_paths)} changes[] path(s) outside session "
+                f"{locked_sid}'s declared scope — "
+                f"{', '.join(refused_paths)}; declared scope: "
+                f"{', '.join(session_scope)}")
+            # A drift refusal is a distinct, dispatchable outcome — it
+            # does NOT ride the generic fail() path: the human rendering
+            # and the json line come from bale_report (wiring only here),
+            # telemetry records the attempt (except under --dry-run,
+            # which has no outcome), and the return keeps the session
+            # open with the committed state untouched. The cmd_apply
+            # SystemExit wrapper never fires (no SystemExit), so the
+            # attempt is not double-recorded as "rejected".
+            telemetry_rel: Optional[str] = None
+            if not dry_run:
+                telemetry_rel = write_telemetry_record(
+                    repo, locked_sid, build_telemetry_attempt(
+                        outcome="scope-drift-refused", command=invoked_by,
+                        tarball=tarball_path.name, manifest=manifest,
+                        scope=session_scope,
+                        overridden_paths=overridden_paths,
+                        log_path=f".bale/logs/{locked_sid}.log",
+                    ))
+            print(format_scope_drift_refusal(
+                sid=locked_sid,
+                scope=session_scope,
+                refused=refused_paths,
+                overridden=overridden_paths,
+                telemetry=telemetry_rel,
+                dry_run=dry_run,
+            ))
+            if json_mode():
+                # Emitted on this exit-1 path deliberately, like held/
+                # reverted: an orchestrating operator dispatches on the
+                # outcome key instead of parsing prose.
+                emit_json_line(format_apply_json(
+                    outcome="scope-drift-refused", sid=locked_sid,
+                    log_path=session_log,
+                    telemetry=telemetry_rel,
+                    drift={
+                        "out_of_scope_paths": refused_paths,
+                        "session_scope": session_scope,
+                        "overridden_paths": overridden_paths,
+                    },
+                ))
+            return 1
+        if overridden_paths:
+            # force=True: an admitted out-of-scope path is an override
+            # event of the same species as the --force bypasses — the
+            # FORCE: journal line is the audit trail the session log
+            # keeps of it (the telemetry stamp at the terminal action is
+            # the durable copy).
+            log(f"own-scope drift admitted by --allow-out-of-scope: "
+                f"{', '.join(overridden_paths)} (declared scope: "
+                f"{', '.join(session_scope)})", force=True)
+        # No pass-path log line beyond the reads above: like the
+        # generated-artifact denial below, a clean pass adds no output,
+        # keeping accepted-tarball output byte-identical to v0.3.9.
 
         # 8.1 step 13 / §11 row 20: generated-artifact denial. Response
         # tarballs ship source, never generated artifacts (TARBALL.md
@@ -4766,10 +4927,11 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             locked_sid, verbose=verbose)
         log(f"validation.sh exit code: {exit_code}")
 
-        # Telemetry inputs read up front (v0.3.9, B2): the session scope
-        # lives under .bale/sessions/<sid>/, which the merge branch wipes —
-        # read it here, before any terminal action's cleanup.
-        session_scope = read_session_scope(repo, locked_sid)
+        # Telemetry inputs (v0.3.9, B2): session_scope was read at the
+        # own-scope drift gate above — once, before any terminal action's
+        # cleanup can wipe .bale/sessions/<sid>/ — and is reused by the
+        # terminal actions' telemetry calls below, alongside the
+        # overridden_paths the gate computed (v0.3.10).
 
         # 8.6 commit-or-hold + 8.7 walkthrough — checkout-free (ADR-0008).
         # Both validation outcomes build the session commit via plumbing
@@ -4948,7 +5110,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 repo, locked_sid, build_telemetry_attempt(
                     outcome="applied", command=invoked_by,
                     tarball=tarball_path.name, manifest=manifest,
-                    scope=session_scope, validation_state=state,
+                    scope=session_scope,
+                    overridden_paths=overridden_paths,
+                    validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
                     log_path=f".bale/logs/{locked_sid}.log",
@@ -5002,7 +5166,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 repo, locked_sid, build_telemetry_attempt(
                     outcome="held", command=invoked_by,
                     tarball=tarball_path.name, manifest=manifest,
-                    scope=session_scope, validation_state=state,
+                    scope=session_scope,
+                    overridden_paths=overridden_paths,
+                    validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
                     log_path=f".bale/logs/{locked_sid}.log",
@@ -5077,7 +5243,9 @@ def _apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             repo, locked_sid, build_telemetry_attempt(
                 outcome="reverted", command=invoked_by,
                 tarball=tarball_path.name, manifest=manifest,
-                scope=session_scope, validation_state=state,
+                scope=session_scope,
+                overridden_paths=overridden_paths,
+                validation_state=state,
                 validation_exit_code=exit_code,
                 validation_output=val_output,
                 log_path=f".bale/logs/{locked_sid}.log",
@@ -5317,6 +5485,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
         return _apply_pipeline(
             repo, tarball_path, locked_sid, args.staging_dir,
             dry_run=True, verbose=args.verbose,
+            allow_out_of_scope=args.allow_out_of_scope,
         )
 
     # 8.1 step 5 — the ADR-0008 narrow rule, replacing the blanket
@@ -5340,6 +5509,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             repo, tarball_path, locked_sid, args.staging_dir,
             verbose=args.verbose, no_interact=no_interact,
             no_interact_source=no_interact_source,
+            allow_out_of_scope=args.allow_out_of_scope,
         )
     except SystemExit as e:
         _record_rejected_attempt(repo, locked_sid, "apply",
@@ -7725,17 +7895,32 @@ def build_parser() -> argparse.ArgumentParser:
              "via apply.no_interact = true; run `bale config init`.",
     )
     p_apply.add_argument(
+        "--allow-out-of-scope", action="append", default=None,
+        metavar="PATH", dest="allow_out_of_scope",
+        help="Admit one changes[] path that lies outside the session's own "
+             "declared scope, past the own-scope drift gate (BALE.md §8.1 "
+             "step 14, §11 row 22). Repeat the flag per path; any "
+             "out-of-scope path NOT named still refuses. Per-invocation "
+             "only — there is deliberately no config key. Every use is "
+             "logged prominently (FORCE: line in the session log) and the "
+             "admitted paths are stamped into the session's telemetry "
+             "record.",
+    )
+    p_apply.add_argument(
         "--json", action="store_true",
         help="Emit the end-of-run apply report as one line of JSON on "
              "stdout. Keys are a stable contract for downstream tooling: "
-             "outcome (applied|held|reverted|bailout|dry-run), sid, log, "
+             "outcome (applied|held|reverted|bailout|clarification|"
+             "dry-run|scope-drift-refused), sid, log, "
              "verdict (validation.sh state/exit_code/claims; null when it "
              "did not run), merge (walkthrough action/merged/tag/"
-             "origin_branch; null when no walkthrough ran). Stream "
+             "origin_branch; null when no walkthrough ran), drift (the "
+             "own-scope refusal detail; null otherwise). Stream "
              "discipline: '[bale] ' lines, prompts, and the human banners "
              "go to stderr; stdout carries exactly the JSON line on the "
-             "reporting paths — exit 0, plus the held/reverted exit-1 "
-             "outcomes. Error paths exit through stderr with nothing on "
+             "reporting paths — exit 0, plus the held/reverted/"
+             "scope-drift-refused exit-1 outcomes. Error paths exit "
+             "through stderr with nothing on "
              "stdout. Pair with --no-interact for scripted runs. No effect "
              "with --show-validator/--show-apply-script, whose whole "
              "output is a script body on stdout.",

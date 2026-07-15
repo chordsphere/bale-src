@@ -504,6 +504,15 @@ The following flags apply across multiple commands:
   `apply.hook_auto_accept` — unset/false takes the prompt's decline
   default — and every bypassed prompt logs the decision taken and its
   source to the terminal and the session log.)
+- `--allow-out-of-scope <path>` — apply-scoped, repeatable (one path
+  per flag): admit exactly the named `changes[]` path(s) past the
+  own-scope drift gate (§8.1 step 14, §11 row 22); any other
+  out-of-scope path still refuses. Per-invocation only — there is
+  deliberately no config key, so an override never becomes standing
+  policy — and every use is logged prominently and stamped into the
+  session's telemetry record (§8.9). `bale retry` takes no equivalent;
+  the drift refusal is pre-staging, so the still-open session accepts
+  a plain `bale apply --allow-out-of-scope ...` re-run.
 - `--staging-dir <path>` — override the default
   `<repo>/.bale/staging/<sid>/` location (section 8.3). The override
   is used verbatim — no `<sid>` suffix — and refused if it exists.
@@ -1018,10 +1027,44 @@ Pipeline steps:
     `--dry-run` (the plan report predicts the rejection) and passes
     vacuously for bailout and clarification manifests, whose
     `changes[]` is empty.
+14. Own-scope drift gate (v0.3.10 — the drift-to-contract conversion
+    of the stay-in-the-lane rule; runs adjacent to step 7, its
+    cross-session sibling, and listed here to keep steps 1–13 stable).
+    Every `changes[]` path must lie inside **this** session's own
+    declared scope — the pack-time resolved include set recorded in the
+    registry (`sessions/<sid>/scope.json`; same path semantics as
+    step 7: directory entries cover subtrees, `.` covers everything, a
+    missing or unreadable scope reads as whole-tree, which also keeps
+    default whole-tree packs entirely clear of this gate). Created
+    paths are rejected the same as modified paths — the audit's clobber
+    scenario is precisely two sessions creating or overlaying the same
+    unclaimed file, and each ADR-0007 gate checks declared scope
+    against declared scope, so unclaimed drift sails past both. The
+    refusal names every offending path and the sid's declared scope;
+    like every other refusal it is pre-staging — no git side effects —
+    and the session stays open, so the response can be regenerated or
+    the apply re-run. `--allow-out-of-scope <path>` (repeatable,
+    per-invocation only — deliberately no config key) admits exactly
+    the named paths past the gate while any *other* drift still
+    refuses; every use is logged prominently (a FORCE: session-log
+    line) and the admitted paths are stamped into the session's
+    telemetry record (§8.9). In `--json` mode the refusal is the
+    one-line report with outcome `scope-drift-refused` and a `drift`
+    detail object — emitted on the exit-1 path like held/reverted, so
+    an orchestrating operator dispatches on the key instead of parsing
+    prose. Manifest-only, so it runs under `--dry-run` (same report and
+    exit; no telemetry record, since no outcome occurred) and passes
+    vacuously for bailout and clarification manifests. `bale retry`
+    takes no override flag: a drift refusal there is also pre-staging,
+    so the still-open session accepts a plain
+    `bale apply --allow-out-of-scope ...` re-run.
 
-If any of 1–13 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–14 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
-staging branch, no file modifications.
+staging branch, no file modifications. (The step-14 refusal
+additionally reports through its structured surfaces above; its
+telemetry attempt records outcome `scope-drift-refused` rather than
+`rejected`.)
 
 ### 8.2 Stamp session
 
@@ -1698,6 +1741,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 19 | Cross-session scope collision (ADR-0007): no `changes[]` path intersects another open session's recorded scope — the apply-time guard against the whole-file clobber (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
 | 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
 | 21 | Declared-input violations fail the stage loudly (target-base strategy): every `staging.untracked_inputs` entry must exist in the working tree and be untracked at the target tip at stage time — a missing or tracked entry stops the stage rather than being silently skipped | apply stage |
+| 22 | Own-scope drift (v0.3.10): every `changes[]` path lies inside the session's **own** recorded scope (`sessions/<sid>/scope.json`; created paths rejected the same as modified). Per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses. The refusal names every offending path and the declared scope, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

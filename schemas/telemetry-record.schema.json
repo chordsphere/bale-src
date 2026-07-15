@@ -36,8 +36,8 @@
     },
     "outcome": {
       "type": "string",
-      "enum": ["applied", "held", "reverted", "rejected", "bailout"],
-      "description": "The latest attempt's outcome, mirrored to the envelope so aggregation can filter without descending into attempts[]. 'applied' = merged; 'held' = HOLD awaiting inspection (a later attempt supersedes it); 'reverted' = backed out (walkthrough revert or `bale revert`); 'rejected' = the apply exited through a pre-flight or pipeline error path (detail in the session log); 'bailout' = response_kind=bailout, session consumed."
+      "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused"],
+      "description": "The latest attempt's outcome, mirrored to the envelope so aggregation can filter without descending into attempts[]. 'applied' = merged; 'held' = HOLD awaiting inspection (a later attempt supersedes it); 'reverted' = backed out (walkthrough revert or `bale revert`); 'rejected' = the apply exited through a pre-flight or pipeline error path (detail in the session log); 'bailout' = response_kind=bailout, session consumed; 'scope-drift-refused' = the own-scope drift gate refused the response's changes[] at apply pre-flight (BALE.md section 8.1 step 14; v0.3.10, additive enum value) — the session stays open, so a later attempt supersedes it the way a HOLD's does."
     },
     "attempts": {
       "type": "array",
@@ -55,7 +55,7 @@
           },
           "outcome": {
             "type": "string",
-            "enum": ["applied", "held", "reverted", "rejected", "bailout"],
+            "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused"],
             "description": "This attempt's outcome, same vocabulary as the envelope field."
           },
           "command": {
@@ -114,6 +114,11 @@
             "type": "array",
             "items": { "type": "string" },
             "description": "The session's declared scope — the resolved include set recorded at pack time (the 'includes shipped' side of the includes-vs-changes comparison). Empty when no scope was recorded (pre-ADR-0007 sessions)."
+          },
+          "overridden_paths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Out-of-scope changes[] paths a per-invocation `bale apply --allow-out-of-scope` admitted past the own-scope drift gate on this attempt (v0.3.10, additive field; BALE.md section 8.1 step 14). Bale-computed, always a list: empty means no override was in play (including every pre-v0.3.10 attempt, where the key is absent). On a scope-drift-refused attempt it carries what a PARTIAL override admitted while other drift still refused; the refused paths are recoverable from scope vs change_paths, both recorded raw."
           },
           "change_paths": {
             "type": "array",
