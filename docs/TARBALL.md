@@ -731,7 +731,7 @@ Field semantics:
   matches the locked session. `session_id` equals `responds_to` for
   normal and bailout responses alike (both answer the request they
   were built for), and for a clarification too — a clarification
-  suspends rather than consumes its session (§5.9.3), so it carries
+  suspends rather than consumes its session (§5.9), so it carries
   the same sid the eventual normal response will.
 - **`corrects`** — optional, default `null`. If this response is a
   re-attempt at a previous response whose validation failed or
@@ -1003,18 +1003,13 @@ new session that the user packs after running `bale handoff` will
 have its own fresh `session_id` (same slug, new date+NNN), and its
 `depends_on.previous_response` will point at the bailout.
 
-#### 5.6.3 Apply-time UX (contract for bale)
+#### 5.6.3 Apply-time UX (moved)
 
-When bale's apply step encounters `response_kind: "bailout"`, it:
-
-1. Prints a clear banner identifying the response as a bailout. No
-   changes will be applied; do not run `apply.sh` or
-   `validation.sh` against the project.
-2. Prints the `manifest.summary` and the first section of
-   `handoff.md`.
-3. Prints the explicit next-step: *"Run `bale handoff
-   <response-NNN>` to package the handoff into a fresh session."*
-4. Skips the staging diff and validation invocation entirely.
+Moved to the bale design doc: `BALE.md` §8.10.1, in bale's source
+repo. The apply-time behavior is a contract on the bale
+implementation, not on the worker — nothing that binds response
+authoring left this file. This section number is kept so older
+cross-references stay resolvable.
 
 ### 5.7 handoff.md (required in bailout responses)
 
@@ -1273,32 +1268,16 @@ the case, and it surfaces the worker's reasoning for audit. A
 question without a stated default is a question the planner has to
 research instead of ratify.
 
-#### 5.9.3 Apply-time UX (contract for bale)
+#### 5.9.3 Apply-time UX (moved)
 
-When bale's apply step encounters `response_kind: "clarification"`,
-it:
-
-1. Prints a clear banner identifying the response as a
-   clarification. No changes are applied; `apply.sh` and
-   `validation.sh` are not run against the project.
-2. Prints the `manifest.summary` and the questions inline — each
-   question with its context, default assumption, and why it
-   blocked — as it does bailout handoffs.
-3. Preserves the manifest under
-   `.bale/clarifications/<sid>/NNN.json`. Deliberately *not* under
-   `.bale/sessions/<sid>/`: the eventual normal-PASS merge wipes
-   the session dir, and the clarification record must outlive the
-   session it suspended (its longitudinal value is precisely
-   aggregation across completed sessions, §5.9.4). `NNN` increments
-   so a session that clarifies more than once keeps every round.
-4. **Retains the lock — the session stays open.** This is the one
-   deliberate divergence from the bailout, and it is the point: a
-   bailout consumes its session (next step `bale handoff`, fresh
-   sid); a clarification suspends it. The explicit next step is
-   answering the questions in the worker's chat; the session then
-   continues to a normal response applied against this same sid.
-   If the gap invalidates the request's framing, the recourse is
-   `bale unlock` and a repack — the architect's call.
+Moved to the bale design doc: `BALE.md` §8.10.2, in bale's source
+repo. The apply-time behavior — including the
+`.bale/clarifications/` preservation path and the lock retention
+that keeps the session open — is a contract on the bale
+implementation, not on the worker; the worker-facing consequence
+(the session suspends and continues to a normal response) stays in
+§5.9's own prose and §5.9.4. This section number is kept so older
+cross-references stay resolvable.
 
 #### 5.9.4 Posture and the answer path
 

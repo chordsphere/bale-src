@@ -978,6 +978,11 @@ user copy-pastes or uploads from there.
 stages, runs the response's `apply.sh` and `validation.sh`, commits
 or holds, and walks the user through the result.
 
+The pipeline below describes a normal response. Bailout and
+clarification responses branch off after pre-flight and are never
+staged, validated, or committed — their apply-time contract is
+§8.10.
+
 Pipeline steps:
 
 ### 8.1 Pre-flight (reject without staging on any failure)
@@ -1463,6 +1468,67 @@ write failure is logged loudly and the apply's outcome stands.
 or an honest `write failed — see log`) at each terminal banner, and
 one additive `telemetry` key (path or null) in the `--json` report —
 `bale_report` owns both, and the json stream discipline is unchanged.
+
+### 8.10 Non-normal response kinds: bailout and clarification
+
+Two response kinds besides `"normal"` reach apply —
+`response_kind: "bailout"` (TARBALL.md §5.6) and
+`"clarification"` (TARBALL.md §5.9) — and apply branches on the
+kind after pre-flight instead of staging, validating, or committing
+anything. This section is the normative apply-time contract for
+both. The wire shapes, manifest specifics, and the doctrine of when
+the worker returns each kind stay in TARBALL.md; this content moved
+here from TARBALL.md §5.6.3 and §5.9.3, which now point back at
+this section, because it is a contract on the bale implementation
+rather than on response authoring.
+
+#### 8.10.1 Bailout
+
+When apply encounters `response_kind: "bailout"`, it:
+
+1. Prints a clear banner identifying the response as a bailout. No
+   changes will be applied; `apply.sh` and `validation.sh` are not
+   run against the project.
+2. Prints the `manifest.summary` and the first section of
+   `handoff.md`.
+3. Prints the explicit next-step: *"Run `bale handoff
+   <response-NNN>` to package the handoff into a fresh session."*
+4. Skips the staging diff and validation invocation entirely.
+
+A bailout consumes its session — post-bailout the session is closed
+(§9.5) — and its apply close records telemetry with outcome
+`bailout` (§8.9).
+
+#### 8.10.2 Clarification
+
+When apply encounters `response_kind: "clarification"`, it:
+
+1. Prints a clear banner identifying the response as a
+   clarification. No changes are applied; `apply.sh` and
+   `validation.sh` are not run against the project.
+2. Prints the `manifest.summary` and the questions inline — each
+   question with its context, default assumption, and why it
+   blocked — as it does bailout handoffs.
+3. Preserves the manifest under
+   `.bale/clarifications/<sid>/NNN.json`. Deliberately *not* under
+   `.bale/sessions/<sid>/`: the eventual normal-PASS merge wipes
+   the session dir, and the clarification record must outlive the
+   session it suspended (its longitudinal value is precisely
+   aggregation across completed sessions, TARBALL.md §5.9.4). `NNN`
+   increments so a session that clarifies more than once keeps
+   every round.
+4. **Retains the lock — the session stays open.** This is the one
+   deliberate divergence from the bailout, and it is the point: a
+   bailout consumes its session (next step `bale handoff`, fresh
+   sid); a clarification suspends it. The explicit next step is
+   answering the questions in the worker's chat; the session then
+   continues to a normal response applied against this same sid.
+   If the gap invalidates the request's framing, the recourse is
+   `bale unlock` and a repack — the architect's call.
+
+A clarification writes no telemetry record: it suspends the session
+rather than closing it, and the eventual normal response records
+(§8.9).
 
 ---
 
