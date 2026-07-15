@@ -1,12 +1,12 @@
-# bale master-session state — v3 — 2026-07-14
+# bale master-session state — v3 — 2026-07-15
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately. This regeneration (2026-07-14,
-session master-regeneration-014) supersedes nothing structurally —
-same v3 doc, deltas applied in place.
+it needs to be carried separately. This regeneration (2026-07-15,
+session master-deltas-015) supersedes nothing structurally — same v3
+doc, deltas applied in place.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -108,13 +108,46 @@ pass-path aggregate-line follow-up was declined (byte-identical
 output wins); the craft_response fixture-seed proposal is absorbed
 into board item 11.
 
+**Sitting summary, 2026-07-15 (landed by master-deltas-015):**
+
+- **drift-gate** — board 2 landed: the apply pre-flight own-scope
+  gate, a directional scope_covers_path helper (ADR-0007 intersection
+  untouched), a per-path `--allow-out-of-scope` override (flag-only,
+  no config key — ratified as the agent-operability shape),
+  structured json refusal with dispatchable outcome
+  `scope-drift-refused`, override paths stamped to mechanical
+  telemetry, and the created-collision message now naming the likely
+  sibling cause. v0.3.10.
+- **status-staging-row** — board 12 landed: per-session staging
+  strategy + declared untracked inputs in `bale status`, human and
+  json modes, additive keys, effective-config semantics. v0.3.11.
+- **bale-status-reconciliation** — rider from 003's clarification
+  round: BALE.md section 5 status row + new §5.5, the §2.2 and
+  section 5 no-status assertions narrowed to log/blame/diag, the
+  one-home rule mechanically pinned in validation (§5.5 may not
+  enumerate the json keys).
+
+Version at sitting close: 0.3.11 as of status-staging-row — verify
+with bale --version at the next sitting's start per the standing
+rule.
+
+**Fold-in registry (2026-07-15):**
+
+- BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
+  drift-refusal aggregation semantics → board 5's session.
+- bale-internals refresh (clusters touched by extraction, status
+  posture, the §5.4 flag-list precedent) → rides 8b/8c.
+- BALE.md section 13 status sentence → landed via 8a (in flight).
+
 ## 3. In flight
 
-Nothing open. Every session in the §2 sitting summary has applied;
-the sitting closed at a milestone (evidence 15 executing). The one
-exception is this regeneration session itself
-(`master-regeneration-014`), which lands this document and the three
-TARBALL.md §3.4 flag rows and closes the sitting when it applies.
+- **docstring-prune (8a)** — in flight as of this brief's authoring
+  (2026-07-15). If it has applied by the time this session's edit
+  lands, this line stands as written; the next MASTER.md touch flips
+  it. Outcome deliberately not guessed.
+- **This session** (`master-deltas-015`) — lands the 2026-07-15
+  sitting deltas into this document; runs concurrently with 8a,
+  scope-disjoint by design.
 
 ## 4. The board
 
@@ -127,19 +160,8 @@ and §8, so done items keep their numbers as one-line pointers.
    target-base strategy landed, config-only opt-in, tracked-at-tip
    guard.
 
-2. **drift-to-contract apply gate** (small; second session) — apply
-   pre-flight rejects any changes[] path outside the session's OWN
-   scope by default, with an explicit operator override for
-   legitimate cases. Converts stay-in-the-lane from policy to
-   contract exactly where trust starts depending on it. Rationale
-   (008 audit): own-scope drift × concurrency = silent clobber — two
-   sessions drifting into the same unclaimed file pass every ADR-0007
-   gate and the second whole-file overlay clobbers the first under a
-   clean no-ff merge. This is the one hole in an otherwise mechanical
-   fence; close it before the trust ledger grants merge autonomy.
-   Ride-along: the created-collision rejection ("declared created but
-   existed pre-apply") should name the likely sibling cause in its
-   message — today it is safe but cryptic.
+2. **drift-to-contract apply gate — DONE** 2026-07-15 (§2 summary):
+   own-scope apply gate landed, v0.3.10.
 
 3. **pack no-brief guard — DONE** this sitting (rode telemetry B1;
    §2 summary): the --no-readme acknowledgment, TTY/piped split per
@@ -210,16 +232,19 @@ and §8, so done items keep their numbers as one-line pointers.
    Input pile from this sitting: response-lint's doc gaps 2 and 5,
    plus the full doc-gap list in that session's notes.md.
 
-8. **shrink-bin/bale arc** (elevated this sitting; slot before board
-   5 or 6) — the docstring prune plus pack-path/apply-path extraction
-   seams. The prune half is unchanged: the top docstring is a
-   661-line / 41KB append-only version narrative — a changelog living
-   in code, 11% of the file, violating CLAUDE.md §7 ("git is the
-   changelog") and CODE.md §2 (docstring = job + index); cut to job +
-   index header, narrative to a CHANGELOG.md or nothing. The
-   extraction half pulls the pack path and the apply path out of the
-   monolith along their seams. Elevated by B's pre-flight
-   demonstrating the size tax; serializes with all bin/ work.
+8. **shrink-bin/bale arc** — split ratified 2026-07-15: **8a
+   docstring prune** (in flight), **8b pack-path extraction**, **8c
+   apply-path extraction**, in that order, serialized on bin/.
+   Ordering rationale: the prune shrinks what every later session
+   reads; pack-path goes first because it proves the extraction
+   pattern where one-apply-behind exposure is lowest; apply-path
+   goes last and carries the heaviest fixture E2E. Narrative
+   destination ratified: dropped, not re-homed — no CHANGELOG.md
+   (§5). Background carried: the top docstring is a 661-line / 41KB
+   append-only version narrative — a changelog living in code, 11%
+   of the file, violating CLAUDE.md §7 ("git is the changelog") and
+   CODE.md §2 (docstring = job + index); 8a cuts it to job + index
+   header.
 
 9. **Cross-project ADR + implementation** — LINKED sessions, not
    fused. Level 1: --link, shared link id, same interface-contract
@@ -264,10 +289,23 @@ and §8, so done items keep their numbers as one-line pointers.
     run-2 proposal: a standing hook or convention running build.sh's
     guards between applies); validate.sh layout-rows mechanization
     (recorded deferred in packaging-v2's manifest).
+    Added 2026-07-15: per-sid stage-time staging stamp — answers
+    what-was-this-HOLD-staged-under; a staging behavior change,
+    adjacent to the --staging-strategy escape hatch.
 
-12. **bale status staging row** (small) — bale status shows, per open
-    session, the staging strategy in effect and its declared
-    untracked inputs.
+12. **bale status staging row — DONE** 2026-07-15 (§2 summary):
+    per-session staging row in bale status landed, v0.3.11.
+
+13. **read-vs-write include separation** — a read-only include shape
+    that ships context without claiming scope. Motivation:
+    includes-as-scope conflates the read set with the write set, so
+    read-context includes are concurrency locks AND inflate the
+    drift gate's admitted surface; separating them unlocks
+    concurrency and tightens the gate to the true write set. Touches
+    pack, the registry scope record, both ADR-0007 gates, and the
+    drift gate — not small; slot after the compression sitting
+    (board 7), before board 5 consumes scope data. (Evidence 25 is
+    the observed cost.)
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -320,6 +358,25 @@ conversation):
   blind checkpoint is the misunderstanding control; the worker's
   validation.sh is the calibration stream. Neither replaces the
   other; the ledger consumes both. (Binds board 6.)
+
+New, ratified 2026-07-15:
+
+- **Scope-drift override is per-invocation and per-path, flag-only.**
+  A standing config opt-out is the rejected shape (self-oracle-
+  adjacent silent bypass). Refusals and overrides are
+  mechanical-stream telemetry.
+- **Status semantics:** bale status reports what the next apply
+  would do (effective merged-config resolution); history questions
+  belong to per-sid staging inspection. Inert declarations report as
+  effective-empty.
+- **One-home rule for json key contracts:** the renderer docstring
+  owns the key list; BALE.md points at the owner and never
+  duplicates it. Mechanically pinned in the reconciliation session's
+  validation.
+- **The bin/bale version narrative is dropped, not re-homed** —
+  git-is-the-changelog reaffirmed as applied; recovery is git
+  checkout, and sole-home rationale surfaces via the 8a sweep as
+  notes.md proposals.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -430,6 +487,25 @@ New from the 2026-07-13/14 sitting:
     master imposes between sessions get stated with their rationale
     so the architect can contest them; one over-serialization was
     caught by the architect this sitting.
+
+New from the 2026-07-15 sitting:
+
+24. **Doc touches pinned in briefs against unread structure are a
+    failure class, not a slip** — two same-sitting occurrences (a
+    flag row pinned to a section that covers the pack pipeline; a
+    status section that did not exist). Both from the master
+    inferring BALE.md structure from other docs' pointers.
+    Countermeasure now standing: read the target doc's actual
+    sections before pinning any doc touch; cite only what was read
+    this sitting. The worker-side flag-don't-ship duty caught both.
+25. **Read-context includes are concurrency locks.** Includes double
+    as scope, so files shipped for read-accuracy (evidence 21) or
+    execution capability (evidence 13) exclude every concurrent
+    session that wants them — the master discovered this hunting
+    for concurrent work while 8a held INDEX.md and meta-sessions.md
+    as read context. Board 13 is the structural fix; until it
+    lands, packs meant to run alongside others weigh every
+    read-context include as the lock it is.
 
 ## 7. Standing environment facts
 
