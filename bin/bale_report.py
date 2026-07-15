@@ -22,7 +22,14 @@ recorded ADR-0007 scope (used for status's `scope` row, per-sid in
 `format_open_sessions_value`'s listing — which grew an optional `scopes`
 mapping — and reflected in `format_status_json`'s additive `scopes` key),
 and `format_integration_holder`, the one holder phrase the acquire-time
-refusal, the status row, and `bale unlock --integration` all share. The human-facing
+refusal, the status row, and `bale unlock --integration` all share.
+v0.3.11 (board 12 — display only) adds `format_staging_value` to the same
+family: one session's effective staging posture (strategy plus declared
+untracked inputs, BALE.md §8.3 step 2) as a row value, used for status's
+`staging` row, per-sid in `format_open_sessions_value`'s listing — which
+grew the optional `staging_strategy` / `staging_untracked_inputs` pair —
+and reflected in `format_status_json`'s additive per-session
+strategy/untracked_inputs keys. The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -947,8 +954,41 @@ def format_status_json(report) -> str:
                                       inspection, or an apply
                                       mid-flight)
                              path     <repo>/.bale/staging/<sid>
+                             strategy          (additive, v0.3.11 —
+                                      board 12) the staging strategy in
+                                      effect for the session:
+                                      "working-tree" | "target-base",
+                                      the effective [staging].strategy
+                                      the merged config resolves to
+                                      (BALE.md §8.3 step 2 — the
+                                      strategy is config-derived at use
+                                      time, not stamped per session, so
+                                      today every open sid carries the
+                                      same effective value; the key is
+                                      per-session because that is the
+                                      fact's shape to a consumer). Null
+                                      when the effective config could
+                                      not be summarised (malformed
+                                      bale.toml — config.summary_failed
+                                      true): unknown rather than
+                                      known-default.
+                             untracked_inputs  (additive, v0.3.11 —
+                                      board 12) the declared
+                                      [staging].untracked_inputs in
+                                      effect for the session, as an
+                                      always-present list — empty when
+                                      none (the uniform-shape
+                                      convention the v0.3.10 telemetry
+                                      keys set), and empty under
+                                      working-tree, where the stage
+                                      step ignores the declaration
+                                      (untracked state rides in with
+                                      the copy), so the list reports
+                                      what validation will actually
+                                      overlay, not raw config.
                            Keys match the `sessions` list; empty when
-                           nothing is open.
+                           nothing is open. Consumers keep dispatching
+                           on stale/sessions, never on key presence.
                  stale     sorted top-level entries under the root no
                            open session owns — closed sessions'
                            preserved-for-inspection leftovers and bare
@@ -1043,6 +1083,15 @@ def format_status_json(report) -> str:
                     "present": bool(info.get("present")),
                     "path": (str(info.get("path"))
                              if info.get("path") is not None else None),
+                    # Additive (v0.3.11, board 12 — display only): the
+                    # effective staging posture, per session. One
+                    # config-derived value fanned out per sid (see the
+                    # docstring's strategy/untracked_inputs entries);
+                    # strategy is null when the config summary failed,
+                    # and untracked_inputs is the always-present list —
+                    # empty when none, and empty under working-tree.
+                    "strategy": report.staging_strategy,
+                    "untracked_inputs": list(report.staging_untracked_inputs),
                 }
                 for sid, info in report.staging_sessions.items()
             },
@@ -1112,7 +1161,35 @@ def format_scope_value(scope: list) -> str:
     return ", ".join(entries)
 
 
-def format_open_sessions_value(open_sids: list, scopes: dict = None) -> str:
+def format_staging_value(strategy: str, untracked_inputs: list = ()) -> str:
+    """Render one session's effective staging posture as a row value
+    (v0.3.11, board 12 — display only).
+
+    `strategy` is the effective [staging].strategy the merged config
+    resolves to — "working-tree" or "target-base" (BALE.md §8.3 step 2).
+    The strategy is config-derived at use time, not stamped per session,
+    so every open session renders the same effective value today; the
+    caller passes it per session anyway because per-session is the shape
+    the fact has to the operator (which content THIS session's apply
+    will validate against). `untracked_inputs` is the effective declared
+    list — non-empty only under target-base, where the declaration is
+    load-bearing; under working-tree the caller passes () because the
+    stage step ignores the declaration there (untracked state rides in
+    with the copy). Common case — no inputs — is the bare strategy
+    string, keeping the row and the per-sid listing line to one line.
+    Used for the single classified session's `staging` row and per-sid
+    in format_open_sessions_value's listing.
+    """
+    inputs = [str(p) for p in untracked_inputs] if untracked_inputs else []
+    if not inputs:
+        return str(strategy)
+    noun = "input" if len(inputs) == 1 else "inputs"
+    return f"{strategy}; untracked {noun}: {', '.join(inputs)}"
+
+
+def format_open_sessions_value(open_sids: list, scopes: dict = None,
+                               staging_strategy: str = None,
+                               staging_untracked_inputs: list = ()) -> str:
     """Render the human `open sessions` row value for `bale status`.
 
     Lives here rather than in bin/bale's _render_status because status
@@ -1124,7 +1201,14 @@ def format_open_sessions_value(open_sids: list, scopes: dict = None) -> str:
     ADR-0007 — v0.3.2) is given, each line carries the session's scope
     via format_scope_value, the fact that decides what a next concurrent
     pack may include; a sid absent from the mapping renders without one
-    rather than guess. The caller only emits this row for 2+ open
+    rather than guess. When `staging_strategy` (the effective
+    [staging].strategy, v0.3.11 — board 12) is given, each line also
+    carries the session's staging posture via format_staging_value —
+    one effective value fanned out per sid, since the strategy is
+    config-derived at use time rather than stamped per session; None
+    (the merged config could not be summarised) renders without one,
+    the same degradation as an absent scope. The common case stays one
+    line per session. The caller only emits this row for 2+ open
     sessions (with 0 or 1 the existing single-session rows already carry
     the fact), so no singular/empty phrasing is needed — but render those
     shapes sensibly anyway rather than assume the caller.
@@ -1135,10 +1219,15 @@ def format_open_sessions_value(open_sids: list, scopes: dict = None) -> str:
     noun = "session" if n == 1 else "sessions"
     lines = []
     for s in open_sids:
+        parts = [str(s)]
         if scopes is not None and s in scopes:
-            lines.append(f"{s} — scope: {format_scope_value(scopes[s])}")
-        else:
-            lines.append(str(s))
+            parts.append(f"scope: {format_scope_value(scopes[s])}")
+        if staging_strategy is not None:
+            parts.append(
+                f"staging: "
+                f"{format_staging_value(staging_strategy, staging_untracked_inputs)}"
+            )
+        lines.append(" — ".join(parts))
     return f"{n} open {noun}:\n" + "\n".join(lines)
 
 
