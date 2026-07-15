@@ -1940,6 +1940,10 @@ rest of the v0.1–v0.3 line, since the selftest harness lands there; the
 conflict and merge-commit paths were exercised manually in the landing
 session, noted in that session's `notes.md`.)*
 
+*(`bale status` (§5.5) also landed in this phase, at v0.2.3 — net-new
+surface beyond the phase's planned scope, recorded in §5's command
+table.)*
+
 ### v0.3 — polish
 
 - Inline help (`bale help <cmd>`). *(Landed in v0.2.2 as the `help` and
