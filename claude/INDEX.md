@@ -128,8 +128,14 @@ deleted.
   unchanged. Status: Accepted. Pull when planning orchestration or
   harness work, or when a session needs the ratified direction rather
   than ADR-0006's motivating context.
+- `context/adr/0013-tarball-rationale-relocation.md` — TARBALL.md
+  compressed in place to its normative core; the displaced rationale
+  lives in the ADR, keyed by the source section each
+  "(rationale: ADR-0013)" pointer sits in. Status: Proposed. Pull when
+  a rule pointing at it is challenged or when touching the self-oracle
+  / runnable-command doctrine.
 
-ADRs 0002–0005 and 0009 are Proposed pending the architect's
+ADRs 0002–0005, 0009, and 0013 are Proposed pending the architect's
 ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, and 0012
 are Accepted.
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
@@ -142,10 +148,10 @@ Accepted together on ratification; the 0006/0007 and 0010/0011 status
 flips reached the ADR files themselves in the 2026-07-13 audit cleanup
 session (0010/0011 on the architect's explicit scope override,
 probe-confirmed), which also recorded 0012 (Accepted at creation — the
-direction was stated by the architect directly). The remaining
-Proposed set is
-unimplemented: 0002–0005 precede any test code, and 0009 defers the doc
-it is about.
+direction was stated by the architect directly). Of the Proposed set,
+0002–0005 precede any test code and 0009 defers the doc it is about;
+0013 is the exception — its relocation landed with the TARBALL.md
+compression (session 012) and awaits ratification.
 
 ## Explainers
 
@@ -169,26 +175,22 @@ canonical design reference for the bale tool — it is project
 documentation for bale-src, not a global workflow doc, and is not
 injected into requests for other projects.
 
-Routing — when a session is authoring or emitting a `bale pack` command
-(a rescope offer per `CLAUDE.md` §11.2, or helping the architect by
-request), the canonical flag/format surface is `TARBALL.md` §3.4; cite
-it rather than reconstruct the command from `bin/bale`'s pack argparse
-parser, which carries a pointer comment to the same section. That
-emission is pre-work only: once a session has landed work, follow-up
-suggestions are prose Proposals (`TARBALL.md` §5.4.1), never runnable
-commands (`TARBALL.md` §5.5). This is a cross-reference into an
-injected global doc, not an inventory entry — the global docs are not
-listed here (see above).
+Routing — the canonical `bale pack` command surface is `TARBALL.md`
+§3.4; post-work follow-ups are prose Proposals (`TARBALL.md` §5.4.1),
+never runnable commands (rationale: ADR-0013). This is a
+cross-reference into an injected global doc, not an inventory entry —
+the global docs are not listed here (see above).
 
 Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
 is BALE.md, MASTER.md (the master-session state doc), two
-explainers, and twelve ADRs (0001–0005 the first in the
+explainers, and thirteen ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
 them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
 set, 0010 the probe-doctrine flip, 0011 the clarification response
-kind, and 0012 the agent-driven direction). Testing doctrine itself lives in the global
+kind, 0012 the agent-driven direction, and 0013 the TARBALL.md
+rationale relocation). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or
