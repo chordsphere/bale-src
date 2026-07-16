@@ -1,12 +1,12 @@
-# bale master-session state — v3 — 2026-07-15
+# bale master-session state — v3 — 2026-07-16
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately. This regeneration (2026-07-15,
-session master-deltas-015) supersedes nothing structurally — same v3
-doc, deltas applied in place.
+it needs to be carried separately. This update (2026-07-16, session
+2026-07-16-master-deltas-004) supersedes nothing structurally — same
+v3 doc, deltas applied in place.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -131,23 +131,71 @@ Version at sitting close: 0.3.11 as of status-staging-row — verify
 with bale --version at the next sitting's start per the standing
 rule.
 
-**Fold-in registry (2026-07-15):**
+**Sitting summary, 2026-07-15/16 (landed by this deltas session,
+2026-07-16-master-deltas-004; sids reconciled against
+claude/telemetry):**
+
+- **docstring-prune (8a)** — sid `2026-07-15-docstring-prune-005`,
+  applied 2026-07-15, v0.3.11 (telemetry: one minute before the
+  prior deltas apply, which is why §3's stale in-flight line existed
+  as written). Details on the board 8 row; the arc's opening move.
+- **pack-path-extraction (8b)** — sid
+  `2026-07-15-pack-path-extraction-010`, applied 2026-07-15,
+  v0.3.12. bin/bale_pack.py extracted; details on the board 8 row.
+- **tarball-ux-extraction** — sid
+  `2026-07-15-tarball-ux-extraction-011`, applied 2026-07-15.
+  TARBALL.md §5.6.3/§5.9.3 apply-time UX contracts moved to BALE.md
+  §8.10; tombstones left in place; the inbound §5.2 reference
+  retargeted.
+- **tarball-compression** — sid
+  `2026-07-15-tarball-compression-012`, applied 2026-07-15.
+  TARBALL.md 75,148 → 71,487 bytes (−4.9%); ADR-0013 created,
+  Proposed.
+- **claude-preflight-compression** — sid
+  `2026-07-16-claude-preflight-compression-001`, applied 2026-07-16.
+  CLAUDE.md §11.2 compressed 925 → 397 words (−57%; whole file
+  −9.4%); INDEX.md gained the ADR-0013 entry, the shrunk routing
+  note, and the coherence-edited Proposed-set prose.
+- **apply-path-extraction (8c)** — sid
+  `2026-07-16-apply-path-extraction-002`, applied 2026-07-16,
+  v0.3.13. bin/bale_apply.py extracted; details on the board 8 row.
+  Closes the shrink-bin/bale arc.
+- **This deltas session** — sid `2026-07-16-master-deltas-004` —
+  lands these deltas into this document. Its apply is the first run
+  of the extracted bale_apply pipeline (v0.3.13), deliberately: a
+  one-doc session is the low-stakes smoke test session 010 asked
+  for; the architect observes, nothing rides on the worker side.
+
+ADR-0013 status at sitting close: **Proposed, with its work already
+landed** — the DOCS.md §9 status flip is the architect's to make and
+is pending by choice; INDEX.md prose already reflects this state.
+
+Version at sitting close: 0.3.13 as of 2026-07-16
+(apply-path-extraction) — verify with bale --version at the next
+sitting's start per the standing rule.
+
+**Fold-in registry (2026-07-16):**
 
 - BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
-  drift-refusal aggregation semantics → board 5's session.
-- bale-internals refresh (clusters touched by extraction, status
-  posture, the §5.4 flag-list precedent) → rides 8b/8c.
-- BALE.md section 13 status sentence → landed via 8a (in flight).
+  drift-refusal aggregation semantics → board 5's session
+  (unchanged).
+- INDEX.md's ADR-0013 "Status: Proposed" word flips when 0013 is
+  Accepted — rides any session touching claude/INDEX.md after the
+  architect flips the ADR (still Proposed as of this sitting, by
+  choice).
+- run_hook's three placeholder-less f-strings — rides any session
+  touching bin/bale section 23. Cosmetic.
+
+Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
+the bale-internals refresh (rode 8b and 8c).
 
 ## 3. In flight
 
-- **docstring-prune (8a)** — in flight as of this brief's authoring
-  (2026-07-15). If it has applied by the time this session's edit
-  lands, this line stands as written; the next MASTER.md touch flips
-  it. Outcome deliberately not guessed.
-- **This session** (`master-deltas-015`) — lands the 2026-07-15
-  sitting deltas into this document; runs concurrently with 8a,
-  scope-disjoint by design.
+- **This session** (`2026-07-16-master-deltas-004`) — lands the
+  2026-07-15/16 sitting deltas into this document. Nothing else is
+  in flight: docstring-prune (8a) applied 2026-07-15 as the prior
+  entry here anticipated, and the whole shrink-bin/bale arc
+  (8a/8b/8c) is closed — see the board 8 row.
 
 ## 4. The board
 
@@ -204,47 +252,37 @@ and §8, so done items keep their numbers as one-line pointers.
    control. They answer different questions (is the worker calibrated
    vs did the worker understand); the ledger consumes both.
 
-7. **Doc compression sitting** (dedicated; before harness scoping) —
-   the injected globals total ~155KB; the every-tarball-session tax
-   (CLAUDE.md + TARBALL.md) is ~105KB ≈ 25K tokens of contract
-   ingestion per worker, a per-worker cost that scales linearly with
-   the fleet and is itself a compaction driver. Organizing principle:
-   split each doc into NORMATIVE (rules, shapes, triggers — stays
-   injected) and JUSTIFICATORY (the why — moves to ADRs or a project
-   explainer, reachable by drill-down when a rule is challenged).
-   Named targets from the 008 sweep:
-   - CLAUDE.md §11.2: ~950 words defending the pre-flight check, the
-     throughput argument made twice; normative content is ~250 words.
-   - The expects_probe:no collision logic stated in TARBALL.md §3.3,
-     §4.1, §5.9, §5.9.1, §10.2, §10.3 — one home (§3.3), bare
-     pointers elsewhere.
-   - The self-oracle / no-runnable-commands rationale argued in full
-     in §3.4, §5.4.1, §5.5, and INDEX.md's routing note — one home
-     (likely an ADR), rule stated flat elsewhere; §5.5's tombstone
-     shrinks to three lines.
-   - §5.6.3 and §5.9.3 are apply-time UX contracts FOR BALE that the
-     worker reads every session and can never act on — move to
-     BALE.md §8/§11; one line each stays in TARBALL.md.
-   - Bank the response-lint prose savings from board 4.
-   Target: 35–45% reduction of CLAUDE.md + TARBALL.md with zero
-   normative loss. Section numbers are stable per DOCS.md §6.4 —
-   compress in place, tombstone what moves.
-   Input pile from this sitting: response-lint's doc gaps 2 and 5,
-   plus the full doc-gap list in that session's notes.md.
+7. **Doc compression sitting — editorial phase COMPLETE**
+   2026-07-15/16, in three sessions after a ratified split (§2
+   sitting summary): tarball-ux-extraction-011 (§5.6.3/§5.9.3 →
+   BALE.md §8.10, tombstones + retargeted §5.2 reference),
+   tarball-compression-012 (TARBALL.md 75,148 → 71,487 bytes, −4.9%;
+   ADR-0013 created, Proposed), and claude-preflight-compression-001
+   (CLAUDE.md §11.2 925 → 397 words, −57%; whole file −9.4%;
+   INDEX.md updated). The original 35–45% pair target is **RETIRED
+   as mismeasured** — see evidence 26. Remaining injection-tax work
+   moves to the structural-split item (board 14). The doc-gap input
+   pile moves to board 15 (7c).
 
-8. **shrink-bin/bale arc** — split ratified 2026-07-15: **8a
-   docstring prune** (in flight), **8b pack-path extraction**, **8c
-   apply-path extraction**, in that order, serialized on bin/.
-   Ordering rationale: the prune shrinks what every later session
-   reads; pack-path goes first because it proves the extraction
-   pattern where one-apply-behind exposure is lowest; apply-path
-   goes last and carries the heaviest fixture E2E. Narrative
-   destination ratified: dropped, not re-homed — no CHANGELOG.md
-   (§5). Background carried: the top docstring is a 661-line / 41KB
-   append-only version narrative — a changelog living in code, 11%
-   of the file, violating CLAUDE.md §7 ("git is the changelog") and
-   CODE.md §2 (docstring = job + index); 8a cuts it to job + index
-   header.
+8. **shrink-bin/bale arc — CLOSED** 2026-07-16, all three sessions
+   DONE in the ratified order, serialized on bin/:
+   - **8a docstring prune — DONE** (applied 2026-07-15, v0.3.11,
+     session 2026-07-15-docstring-prune-005): the 661-line / 41KB
+     version narrative dropped per the ratified
+     dropped-not-re-homed decision (§5); docstring cut to job +
+     index header.
+   - **8b pack-path extraction — DONE** (session
+     2026-07-15-pack-path-extraction-010, v0.3.12): bin/bale_pack.py
+     extracted; sections 11–15 documented banner gap; sibling
+     lazy-import idiom refined — sibling-owned entry points imported
+     from owning modules, not __main__.
+   - **8c apply-path extraction — DONE** (session
+     2026-07-16-apply-path-extraction-002, v0.3.13):
+     bin/bale_apply.py extracted; bin/bale 5,981 → 4,111 lines;
+     straggler helpers homed (git helpers → section 3,
+     resolve_inbound_path → section 8, handoff slicers → section 22,
+     staging trio → bale_apply); upgrade.sh
+     REQUIRED_RELEASE_MEMBERS backfilled including _bale_toml.py.
 
 9. **Cross-project ADR + implementation** — LINKED sessions, not
    fused. Level 1: --link, shared link id, same interface-contract
@@ -306,6 +344,39 @@ and §8, so done items keep their numbers as one-line pointers.
     drift gate — not small; slot after the compression sitting
     (board 7), before board 5 consumes scope data. (Evidence 25 is
     the observed cost.)
+
+14. **Doc-compression sitting, structural phase** — TARBALL.md split
+    along the DOCS.md §6.2 seam: always-needed core (≈ sections 1,
+    2, 5.1, 5.2, 8, 10) vs drill-down reference, tombstones per
+    §6.4. Bundle CLAUDE.md §11.6 and the §3 mode-disagreement
+    passage (200–300 cuttable words, same zero-loss recipe) into the
+    same sitting. Source: sessions 012 and 001 proposals, architect
+    ratified. Dedicated sitting; not before next sitting.
+
+15. **7c — doc-gap audit + landing.** Response-lint gaps: 1
+    CONFIRMED landed (schema questions description, empty
+    tolerated), 6 prose half CONFIRMED landed (session_id =
+    responds_to in the §5.2 region, TARBALL.md line ~700).
+    UNCONFIRMED and likely missing: 2 (testable no-op definition), 3
+    (README.md-on-clarification sentence in §5.9.2), 4 (duplicate
+    changes[] paths rule), 5 (empty directories under files/), and
+    6's schema half (clarification unmentioned in the session_id
+    description). Confirmation method was fingerprint grep, so the
+    session audits before editing. Scope when spawned:
+    docs/TARBALL.md + schemas/response-manifest.schema.json. Small;
+    non-blocking (the injected lint already enforces the correct
+    readings).
+
+16. **Transition-branch retirement** — retire pre-ADR-0008 branches:
+    _discard_hold_state's checked-out-bale-branch reset path,
+    resolve_target_branch's no-stamp fallback. GATE: only after one
+    clean apply has run on the 0.3.13 bale_apply pipeline. Scope
+    hints: bin/bale section 19, bin/bale_apply.py section 1. Source:
+    session 002 proposal, accepted.
+
+17. **DOCS.md sanctioned-pairs one-liner** for the CLAUDE.md §11.2 ↔
+    TARBALL.md §3.4 propagation duty. Rides any session touching
+    DOCS.md; not a standalone session.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -507,17 +578,39 @@ New from the 2026-07-15 sitting:
     lands, packs meant to run alongside others weigh every
     read-context include as the lock it is.
 
+New from the 2026-07-15/16 sitting:
+
+26. **Measure normativity before setting compression targets.**
+    Board 7's 35–45% target predated measuring the docs' normative
+    fraction; TARBALL.md's honest editorial floor was 4.9% (95%
+    normative), and CLAUDE.md §11.2's "~250 normative words"
+    estimate landed at 397 because the validation-asserted phrasing
+    IS the residual. (Sessions 012 and 001.) Corollary: after
+    rationale relocation, remaining wins are structural, not
+    editorial.
+
+27. **Paired independent defenses earn their keep on
+    one-apply-behind changes.** Session 002's free-name resolution
+    audit and its fixture E2E each independently caught the same
+    missed lazy import (apply_pipeline's merge-branch
+    current_branch) before it shipped into the exact defect class
+    one-apply-behind makes silent. Prescribe both shapes for future
+    extraction-class sessions.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
   /mnt/c/Users/chord/Downloads/. Files saved via browser may carry
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
-- Repo: ~/bale-src. bin/ modules: bale (monolith, shrinking),
-  bale_config, bale_validate, bale_staging, bale_report,
-  bale_rollback, _bale_toml. bin/bale imports bale_config,
-  bale_validate, bale_staging, bale_rollback at LOAD — see evidence
-  pile 13 before scoping any include set that must execute it.
+- Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
+  8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
+  bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
+  import set: pre-extraction it was bale_config, bale_validate,
+  bale_staging, bale_rollback; the 8b/8c sessions refined the
+  sibling lazy-import idiom, so re-verify the current set before
+  scoping any include set that must execute bin/bale — evidence 13
+  still governs.
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
