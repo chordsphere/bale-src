@@ -6,9 +6,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`, `bale_apply.py`)
 
-Seven Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
+Eight Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
 shim), no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
@@ -34,7 +34,15 @@ sibling, imported by `bin/bale` for the whole pack path — file
 enumeration and filtering, scope projection + threshold caps, manifest
 and tarball construction, the §7.3 wizard, and `cmd_pack` itself
 (extracted in v0.3.12, the fifth extraction, same precedent and
-mechanism again). The top of `bin/bale` declares constants (paths,
+mechanism again). `bin/bale_apply.py` is the seventh sibling, imported
+by `bin/bale` for the whole apply path — the ADR-0008 pre-flight
+helpers, the bailout/clarification handlers, the per-session
+staging-path layout, the generated-artifact denial, the apply pipeline
+proper, and `cmd_apply` with its inspection surface (extracted in
+v0.3.13, the sixth extraction, same precedent and mechanism again;
+revert, retry, unlock, and handoff stayed in `bin/bale`, retry
+re-entering the pipeline through the module's public surface). The top
+of `bin/bale` declares constants (paths,
 version, path-safety refusals — the pack-side exclusion constants and
 threshold caps moved to `bale_pack` with the pack path);
 the rest is organized as roughly-flat sections, each named with
@@ -42,10 +50,11 @@ a numbered banner comment. The index header in the file's top docstring
 lists every section with an approximate line number; that header is the
 canonical map and is kept in sync with the body by the response's
 `validation.sh` whenever a section is added, renamed, or moved. Since the
-v0.3.12 pack extraction the banner numbers 11–15 are a deliberate gap:
-the old pack sections moved to `bale_pack.py` and the survivors kept
-their numbers (16–26), so every cross-file “section N” comment stays
-true without a renumbering sweep. The list
+v0.3.12 pack extraction and the v0.3.13 apply extraction the banner
+numbers 11–18 are a deliberate gap: the old pack sections moved to
+`bale_pack.py`, the old apply sections (16–18) to `bale_apply.py`, and
+the survivors kept their numbers (19–26), so every cross-file
+“section N” comment stays true without a renumbering sweep. The list
 below is the higher-level grouping of those sections — what each cluster
 is *for* — and stays stable as the per-section line numbers drift:
 
@@ -63,8 +72,13 @@ is *for* — and stays stable as the per-section line numbers drift:
    them, and `log(..., force=True)` buffers FORCE: lines emitted
    before sid allocation so they reach the session log when one
    opens.
-3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`.
-   Subprocess wrappers with capture-and-text defaults.
+3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`,
+   `current_branch()`, `working_tree_clean()`. Subprocess wrappers with
+   capture-and-text defaults, plus the two read-only git-state helpers
+   that moved up from the old apply-helpers section in v0.3.13 — they
+   were always shared (rollback's pre-flight, status's gather, handoff,
+   and the apply path all read them), and beside `git()` is where a
+   reader looks for them.
 4. **Hashing.** `sha256_file()`, `sha256_bytes()`.
 5. **Session IDs + the per-day counter.** `next_session_id()` —
    `YYYY-MM-DD-<slug>-NNN` — plus `parse_session_id()` and, since the
@@ -84,7 +98,14 @@ is *for* — and stays stable as the per-section line numbers drift:
    gates read.
 7. **`.gitignore` for `.bale/`.** Bale auto-appends `.bale/` to
    `.gitignore` on first `pack` if missing.
-8. **Path-safety checks.** `refuse_system_dir()`, `is_path_safe()`.
+8. **Path safety + inbound path resolution.** `refuse_system_dir()`,
+   `is_path_safe()`, and — since v0.3.13, moved from the old
+   apply-helpers section — `resolve_inbound_path()`, the shared
+   CLI-file-argument resolver over `apply.search_paths` that apply,
+   retry, handoff, and pack's `--readme-file` all resolve through. It
+   is a path concern with consumers on both pipelines, so it lives in
+   the path cluster rather than either pipeline's module; the section
+   was retitled accordingly (same number, banner updated).
 9. **Editor invocation.** `open_in_editor()` — $EDITOR / $VISUAL /
    /usr/bin/editor fallback, tempfile, shlex split, kept-on-non-zero-
    exit semantics. Called by both `bale handoff --edit-goal`
@@ -113,48 +134,34 @@ is *for* — and stays stable as the per-section line numbers drift:
     rule-14 check at cluster 11 (the file's banner section 10 is
     retitled accordingly). Slug validation moved up to cluster 5
     rather than out — `parse_session_id` needs it too.
-11. **Apply pipeline.** Three sections in the body: apply helpers (the
-    staging-tree, reconciliation, `validation.sh`-run,
-    session-commit-build, response-verification, and
-    shell-syntax-pre-flight helpers were
-    extracted to the sibling `bale_staging` module in v0.1.3, and the
-    end-of-run summary formatter plus the walkthrough-summary and
-    bailout-banner renderers to the sibling `bale_report` module in
-    v0.2.6, both imported by name; what remains in this section is
-    `current_branch`, `working_tree_clean` (kept for
-    `bale_rollback`'s pre-flight and `bale status`'s gather — apply
-    no longer calls it), the
-    ADR-0008 narrow pre-flight trio (`tracked_dirty_paths`,
-    `resolve_target_branch`, `refuse_dirty_on_target`, v0.3.5),
-    the walkthrough prompt
-    (`prompt_walkthrough_action`), the handoff.md heading slicers
-    (`first_section_of_handoff`, `reading_plan_section`, and the
-    reading-plan path extractor), the inbound-path resolution helper
-    (`resolve_inbound_path`, renamed from `resolve_tarball_path` in
-    v0.3.6 when pack's `--readme-file` became its second consumer
-    alongside the apply/retry/handoff tarball arguments — the pack side
-    now calls it from `bale_pack`)
-    and the non-interactive-mode helpers, the per-session default staging
-    path helpers (`default_staging_root` / `default_staging_dir` /
-    `clean_staging_root`, v0.3.3), the generated-artifact deny list
-    and its pure matcher (`GENERATED_ARTIFACT_DIRS` /
-    `GENERATED_ARTIFACT_FILE_GLOBS` / `generated_artifact_paths`,
-    v0.3.4 — the BALE.md §8.1 step 13 pre-flight check reads it),
-    and `_apply_bailout`), the apply
-    pipeline proper (`_apply_pipeline`, shared with
-    retry), and `cmd_apply`. Manifest validation (the schema-loading and
-    request/response/diagnostics validators now live in the sibling
-    `bale_validate` module — `bin/bale` imports the three public entry
-    points by name and calls them unqualified), file presence + sha256 +
-    path safety (including the `.baleignore` match check per
-    BALE.md §11 rule 14, which rejects a response declaring a
-    path the user-managed exclusion file says shouldn't ride
-    through bale), staging, validation, commit-or-hold logic (both
-    verdicts commit to `bale/<sid>` via plumbing since v0.3.5 —
-    ADR-0008; the merge is a two-parent `commit-tree` advanced by
-    compare-and-swap `update-ref`, or `merge --ff-only` through a
-    clean on-target checkout),
-    and walkthrough.
+11. **Apply pipeline — extracted to `bale_apply.py` (v0.3.13).** The
+    three apply sections that lived here (16 "Apply: helpers", 17
+    "Apply: pipeline", 18 "Apply") now live in the sibling
+    `bale_apply` module, described below with the other siblings:
+    the ADR-0008 narrow pre-flight trio (`tracked_dirty_paths`,
+    `resolve_target_branch`, `refuse_dirty_on_target`), the
+    walkthrough prompt (`prompt_walkthrough_action`), the
+    responds_to peek and non-interactive-mode resolution
+    (`_peek_responds_to`, `resolve_no_interact`), the bailout and
+    clarification handlers (`_apply_bailout`, `_apply_clarification`),
+    the per-session default staging path helpers
+    (`default_staging_root` / `default_staging_dir` /
+    `clean_staging_root`), the generated-artifact deny list and its
+    pure matcher, the apply pipeline proper (`apply_pipeline`,
+    renamed from `_apply_pipeline` at extraction — retry in
+    `bin/bale` is its second front door, and what `bin/bale` imports
+    by name is the sibling's public surface; `record_rejected_attempt`
+    dropped its underscore on the same grounds), and `cmd_apply` with
+    the inspection surface (`inspect_response_scripts`,
+    `_extract_response_dir`). Of the old apply-helpers section, the
+    genuinely shared stragglers stayed in `bin/bale` with deliberate
+    homes: `current_branch` and `working_tree_clean` beside `git()`
+    in cluster 3, `resolve_inbound_path` in cluster 8 (retitled), and
+    the handoff.md heading slicers (`first_section_of_handoff`,
+    `reading_plan_section`, the reading-plan path extractor and its
+    regex constants) in cluster 14 beside their consumer —
+    `bale_report`'s bailout banner still reaches
+    `first_section_of_handoff` lazily from `__main__`, unchanged.
 12. **`cmd_revert`** and **`cmd_retry`.** Revert discards a HOLDed
     session entirely (and clears the lock); retry discards the same
     HOLD state but preserves the lock and reruns the apply pipeline
@@ -180,7 +187,12 @@ is *for* — and stays stable as the per-section line numbers drift:
     `handoff.md`'s reading-plan section (v0.0.7+), and warns on
     chained-bailout lineages (CLAUDE.md §11.4). Optional
     `--edit-goal` opens `$EDITOR` on the inherited goal (via the
-    shared `open_in_editor` in cluster 9) before packing.
+    shared `open_in_editor` in cluster 9) before packing. Since
+    v0.3.13 this cluster also houses the handoff.md heading slicers
+    (`first_section_of_handoff`, `reading_plan_section`) and the
+    reading-plan path extractor, moved from the old apply-helpers
+    section: this command and `bale_report`'s bailout banner are
+    their consumers.
 15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
     which layer the script came from.
@@ -239,7 +251,9 @@ is *for* — and stays stable as the per-section line numbers drift:
     `staging_sessions` report field) and any root entries no open
     session owns (`staging_stale`), resolved through the same
     `default_staging_root` / `default_staging_dir` helpers the apply
-    pipeline uses), and `_render_status` (turns the report
+    pipeline uses — imported by name from `bale_apply` since v0.3.13,
+    which is what keeps the path status reports the path apply uses by
+    construction), and `_render_status` (turns the report
     into a `format_summary_block`). From v0.2.9 `bale status --json`
     swaps the human block for the one-line machine report rendered by
     `bale_report.format_status_json` (which owns the key contract; the
@@ -255,10 +269,11 @@ is *for* — and stays stable as the per-section line numbers drift:
     0003 anticipates: the classifier and renderer are pure and
     unit-testable, the command is CLI-E2E-testable; the tests themselves
     are deferred to the v0.4 harness (ADR 0001). It reads several `bin/bale`
-    helpers (`read_lock`, `current_branch`, `working_tree_clean`,
-    `repo_root`), `bale_report`'s `format_summary_block` (imported by
-    name into `bin/bale`'s namespace, so the call site is unqualified),
-    and `bale_config`'s
+    helpers (`read_lock`, `current_branch`, `working_tree_clean` —
+    both in cluster 3 since v0.3.13 — and `repo_root`), `bale_apply`'s
+    staging-layout helpers and `bale_report`'s `format_summary_block`
+    (both imported by name into `bin/bale`'s namespace, so the call
+    sites are unqualified), and `bale_config`'s
     `merged_config`/`get_hook`/`get_apply_search_paths` for the config
     summary. By file order this cluster is banner section 25, between Help
     and completion (cluster 17, banner section 24) and the CLI parser
@@ -425,6 +440,44 @@ dependency direction is one-way — `bin/bale` → `bale_pack`, and
 `validation.sh` asserts that direction. The extraction was
 behavior-preserving; the CLI surface, wizard flow, `--json` stream
 discipline, and pack/handoff tarball bytes are unchanged.
+
+`bin/bale_apply.py` is the seventh sibling (extracted in v0.3.13 — the
+sixth extraction, closing the shrink-bin/bale arc). It owns the `bale
+apply` path end to end: the ADR-0008 narrow pre-flight trio
+(`tracked_dirty_paths`, `resolve_target_branch`,
+`refuse_dirty_on_target`), the walkthrough prompt, the responds_to peek
+and non-interactive-mode resolution, the bailout and clarification
+handlers, the per-session default staging-path layout
+(`default_staging_root` / `default_staging_dir` / `clean_staging_root`),
+the generated-artifact deny list and its matcher, the apply pipeline
+proper (`apply_pipeline`), and `cmd_apply` with the inspection surface.
+Like `bale_pack` it carries its own index header — three numbered banner
+sections, per CODE.md §2.1. `bin/bale` imports the public surface by
+name (`from bale_apply import ...`): `cmd_apply` for the CLI dispatch;
+`apply_pipeline`, `record_rejected_attempt`, `resolve_no_interact`,
+`refuse_dirty_on_target`, and `resolve_target_branch` for `bale retry`
+(the pipeline's second front door — the first two dropped their leading
+underscore at extraction, since what `bin/bale` imports by name is the
+sibling's public surface); and `default_staging_root` +
+`default_staging_dir` for `bale status`'s gather. The module reaches
+back for `bin/bale`-owned shared helpers (logging, git, `current_branch`,
+path safety, `resolve_inbound_path`, the registry + scope +
+integration-lock helpers, `run_hook`, `_discard_hold_state`) lazily from
+`__main__`, and — per the v0.3.12 refinement — for entry points owned by
+*other siblings* (`bale_config`, `bale_staging`'s six staging/commit
+entry points, `bale_validate`'s response and diagnostics validators,
+`bale_report`'s apply-side renderers, telemetry builders, and json-mode
+state) lazily from their owning modules, so `bin/bale` no longer
+imports `bale_staging`, `validate_diagnostics`, or the apply-side
+`bale_report` renderers at all — bale_apply owns those imports. The
+dependency direction is one-way in both directions that matter:
+`bin/bale` → `bale_apply`, `bale_pack` imports nothing from the apply
+path, and `bale_apply` imports nothing from `bale_pack`; the
+per-response `validation.sh` asserts the pack-side direction. The
+extraction was behavior-preserving; the CLI surface, the walkthrough
+flow, the `--json` stream discipline, and the pipeline's git topology
+are unchanged. Two names changed at the seam (declared above): the
+pipeline entry point and the rejected-attempt recorder went public.
 
 Two-level subparsing only — `bale <verb>` for eleven top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,

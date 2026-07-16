@@ -116,8 +116,17 @@ fi
 # the three files v0.3.x made non-optional: bin/bale_report.py (a
 # load-time import of bin/bale), tools/response_lint.py (pack hard-fails
 # without it), and schemas/telemetry-record.schema.json (apply's close
-# fails at load_schema) — and to bin/bale_pack.py in v0.3.12 (the pack
-# path's new home, another load-time import of bin/bale).
+# fails at load_schema) — to bin/bale_pack.py in v0.3.12 (the pack path's
+# new home, another load-time import of bin/bale) — and in v0.3.13 to
+# bin/bale_apply.py (the apply path's new home, another load-time import)
+# plus a backfill of the elder siblings that met the criterion all along:
+# bin/bale_config.py, bin/bale_validate.py, bin/bale_staging.py, and
+# bin/bale_rollback.py are all load-time imports of bin/bale whose absence
+# bricks the install, absent from this list only because they predate its
+# articulation. bin/_bale_toml.py rides with them: it is load-bearing only
+# on Python 3.10 (bale_config imports it at load time; on 3.11+ it defers
+# to stdlib tomllib internally, but the module itself must import), and a
+# pre-wipe check protects the worst-case runtime, not the best.
 TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
   || die "could not read $NEW_TARBALL as a gzip tar — is it a valid bale release tarball?"
 
@@ -131,8 +140,14 @@ TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
 # at column 0.
 REQUIRED_RELEASE_MEMBERS=(
   bin/bale
+  bin/bale_config.py
+  bin/bale_validate.py
+  bin/bale_staging.py
+  bin/bale_rollback.py
   bin/bale_report.py
   bin/bale_pack.py
+  bin/bale_apply.py
+  bin/_bale_toml.py
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json
