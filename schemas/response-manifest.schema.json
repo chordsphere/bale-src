@@ -19,7 +19,7 @@
     "session_id": {
       "type": "string",
       "minLength": 1,
-      "description": "YYYY-MM-DD-<slug>-NNN per TARBALL.md section 1. For a normal response this equals responds_to; for a bailout it equals responds_to too, since the bailout is the answer to the same request."
+      "description": "YYYY-MM-DD-<slug>-NNN per TARBALL.md section 1. For a normal response this equals responds_to; for a bailout it equals responds_to too, since the bailout is the answer to the same request; and for a clarification as well, since a clarification suspends rather than consumes its session (TARBALL.md section 5.9) and carries the same sid the eventual normal response will."
     },
     "responds_to": {
       "type": "string",
