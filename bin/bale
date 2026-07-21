@@ -1361,8 +1361,10 @@ def is_baleignore_match(rel: str, matcher: Optional[BaleignoreMatcher]) -> bool:
 def _discard_hold_state(repo: Path, sid: str) -> dict:
     """Discard the HOLD-applied state for sid.
 
-    Resets uncommitted changes on bale/<sid> if checked out, deletes the
-    branch, wipes the session dir, wipes the recorded staging directory.
+    Switches off bale/<sid> if checked out (refusing loudly, WIP
+    untouched, if the checkout is dirty and git refuses the switch),
+    deletes the branch, wipes the session dir, wipes the recorded
+    staging directory.
     The registry close is intentionally NOT performed here — callers
     manage it. cmd_revert closes the session (close_session) after
     calling this helper, capturing openness beforehand since the
@@ -1440,18 +1442,27 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
                      f"this session was already merged. Use "
                      f"`bale rollback {sid}` to undo a merged session.")
 
-        # If on the bale branch, reset any local changes and switch to
-        # origin before deleting it. Since ADR-0008 bale never puts the
-        # user on bale/<sid> — this path covers a manual checkout during
-        # inspection, and the pre-ADR-0008 HOLD shape (staged changes on a
-        # checked-out bale branch) that one-apply-behind can hand us. (We
+        # If on the bale branch, switch to origin before deleting it —
+        # `branch -D` cannot delete the checked-out branch. Since ADR-0008
+        # bale never puts the user on bale/<sid>; this path covers a
+        # manual checkout during inspection. Switch only, never a reset:
+        # if the checkout is dirty and git refuses to carry the changes
+        # across, refuse loudly rather than clobber the user's WIP. (We
         # don't touch other branches' WIP because we don't check them
         # out.)
         current = current_branch(repo)
         if current == sid_branch:
-            log(f"on {sid_branch}; resetting staged changes and switching to {origin_branch}")
-            git(["reset", "--hard", "HEAD"], cwd=repo)
-            git(["checkout", origin_branch], cwd=repo)
+            log(f"on {sid_branch}; switching to {origin_branch}")
+            switched = git(["checkout", origin_branch], cwd=repo,
+                           check=False)
+            if switched.returncode != 0:
+                detail = (switched.stderr or switched.stdout or "").strip()
+                fail(f"cannot switch from {sid_branch} to {origin_branch}: "
+                     f"the checkout has local changes git refuses to carry "
+                     f"across, and bale will not discard them. Commit, "
+                     f"stash, or reset your changes on {sid_branch}, then "
+                     f"re-run."
+                     + (f"\n  git: {detail}" if detail else ""))
         elif current != origin_branch:
             log(f"on {current}; deleting {sid_branch} without changing branch")
 
@@ -1720,9 +1731,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # tracked changes on the target branch itself, before any HOLD state
     # is discarded. The old blanket guard was skipped here because a HOLD
     # dirtied the worktree by construction; a HOLD is a committed branch
-    # now, so retry runs the guard like apply does. (A pre-ADR-0008 HOLD
-    # in flight has the user parked on bale/<sid> — not the target — so
-    # the transition case passes and _discard_hold_state resets it.)
+    # now, so retry runs the guard like apply does. (A manual inspection
+    # checkout of bale/<sid> is not the target, so it passes this guard;
+    # _discard_hold_state handles switching off it.)
     refuse_dirty_on_target(repo, resolve_target_branch(repo, locked_sid))
 
     # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
