@@ -448,7 +448,7 @@ forward-looking entry.
 |---------|---------|-------|
 | `bale pack` | Build a request tarball from the project + user-specified scope. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
-| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). | v0.0.x |
+| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. | v0.0.5 |
@@ -497,8 +497,9 @@ The following flags apply across multiple commands:
 - `--verbose` — stream validation output and other long-running
   command output to stdout in addition to the log file. (Landed
   apply-scoped in v0.2.1 — `bale apply --verbose` streams `validation.sh`
-  output live; wiring it across the other commands listed here is future
-  work.)
+  output live — and extended to `bale retry --verbose` in v0.3.14, since
+  retry reruns the same pipeline; wiring it across the other commands
+  listed here is future work.)
 - `--no-interact` — non-TTY mode. Skips prompts; the default action
   (Enter key equivalent) is taken at every prompt point. (Landed
   apply-scoped in v0.2.5 — `bale apply --no-interact` and `bale retry
@@ -514,9 +515,12 @@ The following flags apply across multiple commands:
   out-of-scope path still refuses. Per-invocation only — there is
   deliberately no config key, so an override never becomes standing
   policy — and every use is logged prominently and stamped into the
-  session's telemetry record (§8.9). `bale retry` takes no equivalent;
-  the drift refusal is pre-staging, so the still-open session accepts
-  a plain `bale apply --allow-out-of-scope ...` re-run.
+  session's telemetry record (§8.9). `bale retry` takes the same flag
+  (v0.3.14): a retry attempt runs the same drift gate, and the
+  override is never carried forward from the failed apply attempt —
+  the operator re-states it at retry, so an overridden apply that
+  HOLDs is not iced out of its own session. Overrides admitted on any
+  attempt, apply or retry, are stamped per-attempt (§8.9).
 - `--staging-dir <path>` — override the default
   `<repo>/.bale/staging/<sid>/` location (section 8.3). The override
   is used verbatim — no `<sid>` suffix — and refused if it exists.
@@ -1099,9 +1103,12 @@ Pipeline steps:
     prose. Manifest-only, so it runs under `--dry-run` (same report and
     exit; no telemetry record, since no outcome occurred) and passes
     vacuously for bailout and clarification manifests. `bale retry`
-    takes no override flag: a drift refusal there is also pre-staging,
-    so the still-open session accepts a plain
-    `bale apply --allow-out-of-scope ...` re-run.
+    takes the same override flag (v0.3.14) and runs the same gate: the
+    override is per-invocation and per-path on retry exactly as on
+    apply, never carried forward from the failed attempt — a retry
+    that needs it re-states it, and a retry that omits it refuses
+    here. The refusal is pre-staging either way, so the session stays
+    open and recoverable.
 
 If any of 1–14 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No

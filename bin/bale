@@ -197,7 +197,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.13"
+VERSION = "0.3.14"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1648,6 +1648,18 @@ def cmd_retry(args: argparse.Namespace) -> int:
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
+    # json output mode (v0.3.14, retry parity): same two-part contract as
+    # `bale apply --json` (v0.2.8) — stdout carries exactly the one-line
+    # machine report the pipeline emits at its terminal reporting point,
+    # everything else lands on stderr. Enabled here, before the session
+    # resolution and set_log_file below, mirroring cmd_apply's
+    # after-inspection placement (retry has no inspection branch, so
+    # after tarball resolution is the direct analog). The pipeline's
+    # emission points are already gated on bale_report.json_mode(), so
+    # nothing threads through apply_pipeline's signature.
+    if args.json:
+        enable_json_mode()
+
     # Retry requires an open session, same as apply. Threaded (ADR-0006):
     # the registry identifies which session this retry is for — implicit
     # with exactly one open, --sid required with several, and an explicit
@@ -1766,12 +1778,22 @@ def cmd_retry(args: argparse.Namespace) -> int:
 
     # Same rejected-path telemetry wrapper as cmd_apply (BALE.md §8.9);
     # invoked_by="retry" so the record's attempts distinguish the commands.
+    #
+    # Flag parity (v0.3.14): verbose and allow_out_of_scope thread through
+    # exactly as cmd_apply passes them. The override is per-invocation and
+    # per-path by contract (BALE.md §8.1 step 14) — args.allow_out_of_scope
+    # is whatever THIS retry invocation named, never state carried from the
+    # failed apply attempt. Nothing here reads a prior attempt's admitted
+    # paths back; a retry that needs the override re-states it, and a retry
+    # that omits it hits the drift gate like any un-overridden apply would.
     try:
         return apply_pipeline(repo, tarball_path, locked_sid,
                               args.staging_dir,
+                              verbose=args.verbose,
                               no_interact=no_interact,
                               no_interact_source=no_interact_source,
-                              invoked_by="retry")
+                              invoked_by="retry",
+                              allow_out_of_scope=args.allow_out_of_scope)
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
                                 tarball_path.name, e)
@@ -4009,7 +4031,15 @@ def build_parser() -> argparse.ArgumentParser:
             "tarball's manifest.responds_to must match the target session "
             "(same as `bale apply`). The tarball argument is resolved "
             "against apply.search_paths in bale.toml the same way `bale "
-            "apply` does."
+            "apply` does.\n\n"
+            "The per-attempt flags mirror `bale apply`'s (--verbose, "
+            "--no-interact, --allow-out-of-scope, --json), since retry "
+            "reruns the same pipeline. Apply's inspection flags "
+            "(--show-validator, --show-apply-script, --dry-run) are "
+            "deliberately absent here: they read the tarball or the open "
+            "session without touching the HOLD state, so they work "
+            "verbatim through `bale apply` at any point, retry pending or "
+            "not."
         ),
     )
     p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
@@ -4027,12 +4057,44 @@ def build_parser() -> argparse.ArgumentParser:
              "already exists.",
     )
     p_retry.add_argument(
+        "--verbose", action="store_true",
+        help="Stream validation.sh output live to the terminal in addition "
+             "to the session log (BALE.md §8.5) — same semantics as `bale "
+             "apply --verbose` (retry reruns the same pipeline). Without "
+             "it, validation output goes to .bale/logs/<sid>.log only and "
+             "the walkthrough summary carries the verdict.",
+    )
+    p_retry.add_argument(
         "--no-interact", action="store_true",
         help="Run without prompting — same semantics as `bale apply "
              "--no-interact` (retry reruns the same pipeline): walkthrough "
              "takes its default action, the post-apply hook confirmation "
              "resolves from apply.hook_auto_accept, and every bypassed "
              "prompt logs its decision and source.",
+    )
+    p_retry.add_argument(
+        "--allow-out-of-scope", action="append", default=None,
+        metavar="PATH", dest="allow_out_of_scope",
+        help="Admit one changes[] path that lies outside the session's own "
+             "declared scope, past the own-scope drift gate (BALE.md §8.1 "
+             "step 14, §11 row 22) — same semantics as `bale apply "
+             "--allow-out-of-scope`. Repeat the flag per path; any "
+             "out-of-scope path NOT named still refuses. Per-invocation "
+             "only — there is deliberately no config key, and the override "
+             "is never carried forward from a failed apply attempt: a "
+             "retry that needs it re-states it. Every use is logged "
+             "prominently (FORCE: line in the session log) and the "
+             "admitted paths are stamped into the session's telemetry "
+             "record.",
+    )
+    p_retry.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run report as one line of JSON on stdout — "
+             "same key contract and stream discipline as `bale apply "
+             "--json` (retry reruns the same pipeline): '[bale] ' lines, "
+             "prompts, and the human banners go to stderr; stdout carries "
+             "exactly the JSON line on the reporting paths. Pair with "
+             "--no-interact for scripted retries.",
     )
     p_retry.set_defaults(func=cmd_retry)
 
