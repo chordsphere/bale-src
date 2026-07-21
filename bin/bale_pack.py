@@ -741,10 +741,13 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     the branch its content was gathered from and the branch its response
     merges into — fixed at pack time so a later apply run from an
     unrelated (even dirty) checkout still knows where it lands. Both
-    request-building call sites pass current_branch(repo). None or the
-    detached-HEAD sentinel "HEAD" writes no stamp; resolve_target_branch
-    then falls back to the branch current at apply time, the pre-stamp
-    behavior.
+    request-building call sites pass current_branch(repo). The stamp is
+    required at apply: resolve_target_branch hard-refuses a session with
+    a missing or empty stamp. None or the detached-HEAD sentinel "HEAD"
+    writes no stamp and therefore produces a session apply will refuse —
+    cmd_pack's pre-flight refuses a detached HEAD before reaching here
+    (BALE.md §7.1 step 5), so on the pack path the sentinel is
+    unreachable; the guard stays as defense in depth for other callers.
     """
     from __main__ import persist_session_scope  # lazy — see module docstring
     sessions_dir = repo / ".bale" / "sessions" / sid
@@ -1416,7 +1419,28 @@ def cmd_pack(args: argparse.Namespace) -> int:
         repo = git_init_walkthrough(cwd, force=args.force)
     refuse_system_dir(repo, force=args.force)
 
-    # Scope-disjointness gate (BALE.md 7.1 step 5, ADR-0007), read from
+    # Detached-HEAD refusal (BALE.md §7.1 step 5). The session's
+    # integration target is stamped from current_branch(repo) at the
+    # persist step (ADR-0008), and apply hard-refuses a session without
+    # the stamp (resolve_target_branch, BALE.md §8.1 step 5). A
+    # detached-HEAD pack would therefore create a session doomed to
+    # refuse at apply — discovered only after the tarball shipped and a
+    # response came back. Fail here instead: in pre-flight, before the
+    # wizard can collect answers and before any tarball or session state
+    # exists. The git-init walkthrough path above always lands on a
+    # branch, so this fires only for a pre-existing detached checkout.
+    # No override flag: there is no session state a detached pack could
+    # produce that apply would accept.
+    if current_branch(repo) == "HEAD":
+        fail(
+            "HEAD is detached — bale pack stamps the currently checked-out "
+            "branch as the session's integration target (ADR-0008), and a "
+            "session packed without that stamp can never be applied. Check "
+            "out the branch this session should integrate into, then "
+            "re-pack."
+        )
+
+    # Scope-disjointness gate (BALE.md 7.1 step 6, ADR-0007), read from
     # the ADR-0006 session registry. This replaces the unconditional
     # refusal that stood here: a pack is now admitted alongside open
     # sessions exactly when its declared scope — resolved_scope of its

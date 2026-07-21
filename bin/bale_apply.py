@@ -673,17 +673,19 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     revert — additionally emits the one-line machine report via
     emit_json_line(format_apply_json(...)). The human banners still render
     (landing on stderr); the emission is a pass-through addition gated on
-    bale_report.json_mode(), so nothing threads through this signature and
-    cmd_retry — which never enables the mode — is untouched.
+    bale_report.json_mode(), so nothing threads through this signature —
+    cmd_retry enables the mode the same way since v0.3.14 (`bale retry
+    --json`, flag parity) and rides the same gated emission points.
 
     `allow_out_of_scope` (v0.3.10, board 2; cmd_apply --allow-out-of-scope,
     repeatable) names changes[] paths the own-scope drift gate below should
     admit despite lying outside the session's declared scope. Per
     invocation only — there is deliberately no config key — and any drift
-    path NOT named still refuses. None/empty means no override; cmd_retry
-    passes nothing, so a drifting corrected response refuses there too (the
-    refusal is pre-staging, so the operator can follow with a plain
-    `bale apply --allow-out-of-scope ...` in the still-open session).
+    path NOT named still refuses. None/empty means no override. cmd_retry
+    accepts and threads the same flag since v0.3.14 (flag parity), passing
+    whatever THIS retry invocation named — never state carried from a
+    prior attempt — so a retry that needs the override re-states it, and
+    one that omits it hits the drift gate like an un-overridden apply.
 
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
