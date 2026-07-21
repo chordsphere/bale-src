@@ -521,7 +521,10 @@ response-NNN/
 touches `src/components/Foo.vue` and `package.json`, they appear at
 `files/src/components/Foo.vue` and `files/package.json`. Apply is
 then `cp -r response-NNN/files/. <project>/` — no path translation
-required.
+required. The mirror is enumerated by its files: an empty directory
+under `files/` declares nothing and is ignored — by the §10.1
+correspondence and by the §5.6.1/§5.9.2 "absent or empty" test
+alike.
 
 **`files/` carries source, never generated artifacts.** No bytecode
 (`__pycache__/`, `*.pyc`, `*.pyo`), no dependency trees
@@ -680,6 +683,10 @@ contract.
 
 Field semantics:
 
+- **`changes`** — may be empty: a no-op change set is `changes: []`
+  with no files under `files/`; the §10.1 correspondence then holds
+  vacuously, and a file under `files/` beside an empty `changes[]`
+  is an undeclared file, not an implied change.
 - **`changes[].reason`** — non-empty for every entry. Bale rejects
   empty strings. The reason is read later by someone who wasn't
   around for the session.
