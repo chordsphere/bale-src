@@ -88,36 +88,29 @@ def resolve_target_branch(repo: Path, sid: str) -> str:
     apply run from an unrelated dirty branch proceeds without touching the
     checkout.
 
-    Fallback for sessions packed before the stamp existed (including the
-    one-apply-behind session that lands this code): the current branch —
-    exactly the target the old checkout-consuming pipeline would have used.
-    A detached checkout with no stamp has no determinable target and is
-    refused (the old pipeline's behavior there was accidental, not
-    contractual).
+    The stamp is required — stamped at pack since v0.3.5 and re-stamped
+    by apply's §8.2. A missing or empty stamp is a hard refusal naming
+    the remedy; sessions predating the stamp (and detached-checkout
+    packs, which write none) are no longer applyable. A stamp naming a
+    branch that no longer exists is likewise refused, with its own
+    remedies.
     """
-    from __main__ import (  # lazy — see module docstring
-        current_branch,
-        fail,
-        git,
-    )
+    from __main__ import fail, git  # lazy — see module docstring
     stamp = repo / ".bale" / "sessions" / sid / "origin_branch"
-    if stamp.is_file():
-        b = stamp.read_text().strip()
-        if b:
-            exists = git(["rev-parse", "--verify", "--quiet",
-                          f"refs/heads/{b}"], cwd=repo, check=False)
-            if exists.returncode != 0:
-                fail(f"the session's recorded target branch {b!r} no longer "
-                     f"exists. Recreate it, or `bale unlock {sid}` and "
-                     f"re-pack against the branch you mean to target.")
-            return b
-    cur = current_branch(repo)
-    if cur == "HEAD":
-        fail(f"cannot determine the integration target for {sid}: the "
-             f"session has no recorded origin branch and the checkout is "
-             f"detached. Check out the branch this session should merge "
-             f"into and re-run.")
-    return cur
+    b = stamp.read_text().strip() if stamp.is_file() else ""
+    if not b:
+        fail(f"session {sid} has no recorded origin branch (missing or "
+             f"empty stamp at {stamp}). The stamp is required — written "
+             f"at pack since v0.3.5 — and sessions predating it are no "
+             f"longer applyable. `bale unlock {sid}` and re-pack against "
+             f"the branch this session should merge into.")
+    exists = git(["rev-parse", "--verify", "--quiet",
+                  f"refs/heads/{b}"], cwd=repo, check=False)
+    if exists.returncode != 0:
+        fail(f"the session's recorded target branch {b!r} no longer "
+             f"exists. Recreate it, or `bale unlock {sid}` and "
+             f"re-pack against the branch you mean to target.")
+    return b
 
 
 def refuse_dirty_on_target(repo: Path, target_branch: str) -> None:
@@ -1057,10 +1050,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             return 0
 
         # 8.2 stamp session. The integration target is the session's own
-        # (ADR-0008): resolve_target_branch reads the pack-time
-        # origin_branch stamp when present, falling back to the current
-        # branch for pre-stamp sessions — under the old checkout-consuming
-        # pipeline those were always the same branch. The recorded base is
+        # (ADR-0008): resolve_target_branch reads the required pack-time
+        # origin_branch stamp — a missing or empty stamp was already a
+        # hard refusal at the §8.1 step 5 pre-flight. The recorded base is
         # the TARGET branch's tip, not the checkout's HEAD; they coincide
         # only when the user happens to be on the target. The session
         # branch, the session commit, and the merge are all built against

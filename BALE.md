@@ -1005,10 +1005,10 @@ Pipeline steps:
    (step 6).
 5. The narrow dirty-on-target rule (ADR-0008; replaces the blanket
    clean-tree requirement). Resolve the session's integration target
-   (the pack-time `origin_branch` stamp, §7.6; fallback: the branch
-   current at apply time — refuse if that fallback is needed on a
-   detached checkout, and refuse a stamp naming a branch that no
-   longer exists, with the remedies: recreate the branch, or
+   (the pack-time `origin_branch` stamp, §7.6 — required; refuse a
+   missing or empty stamp, with the remedy: `bale unlock` and re-pack
+   against the intended target, and refuse a stamp naming a branch
+   that no longer exists, with the remedies: recreate the branch, or
    `bale unlock` and re-pack against the intended target). Then refuse only the one genuinely entangled
    case: the checkout is on the target branch AND has **tracked**
    changes (staged or unstaged; untracked files never block) — moving
@@ -1113,8 +1113,8 @@ telemetry attempt records outcome `scope-drift-refused` rather than
 ### 8.2 Stamp session
 
 1. Resolve the integration target (ADR-0008): the session's pack-time
-   `origin_branch` stamp (§7.6), falling back to the current branch
-   for sessions packed before the stamp existed. Record it as
+   `origin_branch` stamp (§7.6), required — a missing or empty stamp
+   was already refused at §8.1 step 5. Record it as
    `.bale/sessions/<sid>/origin_branch`. This is the branch the apply
    wizard will merge into (on PASS); `bale revert` reads it too.
 2. Record the **target branch's tip** as `git_head_at_apply` in
@@ -1569,10 +1569,13 @@ Steps:
 2. Verify `bale/<sid>` is **not** an ancestor of `origin_branch`. If
    it is, that means it was already merged; redirect the user to
    `bale rollback <sid>`.
-3. If currently on `bale/<sid>` (a manual checkout during inspection,
-   or a pre-ADR-0008 HOLD in flight), reset local changes and
-   `git checkout <origin_branch>`, logged. Otherwise the checkout is
-   not touched — under ADR-0008 the apply never switched it.
+3. If currently on `bale/<sid>` (a manual checkout during inspection),
+   `git checkout <origin_branch>`, logged — switch only, never a
+   reset. If the checkout is dirty and git refuses the switch, the
+   discard refuses loudly with the remedy (commit, stash, or reset
+   your changes on `bale/<sid>`, then re-run) rather than clobber
+   WIP. Otherwise the checkout is not touched — under ADR-0008 the
+   apply never switched it.
 4. `git branch -D bale/<sid>` (force delete).
 5. Wipe the session's recorded staging directory (the `staging_path`
    the apply stamped under `.bale/sessions/<sid>/` — since the
