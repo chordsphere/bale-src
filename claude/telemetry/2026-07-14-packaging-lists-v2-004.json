@@ -1,0 +1,86 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-14-packaging-lists-v2-004",
+  "created_at": "2026-07-14T14:52:49+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-14T14:52:49+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-004 (7).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "exec bits: four modified scripts executable in staging": "pass",
+          "bash -n: install.sh, upgrade.sh, scripts/build.sh, scripts/reinstall.sh": "pass",
+          "fixture positive: clean scripts-only fixture build (pycache pruned, 20 files, three new files present, lint exec bit survives tar)": "pass",
+          "fixture positive: fixture reinstall mirrors tools/ into a scratch install": "pass",
+          "fixture negative A: RELEASE_FILES entry removed -> build.sh and reinstall.sh die naming it": "pass",
+          "fixture negative B: install.sh INSTALL_LAYOUT drift -> build.sh dies naming it": "pass",
+          "fixture negative C: stray file under bin/ -> tree coverage dies naming it in build.sh and reinstall.sh": "pass",
+          "real tree: release build ships the three files with lint executable in the tarball": "pass",
+          "real tree: reinstall into a staging scratch dir mirrors tools/ and the shipped validate.sh passes": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "install.sh",
+        "scripts",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "change_paths": [
+        "scripts/build.sh",
+        "scripts/reinstall.sh",
+        "install.sh",
+        "upgrade.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.9",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "4854e74887e2c77ba06e63b4b1f195a17f3966b808627670c5f68b3cf0a0f45b",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic)"
+          },
+          "linkage": null
+        },
+        "self_reported": {
+          "assumptions": [
+            "the repo's real bin/, docs/, schemas/, tools/ trees contain exactly the 20 RELEASE_FILES entries (plus prunable __pycache__/*.pyc); if a legitimate extra file exists, the new tree-coverage pre-flight will fail the first real build naming it \u2014 that is the check working, and the fix is a one-line list addition",
+            "the two real-tree validation checks pass in your staging (they cannot run in the worker sandbox, which has only the five context scripts; the fixture suite covers the same code paths hermetically)"
+          ],
+          "judgment_calls": [
+            "install.sh's inline for-loop list became a literal INSTALL_LAYOUT array under the same format contract as RELEASE_FILES \u2014 still literal per the pinned design, but mechanically extractable for build.sh's equality assertion",
+            "tools/response_lint.py joined install.sh's Termux shebang-rewrite set (not pinned, but it is a directly-executed shipped executable like bin/bale)",
+            "build.sh's derived Python syntax check now also matches tools/*.py so the shipped lint is parse-checked before tarring"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-14-packaging-lists-v2-004.log"
+    }
+  ],
+  "updated_at": "2026-07-14T14:52:49+00:00",
+  "outcome": "applied"
+}

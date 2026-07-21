@@ -1,0 +1,77 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-21-lint-schema-refresh-004",
+  "created_at": "2026-07-21T12:53:31+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-21T12:53:31+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-004 (10).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "embedded response-manifest schema equals shipped schema (parsed JSON)": "pass",
+          "embedded session_id description covers the clarification kind": "pass",
+          "embedded diagnostics schema still equals shipped diagnostics schema": "pass",
+          "py_compile tools/response_lint.py": "pass",
+          "tools/response_lint.py is executable": "pass",
+          "lint --help smoke run": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "schemas/response-manifest.schema.json",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.13",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "1676a56f15bafdd3e881bfa584ca6e6086cf53e7ae284bfa69f7b73754d23957",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (Anthropic), claude.ai chat interface"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the staging project tree carries schemas/diagnostics.schema.json; validation's diagnostics-equality check degrades to a labeled [SKIP] if not"
+          ],
+          "judgment_calls": [
+            "kept the embed as raw bytes of the shipped schema file (leading newline after the opening triple quote preserved, matching the existing literal style), so byte-level diff of the literal against the schema file is clean, not just parsed-JSON equality",
+            "added a diagnostics-embed equality assertion to validation.sh beyond the brief's list, as the cheap proof this session did not touch the other embed"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-21-lint-schema-refresh-004.log"
+    }
+  ],
+  "updated_at": "2026-07-21T12:53:31+00:00",
+  "outcome": "applied"
+}

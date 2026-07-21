@@ -1,0 +1,147 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-15-drift-gate-002",
+  "created_at": "2026-07-15T01:56:37+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-15T01:56:37+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-002 (16).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "exec bit on bin/bale": "pass",
+          "bin/bale reports version 0.3.10": "pass",
+          "schema carries scope-drift-refused and overridden_paths": "pass",
+          "fixture: in-scope apply merges clean": "pass",
+          "fixture: own-scope drift refused, named, session kept open": "pass",
+          "fixture: json refusal line parses with outcome scope-drift-refused": "pass",
+          "fixture: override admits only the named paths": "pass",
+          "fixture: created path outside scope refused": "pass",
+          "fixture: created-collision message names the concurrent-session cause": "pass",
+          "fixture: dry-run predicts the refusal without telemetry": "pass"
+        },
+        "claim_verdict": {
+          "exec bit on bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale reports version 0.3.10": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "schema carries scope-drift-refused and overridden_paths": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: in-scope apply merges clean": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: own-scope drift refused, named, session kept open": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: json refusal line parses with outcome scope-drift-refused": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: override admits only the named paths": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: created path outside scope refused": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: created-collision message names the concurrent-session cause": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture: dry-run predicts the refusal without telemetry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md",
+        "claude/context/adr/0006-session-registry.md",
+        "claude/context/adr/0007-scope-disjointness.md",
+        "claude/context/adr/0008-checkout-free-integration.md",
+        "claude/context/bale-internals.md",
+        "claude/context/meta-sessions.md",
+        "schemas"
+      ],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_staging.py",
+        "schemas/telemetry-record.schema.json",
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.9",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "518323f9f453fe257eb542513d1758ba31361138627c580220d1283d1a781259",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "claude-fable-5 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's '\u00a77 flag row for the override' was read as the BALE.md \u00a75.4 flags list (BALE.md \u00a77 is the pack pipeline and has no flag table; \u00a75.4 already carries the apply-scoped flags) \u2014 flagged first in notes.md"
+          ],
+          "judgment_calls": [
+            "the drift refusal exits through its own structured path (return 1), not fail(), so it can carry the stdout JSON line and record telemetry outcome scope-drift-refused instead of the wrapper's generic 'rejected'",
+            "a new directional scope_covers_path helper answers the containment question; the symmetric ADR-0007 intersection helpers are byte-for-byte untouched",
+            "bale retry carries no override flag: a drift refusal is pre-staging, so the still-open session accepts a plain bale apply --allow-out-of-scope re-run (deferred entry + notes.md rationale)",
+            "a --dry-run drift hit emits the same scope-drift-refused report and exit 1 but writes no telemetry record (BALE.md \u00a78.9: a dry-run has no outcome)",
+            "telemetry attempts always carry overridden_paths as a list (empty when unused); the schema keeps the field optional so pre-v0.3.10 records validate"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "a prior session's validation.sh as fixture-harness precedent (the brief's 'packaging-lists way' pointer was enough to reconstruct it, but an example would have de-risked the harness shape)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-15-drift-gate-002.log"
+    }
+  ],
+  "updated_at": "2026-07-15T01:56:37+00:00",
+  "outcome": "applied"
+}

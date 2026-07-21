@@ -1,0 +1,111 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-15-bale-status-reconciliation-004",
+  "created_at": "2026-07-15T02:57:34+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-15T02:57:34+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-004 (9).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "amended assertions narrowed to log/blame/diag (BALE.md 2.2 and 5)": "pass",
+          "section 5.5 exists and cites format_status_json as key-contract owner": "pass",
+          "section 5.5 does not enumerate per-session json keys inline": "pass",
+          "command table has a bale status row": "pass",
+          "internal section references in 5.5 resolve": "pass",
+          "staged bin/bale status smoke run (scratch, non-repo)": "pass"
+        },
+        "claim_verdict": {
+          "amended assertions narrowed to log/blame/diag (BALE.md 2.2 and 5)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 5.5 exists and cites format_status_json as key-contract owner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 5.5 does not enumerate per-session json keys inline": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "command table has a bale status row": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "internal section references in 5.5 resolve": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bin/bale status smoke run (scratch, non-repo)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.11",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "518323f9f453fe257eb542513d1758ba31361138627c580220d1283d1a781259",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "doc",
+            "model_identity": "Claude Fable 5 (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Placed the bale status command-table row last (after config init) \u2014 the table is not strictly phase-ordered, and appending keeps existing rows' diff noise at zero.",
+            "Read 'the two per-session staging keys' in the brief as pointing at the v0.3.11 additions the format_status_json docstring documents; section 5.5 references them collectively, never by name, per the one-home constraint."
+          ],
+          "judgment_calls": [
+            "Added a closing clause to the 2.2 bullet explaining why status left the exclusion list while log/blame/diag stay (bale's own state vs git's history) \u2014 flagged in notes.md for ratification.",
+            "The 5.5 human-block description lists row categories in render order rather than every conditional row's omission rule; the renderer's comments carry that detail.",
+            "validation.sh's smoke run executes bin/bale status from a scratch non-repo directory, the one shape with stable assertable output."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-15-bale-status-reconciliation-004.log"
+    }
+  ],
+  "updated_at": "2026-07-15T02:57:34+00:00",
+  "outcome": "applied"
+}

@@ -1,0 +1,105 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-15-status-staging-row-003",
+  "created_at": "2026-07-15T02:24:00+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-15T02:24:00+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-2026-07-15-status-staging-row-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python syntax (py_compile: bin/bale, bin/bale_report.py)": "pass",
+          "exec bit on bin/bale": "pass",
+          "version bump (bale --version reports 0.3.11)": "pass",
+          "status fixtures (human staging row + json per-session keys across strategy fixtures)": "pass"
+        },
+        "claim_verdict": {
+          "version bump (bale --version reports 0.3.11)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python syntax (py_compile: bin/bale, bin/bale_report.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit on bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "status fixtures (human staging row + json per-session keys across strategy fixtures)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md",
+        "claude/context/adr/0006-session-registry.md",
+        "claude/context/bale-internals.md",
+        "claude/context/meta-sessions.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_report.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.3.10",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "518323f9f453fe257eb542513d1758ba31361138627c580220d1283d1a781259",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), via claude.ai chat"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "display the EFFECTIVE merged-config staging strategy per open session ([staging] is config-only by design \u2014 no per-session stamp exists to read), fanned out per sid; an effective-value display can go stale if config changes mid-session \u2014 flagged for ratification in notes.md per the brief",
+            "untracked_inputs reports the effective declaration, not raw config: empty under working-tree, where the stage step ignores the declaration \u2014 pinned by validation fixture D and flagged in notes.md",
+            "malformed config degrades the strategy to unknown (human row omitted, json null) rather than the seeded default \u2014 a malformed layer could hold any posture, so known-default would be a confident guess",
+            "human placement mirrors the scope-row precedent: dedicated `staging` row for the classified session, per-sid suffix in the 2+ listing"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-15-status-staging-row-003.log"
+    }
+  ],
+  "updated_at": "2026-07-15T02:24:00+00:00",
+  "outcome": "applied"
+}

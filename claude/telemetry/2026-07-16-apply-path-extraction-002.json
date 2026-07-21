@@ -1,0 +1,143 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-16-apply-path-extraction-002",
+  "created_at": "2026-07-16T01:10:27+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-16T01:10:27+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-002 (20).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "py_compile bin/": "pass",
+          "staged bale --version == 0.3.13": "pass",
+          "bale --help subcommand set unchanged": "pass",
+          "fixture E2E (pack, apply PASS merge, HOLD, retry, json stream discipline)": "pass",
+          "import direction (bale_pack imports no bale_apply symbols; bale_apply imports no bale_pack symbols)": "pass",
+          "exec bits (bin/bale, install.sh, validate.sh, upgrade.sh, scripts/build.sh)": "pass",
+          "packaging guards (scripts/build.sh full build + verify in staging)": "pass",
+          "upgrade.sh REQUIRED_RELEASE_MEMBERS backfill rows": "pass",
+          "index header coherence (bin/bale, bin/bale_apply.py)": "pass"
+        },
+        "claim_verdict": {
+          "py_compile bin/": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale --version == 0.3.13": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bale --help subcommand set unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture E2E (pack, apply PASS merge, HOLD, retry, json stream discipline)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "import direction (bale_pack imports no bale_apply symbols; bale_apply imports no bale_pack symbols)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bits (bin/bale, install.sh, validate.sh, upgrade.sh, scripts/build.sh)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "packaging guards (scripts/build.sh full build + verify in staging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "upgrade.sh REQUIRED_RELEASE_MEMBERS backfill rows": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "index header coherence (bin/bale, bin/bale_apply.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "install.sh",
+        "validate.sh",
+        "upgrade.sh",
+        "scripts/build.sh",
+        "claude/context/bale-internals.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.12",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "73438beb7a597d70d965f378b5eef4d9f86945fdd1f8d3d3a936fa2b48a4cc85",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the real repo's schemas/, docs/, and README.md are release-shaped (v0.3.12's build ran clean); local pre-verification used stub schemas and a stub README since those files were out of scope and unshipped \u2014 validation.sh re-runs everything against the real staged tree",
+            "the 'Meta-sessions' doc the brief's read-path names was not in the request; proceeded on CODE.md section 8's statement of the one-apply-behind property, which the brief's cautions restate"
+          ],
+          "judgment_calls": [
+            "apply_pipeline and record_rejected_attempt dropped their leading underscores at extraction (retry is the pipeline's second front door; the sibling convention treats bin/bale's by-name imports as the public surface)",
+            "resolve_inbound_path homed in section 8 (retitled 'Path safety + inbound path resolution') over section 3: it is pure path logic, not a subprocess wrapper",
+            "the per-session staging-path trio moved to bale_apply rather than bale_staging; status imports the two it reads by name from bale_apply",
+            "the handoff.md slicers homed in section 22 beside cmd_handoff; bale_report's lazy __main__ reach is unchanged",
+            "_bale_toml.py included in the upgrade.sh backfill (load-bearing on Python 3.10; the pre-wipe check protects the worst-case runtime)",
+            "bale_pack.py and bale_rollback.py shipped unmodified: their __main__ lazy imports are location-independent and no prose claim was falsified \u2014 verified, not assumed"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/context/meta-sessions doc (the brief's 'Meta-sessions \u00a72 is your read-path')",
+            "schemas/*.schema.json (would have let the local fixture E2E run against real schemas instead of permissive stubs)"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-16-apply-path-extraction-002.log"
+    }
+  ],
+  "updated_at": "2026-07-16T01:10:27+00:00",
+  "outcome": "applied"
+}

@@ -1,0 +1,132 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-15-pack-path-extraction-010",
+  "created_at": "2026-07-15T15:34:39+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-15T15:34:39+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "exec bits (bin/bale + shipped scripts; bale_pack.py plain)": "pass",
+          "staged bale --version is 0.3.12": "pass",
+          "CLI subcommand set unchanged": "pass",
+          "import direction (bale_pack imports no apply-path symbols)": "pass",
+          "index-header coherence (bin/bale, bin/bale_pack.py)": "pass",
+          "release packaging guards (scripts/build.sh end-to-end)": "pass",
+          "fixture E2E pack (human + --json)": "pass"
+        },
+        "claim_verdict": {
+          "exec bits (bin/bale + shipped scripts; bale_pack.py plain)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bale --version is 0.3.12": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "CLI subcommand set unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "import direction (bale_pack imports no apply-path symbols)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "index-header coherence (bin/bale, bin/bale_pack.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "release packaging guards (scripts/build.sh end-to-end)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture E2E pack (human + --json)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh",
+        "upgrade.sh",
+        "claude/context/bale-internals.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.11",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "518323f9f453fe257eb542513d1758ba31361138627c580220d1283d1a781259",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), Fable 5 \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The rider's 'status-command posture' and 'the section 5.4 flag-list precedent' were read as: verify those existing bale-internals passages stay accurate post-extraction (they do) \u2014 MASTER.md was not shipped, so the exact registry entry could not be consulted; flagged in notes.md for review.",
+            "Local smoke tests ran against stub schemas/ and docs/ (not shipped in context/); the fixture E2E in validation.sh exercises the real files in staging, where the real request-manifest.schema.json will judge the (unchanged) manifest shape."
+          ],
+          "judgment_calls": [
+            "Seam: the .baleignore matcher cluster (BaleignoreMatcher, load_baleignore, is_baleignore_match) stays in bin/bale \u2014 bale_staging's apply-side rule-14 check lazy-imports it from __main__, and routing that through bale_pack would point apply at pack, the forbidden direction.",
+            "is_valid_slug stays in bin/bale, folded into section 5 \u2014 parse_session_id (shared session-id machinery) calls it.",
+            "build_pack_matcher moves \u2014 pack-only (composes session excludes); apply uses only load_baleignore + is_baleignore_match.",
+            "bin/bale's banner numbers 16-26 keep their values; 11-15 is a deliberate documented gap, so every cross-file 'section N' comment stays true without a renumbering sweep.",
+            "bale_pack imports sibling-owned entry points (bale_config, bale_report renderers, validate_request_manifest) from their owning modules rather than via __main__ re-exports, so bin/bale never keeps imports it does not itself call (format_pack_json would otherwise have become a phantom re-export).",
+            "validate.sh gains the missing bin/bale_report.py presence row alongside the new bale_pack.py row \u2014 a pre-existing gap in the exact list the brief scoped."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "schemas/request-manifest.schema.json (needed to run pack locally; stubbed for smoke tests only)",
+            "MASTER.md section 2 / the fold-in registry entry the rider cites (interpreted from the brief instead)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-15-pack-path-extraction-010.log"
+    }
+  ],
+  "updated_at": "2026-07-15T15:34:39+00:00",
+  "outcome": "applied"
+}

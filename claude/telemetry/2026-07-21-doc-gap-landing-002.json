@@ -1,0 +1,103 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-21-doc-gap-landing-002",
+  "created_at": "2026-07-21T12:35:19+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-21T12:35:19+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-2026-07-21-doc-gap-landing-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "schema json parse (schemas/response-manifest.schema.json)": "pass",
+          "grep anchors for the three landed rules": "pass",
+          "duplicate-path row guard (docs/TARBALL.md section 10.1)": "pass",
+          "heading-structure sanity (docs/TARBALL.md)": "pass"
+        },
+        "claim_verdict": {
+          "schema json parse (schemas/response-manifest.schema.json)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "grep anchors for the three landed rules": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "duplicate-path row guard (docs/TARBALL.md section 10.1)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "heading-structure sanity (docs/TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.13",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "73438beb7a597d70d965f378b5eef4d9f86945fdd1f8d3d3a936fa2b48a4cc85",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the shipped context files' repo-relative homes are docs/TARBALL.md and schemas/response-manifest.schema.json, as the request README names them",
+            "landing the schema edit ahead of the out-of-scope lint embedded-copy refresh is acceptable because the resulting install validate.sh failure is the designed loud one; notes.md flags it first"
+          ],
+          "judgment_calls": [
+            "gap 3 skipped as already landed: the section 5.9.2 README sentence exists but wraps mid-phrase, which is why fingerprint greps report it missing",
+            "gap 4 skipped per the request default: the section 10.1 placement is the same target the lint's DUPLICATE_PATH finding cites, so no section 5.2 body duplicate was added",
+            "gap 5 landed with the lint's tolerate-and-ignore reading rather than a prohibition, after checking every mirror_files use site and the git empty-directory behavior",
+            "landed sentences wrapped so validation grep anchors sit on single lines"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the install's validate.sh (or the exact JSON-equality assertion) \u2014 to state precisely how the embedded-copy drift surfaces rather than inferring it from the lint's header"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-21-doc-gap-landing-002.log"
+    }
+  ],
+  "updated_at": "2026-07-21T12:35:19+00:00",
+  "outcome": "applied"
+}

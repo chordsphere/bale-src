@@ -1,0 +1,151 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-16-master-deltas-004",
+  "created_at": "2026-07-16T02:10:00+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-16T02:10:00+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "tarball": "response-2026-07-16-master-deltas-004.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "board flips: 7 editorial COMPLETE, 8a/8b/8c DONE, no residual in-flight": "pass",
+          "evidence entries 26 and 27 exist": "pass",
+          "fold-in registry: cleared entries absent, added entries present": "pass",
+          "version line reads 0.3.13": "pass",
+          "session-record sids resolve to telemetry filenames": "pass",
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "markdown heading sanity (8 top-level sections, order preserved)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.13",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "73438beb7a597d70d965f378b5eef4d9f86945fdd1f8d3d3a936fa2b48a4cc85",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-07-16 \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's '-015' session name for the prior deltas pass is orchestrator-side numbering, not a bale sid (telemetry sid is 2026-07-15-master-deltas-006); historical text left untouched, own header uses the real sid",
+            "new board items take the next free top-level identities 14-17; the brief's '7c' label is kept inside item 15's title"
+          ],
+          "judgment_calls": [
+            "refreshed the stale section-7 bin/ module list ('monolith, shrinking') with brief-sourced facts and rewrote its load-time-import sentence as re-verify \u2014 the one edit beyond the brief's literal list; flagged in notes.md",
+            "gave 8a (docstring-prune-005) a session-record line in the sitting summary although the brief's section 5 list omitted it; its landing is a brief section-1 fact and telemetry confirms the sid",
+            "left a two-line 'Cleared this sitting' traceability note under the fold-in registry after removing the cleared bullets"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-16-master-deltas-004.log"
+    },
+    {
+      "at": "2026-07-16T02:19:13+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "tarball": "response-2026-07-16-master-deltas-004-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "board flips: 7 editorial COMPLETE, 8a/8b/8c DONE, no residual in-flight": "pass",
+          "evidence entries 26 and 27 exist": "pass",
+          "fold-in registry: cleared entries absent, added entries present": "pass",
+          "version line reads 0.3.13": "pass",
+          "session-record sids resolve to telemetry filenames": "untested",
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "markdown heading sanity (8 top-level sections, order preserved)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.13",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "73438beb7a597d70d965f378b5eef4d9f86945fdd1f8d3d3a936fa2b48a4cc85",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-07-16 \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "telemetry records under claude/telemetry are untracked at the target base, so the staged conditional check will SKIP on retry \u2014 verified indirectly from the apply log (target-base staging, 44-file baseline, all six sids absent), not by reading the repo",
+            "the brief's '-015' session name for the prior deltas pass is orchestrator-side numbering, not a bale sid (telemetry sid is 2026-07-15-master-deltas-006); historical text left untouched, own header uses the real sid",
+            "new board items take the next free top-level identities 14-17; the brief's '7c' label is kept inside item 15's title"
+          ],
+          "judgment_calls": [
+            "correction confined to validation.sh check 5 (environment-conditional with documented SKIP per TARBALL.md 7.5); the claude/MASTER.md payload is byte-identical to the held response and its claim moved to 'untested'",
+            "refreshed the stale section-7 bin/ module list ('monolith, shrinking') with brief-sourced facts and rewrote its load-time-import sentence as re-verify \u2014 the one edit beyond the brief's literal list; flagged in notes.md",
+            "gave 8a (docstring-prune-005) a session-record line in the sitting summary although the brief's section 5 list omitted it; its landing is a brief section-1 fact and telemetry confirms the sid",
+            "left a two-line 'Cleared this sitting' traceability note under the fold-in registry after removing the cleared bullets"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-16-master-deltas-004.log"
+    }
+  ],
+  "updated_at": "2026-07-16T02:19:13+00:00",
+  "outcome": "applied"
+}

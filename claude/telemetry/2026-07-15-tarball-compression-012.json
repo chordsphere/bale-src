@@ -1,0 +1,117 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-15-tarball-compression-012",
+  "created_at": "2026-07-15T16:17:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-15T16:17:40+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-012 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "markdown structure (heading integrity, 70 headings preserved)": "pass",
+          "internal cross-reference resolution (docs/TARBALL.md, ADR-0013)": "pass",
+          "external cross-reference resolution (sibling docs into docs/TARBALL.md)": "pass",
+          "one-home assertion (relocated rationale absent from docs/TARBALL.md)": "pass",
+          "ADR numbering (0013 = max existing + 1)": "pass",
+          "INDEX coherence": "untested"
+        },
+        "claim_verdict": {
+          "markdown structure (heading integrity, 70 headings preserved)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "internal cross-reference resolution (docs/TARBALL.md, ADR-0013)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "external cross-reference resolution (sibling docs into docs/TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "one-home assertion (relocated rationale absent from docs/TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ADR numbering (0013 = max existing + 1)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX coherence": {
+            "claim": "untested",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/context/adr",
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "docs/TARBALL.md",
+        "claude/context/adr/0013-tarball-rationale-relocation.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.12",
+            "contract_docs": {
+              "CLAUDE.md": "3b03b61af45820c7e23bd5e5612492b5123694d1af180d511f99676d1b7f3ec4",
+              "TARBALL.md": "100ea7da962ad743e83f425ffe2947d640bbb653dc508719b7ee7b3dc7335a43",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "model_identity": "Claude Fable 5 (claude.ai web session)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the architect prefers the compression to land with the INDEX.md entry for ADR-0013 as a follow-up, rather than blocking this session on a file outside the include set (expects_probe: no) \u2014 notes.md, first paragraph",
+            "the repo hosts the sibling global docs at docs/CLAUDE.md, docs/DOCS.md, docs/CODE.md (inferred from the target path docs/TARBALL.md); validation.sh's external-reference check skips loudly if the layout differs"
+          ],
+          "judgment_calls": [
+            "rationale already homed in ADR-0010/0011 was pointed at those ADRs instead of being copied into ADR-0013, reading the one-home constraint as dominating the goal's 'into a new ADR' phrasing",
+            "fixed the pre-existing bare \u00a711.2 in \u00a73.4 to CLAUDE.md \u00a711.2, judged inside the cross-reference-verification constraint rather than scope drift",
+            "stopped compression at ~4.9% where further cuts would carry normative content; proposed a structural split as the follow-up if injection overhead is the real target",
+            "ADR-0013 ships Status: Proposed, leaving the ratification flip to the architect"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/INDEX.md",
+            "claude/STATE.md"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-15-tarball-compression-012.log"
+    }
+  ],
+  "updated_at": "2026-07-15T16:17:40+00:00",
+  "outcome": "applied"
+}

@@ -1,0 +1,127 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-21-transition-branch-retirement-003",
+  "created_at": "2026-07-21T12:37:18+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-21T12:37:18+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-003 (13).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "audit: retired strings absent": "pass",
+          "audit: refusal strings present": "pass",
+          "audit: resolve_target_branch call sites": "pass",
+          "e2e: missing-stamp refusal (hermetic)": "pass",
+          "e2e: discard-path checkout semantics (hermetic)": "pass",
+          "smoke: staged bale --version/--help": "pass",
+          "exec-bit assertion: bin/bale": "pass"
+        },
+        "claim_verdict": {
+          "audit: retired strings absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "audit: refusal strings present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "audit: resolve_target_branch call sites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "e2e: missing-stamp refusal (hermetic)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "e2e: discard-path checkout semantics (hermetic)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "smoke: staged bale --version/--help": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertion: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/_bale_toml.py",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/adr/0008-checkout-free-integration.md",
+        "claude/context/bale-internals.md",
+        "claude/context/meta-sessions.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale_apply.py",
+        "bin/bale",
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.13",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "73438beb7a597d70d965f378b5eef4d9f86945fdd1f8d3d3a936fa2b48a4cc85",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "claude (fable 5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the ratified dirty-checkout recommendation stands as written in the brief: refuse exactly when git itself refuses the switch; a non-conflicting dirty file that git carries across the switch is not treated as a refusal case (it preserves WIP \u2014 detail in notes.md)"
+          ],
+          "judgment_calls": [
+            "updated three in-lane comment/docstring sites beyond the pinned targets (bale_apply.py \u00a78.2 call-site comment, _discard_hold_state docstring, cmd_retry parenthetical) because each would have become false; declared in notes.md for review",
+            "left the sid_sha == origin_sha short-circuit and its pre-ADR-0008 comment untouched \u2014 a different transition accommodation, proposed rather than swept in"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-21-transition-branch-retirement-003.log"
+    }
+  ],
+  "updated_at": "2026-07-21T12:37:18+00:00",
+  "outcome": "applied"
+}
