@@ -909,7 +909,7 @@ def ensure_bale_gitignored(repo: Path) -> bool:
     Returns True if the file was modified (so the caller can decide whether
     to auto-commit), False if no change was needed.
 
-    Per BALE.md section 7.1 step 6. v0.0.1 appends silently with a log line;
+    Per BALE.md section 7.1 step 7. v0.0.1 appends silently with a log line;
     interactive confirmation is a later enhancement.
     """
     gi = repo / ".gitignore"
@@ -1421,26 +1421,20 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
         if not origin_branch:
             fail(f"origin_branch file at {origin_branch_file} is empty")
 
-        # Refuse if already merged into origin. Since ADR-0008 a HOLD
-        # carries a commit on the bale branch (sid_sha != origin_sha, and
-        # is-ancestor is false because origin is behind — the guard passes
-        # it through as unmerged, correctly). The sid_sha == origin_sha
-        # short-circuit stays for the pre-ADR-0008 HOLD shape, where branch
-        # and origin pointed at the SAME commit and the literal
-        # `is-ancestor` check would be trivially true even though nothing
-        # was merged — the transition case one-apply-behind can hand us.
-        # The intent either way is "merged via a merge commit so deleting
-        # the branch would lose history that's threaded through origin",
-        # which only applies when the SHAs differ.
-        sid_sha = git(["rev-parse", sid_branch], cwd=repo).stdout.strip()
-        origin_sha = git(["rev-parse", origin_branch], cwd=repo).stdout.strip()
-        if sid_sha != origin_sha:
-            ancestor = git(["merge-base", "--is-ancestor", sid_branch, origin_branch],
-                           cwd=repo, check=False)
-            if ancestor.returncode == 0:
-                fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
-                     f"this session was already merged. Use "
-                     f"`bale rollback {sid}` to undo a merged session.")
+        # Refuse if already merged into origin. Since ADR-0008 a HOLD is a
+        # commit on the bale branch, and apply refuses stampless sessions,
+        # so the pre-ADR-0008 HOLD shape — branch and origin pointing at
+        # the same commit with nothing merged — can no longer arise. The
+        # plain is-ancestor check is therefore the whole guard: it holds
+        # for a merge commit and for a fast-forward alike (a branch is its
+        # own ancestor), and in both cases deleting the branch would lose
+        # history that's threaded through origin.
+        ancestor = git(["merge-base", "--is-ancestor", sid_branch, origin_branch],
+                       cwd=repo, check=False)
+        if ancestor.returncode == 0:
+            fail(f"{sid_branch} is already an ancestor of {origin_branch} — "
+                 f"this session was already merged. Use "
+                 f"`bale rollback {sid}` to undo a merged session.")
 
         # If on the bale branch, switch to origin before deleting it —
         # `branch -D` cannot delete the checked-out branch. Since ADR-0008

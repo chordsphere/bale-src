@@ -315,11 +315,12 @@ Every project sees the new docs on its next pack.
                                # as whole-tree
       origin_branch            # the session's integration target,
                                # stamped at pack/handoff time
-                               # (ADR-0008, §7.6); absent for
-                               # pre-stamp sessions and detached-
-                               # checkout packs — apply then falls
-                               # back to the branch current at
-                               # apply time (§8.1 step 5)
+                               # (ADR-0008, §7.6); required — apply
+                               # hard-refuses a session with a
+                               # missing or empty stamp (§8.1
+                               # step 5), and pack refuses a
+                               # detached HEAD up front (§7.1
+                               # step 5) so it can't skip the stamp
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
 ```
@@ -685,7 +686,18 @@ pastes output back. Bale does not have a `probe-apply` or
 4. If not in a git repo: run the git-init walkthrough (section 10).
    The walkthrough re-applies the path-location and home-directory
    refusals before initializing.
-5. Scope-disjointness gate (ADR-0007), read from the session
+5. **Detached-HEAD refusal.** Refuse if the repo's HEAD is detached.
+   The session's integration target is stamped from the currently
+   checked-out branch at persist time (§7.6, ADR-0008), and apply
+   hard-refuses a session without the stamp (§8.1 step 5) — a
+   detached-HEAD pack would create a session doomed to refuse at
+   apply, discovered only after the tarball shipped. The refusal
+   names the remedy: check out the branch this session should
+   integrate into, then re-pack. No override flag — no session state
+   a detached pack could produce would ever be applyable. (The
+   git-init walkthrough path always lands on a branch, so this fires
+   only for a pre-existing detached checkout.)
+6. Scope-disjointness gate (ADR-0007), read from the session
    registry (ADR-0006). With no session open, proceed — unchanged
    behavior. With open sessions, admit the pack exactly when its
    declared scope — the resolved include set: normalized `--include`
@@ -702,7 +714,7 @@ pastes output back. Bale does not have a `probe-apply` or
    shown overlapping files. A default whole-tree pack intersects
    every open session — broad scope and concurrency are mutually
    exclusive by design.
-6. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
+7. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
    exists but doesn't list `.bale/`, bale appends `.bale/` to it with
    a single-line user confirmation in interactive mode (or auto-
    appends with a logged note in piped mode).
@@ -949,15 +961,17 @@ After the tarball is on disk and validated for structure:
 1. Write `.bale/sessions/<sid>/manifest.json` (the request's
    manifest, for `bale apply` to verify the response against),
    `.bale/sessions/<sid>/scope.json` (the resolved include set — the
-   session's scope, which the ADR-0007 gates read; step 5 of §7.1 and
+   session's scope, which the ADR-0007 gates read; step 6 of §7.1 and
    step 7 of §8.1), and `.bale/sessions/<sid>/origin_branch` (the
    branch checked out at pack time — the session's integration
-   target, ADR-0008; skipped on a detached checkout, in which case
-   apply falls back to the branch current at apply time). The target
-   is fixed at pack because the pack's content was gathered from that
-   branch and integration no longer consumes the checkout — the user
-   may be on any branch, clean or dirty, when the response is applied
-   (§8.1 step 5).
+   target, ADR-0008). The stamp is required: apply hard-refuses a
+   session with a missing or empty stamp (§8.1 step 5), and pack's
+   pre-flight refuses a detached HEAD (§7.1 step 5) before any of
+   this runs, so every session reaching this step has a real branch
+   to stamp. The target is fixed at pack because the pack's content
+   was gathered from that branch and integration no longer consumes
+   the checkout — the user may be on any branch, clean or dirty, when
+   the response is applied (§8.1 step 5).
 2. Open the session in the registry (ADR-0006): write the
    `.bale/current_session` compatibility pointer, then the
    `.bale/sessions/<sid>/open` marker.
@@ -1034,7 +1048,7 @@ Pipeline steps:
    resolution against the pipeline's own extraction).
 7. Cross-session scope collision (ADR-0007): verify no `changes[]`
    path intersects **another** open session's recorded scope
-   (`sessions/<sid>/scope.json`; same path semantics as §7.1 step 5 —
+   (`sessions/<sid>/scope.json`; same path semantics as §7.1 step 6 —
    directory entries cover subtrees, `.` covers everything, a missing
    scope reads as whole-tree). This is the real guard against the
    whole-file clobber: bale's overlay is whole-file replacement, so a
@@ -1455,7 +1469,7 @@ be overwritten unexamined. `record_version` (currently 1) is the
 evolution hook: additive fields don't bump it; shape breaks do.
 
 **Why `claude/telemetry/`, not `.bale/`.** `.bale/` is gitignored by
-construction (§7.1 step 6) and transient by convention — a record
+construction (§7.1 step 7) and transient by convention — a record
 there dies with a clone or a fresh checkout and can never use git
 history as its substrate. The record's whole purpose is longitudinal
 aggregation across sessions (board 5 reads it), so it lives on the
@@ -1857,6 +1871,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
 | 21 | Declared-input violations fail the stage loudly (target-base strategy): every `staging.untracked_inputs` entry must exist in the working tree and be untracked at the target tip at stage time — a missing or tracked entry stops the stage rather than being silently skipped | apply stage |
 | 22 | Own-scope drift (v0.3.10): every `changes[]` path lies inside the session's **own** recorded scope (`sessions/<sid>/scope.json`; created paths rejected the same as modified). Per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses. The refusal names every offending path and the declared scope, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
+| 23 | Detached-HEAD refusal: `bale pack` refuses when the repo's HEAD is detached, before any prompt, tarball, or session state — the integration-target stamp requires a real branch (§7.1 step 5; the apply-side stamp requirement is row 8's resolution step, §8.1 step 5); listed here out of phase order to keep rows 4–22 stable | pack pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
@@ -2051,10 +2066,12 @@ table.)*
 
 v0.3 is not yet cut: the four apply flags above and apply-scoped
 `--verbose` landed in v0.2.1, inline help and bash completion landed in
-v0.2.2, and one thread remains open — the `--verbose` extension to
-commands beyond `apply` and the §7.4 pass-through of `--verbose` into
-`validation.sh` itself. The cut waits on that thread, or on an explicit
-architect's call to cut now and track the remainder under v0.3b.
+v0.2.2, and one thread remains open — the `--verbose` extension to the
+commands still without it (retry gained it in v0.3.14 via flag parity;
+pack and revert remain open) and the §7.4 pass-through of `--verbose`
+into `validation.sh` itself. The cut waits on that thread, or on an
+explicit architect's call to cut now and track the remainder under
+v0.3b.
 
 ### v0.4 — selftest
 
