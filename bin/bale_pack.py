@@ -745,9 +745,10 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     required at apply: resolve_target_branch hard-refuses a session with
     a missing or empty stamp. None or the detached-HEAD sentinel "HEAD"
     writes no stamp and therefore produces a session apply will refuse —
-    cmd_pack's pre-flight refuses a detached HEAD before reaching here
-    (BALE.md §7.1 step 5), so on the pack path the sentinel is
-    unreachable; the guard stays as defense in depth for other callers.
+    cmd_pack's and cmd_handoff's pre-flights each refuse a detached HEAD
+    before reaching here (BALE.md §7.1 step 4a; §11 rows 23–24), so on
+    both request-building paths the sentinel is unreachable; the guard
+    stays as defense in depth for any other caller.
     """
     from __main__ import persist_session_scope  # lazy — see module docstring
     sessions_dir = repo / ".bale" / "sessions" / sid
@@ -1419,7 +1420,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         repo = git_init_walkthrough(cwd, force=args.force)
     refuse_system_dir(repo, force=args.force)
 
-    # Detached-HEAD refusal (BALE.md §7.1 step 5). The session's
+    # Detached-HEAD refusal (BALE.md §7.1 step 4a). The session's
     # integration target is stamped from current_branch(repo) at the
     # persist step (ADR-0008), and apply hard-refuses a session without
     # the stamp (resolve_target_branch, BALE.md §8.1 step 5). A
@@ -1440,7 +1441,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "re-pack."
         )
 
-    # Scope-disjointness gate (BALE.md 7.1 step 6, ADR-0007), read from
+    # Scope-disjointness gate (BALE.md 7.1 step 5, ADR-0007), read from
     # the ADR-0006 session registry. This replaces the unconditional
     # refusal that stood here: a pack is now admitted alongside open
     # sessions exactly when its declared scope — resolved_scope of its
