@@ -1,11 +1,11 @@
-# bale master-session state — v3 — 2026-07-16
+# bale master-session state — v3 — 2026-07-22
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately. This update (2026-07-16, session
-2026-07-16-master-deltas-004) supersedes nothing structurally — same
+it needs to be carried separately. This update (2026-07-22, session
+2026-07-22-master-deltas-001) supersedes nothing structurally — same
 v3 doc, deltas applied in place.
 
 **Home change, effective this version:** this document lives IN the
@@ -180,22 +180,85 @@ sitting's start per the standing rule.
   drift-refusal aggregation semantics → board 5's session
   (unchanged).
 - INDEX.md's ADR-0013 "Status: Proposed" word flips when 0013 is
-  Accepted — rides any session touching claude/INDEX.md after the
-  architect flips the ADR (still Proposed as of this sitting, by
-  choice).
+  Accepted — per the 2026-07-21 ratification (§5), the flip is
+  Accepted-at-board-14: it rides board 14's session alongside the
+  ADR's own status line.
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
 
 Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
 the bale-internals refresh (rode 8b and 8c).
 
+**Sitting summary, 2026-07-21 (landed by this deltas session,
+2026-07-22-master-deltas-001; sids reconciled against
+claude/telemetry):**
+
+- **doc-gap-landing (7c)** — sid `2026-07-21-doc-gap-landing-002`,
+  applied 2026-07-21. Board 15 DONE. Gaps 2, 5, and 6's schema half
+  landed; gap 3 found already landed (the fingerprint grep
+  false-negatived on wrapped prose — evidence 28); gap 4 skipped as
+  adequately placed (the §10.1 home is the same target the lint's
+  DUPLICATE_PATH finding cites). Deliberately tripped the lint's
+  embedded-schema drift guard, as designed.
+- **transition-branch-retirement (board 16)** — sid
+  `2026-07-21-transition-branch-retirement-003`, applied 2026-07-21.
+  Board 16 DONE. resolve_target_branch's no-stamp fallback →
+  refusal; the discard path is switch-only. Ratified in passing:
+  git-decides dirty-checkout semantics (WIP never discarded — §5);
+  three in-lane comment updates declared and accepted. The sid_sha
+  short-circuit was deliberately deferred (proposed, not swept in);
+  retirement-cleanup took it.
+- **lint-schema-refresh** — sid `2026-07-21-lint-schema-refresh-004`,
+  applied 2026-07-21. Cleared the drift guard doc-gap-landing
+  tripped: byte-verbatim embed of the shipped response-manifest
+  schema (parsed-JSON *and* byte-level equality asserted); install
+  validation confirmed green.
+- **retry-flag-parity** — sid `2026-07-21-retry-flag-parity-005`,
+  applied 2026-07-21, v0.3.14. The retry ice-out fix, surfaced by a
+  live ice-out on another project: an apply with
+  `--allow-out-of-scope` went HOLD, and retry had no such flag —
+  the session was iced exactly when the override was needed
+  (evidence 29). Closed `--allow-out-of-scope`, `--verbose`, and
+  `--json` on retry; `--dry-run` and `--show-*` skipped with
+  justification. VERSION bumped 0.3.13 → 0.3.14. The override stays
+  per-invocation, structurally uncarried (§5).
+- **retirement-cleanup** — sid `2026-07-21-retirement-cleanup-007`,
+  applied 2026-07-21. The sid_sha short-circuit retired (equal-SHA
+  now correctly refuses as merged), stale fallback prose swept, the
+  detached-HEAD pack refusal landed, stale pipeline docstring
+  sentences corrected. **Master review caught a defect the session's
+  own checks could not:** the refusal was inserted as BALE.md §7.1
+  step 5, renumbering the scope gate to 6 — but "§7.1 step 5" is
+  cross-referenced as the scope gate from INDEX.md and from
+  immutable git-history manifest reasons. Applied as shipped;
+  corrected by handoff-refusal-numbering. (Feeds the board 6
+  annotation and evidence 31.)
+- **handoff-refusal-numbering** — sid
+  `2026-07-21-handoff-refusal-numbering-008`, applied 2026-07-22.
+  Restored §7.1 numbering: the scope gate back to step 5, the
+  detached-HEAD refusal relabeled as interstitial step 4a with an
+  inline stable-numbering rationale. Extended the detached-HEAD
+  refusal to `bale handoff` (§11 row 24), and extended three
+  refusal-citing passages to name both request-building pre-flights.
+  The worker's read-only verification corrected the master's brief:
+  ADR-0007's body carries no step citation — the citation lives in
+  INDEX.md's entry (and git history); the ADR cites only §11 row 3,
+  unaffected throughout (evidence 31).
+- **This deltas session** — sid `2026-07-22-master-deltas-001` —
+  lands these deltas into this document.
+
+Version at sitting close: 0.3.14 as of retry-flag-parity; the two
+later applies (retirement-cleanup, handoff-refusal-numbering) stamp
+0.3.14 provenance with no further bump in telemetry — verify with
+bale --version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **This session** (`2026-07-16-master-deltas-004`) — lands the
-  2026-07-15/16 sitting deltas into this document. Nothing else is
-  in flight: docstring-prune (8a) applied 2026-07-15 as the prior
-  entry here anticipated, and the whole shrink-bin/bale arc
-  (8a/8b/8c) is closed — see the board 8 row.
+- **This session** (`2026-07-22-master-deltas-001`) — lands the
+  2026-07-21 sitting deltas into this document. Nothing else is in
+  flight per telemetry and operator status at pack time: all six
+  2026-07-21 sessions are applied, the last of them
+  (handoff-refusal-numbering) on 2026-07-22.
 
 ## 4. The board
 
@@ -251,6 +314,11 @@ and §8, so done items keep their numbers as one-line pointers.
    calibration stream; the blind checkpoint is the misunderstanding
    control. They answer different questions (is the worker calibrated
    vs did the worker understand); the ledger consumes both.
+   **Motivating evidence, 2026-07-21:** two same-day master-review
+   catches — the runtime-loaded include gap and the §7.1
+   renumbering — were invisible to in-lane worker checks by
+   construction; both are the exact shape a planner-authored blind
+   checkpoint exists to catch. Concrete grounding for this item.
 
 7. **Doc compression sitting — editorial phase COMPLETE**
    2026-07-15/16, in three sessions after a ratified split (§2
@@ -352,31 +420,56 @@ and §8, so done items keep their numbers as one-line pointers.
     passage (200–300 cuttable words, same zero-loss recipe) into the
     same sitting. Source: sessions 012 and 001 proposals, architect
     ratified. Dedicated sitting; not before next sitting.
+    **Packaging findings (2026-07-21):** the split adds a fifth
+    global doc, touching the hard-coded GLOBAL_DOCS tuple (bin/bale
+    line ~207), the provenance contract_docs hash set, build.sh
+    RELEASE_FILES (~99), install.sh layout (~230), upgrade.sh
+    REQUIRED_RELEASE_MEMBERS, validate.sh doc rows, and the
+    reinstall mirror — a mixed docs+code session that locks bin/,
+    sized as a dedicated sitting's opener. Riders: ADR-0013's
+    Accepted flip (ratified 2026-07-21, §5) and the two DOCS.md
+    one-liners (board-17 sanctioned-pairs; the grep-normalization
+    audit habit, evidence 28).
 
-15. **7c — doc-gap audit + landing.** Response-lint gaps: 1
-    CONFIRMED landed (schema questions description, empty
-    tolerated), 6 prose half CONFIRMED landed (session_id =
-    responds_to in the §5.2 region, TARBALL.md line ~700).
-    UNCONFIRMED and likely missing: 2 (testable no-op definition), 3
-    (README.md-on-clarification sentence in §5.9.2), 4 (duplicate
-    changes[] paths rule), 5 (empty directories under files/), and
-    6's schema half (clarification unmentioned in the session_id
-    description). Confirmation method was fingerprint grep, so the
-    session audits before editing. Scope when spawned:
-    docs/TARBALL.md + schemas/response-manifest.schema.json. Small;
-    non-blocking (the injected lint already enforces the correct
-    readings).
+15. **7c — doc-gap audit + landing — DONE** 2026-07-21 (§2 sitting
+    summary): gaps 2, 5, 6-schema landed; 3 already landed; 4
+    skipped as adequately placed. Closing note: the deliberately
+    tripped embedded-schema drift guard was cleared same-sitting by
+    the lint-schema-refresh follow-on
+    (`2026-07-21-lint-schema-refresh-004`), recorded here rather
+    than as its own row, matching how small follow-ons ride their
+    parent (cf. board 3).
 
-16. **Transition-branch retirement** — retire pre-ADR-0008 branches:
-    _discard_hold_state's checked-out-bale-branch reset path,
-    resolve_target_branch's no-stamp fallback. GATE: only after one
-    clean apply has run on the 0.3.13 bale_apply pipeline. Scope
-    hints: bin/bale section 19, bin/bale_apply.py section 1. Source:
-    session 002 proposal, accepted.
+16. **Transition-branch retirement — DONE** 2026-07-21 (§2 sitting
+    summary): no-stamp fallback → refusal, discard switch-only,
+    git-decides dirty semantics ratified (§5).
 
 17. **DOCS.md sanctioned-pairs one-liner** for the CLAUDE.md §11.2 ↔
     TARBALL.md §3.4 propagation duty. Rides any session touching
-    DOCS.md; not a standalone session.
+    DOCS.md; not a standalone session. Per the board 14 annotation,
+    rides that sitting.
+
+18. **retry flag parity — DONE** 2026-07-21 (§2 sitting summary):
+    retry ice-out fixed; gate override flags closed across the
+    lifecycle, v0.3.14.
+
+19. **retirement cleanup — DONE** 2026-07-21 (§2 sitting summary):
+    sid_sha short-circuit retired, detached-HEAD pack refusal
+    landed; §7.1 renumbering defect caught at master review,
+    corrected by board 20.
+
+20. **handoff refusal + numbering restoration — DONE** 2026-07-21,
+    applied 2026-07-22 (§2 sitting summary): §7.1 numbering
+    restored (interstitial step 4a), detached-HEAD refusal extended
+    to handoff.
+
+21. **Extend main()'s install sanity check to handoff** —
+    bin/bale main() fires the missing-docs/tools pre-check only for
+    pack; handoff is the second request-building path and today dies
+    mid-build after sid allocation instead of refusing up front.
+    Rider: one BALE.md §5.4 clause noting the detached-HEAD refusal,
+    like the system-directory refusal, has no --force override on
+    either command.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -448,6 +541,30 @@ New, ratified 2026-07-15:
   git-is-the-changelog reaffirmed as applied; recovery is git
   checkout, and sole-home rationale surfaces via the 8a sweep as
   notes.md proposals.
+
+New, ratified 2026-07-21:
+
+- **Detached-HEAD request-building is refused at pre-flight on both
+  paths**, pack and handoff; no override flag exists.
+- **Dirty manual checkout of bale/<sid> at discard: git-decides** —
+  proceed when git carries WIP safely across the switch, refuse
+  loudly when git would refuse; no path ever discards WIP.
+- **Scope-override flags are per-invocation across the entire
+  session lifecycle:** every lifecycle command that re-runs a gate
+  accepts the gate's override flags, re-stated each invocation,
+  never carried. (The structural half of board 18's fix.)
+- **Numbered-anchor stability:** DOCS.md §6.4's permanence extends
+  to any cross-referenced numeric anchor, numbered steps included;
+  when immutable citers exist (ADRs, git-history reasons), the only
+  remedy is restoring the original numbers — interstitial labels
+  (4a) are the sanctioned insertion shape.
+- **Execution-context manifest:** any session whose fixtures execute
+  bin/bale end to end includes, verbatim: all of bin/, all of
+  schemas/, the four global docs under docs/, and
+  tools/response_lint.py. Copied, never re-derived. (The
+  countermeasure for evidence 30's class.)
+- **ADR-0013 flips to Accepted:** ratified; the flip lands with
+  board 14's session (see the fold-in registry).
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -596,6 +713,40 @@ New from the 2026-07-15/16 sitting:
     current_branch) before it shipped into the exact defect class
     one-apply-behind makes silent. Prescribe both shapes for future
     extraction-class sessions.
+
+New from the 2026-07-21 sitting:
+
+28. **Single-line fingerprint greps false-negative on wrapped
+    prose.** Normalize (join lines) before matching, and keep
+    validation grep anchors on one line deliberately. Nearly landed
+    a duplicate rule: doc-gap-landing found gap 3's sentence
+    present but wrapped mid-phrase, which is why the
+    audit-before-edit step exists. The grep-normalization audit habit's DOCS.md
+    one-liner rides board 14.
+
+29. **Flag parity across a session's lifecycle commands is a
+    contract surface.** A per-invocation override one lifecycle
+    command lacks ices sessions exactly when the override was
+    needed — the live case: an apply with --allow-out-of-scope went
+    HOLD and retry had no such flag. New gate flags are audited
+    across apply/retry/revert at birth. (Board 18 is the fix.)
+
+30. **The include-set completeness class extends beyond import
+    siblings to runtime-loaded files** — schemas, global docs,
+    injected tools. Occurrences four and five of the evidence-13
+    class landed this sitting (retry-flag-parity worked without
+    schemas/response-manifest.schema.json; the numbering
+    session's fixture leaned on an assumed install layout), both
+    packer-attributed to the master. Countermeasure: the §5
+    execution-context manifest.
+
+31. **Read-before-cite binds the master citing ADR bodies exactly
+    as it binds workers pinning doc touches** (evidence 24's class,
+    one artifact over). The master's brief asserted an ADR-0007
+    step citation from memory of INDEX.md's entry; the worker's
+    read-only verification found the ADR's body carries no step
+    citation (it cites only §11 row 3). The restoration decision
+    survived, but the assertion was wrong.
 
 ## 7. Standing environment facts
 
