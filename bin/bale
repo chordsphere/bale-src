@@ -909,7 +909,7 @@ def ensure_bale_gitignored(repo: Path) -> bool:
     Returns True if the file was modified (so the caller can decide whether
     to auto-commit), False if no change was needed.
 
-    Per BALE.md section 7.1 step 7. v0.0.1 appends silently with a log line;
+    Per BALE.md section 7.1 step 6. v0.0.1 appends silently with a log line;
     interactive confirmation is a later enhancement.
     """
     gi = repo / ".gitignore"
@@ -2240,6 +2240,28 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     if repo is None:
         fail("not in a git repo. `bale handoff` requires the project repo.")
     refuse_system_dir(repo, force=args.force)
+
+    # Detached-HEAD refusal (BALE.md §7.1 step 4a extended to handoff;
+    # §11 row 24). cmd_handoff stamps the new session's integration
+    # target from current_branch(repo) at persist time exactly as pack
+    # does (ADR-0008), and apply hard-refuses a session without the
+    # stamp (BALE.md §8.1 step 5) — a handoff run from a detached
+    # checkout would create a stampless session doomed to refuse at
+    # apply forever, discovered only after the fresh request shipped
+    # and its response came back. Fail here instead: before the
+    # tarball resolves, before any prompt, before any session state.
+    # Same fail-fast posture and no-override rule as pack's refusal —
+    # there is no session state a detached handoff could produce that
+    # apply would accept. The persist_pack_session HEAD-sentinel guard
+    # stays downstream as defense in depth.
+    if current_branch(repo) == "HEAD":
+        fail(
+            "HEAD is detached — bale handoff stamps the currently "
+            "checked-out branch as the new session's integration target "
+            "(ADR-0008), and a session packed without that stamp can "
+            "never be applied. Check out the branch the new session "
+            "should integrate into, then re-run the handoff."
+        )
 
     # Resolve the bailout tarball through apply.search_paths — same
     # semantics as `bale apply`. The bailout the user just applied is the
