@@ -134,10 +134,20 @@ deleted.
   "(rationale: ADR-0013)" pointer sits in. Status: Proposed. Pull when
   a rule pointing at it is challenged or when touching the self-oracle
   / runnable-command doctrine.
+- `context/adr/0014-worker-determined-new-files.md` — new files are
+  the worker's determination: includes name existing context only
+  (never `--include` a not-yet-existing path); out-of-scope created
+  paths ship anyway, enumerated in `notes.md`, and the operator
+  admits them per path at apply via `--allow-out-of-scope`; BALE.md
+  stays uninjected and the global docs describe the scope gates
+  generically. Status: Accepted. Pull when touching scope doctrine,
+  the own-scope drift gate, pack include guidance, or the lane rule.
 
 ADRs 0002–0005, 0009, and 0013 are Proposed pending the architect's
-ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, and 0012
-are Accepted.
+ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, 0012,
+and 0014 are Accepted (0014 Accepted at creation per the 0012
+precedent — the direction was stated by the architect directly in
+the request goal).
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
 disjointness contract in v0.3.1) and were flipped to Accepted with the
 0007 landing; 0008 was ratified for implementation and landed in v0.3.5
@@ -185,12 +195,13 @@ Per DOCS.md §4.1, INDEX.md is usually introduced once a project has ~3+
 findable docs. This one was introduced early, on architect's call so the
 scaffolding would be in place when more arrived. The current inventory
 is BALE.md, MASTER.md (the master-session state doc), two
-explainers, and thirteen ADRs (0001–0005 the first in the
+explainers, and fourteen ADRs (0001–0005 the first in the
 project — the ADR category was introduced in the same session that added
 them, per DOCS.md §4.1/§4.5 — 0006–0009 the concurrency-architecture
 set, 0010 the probe-doctrine flip, 0011 the clarification response
-kind, 0012 the agent-driven direction, and 0013 the TARBALL.md
-rationale relocation). Testing doctrine itself lives in the global
+kind, 0012 the agent-driven direction, 0013 the TARBALL.md
+rationale relocation, and 0014 the worker-determined new-files
+doctrine). Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
 likely arrive alongside the apply search-paths mechanism, a new hook, or

@@ -149,10 +149,12 @@ moves bytes safely.
 - Probe handling. Probes are session-scoped only — Claude returns a
   script in chat, the user runs it, the user pastes output back into
   the next message. Bale does not see probes.
-- Out-of-scope enforcement. The request's `out_of_scope` field is
-  prose, not glob patterns; bale does not mechanically check paths
-  against it. Out-of-scope drift is a policy concern, surfaced at
-  review and by `TARBALL.md` §8's "stay in the lane" rule.
+- Out-of-scope enforcement, in the prose sense. The request's
+  `out_of_scope` field is prose, not glob patterns; bale does not
+  mechanically check paths against it. Drift against that prose
+  field is a policy concern, surfaced at review under the
+  stay-in-the-lane rule (`CLAUDE.md` §6) — distinct from own-scope
+  *path* drift, which §11 row 22 enforces mechanically.
 
 ### 2.3 Why these are out of scope
 
@@ -1062,8 +1064,8 @@ Pipeline steps:
    overwrite a sibling session's work and the `--no-ff` merge would
    land clean. With at most one session open there are no siblings
    and the check is a no-op. Own-scope drift — a change outside this
-   session's own scope that no sibling claims — remains a policy
-   concern caught at review (§2.2, `TARBALL.md` §8), unchanged.
+   session's own scope that no sibling claims — is this check's
+   sibling gate, step 14 below (v0.3.10; policy-only before that).
 8. Verify every `changes[]` path appears in `files/` exactly when it
    should (created/modified ⇒ present in `files/`; deleted ⇒ absent
    from `files/`). Verify every file in `files/` is declared in
@@ -1886,10 +1888,12 @@ per-session, not bale. Bale is project-agnostic.
 
 Bale also does not enforce the request's `out_of_scope` field. That
 field carries prose concerns, not glob patterns; mechanical path
-matching against it isn't well-defined. Out-of-scope drift is a
-policy concern, reviewed manually and surfaced by `TARBALL.md` §8's
-"stay in the lane" rule. Projects wanting mechanical enforcement
-add a glob deny-list to `validation.sh`.
+matching against it isn't well-defined. Drift against that prose
+field is a policy concern, reviewed manually under the
+stay-in-the-lane rule (`CLAUDE.md` §6) — distinct from own-scope
+*path* drift, which row 22 above enforces mechanically. Projects
+wanting mechanical enforcement of prose exclusions add a glob
+deny-list to `validation.sh`.
 
 ---
 

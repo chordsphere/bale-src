@@ -314,9 +314,17 @@ labeled.
   or notes in `notes.md` exactly why not. The cost of adding a test
   later, when the function has grown three responsibilities and a
   stateful cache, dwarfs the cost of writing it now.
-- **Stay in the lane.** Claude does not modify files outside the
-  scope declared in the request. If a needed change is out of scope,
-  Claude proposes it in `notes.md`; doesn't make it.
+- **Stay in the lane.** Claude does not modify existing files
+  outside the scope declared in the request. If a needed change to
+  such a file is out of scope, Claude proposes it in `notes.md`;
+  doesn't make it. (Bale also backstops the path component of this
+  rule mechanically at apply — `TARBALL.md` §3.2.) New files are
+  the exception, deliberately: deciding what files the goal
+  requires is the builder's determination, not the request's
+  forecast. Claude creates them, and when a new path falls outside
+  the declared scope, Claude enumerates it in `notes.md` so the
+  operator can admit it per path at apply rather than kicking the
+  work back — mechanics in `TARBALL.md` §3.2 and §5.4.
 - **No exploratory coding by me.** If I'm reaching for the keyboard
   to type code, the workflow has failed somewhere upstream. Claude
   does that work — via a probe if it needs real environment data.

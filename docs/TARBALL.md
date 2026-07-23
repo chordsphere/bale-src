@@ -192,12 +192,24 @@ Field semantics:
   `notes.md` if Claude proceeded with an assumption). The resolved
   include set behind this list is also the session's declared
   **scope**: bale records it in the session registry at pack time,
-  and two mechanical gates read it — pack refuses a new session
-  whose scope intersects an open session's, and apply rejects a
+  and three mechanical gates read it. Pack refuses a new session
+  whose scope intersects an open session's; apply rejects a
   response whose `changes[]` paths collide with a *sibling*
-  session's scope. Own-scope drift — a change outside this session's
-  own scope that no sibling claims — remains stay-in-the-lane policy
-  (section 8), not a mechanical check.
+  session's scope; and apply also rejects **own-scope drift** —
+  any `changes[]` path outside this session's own recorded scope,
+  created paths rejected the same as modified
+  (mechanical since bale v0.3.10; policy-only before that, so older
+  notes and ADRs describe the older state).
+  Scope path semantics: directory entries cover their subtrees, and
+  a default whole-tree pack passes the own-scope gate vacuously.
+  The operator can admit named paths past the own-scope gate at
+  apply time (and again at retry — the override is per invocation
+  and per path, never a standing config), which is the sanctioned
+  landing path for new files the pack could not have named: the
+  worker ships them, enumerates them in `notes.md` (§5.4), and the
+  operator decides at apply (rationale: ADR-0014). Any drift the
+  operator does not admit refuses pre-staging and the session stays
+  open.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -275,6 +287,19 @@ are disjoint from every open session's scope. A default or
 broad-scoped pack intersects everything and is concurrency-exclusive
 by design — a pack meant to run alongside others is packed with
 narrow `--include` sets along file-disjoint seams.
+
+**Includes name existing context; new files are the worker's call.**
+Never author or suggest an `--include` for a path that does not
+exist yet — an include ships file contents, and a not-yet-existing
+file has none to ship. Deciding what new files the goal requires is
+the worker's determination, made during the session, not the
+packer's forecast (rationale: ADR-0014). A new file the worker
+creates is in scope when it lands under an included directory;
+otherwise it surfaces at apply as own-scope drift the operator
+admits per path (§3.2), guided by the worker's enumeration in
+`notes.md` (§5.4). A packer who knows new files will land in one
+area can widen the seam with a directory include; nobody pre-names
+the files themselves.
 
 README precedence, first match wins: `--edit` > `--readme-file` >
 the wizard's y/N prompt > omit.
@@ -871,6 +896,11 @@ Conversational when included. Use it for:
 - Any `unknown` entry in `claims` — what Claude would need to predict
   with confidence.
 - Things the manifest's structured `reason` field couldn't carry.
+- Every `changes[]` path outside the session's declared scope —
+  typically a new file the goal required that no included directory
+  covers. List each such path explicitly, with why it had to exist,
+  so the operator can admit it at apply (§3.2). An unenumerated
+  out-of-scope path surfaces as a refusal instead of a decision.
 - Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
 If a session has any of the above, write the file. If a session is
@@ -1454,7 +1484,11 @@ builder's job is to satisfy them, not to recite them. They cover
 manifest schema and field agreement, sha256 and size match against
 `files/`, a non-empty `reason` on every change, path safety, the
 generated-artifact denial (§5.1), the `files/`↔`changes[]`
-correspondence, and the post-`apply.sh` reconciliation of §5.1.1.
+correspondence, the post-`apply.sh` reconciliation of §5.1.1, and
+the scope gates of §3.2 — sibling-scope disjointness at pack,
+sibling collision at apply, and own-scope drift at apply, the last
+carrying a per-invocation, per-path operator override for admitted
+paths (worker-created new files being the canonical case).
 The rules below are instead *policy* or *operator discipline*
 (labels per `CLAUDE.md` §6): caught at the planner's review, or held
 by the operator's own procedure with no downstream catch — not by
