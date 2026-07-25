@@ -1,6 +1,6 @@
 # ADR-0013: TARBALL.md carries normative content; displaced rationale lives here
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-15
 - **Supersedes:** —
 - **Superseded by:** —
@@ -160,3 +160,4 @@ to build.
 Rationale that already had an ADR home (probe doctrine → ADR-0010,
 clarification design → ADR-0011) was pointed at that home, not
 copied here — one home per fact (DOCS.md §9).
+- 2026-07-25: ratified 2026-07-21; flipped to Accepted in the TARBALL.md core-first restructure session.

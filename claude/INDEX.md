@@ -131,7 +131,7 @@ deleted.
 - `context/adr/0013-tarball-rationale-relocation.md` — TARBALL.md
   compressed in place to its normative core; the displaced rationale
   lives in the ADR, keyed by the source section each
-  "(rationale: ADR-0013)" pointer sits in. Status: Proposed. Pull when
+  "(rationale: ADR-0013)" pointer sits in. Status: Accepted. Pull when
   a rule pointing at it is challenged or when touching the self-oracle
   / runnable-command doctrine.
 - `context/adr/0014-worker-determined-new-files.md` — new files are
@@ -143,9 +143,9 @@ deleted.
   generically. Status: Accepted. Pull when touching scope doctrine,
   the own-scope drift gate, pack include guidance, or the lane rule.
 
-ADRs 0002–0005, 0009, and 0013 are Proposed pending the architect's
+ADRs 0002–0005 and 0009 are Proposed pending the architect's
 ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, 0012,
-and 0014 are Accepted (0014 Accepted at creation per the 0012
+0013, and 0014 are Accepted (0014 Accepted at creation per the 0012
 precedent — the direction was stated by the architect directly in
 the request goal).
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
@@ -158,10 +158,11 @@ Accepted together on ratification; the 0006/0007 and 0010/0011 status
 flips reached the ADR files themselves in the 2026-07-13 audit cleanup
 session (0010/0011 on the architect's explicit scope override,
 probe-confirmed), which also recorded 0012 (Accepted at creation — the
-direction was stated by the architect directly). Of the Proposed set,
-0002–0005 precede any test code and 0009 defers the doc it is about;
-0013 is the exception — its relocation landed with the TARBALL.md
-compression (session 012) and awaits ratification.
+direction was stated by the architect directly). 0013's relocation
+landed with the TARBALL.md compression (session 012); it was ratified
+2026-07-21, and its status flip reached the ADR file in the 2026-07-25
+core-first restructure session. Of the Proposed set, 0002–0005 precede
+any test code and 0009 defers the doc it is about.
 
 ## Explainers
 

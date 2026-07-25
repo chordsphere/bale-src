@@ -539,7 +539,14 @@ sanctioned-overlap note). Parallel copies must agree; a change to
 one propagates to its twin in the same session, or the parallelism
 has become drift. Sanctioned pairs today: this section's preamble
 and closing with `CODE.md` §10's; §8's framing with `CODE.md` §9's;
-§7's pruning sentences with `CODE.md` §6's.
+§7's pruning sentences with `CODE.md` §6's; and `CLAUDE.md` §11.2's
+rescope-offer prose with `TARBALL.md` §3.4's pack-flag surface (the
+same `bale pack` command described from both ends).
+
+When auditing prose for an existing sentence before adding it,
+normalize first — join wrapped lines — before fingerprint-matching,
+and keep `validation.sh` grep anchors deliberately single-line so
+they survive markdown rewrapping.
 
 Rule labels follow `CLAUDE.md` section 6. A project that wants these
 rules enforced asks Claude to include the corresponding assertions
