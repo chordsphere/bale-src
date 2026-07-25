@@ -9,7 +9,11 @@ it needs to be carried separately. This update (2026-07-22, session
 v3 doc, deltas applied in place. This update (2026-07-25, session
 2026-07-25-orchestrator-sesh-001) is likewise deltas-in-place, and is
 the first landed by the master session itself rather than a separate
-deltas worker.
+deltas worker. This update (2026-07-25, second sitting)
+is deltas-in-place, landed by session 2026-07-25-master-deltas-005 —
+a narrow follow-on pack, because the orchestrator session (sesh-002)
+could not land its own response; see the second-sitting summary and
+evidence 36.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -185,7 +189,7 @@ sitting's start per the standing rule.
 - INDEX.md's ADR-0013 "Status: Proposed" word flips when 0013 is
   Accepted — per the 2026-07-21 ratification (§5); board 14 retired
   2026-07-25, so the flip now rides board 22a's session alongside
-  the ADR's own status line.
+  the ADR's own status line. [Cleared 2026-07-25: landed with 22a.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
 
@@ -264,10 +268,9 @@ claude/telemetry):**
   (worker-determined new files; Accepted at creation per the
   ADR-0012 precedent), TARBALL.md §3.2/§3.4 and CLAUDE.md §6
   corrected to the mechanical drift-gate reality, BALE.md's three
-  stale sites fixed, INDEX.md row added. Loose end, OPEN: the
-  Accepted-at-creation judgment awaits the architect's explicit word
-  (the flip-to-Proposed offer is recorded in the session's telemetry
-  notes; asked in the 07-25 master chat, not yet answered).
+  stale sites fixed, INDEX.md row added. Loose end CLOSED 2026-07-25:
+  the architect ratified Accepted-at-creation in the sesh-002 chat,
+  with the rest of that sitting's ratifications.
 - **This master session** — sid `2026-07-25-orchestrator-sesh-001` —
   reconciled state (0.3.14 verified; the request's contract-doc
   hashes match the post-doc-gap bytes), then interrogated board 14
@@ -280,13 +283,78 @@ claude/telemetry):**
 Version at sitting close: 0.3.14, unchanged — verify with bale
 --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-25 second sitting (landed by this master
+session, 2026-07-25-orchestrator-sesh-002; applied-state facts
+reconciled from the architect-relayed notes.md and apply
+confirmations — see this response's notes for the caveat):**
+
+- **handoff-install-precheck (board 21)** — sid
+  `2026-07-25-handoff-install-precheck-003`, applied 2026-07-25,
+  provenance 0.3.14 (no bump; verify per the standing rule). main()'s
+  install sanity check widened in place to both request-building
+  commands; byte-for-byte message-parity asserted in the test so a
+  future reword forks loudly; BALE.md section 5.4 gained the
+  no-force-override clause for the detached-HEAD refusal. **First
+  tracked test suite landed:** tests/test_install_precheck.py
+  (stdlib unittest, no runner config; ADR-0005 sandbox doctrine;
+  harness inline pending a second suite), admitted per ADR-0014 via
+  --allow-out-of-scope. Negative control against unmodified bin/bale
+  confirmed the suite pins the gap (evidence 27's paired shape).
+- **tarball-core-first (board 22a)** — sid
+  `2026-07-25-tarball-core-first-004`, applied 2026-07-25. Core =
+  sections 1, 2, 5, 7; reference sections past a banner in numeric
+  order; zero renumbering, two tombstones, sorted line-set diff as
+  the zero-loss proof. ADR-0013 flipped Accepted via the sanctioned
+  two-line diff with a reverse-transform hash assertion (evidence
+  35); INDEX.md coherence swept; DOCS.md section 9 gained the
+  CLAUDE.md 11.2 / TARBALL.md 3.4 sanctioned pair (board 17) and the
+  grep-normalization paragraph (evidence 28's rider — section 9
+  placement was the worker's call, ratified over the brief's 7.4
+  candidate).
+- **Ratified in the sesh-002 chat:** ADR-0014 stays
+  Accepted-at-creation (the doc-gap loose end, closed above);
+  ADR-0005's Accepted flip, riding the queued test-layout-docs
+  session (board 23); every worker decision of both sessions, as
+  shipped.
+- **Master error on the record:** the 003 brief miscast a telemetry
+  claim label as a tracked test-file precedent; cost the worker a
+  probe round (evidence 34). The reconcile-the-precedent proposal
+  closed as nothing-to-find — the new suite is now the first real
+  tracked precedent.
+- **This master session** — sid `2026-07-25-orchestrator-sesh-002` —
+  interrogated 21/22a disjointness and refused it (execution-context
+  manifest's docs/ include intersects 22a's doc writes; evidence 25
+  annotated), serialized 21 before 22a with rationale stated for
+  contest, and authored both packs and briefs plus board 23's.
+  **Correction on the close-out:** the session's own whole-tree
+  request was the registry's blocking lock — every worker pack it
+  authored was inadmissible under ADR-0007 until the architect
+  unlocked sesh-002 (friction absorbed silently; the master checked
+  the workers against each other and never against its own scope) —
+  and the unlock left the session's self-landed deltas response with
+  no lock for responds_to to match. These deltas ship instead under
+  the narrow follow-on session `2026-07-25-master-deltas-005`
+  (evidence 36).
+
+Version at sitting close: 0.3.14 per both requests' pack-time
+provenance (sesh-002 and master-deltas-005 alike); verify with bale
+--version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **This session** (`2026-07-25-orchestrator-sesh-001`) — the
-  master session landing these deltas as its own response. Nothing
-  else is in flight per telemetry at pack time: every prior session
-  is applied, the last of them (`2026-07-23-doc-gap-001`) on
-  2026-07-23.
+- **This session** (`2026-07-25-master-deltas-005`) — the narrow
+  deltas session landing this edit; every worker session the sitting
+  spawned (boards 21 and 22a) is applied. Sesh-002 itself closed by
+  unlock, not apply (evidence 36) — abandoned in the registry by
+  design, its work carried entirely by the worker sessions and this
+  doc.
+- **Authored, not yet packed:** board 23 (test-layout-docs) — pack
+  command and brief delivered at sitting close; runs before 22b.
+- **Open micro-item:** master editorial review of 22a's new
+  read-paths trigger rows (sections 3 and 8), deferred because the
+  restructured bytes postdate this session's context. Rides the next
+  TARBALL.md-touching session (22b's brief authoring reads the doc
+  whole anyway) or a quick chat paste, whichever comes first.
 
 ## 4. The board
 
@@ -432,6 +500,9 @@ and §8, so done items keep their numbers as one-line pointers.
     Added 2026-07-15: per-sid stage-time staging stamp — answers
     what-was-this-HOLD-staged-under; a staging behavior change,
     adjacent to the --staging-strategy escape hatch.
+    Added 2026-07-25 (ratified proposal, session 003): extract the
+    sandbox harness (make_sandbox_home / make_install / make_repo /
+    run_bale) into tests/harness.py when a second suite lands.
 
 12. **bale status staging row — DONE** 2026-07-15 (§2 summary):
     per-session staging row in bale status landed, v0.3.11.
@@ -480,10 +551,10 @@ and §8, so done items keep their numbers as one-line pointers.
     summary): no-stamp fallback → refusal, discard switch-only,
     git-decides dirty semantics ratified (§5).
 
-17. **DOCS.md sanctioned-pairs one-liner** for the CLAUDE.md §11.2 ↔
-    TARBALL.md §3.4 propagation duty. Rides any session touching
-    DOCS.md; not a standalone session. Board 14 retired; per its
-    re-homing, rides board 22a's session.
+17. **DOCS.md sanctioned-pairs one-liner — DONE** 2026-07-25 (rode
+    22a; §2 second-sitting summary): the CLAUDE.md §11.2 ↔
+    TARBALL.md §3.4 pair appended to the §9 sanctioned-pairs
+    registry.
 
 18. **retry flag parity — DONE** 2026-07-21 (§2 sitting summary):
     retry ice-out fixed; gate override flags closed across the
@@ -499,13 +570,10 @@ and §8, so done items keep their numbers as one-line pointers.
     restored (interstitial step 4a), detached-HEAD refusal extended
     to handoff.
 
-21. **Extend main()'s install sanity check to handoff** —
-    bin/bale main() fires the missing-docs/tools pre-check only for
-    pack; handoff is the second request-building path and today dies
-    mid-build after sid allocation instead of refusing up front.
-    Rider: one BALE.md §5.4 clause noting the detached-HEAD refusal,
-    like the system-directory refusal, has no --force override on
-    either command.
+21. **Extend main()'s install sanity check to handoff — DONE**
+    2026-07-25 (§2 second-sitting summary): gate widened in main()
+    to both request-building commands, BALE.md §5.4 rider clause
+    landed, first tracked test suite shipped with it.
 
 22. **Global-doc mechanization arc (the worker toolkit)** — replace
     instructional prose with shipped tools wherever a rule is shape;
@@ -513,7 +581,8 @@ and §8, so done items keep their numbers as one-line pointers.
     (contracts §5; evidence 33; the delivery pattern is
     response_lint's — per-request injected, sandbox-run, no install).
     Serialized phases, each its own session:
-    - **22a — TARBALL.md internal restructure + riders:** core-first
+    - **22a — TARBALL.md internal restructure + riders — DONE**
+      2026-07-25 (§2 second-sitting summary): core-first
       ordering under stable section numbers (DOCS.md §6.4 —
       in-file relocation pointers, zero renumbering), a sharpened
       in-doc INDEX read-paths table with a situation-keyed trigger
@@ -541,6 +610,16 @@ and §8, so done items keep their numbers as one-line pointers.
       fit estimates, claim completeness, stay-in-lane — remains
       prose by design; boards 4/5/6 are its control surface, not
       tooling.
+
+23. **test-layout-docs** — ratified 2026-07-25 from session 003's
+    Proposals: bale-internals.md gains the test layout (tests/ at
+    repo root, stdlib unittest, ADR-0005 sandbox rules, harness
+    inline for now) and loses the stale deferred-to-v0.4 sentence;
+    ADR-0005 flips Proposed → Accepted in the sanctioned diff shape;
+    INDEX.md Proposed-set prose swept (0002–0004 stay Proposed).
+    Pack and brief authored at the sesh-002 close; serialized after
+    22a (claude/INDEX.md collision) and before 22b (the internals
+    doc should describe tests/ before 22b's suite lands beside it).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -780,7 +859,11 @@ New from the 2026-07-15 sitting:
     for concurrent work while 8a held INDEX.md and meta-sessions.md
     as read context. Board 13 is the structural fix; until it
     lands, packs meant to run alongside others weigh every
-    read-context include as the lock it is.
+    read-context include as the lock it is. Third live instance
+    2026-07-25 (sesh-002): the ratified execution-context manifest's
+    docs/ include forced boards 21 and 22a to serialize — the
+    contract itself is now a lock generator, sharpening board 13's
+    priority.
 
 New from the 2026-07-15/16 sitting:
 
@@ -860,12 +943,58 @@ New from the 2026-07-25 master session:
     stays prose: they are read for recognition, not reconstruction.
     (Board 22 is this rule executing.)
 
+New from the 2026-07-25 orchestrator sitting (sesh-002):
+
+34. **Telemetry claim labels name checks, not tracked files.** The
+    sesh-002 brief cited retry-flag-parity's "hermetic retry-parity
+    E2E" as a tracked precedent to match; the tree had no test files
+    at all — the label named a validation.sh check that ran once at
+    apply and evaporated with the staging logs (audit finding 3's
+    class meeting evidence 21's wrong-fact class, at the master
+    level). Cost: one probe round. Standing rule: before the word
+    "precedent" enters a brief, the master verifies the artifact is
+    tracked — a claim label or telemetry string is evidence a check
+    ran, never that a file exists.
+
+35. **The reverse-transform assertion is the reference pattern for
+    sanctioned-diff checks.** Session 004 validated the ADR-0013
+    flip by reconstructing the pre-change file from the post-change
+    bytes (un-flip the Status line, drop the appended note) and
+    requiring sha256 equality with the request's shipped copy — no
+    git dependency, and any edit outside the sanctioned shape breaks
+    the reconstruction. Evidence 33's mechanize-shape rule executed
+    worker-side, unprompted. Prescribe for future status flips
+    (board 23 first) and for any check of the form "the diff is
+    confined to shape X."
+
+36. **The master session's own request scope is the registry's
+    biggest lock.** Sesh-002's request shipped whole-tree context,
+    so under ADR-0007 every worker pack it authored was inadmissible
+    while it stayed open; the architect unlocked it silently to
+    proceed, and the unlock stranded the session's self-landed
+    deltas response — no open lock for responds_to to match.
+    Evidence 25's class at the master level, and the strongest input
+    yet for board 13. Standing rule (contract wording proposed in
+    this response's notes, pending ratification): an orchestrator
+    session that will spawn packs is itself packed narrow —
+    MASTER.md plus only what it must read, each include weighed as
+    the lock it is — or it ends its session before anything spawns;
+    and its close-out deltas always get their own narrow bale pack,
+    never a ride on the broad session. The sesh-001 precedent
+    (master lands its own deltas) holds only for masters that spawn
+    nothing while open.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
   /mnt/c/Users/chord/Downloads/. Files saved via browser may carry
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
+- Tests: tests/ at repo root, stdlib unittest, no runner config —
+  run python3 -m unittest discover -s tests. First suite
+  tests/test_install_precheck.py (2026-07-25); ADR-0005 sandbox
+  rules govern; harness inline until a second suite lands (board
+  11's deferred extraction).
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
