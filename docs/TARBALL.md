@@ -20,25 +20,38 @@ Bale injects this file into every request, so it is always present.
 If it is missing (a hand-rolled request), Claude pauses and asks
 (rationale: ADR-0013).
 
+The doc's physical order is core-first: the every-read core —
+sections 1, 2, 5, and 7 — reads before the triggered reference
+sections (3, 4, 6, 8, 9, 10), which sit past a marked banner.
+Section numbers are stable (`DOCS.md` §6.4) and did not renumber;
+relocated sections left one-line pointers at their old positions.
+
 ---
 
 ## INDEX
 
 ### Read paths
 
-| Situation | Load |
+Sections 1, 2, 5, and 7 are the **core** — the every-read spine for
+a session producing a response, and the doc's physical order puts
+them first. Everything past the core banner is **triggered
+reference**: each row's Situation column below is the trigger, and
+if it doesn't describe this session, the section stays unread.
+
+| Situation (trigger) | Load |
 |-----------|------|
-| Producing a normal response tarball | Sections 1, 2, 5, 7 |
-| Returning a probe instead of a response | Sections 1, 2, 4 |
-| Returning a bailout response (`CLAUDE.md` §11 triggered) | Sections 1, 2, 5.6, 5.7, 5.8 |
-| Returning a clarification response (blocking intent gap) | Sections 1, 2, 5.9 |
-| Handling a request tarball I received | Sections 1, 2, 3 |
-| Authoring a request, or citing a `bale pack` rescope (`CLAUDE.md` §11.2) | Section 3.4 |
+| Producing a normal response tarball — the default whenever work landed | Core: sections 1, 2, 5, 7 |
+| Orienting in the received request needs more than the manifest itself — a field's semantics, what belongs where in `context/`, or how `expects_probe` binds | Section 3 |
+| Asked to draft a `bale pack` command, or offering a rescope split (`CLAUDE.md` §11.2) | Section 3.4 |
+| An environment fact the response depends on is missing, stale, or unclear — returning a probe instead of building | Sections 1, 2, 4 |
+| The goal won't fit this session's context budget (`CLAUDE.md` §11 triggered) — returning a bailout | Sections 1, 2, 5.6, 5.7, 5.8 |
+| A blocking intent gap in the request prevents trustworthy work — returning a clarification | Sections 1, 2, 5.9 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
-| Writing or debugging `apply.sh` | Section 5.1.1 |
-| Hard rules / what counts as a violation | Sections 8, 9 |
-| Quick reference at session end | Section 10 |
-| Smallest viable response (sanity check) | Section 6 |
+| Writing or debugging `apply.sh` — a delete, a rename's removal half, or an exec-bit restore is in play | Section 5.1.1 |
+| Unsure whether something is a violation, or which enforcement layer (bale, `validation.sh`, review) catches it | Section 8 |
+| Tempted to stretch the workflow into an adjacent job — sync, CI, installs, writes to the real tree | Section 9 |
+| Sanity-checking that the contract isn't heavier than a small change — the smallest viable response | Section 6 |
+| Session end — the pack checklists for response, probe, and clarification | Section 10 |
 
 ---
 
@@ -78,450 +91,9 @@ paste-back script and its pasted output, chat-ephemeral by design
 
 ---
 
-## 3. Request Tarball
-
-### 3.1 Shape
-
-```
-request-NNN/
-  manifest.json        # structured session metadata (required)
-  CLAUDE.md            # injected by bale
-  TARBALL.md           # injected by bale
-  DOCS.md              # injected by bale
-  CODE.md              # injected by bale
-  tools/
-    response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
-  context/             # everything the user chose to include
-    <project files and any project docs the user named>
-  README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
-```
-
-The first five slots are reserved for bale-injected global docs and
-the manifest; `tools/response_lint.py` rides beside them (also
-bale-injected, from the install) so the worker can run the §10.1
-step-10 self-check mechanically against its response directory
-before packing, without bale installed. Everything else the user
-wants Claude to see —
-including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
-schemas, and prior probe output — lives under `context/`. No top-
-level slots are reserved for project docs; bale is project-agnostic.
-
-`README.md` is optional prose context: whatever is worth keeping
-that doesn't reduce cleanly to the manifest's `goal`, `constraints`,
-or `out_of_scope` fields. Either party authors it. The planner
-writes it directly — the pack wizard offers `$EDITOR` to opt in —
-or the worker writes it on request, delivering the brief as a
-downloadable file the planner ships with `--readme-file` (§3.4),
-whose search-path resolution lets a brief in the planner's downloads
-directory pack by bare name. Most sessions skip the README
-entirely.
-
-A project that has adopted the DOCS.md workflow might fill `context/`
-with paths like:
-
-```
-context/
-  INDEX.md             # the project's doc map
-  charter-brief.md
-  STATE.md             # current snapshot, if relevant
-  decisions/           # ADRs I think are in play
-  sessions/            # prior response notes, if directly relevant
-  probe-output/        # if a prior probe ran
-  ...
-```
-
-The contents of `context/` are whatever the user named in the pack
-request.
-
-Schema files in `context/` may be partial extracts when the full file
-isn't relevant — pull only the sections touched by the session, and
-name the extract in `manifest.context_included` so the omission is
-visible.
-
-Tar with: `tar -czf request-NNN.tar.gz request-NNN/`
-
-### 3.2 manifest.json
-
-```json
-{
-  "session_id": "2026-05-12-vue-scaffold-001",
-  "project": "example-project",
-  "goal": "one-sentence goal — used by bale as the session's headline",
-  "depends_on": {
-    "previous_response": null,
-    "previous_probe": null
-  },
-  "constraints": [
-    "no breaking changes to public API surface",
-    "stay within current dependency set"
-  ],
-  "out_of_scope": [
-    "anything backend-side",
-    "test infrastructure"
-  ],
-  "expects_probe": "yes | no | claude-decides",
-  "context_included": [
-    "context/charter-brief.md",
-    "context/STATE.md"
-  ]
-}
-```
-
-Field semantics:
-
-- **`goal`** — one sentence. If it doesn't fit in one sentence, the
-  scope is wrong.
-- **`depends_on`** — links this request to prior session artifacts;
-  both fields default `null`. `previous_response` names the response
-  session this request builds on — a session packed after a bailout
-  points it at the bailout (§5.6.2). `previous_probe` is populated
-  mainly on the fallback path: a prior probe whose `probe-output/`
-  ships in this request's `context/` (§4.4). A paste-back probe
-  resolves within its own session and leaves the field `null`
-  (§4.5).
-- **`constraints`** — things I commit to up front. Claude stays
-  within them or surfaces a conflict in `notes.md`.
-- **`out_of_scope`** — explicit list of *near-by* concerns Claude
-  should not address (rationale: ADR-0013).
-- **`expects_probe`** — `yes` forces a probe before any build work.
-  `no` forbids probing this session (see 3.3). `claude-decides`
-  (default) means Claude probes whenever a §4.1 trigger fires.
-- **`context_included`** — declarative list of what's in `context/`.
-  If Claude needs something not listed, it checks `INDEX.md`, then
-  names it in the response (either in a probe request or in
-  `notes.md` if Claude proceeded with an assumption). The resolved
-  include set behind this list is also the session's declared
-  **scope**: bale records it in the session registry at pack time,
-  and three mechanical gates read it. Pack refuses a new session
-  whose scope intersects an open session's; apply rejects a
-  response whose `changes[]` paths collide with a *sibling*
-  session's scope; and apply also rejects **own-scope drift** —
-  any `changes[]` path outside this session's own recorded scope,
-  created paths rejected the same as modified
-  (mechanical since bale v0.3.10; policy-only before that, so older
-  notes and ADRs describe the older state).
-  Scope path semantics: directory entries cover their subtrees, and
-  a default whole-tree pack passes the own-scope gate vacuously.
-  The operator can admit named paths past the own-scope gate at
-  apply time (and again at retry — the override is per invocation
-  and per path, never a standing config), which is the sanctioned
-  landing path for new files the pack could not have named: the
-  worker ships them, enumerates them in `notes.md` (§5.4), and the
-  operator decides at apply (rationale: ADR-0014). Any drift the
-  operator does not admit refuses pre-staging and the session stays
-  open.
-
-### 3.3 When `expects_probe: no` collides with a real gap
-
-If the request forbids probing but the worker finds an environment-
-specific gap documentation can't fill, the worker does not probe and
-does not silently guess. The worker either:
-
-1. **Stops and asks in chat** — if the gap is small enough to resolve
-   inline.
-2. **Returns a clarification response** (§5.9) — if the gap is
-   blocking and the ask should ride the durable shape (the
-   orchestrated default, §5.9.1). Environment questions are
-   admissible there when probing is unavailable: the recourse
-   taxonomy keys on mechanics (§5.9), and the planner can read the
-   environment the worker was forbidden to script against.
-3. **Proceeds against the most plausible assumption** — names the
-   assumption explicitly in `notes.md` and flags it as the first
-   thing for me to check on review.
-
-The `no` setting is honored as a hard constraint; the assumption is
-honored as a recoverable risk.
-
-### 3.4 Authoring a request with `bale pack`
-
-`bale pack` is the command that produces a request tarball — the §3.1
-shape, with a `manifest.json` (§3.2) assembled from its flags. It's
-documented here so its callers can cite a real command instead of
-guessing. Authoring pack commands is available to either party, and
-the line that governs it is **solicited vs unsolicited**. Asked in
-chat to draft a pack command, the worker authors it — solicited
-authoring is always the worker's job (`CLAUDE.md` §4), with the same
-flags and the same single-line form as a planner-authored pack.
-Unsolicited, the worker emits a runnable command in exactly one
-place: the rescope offer, when the pre-flight scope check
-(`CLAUDE.md` §11.2) decides a goal needs splitting. Inside response
-tarballs, follow-ups are prose Proposals in `notes.md` (§5.4.1),
-never runnable commands.
-
-The hazards that confine unsolicited runnable commands to that one
-place — blind firing, and the self-oracle problem of the entity
-under review framing its own follow-up — are ADR-0013's; sequencing
-authority belongs to the planner (`CLAUDE.md` §4). An orchestration
-layer consuming rescope offers should still re-derive the command
-from the proposed seam rather than fire the worker's verbatim —
-doctrine for when an orchestrator exists, not a change to the human
-path, which needs the paste-ready command.
-
-The flags below are the stable surface; each maps to a manifest field
-or a packing behavior:
-
-| Flag | Maps to / does |
-|------|----------------|
-| `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). Omitted on a TTY, pack enters the interactive wizard; required when piped. |
-| `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. Omitted on a TTY, the wizard prompts for it; required when piped. |
-| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. The resolved set doubles as the session's declared scope (§3.2) — see the scope-planning note below the table. |
-| `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
-| `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
-| `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
-| `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
-| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Combines with `--edit` to review the file before packing. |
-| `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
-| `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
-| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is documented in BALE.md §7. |
-| `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
-| `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
-| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). |
-| `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
-| `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
-
-**Scope planning for concurrency.** Multiple sessions may be open at
-once; integrations serialize (§3.2 carries the scope contract).
-Concurrency therefore requires scope-disjoint include sets: the
-pack-time gate admits a new session only when its resolved includes
-are disjoint from every open session's scope. A default or
-broad-scoped pack intersects everything and is concurrency-exclusive
-by design — a pack meant to run alongside others is packed with
-narrow `--include` sets along file-disjoint seams.
-
-**Includes name existing context; new files are the worker's call.**
-Never author or suggest an `--include` for a path that does not
-exist yet — an include ships file contents, and a not-yet-existing
-file has none to ship. Deciding what new files the goal requires is
-the worker's determination, made during the session, not the
-packer's forecast (rationale: ADR-0014). A new file the worker
-creates is in scope when it lands under an included directory;
-otherwise it surfaces at apply as own-scope drift the operator
-admits per path (§3.2), guided by the worker's enumeration in
-`notes.md` (§5.4). A packer who knows new files will land in one
-area can widen the seam with a directory include; nobody pre-names
-the files themselves.
-
-README precedence, first match wins: `--edit` > `--readme-file` >
-the wizard's y/N prompt > omit.
-
-**Commands are single-line.** Every `bale pack` invocation — the
-architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
-§11.2) — is written as one line with no backslash continuations, so
-it pastes into a terminal directly. Repeatable flags repeat inline on
-the same line; they do not wrap.
-
-**No backticks in the goal string.** The goal is a double-quoted shell
-argument, and double quotes do not protect backticks: the shell runs
-text between them as command substitution before `bale` ever sees the
-goal. Name code symbols in plain prose inside the goal (*the useAuth
-hook*, not the backticked form); `$(...)` and an unescaped `$` carry
-the same hazard.
-
-A basic pack:
-
-```
-bale pack "Add a debounced search box to the catalog page" --slug catalog-search --include src/components/Catalog.vue --include src/composables --constraint "no new dependencies" --expects-probe no
-```
-
-A rescope pack — the first session of a split the pre-flight check
-proposed, as Claude would emit it in a `CLAUDE.md` §11.2 offer, with
-the deferred half named in `--out-of-scope`:
-
-```
-bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --out-of-scope "tests for the endpoint layer" --expects-probe no
-```
-
----
-
-## 4. Probe
-
-### 4.1 When a probe engages
-
-The worker treats the architect's environment as its own: anything
-readable there is available on request, and a probe is how the worker
-reads it. Return a probe whenever an environment-specific fact the
-response depends on is missing, stale, or unclear — and documentation
-can't settle it. Canonical triggers:
-
-- A file the work needs wasn't included in `context/`, or the
-  included copy looks stale against what the goal implies.
-- A tool, runtime, or dependency version the change depends on is
-  unknown.
-- The working-tree state matters and isn't captured — uncommitted
-  changes, current branch, install state.
-- Any other fact only the environment can answer: what shell is
-  actually available, whether a path exists, what a config resolves
-  to.
-
-Working around a gap like these is a **policy violation, not
-resourcefulness** — it produces exactly the confidently wrong
-response this workflow exists to prevent (doctrine and its
-cost-benefit case: ADR-0010).
-
-Two boundaries keep the default-to-ask posture from sprawling:
-
-- **Conceptual and scope gaps are not probes.** If the question is
-  what the goal means, which option the architect prefers, or whether
-  something is in scope, no script against the environment can answer
-  it. Quick, non-blocking questions resolve in chat; a gap of this
-  kind that *blocks* trustworthy work takes the clarification response
-  (§5.9) — the intent-gap sibling of the probe, same default-to-ask
-  doctrine, different recourse.
-- **`expects_probe: no` still forbids probing** (§3.3). The doctrine
-  sets the default; the manifest overrides it per session, and the
-  collision path in §3.3 is unchanged.
-
-### 4.2 The paste-back probe (default shape)
-
-Probes are session-scoped only: no `claude/probes/` directory, no
-bale subcommand, no artifact in the project tree. The default
-transport is a **single copy-pasteable shell block**. The architect
-pastes it into a terminal and pastes stdout back into the chat; the
-worker reads the paste and proceeds. No files change hands.
-
-The block Claude returns is one fenced, self-contained script with
-these required properties:
-
-- **Strictly read-only — zero writes.** stdout is the only output
-  channel. No `probe-output/`, no temp files, no state mutation of
-  any kind — writes belong exclusively to the §4.4 fallback
-  (rationale: ADR-0010).
-- **Purpose header.** A comment block at the top stating what the
-  probe asks, why the session needs it, and confirming the script is
-  read-only. The architect audits this before pasting.
-- **Self-delimiting.** `PROBE BEGIN`/`PROBE END` sentinel lines
-  bracket the whole output, and each question gets its own labeled
-  section so the worker can map answers back to gaps.
-- **Bounded output.** Every command's output is capped (`head`,
-  `tail`, or equivalent), with an explicit truncation marker printed
-  when the cap bites.
-- **Integrity trailer.** The final line inside the sentinels reports
-  a line count (or checksum) of the emitted output, so the receiving
-  session can detect a truncated or partial paste and re-request
-  instead of reasoning from half an environment.
-
-The canonical skeleton — the body runs inside a function so the
-trailer can count the real output before anything is printed:
-
-```bash
-#!/usr/bin/env bash
-# PROBE <session-slug>: <what this asks, in one line>.
-# Why: <the gap this fills, in one line>.
-# Read-only: writes nothing anywhere; stdout is the only output.
-
-probe() {
-  echo "--- section: node ---"
-  node --version 2>&1 | head -n 2
-
-  echo "--- section: git-state ---"
-  git status --porcelain=v1 2>&1 | head -n 40
-  n=$(git status --porcelain=v1 2>/dev/null | wc -l)
-  [ "$n" -gt 40 ] && echo "[truncated: $n lines total, showing 40]"
-
-  echo "--- section: vite-config ---"
-  ls -l vite.config.* 2>&1 | head -n 5
-}
-
-out="$(probe 2>&1)"
-echo "=== PROBE BEGIN <session-slug> ==="
-printf '%s\n' "$out"
-printf -- '--- integrity: %s lines ---\n' "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
-echo "=== PROBE END <session-slug> ==="
-```
-
-The sections, caps, and slug vary per probe; the shape — header,
-function body, sentinels, integrity trailer — does not.
-
-### 4.3 Probe script rules
-
-These apply to both the paste-back shape and the §4.4 fallback:
-
-- **Read-only per shape.** Paste-back: zero writes anywhere. Fallback:
-  writes only under `./probe-output/`. Neither shape installs
-  anything or makes network calls unless explicitly justified in the
-  purpose header and gated behind a flag.
-- **Self-contained.** Uses only tools that exist everywhere: `ls`,
-  `cat`, `find`, `git`, `node --version`, `tree` (with `find`
-  fallback). If a tool is missing, degrade gracefully and report the
-  gap in that question's labeled section (paste-back) or in
-  `meta.json` (fallback) — never silently.
-- **Idempotent.** Running it twice gives the same output (modulo
-  timestamps).
-- **Environment-aware.** Detects shell, OS, and container/host
-  classification and reports it in a labeled section (or `meta.json`
-  in the fallback). If the environment can't be classified, the
-  probe records that fact rather than guessing.
-- **Copy-pasteable.** The script body pastes into a terminal as-is.
-  No argument parsing required for the happy path.
-- **Secrets-aware.** Skips `.env*`, `*.pem`, anything matching common
-  secret patterns. Records *presence* (`OPENAI_API_KEY: set`), never
-  values.
-- **Logged.** Every step prints a line. Silent operations are bugs.
-
-`probe.ps1` is conditional. Most environments (Linux container,
-macOS, WSL) run the bash variant natively. Offer a PowerShell variant
-only when the request or `STATE.md` indicates Windows-native
-execution.
-
-### 4.4 The file-based fallback
-
-For genuinely large or binary output — a full dependency tree, a
-generated fixture, anything past what a terminal paste carries
-intact — the earlier file-based shape remains valid, explicitly as
-the fallback: the script writes to `./probe-output/` and the
-architect returns the contents (pasted as text if small enough, or
-included in the next request tarball's `context/`). Paste-back is
-the default; the worker picks the fallback **only when output size
-or format demands it, and says so** — the chat preamble names the
-reason, every location the script writes to (only
-`./probe-output/`), and every external tool it invokes. No
-surprises.
-
-The fallback's output contract is `meta.json` plus whatever files the
-probe collected, declared in `meta.json`. The shape below is
-illustrative (Node-flavored); the specific file set varies by project
-type.
-
-```
-probe-output/
-  meta.json            # env, shell, timestamp, probe version, gaps
-  system.txt           # OS, shell, locale, user
-  tools.txt            # versions of every tool the build touches
-  tree.txt             # project tree, depth-limited, .gitignore-aware
-  package.json         # if Node project
-  *.config.*           # vite/webpack/tsconfig/eslint/etc.
-  git.txt              # status, last 20 commits, current branch
-  ...
-```
-
-`meta.json` includes:
-
-- environment detected (shell, OS, container/host classification)
-- probe version (matches a self-declared ID in the preamble)
-- ISO timestamp
-- list of gaps (tools missing, files unreadable, checks skipped)
-- exit status of every step
-
-### 4.5 Provenance
-
-Pasted probe output is **chat-ephemeral** — it exists in the
-conversation and nowhere durable. The eventual response's `notes.md`
-must record what the probe established: the facts the response relied
-on, not the raw dump. That record is how the probe's findings survive
-the chat.
-
-`depends_on.previous_probe` (§3.2) is how a fallback probe's output,
-shipped in a later request's `context/`, is declared; a paste-back
-probe resolves within its own session and leaves the field null.
-
-### 4.6 The probe as a tool call
-
-In the orchestrated workflow, the probe becomes a tool call the
-harness executes and feeds back automatically. The paste-back shape
-is the manual-transport analog of that: **same contract, different
-courier**. Nothing in this section assumes the courier is human —
-the sentinels, bounded output, and integrity trailer are exactly the
-properties a harness needs to validate a machine round-trip too.
+> Sections 3 (Request Tarball) and 4 (Probe) are triggered
+> reference — relocated past the core banner, below section 7
+> (core-first order; numbering unchanged).
 
 ---
 
@@ -1287,39 +859,9 @@ courier changes.
 
 ---
 
-## 6. Worked Example: Smallest Plausible Response
-
-A minimum viable response tarball — one file changed, no probe, no
-deferrals. Useful as a sanity check that the contract isn't heavier
-than the work. The interesting parts of `response-007/manifest.json`
-are what's *absent*:
-
-```json
-{
-  "changes": [
-    {
-      "path": "README.md",
-      "action": "modified",
-      "reason": "fixes 'instll' → 'install' in step 2"
-    }
-  ],
-  "deferred": [],
-  "claims": {}
-}
-```
-
-`deferred` and `claims` are both empty — nothing was held back, no
-project-level checks run for a markdown typo, and the session ships
-no session-specific assertions either, so nothing is claimable and
-the empty block is correct (§5.3). `validation_will_run`
-covers only what `validation.sh` actually does for this change (file
-syntax). `apply.sh` is the no-op script — no deletes, no renames, and
-no executable bits to restore (see §5.1.1). `README.md` and
-`notes.md` are absent — nothing surprising happened, nothing needed
-surfacing and no proposal was worth queuing (§5.4.1), and the
-manifest's `summary` field covers what the response delivers.
-
-The protocol still applies. The floor is the floor.
+> Section 6 (Worked Example) is triggered reference — relocated
+> past the core banner, below section 7 (core-first order;
+> numbering unchanged).
 
 ---
 
@@ -1472,6 +1014,496 @@ This is a session-specific assertion (§7.2 item 6): it ships only when
 the session ships an executable, and names the exact path rather than
 scanning the tree. A session shipping no executables omits it, the
 same way it omits a build check when nothing built.
+
+---
+
+> **PAST THE CORE.** Sections above this banner — 1, 2, 5, and 7 —
+> are the every-read core. Everything below — sections 3, 4, 6, 8,
+> 9, and 10 — is triggered reference: read a section only when its
+> trigger in the INDEX read-paths table fires.
+
+---
+
+## 3. Request Tarball
+
+### 3.1 Shape
+
+```
+request-NNN/
+  manifest.json        # structured session metadata (required)
+  CLAUDE.md            # injected by bale
+  TARBALL.md           # injected by bale
+  DOCS.md              # injected by bale
+  CODE.md              # injected by bale
+  tools/
+    response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
+  context/             # everything the user chose to include
+    <project files and any project docs the user named>
+  README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
+```
+
+The first five slots are reserved for bale-injected global docs and
+the manifest; `tools/response_lint.py` rides beside them (also
+bale-injected, from the install) so the worker can run the §10.1
+step-10 self-check mechanically against its response directory
+before packing, without bale installed. Everything else the user
+wants Claude to see —
+including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
+schemas, and prior probe output — lives under `context/`. No top-
+level slots are reserved for project docs; bale is project-agnostic.
+
+`README.md` is optional prose context: whatever is worth keeping
+that doesn't reduce cleanly to the manifest's `goal`, `constraints`,
+or `out_of_scope` fields. Either party authors it. The planner
+writes it directly — the pack wizard offers `$EDITOR` to opt in —
+or the worker writes it on request, delivering the brief as a
+downloadable file the planner ships with `--readme-file` (§3.4),
+whose search-path resolution lets a brief in the planner's downloads
+directory pack by bare name. Most sessions skip the README
+entirely.
+
+A project that has adopted the DOCS.md workflow might fill `context/`
+with paths like:
+
+```
+context/
+  INDEX.md             # the project's doc map
+  charter-brief.md
+  STATE.md             # current snapshot, if relevant
+  decisions/           # ADRs I think are in play
+  sessions/            # prior response notes, if directly relevant
+  probe-output/        # if a prior probe ran
+  ...
+```
+
+The contents of `context/` are whatever the user named in the pack
+request.
+
+Schema files in `context/` may be partial extracts when the full file
+isn't relevant — pull only the sections touched by the session, and
+name the extract in `manifest.context_included` so the omission is
+visible.
+
+Tar with: `tar -czf request-NNN.tar.gz request-NNN/`
+
+### 3.2 manifest.json
+
+```json
+{
+  "session_id": "2026-05-12-vue-scaffold-001",
+  "project": "example-project",
+  "goal": "one-sentence goal — used by bale as the session's headline",
+  "depends_on": {
+    "previous_response": null,
+    "previous_probe": null
+  },
+  "constraints": [
+    "no breaking changes to public API surface",
+    "stay within current dependency set"
+  ],
+  "out_of_scope": [
+    "anything backend-side",
+    "test infrastructure"
+  ],
+  "expects_probe": "yes | no | claude-decides",
+  "context_included": [
+    "context/charter-brief.md",
+    "context/STATE.md"
+  ]
+}
+```
+
+Field semantics:
+
+- **`goal`** — one sentence. If it doesn't fit in one sentence, the
+  scope is wrong.
+- **`depends_on`** — links this request to prior session artifacts;
+  both fields default `null`. `previous_response` names the response
+  session this request builds on — a session packed after a bailout
+  points it at the bailout (§5.6.2). `previous_probe` is populated
+  mainly on the fallback path: a prior probe whose `probe-output/`
+  ships in this request's `context/` (§4.4). A paste-back probe
+  resolves within its own session and leaves the field `null`
+  (§4.5).
+- **`constraints`** — things I commit to up front. Claude stays
+  within them or surfaces a conflict in `notes.md`.
+- **`out_of_scope`** — explicit list of *near-by* concerns Claude
+  should not address (rationale: ADR-0013).
+- **`expects_probe`** — `yes` forces a probe before any build work.
+  `no` forbids probing this session (see 3.3). `claude-decides`
+  (default) means Claude probes whenever a §4.1 trigger fires.
+- **`context_included`** — declarative list of what's in `context/`.
+  If Claude needs something not listed, it checks `INDEX.md`, then
+  names it in the response (either in a probe request or in
+  `notes.md` if Claude proceeded with an assumption). The resolved
+  include set behind this list is also the session's declared
+  **scope**: bale records it in the session registry at pack time,
+  and three mechanical gates read it. Pack refuses a new session
+  whose scope intersects an open session's; apply rejects a
+  response whose `changes[]` paths collide with a *sibling*
+  session's scope; and apply also rejects **own-scope drift** —
+  any `changes[]` path outside this session's own recorded scope,
+  created paths rejected the same as modified
+  (mechanical since bale v0.3.10; policy-only before that, so older
+  notes and ADRs describe the older state).
+  Scope path semantics: directory entries cover their subtrees, and
+  a default whole-tree pack passes the own-scope gate vacuously.
+  The operator can admit named paths past the own-scope gate at
+  apply time (and again at retry — the override is per invocation
+  and per path, never a standing config), which is the sanctioned
+  landing path for new files the pack could not have named: the
+  worker ships them, enumerates them in `notes.md` (§5.4), and the
+  operator decides at apply (rationale: ADR-0014). Any drift the
+  operator does not admit refuses pre-staging and the session stays
+  open.
+
+### 3.3 When `expects_probe: no` collides with a real gap
+
+If the request forbids probing but the worker finds an environment-
+specific gap documentation can't fill, the worker does not probe and
+does not silently guess. The worker either:
+
+1. **Stops and asks in chat** — if the gap is small enough to resolve
+   inline.
+2. **Returns a clarification response** (§5.9) — if the gap is
+   blocking and the ask should ride the durable shape (the
+   orchestrated default, §5.9.1). Environment questions are
+   admissible there when probing is unavailable: the recourse
+   taxonomy keys on mechanics (§5.9), and the planner can read the
+   environment the worker was forbidden to script against.
+3. **Proceeds against the most plausible assumption** — names the
+   assumption explicitly in `notes.md` and flags it as the first
+   thing for me to check on review.
+
+The `no` setting is honored as a hard constraint; the assumption is
+honored as a recoverable risk.
+
+### 3.4 Authoring a request with `bale pack`
+
+`bale pack` is the command that produces a request tarball — the §3.1
+shape, with a `manifest.json` (§3.2) assembled from its flags. It's
+documented here so its callers can cite a real command instead of
+guessing. Authoring pack commands is available to either party, and
+the line that governs it is **solicited vs unsolicited**. Asked in
+chat to draft a pack command, the worker authors it — solicited
+authoring is always the worker's job (`CLAUDE.md` §4), with the same
+flags and the same single-line form as a planner-authored pack.
+Unsolicited, the worker emits a runnable command in exactly one
+place: the rescope offer, when the pre-flight scope check
+(`CLAUDE.md` §11.2) decides a goal needs splitting. Inside response
+tarballs, follow-ups are prose Proposals in `notes.md` (§5.4.1),
+never runnable commands.
+
+The hazards that confine unsolicited runnable commands to that one
+place — blind firing, and the self-oracle problem of the entity
+under review framing its own follow-up — are ADR-0013's; sequencing
+authority belongs to the planner (`CLAUDE.md` §4). An orchestration
+layer consuming rescope offers should still re-derive the command
+from the proposed seam rather than fire the worker's verbatim —
+doctrine for when an orchestrator exists, not a change to the human
+path, which needs the paste-ready command.
+
+The flags below are the stable surface; each maps to a manifest field
+or a packing behavior:
+
+| Flag | Maps to / does |
+|------|----------------|
+| `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). Omitted on a TTY, pack enters the interactive wizard; required when piped. |
+| `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. Omitted on a TTY, the wizard prompts for it; required when piped. |
+| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. The resolved set doubles as the session's declared scope (§3.2) — see the scope-planning note below the table. |
+| `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
+| `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
+| `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
+| `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
+| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Combines with `--edit` to review the file before packing. |
+| `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
+| `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
+| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is documented in BALE.md §7. |
+| `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
+| `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
+| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). |
+| `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
+| `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
+
+**Scope planning for concurrency.** Multiple sessions may be open at
+once; integrations serialize (§3.2 carries the scope contract).
+Concurrency therefore requires scope-disjoint include sets: the
+pack-time gate admits a new session only when its resolved includes
+are disjoint from every open session's scope. A default or
+broad-scoped pack intersects everything and is concurrency-exclusive
+by design — a pack meant to run alongside others is packed with
+narrow `--include` sets along file-disjoint seams.
+
+**Includes name existing context; new files are the worker's call.**
+Never author or suggest an `--include` for a path that does not
+exist yet — an include ships file contents, and a not-yet-existing
+file has none to ship. Deciding what new files the goal requires is
+the worker's determination, made during the session, not the
+packer's forecast (rationale: ADR-0014). A new file the worker
+creates is in scope when it lands under an included directory;
+otherwise it surfaces at apply as own-scope drift the operator
+admits per path (§3.2), guided by the worker's enumeration in
+`notes.md` (§5.4). A packer who knows new files will land in one
+area can widen the seam with a directory include; nobody pre-names
+the files themselves.
+
+README precedence, first match wins: `--edit` > `--readme-file` >
+the wizard's y/N prompt > omit.
+
+**Commands are single-line.** Every `bale pack` invocation — the
+architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
+§11.2) — is written as one line with no backslash continuations, so
+it pastes into a terminal directly. Repeatable flags repeat inline on
+the same line; they do not wrap.
+
+**No backticks in the goal string.** The goal is a double-quoted shell
+argument, and double quotes do not protect backticks: the shell runs
+text between them as command substitution before `bale` ever sees the
+goal. Name code symbols in plain prose inside the goal (*the useAuth
+hook*, not the backticked form); `$(...)` and an unescaped `$` carry
+the same hazard.
+
+A basic pack:
+
+```
+bale pack "Add a debounced search box to the catalog page" --slug catalog-search --include src/components/Catalog.vue --include src/composables --constraint "no new dependencies" --expects-probe no
+```
+
+A rescope pack — the first session of a split the pre-flight check
+proposed, as Claude would emit it in a `CLAUDE.md` §11.2 offer, with
+the deferred half named in `--out-of-scope`:
+
+```
+bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --out-of-scope "tests for the endpoint layer" --expects-probe no
+```
+
+---
+
+## 4. Probe
+
+### 4.1 When a probe engages
+
+The worker treats the architect's environment as its own: anything
+readable there is available on request, and a probe is how the worker
+reads it. Return a probe whenever an environment-specific fact the
+response depends on is missing, stale, or unclear — and documentation
+can't settle it. Canonical triggers:
+
+- A file the work needs wasn't included in `context/`, or the
+  included copy looks stale against what the goal implies.
+- A tool, runtime, or dependency version the change depends on is
+  unknown.
+- The working-tree state matters and isn't captured — uncommitted
+  changes, current branch, install state.
+- Any other fact only the environment can answer: what shell is
+  actually available, whether a path exists, what a config resolves
+  to.
+
+Working around a gap like these is a **policy violation, not
+resourcefulness** — it produces exactly the confidently wrong
+response this workflow exists to prevent (doctrine and its
+cost-benefit case: ADR-0010).
+
+Two boundaries keep the default-to-ask posture from sprawling:
+
+- **Conceptual and scope gaps are not probes.** If the question is
+  what the goal means, which option the architect prefers, or whether
+  something is in scope, no script against the environment can answer
+  it. Quick, non-blocking questions resolve in chat; a gap of this
+  kind that *blocks* trustworthy work takes the clarification response
+  (§5.9) — the intent-gap sibling of the probe, same default-to-ask
+  doctrine, different recourse.
+- **`expects_probe: no` still forbids probing** (§3.3). The doctrine
+  sets the default; the manifest overrides it per session, and the
+  collision path in §3.3 is unchanged.
+
+### 4.2 The paste-back probe (default shape)
+
+Probes are session-scoped only: no `claude/probes/` directory, no
+bale subcommand, no artifact in the project tree. The default
+transport is a **single copy-pasteable shell block**. The architect
+pastes it into a terminal and pastes stdout back into the chat; the
+worker reads the paste and proceeds. No files change hands.
+
+The block Claude returns is one fenced, self-contained script with
+these required properties:
+
+- **Strictly read-only — zero writes.** stdout is the only output
+  channel. No `probe-output/`, no temp files, no state mutation of
+  any kind — writes belong exclusively to the §4.4 fallback
+  (rationale: ADR-0010).
+- **Purpose header.** A comment block at the top stating what the
+  probe asks, why the session needs it, and confirming the script is
+  read-only. The architect audits this before pasting.
+- **Self-delimiting.** `PROBE BEGIN`/`PROBE END` sentinel lines
+  bracket the whole output, and each question gets its own labeled
+  section so the worker can map answers back to gaps.
+- **Bounded output.** Every command's output is capped (`head`,
+  `tail`, or equivalent), with an explicit truncation marker printed
+  when the cap bites.
+- **Integrity trailer.** The final line inside the sentinels reports
+  a line count (or checksum) of the emitted output, so the receiving
+  session can detect a truncated or partial paste and re-request
+  instead of reasoning from half an environment.
+
+The canonical skeleton — the body runs inside a function so the
+trailer can count the real output before anything is printed:
+
+```bash
+#!/usr/bin/env bash
+# PROBE <session-slug>: <what this asks, in one line>.
+# Why: <the gap this fills, in one line>.
+# Read-only: writes nothing anywhere; stdout is the only output.
+
+probe() {
+  echo "--- section: node ---"
+  node --version 2>&1 | head -n 2
+
+  echo "--- section: git-state ---"
+  git status --porcelain=v1 2>&1 | head -n 40
+  n=$(git status --porcelain=v1 2>/dev/null | wc -l)
+  [ "$n" -gt 40 ] && echo "[truncated: $n lines total, showing 40]"
+
+  echo "--- section: vite-config ---"
+  ls -l vite.config.* 2>&1 | head -n 5
+}
+
+out="$(probe 2>&1)"
+echo "=== PROBE BEGIN <session-slug> ==="
+printf '%s\n' "$out"
+printf -- '--- integrity: %s lines ---\n' "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+echo "=== PROBE END <session-slug> ==="
+```
+
+The sections, caps, and slug vary per probe; the shape — header,
+function body, sentinels, integrity trailer — does not.
+
+### 4.3 Probe script rules
+
+These apply to both the paste-back shape and the §4.4 fallback:
+
+- **Read-only per shape.** Paste-back: zero writes anywhere. Fallback:
+  writes only under `./probe-output/`. Neither shape installs
+  anything or makes network calls unless explicitly justified in the
+  purpose header and gated behind a flag.
+- **Self-contained.** Uses only tools that exist everywhere: `ls`,
+  `cat`, `find`, `git`, `node --version`, `tree` (with `find`
+  fallback). If a tool is missing, degrade gracefully and report the
+  gap in that question's labeled section (paste-back) or in
+  `meta.json` (fallback) — never silently.
+- **Idempotent.** Running it twice gives the same output (modulo
+  timestamps).
+- **Environment-aware.** Detects shell, OS, and container/host
+  classification and reports it in a labeled section (or `meta.json`
+  in the fallback). If the environment can't be classified, the
+  probe records that fact rather than guessing.
+- **Copy-pasteable.** The script body pastes into a terminal as-is.
+  No argument parsing required for the happy path.
+- **Secrets-aware.** Skips `.env*`, `*.pem`, anything matching common
+  secret patterns. Records *presence* (`OPENAI_API_KEY: set`), never
+  values.
+- **Logged.** Every step prints a line. Silent operations are bugs.
+
+`probe.ps1` is conditional. Most environments (Linux container,
+macOS, WSL) run the bash variant natively. Offer a PowerShell variant
+only when the request or `STATE.md` indicates Windows-native
+execution.
+
+### 4.4 The file-based fallback
+
+For genuinely large or binary output — a full dependency tree, a
+generated fixture, anything past what a terminal paste carries
+intact — the earlier file-based shape remains valid, explicitly as
+the fallback: the script writes to `./probe-output/` and the
+architect returns the contents (pasted as text if small enough, or
+included in the next request tarball's `context/`). Paste-back is
+the default; the worker picks the fallback **only when output size
+or format demands it, and says so** — the chat preamble names the
+reason, every location the script writes to (only
+`./probe-output/`), and every external tool it invokes. No
+surprises.
+
+The fallback's output contract is `meta.json` plus whatever files the
+probe collected, declared in `meta.json`. The shape below is
+illustrative (Node-flavored); the specific file set varies by project
+type.
+
+```
+probe-output/
+  meta.json            # env, shell, timestamp, probe version, gaps
+  system.txt           # OS, shell, locale, user
+  tools.txt            # versions of every tool the build touches
+  tree.txt             # project tree, depth-limited, .gitignore-aware
+  package.json         # if Node project
+  *.config.*           # vite/webpack/tsconfig/eslint/etc.
+  git.txt              # status, last 20 commits, current branch
+  ...
+```
+
+`meta.json` includes:
+
+- environment detected (shell, OS, container/host classification)
+- probe version (matches a self-declared ID in the preamble)
+- ISO timestamp
+- list of gaps (tools missing, files unreadable, checks skipped)
+- exit status of every step
+
+### 4.5 Provenance
+
+Pasted probe output is **chat-ephemeral** — it exists in the
+conversation and nowhere durable. The eventual response's `notes.md`
+must record what the probe established: the facts the response relied
+on, not the raw dump. That record is how the probe's findings survive
+the chat.
+
+`depends_on.previous_probe` (§3.2) is how a fallback probe's output,
+shipped in a later request's `context/`, is declared; a paste-back
+probe resolves within its own session and leaves the field null.
+
+### 4.6 The probe as a tool call
+
+In the orchestrated workflow, the probe becomes a tool call the
+harness executes and feeds back automatically. The paste-back shape
+is the manual-transport analog of that: **same contract, different
+courier**. Nothing in this section assumes the courier is human —
+the sentinels, bounded output, and integrity trailer are exactly the
+properties a harness needs to validate a machine round-trip too.
+
+---
+
+## 6. Worked Example: Smallest Plausible Response
+
+A minimum viable response tarball — one file changed, no probe, no
+deferrals. Useful as a sanity check that the contract isn't heavier
+than the work. The interesting parts of `response-007/manifest.json`
+are what's *absent*:
+
+```json
+{
+  "changes": [
+    {
+      "path": "README.md",
+      "action": "modified",
+      "reason": "fixes 'instll' → 'install' in step 2"
+    }
+  ],
+  "deferred": [],
+  "claims": {}
+}
+```
+
+`deferred` and `claims` are both empty — nothing was held back, no
+project-level checks run for a markdown typo, and the session ships
+no session-specific assertions either, so nothing is claimable and
+the empty block is correct (§5.3). `validation_will_run`
+covers only what `validation.sh` actually does for this change (file
+syntax). `apply.sh` is the no-op script — no deletes, no renames, and
+no executable bits to restore (see §5.1.1). `README.md` and
+`notes.md` are absent — nothing surprising happened, nothing needed
+surfacing and no proposal was worth queuing (§5.4.1), and the
+manifest's `summary` field covers what the response delivers.
+
+The protocol still applies. The floor is the floor.
 
 ---
 
