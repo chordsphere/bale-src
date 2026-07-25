@@ -1,4 +1,4 @@
-# bale master-session state — v3 — 2026-07-22
+# bale master-session state — v3 — 2026-07-25
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
@@ -6,7 +6,10 @@ progress against this file and continue. Regenerate at major
 milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
 it needs to be carried separately. This update (2026-07-22, session
 2026-07-22-master-deltas-001) supersedes nothing structurally — same
-v3 doc, deltas applied in place.
+v3 doc, deltas applied in place. This update (2026-07-25, session
+2026-07-25-orchestrator-sesh-001) is likewise deltas-in-place, and is
+the first landed by the master session itself rather than a separate
+deltas worker.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -180,9 +183,9 @@ sitting's start per the standing rule.
   drift-refusal aggregation semantics → board 5's session
   (unchanged).
 - INDEX.md's ADR-0013 "Status: Proposed" word flips when 0013 is
-  Accepted — per the 2026-07-21 ratification (§5), the flip is
-  Accepted-at-board-14: it rides board 14's session alongside the
-  ADR's own status line.
+  Accepted — per the 2026-07-21 ratification (§5); board 14 retired
+  2026-07-25, so the flip now rides board 22a's session alongside
+  the ADR's own status line.
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
 
@@ -252,13 +255,38 @@ later applies (retirement-cleanup, handoff-refusal-numbering) stamp
 0.3.14 provenance with no further bump in telemetry — verify with
 bale --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-23/25 (landed by this master session,
+2026-07-25-orchestrator-sesh-001; sids reconciled against
+claude/telemetry):**
+
+- **doc-gap (ADR-0014)** — sid `2026-07-23-doc-gap-001`, applied
+  2026-07-23, provenance 0.3.14 (no bump). ADR-0014 created
+  (worker-determined new files; Accepted at creation per the
+  ADR-0012 precedent), TARBALL.md §3.2/§3.4 and CLAUDE.md §6
+  corrected to the mechanical drift-gate reality, BALE.md's three
+  stale sites fixed, INDEX.md row added. Loose end, OPEN: the
+  Accepted-at-creation judgment awaits the architect's explicit word
+  (the flip-to-Proposed offer is recorded in the session's telemetry
+  notes; asked in the 07-25 master chat, not yet answered).
+- **This master session** — sid `2026-07-25-orchestrator-sesh-001` —
+  reconciled state (0.3.14 verified; the request's contract-doc
+  hashes match the post-doc-gap bytes), then interrogated board 14
+  before authoring its pack and retired it as misframed: the
+  physical split's token-savings premise conflated shipped bytes
+  with read tokens (evidence 32). Ratified in the same chat: the
+  global-doc mechanization direction (board 22; contracts §5). This
+  deltas edit ships as the session's own response tarball.
+
+Version at sitting close: 0.3.14, unchanged — verify with bale
+--version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **This session** (`2026-07-22-master-deltas-001`) — lands the
-  2026-07-21 sitting deltas into this document. Nothing else is in
-  flight per telemetry and operator status at pack time: all six
-  2026-07-21 sessions are applied, the last of them
-  (handoff-refusal-numbering) on 2026-07-22.
+- **This session** (`2026-07-25-orchestrator-sesh-001`) — the
+  master session landing these deltas as its own response. Nothing
+  else is in flight per telemetry at pack time: every prior session
+  is applied, the last of them (`2026-07-23-doc-gap-001`) on
+  2026-07-23.
 
 ## 4. The board
 
@@ -376,6 +404,12 @@ and §8, so done items keep their numbers as one-line pointers.
       category wants the ADR-0009 staging treatment (explainer at
       harness time, global doc when orchestration is real), a pinned
       shape, and eventually a lint.
+    - **Injection-model decision gates physical doc splits** —
+      system-prompt injection (bytes are tokens; file granularity is
+      the only knob) vs tool-access lazy reading (today's economics,
+      preserved). Any physical split of the globals, the retired
+      board-14 shape included, is decided only after this choice is
+      made here; evidence 32 carries the rationale.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -413,23 +447,25 @@ and §8, so done items keep their numbers as one-line pointers.
     (board 7), before board 5 consumes scope data. (Evidence 25 is
     the observed cost.)
 
-14. **Doc-compression sitting, structural phase** — TARBALL.md split
-    along the DOCS.md §6.2 seam: always-needed core (≈ sections 1,
-    2, 5.1, 5.2, 8, 10) vs drill-down reference, tombstones per
-    §6.4. Bundle CLAUDE.md §11.6 and the §3 mode-disagreement
-    passage (200–300 cuttable words, same zero-loss recipe) into the
-    same sitting. Source: sessions 012 and 001 proposals, architect
-    ratified. Dedicated sitting; not before next sitting.
-    **Packaging findings (2026-07-21):** the split adds a fifth
-    global doc, touching the hard-coded GLOBAL_DOCS tuple (bin/bale
-    line ~207), the provenance contract_docs hash set, build.sh
-    RELEASE_FILES (~99), install.sh layout (~230), upgrade.sh
-    REQUIRED_RELEASE_MEMBERS, validate.sh doc rows, and the
-    reinstall mirror — a mixed docs+code session that locks bin/,
-    sized as a dedicated sitting's opener. Riders: ADR-0013's
-    Accepted flip (ratified 2026-07-21, §5) and the two DOCS.md
-    one-liners (board-17 sanctioned-pairs; the grep-normalization
-    audit habit, evidence 28).
+14. **Doc-compression sitting, structural phase — RETIRED AS
+    MISFRAMED** 2026-07-25 (this master session, chat-ratified). The
+    physical split's premise — a fifth global doc reduces the
+    per-session context tax — conflated shipped bytes with read
+    tokens; on the human-carried transport the globals are
+    lazy-loaded via the read-paths tables and unread bytes cost
+    tarball size only (evidence 32). The split decision is
+    transport-relative and now waits on board 10's injection-model
+    agenda item. Replacement work: board 22. Riders re-homed to
+    board 22a (fold-in registry updated): ADR-0013's Accepted flip +
+    INDEX.md word flip, the board-17 sanctioned-pairs one-liner, the
+    evidence-28 grep-normalization one-liner. The 2026-07-21
+    packaging findings (GLOBAL_DOCS tuple at bin/bale 207 with two
+    further consumers at ~2135 and ~4426, contract_docs hash set,
+    build.sh RELEASE_FILES ~88, install.sh ~229, upgrade.sh
+    REQUIRED_RELEASE_MEMBERS ~141, validate.sh doc rows,
+    reinstall mirror — re-verified against source 2026-07-25) stand
+    as the reference map if board 10 ever revives a physical
+    split.
 
 15. **7c — doc-gap audit + landing — DONE** 2026-07-21 (§2 sitting
     summary): gaps 2, 5, 6-schema landed; 3 already landed; 4
@@ -446,8 +482,8 @@ and §8, so done items keep their numbers as one-line pointers.
 
 17. **DOCS.md sanctioned-pairs one-liner** for the CLAUDE.md §11.2 ↔
     TARBALL.md §3.4 propagation duty. Rides any session touching
-    DOCS.md; not a standalone session. Per the board 14 annotation,
-    rides that sitting.
+    DOCS.md; not a standalone session. Board 14 retired; per its
+    re-homing, rides board 22a's session.
 
 18. **retry flag parity — DONE** 2026-07-21 (§2 sitting summary):
     retry ice-out fixed; gate override flags closed across the
@@ -470,6 +506,41 @@ and §8, so done items keep their numbers as one-line pointers.
     Rider: one BALE.md §5.4 clause noting the detached-HEAD refusal,
     like the system-directory refusal, has no --force override on
     either command.
+
+22. **Global-doc mechanization arc (the worker toolkit)** — replace
+    instructional prose with shipped tools wherever a rule is shape;
+    keep prose only where a rule is judgment. Ratified 2026-07-25
+    (contracts §5; evidence 33; the delivery pattern is
+    response_lint's — per-request injected, sandbox-run, no install).
+    Serialized phases, each its own session:
+    - **22a — TARBALL.md internal restructure + riders:** core-first
+      ordering under stable section numbers (DOCS.md §6.4 —
+      in-file relocation pointers, zero renumbering), a sharpened
+      in-doc INDEX read-paths table with a situation-keyed trigger
+      sentence per reference section, and a past-the-core banner.
+      Doc-only, no code lock. Riders: ADR-0013 Accepted flip +
+      INDEX.md word flip, board 17's one-liner, evidence 28's
+      one-liner.
+    - **22b — craft tool v1, normal-response shape:** a worker-run
+      tools/ sibling of response_lint that walks files/, computes
+      every size_bytes and sha256, and emits the manifest skeleton
+      plus the apply.sh scaffold; TARBALL.md §5.2/§5.2.1 prose then
+      collapses to trigger + tool pointer. Board 11's
+      craft_response fixture recipe is the seed. Constraints:
+      crafter/validator separation — the blind-authored lint stays
+      the judge, separately authored and maintained (evidence 16's
+      self-oracle test applied at design time); the toolkit is
+      self-contained per the §5 execution-context manifest
+      (evidence 13/30).
+    - **22c — bailout + clarification shapes:** diagnostics.json and
+      questions[] emitted from the schemas that already own them;
+      §5.6/§5.8/§5.9 shape prose collapses behind the tool.
+    - **22d — probe header template and residue:** the §4.2 scaffold,
+      then measure what prose remains and stop when the residue is
+      judgment. The non-mechanizable residue — probe-vs-guess,
+      fit estimates, claim completeness, stay-in-lane — remains
+      prose by design; boards 4/5/6 are its control surface, not
+      tooling.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -564,7 +635,23 @@ New, ratified 2026-07-21:
   tools/response_lint.py. Copied, never re-derived. (The
   countermeasure for evidence 30's class.)
 - **ADR-0013 flips to Accepted:** ratified; the flip lands with
-  board 14's session (see the fold-in registry).
+  board 14's session (see the fold-in registry). [2026-07-25: board
+  14 retired; the flip rides board 22a per the registry.]
+
+New, ratified 2026-07-25 (this master session, in chat):
+
+- **Physical splits of the global docs are transport-relative
+  decisions.** Shipped bytes are not read tokens on the
+  human-carried path (evidence 32); any physical split of the
+  globals is sequenced after board 10's injection-model decision.
+  Board 14 retired as misframed under this rule.
+- **Mechanize shape; keep judgment as prose.** Where a contract rule
+  is shape, it moves into a worker-shipped tool and the doc keeps
+  only the trigger; where it is judgment, it stays prose. The
+  crafter never validates its own output: construction tooling and
+  the blind-authored lint remain separately authored and separately
+  maintained (evidence 16's self-oracle test applied at design
+  time). (Binds board 22.)
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -747,6 +834,31 @@ New from the 2026-07-21 sitting:
     read-only verification found the ADR's body carries no step
     citation (it cites only §11 row 3). The restoration decision
     survived, but the assertion was wrong.
+
+New from the 2026-07-25 master session:
+
+32. **Shipped bytes are not read tokens; injection-tax claims are
+    transport-relative.** Evidence 18's ~25K-token framing quietly
+    equated the two. On the human-carried path the globals arrive
+    as files and enter context only when a read-paths trigger
+    fires — the 07-25 master session read CLAUDE.md in full,
+    TARBALL.md sectionally, and CODE.md not at all. Splitting a
+    lazily-read doc into two shipped files saves approximately
+    nothing; the calculus flips only under a transport that injects
+    doc contents unconditionally. Two sessions had ratified the
+    split framing before the architect caught it in chat — a
+    misunderstanding-class catch at a human checkpoint, the exact
+    class the §1 floor says mechanical validation cannot see.
+
+33. **Mechanization deletes normative prose that editing cannot
+    compress.** Editorial compression floors at the normative
+    fraction (evidence 26: TARBALL.md ~95% normative); relocating a
+    shape rule into a tool removes its prose entirely and upgrades
+    enforcement from worker discipline to computed-only values —
+    the invented-hash class dies when hashes are only ever
+    computed, never recalled. Judgment rules are the residue that
+    stays prose: they are read for recognition, not reconstruction.
+    (Board 22 is this rule executing.)
 
 ## 7. Standing environment facts
 
