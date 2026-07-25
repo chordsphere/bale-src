@@ -685,9 +685,10 @@ def build_request_tarball(
         # Inject the worker-side lint beside the four globals (v0.3.8,
         # session B1): request-NNN/tools/response_lint.py, per TARBALL.md
         # §3.1. Same copy2 treatment so the tool arrives executable.
-        # main()'s pack-time sanity check verified presence, so a missing
-        # file here means the install broke mid-run — let the copy raise
-        # and the caller's failed-to-build handler surface it.
+        # main()'s request-command sanity check (gating both callers:
+        # pack and handoff) verified presence, so a missing file here
+        # means the install broke mid-run — let the copy raise and the
+        # caller's failed-to-build handler surface it.
         tools_dir = request_dir / "tools"
         tools_dir.mkdir()
         for tool in INJECTED_TOOLS:
