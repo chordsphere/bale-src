@@ -494,10 +494,12 @@ The following flags apply across multiple commands:
   threshold caps; rollback bypasses its dirty-tree refusal (without
   stashing) and the already-reverted / already-re-applied refusals
   (§9.2); unlock bypasses the branch-exists refusal (§9.3). The
-  system-directory refusal has no override anywhere (§7.1), and
-  `bale apply` takes no `--force` at all — the narrow dirty-on-target
-  rule (§8.1 step 5) has no bypass; its remedies are stash, commit,
-  or switch branches.
+  system-directory refusal has no override anywhere (§7.1), the
+  detached-HEAD refusal likewise has no `--force` override on either
+  request-building command (pack: §7.1 step 4a; handoff: §11 row 24),
+  and `bale apply` takes no `--force` at all — the narrow
+  dirty-on-target rule (§8.1 step 5) has no bypass; its remedies are
+  stash, commit, or switch branches.
 - `--verbose` — stream validation output and other long-running
   command output to stdout in addition to the log file. (Landed
   apply-scoped in v0.2.1 — `bale apply --verbose` streams `validation.sh`

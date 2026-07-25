@@ -4420,9 +4420,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     # Sanity: the installation must have the global docs and the injected
-    # worker tools alongside. Both are pack-time injections; a missing
-    # file would otherwise surface as a mid-pack copy failure.
-    if args.command == "pack":
+    # worker tools alongside. Both request-building commands (pack,
+    # handoff) inject them via build_request_tarball; a missing file
+    # would otherwise surface as a mid-build copy failure — on handoff,
+    # after sid allocation and session state already exist. Fail loud
+    # up front instead, with the same message on both commands.
+    if args.command in ("pack", "handoff"):
         missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
         missing += [f"tools/{t}" for t in INJECTED_TOOLS
                     if not (TOOLS_DIR / t).exists()]
