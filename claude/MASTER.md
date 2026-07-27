@@ -13,7 +13,11 @@ deltas worker. This update (2026-07-25, second sitting)
 is deltas-in-place, landed by session 2026-07-25-master-deltas-005 —
 a narrow follow-on pack, because the orchestrator session (sesh-002)
 could not land its own response; see the second-sitting summary and
-evidence 36.
+evidence 36. This update (2026-07-27, session
+2026-07-25-orchestrator-detour-006) is deltas-in-place, landed by
+the detour session itself — admissible under the bounded self-land
+rule ratified this sitting (§5): the session spawned nothing while
+open.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -340,16 +344,59 @@ Version at sitting close: 0.3.14 per both requests' pack-time
 provenance (sesh-002 and master-deltas-005 alike); verify with bale
 --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-27 (landed by this session,
+2026-07-25-orchestrator-detour-006, as its own deltas response —
+spawned nothing while open, per the bounded self-land rule in §5):**
+
+- **Lifecycle friction audit** — the detour the request goal asked
+  for. Walked BALE.md §5 and §9 whole, the pack intersection gate
+  and the clarification apply fork in source, and the full telemetry
+  corpus. Findings: the session-split flow is a folk recipe (its
+  only documentation is the ADR-0007 refusal's remedy string;
+  lineage between a split's parent and children is recorded
+  nowhere); unlock-class session exits are telemetry-invisible
+  (evidence 38); `bale unlock` has accreted into an undifferentiated
+  everything-else bucket (evidence 39); ADR-0011's named doc
+  follow-ups remain tracked-but-unowned. The well-worn paths (pack →
+  apply → merge/HOLD → retry/revert, bailout → handoff,
+  clarification → same-sid continuation) audited clean.
+- **The cold-start reframe.** The sitting's pivotal catch, from the
+  architect naming why this request stamps work_class "mixed": the
+  cold-start pack is the one command in the system with no Claude
+  author (evidence 37). Evidence 36's pending narrow-pack rule was
+  revised — the remedy is *scopeless* packing, not narrow packing —
+  and ratified with the sitting's other contracts (§5): the
+  architect's typed surface, supersession semantics, and
+  closure-as-recorded-event.
+- **Board grew 24–27** (scopeless packs + the scope wizard question,
+  closure telemetry, split supersession, lifecycle docs), serialized
+  24 → 25 → 26 → 27 with rationale on the rows. Board 13 annotated:
+  24 is its degenerate case, to be subsumed by 13's eventual design,
+  not collided with. Board 23 carried unchanged; its ordering
+  against 24–27 is the next master's call.
+- **This session** — sid `2026-07-25-orchestrator-detour-006` —
+  reconciled state (0.3.14 per the pack stamp; contract-doc hashes
+  match provenance byte-for-byte), ran the audit, and closes by
+  applying this deltas response against its own sid. The next master
+  session cold-starts fresh after this apply and authors the packs
+  and briefs for boards 23–27; until board 24 lands, its close-out
+  uses the interim manual form (§5).
+
+Version at sitting close: 0.3.14, unchanged — verify with bale
+--version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **This session** (`2026-07-25-master-deltas-005`) — the narrow
-  deltas session landing this edit; every worker session the sitting
-  spawned (boards 21 and 22a) is applied. Sesh-002 itself closed by
-  unlock, not apply (evidence 36) — abandoned in the registry by
-  design, its work carried entirely by the worker sessions and this
-  doc.
+- **This session** (`2026-07-25-orchestrator-detour-006`) — the
+  lifecycle-friction detour sitting; closes by applying its own
+  deltas response (spawned nothing while open — §5's bounded
+  self-land rule). The prior in-flight session
+  (`2026-07-25-master-deltas-005`) applied 2026-07-25 and is closed.
+- **Ratified, packs unauthored:** boards 24–27 — the next master
+  session authors their packs and briefs from the board rows.
 - **Authored, not yet packed:** board 23 (test-layout-docs) — pack
-  command and brief delivered at sitting close; runs before 22b.
+  command and brief delivered at the sesh-002 sitting close; runs
+  before 22b. Ordering against 24–27 is the next master's call.
 - **Open micro-item:** master editorial review of 22a's new
   read-paths trigger rows (sections 3 and 8), deferred because the
   restructured bytes postdate this session's context. Rides the next
@@ -516,7 +563,10 @@ and §8, so done items keep their numbers as one-line pointers.
     pack, the registry scope record, both ADR-0007 gates, and the
     drift gate — not small; slot after the compression sitting
     (board 7), before board 5 consumes scope data. (Evidence 25 is
-    the observed cost.)
+    the observed cost.) [2026-07-27: board 24 lands the degenerate
+    slice — a whole-request empty write-scope declaration; 13's
+    eventual design subsumes 24 rather than colliding with it —
+    brief accordingly.]
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
     MISFRAMED** 2026-07-25 (this master session, chat-ratified). The
@@ -620,6 +670,71 @@ and §8, so done items keep their numbers as one-line pointers.
     Pack and brief authored at the sesh-002 close; serialized after
     22a (claude/INDEX.md collision) and before 22b (the internals
     doc should describe tests/ before 22b's suite lands beside it).
+24. **Scopeless packs + the scope wizard question** — `bale pack`
+    gains a read-only session shape: the session opens normally in
+    the registry (sid, status row, telemetry, unlock) with recorded
+    scope *empty*. Everything downstream is existing machinery with
+    no special cases: an empty scope intersects nothing under
+    ADR-0007, so workers pack freely while the session stays open —
+    evidence 36's failure sequence becomes unreachable — and the
+    own-scope drift gate refuses any `changes[]` such a session
+    ships, converting masters-never-self-land from policy prose to
+    mechanical contract (the board-22 pattern). The pack wizard
+    gains the missing question — will this session land changes, or
+    is it read-only (discussion, orchestration, audit)? — so a bare
+    cold-start pack no longer resolves to whole-tree scope by silent
+    omission; the answer can also stamp `--work-class` (the flag
+    exists; the wizard never asks — evidence 37's corollary).
+    Serialized first: smallest risk, highest leverage, and it fixes
+    the next master's own working shape. Brief as board 13's
+    degenerate case. **Skeptical-read requirement:** the session is
+    invisible to the ADR-0006/0007 gates by design, safe only
+    because the drift gate refuses everything it might land — the
+    brief names that pairing as the load-bearing claim for the
+    worker to verify against both ADRs. Scope: bin/bale_pack.py, the
+    registry scope record's read side, BALE.md §5/§7 (§5 read whole
+    this sitting; §7 read before pinning — evidence 24), TARBALL.md
+    §3.4.
+
+25. **Closure telemetry** — `bale unlock` and `bale revert` write a
+    durable closure record with a reason (draft enum: abandoned,
+    superseded-by-split, reframed-after-clarification,
+    master-closeout, crash-debris — the session finalizes it),
+    additive per the telemetry schema's standing contract; a
+    `--reason` flag on unlock covers the intent distinction without
+    new commands (§9.4's trio stays intact). Counters evidence 38's
+    numerator-only corpus; borders board 5 (closure rows are
+    mechanical-stream input the ledger consumes — cite the §5
+    dual-stream constraints). Scope: bin/bale (cmd_unlock),
+    bin/bale_rollback.py, schemas/telemetry-record.schema.json,
+    BALE.md §9 (read whole this sitting) and §8.9 (read before
+    pinning — evidence 24).
+
+26. **Split supersession** — the request manifest gains
+    `depends_on.superseded_session`; `bale pack --supersedes <sid>`
+    finds the named open parent and, in the §5.2 wizard idiom, asks
+    to close it as superseded (closure reason per board 25's shape),
+    stamps the lineage field, then proceeds past the ADR-0007 gate
+    now clear; `--no-interact` takes the decline default and the
+    refusal names the explicit unlock. Worker-authored only: the
+    flag rides §3.4 rescope commands — the one sanctioned
+    unsolicited-runnable-command site — and the architect pastes
+    (contract §5). Serialized after 25 (consumes its closure-record
+    shape). Complement to board 13, not substitute: 13 removes the
+    read-context locks that force most splits; 26 handles the true
+    write-scope splits that remain — the brief must not prejudge
+    13's design. Scope: bin/bale_pack.py,
+    schemas/request-manifest.schema.json, TARBALL.md §3.4 flag
+    table, BALE.md §7 (read before pinning — evidence 24).
+
+27. **Lifecycle docs close-out** — ADR-0011's outstanding follow-ups
+    (the CLAUDE.md §3 and BALE.md §8/§11 clarification-kind
+    mentions, tracked-but-unowned since v0.2.10); TARBALL.md §3.4
+    gains `--supersedes` in the flag table and the split recipe as
+    documented flow, retiring the refusal-text folk recipe; BALE.md
+    §5/§9 swept for 24–26's landed behavior. Serialized last — it
+    documents what 24–26 land. Doc-only, global docs included
+    (bale-src is their home).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -731,6 +846,45 @@ New, ratified 2026-07-25 (this master session, in chat):
   the blind-authored lint remain separately authored and separately
   maintained (evidence 16's self-oracle test applied at design
   time). (Binds board 22.)
+
+New, ratified 2026-07-27 (the detour sitting, in chat):
+
+- **Orchestrator sessions pack scopeless, not narrow.** (Revises
+  evidence 36's pending wording before ratification.) A master that
+  will spawn packs while open ships its broad read context under an
+  *empty* recorded scope: it intersects nothing, so workers pack
+  freely alongside it, and the own-scope drift gate refuses anything
+  it tries to land — masters-never-self-land becomes mechanical, not
+  discipline. Master deltas always arrive via their own narrow
+  follow-on pack. A master that spawns nothing while open may
+  self-land its deltas (the sesh-001 precedent, now bounded to
+  exactly that case). Until board 24 lands the scopeless shape, the
+  interim manual form is unlock-before-spawn with deltas via a
+  narrow follow-on (the master-deltas-005 shape).
+- **The architect's typed surface is bare verbs and verbatim
+  pastes.** The architect composes exactly one command from scratch
+  — the bare cold-start `bale pack "goal"` — plus bare lifecycle
+  verbs (apply, retry, revert, unlock, handoff) at the moments
+  bale's banners and refusals name them. Every flagged or scoped
+  command is Claude-authored: master-authored worker packs,
+  worker-authored rescopes, `--supersedes`, remedy-text copies.
+  Corollary design rule: every command names its successor — a flow
+  whose next step is not named by tool output at the moment it is
+  needed is a design gap in bale, never a memorization gap in the
+  architect. (Board 24 closes the one flow with no predecessor to
+  name it.)
+- **Supersession is worker-authored and split-scoped.**
+  `--supersedes` appears only in worker-emitted rescope commands; it
+  closes the parent as superseded-by-split and stamps
+  `depends_on.superseded_session`. It is never overloaded for master
+  continuation or general related-to linkage — if the ledger later
+  wants master-deltas lineage, that is a different `depends_on`
+  field, deferred until board 5's design asks for it.
+- **Session closure is a recorded event.** Every registry close
+  leaves a durable record with a reason: apply-terminated sessions
+  keep the BALE.md §8.9 shape; unlock- and revert-terminated
+  sessions gain closure rows (board 25). The telemetry corpus stops
+  being numerator-only (evidence 38).
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -982,7 +1136,50 @@ New from the 2026-07-25 orchestrator sitting (sesh-002):
     and its close-out deltas always get their own narrow bale pack,
     never a ride on the broad session. The sesh-001 precedent
     (master lands its own deltas) holds only for masters that spawn
-    nothing while open.
+    nothing while open. [Revised on ratification 2026-07-27: the
+    remedy is scopeless packing — empty recorded scope, with the
+    drift gate mechanically enforcing no-self-land (§5, board 24) —
+    not narrow packing, which starves the master's read and buys
+    probe rounds; the interim manual form until board 24 lands is
+    unlock-before-spawn with deltas via a narrow follow-on pack.]
+
+New from the 2026-07-27 detour sitting:
+
+37. **The cold-start pack is the one command with no Claude author.**
+    Every other command in the system is authored by a Claude role
+    (master-authored worker packs, worker-authored rescopes) or
+    named by tool output at the moment it is next (banners, refusal
+    remedies). The bootstrap pack alone is composed by the human —
+    and it is always the master session, which is exactly where
+    broad default scope does the most damage (evidence 36's chain).
+    Requiring the human to memorize scope flags there is the
+    division of labor failing at its own boundary; the remedy is the
+    wizard carrying the question (board 24). Observed corollary:
+    this sitting's request stamped work_class "mixed" because the
+    human was answering a question the wizard gave no basis to
+    answer — the flag existed, the question did not.
+
+38. **The telemetry corpus is structurally apply-only.** All 25
+    records at claude/telemetry/ terminate in outcome "applied" —
+    not because sessions never end otherwise, but because only apply
+    writes records. Sesh-002, the most instructive session close in
+    the project's history, has no row at all. Board 5's ledger would
+    compute rates over a numerator-only dataset: sessions packed but
+    never applied — splits, abandonments, reframes, master
+    close-outs — are invisible by construction. (Board 25 is the
+    counter.)
+
+39. **Lifecycle exits other than apply are manual, undifferentiated,
+    and documented only in refusal text.** `bale unlock` now means
+    crash-debris cleanup, genuine abandonment, split-supersession,
+    post-clarification reframe, and master close-out,
+    indistinguishably — §9.4's cost-visible-naming argument eroded
+    by accretion, with the costs genuinely different (a superseded
+    parent has successors; an abandonment does not). The split
+    flow's only documentation is the ADR-0007 refusal's remedy
+    string. Boards 25–27 are the counters; the
+    every-command-names-its-successor contract (§5) is the general
+    principle the class violates.
 
 ## 7. Standing environment facts
 
