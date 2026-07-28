@@ -61,7 +61,7 @@ deleted.
   inputs or the fixture layer.
 - `context/adr/0005-test-hermeticity.md` — fully sandboxed suite (temp
   `HOME`/`BALE_INSTALL`, no real reinstall, stubbed `$EDITOR`); hard rules on
-  the destructive surfaces. Status: Proposed. Pull when building the test
+  the destructive surfaces. Status: Accepted. Pull when building the test
   harness or touching any path that writes outside the repo.
 - `context/adr/0006-session-registry.md` — replace the single
   `current_session` lock with a per-sid registry of open sessions plus one
@@ -143,9 +143,9 @@ deleted.
   generically. Status: Accepted. Pull when touching scope doctrine,
   the own-scope drift gate, pack include guidance, or the lane rule.
 
-ADRs 0002–0005 and 0009 are Proposed pending the architect's
-ratification on review; 0001, 0006, 0007, 0008, 0010, 0011, 0012,
-0013, and 0014 are Accepted (0014 Accepted at creation per the 0012
+ADRs 0002–0004 and 0009 are Proposed pending the architect's
+ratification on review; 0001, 0005, 0006, 0007, 0008, 0010, 0011,
+0012, 0013, and 0014 are Accepted (0014 Accepted at creation per the 0012
 precedent — the direction was stated by the architect directly in
 the request goal).
 0006 and 0007 landed as the designed pair (the registry in v0.3.0, the
@@ -161,8 +161,11 @@ probe-confirmed), which also recorded 0012 (Accepted at creation — the
 direction was stated by the architect directly). 0013's relocation
 landed with the TARBALL.md compression (session 012); it was ratified
 2026-07-21, and its status flip reached the ADR file in the 2026-07-25
-core-first restructure session. Of the Proposed set, 0002–0005 precede
-any test code and 0009 defers the doc it is about.
+core-first restructure session. 0005 was ratified at the 2026-07-25
+sitting — the first suite landed under its rules the same day — and its
+status flip reached the ADR file in the 2026-07-28 test-layout docs
+session. Of the Proposed set, 0002–0004 precede the v0.4 harness work
+they govern and 0009 defers the doc it is about.
 
 ## Explainers
 

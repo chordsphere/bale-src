@@ -1,6 +1,6 @@
 # ADR-0005: Test hermeticity — fully sandboxed, hard rules on the dangerous surfaces
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 - **Supersedes:** —
 - **Superseded by:** —
@@ -82,3 +82,4 @@ flags as needing a stricter rule than a pure library. The clobber risk is not
 hypothetical: the reinstall hook's entire purpose is to overwrite an install,
 so "don't point it at the real one" is the difference between a safe suite and
 a destructive one.
+2026-07-25: ratified at the 2026-07-25 sitting; first suite landed under its rules the same day.
