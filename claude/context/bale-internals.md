@@ -267,8 +267,8 @@ is *for* — and stays stable as the per-section line numbers drift:
     summary catches the `fail()`-driven `SystemExit` so the rest of the
     report still renders). The gather/render split is the test seam ADR
     0003 anticipates: the classifier and renderer are pure and
-    unit-testable, the command is CLI-E2E-testable; the tests themselves
-    are deferred to the v0.4 harness (ADR 0001). It reads several `bin/bale`
+    unit-testable, the command is CLI-E2E-testable; test code now lands
+    under the repo's `tests/` layout (§6). It reads several `bin/bale`
     helpers (`read_lock`, `current_branch`, `working_tree_clean` —
     both in cluster 3 since v0.3.13 — and `repo_root`), `bale_apply`'s
     staging-layout helpers and `bale_report`'s `format_summary_block`
@@ -856,3 +856,25 @@ The reinstall step is what closes the loop — without it, every PASS
 landed in bale-src but the running `bale` binary kept being the old
 one. The configurables mechanism is what makes step 5 a one-line
 addition instead of a hardcoded branch in `cmd_apply`.
+
+## 6. Test layout
+
+The first tracked suite landed 2026-07-25, ending the deferral of test
+code to a future harness milestone. The layout:
+
+- **`tests/` at the repo root.** Stdlib `unittest`, no runner config.
+  Run with: `python3 -m unittest discover -s tests`.
+- **First suite:** `tests/test_install_precheck.py` (2026-07-25).
+- **ADR-0005's sandbox rules govern every test:** temp `HOME`, temp
+  `BALE_INSTALL`, temp repo, stubbed `$EDITOR` — never the real
+  install. The reinstall hook is the destructive surface; pointing it
+  anywhere but a sandbox is the one thing the suite must never do.
+- The sandbox harness (`make_sandbox_home` / `make_install` /
+  `make_repo` / `run_bale`) lives inline in the first suite; the
+  ratified trigger extracts it into `tests/harness.py` when a second
+  suite lands.
+
+Testing doctrine (tiers, oracle, fixtures) stays where it lives:
+CODE.md §13 globally, with the project's positions in ADRs 0002–0005.
+This section is the layout map only — where test code sits and how it
+runs.
