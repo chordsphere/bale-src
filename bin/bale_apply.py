@@ -886,11 +886,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 f"out-of-scope change: {', '.join(unused_allow)} "
                 f"(no effect)")
         if refused_paths:
+            scope_rendered = (", ".join(session_scope) if session_scope
+                              else "(read-only session — empty scope; "
+                                   "lands nothing)")
             log(f"[REJECT] own-scope drift (BALE.md §11 row 22): "
                 f"{len(refused_paths)} changes[] path(s) outside session "
                 f"{locked_sid}'s declared scope — "
                 f"{', '.join(refused_paths)}; declared scope: "
-                f"{', '.join(session_scope)}")
+                f"{scope_rendered}")
             # A drift refusal is a distinct, dispatchable outcome — it
             # does NOT ride the generic fail() path: the human rendering
             # and the json line come from bale_report (wiring only here),
@@ -937,10 +940,17 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # event of the same species as the --force bypasses — the
             # FORCE: journal line is the audit trail the session log
             # keeps of it (the telemetry stamp at the terminal action is
-            # the durable copy).
+            # the durable copy). For a read-only session (empty scope,
+            # v0.3.15) the line says so: the operator is landing changes
+            # from a session packed to land none, and the audit trail
+            # should record that that is exactly what they overrode.
+            scope_note = (", ".join(session_scope) if session_scope
+                          else "read-only session — empty scope; the "
+                               "override lands changes from a session "
+                               "packed to land none")
             log(f"own-scope drift admitted by --allow-out-of-scope: "
                 f"{', '.join(overridden_paths)} (declared scope: "
-                f"{', '.join(session_scope)})", force=True)
+                f"{scope_note})", force=True)
         # No pass-path log line beyond the reads above: like the
         # generated-artifact denial below, a clean pass adds no output,
         # keeping accepted-tarball output byte-identical to v0.3.9.

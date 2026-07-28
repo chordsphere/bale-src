@@ -735,7 +735,11 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     Both request-building call sites pass one since v0.3.2 — pack its
     resolved --include set, handoff its resolved reading-plan file set.
     None writes no scope.json, in which case read_session_scope reads
-    the session as whole-tree, the conservative default.
+    the session as whole-tree, the conservative default. An empty list
+    ([], v0.3.15) is distinct from None: it records the read-only
+    session shape, which reads back as [] — locks nothing, may land
+    nothing — never falling through to the conservative whole-tree
+    read.
 
     `origin_branch` is the session's integration target (ADR-0008,
     v0.3.5): the branch checked out when the request was packed, which is
@@ -856,6 +860,80 @@ def _wizard_input_list(label: str) -> list[str]:
         if not raw:
             return items
         items.append(raw)
+
+
+def _wizard_input_session_shape(args: argparse.Namespace) -> None:
+    """The v0.3.15 session-shape prompt (BALE.md §7.3): will this session
+    land changes, or is it read-only — and, in the same exchange, what
+    work class is it? Mutates args.read_only / args.work_class in place.
+
+    One added question, not an interrogation (BALE.md §5.2): the two
+    facts share one prompt, and every path with a CLI answer skips the
+    part it already has:
+
+    - `--read-only` given → nothing to ask; the shape is declared and
+      work_class rides the flag-or-inference path at the provenance
+      stamp in cmd_pack.
+    - `--work-class` given (without `--read-only`) → only the binary
+      lands-changes/read-only half remains; ask that alone.
+    - Neither given → the combined prompt below. Bare Enter takes
+      'mixed', today's default, so a user who doesn't care presses
+      Enter once and gets exactly the pre-v0.3.15 stamp — the delta is
+      that the whole-tree scope is now an *answered* default, never a
+      silent omission.
+
+    The read-only answer sets args.read_only and leaves args.work_class
+    for cmd_pack's provenance-time inference (meta, logged there), so
+    the inference has one home whichever surface — flag or wizard —
+    declared the shape. EOF/^C aborts the whole pack, consistent with
+    the other wizard prompts."""
+    from __main__ import fail  # lazy — see module docstring
+    if args.read_only:
+        return
+
+    if args.work_class is not None:
+        # Work class already declared on the CLI; only the shape half of
+        # the exchange remains.
+        prompt = ("Will this session land changes? [Y/n] "
+                  "(n = read-only: discussion, orchestration, audit) > ")
+        while True:
+            try:
+                raw = input(prompt).strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                fail("aborted at wizard prompt")
+            if raw in ("", "y", "yes"):
+                return
+            if raw in ("n", "no", "r", "read-only", "readonly"):
+                args.read_only = True
+                return
+            print("  (type y or n)")
+
+    print("Will this session land changes, and of what kind?")
+    print("  [c] code   [d] doc   [t] contract-doc   [m] meta   "
+          "[x] mixed (default)")
+    print("  [r] read-only — nothing lands (discussion, orchestration, "
+          "audit)")
+    choices = {
+        "c": "code", "code": "code",
+        "d": "doc", "doc": "doc",
+        "t": "contract-doc", "contract-doc": "contract-doc",
+        "m": "meta", "meta": "meta",
+        "x": "mixed", "mixed": "mixed", "": "mixed",
+    }
+    while True:
+        try:
+            raw = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if raw in ("r", "read-only", "readonly"):
+            args.read_only = True
+            return
+        if raw in choices:
+            args.work_class = choices[raw]
+            return
+        print("  (type c, d, t, m, x, or r — or Enter for mixed)")
 
 
 def _wizard_input_excludes(repo: Path) -> list[str]:
@@ -1013,8 +1091,9 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     unset. Mutates args in place; does not return. Caller has already
     verified stdin is a TTY.
 
-    Prompt order matches the §7.3 example: goal → slug → exclude →
-    constraints → out_of_scope. Each prompt is skipped if its CLI
+    Prompt order matches the §7.3 example: goal → slug → session shape
+    (v0.3.15: lands-changes-or-read-only + work class, one exchange) →
+    exclude → constraints → out_of_scope. Each prompt is skipped if its CLI
     counterpart was already supplied — a user who ran `bale pack
     "my goal" --constraint foo` only sees the slug/exclude/out_of_scope
     prompts. The exclude prompt previews any persisted `.baleignore` so
@@ -1042,6 +1121,15 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
                 "no leading/trailing/double hyphens"
             ),
         )
+
+    # Session shape (v0.3.15) — the lands-changes-or-read-only question,
+    # asked in the same exchange as (or instead of) work class. Sits
+    # between slug and excludes per §7.3's updated prompt order; the
+    # helper itself skips whatever the CLI already answered. A bare
+    # cold-start pack therefore no longer resolves to whole-tree scope
+    # by silent omission — the whole-tree default is now an answered
+    # default (bare Enter).
+    _wizard_input_session_shape(args)
 
     # Session excludes — skipped when --exclude was already provided on
     # the CLI (parallel to --constraint / --out-of-scope). The §7.3 prompt
@@ -1446,20 +1534,23 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # the ADR-0006 session registry. This replaces the unconditional
     # refusal that stood here: a pack is now admitted alongside open
     # sessions exactly when its declared scope — resolved_scope of its
-    # --include set — is disjoint from every open session's recorded
-    # scope. Includes are a deliberately conservative proxy for change
-    # scope (a session rarely changes everything it was shown), so the
-    # gate can false-positive; the cheap remedy is a narrower --include
-    # set or waiting for the intersecting session to close. A default
-    # include-everything pack resolves to ["."] and therefore intersects
-    # every open session — broad scope and concurrency are mutually
-    # exclusive by design. With no session open, behavior is unchanged.
-    # The pack's ADR-0007 scope. --include is CLI-only (the wizard below
-    # never collects includes), so the scope is final here; it drives
-    # the gate now and is recorded via persist_pack_session further down.
-    pack_scope = resolved_scope(list(args.include))
-    open_sids = open_sessions(repo)
-    if open_sids:
+    # --include set, or [] for a read-only pack (v0.3.15) — is disjoint
+    # from every open session's recorded scope. Includes are a
+    # deliberately conservative proxy for change scope (a session rarely
+    # changes everything it was shown), so the gate can false-positive;
+    # the cheap remedy is a narrower --include set or waiting for the
+    # intersecting session to close. A default include-everything pack
+    # resolves to ["."] and therefore intersects every open session —
+    # broad scope and concurrency are mutually exclusive by design; an
+    # empty (read-only) scope intersects nothing and is admitted beside
+    # anything. With no session open, behavior is unchanged.
+    def _run_scope_gate(pack_scope: list) -> Optional[tuple]:
+        """Refuse on intersection with any open session's scope; return
+        the (scope, open_sids) journal tuple when admitted alongside
+        open sessions, None when nothing was open."""
+        open_sids = open_sessions(repo)
+        if not open_sids:
+            return None
         conflicts: list[tuple[str, list[tuple[str, str]]]] = []
         for open_sid in open_sids:
             pairs = scope_intersection(
@@ -1479,24 +1570,38 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"the open session's response first, or run `bale "
                 f"unlock` if it was abandoned. Note: a pack without "
                 f"--include scopes the whole tree and conflicts with "
-                f"every open session."
+                f"every open session; a read-only pack (--read-only, "
+                f"empty scope) conflicts with none."
             )
         # Journaled below, once the session log is open (sid allocation
         # happens further down; an informational line logged here would
         # reach stdout but never the session journal).
-        admitted_alongside = (pack_scope, list(open_sids))
-    else:
-        admitted_alongside = None
+        return (pack_scope, list(open_sids))
+
+    # Wizard engagement is decided before the gate runs (v0.3.15): the
+    # wizard's session-shape question can turn the pack read-only, which
+    # empties its scope, so on the wizard path (without --read-only
+    # already deciding the answer) the gate defers to just after the
+    # wizard — otherwise a whole-tree provisional scope would refuse a
+    # pack the user was about to declare read-only, before the question
+    # could be asked. On every path where the scope is already final —
+    # fully specified CLI, or --read-only given — the gate fires here,
+    # in pre-flight before any prompt, exactly as before.
+    wizard_engaged = args.goal is None or args.slug is None
+    gate_deferred = wizard_engaged and not args.read_only
+    admitted_alongside: Optional[tuple] = None
+    if not gate_deferred:
+        admitted_alongside = _run_scope_gate(
+            [] if args.read_only else resolved_scope(list(args.include)))
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
     # fields (goal positional, --slug) is missing AND stdin is a TTY.
     # The wizard fills in the missing fields plus walks the optionals
-    # (excludes, constraints, out_of_scope), skipping any field already
-    # supplied on the command line. README resolution happens just below
-    # via _resolve_readme_body on both paths — wizard_engaged tells the
-    # resolver whether its lowest-precedence branch (the §7.3 y/N +
-    # $EDITOR flow) is on the table.
-    wizard_engaged = args.goal is None or args.slug is None
+    # (session shape, excludes, constraints, out_of_scope), skipping any
+    # field already supplied on the command line. README resolution
+    # happens just below via _resolve_readme_body on both paths —
+    # wizard_engaged tells the resolver whether its lowest-precedence
+    # branch (the §7.3 y/N + $EDITOR flow) is on the table.
     if wizard_engaged:
         if not sys.stdin.isatty():
             missing = []
@@ -1510,6 +1615,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"on the command line and re-run."
             )
         _wizard_fill_args(args, repo)
+
+    # The pack's ADR-0007 scope, final now on every path: the wizard has
+    # run (its session-shape answer may have set args.read_only; it
+    # never collects includes), so nothing below changes the inputs. []
+    # is the read-only shape — recorded via persist_pack_session further
+    # down, read back by the gates as "locks nothing, may land nothing".
+    pack_scope = [] if args.read_only else resolved_scope(list(args.include))
+    if gate_deferred:
+        admitted_alongside = _run_scope_gate(pack_scope)
 
     # README resolution (BALE.md §7.3; precedence lives in the resolver's
     # docstring). Runs after the wizard so a wizard-collected goal /
@@ -1800,9 +1914,29 @@ def cmd_pack(args: argparse.Namespace) -> int:
 
     # Manifest, with the pack-time provenance stamp (v0.3.8, B1):
     # bale_version + contract-doc hashes + packer (--packer > [identity].
-    # packer > "unconfigured") + work_class from --work-class.
+    # packer > "unconfigured") + work_class from --work-class. Since
+    # v0.3.15 the flag's parser default is None so the wizard can tell
+    # "unspecified" from an explicit choice; resolution here is: the
+    # flag or wizard answer > 'meta' for a read-only session (inferred —
+    # a session that lands nothing is doing orchestration/discussion/
+    # audit work; logged so the inference is auditable, overridable via
+    # --work-class) > 'mixed', the pre-v0.3.15 default, unchanged for
+    # every non-read-only path that never answered.
+    work_class = args.work_class
+    if work_class is None:
+        if args.read_only:
+            work_class = "meta"
+            log("work_class inferred 'meta' for the read-only session "
+                "shape (no --work-class given; pass the flag to override)")
+        else:
+            work_class = "mixed"
+    if args.read_only:
+        log("read-only session shape (v0.3.15): recorded scope is empty — "
+            "locks nothing (siblings pack freely), may land nothing (the "
+            "own-scope drift gate refuses every changes[] path this "
+            "session ships)")
     provenance = build_provenance_block(
-        repo, packer_flag=args.packer, work_class=args.work_class,
+        repo, packer_flag=args.packer, work_class=work_class,
     )
     log(f"provenance: packer={provenance['packer']!r} "
         f"work_class={provenance['work_class']!r} "
