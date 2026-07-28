@@ -17,7 +17,11 @@ evidence 36. This update (2026-07-27, session
 2026-07-25-orchestrator-detour-006) is deltas-in-place, landed by
 the detour session itself — admissible under the bounded self-land
 rule ratified this sitting (§5): the session spawned nothing while
-open.
+open. This update (2026-07-28, landed by the narrow follow-on
+session named in its own sid) is deltas-in-place under the interim
+manual form ratified 07-27: the master session
+2026-07-28-continue-master-001 unlocked before spawning, deltas via
+this pack.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -196,6 +200,13 @@ sitting's start per the standing rule.
   the ADR's own status line. [Cleared 2026-07-25: landed with 22a.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
+- Internals §6 surfacing + harness present-tense flip (2026-07-28,
+  accepted from test-layout-docs' Proposals): extend
+  bale-internals.md's opening pull-when blockquote and INDEX.md's
+  bale-internals entry to mention the test layout, and flip §6's
+  trigger-shaped harness sentence to plain present
+  (tests/harness.py landed with board 24) — rides the next
+  claude/-docs-touching session; board 27 absorbs it if unclaimed.
 
 Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
 the bale-internals refresh (rode 8b and 8c).
@@ -385,23 +396,76 @@ spawned nothing while open, per the bounded self-land rule in §5):**
 Version at sitting close: 0.3.14, unchanged — verify with bale
 --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-28 (landed by the narrow follow-on
+deltas session per the interim manual form; the master session
+2026-07-28-continue-master-001 unlocked before spawning):**
+
+- **State reconciled.** Contract-doc hashes matched provenance
+  byte-for-byte; context_included complete; 0.3.14 at sitting open.
+- **22a micro-review — CLOSED.** TARBALL.md's restructured
+  read-paths rows for sections 3 and 8 and the past-the-core banner
+  reviewed against the shipped bytes: accepted as shipped, no
+  edits. The §3 open micro-item clears.
+- **Board 23's authored pack was lost** between sittings (evidence
+  40) and re-authored this sitting from the board row, with two
+  concurrency-aware changes: tests/ excluded from its read set (the
+  concurrent session's lock) and the harness sentence pinned
+  trigger-shaped so it stays true across the concurrent landing.
+- **test-layout-docs (board 23) — DONE.** Sid
+  2026-07-28-test-layout-docs-004, applied 2026-07-28.
+  bale-internals.md gained closing section 6 (test layout;
+  placement ratified — renumbers nothing, the doc's 1–5 arc is
+  untouched); the stale v0.4-deferral clause retargeted; ADR-0005
+  flipped Accepted in the sanctioned shape with the
+  reverse-transform assertion (evidence 35's prescription,
+  executed); INDEX.md Proposed-set prose swept (0002–0004 and 0009
+  remain Proposed). Ratified: the ADR's historical interior lines
+  ("proposed — for ratification", the three-Proposed-ADRs note)
+  deliberately untouched — ADRs are captured at decision time and
+  the sanctioned shape rejects a wider diff.
+- **scopeless-packs (board 24) — DONE.** Sid
+  2026-07-28-scopeless-packs-003, applied 2026-07-28, v0.3.14 →
+  0.3.15. The read-only session shape landed: --read-only packs
+  open normally with recorded scope [], both ADR-0007 gates admit
+  siblings against it, and the own-scope drift gate refuses
+  anything it ships — masters-never-self-land is now mechanical.
+  The wizard gained the session-shape question (covers work-class
+  in the same exchange). The brief's sharp edge was real twice
+  over: [] fell into read_session_scope's malformed branch AND
+  format_scope_value independently rendered empty as whole-tree —
+  the skeptical-read requirement caught the second instance the
+  brief didn't predict. Two new files admitted per path at apply
+  (tests/harness.py, tests/test_readonly_pack.py) — the board-11
+  harness-extraction trigger fired and was taken, ADR-0014 shape
+  throughout. Ratified as shipped: the gate-after-wizard deferral
+  (only when the wizard answer could still change the scope;
+  fail-fast preserved on fully specified paths);
+  --allow-out-of-scope stays effective against read-only sessions
+  with the refusal and FORCE lines naming the session read-only;
+  read-only infers work-class meta (logged; explicit flag wins);
+  the --read-only spelling.
+- **Proposals disposed:** the read-only closure story is accepted
+  as a board 25 brief requirement (see the board 25 row); the
+  internals-§6 surfacing and the harness-sentence present-tense
+  flip are combined into a fold-in entry (see the registry).
+- **This deltas session** — lands these deltas into this document.
+
+Version at sitting close: 0.3.15 as of scopeless-packs, verified by
+the architect post-apply — re-verify with bale --version at the next
+sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **This session** (`2026-07-25-orchestrator-detour-006`) — the
-  lifecycle-friction detour sitting; closes by applying its own
-  deltas response (spawned nothing while open — §5's bounded
-  self-land rule). The prior in-flight session
-  (`2026-07-25-master-deltas-005`) applied 2026-07-25 and is closed.
-- **Ratified, packs unauthored:** boards 24–27 — the next master
-  session authors their packs and briefs from the board rows.
-- **Authored, not yet packed:** board 23 (test-layout-docs) — pack
-  command and brief delivered at the sesh-002 sitting close; runs
-  before 22b. Ordering against 24–27 is the next master's call.
-- **Open micro-item:** master editorial review of 22a's new
-  read-paths trigger rows (sections 3 and 8), deferred because the
-  restructured bytes postdate this session's context. Rides the next
-  TARBALL.md-touching session (22b's brief authoring reads the doc
-  whole anyway) or a quick chat paste, whichever comes first.
+- **No sessions open.** Boards 23 and 24 applied 2026-07-28; the
+  master session and this deltas session are closed.
+- **Next master sitting:** author board 25 (closure telemetry)
+  against the post-24 tree — its brief must define the read-only
+  session's terminal outcome per the accepted proposal on the
+  board 25 row, and its doc touches pin against BALE.md §9/§8.9
+  re-read after 24's edits. Then 26 after 25, 27 last.
+- **Fold-in pending:** the internals-§6 surfacing + harness
+  present-tense flip (registry entry, 2026-07-28) — rides the next
+  claude/-docs-touching session, or board 27 absorbs it.
 
 ## 4. The board
 
@@ -661,7 +725,9 @@ and §8, so done items keep their numbers as one-line pointers.
       prose by design; boards 4/5/6 are its control surface, not
       tooling.
 
-23. **test-layout-docs** — ratified 2026-07-25 from session 003's
+23. **test-layout-docs — DONE** 2026-07-28 (§2 sitting summary;
+    pack re-authored after the sesh-002 original was lost —
+    evidence 40). As ratified 2026-07-25 from session 003's
     Proposals: bale-internals.md gains the test layout (tests/ at
     repo root, stdlib unittest, ADR-0005 sandbox rules, harness
     inline for now) and loses the stale deferred-to-v0.4 sentence;
@@ -670,7 +736,9 @@ and §8, so done items keep their numbers as one-line pointers.
     Pack and brief authored at the sesh-002 close; serialized after
     22a (claude/INDEX.md collision) and before 22b (the internals
     doc should describe tests/ before 22b's suite lands beside it).
-24. **Scopeless packs + the scope wizard question** — `bale pack`
+24. **Scopeless packs + the scope wizard question — DONE**
+    2026-07-28, v0.3.15 (§2 sitting summary; ratified decisions
+    recorded there). As designed: `bale pack`
     gains a read-only session shape: the session opens normally in
     the registry (sid, status row, telemetry, unlock) with recorded
     scope *empty*. Everything downstream is existing machinery with
@@ -708,7 +776,11 @@ and §8, so done items keep their numbers as one-line pointers.
     dual-stream constraints). Scope: bin/bale (cmd_unlock),
     bin/bale_rollback.py, schemas/telemetry-record.schema.json,
     BALE.md §9 (read whole this sitting) and §8.9 (read before
-    pinning — evidence 24).
+    pinning — evidence 24). Brief requirement added 2026-07-28
+    (accepted worker proposal): the design defines a terminal
+    closure outcome for read-only sessions — their only exit is
+    unlock by construction, and the outcome is distinct from plain
+    abandonment (seed naming: closed-read-only).
 
 26. **Split supersession** — the request manifest gains
     `depends_on.superseded_session`; `bale pack --supersedes <sid>`
@@ -1181,6 +1253,18 @@ New from the 2026-07-27 detour sitting:
     every-command-names-its-successor contract (§5) is the general
     principle the class violates.
 
+40. **Chat-delivered commands are convention-only artifacts; board
+    rows are the durable spec.** Board 23's pack command and brief,
+    delivered at the sesh-002 close but never run, did not survive
+    to the next sitting — the same class as evidence 17 (load-
+    bearing artifacts existing outside the repo), one artifact
+    smaller. The recovery was cheap precisely because the board row
+    carried enough spec to re-author from; the standing rule is
+    that it must. Corollary: "authored, not yet packed" is a state
+    this doc should record only alongside where the artifact
+    durably lives — otherwise record "ratified, packs unauthored"
+    and re-author at spawn time.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1188,10 +1272,13 @@ New from the 2026-07-27 detour sitting:
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
-  run python3 -m unittest discover -s tests. First suite
-  tests/test_install_precheck.py (2026-07-25); ADR-0005 sandbox
-  rules govern; harness inline until a second suite lands (board
-  11's deferred extraction).
+  run python3 -m unittest discover -s tests. Suites:
+  tests/test_install_precheck.py (2026-07-25) and
+  tests/test_readonly_pack.py (2026-07-28, first pty-driven wizard
+  tests — the likeliest flake site if one ever appears, per its
+  session's notes). Shared sandbox harness at tests/harness.py
+  (extracted 2026-07-28 on board 11's second-suite trigger);
+  ADR-0005 (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
