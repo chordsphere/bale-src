@@ -1221,7 +1221,8 @@ or a packing behavior:
 | `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is documented in BALE.md §7. |
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
-| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). |
+| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
+| `--read-only` | Opens the session with an **empty recorded scope** (v0.3.15) — the read-only session shape for discussion, orchestration, or audit. The empty scope intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-scope drift gate refuses every `changes[]` path a response under this sid ships). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Bare boolean; semantics in BALE.md §7.2. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
 
@@ -1232,7 +1233,11 @@ pack-time gate admits a new session only when its resolved includes
 are disjoint from every open session's scope. A default or
 broad-scoped pack intersects everything and is concurrency-exclusive
 by design — a pack meant to run alongside others is packed with
-narrow `--include` sets along file-disjoint seams.
+narrow `--include` sets along file-disjoint seams. The read-only
+shape (`--read-only`, empty scope) is the orchestrator's own pack
+form: a master session that reads, discusses, and delegates stays
+open alongside every worker precisely because its scope intersects
+nothing — and lands nothing.
 
 **Includes name existing context; new files are the worker's call.**
 Never author or suggest an `--include` for a path that does not

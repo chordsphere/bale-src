@@ -197,7 +197,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.14"
+VERSION = "0.3.15"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -518,7 +518,12 @@ def is_valid_slug(s: str) -> bool:
 # handoff` records the reading-plan files it pre-packed — or ["."]
 # when the plan cited none. A session with no scope.json (opened by an
 # older bale, or hand-rolled state) reads as ["."]: conservative, so
-# it refuses concurrency rather than permit a clobber.
+# it refuses concurrency rather than permit a clobber. A recorded EMPTY
+# scope ([], v0.3.15 — `bale pack --read-only` or the wizard's
+# read-only answer) is a distinct third state: it locks nothing (both
+# disjointness gates see no intersection, so siblings pack and apply
+# freely) and may land nothing (the own-scope drift gate refuses every
+# changes[] path such a session ships).
 #
 # The second piece of ADR-0006 state is the repo-level INTEGRATION LOCK:
 # .bale/integration.lock, held only across the short git mutation window of
@@ -779,11 +784,18 @@ def scope_file_path(repo: Path, sid: str) -> Path:
 
 
 def persist_session_scope(repo: Path, sid: str, scope: list[str]) -> None:
-    """Record `sid`'s resolved include set for the ADR-0007 gates."""
+    """Record `sid`'s resolved include set for the ADR-0007 gates.
+
+    An empty `scope` ([]) records the read-only session shape
+    (v0.3.15): read_session_scope reads it back as [] — locks nothing,
+    may land nothing — distinct from a missing or malformed scope.json,
+    which stays conservative whole-tree.
+    """
     p = scope_file_path(repo, sid)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
-    log(f"recorded session scope for {sid}: {', '.join(scope)}")
+    rendered = ", ".join(scope) if scope else "(empty — read-only session)"
+    log(f"recorded session scope for {sid}: {rendered}")
 
 
 def read_session_scope(repo: Path, sid: str) -> list[str]:
@@ -797,6 +809,17 @@ def read_session_scope(repo: Path, sid: str) -> list[str]:
     "collides with nothing", which is exactly the silent whole-file
     clobber ADR-0007 exists to prevent. Both degradations are logged;
     neither is silent.
+
+    A recorded EMPTY scope (`[]`, v0.3.15 — a read-only session packed
+    with --read-only or the wizard's read-only answer) is a third,
+    distinct state, not a degradation: it reads back as [] — "locks
+    nothing, may land nothing". Deliberately opposite to the missing/
+    malformed cases above: [] intersects no sibling scope (ADR-0007's
+    gates admit packs and applies beside it) while covering no
+    changes[] path (the own-scope drift gate refuses everything such a
+    session ships). The conservative whole-tree fallback is reserved
+    for scopes the gates cannot READ; a scope that was deliberately
+    recorded empty is read exactly as recorded.
     """
     p = scope_file_path(repo, sid)
     if not p.exists():
@@ -810,12 +833,16 @@ def read_session_scope(repo: Path, sid: str) -> list[str]:
             f"its scope as the whole tree (conservative)")
         return ["."]
     if (not isinstance(data, list)
-            or not data
             or not all(isinstance(x, str) and x.strip() for x in data)):
         log(f"session {sid}'s scope.json is malformed (expected a "
-            f"non-empty list of paths); treating its scope as the "
+            f"list of paths); treating its scope as the "
             f"whole tree (conservative)")
         return ["."]
+    if not data:
+        # Valid empty scope — the read-only session shape. No log line:
+        # this is a recorded state read back as recorded, not a
+        # degradation the operator needs flagged.
+        return []
     return resolved_scope(data)
 
 
@@ -3887,10 +3914,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pack.add_argument(
         "--work-class", choices=("code", "doc", "contract-doc", "meta", "mixed"),
-        default="mixed",
+        default=None,
         help="Coarse class of the session's intended work, stamped into "
              "the provenance block. Defaults to 'mixed' rather than being "
-             "required; the enum is a seed set — extend via schema edit.",
+             "required; the enum is a seed set — extend via schema edit. "
+             "On the wizard path the session-shape question asks for it "
+             "when this flag is absent (v0.3.15); on the fully specified "
+             "path omission still stamps 'mixed', as before.",
+    )
+    p_pack.add_argument(
+        "--read-only", action="store_true",
+        help="Open the session with an EMPTY recorded scope (v0.3.15): "
+             "the read-only session shape for discussion, orchestration, "
+             "or audit. The session opens normally in the registry — sid, "
+             "origin-branch stamp, lock — but its scope locks nothing "
+             "(the ADR-0007 disjointness gates admit sibling packs and "
+             "applies alongside it) and may land nothing (the own-scope "
+             "drift gate refuses every changes[] path a response under "
+             "this sid ships; `bale apply --allow-out-of-scope` can still "
+             "admit named paths deliberately, per invocation). --include "
+             "still selects what ships in context/ — a read-only session "
+             "reads files; it just cannot land changes to them.",
     )
     # Threshold caps (BALE.md §7.4). Each --max-* sets the hard cap; the soft
     # caps (which drive the y/N prompt) stay at the defaults. --force

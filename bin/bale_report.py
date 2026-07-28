@@ -604,10 +604,20 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     this renderer. Under `dry_run` the telemetry row reports that no
     record was written (a dry-run has no outcome — BALE.md §8.9) and the
     headline notes the prediction.
+
+    An empty `scope` is the read-only session shape (v0.3.15): the
+    declared-scope row names the session read-only rather than printing
+    an empty string, and the remedies drop the regenerate-inside-scope
+    line — there is no inside; the operator either overrides per path,
+    knowing exactly that they are landing changes from a session packed
+    to land none, or repacks a session shaped to land the work.
     """
+    read_only = not scope
     rows: list[tuple[str, str]] = [
         ("out of scope", ", ".join(refused)),
-        ("declared scope", ", ".join(scope)),
+        ("declared scope",
+         "(read-only session — empty scope; lands nothing)"
+         if read_only else ", ".join(scope)),
     ]
     if overridden:
         rows.append(("admitted by flag", ", ".join(overridden)))
@@ -618,11 +628,20 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
         rows.append(("telemetry",
                      f"recorded {telemetry}" if telemetry
                      else "write failed — see log"))
-    return format_summary_block(
-        rows,
-        status="SCOPE-DRIFT-REFUSED",
-        sid=sid,
-        trailer=[
+    if read_only:
+        trailer = [
+            f"Session {sid} was packed read-only: its scope lands "
+            f"nothing by design. Nothing was staged or committed, and "
+            f"the session stays open. Either:",
+            "  - admit specific paths deliberately, knowing they land "
+            "from a read-only session: `bale apply <tarball> "
+            "--allow-out-of-scope <path>` (repeat per path),",
+            f"  - or land the work from a session shaped to land it: "
+            f"`bale unlock {sid}` and re-pack without --read-only, with "
+            f"the includes the work needs.",
+        ]
+    else:
+        trailer = [
             "The session stays open; nothing was staged or committed. "
             "Either:",
             "  - regenerate the response inside the declared scope and "
@@ -631,7 +650,12 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
             "--allow-out-of-scope <path>` (repeat per path),",
             f"  - or rescope: `bale unlock {sid}` and re-pack with the "
             f"includes the work actually needs.",
-        ],
+        ]
+    return format_summary_block(
+        rows,
+        status="SCOPE-DRIFT-REFUSED",
+        sid=sid,
+        trailer=trailer,
     )
 
 
@@ -1018,7 +1042,12 @@ def format_status_json(report) -> str:
                recorded scope entries (normalized repo-relative paths,
                ["."] for whole-tree — including sessions with no
                readable scope.json, which degrade conservatively
-               exactly as the disjointness gates read them). Keys match
+               exactly as the disjointness gates read them). An empty
+               list is a real value, not an absence (additive,
+               v0.3.15): it marks a read-only session (`bale pack
+               --read-only` or the wizard's read-only answer) — a
+               scope that locks nothing and lands nothing, exactly as
+               the gates read it. Keys match
                the `sessions` list; both are empty when nothing is
                open.
       integration_lock  (additive, v0.3.0 — ADR-0006) null when the
@@ -1147,15 +1176,21 @@ def format_scope_value(scope: list) -> str:
 
     Scope entries are the session's resolved include set as
     read_session_scope returns them — normalized repo-relative paths,
-    or ["."] for a whole-tree session (a default pack, a handoff whose
+    ["."] for a whole-tree session (a default pack, a handoff whose
     reading plan cited no files, or a session with no recorded scope at
-    all). The whole-tree case is spelled out rather than left as a bare
-    dot, since "." reads as noise to anyone not versed in the gate's
-    normal form; everything else is the entries verbatim, comma-joined.
-    Used for the single classified session's `scope` row and per-sid in
+    all), or [] for a read-only session (v0.3.15: `bale pack
+    --read-only` or the wizard's read-only answer). The whole-tree case
+    is spelled out rather than left as a bare dot, since "." reads as
+    noise to anyone not versed in the gate's normal form; the empty
+    case is spelled out rather than printed as an empty string — a
+    read-only session's scope should say what it is, not vanish;
+    everything else is the entries verbatim, comma-joined. Used for the
+    single classified session's `scope` row and per-sid in
     format_open_sessions_value's listing.
     """
-    entries = [str(s) for s in scope] if scope else ["."]
+    entries = [str(s) for s in scope]
+    if not entries:
+        return "(read-only — locks nothing, lands nothing)"
     if entries == ["."]:
         return ". (whole tree)"
     return ", ".join(entries)

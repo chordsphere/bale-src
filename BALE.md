@@ -559,8 +559,10 @@ a per-sid listing carrying recorded scopes when several are open);
 the integration lock, only when sighted (it is held only across
 apply's git window, so a sighting is a concurrent apply or a stale
 lock); the stamped request's goal and `expects_probe`; the
-classified session's recorded scope and effective staging posture;
-the outbox (capped, newest first, the open session's own tarball
+classified session's recorded scope (a read-only session's empty
+scope renders as such — "locks nothing, lands nothing" — never as an
+empty string or a whole-tree reading; v0.3.15) and effective staging
+posture; the outbox (capped, newest first, the open session's own tarball
 pinned to the front); a light pointer at applied history, deferring
 the full applied/reverted view to `bale rollback --list`; and the
 config summary. A `[STATUS] <sid>` headline appears when a session
@@ -722,7 +724,10 @@ pastes output back. Bale does not have a `probe-apply` or
    false-positive; a pack it admits is one whose workers were never
    shown overlapping files. A default whole-tree pack intersects
    every open session — broad scope and concurrency are mutually
-   exclusive by design.
+   exclusive by design. An **empty** recorded scope (a read-only
+   session, `--read-only` or the wizard's read-only answer — §7.2,
+   v0.3.15) intersects nothing: the gate admits any pack alongside
+   it, and admits it alongside any open session.
 6. Ensure `.bale/` exists and is in `.gitignore`. If `.gitignore`
    exists but doesn't list `.bale/`, bale appends `.bale/` to it with
    a single-line user confirmation in interactive mode (or auto-
@@ -765,7 +770,23 @@ The inputs:
   - `--work-class {code|doc|contract-doc|meta|mixed}` is the coarse
     class of the session's intended work, defaulting to `mixed`
     rather than being required. The enum is a seed set — extending it
-    is a schema edit, not a code change.
+    is a schema edit, not a code change. On the wizard path the
+    session-shape question (§7.3, v0.3.15) asks for it when the flag
+    is absent; a read-only session that never names one stamps `meta`
+    (inferred and logged — a session that lands nothing is doing
+    orchestration, discussion, or audit work).
+- **read-only** (v0.3.15) — `--read-only`, a bare boolean, opens the
+  session with an **empty recorded scope**: the read-only session
+  shape for discussion, orchestration, or audit. The session opens
+  normally in the registry (sid, `origin_branch` stamp, status row,
+  unlock — everything §7.6 does), but its scope locks nothing (the
+  ADR-0007 gates admit sibling packs and applies alongside it, §7.1
+  step 5) and may land nothing (the own-scope drift gate refuses
+  every `changes[]` path a response under this sid ships, §8.1 step
+  14). `--include` still selects what ships in `context/` — a
+  read-only session reads files; it just cannot land changes to
+  them. On the wizard path the same shape is reachable as the
+  session-shape question's read-only answer (§7.3).
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by Claude when
@@ -784,6 +805,10 @@ the wizard prompts:
 ```
 Goal (one sentence)? > implement the foo widget per ADR-0007
 Short slug (kebab-case)? > foo-widget
+Will this session land changes, and of what kind?
+  [c] code   [d] doc   [t] contract-doc   [m] meta   [x] mixed (default)
+  [r] read-only — nothing lands (discussion, orchestration, audit)
+> c
 Anything to exclude from the default-include-everything? > data/
 Any constraints? (one per line, blank to finish)
 > no breaking changes to the public API
@@ -793,6 +818,27 @@ Any out-of-scope concerns? (one per line, blank to finish)
 >
 Add a README with prose context? [y/N] >
 ```
+
+**The session-shape question** (v0.3.15) resolves two facts in one
+exchange: whether the session lands changes at all, and — when it
+does — its `--work-class` for the provenance stamp (§7.2). Bare
+Enter takes `mixed`, exactly the pre-v0.3.15 stamp, so the cost of
+not caring is one keystroke; the delta is that a bare cold-start
+pack no longer resolves to whole-tree scope by *silent omission* —
+the whole-tree default is now an answered default. The `[r]` answer
+opens the session read-only (empty recorded scope — §7.2, §7.6);
+its work class, absent an explicit `--work-class`, is inferred as
+`meta` and logged. Per-field skip applies as everywhere in the
+wizard: `--read-only` on the CLI skips the exchange entirely, and
+`--work-class` alone reduces it to the binary
+lands-changes-or-read-only half. Because this answer can empty the
+pack's scope, the §7.1 step 5 disjointness gate defers to just
+after the wizard on this path (only when neither `--read-only` nor
+a fully specified command already fixed the scope) — otherwise a
+whole-tree provisional scope would refuse a pack the user was about
+to declare read-only, before the question could be asked. On every
+fully specified path the gate fires in pre-flight, before any
+prompt, exactly as before.
 
 `README.md` is optional (per `TARBALL.md` 3.1). The wizard defaults
 to skipping it — the manifest's `goal`, `constraints`, and
@@ -971,7 +1017,11 @@ After the tarball is on disk and validated for structure:
    manifest, for `bale apply` to verify the response against),
    `.bale/sessions/<sid>/scope.json` (the resolved include set — the
    session's scope, which the ADR-0007 gates read; step 5 of §7.1 and
-   step 7 of §8.1), and `.bale/sessions/<sid>/origin_branch` (the
+   step 7 of §8.1 — or `[]` for a read-only session, v0.3.15: a
+   recorded **empty** scope is a distinct third state that reads back
+   as exactly that — locks nothing, may land nothing — never falling
+   through to the conservative whole-tree read reserved for a
+   *missing or malformed* scope.json), and `.bale/sessions/<sid>/origin_branch` (the
    branch checked out at pack time — the session's integration
    target, ADR-0008). The stamp is required: apply hard-refuses a
    session with a missing or empty stamp (§8.1 step 5), and the
@@ -1107,7 +1157,12 @@ Pipeline steps:
     registry (`sessions/<sid>/scope.json`; same path semantics as
     step 7: directory entries cover subtrees, `.` covers everything, a
     missing or unreadable scope reads as whole-tree, which also keeps
-    default whole-tree packs entirely clear of this gate). Created
+    default whole-tree packs entirely clear of this gate; a recorded
+    **empty** scope — a read-only session, §7.2/v0.3.15 — covers
+    nothing, so this gate refuses every `changes[]` path such a
+    session ships, and the refusal names the session as read-only:
+    masters-never-self-land is mechanical contract here, not policy
+    prose). Created
     paths are rejected the same as modified paths — the audit's clobber
     scenario is precisely two sessions creating or overlaying the same
     unclaimed file, and each ADR-0007 gate checks declared scope
