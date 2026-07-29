@@ -235,6 +235,7 @@ INSTALL_LAYOUT=(
   schemas/diagnostics.schema.json
   schemas/telemetry-record.schema.json
   tools/response_lint.py
+  tools/craft_response.py
   install.sh
   validate.sh
   upgrade.sh
@@ -261,9 +262,10 @@ else
 fi
 
 # Restore executable bits. Some filesystems (NTFS, FAT) drop them on
-# extract. tools/response_lint.py is executable by contract — validate.sh
-# asserts the bit, and pack refuses without a working lint.
-chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py"
+# extract. tools/response_lint.py and tools/craft_response.py are
+# executable by contract — validate.sh asserts the bits, and pack refuses
+# without a working lint.
+chmod +x "$BALE" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py" "$INSTALL_DIR/tools/craft_response.py"
 log "ensured executable bits"
 
 # Termux shebang rewrite (optional; only meaningful on Termux). Runs before the
@@ -274,11 +276,11 @@ if [[ "$DO_TERMUX_SHEBANG" == "1" ]] && is_termux; then
   if confirm "rewrite shebangs to the Termux interpreter so bale runs without termux-exec?"; then
     rewrote=0
     skipped=0
-    # bin/bale and tools/response_lint.py are the installed executables;
-    # the three .sh are the shipped scripts. install.sh rewrites its own
-    # shebang too — safe via the atomic rename in rewrite_shebang (see
-    # that function's header).
-    for f in "$BALE" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py"; do
+    # bin/bale and the two tools/ executables are the installed
+    # executables; the three .sh are the shipped scripts. install.sh
+    # rewrites its own shebang too — safe via the atomic rename in
+    # rewrite_shebang (see that function's header).
+    for f in "$BALE" "$INSTALL_DIR/install.sh" "$INSTALL_DIR/validate.sh" "$INSTALL_DIR/upgrade.sh" "$INSTALL_DIR/tools/response_lint.py" "$INSTALL_DIR/tools/craft_response.py"; do
       rel="${f#"$INSTALL_DIR"/}"
       # `|| true`: rewrite_shebang prints an error-* token AND returns non-zero
       # on a filesystem failure. Whether `set -e` aborts on a failed command
@@ -375,7 +377,7 @@ log "---"
 log "install complete"
 log "  install dir: $INSTALL_DIR"
 log "  layout:      verified"
-log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh, tools/response_lint.py)"
+log "  exec bits:   restored (bin/bale, validate.sh, upgrade.sh, tools/response_lint.py, tools/craft_response.py)"
 log "  shebangs:    $SHEBANG_STATUS"
 log "  symlink:     $SYMLINK_STATUS"
 log "  validate:    $VALIDATE_STATUS"

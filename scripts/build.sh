@@ -104,6 +104,7 @@ RELEASE_FILES=(
   schemas/diagnostics.schema.json
   schemas/telemetry-record.schema.json
   tools/response_lint.py
+  tools/craft_response.py
   install.sh
   validate.sh
   upgrade.sh
@@ -119,6 +120,7 @@ EXECUTABLES=(
   validate.sh
   upgrade.sh
   tools/response_lint.py
+  tools/craft_response.py
 )
 
 # Extract a bash array's elements from a file, one per line, per the
