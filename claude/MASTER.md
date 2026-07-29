@@ -21,7 +21,12 @@ open. This update (2026-07-28, landed by the narrow follow-on
 session named in its own sid) is deltas-in-place under the interim
 manual form ratified 07-27: the master session
 2026-07-28-continue-master-001 unlocked before spawning, deltas via
-this pack.
+this pack. This update (2026-07-29, landed by the narrow follow-on
+deltas session named in its own sid) is deltas-in-place under the
+interim manual form: the master session 2026-07-28-continue-master-006
+was packed without --read-only (a cold-start predating the habit the
+shape now enables) and unlocked before spawning; deltas via this
+pack.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -207,6 +212,14 @@ sitting's start per the standing rule.
   trigger-shaped harness sentence to plain present
   (tests/harness.py landed with board 24) — rides the next
   claude/-docs-touching session; board 27 absorbs it if unclaimed.
+- §8.9 retitle to "Telemetry record at session close" (2026-07-29,
+  deferred at board 25's build on the immutable-citer precondition;
+  citer check completed post-apply — ADR grep empty, no
+  commit-message citer, and numeric §8.9 citations are unaffected
+  by design) — rides board 27.
+- TARBALL.md §3.2 context_included-vs-recorded-scope sentence
+  (2026-07-29, evidence 41's doc countermeasure: the shipped file
+  list is not the recorded repo-side scope) — rides board 27.
 
 Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
 the bale-internals refresh (rode 8b and 8c).
@@ -454,18 +467,96 @@ Version at sitting close: 0.3.15 as of scopeless-packs, verified by
 the architect post-apply — re-verify with bale --version at the next
 sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-28/29 (landed by the narrow follow-on
+deltas session per the interim manual form; sids reconciled against
+claude/telemetry):**
+
+- **State reconciled.** Contract-doc hashes matched provenance
+  byte-for-byte; 0.3.15 at sitting open. The master session's own
+  unlock (pre-spawn, running pre-25 code) left no closure record —
+  expected; the machinery it would have used landed later the same
+  sitting.
+- **closure-telemetry (board 25) — DONE.** Sid
+  2026-07-29-closure-telemetry-001, applied 2026-07-29, v0.3.15 →
+  0.3.16. Unlock- and revert-terminated sessions now write closure
+  records: outcome "unlocked" and command "unlock" (both enums
+  extended additively), a nullable closure_reason field with six
+  reasons (abandoned, superseded-by-split,
+  reframed-after-clarification, master-closeout, crash-debris,
+  closed-read-only), --reason on unlock and revert, the
+  closed-read-only inference keyed on recorded scope exactly []
+  (explicit --reason wins), and crash-debris pointer cleanup
+  recording best-effort — with the worker's honesty refinement
+  ratified: a debris sid with no scope.json records [] rather than
+  stamping the conservative ["."] fabrication. CLOSURE_REASONS
+  one-homed in bale_report beside RECORD_VERSION; the UNLOCK
+  summary gains its telemetry row; §9.4 gains the trio-completing
+  sentence. Revert's reason threading asserted unit-shaped per
+  ADR-0003 (the HOLD-shaped E2E deferred to board 5's
+  multi-attempt tests). The §8.9 retitle deferred at build
+  (immutable-citer check unrunnable in-context); the architect
+  completed the check post-apply — ADR grep empty, no
+  commit-message citer (the git-log -S hit was the heading's own
+  introducing diff, which a retitle does not invalidate) — retitle
+  safe, rides board 27.
+- **split-supersession (board 26) — DONE.** Sid
+  2026-07-29-split-supersession-002, applied 2026-07-29, v0.3.16 →
+  0.3.17. bale pack --supersedes <sid> lands: the §5.2 exchange
+  (TTY prompt, decline default; piped stdin declines — pack has no
+  --no-interact, correcting the board row's original wording), the
+  parent closed through close_session_with_record (extracted from
+  cmd_unlock, shared by unlock and pack — one implementation), the
+  command enum gains "pack", depends_on.superseded_session added
+  nullable-not-required and stamped always (null when unused,
+  setdefault in build_request_manifest so handoff matches),
+  idempotent re-run gated on superseded-by-split closure history
+  only (abandoned closures refuse), HOLD-reached parents refused
+  with the revert remedy and no --force analog, and — the worker's
+  catch, ratified — a declined supersession refuses on every path
+  including disjoint scopes, where the brief's route-into-the-gate
+  design would have admitted a pack that silently closed nothing
+  and stamped no lineage (evidence 42). The gate still evaluates
+  all other open sessions. run_bale_pty extracted to
+  tests/harness.py on its second consumer. Doc touches: BALE.md
+  §7.1 step 5 remedy, §7.2 bullet, TARBALL.md §3.4 flag row.
+  Deferred: the HOLD-refusal test (ADR-0003 depth precedent; the
+  twin in cmd_unlock is covered).
+- **Worker-inference class surfaced twice** — both workers
+  predicted drift-gate refusals on their new test files from
+  reading context_included's enumerated file list; both
+  predictions were wrong because resolved_scope records declared
+  includes, so the directory include covered the new paths and
+  both applies ran clean with no override. Evidence 41;
+  countermeasures on boards 27 and 5.
+- **Proposals disposed:** rollback telemetry accepted as board 28;
+  unlock --json parity accepted as board 29; the orchestrated
+  accept spelling for --supersedes parked on board 10's harness
+  agenda (it revisits the authorship contract); bidirectional
+  lineage via apply's successor note annotated onto board 5's row.
+- **This deltas session** — lands these deltas into this document.
+
+Version at sitting close: 0.3.17 as of split-supersession, verified
+by the architect post-reinstall — re-verify with bale --version at
+the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **No sessions open.** Boards 23 and 24 applied 2026-07-28; the
-  master session and this deltas session are closed.
-- **Next master sitting:** author board 25 (closure telemetry)
-  against the post-24 tree — its brief must define the read-only
-  session's terminal outcome per the accepted proposal on the
-  board 25 row, and its doc touches pin against BALE.md §9/§8.9
-  re-read after 24's edits. Then 26 after 25, 27 last.
-- **Fold-in pending:** the internals-§6 surfacing + harness
-  present-tense flip (registry entry, 2026-07-28) — rides the next
-  claude/-docs-touching session, or board 27 absorbs it.
+- **No sessions open.** Boards 25 and 26 applied 2026-07-29; the
+  master session (unlocked pre-spawn) and this deltas session are
+  closed.
+- **Next master sitting:** pack itself --read-only (the standing
+  form now that board 24's shape exists — this sitting's cold-start
+  predated the habit and used the interim unlock-before-spawn form
+  for the last time). Author board 27 against the post-26 tree,
+  absorbing three riders: the §8.9 retitle, the internals-§6
+  surfacing + harness present-tense flip (registry entry), and the
+  new TARBALL.md §3.2 context_included-vs-recorded-scope sentence
+  (evidence 41). Then order 28/29: recommended 28 before 27's §9
+  sweep so the sweep documents a complete outcome vocabulary, with
+  29 either fused into 28's sitting or serialized against it
+  (their BALE.md §9.2/§9.3 touches intersect) — stated for contest
+  per evidence 23; the next master re-derives against the tree it
+  reads.
 
 ## 4. The board
 
@@ -506,7 +597,17 @@ and §8, so done items keep their numbers as one-line pointers.
    the first apply after B2; aggregation should expect attempts[]
    append semantics and reconciliation_parsed disambiguation per
    BALE.md §8.9. Rider: a bailout banner telemetry row (ratified
-   trivial).
+   trivial). Annotations (2026-07-29): aggregation keys read-only
+   detection on closure_reason, never on scope — [] is overloaded
+   (read-only sessions and no-scope debris records both read []);
+   the HOLD-shaped multi-attempt E2E deferred by 25's session lands
+   with this board's tests; this board's brief decides whether the
+   ledger wants the reverse lineage pointer (apply appending a
+   successor note to a superseded parent's record — 26's session's
+   proposal; jq over stamped manifests is the do-nothing baseline);
+   and the evidence-41 mechanical fix — stamping the declared scope
+   into the request manifest so workers reason from fact, not
+   inference — is on this board's radar.
 
 6. **Blind validation checkpoints — doctrine to mechanics** — the §1
    floor's "validation checkpoints are authored blind" line has no
@@ -589,6 +690,10 @@ and §8, so done items keep their numbers as one-line pointers.
       preserved). Any physical split of the globals, the retired
       board-14 shape included, is decided only after this choice is
       made here; evidence 32 carries the rationale.
+    - **Orchestrated accept spelling for --supersedes** (parked
+      2026-07-29) — piped packs can never complete a supersession;
+      correct until the authorship contract for worker-emitted
+      commands is revisited here.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -764,49 +869,50 @@ and §8, so done items keep their numbers as one-line pointers.
     this sitting; §7 read before pinning — evidence 24), TARBALL.md
     §3.4.
 
-25. **Closure telemetry** — `bale unlock` and `bale revert` write a
-    durable closure record with a reason (draft enum: abandoned,
-    superseded-by-split, reframed-after-clarification,
-    master-closeout, crash-debris — the session finalizes it),
-    additive per the telemetry schema's standing contract; a
-    `--reason` flag on unlock covers the intent distinction without
-    new commands (§9.4's trio stays intact). Counters evidence 38's
-    numerator-only corpus; borders board 5 (closure rows are
-    mechanical-stream input the ledger consumes — cite the §5
-    dual-stream constraints). Scope: bin/bale (cmd_unlock),
-    bin/bale_rollback.py, schemas/telemetry-record.schema.json,
-    BALE.md §9 (read whole this sitting) and §8.9 (read before
-    pinning — evidence 24). Brief requirement added 2026-07-28
-    (accepted worker proposal): the design defines a terminal
-    closure outcome for read-only sessions — their only exit is
-    unlock by construction, and the outcome is distinct from plain
-    abandonment (seed naming: closed-read-only).
+25. **Closure telemetry — DONE** 2026-07-29, v0.3.15 → 0.3.16 (§2
+    sitting summary): unlock- and revert-terminated sessions write
+    closure records; closure_reason enum (six reasons, additive) +
+    --reason on both commands; closed-read-only inferred from
+    recorded scope [].
 
-26. **Split supersession** — the request manifest gains
-    `depends_on.superseded_session`; `bale pack --supersedes <sid>`
-    finds the named open parent and, in the §5.2 wizard idiom, asks
-    to close it as superseded (closure reason per board 25's shape),
-    stamps the lineage field, then proceeds past the ADR-0007 gate
-    now clear; `--no-interact` takes the decline default and the
-    refusal names the explicit unlock. Worker-authored only: the
-    flag rides §3.4 rescope commands — the one sanctioned
-    unsolicited-runnable-command site — and the architect pastes
-    (contract §5). Serialized after 25 (consumes its closure-record
-    shape). Complement to board 13, not substitute: 13 removes the
-    read-context locks that force most splits; 26 handles the true
-    write-scope splits that remain — the brief must not prejudge
-    13's design. Scope: bin/bale_pack.py,
-    schemas/request-manifest.schema.json, TARBALL.md §3.4 flag
-    table, BALE.md §7 (read before pinning — evidence 24).
+26. **Split supersession — DONE** 2026-07-29, v0.3.16 → 0.3.17
+    (§2 sitting summary): bale pack --supersedes landed;
+    decline-refuses-on-every-path ratified (evidence 42; piped
+    stdin declines — pack has no --no-interact, correcting this
+    row's original wording). Complement to board 13, not
+    substitute: 13's design remains unprejudged — 26 handles the
+    true write-scope splits that remain.
 
 27. **Lifecycle docs close-out** — ADR-0011's outstanding follow-ups
     (the CLAUDE.md §3 and BALE.md §8/§11 clarification-kind
     mentions, tracked-but-unowned since v0.2.10); TARBALL.md §3.4
-    gains `--supersedes` in the flag table and the split recipe as
-    documented flow, retiring the refusal-text folk recipe; BALE.md
-    §5/§9 swept for 24–26's landed behavior. Serialized last — it
-    documents what 24–26 land. Doc-only, global docs included
-    (bale-src is their home).
+    gains the split recipe as documented flow, retiring the
+    refusal-text folk recipe (the `--supersedes` flag-table row
+    itself landed with 26's doc touches); BALE.md §5/§9 swept for
+    24–26's landed behavior. Serialized last — it documents what
+    24–26 land. Doc-only, global docs included (bale-src is their
+    home). Riders (2026-07-29): the §8.9 retitle to "Telemetry
+    record at session close" (citer check completed post-apply —
+    safe; see the registry), the internals-§6 surfacing + harness
+    present-tense flip (registry entry), and the new TARBALL.md
+    §3.2 context_included-vs-recorded-scope sentence (evidence 41).
+
+28. **Rollback telemetry** (accepted worker proposal, 2026-07-29):
+    `bale rollback` and --undo append attempts to the sid's record;
+    the outcome vocabulary gains a rolled-back/re-applied pair,
+    additive per the telemetry schema's standing contract. With
+    unlock landed, rollback is the only silent lifecycle verb left,
+    and it is precisely the "the merge was wrong" signal board 5's
+    ledger wants. Scope: bin/bale_rollback.py, the schema's two
+    outcome enums, BALE.md §9.2. Serialize before board 5; ordering
+    against 27/29 in §3.
+
+29. **unlock --json parity** (accepted worker proposal, 2026-07-29):
+    unlock is the one summary-emitting lifecycle command without a
+    --json report; an orchestrator closing read-only sessions wants
+    the telemetry path machine-readable. Scope: bin/bale
+    (cmd_unlock, parser), bale_report emission helpers. Small; the
+    BALE.md touch intersects 28's — see §3.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1265,6 +1371,36 @@ New from the 2026-07-27 detour sitting:
     durably lives — otherwise record "ratified, packs unauthored"
     and re-author at spawn time.
 
+New from the 2026-07-28/29 sitting:
+
+41. **Workers infer scope from context_included, and the inference
+    false-positives on directory includes.** Two same-sitting
+    occurrences: both workers predicted the drift gate would refuse
+    their new test file, reasoning from the manifest's enumerated
+    file list; both packs had included tests/ as a directory, and
+    resolved_scope records declared includes precisely so
+    directories cover files created under them later — both applies
+    ran clean. A visibility gap, not a discipline failure: the
+    recorded scope is repo-side and invisible from inside a
+    tarball, so the worker's only evidence is the shipped file
+    list. Countermeasures: a TARBALL.md §3.2 sentence
+    distinguishing the shipped list from the recorded scope (rides
+    board 27), and the board-5-radar mechanical fix of stamping the
+    declared scope into the request manifest.
+
+42. **Routing an outcome through an existing gate presumes the gate
+    fires; state the firing condition or the worker must.** The
+    board 26 brief routed a declined supersession into the ADR-0007
+    refusal — which only fires when scopes intersect. In the
+    disjoint case the design would have admitted a pack that closed
+    nothing and stamped no lineage while the command line claimed
+    supersession: a silent, materially different outcome. The
+    worker verified the presumption, found the hole, and refused
+    explicitly on every declined path (ratified). Standing rule for
+    briefs: name the condition under which a delegated-to gate
+    actually fires; treat "the gate will catch it" as a claim to
+    verify.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1272,13 +1408,15 @@ New from the 2026-07-27 detour sitting:
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
-  run python3 -m unittest discover -s tests. Suites:
-  tests/test_install_precheck.py (2026-07-25) and
+  run python3 -m unittest discover -s tests. Four suites:
+  tests/test_install_precheck.py (2026-07-25),
   tests/test_readonly_pack.py (2026-07-28, first pty-driven wizard
   tests — the likeliest flake site if one ever appears, per its
-  session's notes). Shared sandbox harness at tests/harness.py
-  (extracted 2026-07-28 on board 11's second-suite trigger);
-  ADR-0005 (Accepted 2026-07-28) governs.
+  session's notes), tests/test_closure_telemetry.py (2026-07-29),
+  and tests/test_supersession_pack.py (2026-07-29). Shared sandbox
+  harness at tests/harness.py (extracted 2026-07-28 on board 11's
+  second-suite trigger; owns run_bale_pty as of 2026-07-29, moved
+  on its second consumer); ADR-0005 (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
