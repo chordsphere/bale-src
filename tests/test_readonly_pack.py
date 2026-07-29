@@ -33,24 +33,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import pty
-import select
-import subprocess
-import sys
 import tarfile
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
 from harness import (
-    SUBPROCESS_TIMEOUT,
     bale_env,
     make_install,
     make_repo,
     make_sandbox_home,
     run_bale,
+    run_bale_pty,
 )
 
 # Sentinels for the surfaces this file pins. Kept in one place so a
@@ -60,59 +54,9 @@ DRIFT_REFUSAL_MARKER = "SCOPE-DRIFT-REFUSED"
 READONLY_MARKER = "read-only"
 INTERSECT_MARKER = "pack scope intersects"
 
-PTY_TIMEOUT = 60  # seconds; generous — a wizard pack run is sub-second.
-
-
-def run_bale_pty(install: Path, args: list, *, cwd: Path, env: dict,
-                 answers: str):
-    """Invoke bale under a pseudo-terminal, feeding wizard answers.
-
-    The wizard engages only when stdin is a TTY, so the piped
-    harness.run_bale cannot reach it; this runner attaches a real pty.
-    All `answers` are written up front (the kernel line-buffers them for
-    the successive input() prompts) and the master side is drained
-    continuously so a chatty child can never deadlock on a full pty
-    buffer. Returns (exit_code, combined_output) — stdout and stderr
-    share the pty, which is exactly what the wizard user sees.
-    """
-    master, slave = pty.openpty()
-    try:
-        proc = subprocess.Popen(
-            [sys.executable, str(install / "bin" / "bale"), *args],
-            cwd=cwd, env=env,
-            stdin=slave, stdout=slave, stderr=slave,
-            close_fds=True,
-        )
-        os.close(slave)
-        slave = None
-        os.write(master, answers.encode())
-        chunks: list[bytes] = []
-        deadline = time.monotonic() + PTY_TIMEOUT
-        while True:
-            if time.monotonic() > deadline:
-                proc.kill()
-                raise AssertionError(
-                    "pty-driven bale run timed out; output so far:\n"
-                    + b"".join(chunks).decode(errors="replace")
-                )
-            readable, _, _ = select.select([master], [], [], 0.1)
-            if master in readable:
-                try:
-                    chunk = os.read(master, 4096)
-                except OSError:
-                    break  # child closed its side (Linux raises EIO)
-                if not chunk:
-                    break
-                chunks.append(chunk)
-            elif proc.poll() is not None:
-                # Child exited and nothing is left to read.
-                break
-        exit_code = proc.wait(timeout=SUBPROCESS_TIMEOUT)
-    finally:
-        if slave is not None:
-            os.close(slave)
-        os.close(master)
-    return exit_code, b"".join(chunks).decode(errors="replace")
+# run_bale_pty and PTY_TIMEOUT moved to tests/harness.py when the
+# supersession suite became their second consumer (one harness,
+# consumed by every suite — the board-11 doctrine).
 
 
 class ReadonlyPackTest(unittest.TestCase):

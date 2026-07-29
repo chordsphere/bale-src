@@ -60,13 +60,13 @@
           },
           "command": {
             "type": "string",
-            "enum": ["apply", "retry", "revert", "unlock"],
-            "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'; `bale unlock` reports 'unlock' (v0.3.16, additive enum value)."
+            "enum": ["apply", "retry", "revert", "unlock", "pack"],
+            "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'; `bale unlock` reports 'unlock' (v0.3.16, additive enum value); `bale pack --supersedes` reports 'pack' on the parent's superseded-by-split closure (v0.3.17, additive enum value) — the record honestly names the command that produced the event, with outcome 'unlocked' (the registry-close outcome, whatever command drove it)."
           },
           "closure_reason": {
             "type": ["string", "null"],
             "enum": ["abandoned", "superseded-by-split", "reframed-after-clarification", "master-closeout", "crash-debris", "closed-read-only", null],
-            "description": "Why the session closed, stamped on unlock and revert events (v0.3.16, additive nullable field; absent on pre-v0.3.16 attempts). Unlock stamps it always: the operator's --reason when given; else 'closed-read-only' when the recorded scope is exactly [] (the v0.3.15 read-only session shape — an explicit --reason beats the inference, since a read-only session can itself be superseded or abandoned-in-fact); else 'abandoned'. The no-sid crash-debris sweep stamps 'crash-debris'. Revert stamps --reason when given and null otherwise — outcome 'reverted' already names the event, and a null reason is honest rather than a guessed one. Null on apply/retry attempts: those are apply-close events, not closures."
+            "description": "Why the session closed, stamped on unlock and revert events (v0.3.16, additive nullable field; absent on pre-v0.3.16 attempts). Unlock stamps it always: the operator's --reason when given; else 'closed-read-only' when the recorded scope is exactly [] (the v0.3.15 read-only session shape — an explicit --reason beats the inference, since a read-only session can itself be superseded or abandoned-in-fact); else 'abandoned'. The no-sid crash-debris sweep stamps 'crash-debris'. Revert stamps --reason when given and null otherwise — outcome 'reverted' already names the event, and a null reason is honest rather than a guessed one. `bale pack --supersedes` stamps 'superseded-by-split' with command 'pack' on the parent's close (v0.3.17). Null on apply/retry attempts: those are apply-close events, not closures."
           },
           "tarball": {
             "type": ["string", "null"],
