@@ -125,6 +125,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_staging_value,
     format_status_json,
     format_summary_block,
+    format_unlock_json,
     json_mode,
     write_telemetry_record,
 )
@@ -198,7 +199,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.17"
+VERSION = "0.3.18"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1973,8 +1974,29 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         fail("`bale unlock --integration` clears the repo-level "
              "integration lock; it closes no session, so there is no "
              "closure to give a --reason for.")
+    # --json (v0.3.18) is session-shaped: its key contract
+    # (format_unlock_json) reports sid, closure_reason, and the telemetry
+    # record — facts the integration lock, being repo-level state and not
+    # a session, does not have. Refused loudly rather than emitting a
+    # second, hollow key shape; honest keys for the combination can be
+    # added later, additively, if a consumer appears.
+    if args.integration and args.json:
+        fail("`bale unlock --integration --json` is not supported: the "
+             "json report is session-shaped (sid, closure_reason, "
+             "telemetry) and the integration lock is repo-level state "
+             "with none of those facts. Run `bale unlock --integration` "
+             "without --json.")
     if args.integration:
         return _unlock_integration(repo)
+
+    # `bale unlock --json` (v0.3.18) — stream discipline first, before any
+    # line can print (matches cmd_pack / cmd_apply / cmd_status): stdout
+    # carries exactly the one JSON line format_unlock_json owns; `[bale] `
+    # lines and the human summary block go to stderr as the reference
+    # trail. Human mode is byte-identical: when the swap never happens, no
+    # code path below differs.
+    if args.json:
+        enable_json_mode()
 
     # BALE.md §9.3 step 1: read the registry (ADR-0006 threading).
     opens = open_sessions(repo)
@@ -1989,6 +2011,10 @@ def cmd_unlock(args: argparse.Namespace) -> int:
     # is either the same crash debris (inert) or a consumed bailout's
     # record, which `bale handoff`'s lineage chase still reads.
     if args.sid is None and not opens:
+        # Debris facts captured for the --json report (v0.3.18): null when
+        # no stale pointer was swept, else the sid it named and where (or
+        # whether) its crash-debris record landed.
+        debris: Optional[dict] = None
         stale = read_lock(repo)
         if stale is not None:
             lock_path(repo).write_text("")
@@ -2020,8 +2046,12 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             if debris_rel:
                 log(f"telemetry: recorded {debris_rel} (crash-debris "
                     f"closure for {stale})")
+            debris = {"sid": stale, "telemetry": debris_rel}
         print()
         print("  no open session; nothing to unlock.")
+        if args.json:
+            emit_json_line(format_unlock_json(outcome="no-op",
+                                              debris=debris))
         return 0
 
     # Resolve which open session to unlock: explicit sid (which must be
@@ -2102,6 +2132,10 @@ def cmd_unlock(args: argparse.Namespace) -> int:
     # before the wipe destroyed scope.json. The --force variant records
     # identically — branch-preserved is a summary-row fact, not a
     # closure reason.
+    # The wiped-or-not fact for the --json report is checked here, before
+    # the helper wipes — a machine key derived from the filesystem, not
+    # parsed back out of the human session_status wording.
+    session_dir_existed = (repo / ".bale" / "sessions" / sid).exists()
     telemetry_rel, session_status = close_session_with_record(
         repo, sid,
         closure_reason=closure_reason,
@@ -2134,6 +2168,19 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         else "write failed — see log",
     ))
     print(format_summary_block(rows, status="UNLOCK", sid=sid))
+    # --json (v0.3.18): the one stdout line, emitted last so the human
+    # block above (now on stderr under the stream discipline) stays the
+    # reference trail. Key contract: format_unlock_json's docstring.
+    if args.json:
+        emit_json_line(format_unlock_json(
+            outcome="unlocked",
+            sid=sid,
+            log_path=str(repo / ".bale" / "logs" / f"{sid}.log"),
+            closure_reason=closure_reason,
+            session_dir_wiped=session_dir_existed,
+            branch_preserved=branch_exists,
+            telemetry=telemetry_rel,
+        ))
     return 0
 
 
@@ -4429,6 +4476,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Clear the session even if a bale/<sid> branch exists. The "
              "branch is left in place; you'll need to delete it manually. "
              "The override is logged with the FORCE: prefix.",
+    )
+    p_unlock.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run unlock report as one line of JSON on "
+             "stdout — the machine-readable surface for an orchestrator "
+             "closing sessions. Stream discipline matches pack/apply/"
+             "status --json: '[bale] ' lines and the human summary block "
+             "go to stderr, stdout carries exactly the JSON line; human "
+             "mode is unchanged. Emitted on the session-close path and "
+             "the benign no-op (outcome 'unlocked' / 'no-op'); the key "
+             "contract is owned by format_unlock_json's docstring in "
+             "bin/bale_report.py. Session form only: combining with "
+             "--integration is refused.",
     )
     p_unlock.add_argument(
         "--integration", action="store_true",

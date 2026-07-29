@@ -751,7 +751,8 @@ def format_pack_json(
                      vocabulary across the json renderers is owned in this
                      module — "packed" here; "applied", "held", "reverted",
                      "bailout", "dry-run" in format_apply_json (v0.2.8);
-                     "status" in format_status_json (v0.2.9) —
+                     "status" in format_status_json (v0.2.9); "unlocked",
+                     "no-op" in format_unlock_json (v0.3.18) —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -1165,6 +1166,84 @@ def format_status_json(report) -> str:
             "baleignore": report.baleignore,
             "summary_failed": report.config_summary_failed,
         },
+    }
+    return json.dumps(payload)
+
+
+def format_unlock_json(
+    *,
+    outcome: str,
+    sid: Optional[str] = None,
+    log_path: Optional[str] = None,
+    closure_reason: Optional[str] = None,
+    session_dir_wiped: Optional[bool] = None,
+    branch_preserved: bool = False,
+    telemetry: Optional[str] = None,
+    debris: Optional[dict] = None,
+) -> str:
+    """Render the `bale unlock --json` end-of-run report as ONE line of JSON.
+
+    The unlock sibling of format_pack_json / format_apply_json /
+    format_status_json (v0.3.18): same stability rules (existing keys are
+    never renamed or removed; new keys may be added), same one-compact-line
+    shape, same emission path (the caller emits it via emit_json_line so it
+    reaches the real stdout under json mode's stream discipline — module
+    docstring). THIS DOCSTRING OWNS THE KEY CONTRACT (the one-home rule
+    BALE.md §9.3 points at); the CLI help and the design doc name the
+    owner, never a second copy of the list. The set:
+
+      outcome  which terminal reporting point produced this line —
+               "unlocked"  a session was closed: registry marker removed,
+                           session dir wiped, closure record written
+                           (exit 0)
+               "no-op"     nothing to unlock — no session open and none
+                           asked for (exit 0); the benign-no-op contract,
+                           including the crash-debris pointer sweep (see
+                           `debris`)
+               Part of the one-place outcome vocabulary this module owns
+               (see format_pack_json); the session refusal paths (several
+               open, sid not open, bale/<sid> branch exists) exit through
+               fail() — stderr, non-zero, nothing on stdout — like every
+               other json surface's error paths.
+      sid      the closed session id, or null on the no-op.
+      log      absolute path to the session log (.bale/logs/<sid>.log), or
+               null on the no-op (no session, no session log).
+      closure_reason
+               the CLOSURE_REASONS value stamped into the closure record —
+               the operator's --reason, or unlock's inference
+               ('closed-read-only' for a recorded-empty scope, else
+               'abandoned') — or null on the no-op.
+      session_dir_wiped
+               true when .bale/sessions/<sid>/ existed and was removed,
+               false when there was none to remove; null on the no-op.
+      branch_preserved
+               true only on the --force path that cleared the lock while a
+               bale/<sid> branch exists (the branch is left in place);
+               false otherwise, including the no-op.
+      telemetry
+               repo-relative path of the closure record written for this
+               unlock (claude/telemetry/<sid>.json, BALE.md §8.9), or null
+               when none was written (a logged write failure, or the
+               no-op). The debris sweep's record rides under `debris`, not
+               here — this key is the closed sid's record.
+      debris   null, except on a no-op whose stale-pointer sweep recorded
+               a crash-debris closure (BALE.md §9.3 step 2). An object:
+                 sid        the sid the stale pointer named
+                 telemetry  repo-relative path of its crash-debris record,
+                            or null on a (logged) write failure
+
+    Pure: builds a string, prints nothing; the caller emits it, which
+    supplies the trailing newline.
+    """
+    payload = {
+        "outcome": outcome,
+        "sid": sid,
+        "log": log_path,
+        "closure_reason": closure_reason,
+        "session_dir_wiped": session_dir_wiped,
+        "branch_preserved": branch_preserved,
+        "telemetry": telemetry,
+        "debris": debris,
     }
     return json.dumps(payload)
 

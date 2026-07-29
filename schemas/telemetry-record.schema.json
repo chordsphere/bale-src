@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/anthropics/bale/schemas/telemetry-record.schema.json",
   "title": "bale per-session telemetry record",
-  "description": "Shape of claude/telemetry/<sid>.json — the durable per-session record bale writes at session close: every apply-close event (v0.3.9, session B2; BALE.md section 8.9) and, since v0.3.16, every `bale unlock` close (BALE.md section 9.3), so every registry close is a recorded event. One file per sid; each apply-close event appends an entry to attempts[] rather than duplicating the file, so a HOLD followed by a retry accumulates both. INTENTIONALLY LOOSE, matching diagnostics.schema.json: additionalProperties is true at the top level and inside attempts[] entries so future fields can be added without breaking earlier aggregation across sessions (board 5 reads these longitudinally). record_version is the versioned evolution hook: bump it when a change is not purely additive; consumers filter or branch on it.",
+  "description": "Shape of claude/telemetry/<sid>.json — the durable per-session record bale writes at session close: every apply-close event (v0.3.9, session B2; BALE.md section 8.9) and, since v0.3.16, every `bale unlock` close (BALE.md section 9.3), so every registry close is a recorded event — and, since v0.3.18, every clean `bale rollback` / `bale rollback --undo` (BALE.md section 9.2): post-close history events that append to the sid's existing record rather than opening a closure. One file per sid; each apply-close event appends an entry to attempts[] rather than duplicating the file, so a HOLD followed by a retry accumulates both. INTENTIONALLY LOOSE, matching diagnostics.schema.json: additionalProperties is true at the top level and inside attempts[] entries so future fields can be added without breaking earlier aggregation across sessions (board 5 reads these longitudinally). record_version is the versioned evolution hook: bump it when a change is not purely additive; consumers filter or branch on it.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -36,8 +36,8 @@
     },
     "outcome": {
       "type": "string",
-      "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused", "unlocked"],
-      "description": "The latest attempt's outcome, mirrored to the envelope so aggregation can filter without descending into attempts[]. 'applied' = merged; 'held' = HOLD awaiting inspection (a later attempt supersedes it); 'reverted' = backed out (walkthrough revert or `bale revert`); 'rejected' = the apply exited through a pre-flight or pipeline error path (detail in the session log); 'bailout' = response_kind=bailout, session consumed; 'scope-drift-refused' = the own-scope drift gate refused the response's changes[] at apply pre-flight (BALE.md section 8.1 step 14; v0.3.10, additive enum value) — the session stays open, so a later attempt supersedes it the way a HOLD's does; 'unlocked' = the session was closed by `bale unlock` with no git side effects (BALE.md section 9.3; v0.3.16, additive enum value) — the attempt's closure_reason carries why."
+      "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused", "unlocked", "rolled-back", "re-applied"],
+      "description": "The latest attempt's outcome, mirrored to the envelope so aggregation can filter without descending into attempts[]. 'applied' = merged; 'held' = HOLD awaiting inspection (a later attempt supersedes it); 'reverted' = backed out (walkthrough revert or `bale revert`); 'rejected' = the apply exited through a pre-flight or pipeline error path (detail in the session log); 'bailout' = response_kind=bailout, session consumed; 'scope-drift-refused' = the own-scope drift gate refused the response's changes[] at apply pre-flight (BALE.md section 8.1 step 14; v0.3.10, additive enum value) — the session stays open, so a later attempt supersedes it the way a HOLD's does; 'unlocked' = the session was closed by `bale unlock` with no git side effects (BALE.md section 9.3; v0.3.16, additive enum value) — the attempt's closure_reason carries why; 'rolled-back' = an applied (merged) session was undone by `bale rollback` via history-preserving `git revert` (BALE.md section 9.2; v0.3.18, additive enum value); 're-applied' = a prior rollback was reversed by `bale rollback --undo` (v0.3.18, additive enum value) — both are post-close history events appended to the sid's existing record, stamped only on the clean-success paths that write the reverted/<sid> / re-applied/<sid> tags."
     },
     "attempts": {
       "type": "array",
@@ -55,18 +55,18 @@
           },
           "outcome": {
             "type": "string",
-            "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused", "unlocked"],
+            "enum": ["applied", "held", "reverted", "rejected", "bailout", "scope-drift-refused", "unlocked", "rolled-back", "re-applied"],
             "description": "This attempt's outcome, same vocabulary as the envelope field."
           },
           "command": {
             "type": "string",
-            "enum": ["apply", "retry", "revert", "unlock", "pack"],
-            "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'; `bale unlock` reports 'unlock' (v0.3.16, additive enum value); `bale pack --supersedes` reports 'pack' on the parent's superseded-by-split closure (v0.3.17, additive enum value) — the record honestly names the command that produced the event, with outcome 'unlocked' (the registry-close outcome, whatever command drove it)."
+            "enum": ["apply", "retry", "revert", "unlock", "pack", "rollback"],
+            "description": "Which bale command produced the event. Walkthrough reverts inside apply/retry report that command; `bale revert <sid>` reports 'revert'; `bale unlock` reports 'unlock' (v0.3.16, additive enum value); `bale pack --supersedes` reports 'pack' on the parent's superseded-by-split closure (v0.3.17, additive enum value) — the record honestly names the command that produced the event, with outcome 'unlocked' (the registry-close outcome, whatever command drove it); `bale rollback` reports 'rollback' on its clean-success paths (v0.3.18, additive enum value), with outcome 'rolled-back' or 're-applied'."
           },
           "closure_reason": {
             "type": ["string", "null"],
             "enum": ["abandoned", "superseded-by-split", "reframed-after-clarification", "master-closeout", "crash-debris", "closed-read-only", null],
-            "description": "Why the session closed, stamped on unlock and revert events (v0.3.16, additive nullable field; absent on pre-v0.3.16 attempts). Unlock stamps it always: the operator's --reason when given; else 'closed-read-only' when the recorded scope is exactly [] (the v0.3.15 read-only session shape — an explicit --reason beats the inference, since a read-only session can itself be superseded or abandoned-in-fact); else 'abandoned'. The no-sid crash-debris sweep stamps 'crash-debris'. Revert stamps --reason when given and null otherwise — outcome 'reverted' already names the event, and a null reason is honest rather than a guessed one. `bale pack --supersedes` stamps 'superseded-by-split' with command 'pack' on the parent's close (v0.3.17). Null on apply/retry attempts: those are apply-close events, not closures."
+            "description": "Why the session closed, stamped on unlock and revert events (v0.3.16, additive nullable field; absent on pre-v0.3.16 attempts). Unlock stamps it always: the operator's --reason when given; else 'closed-read-only' when the recorded scope is exactly [] (the v0.3.15 read-only session shape — an explicit --reason beats the inference, since a read-only session can itself be superseded or abandoned-in-fact); else 'abandoned'. The no-sid crash-debris sweep stamps 'crash-debris'. Revert stamps --reason when given and null otherwise — outcome 'reverted' already names the event, and a null reason is honest rather than a guessed one. `bale pack --supersedes` stamps 'superseded-by-split' with command 'pack' on the parent's close (v0.3.17). Null on apply/retry attempts: those are apply-close events, not closures. Null on rollback attempts too (v0.3.18): rollback closes no session — the outcome names the event, matching revert's null-when-no---reason posture."
           },
           "tarball": {
             "type": ["string", "null"],
@@ -118,7 +118,7 @@
           "scope": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "The session's declared scope — the resolved include set recorded at pack time (the 'includes shipped' side of the includes-vs-changes comparison). Empty when no scope was recorded (pre-ADR-0007 sessions)."
+            "description": "The session's declared scope — the resolved include set recorded at pack time (the 'includes shipped' side of the includes-vs-changes comparison). Empty when no scope was recorded (pre-ADR-0007 sessions) — and on rollback attempts when the session directory (and its scope.json) is long gone at rollback time (v0.3.18): [] records 'not recoverable' honestly, never a fabricated whole-tree scope."
           },
           "overridden_paths": {
             "type": "array",
