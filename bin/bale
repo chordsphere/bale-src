@@ -198,7 +198,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.16"
+VERSION = "0.3.17"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -670,6 +670,65 @@ def resolve_open_session(repo: Path, requested: Optional[str], *,
         f"explicit session id when more than one is open. "
         f"Open sessions (oldest first): {', '.join(opens)}."
     )
+
+
+def close_session_with_record(
+    repo: Path,
+    sid: str,
+    *,
+    closure_reason: str,
+    command: str,
+    scope: Optional[list] = None,
+    log_path: Optional[str] = None,
+) -> tuple[Optional[str], str]:
+    """Close `sid` in the registry, wipe its session dir, and write the
+    closure telemetry record — the one implementation of the
+    close-with-record sequencing (v0.3.17; extracted from cmd_unlock so
+    pack's supersession flow reuses it instead of duplicating it).
+
+    Sequencing contract, in order:
+
+    1. **Scope is read before the wipe** — the rmtree takes scope.json
+       with it, and the record is what preserves what the wipe destroys.
+       Callers that already read the scope (cmd_unlock reads it to infer
+       its closure_reason) pass it in; `scope=None` reads it here, with
+       the same read_session_scope semantics (missing → conservative
+       whole-tree, recorded [] → read-only shape).
+    2. close_session — registry marker removed, compatibility pointer
+       reconciled (threaded, ADR-0006).
+    3. rmtree of .bale/sessions/<sid>/ when present.
+    4. write_telemetry_record — outcome "unlocked" (the registry-close
+       outcome, whatever command produced it), `command` naming the
+       producing command ("unlock", or "pack" for a supersession close —
+       telemetry-record.schema.json's command enum), `closure_reason`
+       from CLOSURE_REASONS. Best-effort like every telemetry write:
+       a failure is logged inside write_telemetry_record and never
+       raises — the closure that already happened stands.
+
+    Returns (telemetry_rel, session_status): the record's repo-relative
+    path (None on write failure) and the human summary of the session-dir
+    wipe, for the caller's end-of-run rows.
+    """
+    if scope is None:
+        scope = read_session_scope(repo, sid)
+    close_session(repo, sid)
+    log(f"closed session {sid} in the registry")
+    sessions_dir = repo / ".bale" / "sessions" / sid
+    if sessions_dir.exists():
+        shutil.rmtree(sessions_dir)
+        log(f"wiped {sessions_dir}")
+        session_status = f"wiped ({sessions_dir})"
+    else:
+        log(f"no session dir at {sessions_dir} to wipe")
+        session_status = "not present"
+    telemetry_rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="unlocked", command=command,
+            scope=scope,
+            closure_reason=closure_reason,
+            log_path=log_path,
+        ))
+    return telemetry_rel, session_status
 
 
 def read_lock(repo: Path) -> Optional[str]:
@@ -1978,7 +2037,6 @@ def cmd_unlock(args: argparse.Namespace) -> int:
     log(f"unlock: {sid}")
 
     sid_branch = f"bale/{sid}"
-    sessions_dir = repo / ".bale" / "sessions" / sid
 
     # BALE.md §9.3 step 3: refuse if the bale branch exists. The branch's
     # presence means apply ran far enough to create it but didn't reach a
@@ -2031,38 +2089,26 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         closure_reason = "abandoned"
 
     # BALE.md §9.3 step 4: close the session in the registry, wipe the
-    # session dir. No git operations — that's the whole point of unlock
-    # vs revert. Threaded (ADR-0006): close_session removes this sid's
-    # open marker and reconciles the compatibility pointer (repointing
-    # to the oldest remaining open session, or clearing it) — with one
-    # open session, observably identical to the old pointer truncate.
-    close_session(repo, sid)
-    log(f"closed session {sid} in the registry")
-
-    if sessions_dir.exists():
-        shutil.rmtree(sessions_dir)
-        log(f"wiped {sessions_dir}")
-        session_status = f"wiped ({sessions_dir})"
-    else:
-        log(f"no session dir at {sessions_dir} to wipe")
-        session_status = "not present"
-
-    # Telemetry record (v0.3.16 — BALE.md §8.9): every registry close
-    # is a recorded event, and unlock was the unrecorded one. Outcome
-    # "unlocked", command "unlock"; tarball, validation, change paths
-    # and feedback are all null/empty — nothing was applied, nothing
-    # ran — and the scope is what read_session_scope read before the
-    # wipe. Best-effort like every telemetry write: a failure is
-    # logged inside write_telemetry_record and never changes this
-    # command's exit behavior. The --force variant records identically
-    # — branch-preserved is a summary-row fact, not a closure reason.
-    telemetry_rel = write_telemetry_record(
-        repo, sid, build_telemetry_attempt(
-            outcome="unlocked", command="unlock",
-            scope=unlock_scope,
-            closure_reason=closure_reason,
-            log_path=f".bale/logs/{sid}.log",
-        ))
+    # session dir, write the closure record — the shared
+    # close-with-record sequencing (close_session_with_record, v0.3.17;
+    # this command's inline block was extracted into it so pack's
+    # supersession flow reuses one implementation). No git operations —
+    # that's the whole point of unlock vs revert. Threaded (ADR-0006):
+    # close_session inside the helper removes this sid's open marker
+    # and reconciles the compatibility pointer (repointing to the
+    # oldest remaining open session, or clearing it) — with one open
+    # session, observably identical to the old pointer truncate. The
+    # telemetry write is best-effort and records the scope read above,
+    # before the wipe destroyed scope.json. The --force variant records
+    # identically — branch-preserved is a summary-row fact, not a
+    # closure reason.
+    telemetry_rel, session_status = close_session_with_record(
+        repo, sid,
+        closure_reason=closure_reason,
+        command="unlock",
+        scope=unlock_scope,
+        log_path=f".bale/logs/{sid}.log",
+    )
 
     # End-of-run summary through the shared formatter, same [STATUS] sid
     # shape as apply/handoff/revert. UNLOCK joins PASS/HOLD/REVERT as a
@@ -4006,6 +4052,25 @@ def build_parser() -> argparse.ArgumentParser:
              "On the wizard path the session-shape question asks for it "
              "when this flag is absent (v0.3.15); on the fully specified "
              "path omission still stamps 'mixed', as before.",
+    )
+    p_pack.add_argument(
+        "--supersedes", default=None, metavar="SID",
+        help="Declare this pack a split supersession of the named session "
+             "(v0.3.17): close SID as superseded-by-split — after a y/N "
+             "confirmation naming the cost (decline default; piped stdin "
+             "takes the decline without a prompt, so a non-interactive "
+             "supersession never closes anything) — write its closure "
+             "record (command 'pack'), stamp "
+             "depends_on.superseded_session in the new request's "
+             "manifest, and clear exactly that one collision at the "
+             "scope-disjointness gate; every other open session still "
+             "gates as usual. A SID that is not open is accepted only "
+             "when its telemetry history shows a superseded-by-split "
+             "closure (the idempotent re-run of a supersession pack "
+             "that aborted after the close); anything else refuses. By "
+             "contract this flag is worker-authored only — it appears "
+             "in worker-emitted rescope commands (TARBALL.md §3.4) "
+             "that the architect pastes.",
     )
     p_pack.add_argument(
         "--read-only", action="store_true",

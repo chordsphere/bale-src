@@ -719,7 +719,12 @@ pastes output back. Bale does not have a `probe-apply` or
    scope reads as whole-tree (conservative). On intersection, refuse
    with a message naming the colliding session(s) and entries and the
    remedies: narrower `--include`, apply the open session's response,
-   or `bale unlock` an abandoned one. Includes are a deliberately
+   `bale unlock` an abandoned one, or — when this pack splits and
+   supersedes the colliding session — re-run with `--supersedes <sid>`
+   (§7.2, v0.3.17), whose accepted exchange closes that parent as
+   superseded-by-split *before* this gate evaluates, clearing exactly
+   that one collision; the pack still gates against every other open
+   session. Includes are a deliberately
    conservative proxy for change scope, so the gate can
    false-positive; a pack it admits is one whose workers were never
    shown overlapping files. A default whole-tree pack intersects
@@ -787,6 +792,62 @@ The inputs:
   read-only session reads files; it just cannot land changes to
   them. On the wizard path the same shape is reachable as the
   session-shape question's read-only answer (§7.3).
+- **supersedes** (v0.3.17, board 26) — `--supersedes <sid>` declares
+  this pack a **split supersession** of the named session: the split's
+  parent closes and this pack becomes one of its narrower children,
+  with the lineage stamped as `depends_on.superseded_session` in the
+  child's manifest (child → parent, one-directional — the child's sid
+  does not exist when the parent closes, so the parent's closure
+  record carries no successor pointer). Resolution and flow, in
+  pipeline order, all of it *before* the §7.1 step-5 gate evaluates on
+  either path (pre-flight on the fully specified path; still ahead of
+  the deferred post-wizard gate on the wizard path):
+  - The sid resolves against the registry. **Open** → the exchange
+    below (after a refusal if the session reached HOLD — its
+    `bale/<sid>` branch exists, and `bale revert` is the command that
+    knows how to discard that state). **Not open** with a latest
+    telemetry closure of `superseded-by-split` → proceed with a
+    logged note and stamp the lineage anyway: the **idempotent
+    re-run** of a supersession pack that aborted after the close (a
+    cap refusal, an editor abort, a gate refusal against a second
+    open session) must be re-runnable without manual repair.
+    Anything else → refuse: nothing open to supersede, and the sid's
+    history doesn't say a supersession already closed it.
+  - **The exchange** is the §5.2 wizard idiom: on a TTY, a y/N prompt
+    with a **decline default**, naming the cost (close `<sid>` as
+    superseded-by-split; its registry entry and session state are
+    removed). Piped stdin takes the decline default without a prompt
+    — pack has no `--no-interact`; the piped path *is* the
+    non-interactive form, the same posture as the no-readme guard —
+    so a non-interactive supersession never closes anything.
+  - **On accept**, the parent closes through the shared
+    close-with-record sequencing (`close_session_with_record`, the
+    one implementation `bale unlock` also uses): closure record with
+    outcome `unlocked`, `closure_reason` `superseded-by-split`, and
+    `command` `"pack"` — the record honestly names the command that
+    produced the event. Telemetry stays best-effort, never fatal to
+    the pack. The close preceding the §7.4 caps means an abort after
+    acceptance leaves the parent closed; that window is accepted (the
+    parent was being abandoned by declared intent) and the idempotent
+    re-run above is its repair path.
+  - **On decline**, nothing closes and the pack refuses: via the
+    step-5 gate when the still-open parent's scope collides (the
+    refusal names the declined supersession and the remedies —
+    re-run accepting the prompt, or `bale unlock <sid>`), via an
+    explicit refusal when the scopes happen to be disjoint (a
+    `--supersedes` pack that closes nothing and stamps no lineage
+    would not be the pack asked for), and immediately at the decline
+    on the wizard path, before any prompt collects throwaway answers.
+  - **The gate still runs.** Supersession clears exactly one
+    collision; the pack is evaluated against every other open session
+    as usual.
+
+  By contract (§5 authorship line, TARBALL.md §3.4) the flag is
+  **worker-authored only**: it appears in worker-emitted rescope
+  commands that the architect pastes. Nothing enforces this in code —
+  the doc carries the policy. The flag is never overloaded for
+  master-continuation or general related-to linkage; if the ledger
+  later wants that lineage, it is a different `depends_on` field.
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by Claude when

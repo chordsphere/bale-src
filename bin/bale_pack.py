@@ -551,6 +551,15 @@ def build_request_manifest(
     a populated dict pointing at the bailout it's continuing from, which is
     the only path that sets `previous_response` non-null in v0.0.6.
 
+    `depends_on.superseded_session` (v0.3.17, board 26) is normalized in
+    here — setdefault(None) on whatever dict arrives — so every manifest
+    bale builds carries the key with a uniform shape: the sid of the
+    session this pack closed as superseded-by-split (cmd_pack passes it
+    on a supersession pack), or null everywhere else, including the
+    handoff path, which never supersedes. The schema addition is
+    additive (the key is a nullable property, never required), so
+    previously stamped manifests stay valid.
+
     `provenance` (v0.3.8, session B1) is the pack-time stamp from
     build_provenance_block; both request-building paths pass one, so the
     key is present on every request bale builds. Optional here (and in
@@ -561,6 +570,7 @@ def build_request_manifest(
             "previous_response": None,
             "previous_probe": None,
         }
+    depends_on.setdefault("superseded_session", None)
     manifest = {
         "session_id": sid,
         "project": project_name,
@@ -934,6 +944,145 @@ def _wizard_input_session_shape(args: argparse.Namespace) -> None:
             args.work_class = choices[raw]
             return
         print("  (type c, d, t, m, x, or r — or Enter for mixed)")
+
+
+def _resolve_supersession(args: argparse.Namespace,
+                          repo: Path) -> tuple[Optional[str], Optional[str]]:
+    """Resolve `--supersedes` and run the exchange (v0.3.17, board 26).
+
+    Returns (stamp_sid, declined_sid) — at most one is non-None:
+
+    - `stamp_sid` — the supersession happened (the parent was closed
+      here, or was already closed superseded-by-split on a prior
+      aborted run); the caller stamps it into
+      depends_on.superseded_session.
+    - `declined_sid` — the parent is open and the exchange declined the
+      close; nothing closed. The caller threads it into the
+      disjointness gate's refusal so the message names the declined
+      supersession, and refuses the pack even when the gate would
+      admit it (a --supersedes pack that neither closes its parent nor
+      records lineage does something materially different from what
+      the flag declared; silent-proceed would be the silent skip the
+      hard rules ban).
+
+    The exchange is the §5.2 wizard idiom (BALE.md §7.2): on a TTY, a
+    y/N prompt with a decline default, naming the cost; piped stdin
+    takes the decline default without a prompt — the piped path IS the
+    non-interactive form (pack has no --no-interact), matching the
+    no-readme guard's posture that automation never gets a destructive
+    default silently. On the wizard path a decline refuses immediately
+    rather than walking the user through prompts toward a guaranteed
+    refusal (with the parent still open, either the gate refuses or
+    the declined-supersession check does).
+
+    Resolution of the named sid:
+
+    - **Open** → refuse first if its bale/<sid> branch exists (the
+      session reached HOLD; superseding it here would strand the
+      branch — `bale revert <sid>` is the command that knows how to
+      discard that state); otherwise run the exchange, and on accept
+      close it through close_session_with_record — closure_reason
+      superseded-by-split, command "pack", one implementation shared
+      with cmd_unlock.
+    - **Not open, latest telemetry closure is superseded-by-split** →
+      proceed with a logged note and stamp the lineage anyway: the
+      idempotent re-run of a supersession pack that aborted after the
+      close (a cap refusal, an editor abort, a gate refusal against a
+      second open session) must be re-runnable without manual repair.
+    - **Anything else** → refuse: nothing open to supersede, and the
+      sid's history doesn't say a supersession already closed it.
+
+    The close events print to stdout here (no session log is open yet
+    — the child sid doesn't exist); the durable record is the parent's
+    telemetry entry, and cmd_pack journals the outcome into the child's
+    session log once it opens, beside the gate journal line.
+    """
+    from __main__ import (  # lazy — see module docstring
+        close_session_with_record,
+        confirm_yn,
+        fail,
+        git,
+        log,
+        session_is_open,
+    )
+    from bale_report import read_telemetry_record  # lazy — see module docstring
+
+    if args.supersedes is None:
+        return None, None
+    sid = args.supersedes.strip()
+    if not sid:
+        fail("--supersedes requires a session id.")
+
+    if not session_is_open(repo, sid):
+        record = read_telemetry_record(repo, sid)
+        attempts = (record or {}).get("attempts") or []
+        latest = attempts[-1] if attempts else {}
+        if latest.get("closure_reason") == "superseded-by-split":
+            log(f"--supersedes {sid}: not open, but its latest closure "
+                f"is superseded-by-split — treating this as the "
+                f"idempotent re-run of a supersession pack that aborted "
+                f"after the close; lineage will be stamped")
+            return sid, None
+        fail(
+            f"--supersedes {sid}: no open session with that id, and its "
+            f"telemetry history does not show a superseded-by-split "
+            f"closure — nothing to supersede. Check the sid against "
+            f"`bale status`, or drop --supersedes."
+        )
+
+    # Open parent. A HOLD-reached session owns a bale/<sid> branch;
+    # closing it here would strand the branch the same way cmd_unlock
+    # refuses to. Same remedy: revert first.
+    sid_branch = f"bale/{sid}"
+    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                       cwd=repo, check=False)
+    if branch_check.returncode == 0:
+        fail(
+            f"--supersedes {sid}: branch {sid_branch} exists — that "
+            f"session reached HOLD. Run `bale revert {sid}` to discard "
+            f"the held branch and close the session, then re-run this "
+            f"pack (the re-run proceeds via the supersession history "
+            f"only if the revert stamped superseded-by-split; otherwise "
+            f"re-state --supersedes is unnecessary — the parent is "
+            f"closed and the gate no longer collides)."
+        )
+
+    # The exchange (§5.2 wizard idiom): decline default, cost named.
+    if sys.stdin.isatty():
+        accepted = confirm_yn(
+            f"Close open session {sid} as superseded-by-split? Its "
+            f"registry entry and .bale/sessions/ state are removed and "
+            f"a closure record is written; a response for it could no "
+            f"longer be applied."
+        )
+    else:
+        accepted = False
+        log(f"--supersedes {sid}: stdin is not a TTY; the exchange's "
+            f"decline default applies without a prompt (nothing closed)")
+
+    if accepted:
+        telemetry_rel, _ = close_session_with_record(
+            repo, sid,
+            closure_reason="superseded-by-split",
+            command="pack",
+            log_path=f".bale/logs/{sid}.log",
+        )
+        log(f"superseded {sid} (closure record: "
+            f"{telemetry_rel if telemetry_rel else 'write failed — see log'})")
+        return sid, None
+
+    log(f"supersession of {sid} declined; nothing closed")
+    if args.goal is None or args.slug is None:
+        # Wizard path: the refusal is guaranteed (the parent stays open
+        # and a declined --supersedes pack refuses even past the gate),
+        # so refuse before walking the user through prompts whose
+        # answers would be thrown away.
+        fail(
+            f"supersession of {sid} was declined; the session stays "
+            f"open. Re-run and accept the prompt, `bale unlock {sid}` "
+            f"to close it by hand, or drop --supersedes."
+        )
+    return None, sid
 
 
 def _wizard_input_excludes(repo: Path) -> list[str]:
@@ -1530,6 +1679,21 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "re-pack."
         )
 
+    # Split supersession (v0.3.17, board 26): resolve --supersedes and
+    # run its exchange BEFORE the disjointness gate on both paths — the
+    # fully-specified path fires the gate in pre-flight just below, and
+    # the wizard path defers it to post-wizard, so the one placement
+    # that precedes both is here. An accepted exchange closes the named
+    # parent (closure_reason superseded-by-split, command "pack",
+    # through the shared close_session_with_record sequencing), which
+    # clears exactly that one collision; the gate still evaluates
+    # against every other open session. The close preceding the §7.4
+    # caps means an abort after acceptance leaves the parent closed —
+    # accepted (the parent was being abandoned by declared intent), and
+    # the idempotent re-run in _resolve_supersession is its repair
+    # path.
+    superseded_sid, declined_supersession = _resolve_supersession(args, repo)
+
     # Scope-disjointness gate (BALE.md 7.1 step 5, ADR-0007), read from
     # the ADR-0006 session registry. This replaces the unconditional
     # refusal that stood here: a pack is now admitted alongside open
@@ -1562,16 +1726,27 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"{osid} ({', '.join(sorted({f'{a} ~ {b}' for a, b in pairs}))})"
                 for osid, pairs in conflicts
             )
+            declined_note = ""
+            if declined_supersession is not None:
+                declined_note = (
+                    f" The supersession of {declined_supersession} was "
+                    f"declined at the prompt, so it stays open; re-run "
+                    f"and accept the prompt to close it as "
+                    f"superseded-by-split, or `bale unlock "
+                    f"{declined_supersession}` to close it by hand."
+                )
             fail(
                 f"pack scope intersects {len(conflicts)} open "
                 f"session(s): {detail}. Concurrent sessions require "
                 f"disjoint scope (ADR-0007). Narrow this pack with "
                 f"--include paths disjoint from the open scope(s), apply "
-                f"the open session's response first, or run `bale "
-                f"unlock` if it was abandoned. Note: a pack without "
+                f"the open session's response first, run `bale unlock` "
+                f"if it was abandoned, or re-run with `--supersedes "
+                f"<sid>` if this pack splits and supersedes an open "
+                f"session (BALE.md §7.2). Note: a pack without "
                 f"--include scopes the whole tree and conflicts with "
                 f"every open session; a read-only pack (--read-only, "
-                f"empty scope) conflicts with none."
+                f"empty scope) conflicts with none." + declined_note
             )
         # Journaled below, once the session log is open (sid allocation
         # happens further down; an informational line logged here would
@@ -1624,6 +1799,23 @@ def cmd_pack(args: argparse.Namespace) -> int:
     pack_scope = [] if args.read_only else resolved_scope(list(args.include))
     if gate_deferred:
         admitted_alongside = _run_scope_gate(pack_scope)
+
+    # A declined supersession that survives the gate (the parent's scope
+    # happened to be disjoint from this pack's) still refuses: the pack
+    # was invoked to supersede, nothing closed, and no lineage would be
+    # stamped — proceeding would silently do something materially
+    # different from what --supersedes declared. On the wizard path
+    # _resolve_supersession already refused at the decline, before any
+    # prompt could collect throwaway answers.
+    if declined_supersession is not None:
+        fail(
+            f"supersession of {declined_supersession} was declined and "
+            f"its scope does not collide with this pack, but a "
+            f"--supersedes pack that closes nothing and stamps no "
+            f"lineage would not be the pack you asked for. Re-run and "
+            f"accept the prompt, `bale unlock {declined_supersession}` "
+            f"to close it by hand, or drop --supersedes."
+        )
 
     # README resolution (BALE.md §7.3; precedence lives in the resolver's
     # docstring). Runs after the wizard so a wizard-collected goal /
@@ -1911,6 +2103,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "compatibility pointer names (the most recently opened) "
             "while several are open; sid disambiguation for them is "
             "deferred (ADR-0006)")
+    if superseded_sid is not None:
+        # Journal the supersession into the child's session log — the
+        # exchange ran pre-sid (its lines reached stdout only); the
+        # child's journal is where a later reader traces this pack, and
+        # the parent's telemetry record carries the durable closure.
+        log(f"supersedes {superseded_sid}: closed as superseded-by-split "
+            f"(closure record at claude/telemetry/{superseded_sid}.json); "
+            f"lineage stamped in depends_on.superseded_session")
 
     # Manifest, with the pack-time provenance stamp (v0.3.8, B1):
     # bale_version + contract-doc hashes + packer (--packer > [identity].
@@ -1949,6 +2149,18 @@ def cmd_pack(args: argparse.Namespace) -> int:
         out_of_scope=list(args.out_of_scope),
         expects_probe=args.expects_probe,
         context_paths=files,
+        depends_on={
+            "previous_response": None,
+            "previous_probe": None,
+            # The child→parent lineage stamp (v0.3.17, board 26): the
+            # sid this pack closed as superseded-by-split (or accepted
+            # as already so closed on the idempotent re-run), null on
+            # every non-supersession pack. One-directional by design:
+            # the child sid did not exist when the parent closed, so
+            # the parent's closure record carries no successor pointer
+            # — the manifest field here is the lineage's single home.
+            "superseded_session": superseded_sid,
+        },
         provenance=provenance,
     )
 

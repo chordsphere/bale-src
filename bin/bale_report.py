@@ -1321,7 +1321,9 @@ def format_integration_lock_value(info: dict) -> str:
 RECORD_VERSION = 1
 
 # The closure_reason vocabulary (telemetry-record.schema.json, v0.3.16):
-# why a session closed, stamped on unlock and revert attempts. One home —
+# why a session closed, stamped on unlock and revert attempts — and, as
+# of v0.3.17, on the parent-close attempt a `bale pack --supersedes`
+# writes (command "pack", reason "superseded-by-split"). One home —
 # bin/bale's --reason choices for both commands import this tuple, so the
 # CLI surface and the schema's enum can only drift in one place. Order is
 # the schema's; "closed-read-only" is the inferred value for a session
@@ -1458,6 +1460,31 @@ def build_telemetry_attempt(
         "feedback": (manifest or {}).get("feedback"),
         "log": log_path,
     }
+
+
+def read_telemetry_record(repo: Path, sid: str) -> Optional[dict]:
+    """Read the sid's telemetry record; None when absent or unreadable.
+
+    The read-side sibling of write_telemetry_record, added for pack's
+    supersession flow (v0.3.17): a `--supersedes` sid that is not open
+    is accepted only when this record's latest attempt shows a
+    superseded-by-split closure — the idempotent re-run of a
+    supersession pack that aborted after the close. Same trust posture
+    as the writer's re-read: a record that fails to parse or has lost
+    its attempts[] array reads as None — the caller treats that the
+    same as no record, and the writer is the one that moves corrupt
+    files aside (this reader never mutates anything). Never raises.
+    """
+    path = telemetry_record_path(repo, sid)
+    if not path.is_file():
+        return None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(loaded, dict) and isinstance(loaded.get("attempts"), list):
+        return loaded
+    return None
 
 
 def write_telemetry_record(repo: Path, sid: str, attempt: dict) -> Optional[str]:
