@@ -114,6 +114,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # first_section_of_handoff) lazily from __main__, the same idiom the other
 # siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
+    CLOSURE_REASONS,
     build_telemetry_attempt,
     emit_json_line,
     enable_json_mode,
@@ -197,7 +198,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.15"
+VERSION = "0.3.16"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1607,12 +1608,16 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # Telemetry record (v0.3.9, B2 — BALE.md §8.9). command="revert" and
     # validation null: no validation ran in THIS invocation — the HOLD
     # attempt that preceded a typical revert already recorded its own
-    # state/exit/reconciliation in the same file.
+    # state/exit/reconciliation in the same file. closure_reason
+    # (v0.3.16) is --reason when given and null otherwise — outcome
+    # "reverted" already names the event, and a null reason is honest
+    # rather than a guessed one.
     telemetry_rel = write_telemetry_record(
         repo, sid, build_telemetry_attempt(
             outcome="reverted", command="revert",
             manifest=stamped_manifest, scope=revert_scope,
             log_path=f".bale/logs/{sid}.log",
+            closure_reason=args.reason,
         ))
 
     # End-of-run summary through the shared formatter (see the
@@ -1901,6 +1906,14 @@ def cmd_unlock(args: argparse.Namespace) -> int:
              "integration lock and takes no session id. Run the two "
              "forms separately: `bale unlock [sid]` for a session, "
              "`bale unlock --integration` for the integration lock.")
+    # --reason is a session-closure fact; the integration lock is
+    # repo-level state, not a session, and its unlock writes no
+    # telemetry record (BALE.md §9.3). Combining them is the same
+    # contradiction as --integration with a sid.
+    if args.integration and args.reason is not None:
+        fail("`bale unlock --integration` clears the repo-level "
+             "integration lock; it closes no session, so there is no "
+             "closure to give a --reason for.")
     if args.integration:
         return _unlock_integration(repo)
 
@@ -1922,6 +1935,32 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             lock_path(repo).write_text("")
             log(f"cleared stale compatibility pointer (named {stale}; "
                 f"no session is open)")
+            # Telemetry (v0.3.16, BALE.md §8.9/§9.3): the cleared
+            # pointer named a sid, so a session's registry trace just
+            # ended — record it as closed for crash-debris, best-effort.
+            # Everything beyond the closure itself is null/empty: no
+            # tarball, no validation, no change paths, and the scope
+            # only when the debris sid actually recorded one (the
+            # conservative whole-tree widening read_session_scope
+            # applies to a MISSING scope would fabricate a scope this
+            # session never declared, so an absent scope.json records
+            # as []: "no scope recorded", per the schema). A write
+            # failure is logged and swallowed inside
+            # write_telemetry_record — the benign no-op contract of
+            # this path is untouchable. An empty pointer records
+            # nothing: there is no session to record.
+            debris_scope = (read_session_scope(repo, stale)
+                            if scope_file_path(repo, stale).exists()
+                            else [])
+            debris_rel = write_telemetry_record(
+                repo, stale, build_telemetry_attempt(
+                    outcome="unlocked", command="unlock",
+                    scope=debris_scope,
+                    closure_reason="crash-debris",
+                ))
+            if debris_rel:
+                log(f"telemetry: recorded {debris_rel} (crash-debris "
+                    f"closure for {stale})")
         print()
         print("  no open session; nothing to unlock.")
         return 0
@@ -1969,6 +2008,28 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             force=True,
         )
 
+    # Telemetry inputs (v0.3.16, BALE.md §8.9), read BEFORE
+    # close_session and the rmtree below — the same read-before-wipe
+    # ordering cmd_revert documents for its own telemetry inputs: the
+    # wipe takes scope.json with it, and the record is what preserves
+    # what the wipe destroys. The closure_reason stamps always: an
+    # explicit --reason beats the read-only inference (the operator
+    # knows more than the heuristic — a read-only session can itself
+    # be superseded or abandoned-in-fact); else `closed-read-only`
+    # when the recorded scope reads exactly [] — keyed on [], never on
+    # a missing scope, which read_session_scope deliberately widens to
+    # ["."] (its third-state contract: [] is the deliberately recorded
+    # read-only shape, distinct from missing/malformed); else
+    # `abandoned`, the plain never-applied case this command exists
+    # for.
+    unlock_scope = read_session_scope(repo, sid)
+    if args.reason is not None:
+        closure_reason = args.reason
+    elif unlock_scope == []:
+        closure_reason = "closed-read-only"
+    else:
+        closure_reason = "abandoned"
+
     # BALE.md §9.3 step 4: close the session in the registry, wipe the
     # session dir. No git operations — that's the whole point of unlock
     # vs revert. Threaded (ADR-0006): close_session removes this sid's
@@ -1986,12 +2047,31 @@ def cmd_unlock(args: argparse.Namespace) -> int:
         log(f"no session dir at {sessions_dir} to wipe")
         session_status = "not present"
 
+    # Telemetry record (v0.3.16 — BALE.md §8.9): every registry close
+    # is a recorded event, and unlock was the unrecorded one. Outcome
+    # "unlocked", command "unlock"; tarball, validation, change paths
+    # and feedback are all null/empty — nothing was applied, nothing
+    # ran — and the scope is what read_session_scope read before the
+    # wipe. Best-effort like every telemetry write: a failure is
+    # logged inside write_telemetry_record and never changes this
+    # command's exit behavior. The --force variant records identically
+    # — branch-preserved is a summary-row fact, not a closure reason.
+    telemetry_rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="unlocked", command="unlock",
+            scope=unlock_scope,
+            closure_reason=closure_reason,
+            log_path=f".bale/logs/{sid}.log",
+        ))
+
     # End-of-run summary through the shared formatter, same [STATUS] sid
     # shape as apply/handoff/revert. UNLOCK joins PASS/HOLD/REVERT as a
     # terminal-state headline. The --force "branch preserved" note is an
     # extra row only when a branch was actually left behind. As with
     # revert, the operational [bale] log lines above are the reference
-    # trail and this block is the last thing printed.
+    # trail and this block is the last thing printed. The telemetry row
+    # is the same row revert's summary carries, formatted by
+    # bale_report per the one-home rendering contract.
     rows = [
         ("lock", "cleared"),
         ("session", session_status),
@@ -2002,6 +2082,11 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             f"{sid_branch} preserved (--force); "
             f"`git branch -D {sid_branch}` to remove",
         ))
+    rows.append((
+        "telemetry",
+        f"recorded {telemetry_rel}" if telemetry_rel
+        else "write failed — see log",
+    ))
     print(format_summary_block(rows, status="UNLOCK", sid=sid))
     return 0
 
@@ -4175,6 +4260,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Session ID to revert. Optional with exactly one session "
              "open; required when several are open.",
     )
+    p_revert.add_argument(
+        "--reason", choices=CLOSURE_REASONS, default=None,
+        help="Why this session is being discarded, stamped into its "
+             "telemetry record as closure_reason (BALE.md §8.9). "
+             "Optional: omitted records null — the 'reverted' outcome "
+             "already names the event.",
+    )
     p_revert.set_defaults(func=cmd_revert)
 
     # rollback — git revert an applied (merged) session. BALE.md §9.2.
@@ -4258,6 +4350,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Session ID to unlock. Optional with exactly one session "
              "open; required when several are open. Must name an open "
              "session.",
+    )
+    p_unlock.add_argument(
+        "--reason", choices=CLOSURE_REASONS, default=None,
+        help="Why this session is closing, stamped into its telemetry "
+             "record as closure_reason (BALE.md §8.9). Omitted, unlock "
+             "infers: 'closed-read-only' when the session's recorded "
+             "scope is empty (a --read-only pack), 'abandoned' "
+             "otherwise. An explicit --reason beats the inference.",
     )
     p_unlock.add_argument(
         "--force", action="store_true",
