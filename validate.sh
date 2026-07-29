@@ -145,6 +145,19 @@ else
   fail "tools/response_lint.py present" "pack injects it; every pack will refuse until it exists"
 fi
 
+# tools/craft_response.py — the worker-side crafter `bale pack` injects
+# beside the lint (v1, session 007). Same present/executable rows as the
+# lint; no embedded-schema drift guard, because the crafter deliberately
+# embeds no schema (it scaffolds, the lint judges).
+if [[ -f "$INSTALL_DIR/tools/craft_response.py" ]]; then
+  pass "tools/craft_response.py present"
+  [[ -x "$INSTALL_DIR/tools/craft_response.py" ]] \
+    && pass "tools/craft_response.py executable" \
+    || fail "tools/craft_response.py executable"
+else
+  fail "tools/craft_response.py present" "pack injects it into every request"
+fi
+
 section "user-owned layer (global config)"
 # user/ is optional on a fresh install — absence is reported, not failed.
 # Presence is reported; if a global bale.toml exists, syntax-check it.

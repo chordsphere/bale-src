@@ -153,6 +153,7 @@ REQUIRED_RELEASE_MEMBERS=(
   schemas/diagnostics.schema.json
   schemas/telemetry-record.schema.json
   tools/response_lint.py
+  tools/craft_response.py
 )
 missing_members=()
 for member in "${REQUIRED_RELEASE_MEMBERS[@]}"; do

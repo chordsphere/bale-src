@@ -109,6 +109,15 @@ PACK_MAX_DEPTH = 20
 # offenders, not survey the whole tree.
 PACK_LARGEST_DIRS_TOPN = 5
 
+# The worker-side crafter (v1, session 007), injected into every request
+# beside bin/bale's INJECTED_TOOLS members. Named here rather than in that
+# list because bin/bale was held by a concurrent session when the crafter
+# landed; the injection site guards against a double copy, so folding this
+# name into INJECTED_TOOLS (and deleting this constant plus its guard
+# block) is a safe one-line consolidation for the next bin/bale-touching
+# session.
+CRAFT_TOOL = "craft_response.py"
+
 
 # ---------------------------------------------------------------------------
 # 2. File enumeration and filtering
@@ -703,6 +712,17 @@ def build_request_tarball(
         tools_dir.mkdir()
         for tool in INJECTED_TOOLS:
             shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
+                         follow_symlinks=False)
+
+        # Inject the worker-side crafter beside the lint (v1, session 007):
+        # request-NNN/tools/craft_response.py, same copy2 treatment so it
+        # arrives executable. The guard makes this block a no-op the moment
+        # bin/bale's INJECTED_TOOLS gains the entry — see the CRAFT_TOOL
+        # constant's comment for the consolidation path. A missing file
+        # here means the install broke (validate.sh asserts presence), so
+        # let the copy raise, matching the loop above.
+        if CRAFT_TOOL not in INJECTED_TOOLS:
+            shutil.copy2(TOOLS_DIR / CRAFT_TOOL, tools_dir / CRAFT_TOOL,
                          follow_symlinks=False)
 
         # manifest.json.

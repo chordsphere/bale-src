@@ -325,6 +325,16 @@ Field semantics:
   block verbatim into the session's telemetry record (BALE.md §8.9),
   which is what makes filling it honestly worth the two minutes.
 
+The skeleton itself is mechanized: `tools/craft_response.py`, shipped
+in every request per §3.1, emits a normal-response manifest with the
+computed fields filled and the judgment fields — `action`, `reason`,
+`summary`, `deferred`, `validation_will_run`, `claims` — left for the
+worker, plus the `apply.sh` scaffold of §5.1.1 (the no-op, or `rm`
+lines for deletions and per-path `chmod +x` lines for files the
+worker names executable). The crafter never validates its own
+output: fill the judgment fields, then the lint judges (§5.2.2's
+workflow). Sizes and hashes: §5.2.1.
+
 ### 5.2.1 Computing size_bytes and sha256
 
 `size_bytes` and `sha256` are computed, never transcribed
@@ -332,28 +342,17 @@ Field semantics:
 manifest sha256 disagrees with the bytes under `files/` (§7). Run
 the values off the real files.
 
-From inside the response directory, this emits the manifest path,
-size, and hash for every file under `files/` — exactly the `created`
-and `modified` entries, in the `path` form `changes[]` expects:
-
-```bash
-cd response-NNN
-find files -type f | sort | while read -r f; do
-  printf '%s\t%s\t%s\n' \
-    "${f#files/}" \
-    "$(wc -c < "$f")" \
-    "$(sha256sum "$f" | cut -d' ' -f1)"
-done
-```
-
-`${f#files/}` strips the mirror prefix, so `files/src/Foo.vue` reports
-as `src/Foo.vue`, paste-ready into `changes[].path`. On a host without
-`sha256sum` (macOS, say), use `shasum -a 256` in its place.
-
-`deleted` entries have no file under `files/`, so the snippet never
-emits them: set their `size_bytes` to `0` and `sha256` to `null` by
-hand per §5.2. Those two literals are the only size or hash values
-ever written rather than computed.
+The computation is the crafter's: `tools/craft_response.py` (shipped
+in every request per §3.1) walks `files/`, computes every
+`size_bytes` and `sha256`, and emits the `changes[]` skeleton with
+the mirror prefix stripped, paste-ready — `--changes-only` for the
+array alone; `--help` for the full surface. `deleted` entries carry
+no file under `files/`; their two literals (`size_bytes: 0`,
+`sha256: null`) are the only size or hash values not computed from
+bytes, and the tool writes them too (`--deleted PATH`). Nothing in
+this field set is ever produced from memory — a hash recalled rather
+than recomputed is exactly what §10.1 step 10 and `CLAUDE.md` §11.6
+exist to catch.
 
 ### 5.2.2 The feedback block
 
