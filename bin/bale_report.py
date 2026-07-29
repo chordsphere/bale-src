@@ -1320,6 +1320,22 @@ def format_integration_lock_value(info: dict) -> str:
 
 RECORD_VERSION = 1
 
+# The closure_reason vocabulary (telemetry-record.schema.json, v0.3.16):
+# why a session closed, stamped on unlock and revert attempts. One home —
+# bin/bale's --reason choices for both commands import this tuple, so the
+# CLI surface and the schema's enum can only drift in one place. Order is
+# the schema's; "closed-read-only" is the inferred value for a session
+# whose recorded scope is exactly [] and never needs typing by hand,
+# though an operator may still pass it explicitly.
+CLOSURE_REASONS = (
+    "abandoned",
+    "superseded-by-split",
+    "reframed-after-clarification",
+    "master-closeout",
+    "crash-debris",
+    "closed-read-only",
+)
+
 # The §7.3 reconciliation line as validation.sh conventionally prints it:
 #   <check name>: claim=<word> verdict=<word> [tag]
 # The check name may contain spaces and colons; anchor on the last
@@ -1388,6 +1404,7 @@ def build_telemetry_attempt(
     validation_output: Optional[str] = None,
     log_path: Optional[str] = None,
     overridden_paths: Optional[list] = None,
+    closure_reason: Optional[str] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -1409,6 +1426,12 @@ def build_telemetry_attempt(
     override admitted while other drift still refused; the refused paths
     themselves are recoverable from scope vs change_paths, both already
     recorded raw.
+
+    `closure_reason` (v0.3.16) stamps why a session closed on unlock and
+    revert attempts — one of CLOSURE_REASONS, or None. The stamping
+    rules (unlock always stamps; revert stamps only an explicit
+    --reason) live at the call sites in bin/bale; this builder records
+    what it is handed. Apply/retry call sites leave the default None.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -1425,6 +1448,7 @@ def build_telemetry_attempt(
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "outcome": outcome,
         "command": command,
+        "closure_reason": closure_reason,
         "tarball": tarball,
         "validation": validation,
         "scope": list(scope or []),

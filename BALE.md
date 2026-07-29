@@ -1513,12 +1513,36 @@ short-lived `.bale/sessions/<sid>/` directory:
 (inspect), `reverted` (the walkthrough's revert and `bale revert`
 alike), `rejected` (any apply/retry that exits through a `fail()`
 path — the record is minimal there, since a rejected tarball's
-manifest is unvalidated; detail stays in the session log), and
+manifest is unvalidated; detail stays in the session log),
 `bailout` (the session is consumed, and the feedback block's
-`budget_pressure: "bailed"` is precisely the signal worth keeping).
+`budget_pressure: "bailed"` is precisely the signal worth keeping),
+and — since v0.3.16 — `unlocked` (`bale unlock`, §9.3: the close
+with no git side effects, which previously left no durable trace
+and made the corpus structurally apply-only). The unlock event
+appends to the same one-file-per-sid record as every apply-close
+event; command is `unlock`, tarball and validation are null, and
+the scope is read before the session-dir wipe destroys it.
 A clarification writes nothing: it suspends the session rather than
 closing it, and the eventual normal response records. `--dry-run`
 writes nothing: no outcome occurred.
+
+**closure_reason: why a session closed.** Unlock and revert events
+carry a nullable `closure_reason` (v0.3.16, additive):
+`abandoned`, `superseded-by-split`, `reframed-after-clarification`,
+`master-closeout`, `crash-debris`, or `closed-read-only`. Unlock
+stamps it always — the operator's `--reason` when given; else
+`closed-read-only` when the recorded scope is exactly `[]` (the
+§7.2 read-only session shape; the inference keys on `[]`, never on
+a missing scope, which reads back conservative whole-tree); else
+`abandoned`. An explicit `--reason` beats the read-only inference:
+the operator knows more than the heuristic — a read-only session
+can itself be superseded or abandoned-in-fact. Unlock's no-sid
+sweep, when it clears a stale compatibility pointer naming a sid,
+best-effort appends `crash-debris` to that sid's record (§9.3
+step 2). Revert stamps `--reason` when given and null otherwise —
+`reverted` already names the event, and a null reason is honest
+rather than a guessed one. Apply and retry attempts record null:
+they are apply-close events, not closures.
 
 **Update semantics: one file per sid, append per event.** The first
 apply-close event creates the record; every later one against the
@@ -1676,7 +1700,11 @@ Steps:
 
 The function owns the full flow — the user doesn't switch branches
 or run any preliminary command. A single `bale revert <sid>` leaves
-them on their origin branch with the bale branch gone.
+them on their origin branch with the bale branch gone. `--reason`
+(v0.3.16) optionally stamps why into the session's telemetry record
+as `closure_reason` (§8.9) — same vocabulary and flag spelling as
+`bale unlock`'s; omitted records null, since the `reverted` outcome
+already names the event.
 
 ### 9.2 `bale rollback [sid]` — applied, merged into origin
 
@@ -1734,18 +1762,40 @@ Steps:
    clears the stale pointer and says so. The named sid's session
    directory, if any, is left alone: with no open marker it is
    either the same inert debris or a consumed bailout's record,
-   which `bale handoff`'s lineage chase still reads.
+   which `bale handoff`'s lineage chase still reads. Since v0.3.16
+   the clear also best-effort appends an `unlocked` /
+   `crash-debris` entry to the named sid's telemetry record (§8.9)
+   — a registry trace ended, so it records; a telemetry miss is
+   logged and swallowed, and the benign no-op contract is
+   untouched. An empty pointer writes nothing: there is no session
+   to record.
 3. Resolve the target session (explicit sid, or the single open
    one). If the sid has a corresponding `bale/<sid>` branch: refuse.
    This means apply ran but didn't reach a terminal state. The user
    should use `bale revert <sid>` instead.
-4. Otherwise: close the session in the registry (its `open` marker
+4. Read the session's recorded scope — before the wipe in step 5
+   destroys it — and determine the `closure_reason` (§8.9):
+   `--reason` when given (choices are the §8.9 vocabulary); else
+   `closed-read-only` when the recorded scope is exactly `[]` (a
+   §7.2 read-only session, whose *only* exit is unlock by
+   construction — the inference keys on `[]`, never on a missing
+   scope, which reads conservative whole-tree); else `abandoned`.
+   An explicit `--reason` beats the read-only inference.
+5. Close the session in the registry (its `open` marker
    is removed and the compatibility pointer reconciled — repointed
    to the oldest remaining open session, or cleared), then remove
-   `.bale/sessions/<sid>/`. Done. No git operations.
+   `.bale/sessions/<sid>/`, then write the telemetry record:
+   outcome `unlocked`, command `unlock`, the scope as read, the
+   `closure_reason` from step 4, everything tarball- and
+   validation-shaped null (§8.9). The write is best-effort and
+   never changes the command's exit; the summary block reports
+   `recorded <path>` or an honest `write failed — see log`, the
+   same telemetry row revert's summary carries. Done. No git
+   operations.
 
 `--force` overrides the step-3 refusal, but with a prominent warning
-and a note in the log.
+and a note in the log; it records identically — branch-preserved is
+a summary-row fact, not a closure reason.
 
 **`bale unlock --integration`** is the second unlock surface: it
 clears the repo-level integration lock (§8.6) left stale by an
@@ -1766,7 +1816,10 @@ dangerous. Each of the three operations has different consequences:
 - `unlock` touches only bale's local state.
 
 The user benefits from knowing which one they're running. Naming
-them differently makes the cost visible.
+them differently makes the cost visible. Finer intent distinctions
+within a close — abandoned vs superseded vs a master close-out —
+are recorded via `--reason` (§8.9), not new commands: the trio
+stays intact.
 
 ### 9.5 Lock state lifecycle
 
