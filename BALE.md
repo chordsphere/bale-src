@@ -1802,6 +1802,20 @@ toggle freely.
 **`--list`:** show recent `applied/<sid>` tags with rollback status
 (reverted, re-applied, untouched).
 
+On the two clean-success paths — a completed rollback and a completed
+`--undo` — bale appends the attempt to the session's telemetry record
+(§8.9), v0.3.18: outcome `rolled-back` (or `re-applied`), command
+`rollback`, `closure_reason` null (rollback closes no session — the
+outcome names the event), everything tarball- and validation-shaped
+null, and the scope as `[]` when the session directory is long gone at
+rollback time (never a fabricated whole-tree). The write is best-effort
+and never changes the command's exit; the success output carries the
+same `recorded <path>` / `write failed — see log` telemetry row unlock
+and revert carry. The conflict and empty-revert paths record nothing,
+for the same reason they tag nothing: a record would claim a rollback
+that hasn't happened, and `git revert --continue` completes outside
+bale's bookkeeping by design.
+
 ### 9.3 `bale unlock [sid]` — abandoned session
 
 For when the user ran `bale pack`, got distracted, and never sent or
@@ -1857,6 +1871,13 @@ Steps:
 `--force` overrides the step-3 refusal, but with a prominent warning
 and a note in the log; it records identically — branch-preserved is
 a summary-row fact, not a closure reason.
+
+`--json` (v0.3.18) emits the end-of-run unlock report as one line of
+JSON on stdout — session-close path and benign no-op alike — under the
+shared stream discipline (`[bale] ` lines and the human block to
+stderr; human mode unchanged); the key contract is owned by
+`format_unlock_json`'s docstring in `bin/bale_report.py`, and
+`--integration --json` is refused, the report being session-shaped.
 
 **`bale unlock --integration`** is the second unlock surface: it
 clears the repo-level integration lock (§8.6) left stale by an

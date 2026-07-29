@@ -28,6 +28,12 @@ Tag lifecycle for one applied session:
       → rollback       git revert -m 1 <merge>, amend msg, tag reverted/<sid>
       → rollback --undo  git revert <revert-commit>, amend, tag re-applied/<sid>
 
+Each clean-success path also appends an attempt to the sid's telemetry
+record (v0.3.18, BALE.md §9.2/§8.9): outcome `rolled-back` / `re-applied`,
+command `rollback` — the same paths that write the tags, and only those.
+The conflict and empty-revert paths record nothing for the same reason
+they tag nothing: a record would claim a rollback that hasn't happened.
+
 Public surface is the single `cmd_rollback(args)` entry point; `bin/bale`
 does `from bale_rollback import cmd_rollback` and wires it to the CLI. Shared
 helpers (`log`, `fail`, `git`, `repo_root`, `refuse_system_dir`,
@@ -318,6 +324,48 @@ def _run_revert(
 
 
 # ---------------------------------------------------------------------------
+# Telemetry. The clean-success paths append an attempt to the sid's record.
+# ---------------------------------------------------------------------------
+
+def _record_rollback_attempt(repo: Path, sid: str, outcome: str) -> Optional[str]:
+    """Append this operation's attempt to the sid's telemetry record.
+
+    Called from the clean-success paths of _do_rollback / _do_undo only —
+    the same paths that write the reverted/<sid> / re-applied/<sid> tags
+    (v0.3.18, BALE.md §9.2/§8.9). `outcome` is "rolled-back" or
+    "re-applied"; command is always "rollback" (the schema's command enum
+    honestly names the producing command). closure_reason is null:
+    rollback closes no session — the outcome names the event, matching
+    revert's null-when-no---reason posture. Everything tarball- and
+    validation-shaped is null via the builder's defaults.
+
+    Scope: the session directory (and its scope.json) is normally long
+    gone at rollback time — apply's close wiped it. Read the recorded
+    scope only when scope.json still exists; otherwise record [] ("no
+    scope recorded"), per the crash-debris honesty refinement — never the
+    conservative whole-tree widening read_session_scope applies to a
+    MISSING scope, which here would fabricate a scope this record never
+    observed.
+
+    Best-effort like every telemetry write: a failure is logged inside
+    write_telemetry_record and never raises — the revert that already
+    landed stands. Returns the record's repo-relative path, or None on a
+    write failure (the caller's summary row reports which).
+    """
+    from __main__ import (build_telemetry_attempt, read_session_scope,
+                          scope_file_path, write_telemetry_record)
+    scope = (read_session_scope(repo, sid)
+             if scope_file_path(repo, sid).exists() else [])
+    return write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome=outcome, command="rollback",
+            scope=scope,
+            closure_reason=None,
+            log_path=f".bale/logs/{sid}.log",
+        ))
+
+
+# ---------------------------------------------------------------------------
 # Operations: list, rollback (default), undo.
 # ---------------------------------------------------------------------------
 
@@ -418,12 +466,19 @@ def _do_rollback(repo: Path, args) -> int:
         force=args.force,
     )
     if rc == 0:
+        # Telemetry (v0.3.18, BALE.md §9.2): the clean-success path — and
+        # only it — appends the attempt, same as it alone writes the tag.
+        telemetry_rel = _record_rollback_attempt(repo, sid, "rolled-back")
         # Detail first, the status headline last — the takeaway sits nearest
-        # the user's next prompt (the main-CLI output idiom).
+        # the user's next prompt (the main-CLI output idiom). The telemetry
+        # row is the same row unlock and revert carry.
         print()
         print(f"  reverted:  applied/{sid} ({commit[:9]})")
         print(f"  tag:       {reverted_tag}")
         print(f"  undo with: bale rollback {sid} --undo")
+        print(f"  telemetry: "
+              + (f"recorded {telemetry_rel}" if telemetry_rel
+                 else "write failed — see log"))
         print()
         print(f"  [ROLLED BACK] {sid}")
     return rc
@@ -464,10 +519,16 @@ def _do_undo(repo: Path, args) -> int:
         force=args.force,
     )
     if rc == 0:
+        # Telemetry (v0.3.18, BALE.md §9.2): success-path-only, as above.
+        telemetry_rel = _record_rollback_attempt(repo, sid, "re-applied")
         # Detail first, status headline last (same idiom as _do_rollback).
+        # Labels realigned to the 10-char field so the telemetry row fits.
         print()
-        print(f"  undid:  reverted/{sid} ({revert_commit[:9]})")
-        print(f"  tag:    {reapplied_tag}")
+        print(f"  undid:     reverted/{sid} ({revert_commit[:9]})")
+        print(f"  tag:       {reapplied_tag}")
+        print(f"  telemetry: "
+              + (f"recorded {telemetry_rel}" if telemetry_rel
+                 else "write failed — see log"))
         print()
         print(f"  [RE-APPLIED] {sid}")
     return rc
