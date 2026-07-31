@@ -121,6 +121,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_integration_holder,
     format_integration_lock_value,
     format_open_sessions_value,
+    format_revert_json,
     format_scope_value,
     format_staging_value,
     format_status_json,
@@ -199,7 +200,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.18"
+VERSION = "0.3.19"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -208,14 +209,20 @@ INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
 
-# The worker-side lint (TARBALL.md §10.1 step 10, mechanized), injected
-# into every request tarball beside the four globals (v0.3.8, session B1)
-# so the worker can self-check its response pre-pack without bale
-# installed. Lives at <install>/tools/ — the same sibling-of-bin layout
-# docs/ and schemas/ use; main()'s pack-time sanity check verifies it is
-# present, the same fail-loud posture as the missing-docs check.
+# The worker-side tools injected into every request tarball beside the
+# four globals, so the worker can craft and self-check its response
+# pre-pack without bale installed: the lint (TARBALL.md §10.1 step 10,
+# mechanized — v0.3.8, session B1) and the crafter (TARBALL.md §5.2's
+# skeleton emitter — v1 in session 007, folded into this list in
+# v0.3.19; until then bale_pack carried a guarded interim copy because
+# this file was held by a concurrent session). Both live at
+# <install>/tools/ — the same sibling-of-bin layout docs/ and schemas/
+# use; main()'s pack-time sanity check verifies each is present, the
+# same fail-loud posture as the missing-docs check. This tuple is the
+# single source for the injected-tool list: build_request_tarball
+# copies exactly these members, nothing else.
 TOOLS_DIR = INSTALL_ROOT / "tools"
-INJECTED_TOOLS = ("response_lint.py",)
+INJECTED_TOOLS = ("response_lint.py", "craft_response.py")
 
 # The pack-side exclusion constants (baked-in excluded dirs, secret
 # patterns, secret path excludes) and the pack threshold caps moved to
@@ -1480,7 +1487,14 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
             "branch_existed": bool,
             "origin_branch": str | None,
             "staging_status": str,  # "wiped (path)" / "already gone" / "not recorded"
+            "staging_state": str,   # "wiped" | "unremovable" | "already-gone" | "not-recorded"
+            "staging_path": str | None,  # the recorded staging path, when one was
         }
+    staging_status is the human row; staging_state/staging_path are the
+    same facts as machine keys (v0.3.19, for `bale revert --json`) —
+    derived here from the filesystem alongside the human string, never
+    parsed back out of it (the same posture cmd_unlock's
+    session_dir_wiped takes).
     """
     sessions_dir = repo / ".bale" / "sessions" / sid
     sid_branch = f"bale/{sid}"
@@ -1565,23 +1579,30 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
     # for an unremovable staging dir; the git side is already reverted.
     if recorded_staging is None:
         staging_status = "not recorded"
+        staging_state = "not-recorded"
         log("no recorded staging path; skipping staging cleanup")
     elif recorded_staging.exists():
         try:
             shutil.rmtree(recorded_staging)
             log(f"wiped staging at {recorded_staging}")
             staging_status = f"wiped ({recorded_staging})"
+            staging_state = "wiped"
         except OSError as e:
             log(f"warning: could not remove {recorded_staging}: {e}")
             staging_status = f"left in place ({recorded_staging}: {e})"
+            staging_state = "unremovable"
     else:
         log(f"staging at {recorded_staging} already gone")
         staging_status = "already gone"
+        staging_state = "already-gone"
 
     return {
         "branch_existed": branch_existed,
         "origin_branch": origin_branch,
         "staging_status": staging_status,
+        "staging_state": staging_state,
+        "staging_path": (str(recorded_staging)
+                         if recorded_staging is not None else None),
     }
 
 
@@ -1593,6 +1614,16 @@ def cmd_revert(args: argparse.Namespace) -> int:
     if repo is None:
         fail("not in a git repo. `bale revert` requires the project repo.")
     refuse_system_dir(repo)
+
+    # `bale revert --json` (v0.3.19) — stream discipline first, before any
+    # line can print (matches cmd_unlock, v0.3.18): stdout carries exactly
+    # the one JSON line format_revert_json owns; `[bale] ` lines and the
+    # human summary block go to stderr as the reference trail. Human mode
+    # is byte-identical: when the swap never happens, no code path below
+    # differs. Refusal paths exit through fail() — stderr, non-zero,
+    # nothing on stdout — like every other json surface's error paths.
+    if args.json:
+        enable_json_mode()
 
     # ADR-0006 threading: the sid is optional. With exactly one open
     # session it resolves implicitly (the zero-argument single-session
@@ -1700,6 +1731,21 @@ def cmd_revert(args: argparse.Namespace) -> int:
         status="REVERT",
         sid=sid,
     ))
+    # --json (v0.3.19): the one stdout line, emitted last so the human
+    # block above (now on stderr under the stream discipline) stays the
+    # reference trail. Key contract: format_revert_json's docstring.
+    if args.json:
+        emit_json_line(format_revert_json(
+            sid=sid,
+            log_path=str(repo / ".bale" / "logs" / f"{sid}.log"),
+            closure_reason=args.reason,
+            origin_branch=status["origin_branch"],
+            branch_deleted=sid_branch,
+            lock_cleared=lock_cleared,
+            staging_state=status["staging_state"],
+            staging_path=status["staging_path"],
+            telemetry=telemetry_rel,
+        ))
     return 0
 
 
@@ -4378,6 +4424,18 @@ def build_parser() -> argparse.ArgumentParser:
              "telemetry record as closure_reason (BALE.md §8.9). "
              "Optional: omitted records null — the 'reverted' outcome "
              "already names the event.",
+    )
+    p_revert.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run revert report as one line of JSON on "
+             "stdout — the machine-readable surface for an orchestrator "
+             "discarding HOLDs. Stream discipline matches pack/apply/"
+             "status/unlock --json: '[bale] ' lines and the human summary "
+             "block go to stderr, stdout carries exactly the JSON line; "
+             "human mode is unchanged. Emitted on the discard path "
+             "(outcome 'reverted'); refusals exit through fail() with "
+             "nothing on stdout. The key contract is owned by "
+             "format_revert_json's docstring in bin/bale_report.py.",
     )
     p_revert.set_defaults(func=cmd_revert)
 

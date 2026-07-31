@@ -9,7 +9,10 @@ broken install both commands must refuse up front with the identical
 "Reinstall bale." message: before any prompt, before any tarball
 resolution, before any session state exists. The handoff side is the
 gap this test pins closed — previously a broken install died mid-build
-as a copy failure after sid allocation.
+as a copy failure after sid allocation. Since v0.3.19 the gate covers
+both INJECTED_TOOLS members (the crafter joined the list in the
+session-007 consolidation), and the intact-install pack test doubles
+as the end-to-end pin that a real pack ships both tools, executable.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the harness lives
 in ``tests/harness.py`` since the second suite landed (the board-11
@@ -28,6 +31,7 @@ or via ``python3 -m unittest discover -s tests``.
 
 from __future__ import annotations
 
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -137,6 +141,22 @@ class InstallPrecheckTest(unittest.TestCase):
 
         self.assertEqual(error_line(pack.stderr), error_line(handoff.stderr))
 
+    def test_missing_craft_tool_refuses_pack_and_handoff(self) -> None:
+        """The crafter joined INJECTED_TOOLS in v0.3.19 (the session-007
+        consolidation), so the gate now covers it too — closing the gap
+        007's notes named: until then a missing crafter surfaced as the
+        copy raising inside pack rather than this pre-run check."""
+        (self.install / "tools" / "craft_response.py").unlink()
+
+        pack = self.run_pack(self.install)
+        self.assert_refused_up_front(pack, "tools/craft_response.py")
+
+        handoff = self.run_handoff(self.install)
+        self.assert_refused_up_front(handoff, "tools/craft_response.py")
+        self.assertNotIn("no-such-response", handoff.stderr)
+
+        self.assertEqual(error_line(pack.stderr), error_line(handoff.stderr))
+
     # -- intact install: the gate is pass-through ------------------------
 
     def test_intact_install_handoff_passes_gate(self) -> None:
@@ -147,7 +167,16 @@ class InstallPrecheckTest(unittest.TestCase):
         self.assertIn("not found", result.stderr)
 
     def test_intact_install_pack_end_to_end(self) -> None:
-        """A full piped pack succeeds — the widened gate broke nothing."""
+        """A full piped pack succeeds — the widened gate broke nothing —
+        and the request tarball ships BOTH injected tools, executable.
+
+        The tarball half takes session 007's deferred pack-E2E proposal
+        (v0.3.19): with the guarded interim copy in bale_pack retired,
+        bin/bale's INJECTED_TOOLS is the single source for the injected
+        tools, and this is the end-to-end pin that a real pack ships
+        every member — the lint and the crafter — with the exec bits
+        copy2 preserves from the install.
+        """
         result = self.run_pack(self.install)
         self.assertEqual(
             result.returncode, 0,
@@ -160,6 +189,24 @@ class InstallPrecheckTest(unittest.TestCase):
             msg=f"expected one request tarball in {outbox}, "
                 f"found {[t.name for t in tarballs]}",
         )
+        with tarfile.open(tarballs[0]) as tf:
+            members = {m.name: m for m in tf.getmembers()}
+        # The inner directory is request-NNN (TARBALL.md §1) — the sid's
+        # three-digit counter, not the tarball's full filename stem.
+        nnn = tarballs[0].name[: -len(".tar.gz")][-3:]
+        request_dir = f"request-{nnn}"
+        for tool in ("response_lint.py", "craft_response.py"):
+            name = f"{request_dir}/tools/{tool}"
+            self.assertIn(
+                name, members,
+                msg=f"{tool} missing from the request tarball; members:\n"
+                    + "\n".join(sorted(members)),
+            )
+            self.assertTrue(
+                members[name].mode & 0o111,
+                msg=f"{name} arrived without an exec bit "
+                    f"(mode {oct(members[name].mode)})",
+            )
 
 
 if __name__ == "__main__":

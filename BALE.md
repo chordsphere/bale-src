@@ -1767,6 +1767,12 @@ as `closure_reason` (§8.9) — same vocabulary and flag spelling as
 `bale unlock`'s; omitted records null, since the `reverted` outcome
 already names the event.
 
+`--json` (v0.3.19) emits the end-of-run revert report as one line of
+JSON on stdout under the shared stream discipline (`[bale] ` lines
+and the human block to stderr; human mode unchanged; refusals stay
+fail()-shaped with empty stdout); the key contract is owned by
+`format_revert_json`'s docstring in `bin/bale_report.py`.
+
 ### 9.2 `bale rollback [sid]` — applied, merged into origin
 
 For a bale that has been merged (tagged `applied/<sid>`). Uses

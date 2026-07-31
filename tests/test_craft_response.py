@@ -312,10 +312,12 @@ class CraftJudgeSeparation(unittest.TestCase):
 
 
 class PackInjectionSurface(unittest.TestCase):
-    """Unit-shaped injection assertion (no bin/bale E2E this session):
-    build_request_tarball ships tools/craft_response.py beside the
-    INJECTED_TOOLS members, and stays single-copy once bin/bale's list
-    gains the entry."""
+    """Unit-shaped injection assertion: build_request_tarball ships
+    exactly bin/bale's INJECTED_TOOLS members — the single source since
+    the v0.3.19 consolidation retired the guarded interim copy that
+    shipped the crafter while bin/bale was held (session 007). The
+    real-bale end-to-end pin (a piped pack ships both tools with exec
+    bits) lives in tests/test_install_precheck.py."""
 
     def _run_injection(self, injected_tools: list[str]) -> list[str]:
         """Drive build_request_tarball in a subprocess whose __main__ we
@@ -362,16 +364,23 @@ class PackInjectionSurface(unittest.TestCase):
             self.assertEqual(cp.returncode, 0, cp.stderr)
             return json.loads(cp.stdout.strip().splitlines()[-1])
 
-    def test_craft_tool_injected_beside_lint(self):
-        names = self._run_injection(["response_lint.py"])
-        self.assertIn("request-042/tools/response_lint.py", names)
-        self.assertIn("request-042/tools/craft_response.py", names)
-
-    def test_no_double_copy_once_main_list_has_it(self):
+    def test_injects_exactly_the_list_once_each(self):
         names = self._run_injection(["response_lint.py",
                                      "craft_response.py"])
         self.assertEqual(
+            names.count("request-042/tools/response_lint.py"), 1)
+        self.assertEqual(
             names.count("request-042/tools/craft_response.py"), 1)
+
+    def test_list_is_the_sole_source(self):
+        """With the guard block gone, nothing beside INJECTED_TOOLS
+        ships a tool: a list without the crafter yields a tarball
+        without it. (bin/bale's real list names both — this drives the
+        function with a narrowed list to prove no second copy site
+        survived the consolidation.)"""
+        names = self._run_injection(["response_lint.py"])
+        self.assertIn("request-042/tools/response_lint.py", names)
+        self.assertNotIn("request-042/tools/craft_response.py", names)
 
 
 if __name__ == "__main__":
