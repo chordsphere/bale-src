@@ -31,7 +31,12 @@ deltas session named in its own sid) is deltas-in-place under the
 interim manual form: the master session 2026-07-29-continue-plan-005
 was again packed without --read-only (the wizard now asks; the
 answer wasn't taken — a habit gap, not a tooling gap) and unlocked
-before spawning; deltas via this pack.
+before spawning; deltas via this pack. This update (2026-08-01,
+landed by the narrow follow-on deltas session named in its own sid)
+is deltas-in-place; the master session 2026-07-31-continue-plan-002
+ran the board-24 read-only shape — both worker packs opened and
+applied alongside the open master with no intersection refusal, the
+first sitting on the scopeless form end to end.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -643,22 +648,92 @@ injection-consolidation-revert-json, confirmed by the deltas
 request's own pack-time provenance stamp — re-verify with bale
 --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-31 (landed by the narrow follow-on deltas
+session per the standing close-out form; applied-state facts
+reconciled from architect-relayed notes.md and apply confirmations —
+claude/telemetry reconciles at the next sitting's open):**
+
+- **State reconciled.** Contract-doc hashes matched provenance
+  byte-for-byte; 0.3.19 at sitting open. The master session ran
+  read-only (inferred from both worker packs opening and applying
+  with no ADR-0007 refusal against the open master — the board-24
+  shape's first full sitting; confirm at this deltas apply).
+  Sitting order deviated from §3's 27-first recommendation on the
+  manifest goal's authority (finish board 22), with rationale stated
+  for contest and accepted: 27 collides with 22c/22d on TARBALL.md
+  and documents more by running last.
+- **craft-kinds-v2 (board 22c) — DONE.** Sid
+  2026-07-31-craft-kinds-v2-003, applied 2026-07-31, no bump. The
+  crafter gained --kind {normal,bailout,clarification}: bailout
+  emits the §5.6.2 empty-surface manifest, a diagnostics.json
+  skeleton (session_id filled — mechanical, not judgment; ratified
+  over the brief's literal empty-values wording), a §5.7
+  headers-only handoff scaffold, and the kind-fixed no-op
+  apply.sh/validation.sh; clarification emits the questions[] stubs
+  (--questions N). Unfilled-cannot-pass proven per kind by lint
+  round trip. No third schema home: test-side key-set drift bridges
+  against schemas/. TARBALL.md §5.6.1/§5.6.2/§5.8/§5.9.2 shape
+  prose collapsed to trigger + tool pointer mirroring the
+  §5.2/§5.2.1 split; §5.7 kept whole as record; every removed
+  sentence accounted mechanized-or-redundant in notes.md. Ratified
+  as shipped: populated-files/ refusal as argument hygiene,
+  --changes-only refused / --apply-only allowed on non-normal
+  kinds, atomic refuse-overwrite pre-check, commented no-op
+  validation.sh, suite extension over a sibling file.
+- **probe-scaffold-22d (board 22d) — DONE.** Sid
+  2026-07-31-probe-scaffold-22d-004, applied 2026-07-31, no bump.
+  --probe SLUG emits the §4.2 canonical skeleton (sentinels,
+  capture-then-count integrity trailer, purpose-header shape) with
+  loud TODO placeholders that still run read-only with a
+  self-consistent count; §4.2's fenced block collapsed to trigger +
+  tool pointer with the audit-contract bullets kept; positional
+  response_dir now optional and refused-not-ignored under --probe;
+  --kind default moved to None for flag-error detectability;
+  kebab-only slug refusal; mutual exclusion widened to all nine
+  response-surface flags. Rider landed: the diagnostics-schema
+  bail_trigger pointer corrected 11.2 → 11.3 in schema and lint
+  embed together, with tests/test_schema_embeds.py as the durable
+  form of validate.sh's drift guard (response-manifest embed
+  included). Residue audit: three mechanizable findings (below) and
+  an explicit stop — nothing else in TARBALL.md is shape a worker
+  reconstructs.
+- **Board 22 CLOSED.** 22a–22d all DONE; the arc's stopping rule
+  held: probe-vs-guess, fit estimates, claim completeness, and
+  stay-in-lane remain prose by design.
+- **Proposals disposed:** 22d's three audit findings accepted and
+  fused as new board 31 (validation epilogue + exec-bit assertions
+  + lint feedback emitter); the 5.2 normal-kind no-scaffold pin
+  gains a ratified epilogue carve-out (checks are judgment; the
+  §7.3 reconciliation table is shape); PackInjectionSurface
+  skip-guard accepted as a 31 rider; VERSION bump re-queued onto 31
+  (two install-relevant tool sessions now unbumped; waiting for an
+  organic bin/ session inverts the 008 precedent — stated for
+  contest); 22c's schema-pointer proposal landed via 22d's rider;
+  the tar one-liners and §4.4 meta.json declined as trivia/judgment.
+- **Evidence 44 annotation** (append to evidence 44's entry, one
+  sentence): held twice more this sitting — both workers reasoned
+  new-file scope from the brief's directory-include sentence, zero
+  probes spent, both applies clean.
+- **This deltas session** — lands these deltas into this document.
+
+Version at sitting close: 0.3.19, unchanged (both sessions
+deliberately unbumped; the bump rides board 31) — verify with bale
+--version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **No sessions open.** Boards 28, 29, 22b, and 30 applied ahead of
-  this deltas pack; the master session (unlocked pre-spawn) and this
-  deltas session are closed.
-- **Next master sitting:** pack itself --read-only — **two
-  consecutive cold starts have now missed this and the wizard asks
-  the question; answer read-only.** Board 27 is the whole ready
-  queue and everything it documents has landed: author it against
-  the tree as it stands, absorbing the rider list on its row (grown
-  to six this sitting). After 27, the next candidates are 22c (the
-  mechanization arc continues) and board 5's opening moves, with
-  the board-30 fold-in (staging-row rendering) riding whichever
-  session next touches bin/bale's revert path — stated for contest
-  per evidence 23; the next master re-derives against the tree it
-  reads.
+- **No sessions open** once this deltas session closes; 22c and 22d
+  applied 2026-07-31.
+- **Next master sitting:** pack itself --read-only — the shape
+  worked end to end this sitting; keep the habit. Queue: **board
+  27 first** (the whole ready documentation close-out; its rider
+  list stands at six and nothing this sitting added to it — 22c/22d
+  edited their own TARBALL.md sections in-session), **then board
+  31** (locks TARBALL.md §7.3/§7.7/§5.2.2 against 27, so strictly
+  serialized; carries the VERSION bump). The board-30 fold-in
+  (staging-row rendering) still rides whichever session next
+  touches bin/bale's revert path. Stated for contest; the next
+  master re-derives against the tree it reads.
 
 ## 4. The board
 
@@ -903,7 +978,8 @@ and §8, so done items keep their numbers as one-line pointers.
     to both request-building commands, BALE.md §5.4 rider clause
     landed, first tracked test suite shipped with it.
 
-22. **Global-doc mechanization arc (the worker toolkit)** — replace
+22. **Global-doc mechanization arc (the worker toolkit) — CLOSED**
+    (arc complete, 2026-07-31) — replace
     instructional prose with shipped tools wherever a rule is shape;
     keep prose only where a rule is judgment. Ratified 2026-07-25
     (contracts §5; evidence 33; the delivery pattern is
@@ -927,12 +1003,15 @@ and §8, so done items keep their numbers as one-line pointers.
       empty strings the judge rejects, §5.2.1 collapsed to trigger
       + tool pointer. Injection consolidated into INJECTED_TOOLS by
       board 30 after shipping behind a temporary guarded block.
-    - **22c — bailout + clarification shapes:** diagnostics.json and
-      questions[] emitted from the schemas that already own them;
-      §5.6/§5.8/§5.9 shape prose collapses behind the tool.
-    - **22d — probe header template and residue:** the §4.2 scaffold,
-      then measure what prose remains and stop when the residue is
-      judgment. The non-mechanizable residue — probe-vs-guess,
+    - **22c — bailout + clarification shapes — DONE** 2026-07-31
+      (§2 sitting summary): --kind {bailout,clarification} emissions
+      landed from the schemas that already own them; §5.6.1/§5.6.2/
+      §5.8/§5.9.2 shape prose collapsed to trigger + tool pointers.
+    - **22d — probe header template and residue — DONE** 2026-07-31
+      (§2 sitting summary): the §4.2 scaffold landed with its fenced
+      block collapsed to trigger + tool pointer; residue audit
+      returned three mechanizable findings (fused as board 31) and
+      an explicit stop. The non-mechanizable residue — probe-vs-guess,
       fit estimates, claim completeness, stay-in-lane — remains
       prose by design; boards 4/5/6 are its control surface, not
       tooling.
@@ -1032,6 +1111,28 @@ and §8, so done items keep their numbers as one-line pointers.
     revert --json to the same one-home contract unlock got;
     v0.3.19. The pack E2E asserting both tools ship with exec bits
     landed here rather than waiting for the v0.4 bucket.
+
+31. **Worker-toolkit residue (from 22d's audit) + VERSION** — one
+    session, three fused emissions: a validation.sh reconciliation
+    epilogue (§7.3's claim/verdict table becomes a crafter emission
+    or sourced helper; which checks run stays worker judgment — the
+    ratified carve-out to 5.2's normal-kind no-scaffold pin), the
+    §7.7 exec-bit assertions emitted from the same --executable
+    list that already drives apply.sh's chmod lines, and a lint
+    --emit-feedback-mechanical printing the paste-ready
+    feedback.mechanical object (evidence-16 test applied at
+    disposition: the values were always the lint's computations;
+    the mismatch re-check still guards stale pastes). Riders:
+    skipUnless(bin/ exists) on the PackInjectionSurface tests so
+    tools-only sandboxes run clean-green; VERSION 0.3.19 → 0.3.20
+    in bin/bale, covering 22c/22d/31's injected-tool changes (the
+    one-line bin/ widening is deliberate — the 008 precedent's
+    bump-follows-promptly point). Scope: tools/craft_response.py,
+    tools/response_lint.py, tests, docs/TARBALL.md (§7.3, §7.7,
+    §5.2.2), bin/bale (VERSION line only). Serialized after 27
+    (TARBALL.md lock). Doc touches collapse §7.3's table shape and
+    §7.7's snippet to pointers the way §4.2 went; §5.2.2's
+    run-the-lint workflow sentence adapts.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1545,7 +1646,10 @@ New from the 2026-07-29/31 sitting:
     recorded scope stays invisible from inside the tarball; a brief
     sentence stating it is cheap and worked twice. Masters state
     the scope shape in every brief until board 27's §3.2 sentence
-    and the board-5-radar manifest stamp make it unnecessary.
+    and the board-5-radar manifest stamp make it unnecessary. Held
+    twice more the 2026-07-31 sitting — both workers reasoned
+    new-file scope from the brief's directory-include sentence, zero
+    probes spent, both applies clean.
 
 ## 7. Standing environment facts
 
