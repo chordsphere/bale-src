@@ -36,7 +36,13 @@ landed by the narrow follow-on deltas session named in its own sid)
 is deltas-in-place; the master session 2026-07-31-continue-plan-002
 ran the board-24 read-only shape — both worker packs opened and
 applied alongside the open master with no intersection refusal, the
-first sitting on the scopeless form end to end.
+first sitting on the scopeless form end to end. This update
+(2026-07-31, landed by the narrow follow-on deltas session named
+in its own sid) is deltas-in-place; the master session
+2026-07-31-continue-plan-006 ran read-only; both worker packs
+(007, 008) opened and applied alongside it with no intersection
+refusal, and its deltas pack required one clarification
+round-trip (evidence 45).
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -720,20 +726,60 @@ Version at sitting close: 0.3.19, unchanged (both sessions
 deliberately unbumped; the bump rides board 31) — verify with bale
 --version at the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-31 second sitting (this deltas
+session):**
+
+- **lifecycle-docs-closeout (board 27, session 007)** — ADR-0011
+  follow-up audit: most items had landed since the board row was
+  written (CLAUDE.md §3 mention, read-paths row, BALE.md §8.10.2
+  all present); the genuinely missing piece was the BALE.md §11
+  contract row, landed as row 25, wording verified at master review
+  against bale_validate.py (empty change surfaces on both
+  non-normal kinds; questions[] required on clarification,
+  forbidden elsewhere). Folk-recipe retirement was additive — no
+  verbatim prose existed to delete; §3.4 flow prose landed with the
+  evidence-42 decline set verified against bale_pack.py; CLAUDE.md
+  §11.2 pair-sync sentence per the DOCS.md §9 sanctioned pair.
+  Sweep's real gaps: §9 intro / §9.5 third exit
+  (superseded-by-split), §5 command-row flags, §5.4 cross-command
+  --json/--reason rows. All six riders landed.
+- **worker-toolkit-residue (board 31, session 008)** — the three
+  fused emissions landed; VERSION 0.3.20. Ratified: epilogue as
+  paste-ready stdout fragments (--validation-epilogue; a sourced
+  helper has no legal home — not a §5.1 artifact, not a project
+  file), three banner-separated parts with placement instructions;
+  verdict=missing [n/a] for claimed-but-unrecorded checks; python3
+  hard-require in the reconciliation (the toolkit already requires
+  it; no jq fallback). Accepted as shipped: the cross-run
+  one-source caveat (comment + doc framing; a stronger coupling, if
+  ever, is a lint-side textual set-comparison — parked as a
+  candidate rider for the next lint-touching session). Lint
+  --emit-feedback-mechanical emits only the four mechanically
+  derived members; linkage/provenance stay hand-added;
+  _recompute_mechanical one-derivation refactor pinned by two
+  tests. skipUnless rider proven both ways. Suite 113 green
+  (verified floor; see §7 amendment). One-apply-behind flagged
+  unprompted, as expected.
+
+Version at sitting close: 0.3.20 (bumped with 008) — verify with
+bale --version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **No sessions open** once this deltas session closes; 22c and 22d
-  applied 2026-07-31.
-- **Next master sitting:** pack itself --read-only — the shape
-  worked end to end this sitting; keep the habit. Queue: **board
-  27 first** (the whole ready documentation close-out; its rider
-  list stands at six and nothing this sitting added to it — 22c/22d
-  edited their own TARBALL.md sections in-session), **then board
-  31** (locks TARBALL.md §7.3/§7.7/§5.2.2 against 27, so strictly
-  serialized; carries the VERSION bump). The board-30 fold-in
-  (staging-row rendering) still rides whichever session next
-  touches bin/bale's revert path. Stated for contest; the next
-  master re-derives against the tree it reads.
+- **No sessions open** once this deltas session closes; 007 and
+  008 applied 2026-07-31.
+- **Next master sitting:** pack itself --read-only; keep the habit.
+  Queue: **board 32** (status clarification hint — small,
+  self-contained opener; its serialized-after-31 condition is
+  satisfied), then the strategic fork: **board 5** (trust ledger —
+  its full telemetry substrate now exists) vs **board 6** (blind
+  validation checkpoints); decide at the sitting, stated for
+  contest. Fold-in registry: board-30 staging-row rendering still
+  rides the next revert-path session; the reconciliation
+  label-column cap (008's proposal, accepted) rides the next
+  session touching tools/craft_response.py; the pack-report README
+  identity echo (evidence 45's mechanical counter) rides the next
+  session touching bin/bale_pack.py.
 
 ## 4. The board
 
@@ -919,7 +965,10 @@ and §8, so done items keep their numbers as one-line pointers.
     the observed cost.) [2026-07-27: board 24 lands the degenerate
     slice — a whole-request empty write-scope declaration; 13's
     eventual design subsumes 24 rather than colliding with it —
-    brief accordingly.]
+    brief accordingly.] Evidence-25 recurrence, 2026-07-31: board
+    31's harness-driven INSTALL_TREES include set forced
+    near-whole-tree recorded scope for a session whose write set
+    was five files — tally the cost.
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
     MISFRAMED** 2026-07-25 (this master session, chat-ratified). The
@@ -1069,28 +1118,8 @@ and §8, so done items keep their numbers as one-line pointers.
     substitute: 13's design remains unprejudged — 26 handles the
     true write-scope splits that remain.
 
-27. **Lifecycle docs close-out** — ADR-0011's outstanding follow-ups
-    (the CLAUDE.md §3 and BALE.md §8/§11 clarification-kind
-    mentions, tracked-but-unowned since v0.2.10); TARBALL.md §3.4
-    gains the split recipe as documented flow, retiring the
-    refusal-text folk recipe (the `--supersedes` flag-table row
-    itself landed with 26's doc touches); BALE.md §5/§9 swept for
-    24–26's landed behavior. Serialized last — it documents what
-    24–26 land. Doc-only, global docs included (bale-src is their
-    home). The §9 sweep now also documents 28–30's landed behavior
-    (rollback telemetry, unlock and revert --json) — everything
-    this row documents has landed as of 2026-07-31. Riders, six:
-    (2026-07-29) the §8.9 retitle to "Telemetry record at session
-    close" (citer check completed post-apply — safe; see the
-    registry), the internals-§6 surfacing + harness present-tense
-    flip (registry entry), and the new TARBALL.md §3.2
-    context_included-vs-recorded-scope sentence (evidence 41);
-    (2026-07-31, from sessions 007/008) TARBALL.md §3.1's tools/
-    listing shows only response_lint.py where requests now carry
-    two tools, BALE.md §6.1's request diagram omits tools/
-    entirely, and BALE.md §7.5 step 3 says "inject all four global
-    docs" with no mention of the tools — both BALE.md spots were
-    stale before this sitting and are now two tools stale.
+27. **Lifecycle docs close-out — DONE** 2026-07-31 (session 007;
+    §2 sitting summary).
 
 28. **Rollback telemetry — DONE** 2026-07-29/31 sitting (§2
     summary, fused with 29 into
@@ -1112,27 +1141,16 @@ and §8, so done items keep their numbers as one-line pointers.
     v0.3.19. The pack E2E asserting both tools ship with exec bits
     landed here rather than waiting for the v0.4 bucket.
 
-31. **Worker-toolkit residue (from 22d's audit) + VERSION** — one
-    session, three fused emissions: a validation.sh reconciliation
-    epilogue (§7.3's claim/verdict table becomes a crafter emission
-    or sourced helper; which checks run stays worker judgment — the
-    ratified carve-out to 5.2's normal-kind no-scaffold pin), the
-    §7.7 exec-bit assertions emitted from the same --executable
-    list that already drives apply.sh's chmod lines, and a lint
-    --emit-feedback-mechanical printing the paste-ready
-    feedback.mechanical object (evidence-16 test applied at
-    disposition: the values were always the lint's computations;
-    the mismatch re-check still guards stale pastes). Riders:
-    skipUnless(bin/ exists) on the PackInjectionSurface tests so
-    tools-only sandboxes run clean-green; VERSION 0.3.19 → 0.3.20
-    in bin/bale, covering 22c/22d/31's injected-tool changes (the
-    one-line bin/ widening is deliberate — the 008 precedent's
-    bump-follows-promptly point). Scope: tools/craft_response.py,
-    tools/response_lint.py, tests, docs/TARBALL.md (§7.3, §7.7,
-    §5.2.2), bin/bale (VERSION line only). Serialized after 27
-    (TARBALL.md lock). Doc touches collapse §7.3's table shape and
-    §7.7's snippet to pointers the way §4.2 went; §5.2.2's
-    run-the-lint workflow sentence adapts.
+31. **Worker-toolkit residue (from 22d's audit) + VERSION — DONE**
+    2026-07-31 (session 008; §2 sitting summary; VERSION 0.3.20).
+
+32. **bale status clarification hint** — the last unowned ADR-0011
+    follow-up, accepted from 007's Proposals: the status next-step
+    hint acknowledges an outstanding clarification
+    (suspended-session state), e.g. answer the questions in the
+    worker's chat. Scope hints: bin/bale status gather/render seam,
+    bin/bale_report.py; code or mixed work class. Its
+    serialize-after-31 condition is satisfied; free to spawn.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1243,7 +1261,12 @@ New, ratified 2026-07-25 (this master session, in chat):
   crafter never validates its own output: construction tooling and
   the blind-authored lint remain separately authored and separately
   maintained (evidence 16's self-oracle test applied at design
-  time). (Binds board 22.)
+  time). (Binds board 22.) Toolkit emissions contribute shape
+  only and print only what the tool itself computed: paste-ready
+  stdout fragments, never sourced helpers or response artifacts;
+  self-reported fields are hand-added by the worker, never
+  emitted (evidence-16 applied at the emission surface —
+  ratified 2026-07-31 with 008).
 
 New, ratified 2026-07-27 (the detour sitting, in chat):
 
@@ -1651,6 +1674,28 @@ New from the 2026-07-29/31 sitting:
     new-file scope from the brief's directory-include sentence, zero
     probes spent, both applies clean.
 
+New from the 2026-07-31 second sitting:
+
+45. **The brief seam is a transport surface and it failed silently
+    at the resolver.** The sitting's deltas pack shipped a stale
+    brief: a relative --readme-file resolved (cwd, then
+    search_paths) to an old sesh-002 close-out file instead of the
+    brief authored hours earlier — the goal named the right
+    content, the manifest was coherent against the tree, and only
+    the README was wrong. Evidence 40's class (load-bearing
+    artifacts living outside the repo) at the resolver: undated
+    near-duplicate briefs accumulate in Downloads, and first-match
+    resolution picks among them silently. The worker caught it via
+    the stop-and-clarify constraint plus a tree conflict, and the
+    recovery was the designed §5.9 suspended-session round-trip —
+    the base survived byte-identical (hash-confirmed both ends).
+    Countermeasures: briefs open by naming the sid and sitting they
+    serve (convention, effective this sitting); the operator
+    glances at the pack report's resolved README path and first
+    heading before shipping (discipline); and the pack report
+    echoes the README's first heading line (mechanical — fold-in
+    rider on the next bin/bale_pack.py-touching session, §3).
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1660,11 +1705,14 @@ New from the 2026-07-29/31 sitting:
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. The suite grew across
   the 2026-07-29/31 sitting (rollback telemetry, unlock json, the
-  craft tool, revert json; 72 tests green at 008's close, 65
-  before) — enumerate suites from the tree (`ls tests/`), not from
-  this doc; the per-file list this bullet used to carry went stale
-  within two sittings, and this deltas session could not verify
-  every new filename from a MASTER.md-only request. Named
+  craft tool, revert json) and again across the 2026-07-31 second
+  sitting: 113 green at 008's close (98 at its pack — the
+  doc-carried 72 had gone stale within the sitting, re-proving this
+  bullet's enumerate-from-the-tree rule; briefs state counts as
+  claims to verify) — enumerate suites from the tree (`ls tests/`),
+  not from this doc; the per-file list this bullet used to carry
+  went stale within two sittings, and this deltas session could not
+  verify every new filename from a MASTER.md-only request. Named
   landmarks: shared sandbox harness at tests/harness.py (owns
   run_bale_pty; INSTALL_TREES copies bin/ docs/ schemas/ tools/
   from repo root — the include set for any session running it);
@@ -1678,7 +1726,8 @@ New from the 2026-07-29/31 sitting:
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs.
+  still governs. bin/bale VERSION 0.3.20 (one-apply-behind:
+  stamps from the next pack onward).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
