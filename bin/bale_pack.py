@@ -109,14 +109,10 @@ PACK_MAX_DEPTH = 20
 # offenders, not survey the whole tree.
 PACK_LARGEST_DIRS_TOPN = 5
 
-# The worker-side crafter (v1, session 007), injected into every request
-# beside bin/bale's INJECTED_TOOLS members. Named here rather than in that
-# list because bin/bale was held by a concurrent session when the crafter
-# landed; the injection site guards against a double copy, so folding this
-# name into INJECTED_TOOLS (and deleting this constant plus its guard
-# block) is a safe one-line consolidation for the next bin/bale-touching
-# session.
-CRAFT_TOOL = "craft_response.py"
+# The worker-side crafter's interim CRAFT_TOOL constant (v1, session 007)
+# was deleted in v0.3.19: bin/bale's INJECTED_TOOLS names the crafter
+# directly, and that tuple is the single source for the injected-tool
+# list — see its comment for the consolidation history.
 
 
 # ---------------------------------------------------------------------------
@@ -701,28 +697,20 @@ def build_request_tarball(
         for doc in GLOBAL_DOCS:
             shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
 
-        # Inject the worker-side lint beside the four globals (v0.3.8,
-        # session B1): request-NNN/tools/response_lint.py, per TARBALL.md
-        # §3.1. Same copy2 treatment so the tool arrives executable.
-        # main()'s request-command sanity check (gating both callers:
-        # pack and handoff) verified presence, so a missing file here
-        # means the install broke mid-run — let the copy raise and the
-        # caller's failed-to-build handler surface it.
+        # Inject the worker-side tools beside the four globals, per
+        # TARBALL.md §3.1: request-NNN/tools/<each INJECTED_TOOLS member>
+        # — the lint (v0.3.8, session B1) and the crafter (session 007;
+        # consolidated into the list in v0.3.19, retiring the guarded
+        # interim copy that lived here while bin/bale was held by a
+        # concurrent session). Same copy2 treatment as the docs so each
+        # tool arrives executable. main()'s request-command sanity check
+        # (gating both callers: pack and handoff) verified presence, so
+        # a missing file here means the install broke mid-run — let the
+        # copy raise and the caller's failed-to-build handler surface it.
         tools_dir = request_dir / "tools"
         tools_dir.mkdir()
         for tool in INJECTED_TOOLS:
             shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
-                         follow_symlinks=False)
-
-        # Inject the worker-side crafter beside the lint (v1, session 007):
-        # request-NNN/tools/craft_response.py, same copy2 treatment so it
-        # arrives executable. The guard makes this block a no-op the moment
-        # bin/bale's INJECTED_TOOLS gains the entry — see the CRAFT_TOOL
-        # constant's comment for the consolidation path. A missing file
-        # here means the install broke (validate.sh asserts presence), so
-        # let the copy raise, matching the loop above.
-        if CRAFT_TOOL not in INJECTED_TOOLS:
-            shutil.copy2(TOOLS_DIR / CRAFT_TOOL, tools_dir / CRAFT_TOOL,
                          follow_symlinks=False)
 
         # manifest.json.

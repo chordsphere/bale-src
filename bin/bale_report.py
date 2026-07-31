@@ -752,7 +752,9 @@ def format_pack_json(
                      module — "packed" here; "applied", "held", "reverted",
                      "bailout", "dry-run" in format_apply_json (v0.2.8);
                      "status" in format_status_json (v0.2.9); "unlocked",
-                     "no-op" in format_unlock_json (v0.3.18) —
+                     "no-op" in format_unlock_json (v0.3.18); "reverted"
+                     again in format_revert_json (v0.3.19), the revert
+                     command's own single reporting point —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -1244,6 +1246,93 @@ def format_unlock_json(
         "branch_preserved": branch_preserved,
         "telemetry": telemetry,
         "debris": debris,
+    }
+    return json.dumps(payload)
+
+
+def format_revert_json(
+    *,
+    sid: str,
+    log_path: str,
+    closure_reason: Optional[str],
+    origin_branch: Optional[str],
+    branch_deleted: str,
+    lock_cleared: bool,
+    staging_state: str,
+    staging_path: Optional[str],
+    telemetry: Optional[str],
+) -> str:
+    """Render the `bale revert --json` end-of-run report as ONE line of JSON.
+
+    The revert sibling of format_unlock_json (v0.3.19): same stability
+    rules (existing keys are never renamed or removed; new keys may be
+    added), same one-compact-line shape, same emission path (the caller
+    emits it via emit_json_line so it reaches the real stdout under json
+    mode's stream discipline — module docstring). THIS DOCSTRING OWNS THE
+    KEY CONTRACT (the one-home rule BALE.md §9.1 points at); the CLI help
+    and the design doc name the owner, never a second copy of the list.
+    Relative to unlock's set: no `debris` key (revert has no stale-pointer
+    sweep) and no `session_dir_wiped` (revert's metadata gate guarantees
+    the session dir exists, so the wipe is unconditional); the branch and
+    staging facts revert's human rows carry ride as machine keys instead.
+    The set:
+
+      outcome  "reverted" — the only state that reaches revert's
+               end-of-run report. Every refusal path (no metadata, no
+               branch, already merged, dirty inspection checkout) exits
+               through fail() — stderr, non-zero, nothing on stdout —
+               like every other json surface's error paths. Part of the
+               one-place outcome vocabulary this module owns (see
+               format_pack_json); distinct from format_apply_json's
+               "reverted", which reports the apply walkthrough's own
+               revert branch.
+      sid      the reverted session id, `YYYY-MM-DD-<slug>-NNN`.
+      log      absolute path to the session log (.bale/logs/<sid>.log).
+      closure_reason
+               the operator's --reason as stamped into the telemetry
+               record, or null when omitted (the 'reverted' outcome
+               already names the event; revert never infers a reason).
+      origin_branch
+               the session's recorded integration target — the branch
+               the discard leaves current when it had to switch off the
+               bale branch, and the branch the deleted work would have
+               merged into.
+      branch_deleted
+               the deleted branch name, `bale/<sid>`. Always deleted:
+               revert refuses up front when the branch is missing.
+      lock_cleared
+               true when the registry showed the session open and this
+               revert closed it; false when reverting an already-closed
+               session's leftover branch/metadata (the explicit-sid
+               cleanup path).
+      staging_state
+               what happened to the session's recorded staging
+               directory — "wiped" (existed, removed), "already-gone"
+               (recorded but no longer present), "not-recorded" (no
+               staging_path stamped — no apply attempt reached staging),
+               or "unremovable" (rmtree failed; logged, left in place).
+      staging_path
+               the recorded staging path the state above is about, or
+               null when none was recorded.
+      telemetry
+               repo-relative path of the record this revert appended to
+               (claude/telemetry/<sid>.json, BALE.md §8.9), or null on a
+               (logged) write failure.
+
+    Pure: builds a string, prints nothing; the caller emits it, which
+    supplies the trailing newline.
+    """
+    payload = {
+        "outcome": "reverted",
+        "sid": sid,
+        "log": log_path,
+        "closure_reason": closure_reason,
+        "origin_branch": origin_branch,
+        "branch_deleted": branch_deleted,
+        "lock_cleared": lock_cleared,
+        "staging_state": staging_state,
+        "staging_path": staging_path,
+        "telemetry": telemetry,
     }
     return json.dumps(payload)
 
