@@ -450,12 +450,12 @@ forward-looking entry.
 
 | Command | Purpose | Phase |
 |---------|---------|-------|
-| `bale pack` | Build a request tarball from the project + user-specified scope. | v0.0.1 |
+| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); both in §7.2. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
-| `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. | v0.0.1 |
-| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. | v0.2 |
-| `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. | v0.0.5 |
+| `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
+| `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
+| `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
@@ -527,6 +527,23 @@ The following flags apply across multiple commands:
   the operator re-states it at retry, so an overridden apply that
   HOLDs is not iced out of its own session. Overrides admitted on any
   attempt, apply or retry, are stamped per-attempt (§8.9).
+- `--json` — swap the command's end-of-run report for one line of
+  JSON on stdout, under a shared stream discipline: `[bale] `
+  informational lines and the human block go to stderr, stdout
+  carries exactly the JSON line, and refusal paths stay
+  fail()-shaped — stderr, non-zero exit, nothing on stdout. Landed
+  per command: pack (v0.2.7), apply (v0.2.8), status (v0.2.9), retry
+  (v0.3.14), unlock (v0.3.18), revert (v0.3.19); `bale unlock
+  --integration --json` is refused, that report being
+  session-shaped (§9.3). Each report's key contract is owned by its
+  `format_*_json` docstring in `bin/bale_report.py` — stable keys,
+  additions only — never by a copy in this doc.
+- `--reason <choice>` — on `bale unlock` and `bale revert`
+  (v0.3.16): stamp why the session closed into its telemetry record
+  as `closure_reason` (§8.9 owns the vocabulary and the inference
+  that runs when the flag is absent). An explicit reason beats
+  unlock's read-only inference; revert without the flag records
+  null.
 - `--staging-dir <path>` — override the default
   `<repo>/.bale/staging/<sid>/` location (section 8.3). The override
   is used verbatim — no `<sid>` suffix — and refused if it exists.
@@ -595,6 +612,9 @@ request-NNN/
   TARBALL.md           # injected by bale
   DOCS.md              # injected by bale
   CODE.md              # injected by bale
+  tools/
+    response_lint.py   # injected by bale (v0.3.8): worker-side lint
+    craft_response.py  # injected by bale (v0.3.19): response-skeleton crafter
   context/             # everything the user chose to include
     <project files and any project docs>
   README.md            # optional; user's voice beyond manifest.goal
@@ -1057,7 +1077,11 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 1. Generate session ID. Reserve next NNN for the slug + date.
 2. Build `request-NNN/` skeleton.
 3. **Inject all four global docs** (`CLAUDE.md`, `TARBALL.md`,
-   `DOCS.md`, `CODE.md`) from bale's installation `docs/` directory.
+   `DOCS.md`, `CODE.md`) from bale's installation `docs/` directory,
+   **and the worker-side tools** under `tools/` — each member of
+   `bin/bale`'s `INJECTED_TOOLS` tuple (the one source for the list:
+   the lint and, since v0.3.19, the crafter), copied from the
+   install's `tools/` with mode preserved so each arrives executable.
 4. Write `manifest.json` with the gathered fields.
 5. Walk the include paths; apply exclusions (baked-in, `.baleignore`,
    user-supplied for this session); copy matching files into
@@ -1548,7 +1572,7 @@ on EOF.
   the integration lock. Same operation regardless
   of whether validation passed or held.
 
-### 8.9 Telemetry record at apply close
+### 8.9 Telemetry record at session close
 
 Every apply close writes (or updates) a durable per-session telemetry
 record — `claude/telemetry/<sid>.json`, shape in
@@ -1716,6 +1740,16 @@ refused merge — is discarded with `bale revert`. Unlock refuses when
 the branch exists and points at revert (§9.3 step 3); the checkout is
 never part of the question, since integration doesn't touch it
 (ADR-0008).
+
+Since v0.3.17 a third exit closes an open session without either
+command: an accepted `bale pack --supersedes <sid>` closes the named
+parent as superseded-by-split (§7.2) through the same
+close-with-record sequencing unlock uses — closure record per §8.9,
+`closure_reason` `superseded-by-split`, `command` `"pack"`, the
+record honestly naming the command that produced the event. It is a
+close of the no-branch state only: a parent that reached HOLD
+refuses supersession and routes through `bale revert` first, the
+same branch-exists posture as unlock's step-3 refusal.
 
 ### 9.1 `bale revert [sid]` — committed to the bale branch, not yet merged
 
@@ -1927,8 +1961,8 @@ lock. The three reachable states per session:
 
 | State | Registry | Branch | How you got here | How you leave |
 |-------|---------------|--------|-------------------|----------------|
-| Closed | no `open` marker | none | initial, post-merge, post-revert, post-unlock, post-bailout | `bale pack` |
-| Open, no branch | marker present | none | post-`bale pack` / post-`bale handoff`, before `bale apply` | `bale apply` (any walkthrough path) or `bale unlock [sid]` |
+| Closed | no `open` marker | none | initial, post-merge, post-revert, post-unlock, post-bailout, post-supersession (an accepted `bale pack --supersedes`, §7.2) | `bale pack` |
+| Open, no branch | marker present | none | post-`bale pack` / post-`bale handoff`, before `bale apply` | `bale apply` (any walkthrough path), `bale unlock [sid]`, or closure as superseded-by-split by an accepted `bale pack --supersedes <sid>` (§7.2) |
 | Open, with HOLD branch | marker present | `bale/<sid>` w/ the session commit (checkout untouched — ADR-0008) | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball> [--sid]` with a corrected response, or apply a corrected response (after `bale revert [sid]`) |
 
 Passed-and-kept is not a state. The apply walkthrough resolves
@@ -2079,6 +2113,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 22 | Own-scope drift (v0.3.10): every `changes[]` path lies inside the session's **own** recorded scope (`sessions/<sid>/scope.json`; created paths rejected the same as modified). Per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses. The refusal names every offending path and the declared scope, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
 | 23 | Detached-HEAD refusal: `bale pack` refuses when the repo's HEAD is detached, before any prompt, tarball, or session state — the integration-target stamp requires a real branch (§7.1 step 4a; the apply-side stamp requirement is row 8's resolution step, §8.1 step 5); listed here out of phase order to keep rows 4–22 stable | pack pre-flight |
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
+| 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
