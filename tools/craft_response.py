@@ -2,22 +2,40 @@
 """craft_response.py — mechanical scaffolder for a bale response directory.
 
 A WORKER runs this against its own response-NNN/ directory while
-building a normal response, without bale installed. It mechanizes the
-computed half of TARBALL.md §5.2/§5.2.1 and the §5.1.1 scaffold:
+building a response, without bale installed. It mechanizes the
+computed half of TARBALL.md §5.2/§5.2.1 and the §5.1.1 scaffold, and
+scaffolds all three response kinds (`--kind`, default `normal`):
 
-- walks `files/`, computes every `size_bytes` and `sha256`, and emits
-  the `changes[]` skeleton in paste-ready form — mirror prefix
-  stripped, computed values filled, `action` and `reason` left empty
-  for the worker (reason is judgment; the tool never generates it);
-- emits `deleted`-entry stubs on request (`--deleted PATH`); the two
-  hand-written literals of the old §5.2.1 recipe — `size_bytes: 0`,
-  `sha256: null` — are this tool's to write now;
-- emits the manifest skeleton for a normal response (`session_id` /
-  `responds_to` from `--sid`, `response_kind: "normal"`, the empty
-  structured fields present) and the `apply.sh` scaffold: the §5.1.1
-  no-op when nothing needs it, otherwise `rm -f` lines for deletions
-  and per-path `chmod +x` lines for files the worker names with
-  `--executable`.
+- (normal) walks `files/`, computes every `size_bytes` and `sha256`,
+  and emits the `changes[]` skeleton in paste-ready form — mirror
+  prefix stripped, computed values filled, `action` and `reason` left
+  empty for the worker (reason is judgment; the tool never generates
+  it);
+- (normal) emits `deleted`-entry stubs on request (`--deleted PATH`);
+  the two hand-written literals of the old §5.2.1 recipe —
+  `size_bytes: 0`, `sha256: null` — are this tool's to write now;
+- (normal) emits the manifest skeleton (`session_id` / `responds_to`
+  from `--sid`, `response_kind: "normal"`, the empty structured
+  fields present) and the `apply.sh` scaffold: the §5.1.1 no-op when
+  nothing needs it, otherwise `rm -f` lines for deletions and
+  per-path `chmod +x` lines for files the worker names with
+  `--executable`;
+- (bailout, §5.6) emits the manifest skeleton with the §5.6.2 empty
+  change surfaces, and under `--write` the full artifact set: the
+  no-op `apply.sh` and `validation.sh`, the `handoff.md` scaffold
+  carrying §5.7's section headers and nothing else (handoff CONTENT
+  is judgment and stays the worker's), and the `diagnostics.json`
+  skeleton carrying the schema's required keys — `session_id` filled
+  (mechanical), everything else empty;
+- (clarification, §5.9) emits the manifest skeleton with the same
+  empty change surfaces plus `questions[]` seeded with four-field
+  entry stubs (`--questions N`, default 1), and under `--write` the
+  no-op `apply.sh` and `validation.sh`.
+
+For the normal kind, `validation.sh` remains un-emitted on purpose:
+there it is the worker's hypothesis test (TARBALL.md §7) — judgment,
+never scaffolded. The no-op validation.sh exists only for the two
+kinds whose contract fixes it as a no-op.
 
 THE CRAFTER NEVER VALIDATES ITS OWN OUTPUT. `tools/response_lint.py`
 is the separately authored, separately maintained judge; this module
@@ -31,14 +49,21 @@ Usage:
 
 Modes (mutually exclusive; default prints the manifest skeleton):
     (default)       print the manifest-skeleton JSON to stdout
-    --changes-only  print only the changes[] array (paste-ready)
+    --changes-only  print only the changes[] array (normal kind only)
     --apply-only    print only the apply.sh scaffold
-    --write         write manifest.json and apply.sh into the response
-                    dir (refuses to overwrite; --force to allow)
+    --write         write the kind's artifact set into the response dir
+                    (normal: manifest.json, apply.sh; clarification:
+                    + validation.sh; bailout: + validation.sh,
+                    handoff.md, diagnostics.json). Refuses to
+                    overwrite; --force to allow.
 
 Options:
-    --deleted PATH      add a deleted-entry stub (repeatable)
-    --executable PATH   add a chmod +x line for a files/ path (repeatable)
+    --kind KIND         normal (default) | bailout | clarification
+    --questions N       clarification only: number of question-entry
+                        stubs to seed (default 1)
+    --deleted PATH      normal only: add a deleted-entry stub (repeatable)
+    --executable PATH   normal only: add a chmod +x line for a files/
+                        path (repeatable)
     --sid SESSION_ID    session id for session_id and responds_to;
                         required except under --changes-only/--apply-only
 
@@ -63,6 +88,8 @@ from pathlib import Path, PurePosixPath
 EXIT_OK = 0
 EXIT_ERROR = 2
 
+KINDS = ("normal", "bailout", "clarification")
+
 APPLY_NOOP = """#!/usr/bin/env bash
 # No additional operations for this session.
 exit 0
@@ -71,6 +98,47 @@ exit 0
 APPLY_HEADER = """#!/usr/bin/env bash
 set -euo pipefail
 """
+
+# TARBALL.md fixes validation.sh as a no-op on the two non-normal kinds
+# (§5.6.1 for bailouts, §5.9.2 for clarifications): nothing changed, so
+# there is nothing to test. On the normal kind validation.sh is the
+# worker's hypothesis test (§7) and this tool never emits it.
+VALIDATION_NOOP_BY_KIND = {
+    "bailout": """#!/usr/bin/env bash
+# No checks to run — a bailout response carries no change set
+# (TARBALL.md 5.6.2).
+exit 0
+""",
+    "clarification": """#!/usr/bin/env bash
+# No checks to run — a clarification response carries no change set
+# (TARBALL.md 5.9.2).
+exit 0
+""",
+}
+
+# TARBALL.md §5.7's required sections, in the required order, and
+# nothing else: the scaffold is the section list; the content under
+# each header is judgment and stays the worker's.
+HANDOFF_SCAFFOLD = """# Handoff
+
+## Original goal
+
+## What I loaded
+
+## What I explored
+
+## What I learned
+
+## Reading plan for the next session
+
+## Salvageable work
+"""
+
+# The four-field questions[] entry stub of TARBALL.md §5.9.2 /
+# response-manifest.schema.json. Every value is an empty string on
+# purpose: an unfilled skeleton is deliberately lint-invalid.
+QUESTION_STUB_KEYS = ("question", "context", "default_assumption",
+                     "why_blocked")
 
 
 def log(msg: str) -> None:
@@ -178,19 +246,52 @@ def build_changes(files_root: Path | None, deleted: list[str]) -> list[dict]:
     return entries
 
 
-def build_manifest(sid: str, changes: list[dict]) -> dict:
-    """The normal-response manifest skeleton per TARBALL.md §5.2: computed
-    and mechanical fields filled, judgment fields present but empty."""
-    return {
+def build_manifest(sid: str, kind: str, changes: list[dict],
+                   n_questions: int = 0) -> dict:
+    """The manifest skeleton per TARBALL.md §5.2 (normal), §5.6.2
+    (bailout), or §5.9.2 (clarification): computed and mechanical fields
+    filled, judgment fields present but empty.
+
+    The two non-normal kinds carry the empty change surfaces their
+    sections require; a clarification additionally seeds `questions[]`
+    with all-empty four-field entry stubs (unfilled-cannot-pass: the
+    lint rejects the empty strings).
+    """
+    manifest = {
         "session_id": sid,
         "responds_to": sid,
         "corrects": None,
-        "response_kind": "normal",
+        "response_kind": kind,
         "summary": "",              # worker fills
-        "changes": changes,
+        "changes": changes if kind == "normal" else [],
         "deferred": [],
-        "validation_will_run": [],  # worker fills
-        "claims": {},               # worker fills
+        "validation_will_run": [],  # worker fills (normal kind)
+        "claims": {},               # worker fills (normal kind)
+    }
+    if kind == "clarification":
+        manifest["questions"] = [
+            {k: "" for k in QUESTION_STUB_KEYS}  # worker fills all four
+            for _ in range(n_questions)
+        ]
+    return manifest
+
+
+def build_diagnostics(sid: str) -> dict:
+    """The diagnostics.json skeleton per TARBALL.md §5.8 /
+    schemas/diagnostics.schema.json: exactly the schema's required keys.
+    `session_id` is mechanical (the tool has it from --sid); every other
+    value is empty and the worker's — an unfilled skeleton is
+    deliberately schema-invalid (`bail_trigger` off-enum,
+    `bail_narrative` empty), so it cannot pass the lint by accident.
+    """
+    return {
+        "session_id": sid,
+        "bail_trigger": "",         # worker fills: an enum value (§5.8)
+        "bail_narrative": "",       # worker fills: judgment
+        "context_loaded": [],       # worker fills
+        "exploration_paths": [],    # worker fills
+        "tool_calls_summary": {},   # worker fills
+        "what_would_save_next_time": [],  # worker fills
     }
 
 
@@ -233,14 +334,20 @@ def shell_quote(path_str: str) -> str:
 def parse_args(argv: list[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="craft_response.py",
-        description=("Scaffold a bale normal-response manifest and apply.sh "
-                     "from the files/ mirror. The crafter never validates "
-                     "its own output; run tools/response_lint.py on the "
-                     "finished response."),
+        description=("Scaffold a bale response (--kind normal | bailout | "
+                     "clarification): the manifest skeleton, apply.sh, and "
+                     "the non-normal kinds' companion artifacts. The "
+                     "crafter never validates its own output; run "
+                     "tools/response_lint.py on the finished response."),
     )
     ap.add_argument("response_dir", help="the response-NNN/ directory")
     ap.add_argument("--sid", default=None,
                     help="session id (fills session_id and responds_to)")
+    ap.add_argument("--kind", choices=KINDS, default="normal",
+                    help="response kind to scaffold (default: normal)")
+    ap.add_argument("--questions", type=int, default=None, metavar="N",
+                    help="with --kind clarification: number of "
+                         "question-entry stubs to seed (default 1)")
     ap.add_argument("--deleted", action="append", default=[], metavar="PATH",
                     help="emit a deleted-entry stub for PATH (repeatable)")
     ap.add_argument("--executable", action="append", default=[],
@@ -270,6 +377,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.force and not args.write:
         return die("--force only means something with --write")
 
+    kind = args.kind
+
+    # Kind/flag coherence. This is argument hygiene, not response
+    # validation (the judge stays tools/response_lint.py): each of these
+    # combinations would scaffold an artifact the contract forbids, so
+    # the tool refuses to scaffold it rather than judging it later.
+    if kind != "normal":
+        if args.deleted or args.executable:
+            return die(f"--deleted/--executable are meaningless with "
+                       f"--kind {kind} — a {kind} response has empty "
+                       "change surfaces (TARBALL.md 5.6.2 / 5.9.2)")
+        if args.changes_only:
+            return die(f"--changes-only is meaningless with --kind {kind} "
+                       f"— a {kind} response has an empty changes[] "
+                       "(TARBALL.md 5.6.2 / 5.9.2)")
+    if args.questions is not None:
+        if kind != "clarification":
+            return die("--questions only means something with "
+                       "--kind clarification")
+        if args.questions < 1:
+            return die("--questions must be at least 1 — questions[] is "
+                       "required non-empty on a clarification "
+                       "(TARBALL.md 5.9.2)")
+    n_questions = args.questions if args.questions is not None else 1
+
     needs_sid = not (args.changes_only or args.apply_only)
     sid = (args.sid or "").strip()
     if needs_sid and not sid:
@@ -296,6 +428,11 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         return die(str(exc))
 
+    if kind != "normal" and mirror:
+        return die(f"files/ holds {len(mirror)} file(s) but a {kind} "
+                   "response ships no file changes (TARBALL.md 5.6.1 / "
+                   "5.9.2) — clear files/ or craft in a clean response dir")
+
     for v in args.deleted:
         if v in mirror:
             return die(f"--deleted {v!r} also exists under files/ — a "
@@ -311,11 +448,15 @@ def main(argv: list[str] | None = None) -> int:
                                 args.deleted)
     except ValueError as exc:
         return die(str(exc))
-    apply_sh = build_apply_sh(args.deleted, args.executable)
+    apply_sh = (APPLY_NOOP if kind != "normal"
+                else build_apply_sh(args.deleted, args.executable))
 
-    n_mirror = len(mirror)
-    log(f"files/ mirror: {n_mirror} file(s); deleted stubs: "
-        f"{len(args.deleted)}; chmod lines: {len(args.executable)}")
+    if kind == "normal":
+        log(f"files/ mirror: {len(mirror)} file(s); deleted stubs: "
+            f"{len(args.deleted)}; chmod lines: {len(args.executable)}")
+    else:
+        log(f"scaffolding a {kind} response — empty change surfaces, "
+            "no-op apply.sh and validation.sh")
 
     if args.changes_only:
         print(json.dumps(changes, indent=2))
@@ -328,30 +469,59 @@ def main(argv: list[str] | None = None) -> int:
         log("apply.sh scaffold emitted")
         return EXIT_OK
 
-    manifest = build_manifest(sid, changes)
+    manifest = build_manifest(sid, kind, changes, n_questions)
+
+    # The kind's artifact set for --write. The normal kind never gets a
+    # validation.sh from this tool (worker's hypothesis test, §7); the
+    # two non-normal kinds get the contract-fixed no-op, and a bailout
+    # additionally gets its two required companions (§5.6.1).
+    emit: list[tuple[str, str]] = [
+        ("manifest.json", json.dumps(manifest, indent=2) + "\n"),
+        ("apply.sh", apply_sh),
+    ]
+    if kind in VALIDATION_NOOP_BY_KIND:
+        emit.append(("validation.sh", VALIDATION_NOOP_BY_KIND[kind]))
+    if kind == "bailout":
+        emit.append(("handoff.md", HANDOFF_SCAFFOLD))
+        emit.append(("diagnostics.json",
+                     json.dumps(build_diagnostics(sid), indent=2) + "\n"))
 
     if args.write:
-        wrote: list[Path] = []
-        for name, body in (("manifest.json",
-                            json.dumps(manifest, indent=2) + "\n"),
-                           ("apply.sh", apply_sh)):
+        for name, _ in emit:
             dst = rdir / name
             if dst.exists() and not args.force:
                 return die(f"{dst} exists — re-run with --force to "
                            "overwrite")
+        wrote: list[Path] = []
+        for name, body in emit:
+            dst = rdir / name
             dst.write_text(body, encoding="utf-8")
             wrote.append(dst)
         for dst in wrote:
             print(dst)
-        log("wrote manifest.json and apply.sh — fill summary, action, "
-            "reason, validation_will_run, and claims, then run "
-            "tools/response_lint.py")
+        names = ", ".join(name for name, _ in emit)
+        fill = {
+            "normal": "fill summary, action, reason, validation_will_run, "
+                      "and claims",
+            "bailout": "fill summary, the handoff.md sections, and the "
+                       "diagnostics.json fields (bail_trigger, "
+                       "bail_narrative, ...)",
+            "clarification": "fill summary and all four fields of every "
+                             "questions[] entry",
+        }[kind]
+        log(f"wrote {names} — {fill}, then run tools/response_lint.py")
         return EXIT_OK
 
     print(json.dumps(manifest, indent=2))
-    log("manifest skeleton emitted (apply.sh scaffold via --apply-only or "
-        "--write) — fill the judgment fields, then run "
-        "tools/response_lint.py")
+    if kind == "normal":
+        log("manifest skeleton emitted (apply.sh scaffold via --apply-only "
+            "or --write) — fill the judgment fields, then run "
+            "tools/response_lint.py")
+    else:
+        rest = ", ".join(name for name, _ in emit[1:])
+        log(f"manifest skeleton emitted — the {kind} kind's remaining "
+            f"artifacts ({rest}) are written by --write; fill the "
+            "judgment fields, then run tools/response_lint.py")
     return EXIT_OK
 
 

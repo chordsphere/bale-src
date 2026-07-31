@@ -326,14 +326,16 @@ Field semantics:
   which is what makes filling it honestly worth the two minutes.
 
 The skeleton itself is mechanized: `tools/craft_response.py`, shipped
-in every request per §3.1, emits a normal-response manifest with the
-computed fields filled and the judgment fields — `action`, `reason`,
-`summary`, `deferred`, `validation_will_run`, `claims` — left for the
-worker, plus the `apply.sh` scaffold of §5.1.1 (the no-op, or `rm`
-lines for deletions and per-path `chmod +x` lines for files the
-worker names executable). The crafter never validates its own
-output: fill the judgment fields, then the lint judges (§5.2.2's
-workflow). Sizes and hashes: §5.2.1.
+in every request per §3.1, emits the manifest skeleton for any
+response kind (`--kind {normal,bailout,clarification}`, default
+`normal`) with the computed fields filled and the judgment fields —
+`action`, `reason`, `summary`, `deferred`, `validation_will_run`,
+`claims` — left for the worker, plus the `apply.sh` scaffold of
+§5.1.1 (the no-op, or `rm` lines for deletions and per-path
+`chmod +x` lines for files the worker names executable). The two
+non-normal kinds' full artifact sets are §5.6.1 and §5.9.2. The
+crafter never validates its own output: fill the judgment fields,
+then the lint judges (§5.2.2's workflow). Sizes and hashes: §5.2.1.
 
 ### 5.2.1 Computing size_bytes and sha256
 
@@ -533,16 +535,18 @@ pushing through; the *why* lives in `CLAUDE.md` §11.
 
 #### 5.6.1 Shape
 
-```
-response-NNN/
-  manifest.json        # response_kind: "bailout"
-  apply.sh             # no-op
-  validation.sh        # no-op
-  handoff.md           # required: instructions for the next Claude (§5.7)
-  diagnostics.json     # required: structured diagnostics (§5.8)
-  files/               # absent or empty
-  notes.md             # optional, addressed to me (not the next Claude)
-```
+The bailout's artifact set is mechanized: when the §11 triggers have
+fired and a bailout is the response, `tools/craft_response.py --kind
+bailout --write` (shipped in every request per §3.1) emits the whole
+set — the manifest with its empty change surfaces (§5.6.2) and no
+`files/` (absent or empty), the no-op `apply.sh` and `validation.sh`
+the kind fixes (nothing changed, nothing to test), the required
+`handoff.md` as a scaffold of §5.7's sections (the content under
+each header is judgment and stays the worker's), and the required
+`diagnostics.json` skeleton (§5.8). `notes.md` remains optional,
+addressed to me rather than the next Claude. The crafter never
+validates its own output; the lint judges the finished response, and
+an unfilled skeleton is deliberately lint-invalid.
 
 `response_kind: "bailout"` in the manifest is the canonical marker.
 Bale's apply step branches on it: instead of applying changes, it
@@ -556,16 +560,15 @@ retired everywhere, §5.5.)
 
 #### 5.6.2 Manifest specifics for bailouts
 
-When `response_kind: "bailout"`:
-
-- **`summary`** — one paragraph: what was attempted, which trigger
-  fired (per `CLAUDE.md` §11.3), what the handoff prescribes for
-  the next session.
-- **`changes`** — empty array. Nothing changed.
-- **`deferred`** — empty. Deferred work lives in `handoff.md`'s
-  prescription, not as a flat list.
-- **`validation_will_run`** — empty array. No checks to run.
-- **`claims`** — empty object. Nothing to claim.
+When `response_kind: "bailout"`, every change surface is empty:
+nothing changed, nothing ran, nothing is claimable. The empty
+surfaces are mechanized — the crafter (§5.6.1) emits them and the
+lint rejects a bailout that violates them — so only the judgment
+halves remain here: `summary` is one paragraph on what was
+attempted, which trigger fired (per `CLAUDE.md` §11.3), and what
+the handoff prescribes for the next session; and deferred work
+lives in `handoff.md`'s prescription, never as a flat `deferred`
+list.
 
 The `responds_to` field still names the request this answers. The
 new session that the user packs after running `bale handoff` will
@@ -657,47 +660,17 @@ and where the two disagree the manifest wins.
 ### 5.8 diagnostics.json (required in bailout responses)
 
 Structured longitudinal data, aggregated across sessions to
-calibrate where budget actually goes. Schema:
+calibrate where budget actually goes. The shape is mechanized: the
+schema of record is `schemas/diagnostics.schema.json` (in bale's
+repo), the crafter (§5.6.1) emits the skeleton carrying its
+required keys — `session_id` filled, everything else empty — and
+the lint validates the filled file against it. Structural detail
+(required keys, enum values, entry shapes) lives in the schema,
+not here.
 
-```json
-{
-  "session_id": "2026-05-14-context-limit-005",
-  "bail_trigger": "reading-path-inflation",
-  "bail_narrative": "one paragraph in Claude's voice: what was noticed, when, why bailing beat pushing through.",
-  "context_loaded": [
-    {
-      "path": "CLAUDE.md",
-      "verdict": "necessary",
-      "note": "the operating manual; can't skip"
-    },
-    {
-      "path": "TARBALL.md",
-      "verdict": "wasted",
-      "note": "drilled prematurely; the session turned out to be conversational"
-    }
-  ],
-  "exploration_paths": [
-    {
-      "what": "considered putting the budget premise in §1 directly",
-      "verdict": "dead_end",
-      "note": "renumbering cost too high; chose a forward-reference instead"
-    }
-  ],
-  "tool_calls_summary": {
-    "view": 6,
-    "bash_tool": 4,
-    "str_replace": 0
-  },
-  "what_would_save_next_time": [
-    "concrete, prescriptive advice for the next Claude — what reading paths to skip, what decisions are already made"
-  ]
-}
-```
+What the judgment fields want:
 
-Field semantics:
-
-- **`bail_trigger`** — one of `"reading-path-inflation"`,
-  `"mid-build-budget-panic"`, or `"other"`. The first two match the
+- **`bail_trigger`** — the first two enum values match the
   Claude-detected triggers in `CLAUDE.md` §11.3. The third
   (architect-requested bailouts — test sessions, deliberate
   checkpoints; see `CLAUDE.md` §11.3's third bullet) uses `"other"`
@@ -706,17 +679,12 @@ Field semantics:
 - **`bail_narrative`** — Claude's honest paragraph on the bail
   decision. The retrospective complement to the prescriptive
   `handoff.md`.
-- **`context_loaded[].verdict`** — `"necessary"`, `"wasted"`, or
-  `"partial"`. The verdict is qualitative; Claude can't measure
-  token-spend per doc precisely.
-- **`exploration_paths[].verdict`** — `"productive"`, `"dead_end"`,
-  or `"inconclusive"`.
-- **`tool_calls_summary`** — map of tool name to call count.
-  Captured from Claude's own count, not measured externally.
-- **`what_would_save_next_time`** — array of strings, each a
-  concrete prescription. Overlaps with `handoff.md`'s "What I
-  learned" section; that's intentional — `handoff.md` is for the
-  next Claude, `diagnostics.json` is for the user's longitudinal
+- **`context_loaded[].verdict`** — the verdict is qualitative;
+  Claude can't measure token-spend per doc precisely.
+- **`what_would_save_next_time`** — each entry a concrete
+  prescription. Overlaps with `handoff.md`'s "What I learned"
+  section; that's intentional — `handoff.md` is for the next
+  Claude, `diagnostics.json` is for the user's longitudinal
   analysis.
 
 The schema is intentionally loose: new fields can be added in
@@ -788,42 +756,31 @@ posture §3.3 takes.
 
 #### 5.9.2 Shape and manifest specifics
 
-```
-response-NNN/
-  manifest.json        # response_kind: "clarification", questions[] payload
-  apply.sh             # no-op
-  validation.sh        # no-op
-  files/               # absent or empty
-  notes.md             # optional, addressed to me
-```
-
 Unlike the bailout there are no companion artifacts: the payload is
-the manifest's own `questions[]` block. `README.md` is absent on a
-clarification in either direction — the questions are the payload and
-`notes.md` is the optional prose channel. When
-`response_kind: "clarification"`:
+the manifest's own `questions[]` block — required and non-empty on
+this kind, forbidden (or empty) on every other. `README.md` is
+absent on a clarification in either direction — the questions are
+the payload and `notes.md` (optional, addressed to me) is the prose
+channel.
 
-- **`summary`** — one paragraph: what the session was asked to do,
-  and that it is blocked on the questions below.
-- **`changes`**, **`deferred`**, **`validation_will_run`**,
-  **`claims`** — all empty, for the §5.6.2 reasons: nothing was
-  applied, nothing ran, nothing to claim. Bale rejects a
-  clarification that violates these.
-- **`questions`** — required, non-empty. Forbidden (or empty) on
-  every other response kind. Each entry:
+The shape is mechanized: when the ask takes the artifact shape,
+`tools/craft_response.py --kind clarification` (shipped in every
+request per §3.1) emits the manifest skeleton — `response_kind:
+"clarification"`, the same empty change surfaces as §5.6.2 (nothing
+was applied, nothing ran, nothing to claim; bale rejects a
+clarification that violates these), no `files/` (absent or empty),
+and `questions[]` seeded with four-field entry stubs (`--questions
+N` for more than one) — plus, under `--write`, the no-op `apply.sh`
+and `validation.sh` the kind fixes. The entry fields' schema of
+record is `response-manifest.schema.json`; the lint judges the
+finished response, and an unfilled skeleton is deliberately
+lint-invalid.
 
-```json
-{
-  "question": "stated so it can be answered in one short paragraph or less",
-  "context": "what the worker was trying to do when it hit the gap",
-  "default_assumption": "what the worker would have assumed absent an answer",
-  "why_blocked": "why it declined to proceed on that assumption"
-}
-```
-
-The `default_assumption` field is load-bearing: it lets the planner
-answer with a single *"your assumption is correct"* and surfaces the
-worker's reasoning for audit.
+Two judgment notes survive the tool: `summary` is one paragraph on
+what the session was asked to do and that it is blocked on the
+questions below; and the `default_assumption` field is load-bearing
+— it lets the planner answer with a single *"your assumption is
+correct"* and surfaces the worker's reasoning for audit.
 
 #### 5.9.3 Apply-time UX (moved)
 
