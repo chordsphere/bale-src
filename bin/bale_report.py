@@ -736,6 +736,9 @@ def format_pack_json(
     log_path: Path,
     session_dir: Path,
     context_files: int,
+    readme_path: Optional[str] = None,
+    readme_heading: Optional[str] = None,
+    readme_sha256: Optional[str] = None,
 ) -> str:
     """Render the `bale pack --json` end-of-run report as ONE line of JSON.
 
@@ -764,6 +767,17 @@ def format_pack_json(
                      stamped request manifest.json).
       context_files  number of files packed under context/ — the same count
                      the human summary's "files" row reports.
+      readme_path    the shipped README's identity echo (v0.3.21, board 33
+                     rider; additive keys, per the stable-contract rule
+                     above): the resolved --readme-file path, the literal
+                     "(authored in $EDITOR)" for wizard/--edit-authored
+                     prose, or null when the pack ships no README.
+      readme_heading the shipped README's first heading line ("(no
+                     heading)" when it has none), or null with no README.
+      readme_sha256  sha256 (hex) of the README.md bytes inside the
+                     tarball — the identity proper, since path + heading
+                     alone proved insufficient — or null with no README.
+                     All three are null together or set together.
 
     Emitted as a single compact line (no indent) so the consumer contract
     stays line-oriented. Since v0.2.8 json mode carries stream discipline
@@ -784,6 +798,9 @@ def format_pack_json(
         "log": str(log_path),
         "session_dir": str(session_dir),
         "context_files": context_files,
+        "readme_path": readme_path,
+        "readme_heading": readme_heading,
+        "readme_sha256": readme_sha256,
     }
     return json.dumps(payload)
 
@@ -1494,9 +1511,13 @@ RECORD_VERSION = 1
 # writes (command "pack", reason "superseded-by-split"). One home —
 # bin/bale's --reason choices for both commands import this tuple, so the
 # CLI surface and the schema's enum can only drift in one place. Order is
-# the schema's; "closed-read-only" is the inferred value for a session
-# whose recorded scope is exactly [] and never needs typing by hand,
-# though an operator may still pass it explicitly.
+# the schema's; "closed-read-only" is unlock's inferred value for a
+# session whose recorded scope is exactly [] and, as of v0.3.21
+# (board 33), also a pack-stamped value: the read-only sweep — a
+# `bale pack --read-only` offering to close an open []-scope session at
+# its accept-default prompt — writes it with command "pack". Neither
+# path needs the value typed by hand, though an operator may still pass
+# it explicitly.
 CLOSURE_REASONS = (
     "abandoned",
     "superseded-by-split",

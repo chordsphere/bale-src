@@ -200,7 +200,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.20"
+VERSION = "0.3.21"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2743,6 +2743,11 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # CLI surface for them on handoff yet, deliberately — keeping
         # the command's surface narrow until the use case argues for
         # more).
+        # The session's ADR-0007 scope, computed here so the manifest
+        # stamp below and the registry record at persist share one value
+        # (board 33, v0.3.21) — the resolved set of reading-plan files
+        # pre-packed above; [.] (whole tree) when the plan cited none.
+        handoff_scope = resolved_scope(included_paths)
         new_manifest = build_request_manifest(
             sid=new_sid,
             project_name=repo.name,
@@ -2761,6 +2766,9 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             # constraints/out_of_scope above): packer from [identity].
             # packer, work_class at its "mixed" default.
             provenance=build_provenance_block(repo),
+            # Board-33 scope stamp (v0.3.21): the same value persisted
+            # to the registry below — one source, never a re-derivation.
+            resolved_scope=handoff_scope,
         )
 
         # Same pre-flight schema check as `bale pack` (BALE.md §11 row 6,
@@ -2802,7 +2810,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # degrade to the old behavior rather than to a permissive gate.
         # The session opened here is for the new sid; the bailout's own
         # session was closed by `bale apply`'s bailout branch.
-        handoff_scope = resolved_scope(included_paths)
+        # (handoff_scope was computed above the manifest build so the
+        # board-33 stamp and this registry record share one value.)
         persist_pack_session(repo, new_sid, new_manifest,
                              scope=handoff_scope,
                              origin_branch=current_branch(repo))

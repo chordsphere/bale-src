@@ -550,11 +550,24 @@ def build_request_manifest(
     context_paths: list[str],
     depends_on: Optional[dict] = None,
     provenance: Optional[dict] = None,
+    *,
+    resolved_scope: list[str],
 ) -> dict:
     """Per TARBALL.md section 3.2. `depends_on` defaults to the v0.0.1 shape
     ({previous_response: None, previous_probe: None}); `bale handoff` passes
     a populated dict pointing at the bailout it's continuing from, which is
     the only path that sets `previous_response` non-null in v0.0.6.
+
+    `resolved_scope` (v0.3.21, board 33) is the session's declared scope
+    stamped into the manifest — the same value the caller records in the
+    registry (persist_pack_session's `scope`), serialized here so the
+    worker can read from inside the tarball what the ADR-0007 gates will
+    enforce repo-side: `[]` for a read-only pack, the resolved include
+    set otherwise. One source, never a re-derivation: callers pass the
+    exact list they persist. Required keyword-only — both request-building
+    paths (pack, handoff) always stamp it — while the schema addition is
+    additive per the `superseded_session` precedent (the property is not
+    required, so previously stamped manifests stay valid).
 
     `depends_on.superseded_session` (v0.3.17, board 26) is normalized in
     here — setdefault(None) on whatever dict arrives — so every manifest
@@ -585,6 +598,7 @@ def build_request_manifest(
         "out_of_scope": out_of_scope,
         "expects_probe": expects_probe,
         "context_included": [f"context/{p}" for p in context_paths],
+        "resolved_scope": list(resolved_scope),
     }
     if provenance is not None:
         manifest["provenance"] = provenance
@@ -1091,6 +1105,107 @@ def _resolve_supersession(args: argparse.Namespace,
             f"to close it by hand, or drop --supersedes."
         )
     return None, sid
+
+
+def _run_readonly_sweep(repo: Path) -> list[str]:
+    """The read-only sweep (v0.3.21, board 33): a read-only pack offers
+    to close each open session whose recorded scope is exactly [].
+
+    Only the read-only pack sweeps — cmd_pack calls this after the
+    session shape is final on every path (post-wizard, since the
+    wizard's session-shape answer can turn the pack read-only) and only
+    when it is. Worker (scoped) packs and apply never trigger it; the
+    board-33 out-of-scope line ("no auto-close on worker packs or on
+    apply") is enforced by this call-site placement, and `bale unlock`
+    remains the no-successor escape hatch.
+
+    Per open []-scope session, on a TTY, a y/N prompt with an **accept
+    default** — deliberately inverting `--supersedes`' decline default,
+    because a read-only session structurally cannot lose work (its
+    empty scope means the drift gate refuses everything a response
+    under it could ship, so nothing appliable is abandoned by the
+    close). Piped stdin declines without a prompt — automation never
+    silently closes a session, the same posture as the supersession
+    exchange and the no-readme guard, just with the interactive default
+    flipped.
+
+    On accept the session closes through the shared
+    close_session_with_record sequencing — closure_reason
+    "closed-read-only", command "pack" (the record honestly names the
+    producing command; both values were already in the telemetry
+    schema's enums) — the same machinery cmd_unlock and the
+    supersession close use. The scope was read here to select the
+    session, so it is passed through rather than re-read.
+
+    Two deliberate skips, both logged, neither fatal to the pack (the
+    sweep is a courtesy close-out, not the pack's purpose):
+
+    - a session whose `bale/<sid>` branch exists reached HOLD (an
+      operator admitted paths past the drift gate); closing it here
+      would strand the branch — `bale revert <sid>` is the command
+      that knows how to discard that state;
+    - a declined prompt leaves the session open for the next sweep or
+      `bale unlock`.
+
+    Runs pre-sid (no session log is open yet), so these lines reach
+    stdout/stderr only; cmd_pack journals the outcome into the child's
+    session log once it opens, beside the gate and supersession journal
+    lines. Returns the closed sids for that journal entry.
+    """
+    from __main__ import (  # lazy — see module docstring
+        close_session_with_record,
+        confirm_yn,
+        git,
+        log,
+        open_sessions,
+        read_session_scope,
+    )
+
+    closed: list[str] = []
+    for sid in open_sessions(repo):
+        if read_session_scope(repo, sid) != []:
+            continue
+        sid_branch = f"bale/{sid}"
+        branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                           cwd=repo, check=False)
+        if branch_check.returncode == 0:
+            log(f"read-only sweep: {sid} has branch {sid_branch} — it "
+                f"reached HOLD (paths were admitted past the drift gate), "
+                f"and closing it here would strand the branch. Skipping; "
+                f"run `bale revert {sid}` to discard the held state.")
+            continue
+        if sys.stdin.isatty():
+            accepted = confirm_yn(
+                f"Close open read-only session {sid} as closed-read-only? "
+                f"A read-only session lands nothing, so no work is lost; "
+                f"its registry entry and .bale/sessions/ state are removed "
+                f"and a closure record is written.",
+                default_no=False,
+            )
+        else:
+            accepted = False
+            log(f"read-only sweep: open read-only session {sid} found; "
+                f"stdin is not a TTY, so the prompt's accept default does "
+                f"NOT apply — declining without a prompt (automation "
+                f"never silently closes a session). Close it with `bale "
+                f"unlock {sid}`, or re-run this pack on a TTY.")
+        if not accepted:
+            if sys.stdin.isatty():
+                log(f"read-only sweep: close of {sid} declined; it stays "
+                    f"open for the next read-only pack or `bale unlock "
+                    f"{sid}`")
+            continue
+        telemetry_rel, _ = close_session_with_record(
+            repo, sid,
+            closure_reason="closed-read-only",
+            command="pack",
+            scope=[],
+            log_path=f".bale/logs/{sid}.log",
+        )
+        log(f"read-only sweep: closed {sid} (closure record: "
+            f"{telemetry_rel if telemetry_rel else 'write failed — see log'})")
+        closed.append(sid)
+    return closed
 
 
 def _wizard_input_excludes(repo: Path) -> list[str]:
@@ -1629,6 +1744,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # walkthrough case) only the global config layer can exist, so that
     # is what's consulted.
     args._readme_file_body = None
+    args._readme_file_path = None
     if args.readme_file is not None:
         if repo is not None:
             pack_cfg = bale_config.merged_config(repo)
@@ -1653,7 +1769,36 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"asks bale to ship prose context; omit the flag to pack "
                 f"without a README."
             )
+        # Placeholder refusal (v0.3.21, board 33 rider): a worker-
+        # authored brief scaffolds unfilled slots as lines containing
+        # the sentinel `TODO(brief)` (TARBALL.md §3.4, the --readme-file
+        # row). A brief that still carries one is a generation or
+        # editing step that didn't finish, and shipping it would hand
+        # the worker a hole where intent should be — the same
+        # no-silent-skips posture as the empty-file refusal above, at
+        # the same fail-fast position (read time, before any prompt;
+        # fix or regenerate the file, then re-pack — this fires even
+        # with --edit, matching the empty-file refusal's timing).
+        placeholder_lines = [
+            str(i) for i, ln in enumerate(file_body.splitlines(), 1)
+            if "TODO(brief)" in ln
+        ]
+        if placeholder_lines:
+            fail(
+                f"--readme-file {args.readme_file!r} (resolved to "
+                f"{readme_path}) still contains an unfilled placeholder: "
+                f"line(s) {', '.join(placeholder_lines)} contain the "
+                f"sentinel 'TODO(brief)'. Fill the brief (or regenerate "
+                f"it), then re-pack; a brief with unfilled slots must "
+                f"not ship."
+            )
         args._readme_file_body = file_body
+        # Stashed for the pack report's README identity echo (v0.3.21,
+        # board 33 rider): the resolved path is the identity the
+        # search-path resolution made ambiguous — echoing it (plus the
+        # shipped body's first heading and sha256, computed at the
+        # report site) is how the operator confirms which brief shipped.
+        args._readme_file_path = readme_path
 
     if repo is None:
         # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
@@ -1825,6 +1970,19 @@ def cmd_pack(args: argparse.Namespace) -> int:
             f"to close it by hand, or drop --supersedes."
         )
 
+    # The read-only sweep (v0.3.21, board 33). Placed here because the
+    # session shape is final on every path only now (the wizard's
+    # session-shape answer can turn the pack read-only), and pre-sid
+    # like the supersession exchange — its close events reach stdout
+    # only, and the outcome is journaled into the child's session log
+    # once it opens. Only a read-only pack sweeps: worker (scoped)
+    # packs and apply never trigger it, and `bale unlock` remains the
+    # no-successor escape hatch. Semantics — accept-default prompt,
+    # piped decline, HOLD skip — live in _run_readonly_sweep.
+    swept_sids: list[str] = []
+    if args.read_only:
+        swept_sids = _run_readonly_sweep(repo)
+
     # README resolution (BALE.md §7.3; precedence lives in the resolver's
     # docstring). Runs after the wizard so a wizard-collected goal /
     # constraints / out_of_scope can seed the $EDITOR scaffold, and so
@@ -1864,6 +2022,36 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 "Supply prose via --readme-file, or pass --no-readme to "
                 "declare the omission deliberate."
             )
+
+    # README identity echo (v0.3.21, board 33 rider; evidence 45/47):
+    # when a README ships, the pack report echoes its identity — the
+    # resolved path, the first heading line, and the sha256 — because
+    # path + heading alone proved insufficient (two revisions of a
+    # brief share both; the hash is the identity). The hash is computed
+    # over the exact bytes build_request_tarball ships (its trailing-
+    # newline normalization mirrored here), so the echoed value matches
+    # `sha256sum` of the README.md inside the tarball. The path is the
+    # --readme-file resolution when that flag sourced the prose (the
+    # search-path ambiguity the echo exists to close), and an honest
+    # "(authored in $EDITOR)" when the wizard/--edit path authored it
+    # with no file involved.
+    readme_echo_path: Optional[str] = None
+    readme_echo_heading: Optional[str] = None
+    readme_echo_sha256: Optional[str] = None
+    if args._readme_body is not None:
+        shipped_text = (args._readme_body
+                        if args._readme_body.endswith("\n")
+                        else args._readme_body + "\n")
+        readme_echo_sha256 = hashlib.sha256(
+            shipped_text.encode("utf-8")).hexdigest()
+        readme_echo_heading = next(
+            (ln.strip() for ln in shipped_text.splitlines()
+             if ln.lstrip().startswith("#")),
+            "(no heading)",
+        )
+        readme_echo_path = (str(args._readme_file_path)
+                            if args._readme_file_path is not None
+                            else "(authored in $EDITOR)")
 
     # Input validation.
     if not is_valid_slug(args.slug):
@@ -2119,6 +2307,12 @@ def cmd_pack(args: argparse.Namespace) -> int:
         log(f"supersedes {superseded_sid}: closed as superseded-by-split "
             f"(closure record at claude/telemetry/{superseded_sid}.json); "
             f"lineage stamped in depends_on.superseded_session")
+    if swept_sids:
+        # Same journaling rationale for the read-only sweep (v0.3.21):
+        # the close events ran pre-sid; the durable closure lives in
+        # each swept sid's telemetry record.
+        log(f"read-only sweep: closed {', '.join(swept_sids)} as "
+            f"closed-read-only (closure record(s) under claude/telemetry/)")
 
     # Manifest, with the pack-time provenance stamp (v0.3.8, B1):
     # bale_version + contract-doc hashes + packer (--packer > [identity].
@@ -2142,7 +2336,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         log("read-only session shape (v0.3.15): recorded scope is empty — "
             "locks nothing (siblings pack freely), may land nothing (the "
             "own-scope drift gate refuses every changes[] path this "
-            "session ships)")
+            "session ships). Close-out (board 33): the next read-only "
+            "pack offers to close this session, or run `bale unlock` now")
     provenance = build_provenance_block(
         repo, packer_flag=args.packer, work_class=work_class,
     )
@@ -2170,6 +2365,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "superseded_session": superseded_sid,
         },
         provenance=provenance,
+        # The board-33 scope stamp (v0.3.21): the same pack_scope value
+        # persist_pack_session records below — one source, never a
+        # re-derivation. [] for a read-only pack.
+        resolved_scope=pack_scope,
     )
 
     # Pack pre-flight schema check (BALE.md §11 row 6, request side). bale
@@ -2236,17 +2435,41 @@ def cmd_pack(args: argparse.Namespace) -> int:
             log_path=log_path,
             session_dir=repo / ".bale" / "sessions" / sid,
             context_files=len(files),
+            readme_path=readme_echo_path,
+            readme_heading=readme_echo_heading,
+            readme_sha256=readme_echo_sha256,
         ))
     else:
+        rows = [
+            ("session id", sid),
+            ("tarball", str(tarball_path)),
+            ("files", f"{len(files)} in context/"),
+        ]
+        if readme_echo_sha256 is not None:
+            # The board-33 identity echo: path, first heading, sha256
+            # of the shipped README.md (see the computation above).
+            rows += [
+                ("readme", readme_echo_path),
+                ("readme heading", readme_echo_heading),
+                ("readme sha256", readme_echo_sha256),
+            ]
+        trailer = [
+            "Send the tarball to Claude. When the response tarball comes back,",
+            "run: bale apply <response-tarball>",
+        ]
+        if args.read_only:
+            # The open banner names its own close-out (board 33,
+            # v0.3.21) — the every-command-names-its-successor
+            # contract. Both paths: the sweep on the next read-only
+            # pack, or unlock now.
+            trailer += [
+                "",
+                f"Read-only session close-out: the next read-only pack "
+                f"offers to close {sid},",
+                f"or run: bale unlock {sid}",
+            ]
         print(format_summary_block(
-            [
-                ("session id", sid),
-                ("tarball", str(tarball_path)),
-                ("files", f"{len(files)} in context/"),
-            ],
-            trailer=[
-                "Send the tarball to Claude. When the response tarball comes back,",
-                "run: bale apply <response-tarball>",
-            ],
+            rows,
+            trailer=trailer,
         ))
     return 0

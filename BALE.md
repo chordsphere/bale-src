@@ -450,7 +450,7 @@ forward-looking entry.
 
 | Command | Purpose | Phase |
 |---------|---------|-------|
-| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); both in §7.2. | v0.0.1 |
+| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
@@ -811,7 +811,37 @@ The inputs:
   14). `--include` still selects what ships in `context/` — a
   read-only session reads files; it just cannot land changes to
   them. On the wizard path the same shape is reachable as the
-  session-shape question's read-only answer (§7.3).
+  session-shape question's read-only answer (§7.3). Two lifecycle
+  behaviors ride the shape (v0.3.21, board 33):
+  - **The read-only sweep.** A read-only pack — and only a read-only
+    pack — that finds an open session with recorded scope `[]`
+    offers to close it: `closure_reason` `closed-read-only`,
+    `command` `"pack"`, through the shared close-with-record
+    sequencing (`close_session_with_record` — the same machinery
+    unlock and the supersession close use; both values were already
+    in the telemetry schema's enums). The sweep runs once the
+    session shape is final on every path (post-wizard, since the
+    session-shape answer can turn the pack read-only), pre-sid like
+    the supersession exchange, with the outcome journaled into the
+    new session's log. The prompt is the §5.2 wizard idiom with an
+    **accept default** — deliberately inverting `--supersedes`'
+    decline default, because a read-only session structurally cannot
+    lose work (its empty scope means the drift gate refuses
+    everything a response under it could ship, so nothing appliable
+    is abandoned). **Piped stdin declines without a prompt** —
+    automation never silently closes a session, the same posture as
+    the supersession exchange, with only the interactive default
+    flipped. A swept session whose `bale/<sid>` branch exists
+    (paths were admitted past the drift gate and apply reached
+    HOLD) is skipped with a logged `bale revert` remedy rather than
+    stranding the branch. Worker (scoped) packs and apply never
+    trigger the sweep, and `bale unlock` remains the no-successor
+    escape hatch.
+  - **The open banner names its own close-out** — per the
+    every-command-names-its-successor contract, the read-only pack's
+    opening log line and its end-of-run trailer both name the two
+    exits: the next read-only pack's sweep, or `bale unlock <sid>`
+    now.
 - **supersedes** (v0.3.17, board 26) — `--supersedes <sid>` declares
   this pack a **split supersession** of the named session: the split's
   parent closes and this pack becomes one of its narrower children,
@@ -1106,7 +1136,10 @@ After the tarball is on disk and validated for structure:
    recorded **empty** scope is a distinct third state that reads back
    as exactly that — locks nothing, may land nothing — never falling
    through to the conservative whole-tree read reserved for a
-   *missing or malformed* scope.json), and `.bale/sessions/<sid>/origin_branch` (the
+   *missing or malformed* scope.json; since v0.3.21 the same value is
+   also stamped into the request manifest as `resolved_scope`, board
+   33 — one source, so the registry record and the worker-visible
+   stamp cannot disagree), and `.bale/sessions/<sid>/origin_branch` (the
    branch checked out at pack time — the session's integration
    target, ADR-0008). The stamp is required: apply hard-refuses a
    session with a missing or empty stamp (§8.1 step 5), and the
@@ -1621,7 +1654,12 @@ stamps it always — the operator's `--reason` when given; else
 a missing scope, which reads back conservative whole-tree); else
 `abandoned`. An explicit `--reason` beats the read-only inference:
 the operator knows more than the heuristic — a read-only session
-can itself be superseded or abandoned-in-fact. Unlock's no-sid
+can itself be superseded or abandoned-in-fact. The read-only sweep
+stamps `closed-read-only` with command `"pack"` (v0.3.21, board
+33): a read-only pack that finds an open `[]`-scope session and
+closes it at its accept-default prompt (§7.2) writes the same
+value, so `closed-read-only` is both unlock's inferred reason and
+a pack-stamped one. Unlock's no-sid
 sweep, when it clears a stale compatibility pointer naming a sid,
 best-effort appends `crash-debris` to that sid's record (§9.3
 step 2). Revert stamps `--reason` when given and null otherwise —
@@ -1892,8 +1930,9 @@ Steps:
    destroys it — and determine the `closure_reason` (§8.9):
    `--reason` when given (choices are the §8.9 vocabulary); else
    `closed-read-only` when the recorded scope is exactly `[]` (a
-   §7.2 read-only session, whose *only* exit is unlock by
-   construction — the inference keys on `[]`, never on a missing
+   §7.2 read-only session, whose exits are unlock and the read-only
+   sweep — the next `bale pack --read-only`'s accept-default offer,
+   v0.3.21/board 33; the inference keys on `[]`, never on a missing
    scope, which reads conservative whole-tree); else `abandoned`.
    An explicit `--reason` beats the read-only inference.
 5. Close the session in the registry (its `open` marker
