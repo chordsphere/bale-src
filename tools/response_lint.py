@@ -14,7 +14,16 @@ second implementation of the written contract (ADR-0002's rejection
 of the self-oracle, applied to pre-pack linting).
 
 Usage:
-    response_lint.py <response-dir> [--json] [--schema-dir DIR]
+    response_lint.py <response-dir> [--json | --emit-feedback-mechanical]
+                     [--schema-dir DIR]
+
+--emit-feedback-mechanical prints the paste-ready feedback.mechanical
+object on stdout (the TARBALL.md §5.2.2 fill-by-running-the-lint
+workflow, mechanized): every field is this run's own computation —
+the same derivation the feedback-block check verifies a shipped block
+against — never a transcription. The optional self-reported members
+(linkage, provenance) are not emitted; the worker adds them by hand
+when they apply.
 
 Exit codes:
     0  clean — every check passed
@@ -1002,6 +1011,37 @@ def check_next_prompt_retired(ctx: dict) -> list[dict]:
     return []
 
 
+def _recompute_mechanical(manifest: dict, findings: list[dict]) -> dict:
+    """The lint-computable feedback.mechanical values, derived from this
+    run's manifest and accumulated findings.
+
+    One derivation, two consumers: check_feedback_block compares a
+    shipped block against it, and --emit-feedback-mechanical serializes
+    it — so the flag can only ever print this lint run's own
+    computations, never a transcription. The two optional members the
+    schema admits (linkage, provenance) are self-reported and
+    unverifiable, so they are deliberately NOT emitted here; the worker
+    adds them by hand when they apply.
+    """
+    mirror_findings = [f for f in findings
+                       if f.get("check") == "changes-mirror"]
+    return {
+        "response_kind": manifest.get("response_kind", "normal"),
+        "schema_valid": not any(
+            f.get("check") == "manifest-schema" for f in findings),
+        "mirror_agreement": {
+            "changes_to_files": not any(
+                f.get("code") != "MIRROR_UNDECLARED"
+                for f in mirror_findings),
+            "files_to_changes": not any(
+                f.get("code") == "MIRROR_UNDECLARED"
+                for f in mirror_findings),
+        },
+        "claims_subset": not any(
+            f.get("check") == "claims-subset" for f in findings),
+    }
+
+
 def check_feedback_block(ctx: dict) -> list[dict]:
     """feedback.mechanical agrees with this lint's own recomputation.
 
@@ -1041,45 +1081,40 @@ def check_feedback_block(ctx: dict) -> list[dict]:
             "against the current response directory",
         )
 
-    # response_kind echo.
-    effective_kind = manifest.get("response_kind", "normal")
+    # The expected values come from the same derivation
+    # --emit-feedback-mechanical serializes (_recompute_mechanical), so
+    # the paste-ready emission and this verification cannot disagree.
+    # Semantics unchanged: schema_valid fails on any manifest-schema
+    # finding; mirror_agreement splits by direction (files_to_changes
+    # fails on MIRROR_UNDECLARED, changes_to_files on every other
+    # changes-mirror finding; kinds that ship no files/ are vacuously
+    # true in both directions); claims_subset fails on any
+    # claims-subset finding.
+    expected = _recompute_mechanical(manifest, prior)
+
     got_kind = mech.get("response_kind")
-    if isinstance(got_kind, str) and got_kind != effective_kind:
-        out.append(_mismatch("response_kind", effective_kind, got_kind))
+    if isinstance(got_kind, str) and got_kind != expected["response_kind"]:
+        out.append(_mismatch("response_kind", expected["response_kind"],
+                             got_kind))
 
-    # schema_valid: no findings from the manifest-schema check.
-    expected_schema_valid = not any(
-        f.get("check") == "manifest-schema" for f in prior)
     got_sv = mech.get("schema_valid")
-    if isinstance(got_sv, bool) and got_sv != expected_schema_valid:
-        out.append(_mismatch("schema_valid", expected_schema_valid, got_sv))
+    if isinstance(got_sv, bool) and got_sv != expected["schema_valid"]:
+        out.append(_mismatch("schema_valid", expected["schema_valid"],
+                             got_sv))
 
-    # mirror_agreement, split by direction: files_to_changes fails on
-    # MIRROR_UNDECLARED; changes_to_files fails on every other
-    # changes-mirror finding. Kinds that ship no files/ are vacuously
-    # true in both directions (the mirror check returns [] for them and
-    # kind-shape owns their file surfaces).
-    mirror_findings = [f for f in prior if f.get("check") == "changes-mirror"]
-    expected_f2c = not any(
-        f.get("code") == "MIRROR_UNDECLARED" for f in mirror_findings)
-    expected_c2f = not any(
-        f.get("code") != "MIRROR_UNDECLARED" for f in mirror_findings)
     ma = mech.get("mirror_agreement")
     if isinstance(ma, dict):
-        got_c2f = ma.get("changes_to_files")
-        if isinstance(got_c2f, bool) and got_c2f != expected_c2f:
-            out.append(_mismatch("mirror_agreement.changes_to_files",
-                                 expected_c2f, got_c2f))
-        got_f2c = ma.get("files_to_changes")
-        if isinstance(got_f2c, bool) and got_f2c != expected_f2c:
-            out.append(_mismatch("mirror_agreement.files_to_changes",
-                                 expected_f2c, got_f2c))
+        for direction in ("changes_to_files", "files_to_changes"):
+            got_dir = ma.get(direction)
+            want = expected["mirror_agreement"][direction]
+            if isinstance(got_dir, bool) and got_dir != want:
+                out.append(_mismatch(f"mirror_agreement.{direction}",
+                                     want, got_dir))
 
-    # claims_subset: no findings from the claims-subset check.
-    expected_cs = not any(f.get("check") == "claims-subset" for f in prior)
     got_cs = mech.get("claims_subset")
-    if isinstance(got_cs, bool) and got_cs != expected_cs:
-        out.append(_mismatch("claims_subset", expected_cs, got_cs))
+    if isinstance(got_cs, bool) and got_cs != expected["claims_subset"]:
+        out.append(_mismatch("claims_subset", expected["claims_subset"],
+                             got_cs))
 
     return out
 
@@ -1170,6 +1205,16 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
         "checks": checks_report,
         "findings": findings,
         "finding_count": len(findings),
+        # The paste-ready feedback.mechanical payload, from the same
+        # derivation check_feedback_block verifies against. None when
+        # the manifest never parsed — there is nothing honest to emit.
+        # (feedback-block findings can't perturb this: the derivation
+        # reads only manifest-schema / changes-mirror / claims-subset
+        # findings, so post-check computation equals mid-run.)
+        "feedback_mechanical": (
+            _recompute_mechanical(ctx["manifest"], findings)
+            if isinstance(ctx["manifest"], dict) else None
+        ),
     }
 
 
@@ -1209,11 +1254,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true",
                         help="emit one JSON report line on stdout; "
                              "human-readable findings go to stderr")
+    parser.add_argument("--emit-feedback-mechanical", action="store_true",
+                        help="print the paste-ready feedback.mechanical "
+                             "object (this run's own computed values) on "
+                             "stdout; human-readable findings go to stderr. "
+                             "Mutually exclusive with --json")
     parser.add_argument("--schema-dir", default=None,
                         help="directory holding response-manifest.schema.json "
                              "and diagnostics.schema.json to override the "
                              "embedded copies")
     args = parser.parse_args(argv)
+
+    if args.json and args.emit_feedback_mechanical:
+        print("response_lint: error: --json and --emit-feedback-mechanical "
+              "both claim stdout — pass one", file=sys.stderr)
+        return EXIT_ERROR
 
     rdir = Path(args.response_dir)
     if not rdir.is_dir():
@@ -1232,7 +1287,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"response_lint: error: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
-    if args.json:
+    if args.emit_feedback_mechanical:
+        # Stdout carries only the paste-ready object — the values this
+        # run computed, never a transcription (TARBALL.md 5.2.2). The
+        # feedback-block mismatch check is unchanged and still guards a
+        # stale paste on the next run.
+        mech = report["feedback_mechanical"]
+        if mech is None:
+            print("response_lint: cannot emit feedback.mechanical — "
+                  "manifest.json unavailable (see findings)",
+                  file=sys.stderr)
+        else:
+            print(json.dumps(mech, indent=2))
+        render_human(report, sys.stderr)
+    elif args.json:
         print(json.dumps(report, separators=(",", ":"), sort_keys=True))
         render_human(report, sys.stderr)
     else:

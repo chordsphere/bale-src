@@ -31,6 +31,20 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   empty change surfaces plus `questions[]` seeded with four-field
   entry stubs (`--questions N`, default 1), and under `--write` the
   no-op `apply.sh` and `validation.sh`;
+- (normal) `--validation-epilogue` prints paste-ready `validation.sh`
+  fragments: the §7.3 claims reconciliation epilogue (a
+  verdict-recording helper the worker's checks feed, and the
+  reconciliation pass that reads `staging/.bale-manifest.json` and
+  prints the claims-vs-verdict block — diagnostic, never
+  gatekeeping), plus one §7.7 exec-bit assertion per path named with
+  `--executable` — generated from the same list that drives
+  `apply.sh`'s chmod lines, so the two emissions cannot disagree
+  within an invocation. WHICH checks run stays the worker's judgment
+  (§7.2): the emission names no checks and suggests none; it
+  mechanizes the reconciliation shape and the exec-bit assertion
+  shape only, which is the ratified carve-out to the no-scaffold pin
+  below — a fragment the worker pastes, never an emitted
+  `validation.sh`;
 - (probe, §4.2) `--probe SLUG` emits the canonical paste-back probe
   skeleton to stdout — the shape (shebang, three-line purpose header
   with the read-only declaration verbatim, the probe() wrapper, the
@@ -69,6 +83,10 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     + validation.sh; bailout: + validation.sh,
                     handoff.md, diagnostics.json). Refuses to
                     overwrite; --force to allow.
+    --validation-epilogue
+                    print the paste-ready validation.sh fragments
+                    (normal kind only): the reconciliation epilogue,
+                    plus exec-bit assertions for --executable paths.
     --probe SLUG    print the TARBALL.md §4.2 probe skeleton to stdout.
                     Takes no response dir and combines with none of the
                     response-directory flags — a probe is a chat
@@ -190,6 +208,81 @@ echo "=== PROBE BEGIN {slug} ==="
 printf '%s\\n' "$out"
 printf -- '--- integrity: %s lines ---\\n' "$(printf '%s\\n' "$out" | wc -l | tr -d ' ')"
 echo "=== PROBE END {slug} ==="
+"""
+
+
+# The TARBALL.md §7.3 claims reconciliation epilogue. Real and final:
+# the verdict-recording helper, and the reconciliation pass that reads
+# the manifest bale places at staging/.bale-manifest.json and prints
+# the claims-vs-verdict block. Semantics mirror §7.3 exactly: [agree]
+# on a matching prediction, [DISAGREE] only on a pass/fail cross,
+# [n/a] when the verdict is a skip (or missing) or the claim made no
+# prediction (untested/unknown). Diagnostic, never gatekeeping: the
+# epilogue neither sets nor reads exit_code (§7.3, §7.5). WHICH checks
+# run is the worker's judgment (§7.2) — nothing here names or suggests
+# a check; the shape alone is mechanized.
+RECONCILE_EPILOGUE = """\
+# --- claims reconciliation (crafted; TARBALL.md 7.3) ---
+# Paste this block BEFORE your checks (it only defines functions).
+# As each claimed check finishes, record its verdict:
+#     record_verdict "<validation_will_run entry, verbatim>" <pass|fail|skip>
+# Which checks run is your judgment (TARBALL.md 7.2); this epilogue
+# mechanizes the reconciliation shape only. Diagnostic, never
+# gatekeeping: it neither sets nor reads exit_code (7.3, 7.5).
+
+declare -A BALE_VERDICTS=()
+
+record_verdict() {
+  BALE_VERDICTS["$1"]="$2"
+}
+
+reconcile_claims() {
+  local manifest=".bale-manifest.json"
+  if [ ! -f "$manifest" ]; then
+    echo "[SKIP] claims reconciliation: $manifest not found (not in bale staging)"
+    return 0
+  fi
+  local pairs=()
+  local label
+  if [ "${#BALE_VERDICTS[@]}" -gt 0 ]; then
+    for label in "${!BALE_VERDICTS[@]}"; do
+      pairs+=("$label=${BALE_VERDICTS[$label]}")
+    done
+  fi
+  python3 - "$manifest" ${pairs[@]+"${pairs[@]}"} <<'BALE_RECONCILE'
+import json, sys
+
+manifest_path, *pairs = sys.argv[1:]
+with open(manifest_path, encoding="utf-8") as fh:
+    claims = json.load(fh).get("claims") or {}
+verdicts = dict(p.rsplit("=", 1) for p in pairs)
+print("claims vs verdict:")
+if not claims:
+    print("  (no claims in the manifest)")
+    raise SystemExit(0)
+width = max(len(c) for c in claims) + 1
+for check, claim in claims.items():
+    verdict = verdicts.get(check, "missing")
+    if claim in ("untested", "unknown") or verdict in ("skip", "missing"):
+        tag = "[n/a]"
+    elif claim == verdict:
+        tag = "[agree]"
+    else:
+        tag = "[DISAGREE]"
+    name = check + ":"
+    print(f"  {name:<{width}} claim={claim:<9} verdict={verdict:<8} {tag}")
+BALE_RECONCILE
+}
+"""
+
+# The final line of the epilogue emission: the call site the worker
+# pastes after the last check. Separate from the definitions above so
+# the placement instruction can sit beside it.
+RECONCILE_CALL = """\
+# --- claims reconciliation call (crafted; TARBALL.md 7.3) ---
+# Paste this AFTER every check has recorded its verdict — last thing
+# before the exit.
+reconcile_claims
 """
 
 
@@ -389,6 +482,49 @@ def build_apply_sh(deleted: list[str], executables: list[str]) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def build_exec_assertions(executables: list[str]) -> str:
+    """The §7.7 exec-bit assertion block, one per named executable.
+
+    Generated from the SAME list build_apply_sh turns into chmod lines
+    — one source, two emissions, so within an invocation the chmod line
+    and its assertion cannot disagree. Same sorted order as the chmod
+    lines, for the same clean-rediff reason. Empty list emits nothing:
+    a session shipping no executables omits the assertion (§7.7).
+    """
+    if not executables:
+        return ""
+    lines = [
+        "# --- exec-bit assertions (crafted; TARBALL.md 7.7) ---",
+        "# Paste with your session-specific assertions (7.2 item 6).",
+        "# Generated from the same --executable list as apply.sh's chmod",
+        "# lines (5.1.1) — re-emit both if the list changes. Assumes the",
+        "# enclosing script tracks failures in exit_code and exits with it.",
+    ]
+    for rel in sorted(executables):
+        q = shell_quote(rel)
+        lines += [
+            f"if [ -x {q} ]; then",
+            f"  echo {shell_quote(f'[PASS] {rel} is executable')}",
+            "else",
+            f"  echo {shell_quote(f'[FAIL] {rel} not executable — apply.sh chmod omitted?')}",
+            "  exit_code=1",
+            "fi",
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def build_validation_epilogue(executables: list[str]) -> str:
+    """The full --validation-epilogue emission: reconciliation
+    definitions, exec-bit assertions (when any), and the call site —
+    each part carrying its own paste-placement instruction."""
+    parts = [RECONCILE_EPILOGUE]
+    assertions = build_exec_assertions(executables)
+    if assertions:
+        parts.append(assertions)
+    parts.append(RECONCILE_CALL)
+    return "\n".join(parts)
+
+
 def shell_quote(path_str: str) -> str:
     """Quote a repo-relative path for the apply.sh scaffold. Plain paths
     stay bare (readable); anything shell-significant gets single-quoted."""
@@ -440,6 +576,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     mode.add_argument("--write", action="store_true",
                       help="write manifest.json and apply.sh into the "
                            "response dir")
+    mode.add_argument("--validation-epilogue", action="store_true",
+                      help="print the paste-ready validation.sh fragments: "
+                           "the TARBALL.md 7.3 reconciliation epilogue plus "
+                           "a 7.7 exec-bit assertion per --executable path")
     ap.add_argument("--force", action="store_true",
                     help="with --write: overwrite existing manifest.json / "
                          "apply.sh")
@@ -459,6 +599,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--changes-only", args.changes_only),
             ("--apply-only", args.apply_only),
             ("--write", args.write),
+            ("--validation-epilogue", args.validation_epilogue),
             ("--sid", args.sid is not None),
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
@@ -509,6 +650,10 @@ def main(argv: list[str] | None = None) -> int:
             return die(f"--changes-only is meaningless with --kind {kind} "
                        f"— a {kind} response has an empty changes[] "
                        "(TARBALL.md 5.6.2 / 5.9.2)")
+        if args.validation_epilogue:
+            return die(f"--validation-epilogue is meaningless with --kind "
+                       f"{kind} — a {kind} response's validation.sh is the "
+                       "contract-fixed no-op (TARBALL.md 5.6.1 / 5.9.2)")
     if args.questions is not None:
         if kind != "clarification":
             return die("--questions only means something with "
@@ -519,11 +664,13 @@ def main(argv: list[str] | None = None) -> int:
                        "(TARBALL.md 5.9.2)")
     n_questions = args.questions if args.questions is not None else 1
 
-    needs_sid = not (args.changes_only or args.apply_only)
+    needs_sid = not (args.changes_only or args.apply_only
+                     or args.validation_epilogue)
     sid = (args.sid or "").strip()
     if needs_sid and not sid:
-        return die("--sid is required when emitting a manifest "
-                   "(only --changes-only / --apply-only run without it)")
+        return die("--sid is required when emitting a manifest (only "
+                   "--changes-only / --apply-only / --validation-epilogue "
+                   "run without it)")
 
     # Worker-supplied path sanity. This is argument hygiene, not response
     # validation: a typo'd flag scaffolding a wrong rm/chmod line is the
@@ -574,6 +721,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         log(f"scaffolding a {kind} response — empty change surfaces, "
             "no-op apply.sh and validation.sh")
+
+    if args.validation_epilogue:
+        sys.stdout.write(build_validation_epilogue(args.executable))
+        log("validation.sh fragments emitted — paste the definitions "
+            "before your checks, the exec-bit assertions (if any) with "
+            "your session-specific assertions, and the reconcile_claims "
+            "call last; which checks run stays your judgment "
+            "(TARBALL.md 7.2)")
+        return EXIT_OK
 
     if args.changes_only:
         print(json.dumps(changes, indent=2))

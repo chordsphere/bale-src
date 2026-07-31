@@ -395,8 +395,11 @@ ADR-0013):
 
 **Fill the mechanical stream by running the lint, not by hand.** The
 workflow: build the response through §10.1 steps 1–9, run
-`python3 tools/response_lint.py <response-dir>`, copy the lint's
-computed results into `feedback.mechanical`, fill `self_reported`
+`python3 tools/response_lint.py <response-dir>
+--emit-feedback-mechanical`, paste the printed object in as
+`feedback.mechanical` (every field is that run's own computation;
+the optional `linkage` and `provenance` members are the worker's to
+add when they apply), fill `self_reported`
 honestly, then run the lint once more — its feedback-block check
 recomputes every mechanical value against the directory as packed and
 flags any disagreement. A mismatch is the tell of a hand-filled or
@@ -903,17 +906,22 @@ project-level checks and any claimed session-specific assertions
 alike (§5.3) — against its claim. Bale places the response manifest at
 `staging/.bale-manifest.json` before invoking `validation.sh`, so
 the script can read the claims and produce the reconciliation block.
-The end-of-run summary includes a `claims` block:
+The end-of-run summary includes a `claims` block pairing each claimed
+check's claim with its verdict: `[agree]` on a matching prediction,
+`[DISAGREE]` only on a `claim=pass, verdict=fail` or `claim=fail,
+verdict=pass` cross, and `[n/a]` when the verdict is a skip (or was
+never recorded) or the claim made no prediction (`untested`,
+`unknown`).
 
-```
-claims vs verdict:
-  eslint:                    claim=pass    verdict=pass    [agree]
-  vue-tsc --noEmit:          claim=pass    verdict=fail    [DISAGREE]
-  vite build (staging only): claim=pass    verdict=skip    [n/a]
-```
+The epilogue that produces the block is mechanized:
+`tools/craft_response.py --validation-epilogue` (shipped in every
+request per §3.1) emits it paste-ready — a verdict-recording helper
+the worker's checks feed as they run, and the reconciliation pass
+called last. Which checks run stays the worker's judgment (§7.2);
+the epilogue mechanizes the reconciliation shape only, and its home
+is the tool's emission.
 
-Disagreements (`claim=pass, verdict=fail` or `claim=fail,
-verdict=pass`) are reported but don't change the exit code — they're
+Disagreements are reported but don't change the exit code — they're
 diagnostic, not gatekeeping. The exit code is set by check failure
 alone.
 
@@ -954,17 +962,16 @@ the assertion is what turns a forgotten `chmod` into a `[FAIL]`
 
 By the time `validation.sh` runs, bale has overlaid `files/` and run
 `apply.sh` in staging (§7.1), so the file sits at its repo-relative
-path with the mode `apply.sh` left it. Test that path directly — not
-the `files/` copy, whose mode was already stripped:
+path with the mode `apply.sh` left it. The assertion tests that path
+directly — never the `files/` copy, whose mode was already stripped.
 
-```bash
-if [ -x scripts/release.sh ]; then
-  echo "[PASS] scripts/release.sh is executable"
-else
-  echo "[FAIL] scripts/release.sh not executable — apply.sh chmod omitted?"
-  exit_code=1
-fi
-```
+The assertions are mechanized, from the same source as the restore
+they verify: the `--executable` list that drives `apply.sh`'s
+`chmod` lines (§5.1.1) also drives them —
+`tools/craft_response.py --validation-epilogue` (shipped in every
+request per §3.1) emits one per-path assertion per named executable,
+so a chmod line and its assertion cannot disagree. One source, two
+emissions; the assertion's shape lives in the tool's emission.
 
 This is a session-specific assertion (§7.2 item 6): it ships only when
 the session ships an executable, and names the exact path rather than

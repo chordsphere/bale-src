@@ -33,6 +33,15 @@ mutual exclusion against every response-directory mode and flag; and
 slug hygiene. Deliberately no lint round trip: no judge exists for
 probes — they are chat paste-backs the architect audits by eye (4.2).
 
+Session 008 (board 31) adds --validation-epilogue, the paste-ready
+TARBALL.md 7.3 reconciliation epilogue plus 7.7 exec-bit assertions.
+CraftValidationEpilogue proves the emission's semantics against 7.3's
+contract by executing it, that it suggests no checks (worker judgment
+stays worker judgment), and that the assertions come from the same
+--executable list as apply.sh's chmod lines. PackInjectionSurface
+gains a skipUnless(bin/) rider so tools-only sandboxes run
+clean-green; this repo ships bin/, so the class still runs here.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -668,6 +677,7 @@ class CraftProbeMode(unittest.TestCase):
             (["--changes-only"], "--changes-only"),
             (["--apply-only"], "--apply-only"),
             (["--write"], "--write"),
+            (["--validation-epilogue"], "--validation-epilogue"),
             (["--sid", "s-042"], "--sid"),
             (["--questions", "2"], "--questions"),
             (["--deleted", "x.txt"], "--deleted"),
@@ -737,6 +747,174 @@ class SchemaDriftBridge(unittest.TestCase):
                          "required entry set — fix whichever side drifted")
 
 
+class CraftValidationEpilogue(unittest.TestCase):
+    """--validation-epilogue: the TARBALL.md 7.3 reconciliation epilogue
+    and 7.7 exec-bit assertions, emitted paste-ready to stdout. The
+    session-31 constraints under test: which checks run stays worker
+    judgment (the emission names no checks), reconciliation semantics
+    equal 7.3's contract (agree / DISAGREE only on a pass-fail cross /
+    n/a for skip, missing, untested, unknown; diagnostic — never the
+    exit code), and the exec-bit assertions come from the same
+    --executable list as apply.sh's chmod lines."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def emit(self, *argv: str) -> str:
+        rdir = make_response_dir(self.tmp, {"scripts/run.sh": b"#!/bin/sh\n"})
+        cp = run_craft(str(rdir), "--validation-epilogue", *argv)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout
+
+    def test_emission_shape_and_bash_validity(self):
+        out = self.emit()
+        self.assertIn("record_verdict() {", out)
+        self.assertIn("reconcile_claims() {", out)
+        self.assertIn(".bale-manifest.json", out)
+        # Placement instructions ride each part.
+        self.assertIn("BEFORE your checks", out)
+        self.assertIn("AFTER every check", out)
+        # No sid, no manifest emission: stdout is bash only.
+        script = self.tmp / "epilogue.sh"
+        script.write_text(out)
+        chk = subprocess.run(["bash", "-n", str(script)],
+                             capture_output=True, text=True)
+        self.assertEqual(chk.returncode, 0, chk.stderr)
+
+    def test_emission_suggests_no_checks(self):
+        """Worker judgment stays worker judgment: the epilogue must not
+        pin or suggest a check list. The doc's canonical example names
+        (7.2's typical list) are the canary set."""
+        out = self.emit()
+        for canary in ("eslint", "typecheck", "tsc", "vite", "pytest",
+                       "unittest", "build"):
+            self.assertNotIn(canary, out.lower())
+
+    def test_reconciliation_semantics_match_7_3(self):
+        out = self.emit()
+        stage = self.tmp / "staging"
+        stage.mkdir()
+        (stage / ".bale-manifest.json").write_text(json.dumps({
+            "claims": {
+                "alpha check": "pass",
+                "beta check": "pass",
+                "gamma check": "pass",
+                "delta=check": "untested",
+                "epsilon check": "fail",
+            }
+        }))
+        driver = (
+            "#!/usr/bin/env bash\nset -euo pipefail\nexit_code=0\n"
+            + out
+            + '\nrecord_verdict "alpha check" pass\n'
+            'record_verdict "beta check" fail\n'
+            'record_verdict "gamma check" skip\n'
+            'record_verdict "delta=check" pass\n'
+            "reconcile_claims\n"
+            'exit "$exit_code"\n'
+        )
+        # The pasted emission ends in a bare reconcile_claims call; the
+        # driver's second call after recording mirrors real placement.
+        script = stage / "validation.sh"
+        script.write_text(driver)
+        run = subprocess.run(["bash", str(script)], cwd=stage,
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        body = run.stdout
+        self.assertIn("claims vs verdict:", body)
+        self.assertRegex(body, r"alpha check:\s+claim=pass\s+verdict=pass\s+\[agree\]")
+        self.assertRegex(body, r"beta check:\s+claim=pass\s+verdict=fail\s+\[DISAGREE\]")
+        self.assertRegex(body, r"gamma check:\s+claim=pass\s+verdict=skip\s+\[n/a\]")
+        # A label containing '=' still pairs (rsplit from the right),
+        # and a no-prediction claim is n/a even against a verdict.
+        self.assertRegex(body, r"delta=check:\s+claim=untested\s+verdict=pass\s+\[n/a\]")
+        # A claimed check whose verdict was never recorded surfaces
+        # loudly as missing rather than silently vanishing.
+        self.assertRegex(body, r"epsilon check:\s+claim=fail\s+verdict=missing\s+\[n/a\]")
+        # Diagnostic, never gatekeeping: the DISAGREE left exit 0.
+
+    def test_missing_manifest_skips_loudly(self):
+        out = self.emit()
+        empty = self.tmp / "no-staging"
+        empty.mkdir()
+        script = empty / "validation.sh"
+        script.write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
+                          + out)
+        run = subprocess.run(["bash", str(script)], cwd=empty,
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("[SKIP] claims reconciliation", run.stdout)
+
+    def test_exec_assertions_share_the_chmod_source(self):
+        """One source, two emissions: the same --executable list yields
+        chmod lines in --apply-only and per-path assertions in
+        --validation-epilogue, same paths, same order."""
+        rdir = make_response_dir(self.tmp, {
+            "scripts/b.sh": b"#!/bin/sh\n",
+            "scripts/a.sh": b"#!/bin/sh\n",
+        })
+        argv = ["--executable", "scripts/b.sh", "--executable", "scripts/a.sh"]
+        apply_cp = run_craft(str(rdir), "--apply-only", *argv)
+        self.assertEqual(apply_cp.returncode, 0, apply_cp.stderr)
+        epi_cp = run_craft(str(rdir), "--validation-epilogue", *argv)
+        self.assertEqual(epi_cp.returncode, 0, epi_cp.stderr)
+        chmod_paths = [ln.split()[-1] for ln in apply_cp.stdout.splitlines()
+                       if ln.startswith("chmod +x ")]
+        assert_paths = [ln.split()[3] for ln in epi_cp.stdout.splitlines()
+                        if ln.startswith("if [ -x ")]
+        self.assertEqual(chmod_paths, ["scripts/a.sh", "scripts/b.sh"])
+        self.assertEqual(assert_paths, chmod_paths)
+
+    def test_exec_assertion_fails_then_passes(self):
+        """The assertion's behavior is 7.7's: a stripped exec bit is a
+        [FAIL] that flips exit_code; a restored one is a [PASS]."""
+        out = self.emit("--executable", "scripts/run.sh")
+        stage = self.tmp / "exec-stage"
+        (stage / "scripts").mkdir(parents=True)
+        target = stage / "scripts" / "run.sh"
+        target.write_text("#!/bin/sh\n")
+        script = stage / "validation.sh"
+        script.write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
+                          "exit_code=0\n" + out + '\nexit "$exit_code"\n')
+        run1 = subprocess.run(["bash", str(script)], cwd=stage,
+                              capture_output=True, text=True)
+        self.assertEqual(run1.returncode, 1, run1.stdout)
+        self.assertIn("[FAIL] scripts/run.sh not executable", run1.stdout)
+        target.chmod(0o755)
+        run2 = subprocess.run(["bash", str(script)], cwd=stage,
+                              capture_output=True, text=True)
+        self.assertEqual(run2.returncode, 0, run2.stdout)
+        self.assertIn("[PASS] scripts/run.sh is executable", run2.stdout)
+
+    def test_no_assertions_without_executables(self):
+        out = self.emit()
+        self.assertNotIn("exec-bit assertions", out)
+        self.assertNotIn("[ -x", out)
+
+    def test_flag_hygiene(self):
+        rdir = make_response_dir(self.tmp, {"f.txt": b"f\n"})
+        # Normal kind only: the two non-normal kinds fix validation.sh
+        # as the no-op.
+        cp = run_craft(str(rdir), "--validation-epilogue",
+                       "--kind", "bailout")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("--validation-epilogue", cp.stderr)
+        # --executable hygiene still applies: no phantom assertions.
+        cp2 = run_craft(str(rdir), "--validation-epilogue",
+                        "--executable", "ghost.sh")
+        self.assertEqual(cp2.returncode, 2)
+        self.assertIn("no file under files/", cp2.stderr)
+        # No --sid needed (stdout fragment, no manifest).
+        cp3 = run_craft(str(rdir), "--validation-epilogue")
+        self.assertEqual(cp3.returncode, 0, cp3.stderr)
+
+
+@unittest.skipUnless((REPO / "bin").is_dir(),
+                     "bin/ not present — a tools-only sandbox has no "
+                     "bale_pack.py to drive; the injection surface is "
+                     "covered where bin/ ships")
 class PackInjectionSurface(unittest.TestCase):
     """Unit-shaped injection assertion: build_request_tarball ships
     exactly bin/bale's INJECTED_TOOLS members — the single source since
