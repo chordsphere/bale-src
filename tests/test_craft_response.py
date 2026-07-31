@@ -23,6 +23,16 @@ skeletons match the repo schemas' required sets — the crafter embeds
 neither schema, per the one-home rule), and refuse-overwrite across the
 enlarged artifact sets.
 
+Session 22d adds --probe SLUG (the TARBALL.md 4.2 paste-back probe
+skeleton, emitted to stdout). CraftProbeMode proves: the emission's
+fixed shape (purpose header with the read-only line verbatim, probe()
+wrapper, slug-carrying sentinels, capture-then-count integrity
+trailer) plus loud TODO placeholders; that the emission is valid bash
+(`bash -n`) AND runs read-only with a self-consistent integrity count;
+mutual exclusion against every response-directory mode and flag; and
+slug hygiene. Deliberately no lint round trip: no judge exists for
+probes — they are chat paste-backs the architect audits by eye (4.2).
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -589,6 +599,106 @@ class CraftClarificationKind(unittest.TestCase):
         self.assertEqual(
             lint2.returncode, 0,
             f"judge found findings:\n{lint2.stdout}\n{lint2.stderr}")
+
+
+class CraftProbeMode(unittest.TestCase):
+    """--probe SLUG: the TARBALL.md 4.2 skeleton to stdout, no response
+    dir, no judge (probes are chat paste-backs audited by eye)."""
+
+    SLUG = "fixture-probe"
+
+    def emit(self) -> str:
+        cp = run_craft("--probe", self.SLUG)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout
+
+    def test_fixed_shape_and_loud_placeholders(self):
+        out = self.emit()
+        lines = out.splitlines()
+        # The three-line purpose header, read-only declaration verbatim.
+        self.assertEqual(lines[0], "#!/usr/bin/env bash")
+        self.assertTrue(lines[1].startswith(f"# PROBE {self.SLUG}: "))
+        self.assertTrue(lines[2].startswith("# Why: "))
+        self.assertEqual(
+            lines[3],
+            "# Read-only: writes nothing anywhere; stdout is the only "
+            "output.")
+        # Function wrapper and slug-carrying sentinels.
+        self.assertIn("probe() {", out)
+        self.assertIn(f'echo "=== PROBE BEGIN {self.SLUG} ==="', out)
+        self.assertIn(f'echo "=== PROBE END {self.SLUG} ==="', out)
+        # Capture-then-count integrity machinery, 4.2's form.
+        self.assertIn('out="$(probe 2>&1)"', out)
+        self.assertIn("--- integrity: %s lines ---", out)
+        self.assertIn("wc -l", out)
+        # Loud placeholders: what/why lines and the example section,
+        # its cap-and-truncation pattern shown.
+        self.assertGreaterEqual(out.count("TODO(worker)"), 3)
+        self.assertIn("head -n 40", out)
+        self.assertIn("[truncated:", out)
+
+    def test_emission_is_valid_bash_and_runs_read_only(self):
+        out = self.emit()
+        with tempfile.TemporaryDirectory() as td:
+            script = Path(td) / "probe.sh"
+            script.write_text(out)
+            chk = subprocess.run(["bash", "-n", str(script)],
+                                 capture_output=True, text=True)
+            self.assertEqual(chk.returncode, 0, chk.stderr)
+            # The unfilled skeleton still executes (placeholders are
+            # comments and strings only), writes nothing, and its
+            # integrity trailer counts the real sentinel-bracketed body.
+            before = sorted(p.name for p in Path(td).iterdir())
+            run = subprocess.run(["bash", str(script)], cwd=td,
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(sorted(p.name for p in Path(td).iterdir()),
+                             before, "probe run must write nothing")
+            body = run.stdout.splitlines()
+            self.assertEqual(body[0], f"=== PROBE BEGIN {self.SLUG} ===")
+            self.assertEqual(body[-1], f"=== PROBE END {self.SLUG} ===")
+            counted = body[1:-2]  # between BEGIN and the integrity line
+            self.assertEqual(
+                body[-2], f"--- integrity: {len(counted)} lines ---")
+
+    def test_mutually_exclusive_with_response_dir_surface(self):
+        for argv, needle in (
+            (["--kind", "bailout"], "--kind"),
+            (["--kind", "normal"], "--kind"),
+            (["--changes-only"], "--changes-only"),
+            (["--apply-only"], "--apply-only"),
+            (["--write"], "--write"),
+            (["--sid", "s-042"], "--sid"),
+            (["--questions", "2"], "--questions"),
+            (["--deleted", "x.txt"], "--deleted"),
+            (["--executable", "x.sh"], "--executable"),
+            (["--force"], "--force"),
+        ):
+            with self.subTest(argv=argv):
+                cp = run_craft("--probe", self.SLUG, *argv)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+                self.assertIn("mutually exclusive", cp.stderr)
+
+    def test_supplied_response_dir_refused_not_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            cp = run_craft("--probe", self.SLUG, td)
+            self.assertEqual(cp.returncode, 2, cp.stderr)
+            self.assertIn("no response dir", cp.stderr)
+
+    def test_slug_hygiene(self):
+        for bad in ("", "  ", "Has-Caps", "under_score", "spa ce",
+                    "tick`tick", "-lead", "trail-", "dou--ble", "a/b"):
+            with self.subTest(bad=bad):
+                # --probe=X keeps hyphen-leading values out of argparse's
+                # option parsing so the tool's own hygiene answers.
+                cp = run_craft(f"--probe={bad}")
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+
+    def test_missing_response_dir_still_an_error_without_probe(self):
+        cp = run_craft("--sid", "s-042")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("response dir is required", cp.stderr)
 
 
 class SchemaDriftBridge(unittest.TestCase):
