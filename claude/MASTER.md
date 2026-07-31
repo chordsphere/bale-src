@@ -26,7 +26,12 @@ deltas session named in its own sid) is deltas-in-place under the
 interim manual form: the master session 2026-07-28-continue-master-006
 was packed without --read-only (a cold-start predating the habit the
 shape now enables) and unlocked before spawning; deltas via this
-pack.
+pack. This update (2026-07-31, landed by the narrow follow-on
+deltas session named in its own sid) is deltas-in-place under the
+interim manual form: the master session 2026-07-29-continue-plan-005
+was again packed without --read-only (the wizard now asks; the
+answer wasn't taken — a habit gap, not a tooling gap) and unlocked
+before spawning; deltas via this pack.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -220,6 +225,13 @@ sitting's start per the standing rule.
 - TARBALL.md §3.2 context_included-vs-recorded-scope sentence
   (2026-07-29, evidence 41's doc countermeasure: the shipped file
   list is not the recorded repo-side scope) — rides board 27.
+- Revert's human staging-row rendering → bale_report (2026-07-31,
+  accepted from session 008's Proposals): _discard_hold_state now
+  computes the machine staging facts beside the inline
+  staging_status display string; a small follow-up renders the human
+  string from those facts in bale_report, deleting the last
+  rendering residue from bin/bale's revert path (§19) — rides the
+  next session touching that path.
 
 Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
 the bale-internals refresh (rode 8b and 8c).
@@ -539,22 +551,112 @@ Version at sitting close: 0.3.17 as of split-supersession, verified
 by the architect post-reinstall — re-verify with bale --version at
 the next sitting's start per the standing rule.
 
+**Sitting summary, 2026-07-29/31 (landed by the narrow follow-on
+deltas session per the interim manual form; applied-state facts
+reconciled from architect-relayed notes.md and apply confirmations —
+claude/telemetry was not shipped in the deltas request, so apply
+timestamps and closure rows reconcile there at the next sitting's
+open):**
+
+- **State reconciled.** Contract-doc hashes matched provenance
+  byte-for-byte; 0.3.17 at sitting open. The cold-start master pack
+  was again not --read-only (second consecutive; the board-24 wizard
+  question now exists, so this is habit, not tooling) and the
+  architect unlocked pre-spawn — the first master close recorded by
+  the board-25 machinery.
+- **lifecycle-telemetry-parity (boards 28+29, fused) — DONE.** Sid
+  `2026-07-29-lifecycle-telemetry-parity-006`, v0.3.17 → 0.3.18.
+  First attempt HOLD on a suite-fixture defect (the sandbox repo
+  never gitignored .bale/, and rollback journals into
+  .bale/logs/<sid>.log before its dirty-tree guard runs — a state no
+  real bale repo reaches, since pack's §7 gitignore handling covers
+  it); the corrected retry applied, and the HOLD→retry pair is the
+  corpus's first live multi-attempt sequence. Board 28: rollback and
+  --undo append attempts on their clean-success paths only
+  (rolled-back / re-applied outcomes; the command enum gained
+  rollback — the third additive touch beyond the board row's two
+  outcome enums); closure_reason null (rollback closes no session);
+  unrecoverable scope records [] per the crash-debris honesty
+  precedent; summary rows gained the telemetry line. Board 29:
+  unlock --json, formatter one-homed in bale_report
+  (format_unlock_json's docstring owns the key contract); the debris
+  sweep rides its own `debris` key; --integration --json refused;
+  refusal paths fail()-shaped with empty stdout. Ratified as
+  shipped: no rollback --reason; the --undo summary-label
+  realignment; the fabricated-git applied-merge fixture (ADR-0003
+  depth); the dirty-tree-sees-bale's-own-record friction accepted
+  as-is with the guard-change proposal deferred to board 5's row.
+- **craft-tool-v1 (board 22b) — DONE.** Sid
+  `2026-07-29-craft-tool-v1-007`. Serialized behind 006 at apply as
+  planned: the ADR-0007 sibling-collision refusal fired on its
+  tests/ path while 006 was open, and its two ADR-0014 new files
+  (tools/craft_response.py, tests/test_craft_response.py) were
+  admitted per path at the own-scope gate, both refusals predicted
+  in the sitting plan before they fired. The tool: stdlib,
+  sandbox-run, per-request injected; computes every size_bytes and
+  sha256 from bytes; unfilled skeleton fields are empty strings, so
+  an unfilled skeleton cannot pass the judge; reports what's under
+  files/ faithfully, junk included (filtering would be the crafter
+  edging into validation); 0/2 exit surface with 1 reserved against
+  the lint's. Injection shipped via a deliberately temporary guarded
+  block + CRAFT_TOOL constant in bale_pack.py (bin/bale was the
+  concurrent session's lock); all five packaging surfaces touched;
+  TARBALL.md §5.2.1 collapsed to trigger + tool pointer with §5.2
+  keeping the schema-of-record and field semantics; no bin/bale E2E
+  per the brief's stated depth boundary (the execution-context
+  contract's firing condition was named so the worker didn't have to
+  guess).
+- **injection-consolidation-revert-json (board 30) — DONE.** Sid
+  `2026-07-29-injection-consolidation-revert-json-008`, v0.3.18 →
+  0.3.19 (the one bump also covering 007's unbumped injection
+  change, by design). Consolidation: craft_response.py joined
+  INJECTED_TOOLS and main()'s pack-time precheck; the guard block
+  and CRAFT_TOOL deleted; the guard-era injection tests replaced
+  (not extended) with exactly-the-list pins including the
+  narrowed-list-ships-no-crafter proof; the missing-crafter refusal
+  test closed the precheck gap 007 named. revert --json:
+  format_revert_json follows unlock's pattern minus debris and minus
+  the constant-true session_dir_wiped, plus origin_branch /
+  branch_deleted / lock_cleared / staging_state / staging_path;
+  machine staging facts computed in _discard_hold_state beside the
+  human row, never parsed from it; BALE.md §9.1 gained exactly one
+  pointer sentence, and the worker's grep found part 1's BALE.md
+  delta genuinely zero (the injection wording it would falsify never
+  existed — the stale spots found instead are 27 riders below). E2E
+  depth throughout; 72 tests green at close (65 before), the
+  both-tools-with-exec-bits pack E2E riding test_install_precheck.
+- **Worker-scope postscript (evidence 44):** 007 predicted its
+  drift and drifted by design; 008 reasoned from the brief's scope
+  statement rather than context_included, hedged correctly, and was
+  covered by the directory include — the evidence-41 countermeasure
+  functioning at brief level ahead of the §3.2 doc sentence.
+- **Proposals disposed:** the staging-row human rendering fold-in
+  accepted (registry entry below); the BALE.md §6.1 / §7.5 step 3
+  injected-tools staleness accepted as 27 riders with 007's §3.1
+  tools listing; the rollback dirty-tree/telemetry-record question
+  annotated onto board 5's row; 007's pack-E2E proposal taken early
+  by 008 rather than waiting for the v0.4 bucket.
+- **This deltas session** — lands these deltas into this document.
+
+Version at sitting close: 0.3.19 as of
+injection-consolidation-revert-json, confirmed by the deltas
+request's own pack-time provenance stamp — re-verify with bale
+--version at the next sitting's start per the standing rule.
+
 ## 3. In flight
 
-- **No sessions open.** Boards 25 and 26 applied 2026-07-29; the
-  master session (unlocked pre-spawn) and this deltas session are
-  closed.
-- **Next master sitting:** pack itself --read-only (the standing
-  form now that board 24's shape exists — this sitting's cold-start
-  predated the habit and used the interim unlock-before-spawn form
-  for the last time). Author board 27 against the post-26 tree,
-  absorbing three riders: the §8.9 retitle, the internals-§6
-  surfacing + harness present-tense flip (registry entry), and the
-  new TARBALL.md §3.2 context_included-vs-recorded-scope sentence
-  (evidence 41). Then order 28/29: recommended 28 before 27's §9
-  sweep so the sweep documents a complete outcome vocabulary, with
-  29 either fused into 28's sitting or serialized against it
-  (their BALE.md §9.2/§9.3 touches intersect) — stated for contest
+- **No sessions open.** Boards 28, 29, 22b, and 30 applied ahead of
+  this deltas pack; the master session (unlocked pre-spawn) and this
+  deltas session are closed.
+- **Next master sitting:** pack itself --read-only — **two
+  consecutive cold starts have now missed this and the wizard asks
+  the question; answer read-only.** Board 27 is the whole ready
+  queue and everything it documents has landed: author it against
+  the tree as it stands, absorbing the rider list on its row (grown
+  to six this sitting). After 27, the next candidates are 22c (the
+  mechanization arc continues) and board 5's opening moves, with
+  the board-30 fold-in (staging-row rendering) riding whichever
+  session next touches bin/bale's revert path — stated for contest
   per evidence 23; the next master re-derives against the tree it
   reads.
 
@@ -607,7 +709,14 @@ and §8, so done items keep their numbers as one-line pointers.
    proposal; jq over stamped manifests is the do-nothing baseline);
    and the evidence-41 mechanical fix — stamping the declared scope
    into the request manifest so workers reason from fact, not
-   inference — is on this board's radar.
+   inference — is on this board's radar. Annotation (2026-07-31,
+   from session 006's deferred proposal): rollback's dirty-tree
+   guard now refuses on the untracked telemetry record bale itself
+   wrote seconds earlier (a rollback → --undo toggle needs a commit
+   between halves); whether the guard should disregard
+   claude/telemetry/ turns on whether the ledger expects records
+   committed promptly, so this board's design decides it — the
+   guard change is deferred, not declined.
 
 6. **Blind validation checkpoints — doctrine to mechanics** — the §1
    floor's "validation checkpoints are authored blind" line has no
@@ -809,17 +918,15 @@ and §8, so done items keep their numbers as one-line pointers.
       Doc-only, no code lock. Riders: ADR-0013 Accepted flip +
       INDEX.md word flip, board 17's one-liner, evidence 28's
       one-liner.
-    - **22b — craft tool v1, normal-response shape:** a worker-run
-      tools/ sibling of response_lint that walks files/, computes
-      every size_bytes and sha256, and emits the manifest skeleton
-      plus the apply.sh scaffold; TARBALL.md §5.2/§5.2.1 prose then
-      collapses to trigger + tool pointer. Board 11's
-      craft_response fixture recipe is the seed. Constraints:
-      crafter/validator separation — the blind-authored lint stays
-      the judge, separately authored and maintained (evidence 16's
-      self-oracle test applied at design time); the toolkit is
-      self-contained per the §5 execution-context manifest
-      (evidence 13/30).
+    - **22b — craft tool v1, normal-response shape — DONE**
+      2026-07-29/31 sitting (§2 summary): tools/craft_response.py
+      landed with the ratified constraints intact —
+      crafter/validator separation held (no shared code with the
+      lint; argument hygiene on a 0/2 exit surface guards inputs,
+      never the finished response), unfilled skeleton fields are
+      empty strings the judge rejects, §5.2.1 collapsed to trigger
+      + tool pointer. Injection consolidated into INJECTED_TOOLS by
+      board 30 after shipping behind a temporary guarded block.
     - **22c — bailout + clarification shapes:** diagnostics.json and
       questions[] emitted from the schemas that already own them;
       §5.6/§5.8/§5.9 shape prose collapses behind the tool.
@@ -891,28 +998,40 @@ and §8, so done items keep their numbers as one-line pointers.
     itself landed with 26's doc touches); BALE.md §5/§9 swept for
     24–26's landed behavior. Serialized last — it documents what
     24–26 land. Doc-only, global docs included (bale-src is their
-    home). Riders (2026-07-29): the §8.9 retitle to "Telemetry
-    record at session close" (citer check completed post-apply —
-    safe; see the registry), the internals-§6 surfacing + harness
-    present-tense flip (registry entry), and the new TARBALL.md
-    §3.2 context_included-vs-recorded-scope sentence (evidence 41).
+    home). The §9 sweep now also documents 28–30's landed behavior
+    (rollback telemetry, unlock and revert --json) — everything
+    this row documents has landed as of 2026-07-31. Riders, six:
+    (2026-07-29) the §8.9 retitle to "Telemetry record at session
+    close" (citer check completed post-apply — safe; see the
+    registry), the internals-§6 surfacing + harness present-tense
+    flip (registry entry), and the new TARBALL.md §3.2
+    context_included-vs-recorded-scope sentence (evidence 41);
+    (2026-07-31, from sessions 007/008) TARBALL.md §3.1's tools/
+    listing shows only response_lint.py where requests now carry
+    two tools, BALE.md §6.1's request diagram omits tools/
+    entirely, and BALE.md §7.5 step 3 says "inject all four global
+    docs" with no mention of the tools — both BALE.md spots were
+    stale before this sitting and are now two tools stale.
 
-28. **Rollback telemetry** (accepted worker proposal, 2026-07-29):
-    `bale rollback` and --undo append attempts to the sid's record;
-    the outcome vocabulary gains a rolled-back/re-applied pair,
-    additive per the telemetry schema's standing contract. With
-    unlock landed, rollback is the only silent lifecycle verb left,
-    and it is precisely the "the merge was wrong" signal board 5's
-    ledger wants. Scope: bin/bale_rollback.py, the schema's two
-    outcome enums, BALE.md §9.2. Serialize before board 5; ordering
-    against 27/29 in §3.
+28. **Rollback telemetry — DONE** 2026-07-29/31 sitting (§2
+    summary, fused with 29 into
+    `2026-07-29-lifecycle-telemetry-parity-006`): rollback and
+    --undo record on clean success; rolled-back/re-applied outcomes
+    plus the rollback command enum value, all additive; v0.3.18.
 
-29. **unlock --json parity** (accepted worker proposal, 2026-07-29):
-    unlock is the one summary-emitting lifecycle command without a
-    --json report; an orchestrator closing read-only sessions wants
-    the telemetry path machine-readable. Scope: bin/bale
-    (cmd_unlock, parser), bale_report emission helpers. Small; the
-    BALE.md touch intersects 28's — see §3.
+29. **unlock --json parity — DONE** 2026-07-29/31 sitting (§2
+    summary, same fused session as 28): format_unlock_json
+    one-homed in bale_report; debris on its own key;
+    --integration --json refused; refusals fail()-shaped.
+
+30. **INJECTED_TOOLS consolidation + revert --json + VERSION —
+    DONE** 2026-07-29/31 sitting (§2 summary; created and closed
+    within the sitting from 007's and 006's accepted proposals):
+    the craft tool's temporary guarded injection block replaced by
+    the one-source INJECTED_TOOLS entry + main() precheck coverage;
+    revert --json to the same one-home contract unlock got;
+    v0.3.19. The pack E2E asserting both tools ship with exec bits
+    landed here rather than waiting for the v0.4 bucket.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1401,6 +1520,33 @@ New from the 2026-07-28/29 sitting:
     actually fires; treat "the gate will catch it" as a claim to
     verify.
 
+New from the 2026-07-29/31 sitting:
+
+43. **Predicted refusals are control flow; surprise refusals are
+    incidents.** The sitting plan serialized two concurrent applies
+    *through* two gate refusals stated in advance — the ADR-0007
+    sibling collision on 007's tests/ path while 006 was open, then
+    007's own-scope drift on its two ADR-0014 new files — and both
+    fired exactly as written, resolved by the pre-stated order and
+    the pre-enumerated per-path admissions. Evidence 42's
+    name-the-firing-condition rule, run forward: a gate whose
+    firing condition the plan names is a sequencing tool the
+    operator walks through calmly; the same refusal unstated reads
+    as a failure and invites an unlock that throws a session away.
+
+44. **Brief-carried scope statements are the working evidence-41
+    countermeasure until the doc sentence and the manifest stamp
+    land.** Same sitting, both directions: 007's brief said its
+    test file *would* drift (file-granular includes, by design) and
+    the worker enumerated it for admission without spending a probe;
+    008's brief said tests/ was a directory include and its worker
+    reasoned from that statement — hedged with the correct remedy
+    rather than predicting a refusal from context_included. The
+    recorded scope stays invisible from inside the tarball; a brief
+    sentence stating it is cheap and worked twice. Masters state
+    the scope shape in every brief until board 27's §3.2 sentence
+    and the board-5-radar manifest stamp make it unnecessary.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1408,15 +1554,19 @@ New from the 2026-07-28/29 sitting:
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
-  run python3 -m unittest discover -s tests. Four suites:
-  tests/test_install_precheck.py (2026-07-25),
-  tests/test_readonly_pack.py (2026-07-28, first pty-driven wizard
-  tests — the likeliest flake site if one ever appears, per its
-  session's notes), tests/test_closure_telemetry.py (2026-07-29),
-  and tests/test_supersession_pack.py (2026-07-29). Shared sandbox
-  harness at tests/harness.py (extracted 2026-07-28 on board 11's
-  second-suite trigger; owns run_bale_pty as of 2026-07-29, moved
-  on its second consumer); ADR-0005 (Accepted 2026-07-28) governs.
+  run python3 -m unittest discover -s tests. The suite grew across
+  the 2026-07-29/31 sitting (rollback telemetry, unlock json, the
+  craft tool, revert json; 72 tests green at 008's close, 65
+  before) — enumerate suites from the tree (`ls tests/`), not from
+  this doc; the per-file list this bullet used to carry went stale
+  within two sittings, and this deltas session could not verify
+  every new filename from a MASTER.md-only request. Named
+  landmarks: shared sandbox harness at tests/harness.py (owns
+  run_bale_pty; INSTALL_TREES copies bin/ docs/ schemas/ tools/
+  from repo root — the include set for any session running it);
+  test_readonly_pack.py drives the wizard via pty (likeliest flake
+  site per its session's notes). ADR-0005 (Accepted 2026-07-28)
+  governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
