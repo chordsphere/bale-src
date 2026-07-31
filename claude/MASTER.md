@@ -11,8 +11,8 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-07-31-master-v4-regeneration-012`. (This line
-is edited in place at each landing, never appended to.)
+Last landed by: `2026-07-31-master-v4-ratification-microdeltas-013`.
+(This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
 write `claude/telemetry/` records, board rows, evidence entries, and
@@ -99,7 +99,14 @@ ratified v4 brief; this session,
 the sitting log collapsed to these arc summaries, live state
 one-homed, INDEX.md history prose trimmed in the same pass. This
 session is the sitting's deltas vehicle; no separate deltas pack
-follows unless post-landing ratification changes something.
+follows unless post-landing ratification changes something. It did,
+microscopically: 012 applied clean and its notes were ratified as
+shipped in the sitting chat; the ratification closed via
+`2026-07-31-master-v4-ratification-microdeltas-013` (this record,
+the re-homed registry rides, evidence 46). 012's mid-session
+compaction was disclosed and covered both ways — the worker's
+post-compaction re-verification per CLAUDE.md §11.6, and the
+master's independent full read of v3 at review.
 
 ## 3. In flight
 
@@ -126,25 +133,16 @@ with the unverifiable ones carried verbatim and marked):
   regeneration — BALE.md not shipped.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
-- Internals §6 surfacing + harness present-tense flip (2026-07-28,
-  accepted from test-layout-docs' Proposals): extend
-  bale-internals.md's opening pull-when blockquote and INDEX.md's
-  bale-internals entry to mention the test layout, and flip §6's
-  trigger-shaped harness sentence to plain present
-  (tests/harness.py landed with board 24) — rides the next
-  claude/-docs-touching session. [2026-07-31: board 27 closed
-  without absorbing it — the entry is not in session 007's landed
-  set — so the absorb-if-unclaimed clause is spent; the ride
-  condition stands.]
 - §8.9 retitle to "Telemetry record at session close" (2026-07-29,
   deferred at board 25's build on the immutable-citer precondition;
   citer check completed post-apply — ADR grep empty, no
   commit-message citer, and numeric §8.9 citations are unaffected
-  by design) — rides board 27. [Carried verbatim; unverifiable at
-  the v4 regeneration — BALE.md not shipped. Board 27 has since
-  closed without landing the retitle (not in session 007's landed
-  set), so the ride needs re-homing to the next BALE.md-touching
-  session — flagged in the v4 response's notes for ratification.]
+  by design) — rides the next BALE.md-touching session; board 32's
+  session is the likely carrier. [Carried verbatim; unverifiable at
+  the v4 regeneration and again at this landing — BALE.md not
+  shipped. Re-homed from the dead board-27 ride condition at
+  `2026-07-31-master-v4-ratification-microdeltas-013`, ratified in
+  the sitting chat.]
 - Revert's human staging-row rendering → bale_report (2026-07-31,
   accepted from session 008's Proposals): _discard_hold_state now
   computes the machine staging facts beside the inline
@@ -685,7 +683,10 @@ hygiene; (9) masters externalize their own state.
     from disk, recompute every hash and claim from finished files,
     disclose in notes.md. The compacted session's response was
     indistinguishable in quality; the disclosure is what made it
-    trustworthy. (checkout-free-mechanism.)
+    trustworthy. (checkout-free-mechanism.) [Second successful
+    §11.6 recovery: `2026-07-31-master-v4-regeneration-012`, with
+    the accounting-written-pre-compaction caveat disclosed in its
+    notes and the master's independent full v3 read as the cover.]
 13. **Include sets must cover LOAD-TIME IMPORTS whenever the worker
     is expected to execute the tool, not just read it.** The docs
     session shipped bin/bale without its four import siblings; the
@@ -1046,6 +1047,23 @@ New from the 2026-07-31 second sitting:
     heading before shipping (discipline); and the pack report
     echoes the README's first heading line (mechanical — fold-in
     rider on the next bin/bale_pack.py-touching session, §3).
+
+New from the 2026-07-31 doc-compression sitting:
+
+46. **Absence of a gate refusal is mechanism-ambiguous evidence.**
+    No ADR-0007 refusal cannot distinguish an empty-scope master
+    from one already unlocked, and a doc-carried "ran read-only"
+    inference from that absence contradicted the closure record:
+    the 07-31 first-sitting master `2026-07-31-continue-plan-002`
+    closed `abandoned` with scope `["."]` — whole-tree, unlocked
+    pre-spawn, the interim manual form. The first end-to-end
+    scopeless sitting was the second
+    (`2026-07-31-continue-plan-006`, `closed-read-only`). Third
+    consecutive habit-gap occurrence of a master packed without
+    --read-only. Closure records are the ground truth; inference
+    from refusal-absence never upgrades to a doc claim without the
+    record (evidence 20's rule at the sitting level). Board 5's
+    aggregation keys on these records either way.
 
 ## 7. Standing environment facts
 

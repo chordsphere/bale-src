@@ -154,9 +154,10 @@ record; the flip-by-flip narrative lives in git.
 ## Explainers
 
 - `context/bale-internals.md` — how `bin/bale` is structured (commands,
-  control flow, configurables), the `bale.toml` schema, and the hook
-  contract. Pull when a session touches `bin/bale`, the configurables
-  mechanism, or a new hook.
+  control flow, configurables), the `bale.toml` schema, the hook
+  contract, and the test layout (§6). Pull when a session touches
+  `bin/bale`, the configurables mechanism, a new hook, or test code
+  under `tests/`.
 - `context/meta-sessions.md` — the recursive properties every bale-src
   session inherits from working on bale itself: the one-apply-behind
   fixed-point, `bin/bale` as both tool and artifact, the reinstall loop
