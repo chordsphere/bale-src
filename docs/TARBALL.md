@@ -1308,37 +1308,15 @@ these required properties:
   session can detect a truncated or partial paste and re-request
   instead of reasoning from half an environment.
 
-The canonical skeleton — the body runs inside a function so the
-trailer can count the real output before anything is printed:
-
-```bash
-#!/usr/bin/env bash
-# PROBE <session-slug>: <what this asks, in one line>.
-# Why: <the gap this fills, in one line>.
-# Read-only: writes nothing anywhere; stdout is the only output.
-
-probe() {
-  echo "--- section: node ---"
-  node --version 2>&1 | head -n 2
-
-  echo "--- section: git-state ---"
-  git status --porcelain=v1 2>&1 | head -n 40
-  n=$(git status --porcelain=v1 2>/dev/null | wc -l)
-  [ "$n" -gt 40 ] && echo "[truncated: $n lines total, showing 40]"
-
-  echo "--- section: vite-config ---"
-  ls -l vite.config.* 2>&1 | head -n 5
-}
-
-out="$(probe 2>&1)"
-echo "=== PROBE BEGIN <session-slug> ==="
-printf '%s\n' "$out"
-printf -- '--- integrity: %s lines ---\n' "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
-echo "=== PROBE END <session-slug> ==="
-```
+The canonical skeleton is mechanized: when a probe is the response,
+`tools/craft_response.py --probe <session-slug>` (shipped in every
+request per §3.1) emits it to stdout — the required properties above
+in their final form, the what/why header lines and the sections left
+as loud TODO placeholders.
 
 The sections, caps, and slug vary per probe; the shape — header,
-function body, sentinels, integrity trailer — does not.
+function body, sentinels, integrity trailer — does not, and its home
+is the tool's emission.
 
 ### 4.3 Probe script rules
 

@@ -362,7 +362,7 @@ DIAGNOSTICS_SCHEMA_JSON = r"""
         "mid-build-budget-panic",
         "other"
       ],
-      "description": "Per CLAUDE.md section 11.2. The first two are Claude-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
+      "description": "Per CLAUDE.md section 11.3. The first two are Claude-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
     },
     "bail_narrative": {
       "type": "string",

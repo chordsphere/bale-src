@@ -30,7 +30,19 @@ scaffolds all three response kinds (`--kind`, default `normal`):
 - (clarification, §5.9) emits the manifest skeleton with the same
   empty change surfaces plus `questions[]` seeded with four-field
   entry stubs (`--questions N`, default 1), and under `--write` the
-  no-op `apply.sh` and `validation.sh`.
+  no-op `apply.sh` and `validation.sh`;
+- (probe, §4.2) `--probe SLUG` emits the canonical paste-back probe
+  skeleton to stdout — the shape (shebang, three-line purpose header
+  with the read-only declaration verbatim, the probe() wrapper, the
+  PROBE BEGIN/END sentinels carrying the slug, and the
+  capture-then-count integrity trailer) final; the what/why header
+  lines and the one example labeled section (its cap-and-truncation
+  pattern shown) are loud TODO placeholders, in comments and strings
+  only so the emission stays valid bash. A probe is chat-ephemeral
+  (§4.2): no response directory is read, required, or accepted, and
+  no lint runs on it — the architect audits the pasted block by eye,
+  so the unfilled placeholders are the unfilled-cannot-pass analog:
+  visibly not ready to paste.
 
 For the normal kind, `validation.sh` remains un-emitted on purpose:
 there it is the worker's hypothesis test (TARBALL.md §7) — judgment,
@@ -46,6 +58,7 @@ judges. An unfilled skeleton is deliberately lint-invalid (empty
 
 Usage:
     craft_response.py <response-dir> --sid SESSION_ID [options]
+    craft_response.py --probe SLUG
 
 Modes (mutually exclusive; default prints the manifest skeleton):
     (default)       print the manifest-skeleton JSON to stdout
@@ -56,6 +69,10 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     + validation.sh; bailout: + validation.sh,
                     handoff.md, diagnostics.json). Refuses to
                     overwrite; --force to allow.
+    --probe SLUG    print the TARBALL.md §4.2 probe skeleton to stdout.
+                    Takes no response dir and combines with none of the
+                    response-directory flags — a probe is a chat
+                    paste-back, not a response artifact.
 
 Options:
     --kind KIND         normal (default) | bailout | clarification
@@ -139,6 +156,61 @@ HANDOFF_SCAFFOLD = """# Handoff
 # purpose: an unfilled skeleton is deliberately lint-invalid.
 QUESTION_STUB_KEYS = ("question", "context", "default_assumption",
                      "why_blocked")
+
+# The TARBALL.md §4.2 canonical probe skeleton. Real and final: the
+# shebang, the three-line purpose-header shape (its read-only line
+# verbatim from §4.2), the probe() wrapper, the sentinels carrying the
+# slug, and the capture-then-count integrity trailer. Loud TODO
+# placeholders (comments and strings only, so `bash -n` stays clean):
+# the what/why header lines and one example labeled section with the
+# cap-and-truncation-marker pattern shown. Sections are judgment; the
+# shape is not. No judge runs on a probe — it is a chat paste-back the
+# architect audits by eye (§4.2), so unfilled placeholders are the
+# unfilled-cannot-pass analog: visibly not ready to paste.
+PROBE_SCAFFOLD = """\
+#!/usr/bin/env bash
+# PROBE {slug}: TODO(worker) — what this asks, in one line.
+# Why: TODO(worker) — the gap this fills, in one line.
+# Read-only: writes nothing anywhere; stdout is the only output.
+
+probe() {{
+  # TODO(worker): replace this placeholder with the real sections —
+  # one labeled section per question, every command's output capped,
+  # an explicit truncation marker when the cap bites (TARBALL.md 4.2).
+  # The cap-and-truncation pattern, worked for one command:
+  #   git status --porcelain=v1 2>&1 | head -n 40
+  #   n=$(git status --porcelain=v1 2>/dev/null | wc -l)
+  #   [ "$n" -gt 40 ] && echo "[truncated: $n lines total, showing 40]"
+  echo "--- section: TODO-example ---"
+  echo "TODO(worker): unfilled probe placeholder — not ready to paste"
+}}
+
+out="$(probe 2>&1)"
+echo "=== PROBE BEGIN {slug} ==="
+printf '%s\\n' "$out"
+printf -- '--- integrity: %s lines ---\\n' "$(printf '%s\\n' "$out" | wc -l | tr -d ' ')"
+echo "=== PROBE END {slug} ==="
+"""
+
+
+def slug_problem(slug: str) -> str | None:
+    """Return a human-readable objection to a probe slug, or None.
+
+    Session slugs are short and kebab-cased (TARBALL.md §1). The slug
+    lands inside bash comments and double-quoted strings, so anything
+    outside kebab-case is refused rather than escaped — hygiene, not
+    quoting cleverness.
+    """
+    if not slug or not slug.strip():
+        return "empty slug"
+    kebab = set("abcdefghijklmnopqrstuvwxyz0123456789-")
+    ok = all(c in kebab for c in slug) \
+        and not slug.startswith("-") and not slug.endswith("-") \
+        and "--" not in slug
+    if not ok:
+        return (f"slug {slug!r} is not kebab-case — lowercase letters, "
+                "digits, and single hyphens only (TARBALL.md 1)")
+    return None
 
 
 def log(msg: str) -> None:
@@ -340,10 +412,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                      "crafter never validates its own output; run "
                      "tools/response_lint.py on the finished response."),
     )
-    ap.add_argument("response_dir", help="the response-NNN/ directory")
+    ap.add_argument("response_dir", nargs="?", default=None,
+                    help="the response-NNN/ directory (required except "
+                         "under --probe, which reads no response dir)")
+    ap.add_argument("--probe", default=None, metavar="SLUG",
+                    help="emit the TARBALL.md 4.2 probe skeleton for SLUG "
+                         "to stdout; mutually exclusive with the "
+                         "response-directory modes and flags")
     ap.add_argument("--sid", default=None,
                     help="session id (fills session_id and responds_to)")
-    ap.add_argument("--kind", choices=KINDS, default="normal",
+    ap.add_argument("--kind", choices=KINDS, default=None,
                     help="response kind to scaffold (default: normal)")
     ap.add_argument("--questions", type=int, default=None, metavar="N",
                     help="with --kind clarification: number of "
@@ -371,13 +449,52 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
 
+    # Probe mode. A probe is a chat paste-back, not a response-directory
+    # artifact (TARBALL.md §4.2): it reads no response dir and combines
+    # with none of the response-directory modes or flags, so every such
+    # combination is a flag error, not a silent ignore.
+    if args.probe is not None:
+        supplied = [flag for flag, given in (
+            ("--kind", args.kind is not None),
+            ("--changes-only", args.changes_only),
+            ("--apply-only", args.apply_only),
+            ("--write", args.write),
+            ("--sid", args.sid is not None),
+            ("--questions", args.questions is not None),
+            ("--deleted", bool(args.deleted)),
+            ("--executable", bool(args.executable)),
+            ("--force", args.force),
+        ) if given]
+        if supplied:
+            return die(f"--probe is mutually exclusive with "
+                       f"{', '.join(supplied)} — a probe is a chat "
+                       "paste-back, not a response-directory artifact "
+                       "(TARBALL.md 4.2)")
+        if args.response_dir is not None:
+            return die(f"--probe takes no response dir (got "
+                       f"{args.response_dir!r}) — the skeleton goes to "
+                       "stdout and a probe produces no artifact directory "
+                       "(TARBALL.md 4.2); drop the positional argument")
+        problem = slug_problem(args.probe)
+        if problem:
+            return die(f"--probe: {problem}")
+        sys.stdout.write(PROBE_SCAFFOLD.format(slug=args.probe))
+        log("probe skeleton emitted — fill the TODO placeholders (what, "
+            "why, real sections with caps), then paste into chat; no lint "
+            "runs on a probe — the architect audits it by eye "
+            "(TARBALL.md 4.2)")
+        return EXIT_OK
+
+    if args.response_dir is None:
+        return die("response dir is required (only --probe runs without "
+                   "one)")
     rdir = Path(args.response_dir)
     if not rdir.is_dir():
         return die(f"response dir not found or not a directory: {rdir}")
     if args.force and not args.write:
         return die("--force only means something with --write")
 
-    kind = args.kind
+    kind = args.kind if args.kind is not None else "normal"
 
     # Kind/flag coherence. This is argument hygiene, not response
     # validation (the judge stays tools/response_lint.py): each of these
