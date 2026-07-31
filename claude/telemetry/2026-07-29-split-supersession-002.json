@@ -1,0 +1,101 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-29-split-supersession-002",
+  "created_at": "2026-07-29T01:50:24+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-29T01:50:24+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-29-split-supersession-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -m unittest discover -s tests (staging)": "pass",
+          "schema additive invariants (session assertion)": "pass"
+        },
+        "claim_verdict": {
+          "python3 -m unittest discover -s tests (staging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "schema additive invariants (session assertion)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "schemas/request-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "BALE.md",
+        "docs/TARBALL.md",
+        "tests/harness.py",
+        "tests/test_readonly_pack.py",
+        "tests/test_supersession_pack.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.16",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "7348f1ec76dda82e74d9e2f0fed61c0246602b7bf82d22b1a0c6c426bfb6b6e2",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (claude.ai chat interface)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the request's context/ tree is the current post-board-25 state of the repo (the injected TARBALL.md and docs/TARBALL.md hashed identical, supporting this); no probe was needed since every 'currently' claim in the brief verified against the shipped bytes"
+          ],
+          "judgment_calls": [
+            "a --supersedes sid whose bale/<sid> branch exists (HOLD reached) refuses with `bale revert <sid>` as the remedy, mirroring cmd_unlock's posture \u2014 closing it from pack would strand the branch",
+            "a declined supersession refuses on every path: via the extended gate refusal when scopes intersect, via an explicit post-gate refusal when they happen to be disjoint (a --supersedes pack that closes nothing and stamps nothing is not the pack asked for), and immediately at the decline on the wizard path, before prompts collect throwaway answers \u2014 a deliberate tightening of the brief's step 4, argued in notes.md",
+            "the exchange's stdout lines are journaled into the child's session log after sid allocation rather than temporarily attaching the parent's log file, avoiding cross-journal contamination of buffered --force lines; the parent's durable record is its telemetry entry",
+            "run_bale_pty moved to tests/harness.py on gaining a second consumer, per the harness's own board-11 one-harness doctrine",
+            "the brief's accepted idempotence pin stands un-contested: the accept-then-abort window is real (test 5 exercises it) and the telemetry-history re-run is its only non-manual repair"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-split-supersession-002.log"
+    }
+  ],
+  "updated_at": "2026-07-29T01:50:24+00:00",
+  "outcome": "applied"
+}

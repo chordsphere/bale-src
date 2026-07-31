@@ -1,0 +1,234 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-22-master-deltas-001",
+  "created_at": "2026-07-22T13:40:30+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-22T13:40:30+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "tarball": "response-2026-07-22-master-deltas-001.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "markdown heading sanity (8 top-level sections, order preserved)": "pass",
+          "sitting sids resolve to telemetry filenames": "pass",
+          "board flips and new rows present (grep anchors)": "pass",
+          "evidence entries 28-31 present": "pass",
+          "version line reads 0.3.14": "pass",
+          "stale in-flight reference removed": "pass"
+        },
+        "claim_verdict": {
+          "section-1 ratified block unchanged (sha256)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "markdown heading sanity (8 top-level sections, order preserved)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting sids resolve to telemetry filenames": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "board flips and new rows present (grep anchors)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence entries 28-31 present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version line reads 0.3.14": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stale in-flight reference removed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "1676a56f15bafdd3e881bfa584ca6e6086cf53e7ae284bfa69f7b73754d23957",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude Fable 5 (Anthropic), claude.ai chat interface \u2014 self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the six 2026-07-21 telemetry sids are the sitting's complete session set; the sid-counter gaps (001, 006) are non-applied packs or other-project sessions and need no MASTER.md record",
+            "claude/telemetry is tracked at the staging base, so the sid-resolution check runs rather than SKIPs (it degrades to a documented SKIP if not)"
+          ],
+          "judgment_calls": [
+            "folded lint-schema-refresh into board 15's closing note rather than giving it its own row \u2014 the brief flagged this as the worker's call; the board 3 rode-telemetry-B1 precedent fits, and the session has no independent board identity to cross-reference",
+            "recorded handoff-refusal-numbering's applied date as 2026-07-22 (telemetry created_at), though its sid is dated 2026-07-21 \u2014 telemetry is the source for outcomes",
+            "retargeted the fold-in registry's ADR-0013 line at board 14 per the section-5 ratification \u2014 one edit beyond the brief's literal list, flagged in notes.md",
+            "added a home note to board 17 (rides board 14's sitting) since the board 14 annotation names it as a rider",
+            "version line states 0.3.14 with the two later 0.3.14-provenance applies as the confirm-nothing-later-bumped evidence, keeping the standing verify-next-sitting caveat"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-22-master-deltas-001.log"
+    },
+    {
+      "at": "2026-07-22T13:44:53+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "tarball": "response-2026-07-22-master-deltas-001-corrected.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "markdown heading sanity (8 top-level sections, order preserved)": "pass",
+          "sitting sids present in MASTER.md": "pass",
+          "sitting sids resolve to telemetry filenames": "unknown",
+          "board flips and new rows present (grep anchors)": "pass",
+          "evidence entries 28-31 present": "pass",
+          "version line reads 0.3.14": "pass",
+          "stale in-flight reference removed": "pass"
+        },
+        "claim_verdict": {
+          "section-1 ratified block unchanged (sha256)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "markdown heading sanity (8 top-level sections, order preserved)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting sids present in MASTER.md": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting sids resolve to telemetry filenames": {
+            "claim": "unknown",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "board flips and new rows present (grep anchors)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence entries 28-31 present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version line reads 0.3.14": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stale in-flight reference removed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "1676a56f15bafdd3e881bfa584ca6e6086cf53e7ae284bfa69f7b73754d23957",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude Fable 5 (Anthropic), claude.ai chat interface \u2014 self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the six 2026-07-21 telemetry sids are the sitting's complete session set; the sid-counter gaps (001, 006) are non-applied packs or other-project sessions and need no MASTER.md record",
+            "the 007/008 telemetry records' absence at staging base 1c611a4 is because those applies postdate the last commit to main, not because the records are missing from the working tree - the apply log's created_at timestamps support this"
+          ],
+          "judgment_calls": [
+            "MASTER.md shipped byte-identical to the held attempt: the validation failure was a check-implementation defect, not a content defect, so the correction touches validation.sh only",
+            "split the sid check into a hard doc-side assert (this session's change set controls it) and an environment-conditional file-resolution check with per-sid documented SKIP - the brief's stated conditionality, read at its intended width this time",
+            "claimed unknown for the file-resolution check: its verdict depends on whether the 007/008 telemetry records are committed to main before the retry stages from the then-current target base - genuinely unpredictable from here; notes.md carries the what-would-make-it-pass line per TARBALL.md 5.3",
+            "folded lint-schema-refresh into board 15's closing note rather than giving it its own row - the brief flagged this as the worker's call (unchanged from the held attempt)",
+            "recorded handoff-refusal-numbering's applied date as 2026-07-22 per telemetry created_at (unchanged from the held attempt)",
+            "retargeted the fold-in registry's ADR-0013 line at board 14 per the section-5 ratification - one edit beyond the brief's literal list (unchanged from the held attempt)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-22-master-deltas-001.log"
+    }
+  ],
+  "updated_at": "2026-07-22T13:44:53+00:00",
+  "outcome": "applied"
+}

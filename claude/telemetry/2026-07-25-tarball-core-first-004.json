@@ -1,0 +1,109 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-25-tarball-core-first-004",
+  "created_at": "2026-07-25T16:37:06+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-25T16:37:06+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-004 (13).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tarball-core-first order (heading sequence)": "pass",
+          "tarball anchors (tombstones, banner)": "pass",
+          "adr-0013 flip shape (reverse-transform hash)": "pass",
+          "index/adr agreement + 0013 coherence": "pass",
+          "docs.md rider anchors": "pass"
+        },
+        "claim_verdict": {
+          "tarball-core-first order (heading sequence)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tarball anchors (tombstones, banner)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "adr-0013 flip shape (reverse-transform hash)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "index/adr agreement + 0013 coherence": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "docs.md rider anchors": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/INDEX.md",
+        "claude/context/adr/0013-tarball-rationale-relocation.md",
+        "docs/DOCS.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "docs/TARBALL.md",
+        "docs/DOCS.md",
+        "claude/context/adr/0013-tarball-rationale-relocation.md",
+        "claude/INDEX.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "model_identity": "Claude Fable 5 (claude.ai chat interface)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the full ADR set 0001-0014 exists on disk in the real tree (INDEX.md asserts it; the request shipped only 0013, so validation's index/adr agreement check relies on the real staging copy)"
+          ],
+          "judgment_calls": [
+            "core = sections 1, 2, 5, 7 per the normal-response read-paths row; section 3 stays reference because the manifest itself answers the every-session questions",
+            "reference sections ordered numerically (3, 4, 6, 8, 9, 10) past the banner so number-scanning stays monotonic",
+            "grep-normalization one-liner placed in DOCS.md section 9 rather than 7.4 (governs add-time audits and how section 9's assertions are written; 7.4 is pruning-only)",
+            "ADR landing note appended with no preceding blank line, keeping the diff at exactly the two sanctioned lines; flip-shape asserted by reverse-transform hash against the pre-change file rather than git diff"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-tarball-core-first-004.log"
+    }
+  ],
+  "updated_at": "2026-07-25T16:37:06+00:00",
+  "outcome": "applied"
+}

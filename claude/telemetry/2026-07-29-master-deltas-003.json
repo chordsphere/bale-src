@@ -1,0 +1,77 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-29-master-deltas-003",
+  "created_at": "2026-07-29T02:14:29+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-29T02:14:29+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-29-master-deltas-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "markdown structure sanity (claude/MASTER.md)": "pass",
+          "session-specific assertions (2026-07-28/29 deltas landed; stale in-flight text absent)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.17",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "4eaf4ed6f688801ef3752776455f092afe97c08768d9b4b8c038c8c9351156ff",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude Fable 5 (claude.ai chat interface)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the master session sid 2026-07-28-continue-master-006 is landed as relayed: it has no telemetry record by construction (unlocked running pre-25 code), so it is unverifiable from the shipped corpus; the counter is consistent with 07-28's used counters (003-005) -- see notes.md",
+            "the brief's section-6 instruction to refresh 'anything citing 0.3.15 as current' resolved to a no-op beyond the tests row: grep found no current-version citation outside the replaced section 3, and bin/ module membership is unchanged by boards 25/26"
+          ],
+          "judgment_calls": [
+            "board 27's flag-table clause reworded, one step past the brief: the --supersedes flag row landed with 26's doc touches, so 27 keeps the split-recipe documentation and the row now says so -- flagged in notes.md for ratification",
+            "evidence-42 cross-reference added inside the board-26 sitting-summary bullet, matching how the worker-inference bullet cites evidence 41",
+            "evidence 41/42 appended after evidence 40 under a new per-sitting header, matching the pile's grouping convention",
+            "board 25/26 DONE rows kept to the short pointer shape (rows 15-21 precedent), per the brief's one-line-pointer instruction"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-master-deltas-003.log"
+    }
+  ],
+  "updated_at": "2026-07-29T02:14:29+00:00",
+  "outcome": "applied"
+}

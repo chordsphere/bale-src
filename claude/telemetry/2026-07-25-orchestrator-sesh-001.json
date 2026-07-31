@@ -1,0 +1,229 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-25-orchestrator-sesh-001",
+  "created_at": "2026-07-25T15:50:30+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-25T15:50:30+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "tarball": "response-2026-07-25-orchestrator-sesh-001.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "master doc heading sanity (8 top-level sections, order preserved)": "pass",
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "board 14 retirement and board 22 rows present (grep anchors)": "pass",
+          "evidence entries 32-33 present (grep anchors)": "pass",
+          "contracts block ratified 2026-07-25 present (grep anchor)": "pass",
+          "fold-in registry retargeted to board 22a (grep anchor)": "pass",
+          "stale in-flight entry replaced with current sid": "pass",
+          "cited 2026-07-23 sid resolves to a telemetry filename": "pass",
+          "board 17 re-homed off board 14 (grep anchor)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "."
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the goal's 'edit the master plan to redo board 14' plus the mechanization ratification licenses the adjacent reconciliation deltas (07-23 sitting record, in-flight refresh, rider re-homing) \u2014 enumerated in notes.md for review",
+            "ADR-0014's Accepted-at-creation is recorded as an OPEN loose end, not closed \u2014 asked in chat, unanswered"
+          ],
+          "judgment_calls": [
+            "master session ships this deltas edit as its own response rather than authoring a brief for a separate deltas worker (notes.md, ratify-at-review)",
+            "board 14 rewritten in place with rationale and the re-verified packaging map retained, rather than reduced to a bare retirement pointer",
+            "riders re-homed to board 22a but not executed here \u2014 no ADR/DOCS/INDEX files touched",
+            "evidence 33 added beyond the single discussed correction, recording the mechanize-shape/keep-judgment doctrine"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-orchestrator-sesh-001.log"
+    },
+    {
+      "at": "2026-07-25T15:53:47+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "tarball": "response-2026-07-25-orchestrator-sesh-001-r2.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "master doc heading sanity (8 top-level sections, order preserved)": "pass",
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "board 14 retirement and board 22 rows present (grep anchors)": "pass",
+          "evidence entries 32-33 present (grep anchors)": "pass",
+          "contracts block ratified 2026-07-25 present (grep anchor)": "pass",
+          "fold-in registry retargeted to board 22a (grep anchor)": "pass",
+          "stale in-flight entry replaced with current sid": "pass",
+          "board 17 re-homed off board 14 (grep anchor)": "pass",
+          "cited 2026-07-23 sid resolves to a telemetry filename (when staged)": "untested"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "."
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the goal's 'edit the master plan to redo board 14' plus the mechanization ratification licenses the adjacent reconciliation deltas (07-23 sitting record, in-flight refresh, rider re-homing) \u2014 enumerated in notes.md for review",
+            "ADR-0014's Accepted-at-creation is recorded as an OPEN loose end, not closed \u2014 asked in chat, unanswered"
+          ],
+          "judgment_calls": [
+            "master session ships this deltas edit as its own response rather than authoring a brief for a separate deltas worker (notes.md, ratify-at-review)",
+            "board 14 rewritten in place with rationale and the re-verified packaging map retained, rather than reduced to a bare retirement pointer",
+            "riders re-homed to board 22a but not executed here \u2014 no ADR/DOCS/INDEX files touched",
+            "evidence 33 added beyond the single discussed correction, recording the mechanize-shape/keep-judgment doctrine",
+            "re-attempt keeps files/claude/MASTER.md byte-identical to the held commit's inspected diff; only the validation contract changed (the telemetry-existence check made staging-strategy-aware)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-orchestrator-sesh-001.log"
+    },
+    {
+      "at": "2026-07-25T15:58:25+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "tarball": "response-2026-07-25-orchestrator-sesh-001-r3.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "master doc heading sanity (8 top-level sections, order preserved)": "pass",
+          "section-1 ratified block unchanged (sha256)": "pass",
+          "board 14 retirement and board 22 rows present (grep anchors)": "pass",
+          "evidence entries 32-33 present (grep anchors)": "pass",
+          "contracts block ratified 2026-07-25 present (grep anchor)": "pass",
+          "fold-in registry retargeted to board 22a (grep anchor)": "pass",
+          "stale in-flight entry replaced with current sid": "pass",
+          "board 17 re-homed off board 14 (grep anchor)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "."
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the goal's 'edit the master plan to redo board 14' plus the mechanization ratification licenses the adjacent reconciliation deltas (07-23 sitting record, in-flight refresh, rider re-homing) \u2014 enumerated in notes.md for review",
+            "ADR-0014's Accepted-at-creation is recorded as an OPEN loose end, not closed \u2014 asked in chat, unanswered"
+          ],
+          "judgment_calls": [
+            "master session ships this deltas edit as its own response rather than authoring a brief for a separate deltas worker (notes.md, ratify-at-review)",
+            "board 14 rewritten in place with rationale and the re-verified packaging map retained, rather than reduced to a bare retirement pointer",
+            "riders re-homed to board 22a but not executed here \u2014 no ADR/DOCS/INDEX files touched",
+            "evidence 33 added beyond the single discussed correction, recording the mechanize-shape/keep-judgment doctrine",
+            "second re-attempt deletes the telemetry-existence check outright: two HOLDs showed it validates staging composition (mixed telemetry tracking in git), not the change; the sid reconciliation it guarded was performed at build time against the request context and is recorded in notes.md"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-orchestrator-sesh-001.log"
+    }
+  ],
+  "updated_at": "2026-07-25T15:58:25+00:00",
+  "outcome": "applied"
+}

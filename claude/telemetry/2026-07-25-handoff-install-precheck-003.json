@@ -1,0 +1,179 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-25-handoff-install-precheck-003",
+  "created_at": "2026-07-25T16:21:46+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-25T16:21:46+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "tarball": "response-003 (16).tar.gz",
+      "validation": null,
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/bale-internals.md",
+        "docs",
+        "schemas",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "BALE.md",
+        "tests/test_install_precheck.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build"
+          },
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "No test suite exists anywhere in the repo (probe-verified for the tracked tree); the retry-flag-parity E2E named as precedent in the brief is absent, so the suite was created fresh from ADR-0005's doctrine rather than matched to existing bytes.",
+            "stdlib unittest is the acceptable test framework, since the repo declares no third-party dependencies and ships no runner config."
+          ],
+          "judgment_calls": [
+            "Sanity gate widened in place in main() via `args.command in (\"pack\", \"handoff\")` rather than moved into the command functions \u2014 keeps one check, one message, and fires before every per-command pre-flight.",
+            "Sandbox harness (make_install/make_repo/run_bale) lives inside the test module rather than a separate tests/harness.py \u2014 one consumer today; extraction proposed in notes.md for when a second suite lands.",
+            "validation.sh sets TMPDIR under .validation-logs/ so the E2E's temp sandboxes stay inside staging, honoring TARBALL.md section 9's no-writes-outside-staging rule to the letter.",
+            "Message parity with pack's refusal is asserted byte-for-byte in the test (single '[bale] error:' line compared across commands), not just by substring."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the retry-flag-parity hermetic E2E test file the brief names as precedent (probe established it does not exist in the tracked tree \u2014 a brief/repo discrepancy rather than a packing gap)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-handoff-install-precheck-003.log"
+    },
+    {
+      "at": "2026-07-25T16:22:22+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-003 (16).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "install precheck E2E (python3 tests/test_install_precheck.py)": "pass",
+          "BALE.md 5.4 clause assertion": "pass",
+          "bin/bale exec-bit assertion": "pass"
+        },
+        "claim_verdict": {
+          "install precheck E2E (python3 tests/test_install_precheck.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md 5.4 clause assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale exec-bit assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/bale-internals.md",
+        "docs",
+        "schemas",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [
+        "tests/test_install_precheck.py"
+      ],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "BALE.md",
+        "tests/test_install_precheck.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build"
+          },
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "22d23c78ca0ab9b53716629f40bdf0183aa63a10682e2dd1002d213ba6883c75",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "No test suite exists anywhere in the repo (probe-verified for the tracked tree); the retry-flag-parity E2E named as precedent in the brief is absent, so the suite was created fresh from ADR-0005's doctrine rather than matched to existing bytes.",
+            "stdlib unittest is the acceptable test framework, since the repo declares no third-party dependencies and ships no runner config."
+          ],
+          "judgment_calls": [
+            "Sanity gate widened in place in main() via `args.command in (\"pack\", \"handoff\")` rather than moved into the command functions \u2014 keeps one check, one message, and fires before every per-command pre-flight.",
+            "Sandbox harness (make_install/make_repo/run_bale) lives inside the test module rather than a separate tests/harness.py \u2014 one consumer today; extraction proposed in notes.md for when a second suite lands.",
+            "validation.sh sets TMPDIR under .validation-logs/ so the E2E's temp sandboxes stay inside staging, honoring TARBALL.md section 9's no-writes-outside-staging rule to the letter.",
+            "Message parity with pack's refusal is asserted byte-for-byte in the test (single '[bale] error:' line compared across commands), not just by substring."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the retry-flag-parity hermetic E2E test file the brief names as precedent (probe established it does not exist in the tracked tree \u2014 a brief/repo discrepancy rather than a packing gap)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-25-handoff-install-precheck-003.log"
+    }
+  ],
+  "updated_at": "2026-07-25T16:22:22+00:00",
+  "outcome": "applied"
+}

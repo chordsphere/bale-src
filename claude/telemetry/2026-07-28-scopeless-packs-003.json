@@ -1,0 +1,107 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-28-scopeless-packs-003",
+  "created_at": "2026-07-28T14:47:42+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-28T14:47:42+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-003 (17).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python syntax (py_compile on the five touched python surfaces)": "pass",
+          "unit tests (python3 -m unittest discover -s tests)": "pass",
+          "session-specific assertions (empty-scope read-back, doc anchors, exec bit on bin/bale)": "pass"
+        },
+        "claim_verdict": {
+          "python syntax (py_compile on the five touched python surfaces)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit tests (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (empty-scope read-back, doc anchors, exec bit on bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/adr/0006-session-registry.md",
+        "claude/context/adr/0007-scope-disjointness.md",
+        "docs",
+        "schemas",
+        "tests",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "BALE.md",
+        "docs/TARBALL.md",
+        "tests/harness.py",
+        "tests/test_install_precheck.py",
+        "tests/test_readonly_pack.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "d49db5f0d2268e7e0f33d5a741b4ae129c0d0a5998354cab4c1b781f9bda9d0d",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-07-28"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The scope-disjointness gate defers to just after the wizard when (and only when) the wizard's session-shape answer could change the scope; on every fully specified path (and whenever --read-only is given) it fires in pre-flight exactly as before. The brief did not cover the gate/wizard ordering; proceeding without this, a whole-tree provisional scope would refuse a wizard-path pack before the read-only question could rescue it. Flagged in notes.md for ratification.",
+            "A read-only session with no explicit --work-class stamps 'meta' (inferred, logged) on both the flag and wizard paths. Flagged in notes.md for ratification."
+          ],
+          "judgment_calls": [
+            "Kept the proposed --read-only spelling (bare boolean) \u2014 no better candidate surfaced; alternatives considered in notes.md.",
+            "--allow-out-of-scope admits paths past the drift gate for read-only sessions too, per the master's recommendation; the refusal block and the FORCE audit line both name the session as read-only so the operator knows exactly what they are overriding.",
+            "The harness extraction (board 11) fit comfortably, so it shipped rather than deferring to a Proposal.",
+            "read_session_scope emits no log line for a valid empty scope: it is a recorded state read back as recorded, not a degradation \u2014 the missing/malformed logs are unchanged."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-28-scopeless-packs-003.log"
+    }
+  ],
+  "updated_at": "2026-07-28T14:47:42+00:00",
+  "outcome": "applied"
+}

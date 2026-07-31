@@ -1,0 +1,126 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-master-microdeltas-010",
+  "created_at": "2026-07-31T03:34:14+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T03:34:14+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-31-master-microdeltas-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "lineage-entry": "pass",
+          "s2-009-bullet": "pass",
+          "s2-version-terminator": "pass",
+          "s3-fused-riders": "pass",
+          "s7-sid-convention": "pass",
+          "neg-old-foldin-gone": "pass",
+          "neg-placeholders-gone-a": "pass",
+          "neg-placeholders-gone-b": "pass",
+          "section-headers-unchanged": "pass"
+        },
+        "claim_verdict": {
+          "lineage-entry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "s2-009-bullet": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "s2-version-terminator": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "s3-fused-riders": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "s7-sid-convention": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "neg-old-foldin-gone": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "neg-placeholders-gone-a": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "neg-placeholders-gone-b": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section-headers-unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.20",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "a1d01f85afcf3977d08540828f4212192c6d9e1ff6547ca1cc25658f7a174edf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), master chat acting as worker for sid 010"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "conditional date token left unchanged: the architect uploaded the pack with no 07-31-vs-08-01 statement, and the brief's default for silence is leave it",
+            "the 009 bullet inserted before the Version-at-sitting-close line so that line stays the block terminator, matching the page"
+          ],
+          "judgment_calls": [
+            "this response was produced in the master sitting's own chat at the architect's implicit direction (the request was uploaded here); mechanically clean since sid 010 carries its own declared scope and the read-only master sid lands nothing, but it is a working-style deviation from worker-in-fresh-session, recorded in notes.md",
+            "check labels kept short per the accepted label-column-cap proposal's spirit"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-master-microdeltas-010.log"
+    }
+  ],
+  "updated_at": "2026-07-31T03:34:14+00:00",
+  "outcome": "applied"
+}

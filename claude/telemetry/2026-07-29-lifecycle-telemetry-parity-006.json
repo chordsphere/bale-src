@@ -1,0 +1,244 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-29-lifecycle-telemetry-parity-006",
+  "created_at": "2026-07-29T11:52:46+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-29T11:52:46+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-29-lifecycle-telemetry-parity-006.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "tests: rollback telemetry suite": "pass",
+          "tests: unlock json suite": "pass",
+          "tests: closure telemetry regression suite": "pass",
+          "assert: VERSION is 0.3.18": "pass",
+          "assert: schema vocabulary gained rollback values": "pass",
+          "assert: BALE.md section 9 rows updated": "pass"
+        },
+        "claim_verdict": {
+          "tests: rollback telemetry suite": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "tests: unlock json suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: closure telemetry regression suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: VERSION is 0.3.18": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema vocabulary gained rollback values": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md section 9 rows updated": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale_rollback.py",
+        "schemas/telemetry-record.schema.json",
+        "bin/bale_report.py",
+        "bin/bale",
+        "BALE.md",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_unlock_json.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.17",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "4eaf4ed6f688801ef3752776455f092afe97c08768d9b4b8c038c8c9351156ff",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (claude-fable-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "telemetry records are committed by the operator between a rollback and its --undo \u2014 the dirty-tree guard counts untracked files, so the toggle's second half refuses until the record bale wrote is committed (or --stash/--force); the suite commits it accordingly and notes.md flags the interaction first",
+            "BALE.md lives at the repo root (bin/bale's own docstring says so); the context/ mirror was read as repo-relative throughout"
+          ],
+          "judgment_calls": [
+            "--integration --json is refused rather than given its own key shape (the report is session-shaped; recorded in deferred)",
+            "the crash-debris sweep reports as debris:{sid,telemetry} on the no-op rather than conflating with the top-level sid/telemetry keys",
+            "rollback's test fixture fabricates the applied merge with plain git instead of driving pack/apply \u2014 rollback reads only git, never the registry",
+            "_do_undo's summary labels realigned to a 10-char field to fit the telemetry row (two lines change by whitespace)",
+            "no rollback --reason proposed: agreeing with the brief, closure_reason null matches revert's posture"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py, bin/bale_apply.py, bin/bale_config.py, bin/bale_validate.py (bin/bale imports them at load, so the new E2E suites could not execute locally; verified instead via stub-sibling drives \u2014 notes.md)",
+            "docs/ and tools/ install trees (harness.make_install requires them to build the scratch install)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-lifecycle-telemetry-parity-006.log"
+    },
+    {
+      "at": "2026-07-29T14:59:08+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-07-29-lifecycle-telemetry-parity-006-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: rollback telemetry suite": "pass",
+          "tests: unlock json suite": "pass",
+          "tests: closure telemetry regression suite": "pass",
+          "assert: VERSION is 0.3.18": "pass",
+          "assert: schema vocabulary gained rollback values": "pass",
+          "assert: BALE.md section 9 rows updated": "pass"
+        },
+        "claim_verdict": {
+          "tests: rollback telemetry suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: unlock json suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: closure telemetry regression suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: VERSION is 0.3.18": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema vocabulary gained rollback values": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md section 9 rows updated": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale_rollback.py",
+        "schemas/telemetry-record.schema.json",
+        "bin/bale_report.py",
+        "bin/bale",
+        "BALE.md",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_unlock_json.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.17",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "4eaf4ed6f688801ef3752776455f092afe97c08768d9b4b8c038c8c9351156ff",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (claude-fable-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "telemetry records are committed by the operator between a rollback and its --undo \u2014 the dirty-tree guard counts untracked files, so the toggle's second half refuses until the record bale wrote is committed (or --stash/--force); the suite commits it accordingly and notes.md flags the interaction first",
+            "BALE.md lives at the repo root (bin/bale's own docstring says so); the context/ mirror was read as repo-relative throughout"
+          ],
+          "judgment_calls": [
+            "--integration --json is refused rather than given its own key shape (the report is session-shaped; recorded in deferred)",
+            "the crash-debris sweep reports as debris:{sid,telemetry} on the no-op rather than conflating with the top-level sid/telemetry keys",
+            "rollback's test fixture fabricates the applied merge with plain git instead of driving pack/apply \u2014 rollback reads only git, never the registry",
+            "_do_undo's summary labels realigned to a 10-char field to fit the telemetry row (two lines change by whitespace)",
+            "no rollback --reason proposed: agreeing with the brief, closure_reason null matches revert's posture",
+            "corrected response: the rollback fixture gitignores .bale/ in setUp \u2014 rollback journals into .bale/logs/ before the dirty-tree guard, and a pack-less fixture repo lacked the ignore any real bale repo has"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py, bin/bale_apply.py, bin/bale_config.py, bin/bale_validate.py (bin/bale imports them at load, so the new E2E suites could not execute locally; verified instead via stub-sibling drives \u2014 notes.md)",
+            "docs/ and tools/ install trees (harness.make_install requires them to build the scratch install)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-lifecycle-telemetry-parity-006.log"
+    }
+  ],
+  "updated_at": "2026-07-29T14:59:08+00:00",
+  "outcome": "applied"
+}

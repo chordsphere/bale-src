@@ -1,0 +1,79 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-master-deltas-005",
+  "created_at": "2026-07-31T02:16:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T02:16:40+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-31-master-deltas-005.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "file encoding (utf-8, no CRLF)": "pass",
+          "8 top-level sections each present exactly once": "pass",
+          "board rows 1-31 each present exactly once": "pass",
+          "2026-07-31 sitting-summary anchor present": "pass",
+          "no leftover integration placeholders": "pass",
+          "verbatim row-31 and sitting-summary spot checks": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.19",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "864207feb41eca470b0d67174b24b141ce7e63de811f0ecf118e62c54cb9c820",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Header update-chain date landed as 2026-08-01, the brief's stated default; the actual apply date is unknowable from inside the tarball",
+            "Evidence-44 sentence dated ('the 2026-07-31 sitting') in place of the brief's 'this sitting', which would dangle once landed by a later session"
+          ],
+          "judgment_calls": [
+            "Row 22 CLOSED retitle follows row 8's formatting (bold '\u2014 CLOSED' + parenthetical), original description retained",
+            "22c/22d DONE lines kept to short header + section-2 pointer + one compressed clause; 22d's residue sentence preserved verbatim per the brief",
+            "validation.sh placeholder check carves out the verbatim 'loud TODO placeholders' phrase and flags any other placeholder token"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-master-deltas-005.log"
+    }
+  ],
+  "updated_at": "2026-07-31T02:16:40+00:00",
+  "outcome": "applied"
+}

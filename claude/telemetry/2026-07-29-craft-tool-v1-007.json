@@ -1,0 +1,213 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-29-craft-tool-v1-007",
+  "created_at": "2026-07-29T02:47:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-29T02:47:36+00:00",
+      "outcome": "rejected",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (7).tar.gz",
+      "validation": null,
+      "scope": [
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "scripts/reinstall.sh",
+        "tools/response_lint.py",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-07-29-craft-tool-v1-007.log"
+    },
+    {
+      "at": "2026-07-29T14:59:13+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (7).tar.gz",
+      "validation": null,
+      "scope": [
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "scripts/reinstall.sh",
+        "tools/response_lint.py",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_craft_response.py",
+        "tools/craft_response.py",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.17",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "4eaf4ed6f688801ef3752776455f092afe97c08768d9b4b8c038c8c9351156ff",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "python3 is available on the validation host (validate.sh already depends on it, so validation.sh's py checks assume the same)",
+            "tests/ placement per the brief will surface as own-scope drift rather than a sibling collision; enumerated in notes.md either way"
+          ],
+          "judgment_calls": [
+            "injection ships via a guarded block in bale_pack.py (CRAFT_TOOL constant) instead of touching bin/bale's INJECTED_TOOLS \u2014 collapses to a no-op on consolidation; ratification asked in notes.md",
+            "unfilled skeleton fields are empty strings so the skeleton is deliberately lint-invalid until the worker fills judgment",
+            "the crafter reports mirror junk (e.g. __pycache__) rather than filtering or warning \u2014 filtering would edge into validation, the lint's job",
+            "crafter exit codes are 0/2 with 1 reserved, so its surface can't be confused with the lint's 0/1/2"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-craft-tool-v1-007.log"
+    },
+    {
+      "at": "2026-07-29T14:59:52+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (7).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests (tests/test_craft_response.py)": "pass",
+          "exec-bit assertions (tools and shipped scripts)": "pass",
+          "craft-then-lint end-to-end (staging temp dir)": "pass",
+          "injection-list agreement (build.sh, install.sh, upgrade.sh, validate.sh, docs)": "pass"
+        },
+        "claim_verdict": {
+          "unit tests (tests/test_craft_response.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertions (tools and shipped scripts)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "craft-then-lint end-to-end (staging temp dir)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "injection-list agreement (build.sh, install.sh, upgrade.sh, validate.sh, docs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "scripts/reinstall.sh",
+        "tools/response_lint.py",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [
+        "tests/test_craft_response.py",
+        "tools/craft_response.py"
+      ],
+      "change_paths": [
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_craft_response.py",
+        "tools/craft_response.py",
+        "upgrade.sh",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.17",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "4eaf4ed6f688801ef3752776455f092afe97c08768d9b4b8c038c8c9351156ff",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "python3 is available on the validation host (validate.sh already depends on it, so validation.sh's py checks assume the same)",
+            "tests/ placement per the brief will surface as own-scope drift rather than a sibling collision; enumerated in notes.md either way"
+          ],
+          "judgment_calls": [
+            "injection ships via a guarded block in bale_pack.py (CRAFT_TOOL constant) instead of touching bin/bale's INJECTED_TOOLS \u2014 collapses to a no-op on consolidation; ratification asked in notes.md",
+            "unfilled skeleton fields are empty strings so the skeleton is deliberately lint-invalid until the worker fills judgment",
+            "the crafter reports mirror junk (e.g. __pycache__) rather than filtering or warning \u2014 filtering would edge into validation, the lint's job",
+            "crafter exit codes are 0/2 with 1 reserved, so its surface can't be confused with the lint's 0/1/2"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-craft-tool-v1-007.log"
+    }
+  ],
+  "updated_at": "2026-07-29T14:59:52+00:00",
+  "outcome": "applied"
+}

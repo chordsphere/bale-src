@@ -1,0 +1,99 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-29-closure-telemetry-001",
+  "created_at": "2026-07-29T01:17:17+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-29T01:17:17+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-2026-07-29-closure-telemetry-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "closure telemetry test suite": "pass",
+          "session-specific assertions (schema enums, VERSION, BALE.md anchors)": "pass"
+        },
+        "claim_verdict": {
+          "closure telemetry test suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (schema enums, VERSION, BALE.md anchors)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "schemas/telemetry-record.schema.json",
+        "bin/bale_report.py",
+        "bin/bale",
+        "BALE.md",
+        "tests/test_closure_telemetry.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.15",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "7348f1ec76dda82e74d9e2f0fed61c0246602b7bf82d22b1a0c6c426bfb6b6e2",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the \u00a78.9 title's no-immutable-citer precondition was treated as failed-unverifiable (ADR bodies and git history were not in context), so the brief's safe branch applies: title kept, prose extended \u2014 the retitle stays available once the grep in notes.md comes back clean",
+            "the crash-debris sweep records scope [] when the debris sid has no scope.json, reading read_session_scope only when the file exists \u2014 the conservative [\".\"] widening is for gates that must refuse, and stamping it into telemetry would fabricate a whole-tree scope the session never declared"
+          ],
+          "judgment_calls": [
+            "closure_reason enum names kept exactly as drafted \u2014 clear, kebab-case-consistent, and superseded-by-split survives verbatim for board 26",
+            "CLOSURE_REASONS lives in bale_report beside RECORD_VERSION (telemetry vocabulary's home); both parsers import it so CLI choices and schema enum share one source",
+            "unlock --integration plus --reason is refused as a contradiction, mirroring the existing --integration-plus-sid guard: no session closes, so no closure_reason exists (one sentence for \u00a79.4's distinction judged unnecessary in BALE.md beyond this)",
+            "revert's reason threading tested unit-shaped plus CLI-choices smoke rather than a full HOLD fixture (ADR-0003 dogfood-depth): the record write is pre-existing exercised behavior and the delta is one threaded argument",
+            "the unlock record writes after the wipe (revert's ordering: telemetry last before the summary), with the scope read before close_session per the brief",
+            "\u00a79.4's optional sentence included \u2014 it completes the section's own argument for why the trio needs no fourth command"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/context/adr/ (or a grep transcript over it) and git-history manifest reasons \u2014 the two immutable-citer surfaces the \u00a78.9 retitle precondition needed; their absence is the only reason the retitle is deferred"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-29-closure-telemetry-001.log"
+    }
+  ],
+  "updated_at": "2026-07-29T01:17:17+00:00",
+  "outcome": "applied"
+}

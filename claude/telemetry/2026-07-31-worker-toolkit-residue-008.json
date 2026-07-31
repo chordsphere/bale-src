@@ -1,0 +1,101 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-worker-toolkit-residue-008",
+  "created_at": "2026-07-31T03:02:57+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T03:02:57+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-31-worker-toolkit-residue-008.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests (python3 -m unittest discover -s tests)": "pass",
+          "doc assertions (TARBALL.md 7.3/7.7/5.2.2 pointers present, removed shapes orphan-free, VERSION bumped)": "pass",
+          "exec-bit assertions (bin/bale, tools/craft_response.py, tools/response_lint.py)": "pass"
+        },
+        "claim_verdict": {
+          "unit tests (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc assertions (TARBALL.md 7.3/7.7/5.2.2 pointers present, removed shapes orphan-free, VERSION bumped)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertions (bin/bale, tools/craft_response.py, tools/response_lint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.19",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "1be6f5366a93aa1e16713bed3a25cd32df06fe8f93aeb4a57d14d8ba7c8f4ea6",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the stdout paste-fragment shape for the 7.3 epilogue (vs a sourced helper file) is acceptable \u2014 rationale in notes.md",
+            "the reconciliation's python3 dependency is safe: the project and harness already require python3 in the validation environment"
+          ],
+          "judgment_calls": [
+            "epilogue delivered as paste-ready stdout fragments, not a written validation.sh or a shipped helper file \u2014 keeps the normal-kind no-scaffold pin intact and adds no new response-dir artifact",
+            "a claimed check with no recorded verdict prints verdict=missing [n/a] rather than vanishing (silent skip is a bug)",
+            "--emit-feedback-mechanical emits only the four lint-computable fields; linkage/provenance stay hand-added since the lint cannot verify them",
+            "lint refactor extracts _recompute_mechanical so the emission and the mismatch check share one derivation and cannot diverge"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-worker-toolkit-residue-008.log"
+    }
+  ],
+  "updated_at": "2026-07-31T03:02:57+00:00",
+  "outcome": "applied"
+}

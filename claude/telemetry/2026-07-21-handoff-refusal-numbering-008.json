@@ -1,0 +1,116 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-21-handoff-refusal-numbering-008",
+  "created_at": "2026-07-22T13:28:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-22T13:28:58+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-008 (7).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "BALE.md numbering assertions (grep-anchored)": "pass",
+          "handoff detached-HEAD fixture (refuse detached, proceed on branch)": "pass",
+          "staged bin/bale --help smoke": "pass",
+          "exec bit on bin/bale": "pass"
+        },
+        "claim_verdict": {
+          "BALE.md numbering assertions (grep-anchored)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "handoff detached-HEAD fixture (refuse detached, proceed on branch)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bin/bale --help smoke": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit on bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/_bale_toml.py",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "claude/INDEX.md",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/adr/0007-scope-disjointness.md",
+        "claude/context/meta-sessions.md",
+        "schemas/diagnostics.schema.json",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_pack.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "1676a56f15bafdd3e881bfa584ca6e6086cf53e7ae284bfa69f7b73754d23957",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The bale-src repo carries the full install layout at its root (schemas/, docs/ with the four globals, tools/response_lint.py) \u2014 the branch leg of the handoff fixture depends on it; validation hard-fails with a named path if any is absent rather than stubbing, per the brief's schema posture."
+          ],
+          "judgment_calls": [
+            "Chose the step-4a label over an unnumbered mandatory check: cross-references need a crisp citable anchor, and a numbered interstitial keeps the enforced (not advisory) reading the cleanup worker wanted.",
+            "Placed the handoff refusal immediately after refuse_system_dir(repo), before tarball resolution \u2014 it concerns the user's checkout state, not the tarball, mirroring \u00a78.1 step 5's cheapest-failure-first rationale.",
+            "Documented the handoff refusal in the \u00a75 command-surface row (handoff's only prose home in BALE.md) plus appended \u00a711 row 24; no new section, nothing renumbered.",
+            "Extended two refusal-citing sentences (BALE.md \u00a73.4 comment and \u00a77.6; bale_pack.py's persist_pack_session docstring) to name both request-building paths, so the pack-only phrasing didn't go stale the moment Part 2 landed."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-21-handoff-refusal-numbering-008.log"
+    }
+  ],
+  "updated_at": "2026-07-22T13:28:58+00:00",
+  "outcome": "applied"
+}

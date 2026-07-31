@@ -1,0 +1,103 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-28-test-layout-docs-004",
+  "created_at": "2026-07-28T14:24:59+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-28T14:24:59+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-004 (16).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "adr-0005 reverse-transform (sanctioned flip shape)": "pass",
+          "stale-string absence (bale-internals, INDEX)": "pass",
+          "new-content presence (test layout section, INDEX flips)": "pass",
+          "adr-0002..0004 status lines still Proposed": "pass"
+        },
+        "claim_verdict": {
+          "adr-0005 reverse-transform (sanctioned flip shape)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stale-string absence (bale-internals, INDEX)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "new-content presence (test layout section, INDEX flips)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "adr-0002..0004 status lines still Proposed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/INDEX.md",
+        "claude/context/adr/0002-test-oracle.md",
+        "claude/context/adr/0003-selftest-dogfood-depth.md",
+        "claude/context/adr/0004-test-fixtures.md",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/bale-internals.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/context/bale-internals.md",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/INDEX.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "d49db5f0d2268e7e0f33d5a741b4ae129c0d0a5998354cab4c1b781f9bda9d0d",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "claude (fable 5), claude.ai chat surface"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the flip-record clause names this session as 'the 2026-07-28 test-layout docs session', matching the paragraph's named-session style rather than a bare 'this session'",
+            "the new internals section is numbered 6 and placed last, per DOCS.md 6.4 (renumbers nothing) \u2014 the request left placement to the worker"
+          ],
+          "judgment_calls": [
+            "left ADR-0005's '## Decision (proposed \u2014 for ratification)' heading and its 'three Proposed ADRs' Notes sentence untouched: the sanctioned flip shape forbids any other edit, and the reverse-transform assertion would break on it",
+            "validation.sh runs no project test suite: docs-only diff, and tests/ is locked by a concurrent session; all checks are session-specific assertions"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-28-test-layout-docs-004.log"
+    }
+  ],
+  "updated_at": "2026-07-28T14:24:59+00:00",
+  "outcome": "applied"
+}

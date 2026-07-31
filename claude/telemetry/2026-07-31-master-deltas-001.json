@@ -1,0 +1,105 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-master-deltas-001",
+  "created_at": "2026-07-31T01:25:41+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T01:25:41+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (24).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "utf-8 decode, no CRLF (claude/MASTER.md)": "pass",
+          "top-level section structure intact (8 sections, 1-8 each present once)": "pass",
+          "board rows 1-30 each present exactly once": "pass",
+          "sitting summary + evidence 43/44 anchors present": "pass",
+          "no leftover edit placeholders": "pass"
+        },
+        "claim_verdict": {
+          "utf-8 decode, no CRLF (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "top-level section structure intact (8 sections, 1-8 each present once)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board rows 1-30 each present exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting summary + evidence 43/44 anchors present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no leftover edit placeholders": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.19",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "9625d0917f28ea33606b896d4d8848d330bcf5c2a7fcf7cc884f83ce089d1e54",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "doc",
+            "model_identity": "Claude Fable 5 (claude.ai chat; the sitting's master session doubling as the deltas worker under the interim manual form)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Applied-state facts (sids, versions, outcomes) taken from architect-relayed notes.md and apply confirmations; claude/telemetry not shipped in this request, so timestamps and closure rows reconcile there next sitting (caveat stated in the summary header and notes.md).",
+            "Session 006's unlock-json coverage lives in a suite whose filename its notes never state; the tests fact was converted to pointer form rather than inventing one (notes.md)."
+          ],
+          "judgment_calls": [
+            "Evidence split into two entries (43 planned-refusals, 44 brief-carried scope) rather than one combined entry.",
+            "Board 30 written as a done-at-creation row per the boards 15/17 precedent.",
+            "The section 7 tests bullet converted from enumerated list to pointer form; restoration offered in notes.md if the architect prefers the list."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/telemetry/ (would have allowed reconciling sids and apply timestamps in-doc rather than deferring to next sitting)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-master-deltas-001.log"
+    }
+  ],
+  "updated_at": "2026-07-31T01:25:41+00:00",
+  "outcome": "applied"
+}

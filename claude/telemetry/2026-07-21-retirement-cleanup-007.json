@@ -1,0 +1,126 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-21-retirement-cleanup-007",
+  "created_at": "2026-07-21T13:53:10+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-21T13:53:10+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "tarball": "response-007 (5).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "swept-phrase greps (retired prose gone)": "pass",
+          "fixture E2E: already-merged refusal (bin/bale)": "pass",
+          "fixture E2E: detached-HEAD pack refusal + on-branch stamp": "pass",
+          "staged bin/bale --help smoke": "pass",
+          "exec bit on bin/bale": "pass"
+        },
+        "claim_verdict": {
+          "swept-phrase greps (retired prose gone)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit on bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture E2E: already-merged refusal (bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "staged bin/bale --help smoke": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture E2E: detached-HEAD pack refusal + on-branch stamp": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python syntax (py_compile across bin/)": {
+            "claim": "-",
+            "verdict": "pass",
+            "agreement": "unclaimed"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/_bale_toml.py",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "claude/context/adr/0008-checkout-free-integration.md",
+        "claude/context/meta-sessions.md",
+        "schemas/diagnostics.schema.json",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_apply.py",
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.14",
+            "contract_docs": {
+              "CLAUDE.md": "e3bf02faa35cff58838ddcb3a2b6fd9587576d4e49977c73779065c8dc960c75",
+              "TARBALL.md": "1676a56f15bafdd3e881bfa584ca6e6086cf53e7ae284bfa69f7b73754d23957",
+              "DOCS.md": "b63fff567171057ec19207f0723d32af9075ff915e16a2d8574008a8155edc3b",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The fast-forward already-merged case (sid branch and origin at the same commit, post-ADR-0008) is genuinely merged state and refusing it is desired \u2014 the short-circuit's removal changes this case from pass-through-as-unmerged to refuse-as-merged. Asserted in the fixture and flagged first in notes.md."
+          ],
+          "judgment_calls": [
+            "Documented the detached-HEAD refusal as a new numbered \u00a77.1 step 5 with renumbering (five cross-reference updates, all in-lane) rather than an unnumbered aside \u2014 \u00a77.1 is a numbered pipeline and rows/steps are how BALE.md structures pre-flight",
+            "Added \u00a711 row 23 for the new mechanical check \u2014 the table calls itself the full list, and rows 19\u201322 set the append-out-of-phase-order precedent",
+            "Fixture A drives _discard_hold_state directly via an importlib load of the staged bin/bale (registered as __main__ for the siblings' lazy imports) rather than through a full retry round-trip \u2014 exercises the exact staged code path without fabricating a response tarball"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-21-retirement-cleanup-007.log"
+    }
+  ],
+  "updated_at": "2026-07-21T13:53:10+00:00",
+  "outcome": "applied"
+}

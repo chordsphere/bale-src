@@ -1,0 +1,97 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-lifecycle-docs-closeout-007",
+  "created_at": "2026-07-31T02:42:12+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T02:42:12+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (8).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "grep: injected-tools anchors (TARBALL.md 3.1, BALE.md 6.1, BALE.md 7.5)": "pass",
+          "grep: split-supersession flow anchors (TARBALL.md 3.4, CLAUDE.md 11.2)": "pass",
+          "grep: recorded-scope sentence anchor (TARBALL.md 3.2)": "pass",
+          "grep: BALE.md 8.9 session-close title": "pass",
+          "grep: BALE.md 9 third-exit and 9.5 lifecycle anchors": "pass",
+          "grep: BALE.md 11 row 25": "pass",
+          "grep: BALE.md 5 command-surface currency (5.4 --json/--reason rows)": "pass",
+          "grep: bale-internals harness present-tense (stale framing absent)": "pass",
+          "section-number stability (edited docs keep every original header)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "claude/context/adr/0011-clarification-response-kind.md",
+        "claude/context/bale-internals.md",
+        "docs",
+        "schemas",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md",
+        "claude/context/bale-internals.md",
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.19",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "864207feb41eca470b0d67174b24b141ce7e63de811f0ecf118e62c54cb9c820",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "tests/harness.py exists at the stated path: the brief states it as fact but tests/ was not shipped, so the bale-internals.md present-tense flip rests on the brief rather than on verified source",
+            "BALE.md 11 row 25 is sourced from ADR-0011 decision 4 and its probe-confirmed landing note; bale_validate.py / bale_apply.py were not shipped, so the row cites the ADR rather than read code"
+          ],
+          "judgment_calls": [
+            "the retired refusal-text folk recipe has no verbatim phrasing anywhere in the shipped docs (grep-verified), so the TARBALL.md 3.4 retirement is additive: the new flow paragraph names the informal recipe it retires instead of deleting text",
+            "CLAUDE.md 11.2 received a one-sentence pair-sync naming --supersedes, since the new 3.4 flow changes what a rescope offer must emit when the split intersects an open session (DOCS.md 9 sanctioned pair)",
+            "BALE.md 5 sweep kept command-table rows terse with pointers into 5.4/7.2/9.x rather than duplicating flag semantics (one-home rule); --json and --reason were added to 5.4 as cross-command flags",
+            "the project's unittest suite is not invoked by validation.sh: the change set is doc-only and the suite exercises bin/, untouched here"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/ (or tests/harness.py alone) - would have let the rider-2 present-tense claim be verified instead of assumed"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-lifecycle-docs-closeout-007.log"
+    }
+  ],
+  "updated_at": "2026-07-31T02:42:12+00:00",
+  "outcome": "applied"
+}

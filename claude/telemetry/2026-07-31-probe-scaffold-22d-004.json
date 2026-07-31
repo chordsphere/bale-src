@@ -1,0 +1,121 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-probe-scaffold-22d-004",
+  "created_at": "2026-07-31T02:07:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T02:07:47+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-004 (19).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -m unittest tests.test_craft_response": "pass",
+          "python3 -m unittest tests.test_schema_embeds": "pass",
+          "probe emission: bash -n + shape assertions": "pass",
+          "TARBALL.md 4.2 collapse assertions": "pass",
+          "schema pointer fix assertions (11.3 in both copies)": "pass",
+          "crafter/judge no-cross-import guard (ast)": "pass"
+        },
+        "claim_verdict": {
+          "python3 -m unittest tests.test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest tests.test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "probe emission: bash -n + shape assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 4.2 collapse assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "schema pointer fix assertions (11.3 in both copies)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "crafter/judge no-cross-import guard (ast)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "docs/TARBALL.md",
+        "schemas/diagnostics.schema.json",
+        "tests",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "docs/TARBALL.md",
+        "schemas/diagnostics.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.3.19",
+            "contract_docs": {
+              "CLAUDE.md": "6746c3f48bce213369d988c7f206215bf2c2b2a44bfacb54b8590b4eaa5ceebe",
+              "TARBALL.md": "bda344842c56ec9ba09a5f1e71ff5ff9bc72e637a14db8a51a808fd5a9200f0a",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude Fable 5 (Anthropic), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's evidence-44 reading that tests/ is recorded as a directory include, so tests/test_schema_embeds.py lands in scope (notes.md Scope section carries the admit-per-path fallback)",
+            "the two PackInjectionSurface tests, untouched by this session and unrunnable in my bin/-less sandbox, still pass in the real staging tree (notes.md Validation caveat)"
+          ],
+          "judgment_calls": [
+            "--probe mutual exclusion extended past the brief's five pinned modes to --questions/--deleted/--executable/--force: all response-directory surface, and silently ignoring them would be a silent skip",
+            "--kind argparse default moved to None (resolved to normal) so supplied-vs-default is detectable; suite proves byte-identical back-compat",
+            "probe slug refused unless kebab-case rather than shell-escaped \u2014 hygiene over quoting, matching rel_path_problem's posture",
+            "the 4.2 replacement stays minimal (trigger + tool pointer + adapted closing sentence); the no-judge-for-probes rationale lives in the tool's docstring and notes.md, not the doc, keeping the edit inside the sanctioned block",
+            "the embed-equality guard is a new test file rather than an extension of test_craft_response.py: it is a lint property, not a crafter one"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-probe-scaffold-22d-004.log"
+    }
+  ],
+  "updated_at": "2026-07-31T02:07:47+00:00",
+  "outcome": "applied"
+}
