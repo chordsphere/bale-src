@@ -476,8 +476,11 @@ in chat:
    architect can paste to create the narrower request. Form, flags,
    and their mapping to manifest fields live in `TARBALL.md` §3.4;
    the offer follows that reference rather than inventing syntax.
-   Framing goes in the prose around the command, never inside the
-   fenced block.
+   When the first session's scope intersects an open session —
+   typically the very session being split — the command carries
+   `--supersedes <parent-sid>` per `TARBALL.md` §3.4's
+   split-supersession flow. Framing goes in the prose around the
+   command, never inside the fenced block.
 
 This is **not** a bailout (§11.4): the check precedes the reading
 and spends almost nothing, so its output is an ordinary chat reply,

@@ -993,16 +993,19 @@ request-NNN/
   CODE.md              # injected by bale
   tools/
     response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
+    craft_response.py  # injected by bale (v0.3.19): the response-skeleton crafter (§5.2)
   context/             # everything the user chose to include
     <project files and any project docs the user named>
   README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
 ```
 
 The first five slots are reserved for bale-injected global docs and
-the manifest; `tools/response_lint.py` rides beside them (also
-bale-injected, from the install) so the worker can run the §10.1
-step-10 self-check mechanically against its response directory
-before packing, without bale installed. Everything else the user
+the manifest; the `tools/` pair rides beside them (also
+bale-injected, from the install — `INJECTED_TOOLS` in `bin/bale` is
+the one source for the list): the lint, so the worker can run the
+§10.1 step-10 self-check mechanically against its response directory
+before packing, without bale installed, and the crafter, so every
+response kind's skeleton is emitted rather than retyped (§5.2). Everything else the user
 wants Claude to see —
 including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
@@ -1094,7 +1097,13 @@ Field semantics:
   `notes.md` if Claude proceeded with an assumption). The resolved
   include set behind this list is also the session's declared
   **scope**: bale records it in the session registry at pack time,
-  and three mechanical gates read it. Pack refuses a new session
+  and three mechanical gates read it. The two are distinct surfaces:
+  the tarball ships this flat file list, while the recorded scope
+  lives repo-side in the registry — a worker cannot see the recorded
+  scope from inside a tarball, and a directory include covers files
+  created under it later, so the shipped list understates what a
+  directory-shaped scope admits. A request whose scope shape matters
+  to the work says so in its brief. Pack refuses a new session
   whose scope intersects an open session's; apply rejects a
   response whose `changes[]` paths collide with a *sibling*
   session's scope; and apply also rejects **own-scope drift** —
@@ -1195,6 +1204,30 @@ shape (`--read-only`, empty scope) is the orchestrator's own pack
 form: a master session that reads, discusses, and delegates stays
 open alongside every worker precisely because its scope intersects
 nothing — and lands nothing.
+
+**Split supersession.** When a pre-flight split (`CLAUDE.md` §11.2)
+proposes a first session whose scope intersects an open session —
+typically the very session whose goal is being split — the rescope
+command carries `--supersedes <parent-sid>`, and that is the
+documented path: not packing around the gate, and not closing the
+parent by hand first. On paste, pack runs the flag's y/N exchange
+with a **decline default**; piped stdin takes the decline without a
+prompt, so a non-interactive supersession never closes anything. On
+accept, the parent closes as superseded-by-split (closure record per
+BALE.md §8.9, command `pack`), the child's manifest stamps
+`depends_on.superseded_session`, and exactly that one collision
+clears at the pack-time disjointness gate — every other open session
+still gates as usual. On decline, nothing closes and the pack
+refuses on every path: via the gate when the still-open parent's
+scope collides, via an explicit refusal when the scopes happen to be
+disjoint (a `--supersedes` pack that closes nothing and stamps no
+lineage is not the pack that was asked for), and immediately at the
+decline on the wizard path, before any prompt collects throwaway
+answers. This flow retires the informal recipe of packing into the
+gate's refusal and following its text to a hand-run `bale unlock`;
+unlock remains the escape hatch only for a parent that should close
+with no successor. Pipeline order, the HOLD-state refusal, and the
+idempotent re-run of an aborted supersession: BALE.md §7.2.
 
 **Includes name existing context; new files are the worker's call.**
 Never author or suggest an `--include` for a path that does not

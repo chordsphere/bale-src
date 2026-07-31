@@ -1,8 +1,9 @@
 # bale-internals.md
 
 > How `bin/bale` is structured. Schemas and contracts for the per-repo
-> configurables mechanism. Pull when a session touches `bin/bale`,
-> `bale.toml`, or anything in the hook surface.
+> configurables mechanism. Test layout in §6. Pull when a session
+> touches `bin/bale`, `bale.toml`, anything in the hook surface, or
+> test code under `tests/`.
 
 ---
 
@@ -869,10 +870,10 @@ code to a future harness milestone. The layout:
   `BALE_INSTALL`, temp repo, stubbed `$EDITOR` — never the real
   install. The reinstall hook is the destructive surface; pointing it
   anywhere but a sandbox is the one thing the suite must never do.
-- The sandbox harness (`make_sandbox_home` / `make_install` /
-  `make_repo` / `run_bale`) lives inline in the first suite; the
-  ratified trigger extracts it into `tests/harness.py` when a second
-  suite lands.
+- **The sandbox harness lives at `tests/harness.py`**
+  (`make_sandbox_home` / `make_install` / `make_repo` / `run_bale`) —
+  extracted from the first suite per its ratified trigger; suites
+  import it rather than carrying inline copies.
 
 Testing doctrine (tiers, oracle, fixtures) stays where it lives:
 CODE.md §13 globally, with the project's positions in ADRs 0002–0005.
