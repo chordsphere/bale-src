@@ -1,58 +1,23 @@
-# bale master-session state — v3 — 2026-07-25
+# bale master-session state — v4 — 2026-07-31
 
 Handoff document for the bale-src master session. Purpose: re-seed a
 fresh master-session chat with zero loss. To use: state current
 progress against this file and continue. Regenerate at major
-milestones. Supersedes the v2 (2026-07-09) doc entirely; nothing from
-it needs to be carried separately. This update (2026-07-22, session
-2026-07-22-master-deltas-001) supersedes nothing structurally — same
-v3 doc, deltas applied in place. This update (2026-07-25, session
-2026-07-25-orchestrator-sesh-001) is likewise deltas-in-place, and is
-the first landed by the master session itself rather than a separate
-deltas worker. This update (2026-07-25, second sitting)
-is deltas-in-place, landed by session 2026-07-25-master-deltas-005 —
-a narrow follow-on pack, because the orchestrator session (sesh-002)
-could not land its own response; see the second-sitting summary and
-evidence 36. This update (2026-07-27, session
-2026-07-25-orchestrator-detour-006) is deltas-in-place, landed by
-the detour session itself — admissible under the bounded self-land
-rule ratified this sitting (§5): the session spawned nothing while
-open. This update (2026-07-28, landed by the narrow follow-on
-session named in its own sid) is deltas-in-place under the interim
-manual form ratified 07-27: the master session
-2026-07-28-continue-master-001 unlocked before spawning, deltas via
-this pack. This update (2026-07-29, landed by the narrow follow-on
-deltas session named in its own sid) is deltas-in-place under the
-interim manual form: the master session 2026-07-28-continue-master-006
-was packed without --read-only (a cold-start predating the habit the
-shape now enables) and unlocked before spawning; deltas via this
-pack. This update (2026-07-31, landed by the narrow follow-on
-deltas session named in its own sid) is deltas-in-place under the
-interim manual form: the master session 2026-07-29-continue-plan-005
-was again packed without --read-only (the wizard now asks; the
-answer wasn't taken — a habit gap, not a tooling gap) and unlocked
-before spawning; deltas via this pack. This update (2026-08-01,
-landed by the narrow follow-on deltas session named in its own sid)
-is deltas-in-place; the master session 2026-07-31-continue-plan-002
-ran the board-24 read-only shape — both worker packs opened and
-applied alongside the open master with no intersection refusal, the
-first sitting on the scopeless form end to end. This update
-(2026-07-31, landed by the narrow follow-on deltas session named
-in its own sid) is deltas-in-place; the master session
-2026-07-31-continue-plan-006 ran read-only; both worker packs
-(007, 008) opened and applied alongside it with no intersection
-refusal, and its deltas pack required one clarification
-round-trip (evidence 45). This update (2026-07-31, landed by the
-micro-deltas session named in its own sid) is deltas-in-place,
-recording the prior deltas session's ratification; the master
-session 2026-07-31-continue-plan-006 ran read-only throughout.
+milestones. v4 supersedes the v3 (2026-07-25) doc in place; nothing
+from it needs to be carried separately — v3 lives in git.
 
-**Home change, effective this version:** this document lives IN the
-repo at `claude/MASTER.md`, landed by session `master-doc-landing`
-and listed in `INDEX.md`. Regenerate = edit in place; git keeps the
-history; the dated-filename-carried-in-Downloads convention is
-retired. It is a project doc, not a global workflow doc — see §5 for
-the categorization contract.
+This document lives IN the repo at `claude/MASTER.md`, listed in
+`INDEX.md`. Regenerate = edit in place; git keeps the history. It is
+a project doc, not a global workflow doc — see §5 for the
+categorization contract.
+
+Last landed by: `2026-07-31-master-v4-regeneration-012`. (This line
+is edited in place at each landing, never appended to.)
+
+Going-forward convention (recorded once, effective v4): sittings
+write `claude/telemetry/` records, board rows, evidence entries, and
+§5 contracts; no per-sitting narrative accretes in §2; this header's
+last-landed-by line is edited in place.
 
 ## 1. Ultimate goal (unchanged, ratified — do not re-litigate)
 
@@ -78,150 +43,87 @@ ground truth.
 
 ## 2. Milestones
 
-**The concurrency arc is COMPLETE** (v2 milestone, carried). ADRs
+Per-arc residual summaries. The per-sitting log this section carried
+through v3 is condensed out, the v2→v3 precedent executing again:
+condensed pre-v4 history lives in git (v3 of this document) and in
+`claude/telemetry/` (per-session records; sids cited on the board
+rows); contracts from it are §5, evidence is §6, finding
+traceability is §8. Sittings no longer accrete narrative here — see
+the header convention.
+
+**The concurrency arc — COMPLETE** (v2 milestone, carried). ADRs
 0006, 0007, 0008 Accepted and landed: per-sid registry, scope
 disjointness (pack-time include-intersection refusal + apply-time
 sibling-scope collision rejection), checkout-free integration,
-per-sid staging with ownership-by-open-session cleanup. Condensed
-pre-v2 history lives in git and the session archive; contracts from
-it are §5.
+per-sid staging with ownership-by-open-session cleanup — exercised
+live with three scope-disjoint sessions before any harness consumed
+it (the proven-by-hand model). Condensed pre-v2 history lives in git
+and the session archive; contracts from it are §5.
 
-**New since v2 (all 2026-07-13):**
+**The global-doc mechanization / worker-toolkit arc — CLOSED**
+2026-07-31 (boards 22 + 31; per-phase sids on the board rows).
+Where a contract rule is shape it now lives in a worker-shipped
+tool — `tools/craft_response.py` (manifest skeletons for all three
+response kinds, the probe scaffold, the validation epilogue and
+exec-bit assertions) and `tools/response_lint.py` (the §10.1
+self-check and the feedback-mechanical emitter) — and TARBALL.md
+keeps trigger + tool pointer where reconstruction prose used to be.
+The judgment residue (probe-vs-guess, fit estimates, claim
+completeness, stay-in-lane) remains prose by design; boards 4/5/6
+are its control surface. The ratified pattern is §5's
+mechanize-shape contract.
 
-- **The agent-driven direction is RATIFIED as ADR-0012** (Accepted at
-  creation): bale is a substrate an orchestrating Claude can drive.
-  Standing commitments now citable: transport-agnostic CLI,
-  role-neutral planner/worker/operator language, manual workflow as
-  fallback and ground truth. Complements ADR-0009 (doc plan and
-  promotion triggers unchanged). Durable record of the architect's
-  statement: request README of session 2026-07-13-multi-agent-docs-007.
-- **Concurrency exercised live:** three scope-disjoint sessions
-  packed, built, and applied concurrently on bale 0.3.6 — the
-  ADR-0006 registry and both ADR-0007 gates end to end under a human
-  operator. This is the "proven by hand before any harness consumes
-  it" model executing.
-- **Audit cleanup session:** the 0006/0007 and 0010/0011 status flips
-  reached the ADR files themselves (0010/0011 on the architect's
-  explicit scope override, probe-confirmed); ADR-0012 recorded in the
-  same session.
-- **Foundation audit (session 2026-07-13-self-aware-008):** a
-  discussion-mode meta session audited the system against the §1 goal
-  and swept the docs for compression. Verdict: the bones are right;
-  the cracks are places where policy-under-one-human doesn't survive
-  review bandwidth being the multiplied resource. Findings register
-  in §8; every actionable item is absorbed into the board (§4) or the
-  landing session.
+**The lifecycle-telemetry arc — CLOSED** across the 2026-07-28
+through 2026-07-31 sittings (boards 24–30; sids on the board rows).
+Every session exit now leaves a durable record: the read-only
+session shape (empty recorded scope; masters-never-self-land is
+mechanical), closure records with reasons on unlock and revert,
+split supersession with stamped lineage, rollback/--undo telemetry,
+unlock and revert --json parity, and the crafter's injection
+consolidated into INJECTED_TOOLS. v0.3.15 → 0.3.19 across the arc.
+The telemetry corpus stops being numerator-only (evidence 38's
+counter).
 
-**Sitting summary, 2026-07-13/14 (this regeneration's deltas):**
+**Current version: 0.3.20** (bumped with board 31's session,
+2026-07-31) — a claim to verify, not a fact to trust: verify with
+`bale --version` at each sitting's open per the standing rule. For
+this entry the claim was checked against the v4-regeneration
+request's own pack-time provenance stamp and the 2026-07-31
+telemetry records' stamps, both 0.3.20.
 
-- **staging-from-target-base** — landed the target-base staging
-  strategy: config-only opt-in, tracked-at-tip guard. (Board item 1,
-  now done.)
-- **master-state-deltas** — the doc-edit session that landed the
-  prior regeneration of this document.
-- **response-lint** — `tools/response_lint.py` blind-authored from
-  the documented contract, not from bale_validate; 7 doc gaps found
-  in the process (feeds board 7's input pile).
-- **telemetry B1** — provenance stamping, the dual-stream feedback
-  block, the no-readme guard, six doc one-liners.
-- **telemetry B2** — durable records at `claude/telemetry/`, bailout
-  records included; contract at BALE.md §8.9.
-- **packaging-lists** — three runs: two compacted mid-build (both
-  notes ratified as design input), the third implemented the
-  master-pinned design: canonical RELEASE_FILES, derived and
-  asserted copies, tree-coverage guards, tools/ mirror.
+**v4 regeneration (this compression sitting's record).** The
+2026-07-31 doc-compression sitting: the read-only orchestrator
+session `2026-07-31-doc-compress-011` read v3 whole and authored the
+ratified v4 brief; this session,
+`2026-07-31-master-v4-regeneration-012`, landed the regeneration —
+the sitting log collapsed to these arc summaries, live state
+one-homed, INDEX.md history prose trimmed in the same pass. This
+session is the sitting's deltas vehicle; no separate deltas pack
+follows unless post-landing ratification changes something.
 
-Version at sitting close: 0.3.9 per the pack-time provenance stamp,
-plus whatever packaging-lists-v2 set in the repo — verify with bale
---version at the next sitting's start rather than trusting this line.
+## 3. In flight
 
-**packaging-lists-v2 notes.md ratification: CLOSED 2026-07-14.** The
-notes were relayed and ratified in the closing master chat
-(architect-stated at pack time). No carried loose end for the next
-master.
+- **This v4 regeneration** (`2026-07-31-master-v4-regeneration-012`)
+  is the only write session of the 2026-07-31 doc-compression
+  sitting; the orchestrator session 011 ran read-only. Nothing else
+  open at landing.
+- **Next master sitting:** pack itself --read-only; keep the habit.
+  Queue: **board 32** (status clarification hint — small,
+  self-contained opener; its serialized-after-31 condition is
+  satisfied), then the strategic fork: **board 5** (trust ledger —
+  its full telemetry substrate now exists) vs **board 6** (blind
+  validation checkpoints); decide at the sitting, stated for
+  contest.
 
-**Carried loose end (from v2): CLOSED 2026-07-13.** The
-generated-artifacts-rule session's notes.md was relayed to the master
-and ratified retroactively — all decisions ratified as shipped. The
-pass-path aggregate-line follow-up was declined (byte-identical
-output wins); the craft_response fixture-seed proposal is absorbed
-into board item 11.
-
-**Sitting summary, 2026-07-15 (landed by master-deltas-015):**
-
-- **drift-gate** — board 2 landed: the apply pre-flight own-scope
-  gate, a directional scope_covers_path helper (ADR-0007 intersection
-  untouched), a per-path `--allow-out-of-scope` override (flag-only,
-  no config key — ratified as the agent-operability shape),
-  structured json refusal with dispatchable outcome
-  `scope-drift-refused`, override paths stamped to mechanical
-  telemetry, and the created-collision message now naming the likely
-  sibling cause. v0.3.10.
-- **status-staging-row** — board 12 landed: per-session staging
-  strategy + declared untracked inputs in `bale status`, human and
-  json modes, additive keys, effective-config semantics. v0.3.11.
-- **bale-status-reconciliation** — rider from 003's clarification
-  round: BALE.md section 5 status row + new §5.5, the §2.2 and
-  section 5 no-status assertions narrowed to log/blame/diag, the
-  one-home rule mechanically pinned in validation (§5.5 may not
-  enumerate the json keys).
-
-Version at sitting close: 0.3.11 as of status-staging-row — verify
-with bale --version at the next sitting's start per the standing
-rule.
-
-**Sitting summary, 2026-07-15/16 (landed by this deltas session,
-2026-07-16-master-deltas-004; sids reconciled against
-claude/telemetry):**
-
-- **docstring-prune (8a)** — sid `2026-07-15-docstring-prune-005`,
-  applied 2026-07-15, v0.3.11 (telemetry: one minute before the
-  prior deltas apply, which is why §3's stale in-flight line existed
-  as written). Details on the board 8 row; the arc's opening move.
-- **pack-path-extraction (8b)** — sid
-  `2026-07-15-pack-path-extraction-010`, applied 2026-07-15,
-  v0.3.12. bin/bale_pack.py extracted; details on the board 8 row.
-- **tarball-ux-extraction** — sid
-  `2026-07-15-tarball-ux-extraction-011`, applied 2026-07-15.
-  TARBALL.md §5.6.3/§5.9.3 apply-time UX contracts moved to BALE.md
-  §8.10; tombstones left in place; the inbound §5.2 reference
-  retargeted.
-- **tarball-compression** — sid
-  `2026-07-15-tarball-compression-012`, applied 2026-07-15.
-  TARBALL.md 75,148 → 71,487 bytes (−4.9%); ADR-0013 created,
-  Proposed.
-- **claude-preflight-compression** — sid
-  `2026-07-16-claude-preflight-compression-001`, applied 2026-07-16.
-  CLAUDE.md §11.2 compressed 925 → 397 words (−57%; whole file
-  −9.4%); INDEX.md gained the ADR-0013 entry, the shrunk routing
-  note, and the coherence-edited Proposed-set prose.
-- **apply-path-extraction (8c)** — sid
-  `2026-07-16-apply-path-extraction-002`, applied 2026-07-16,
-  v0.3.13. bin/bale_apply.py extracted; details on the board 8 row.
-  Closes the shrink-bin/bale arc.
-- **This deltas session** — sid `2026-07-16-master-deltas-004` —
-  lands these deltas into this document. Its apply is the first run
-  of the extracted bale_apply pipeline (v0.3.13), deliberately: a
-  one-doc session is the low-stakes smoke test session 010 asked
-  for; the architect observes, nothing rides on the worker side.
-
-ADR-0013 status at sitting close: **Proposed, with its work already
-landed** — the DOCS.md §9 status flip is the architect's to make and
-is pending by choice; INDEX.md prose already reflects this state.
-
-Version at sitting close: 0.3.13 as of 2026-07-16
-(apply-path-extraction) — verify with bale --version at the next
-sitting's start per the standing rule.
-
-**Fold-in registry (2026-07-16):**
+**Fold-in registry** (one home, this list — the dated block v3
+carried inside §2's 07-16 sitting summary is merged in; each entry
+below was reconciled against shipped bytes at the v4 regeneration,
+with the unverifiable ones carried verbatim and marked):
 
 - BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
   drift-refusal aggregation semantics → board 5's session
-  (unchanged).
-- INDEX.md's ADR-0013 "Status: Proposed" word flips when 0013 is
-  Accepted — per the 2026-07-21 ratification (§5); board 14 retired
-  2026-07-25, so the flip now rides board 22a's session alongside
-  the ADR's own status line. [Cleared 2026-07-25: landed with 22a.]
+  (unchanged). [Carried verbatim; unverifiable at the v4
+  regeneration — BALE.md not shipped.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
 - Internals §6 surfacing + harness present-tense flip (2026-07-28,
@@ -230,15 +132,19 @@ sitting's start per the standing rule.
   bale-internals entry to mention the test layout, and flip §6's
   trigger-shaped harness sentence to plain present
   (tests/harness.py landed with board 24) — rides the next
-  claude/-docs-touching session; board 27 absorbs it if unclaimed.
+  claude/-docs-touching session. [2026-07-31: board 27 closed
+  without absorbing it — the entry is not in session 007's landed
+  set — so the absorb-if-unclaimed clause is spent; the ride
+  condition stands.]
 - §8.9 retitle to "Telemetry record at session close" (2026-07-29,
   deferred at board 25's build on the immutable-citer precondition;
   citer check completed post-apply — ADR grep empty, no
   commit-message citer, and numeric §8.9 citations are unaffected
-  by design) — rides board 27.
-- TARBALL.md §3.2 context_included-vs-recorded-scope sentence
-  (2026-07-29, evidence 41's doc countermeasure: the shipped file
-  list is not the recorded repo-side scope) — rides board 27.
+  by design) — rides board 27. [Carried verbatim; unverifiable at
+  the v4 regeneration — BALE.md not shipped. Board 27 has since
+  closed without landing the retitle (not in session 007's landed
+  set), so the ride needs re-homing to the next BALE.md-touching
+  session — flagged in the v4 response's notes for ratification.]
 - Revert's human staging-row rendering → bale_report (2026-07-31,
   accepted from session 008's Proposals): _discard_hold_state now
   computes the machine staging facts beside the inline
@@ -246,557 +152,21 @@ sitting's start per the standing rule.
   string from those facts in bale_report, deleting the last
   rendering residue from bin/bale's revert path (§19) — rides the
   next session touching that path.
-
-Cleared this sitting: the BALE.md §13 status sentence (rode 8a) and
-the bale-internals refresh (rode 8b and 8c).
-
-**Sitting summary, 2026-07-21 (landed by this deltas session,
-2026-07-22-master-deltas-001; sids reconciled against
-claude/telemetry):**
-
-- **doc-gap-landing (7c)** — sid `2026-07-21-doc-gap-landing-002`,
-  applied 2026-07-21. Board 15 DONE. Gaps 2, 5, and 6's schema half
-  landed; gap 3 found already landed (the fingerprint grep
-  false-negatived on wrapped prose — evidence 28); gap 4 skipped as
-  adequately placed (the §10.1 home is the same target the lint's
-  DUPLICATE_PATH finding cites). Deliberately tripped the lint's
-  embedded-schema drift guard, as designed.
-- **transition-branch-retirement (board 16)** — sid
-  `2026-07-21-transition-branch-retirement-003`, applied 2026-07-21.
-  Board 16 DONE. resolve_target_branch's no-stamp fallback →
-  refusal; the discard path is switch-only. Ratified in passing:
-  git-decides dirty-checkout semantics (WIP never discarded — §5);
-  three in-lane comment updates declared and accepted. The sid_sha
-  short-circuit was deliberately deferred (proposed, not swept in);
-  retirement-cleanup took it.
-- **lint-schema-refresh** — sid `2026-07-21-lint-schema-refresh-004`,
-  applied 2026-07-21. Cleared the drift guard doc-gap-landing
-  tripped: byte-verbatim embed of the shipped response-manifest
-  schema (parsed-JSON *and* byte-level equality asserted); install
-  validation confirmed green.
-- **retry-flag-parity** — sid `2026-07-21-retry-flag-parity-005`,
-  applied 2026-07-21, v0.3.14. The retry ice-out fix, surfaced by a
-  live ice-out on another project: an apply with
-  `--allow-out-of-scope` went HOLD, and retry had no such flag —
-  the session was iced exactly when the override was needed
-  (evidence 29). Closed `--allow-out-of-scope`, `--verbose`, and
-  `--json` on retry; `--dry-run` and `--show-*` skipped with
-  justification. VERSION bumped 0.3.13 → 0.3.14. The override stays
-  per-invocation, structurally uncarried (§5).
-- **retirement-cleanup** — sid `2026-07-21-retirement-cleanup-007`,
-  applied 2026-07-21. The sid_sha short-circuit retired (equal-SHA
-  now correctly refuses as merged), stale fallback prose swept, the
-  detached-HEAD pack refusal landed, stale pipeline docstring
-  sentences corrected. **Master review caught a defect the session's
-  own checks could not:** the refusal was inserted as BALE.md §7.1
-  step 5, renumbering the scope gate to 6 — but "§7.1 step 5" is
-  cross-referenced as the scope gate from INDEX.md and from
-  immutable git-history manifest reasons. Applied as shipped;
-  corrected by handoff-refusal-numbering. (Feeds the board 6
-  annotation and evidence 31.)
-- **handoff-refusal-numbering** — sid
-  `2026-07-21-handoff-refusal-numbering-008`, applied 2026-07-22.
-  Restored §7.1 numbering: the scope gate back to step 5, the
-  detached-HEAD refusal relabeled as interstitial step 4a with an
-  inline stable-numbering rationale. Extended the detached-HEAD
-  refusal to `bale handoff` (§11 row 24), and extended three
-  refusal-citing passages to name both request-building pre-flights.
-  The worker's read-only verification corrected the master's brief:
-  ADR-0007's body carries no step citation — the citation lives in
-  INDEX.md's entry (and git history); the ADR cites only §11 row 3,
-  unaffected throughout (evidence 31).
-- **This deltas session** — sid `2026-07-22-master-deltas-001` —
-  lands these deltas into this document.
-
-Version at sitting close: 0.3.14 as of retry-flag-parity; the two
-later applies (retirement-cleanup, handoff-refusal-numbering) stamp
-0.3.14 provenance with no further bump in telemetry — verify with
-bale --version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-23/25 (landed by this master session,
-2026-07-25-orchestrator-sesh-001; sids reconciled against
-claude/telemetry):**
-
-- **doc-gap (ADR-0014)** — sid `2026-07-23-doc-gap-001`, applied
-  2026-07-23, provenance 0.3.14 (no bump). ADR-0014 created
-  (worker-determined new files; Accepted at creation per the
-  ADR-0012 precedent), TARBALL.md §3.2/§3.4 and CLAUDE.md §6
-  corrected to the mechanical drift-gate reality, BALE.md's three
-  stale sites fixed, INDEX.md row added. Loose end CLOSED 2026-07-25:
-  the architect ratified Accepted-at-creation in the sesh-002 chat,
-  with the rest of that sitting's ratifications.
-- **This master session** — sid `2026-07-25-orchestrator-sesh-001` —
-  reconciled state (0.3.14 verified; the request's contract-doc
-  hashes match the post-doc-gap bytes), then interrogated board 14
-  before authoring its pack and retired it as misframed: the
-  physical split's token-savings premise conflated shipped bytes
-  with read tokens (evidence 32). Ratified in the same chat: the
-  global-doc mechanization direction (board 22; contracts §5). This
-  deltas edit ships as the session's own response tarball.
-
-Version at sitting close: 0.3.14, unchanged — verify with bale
---version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-25 second sitting (landed by this master
-session, 2026-07-25-orchestrator-sesh-002; applied-state facts
-reconciled from the architect-relayed notes.md and apply
-confirmations — see this response's notes for the caveat):**
-
-- **handoff-install-precheck (board 21)** — sid
-  `2026-07-25-handoff-install-precheck-003`, applied 2026-07-25,
-  provenance 0.3.14 (no bump; verify per the standing rule). main()'s
-  install sanity check widened in place to both request-building
-  commands; byte-for-byte message-parity asserted in the test so a
-  future reword forks loudly; BALE.md section 5.4 gained the
-  no-force-override clause for the detached-HEAD refusal. **First
-  tracked test suite landed:** tests/test_install_precheck.py
-  (stdlib unittest, no runner config; ADR-0005 sandbox doctrine;
-  harness inline pending a second suite), admitted per ADR-0014 via
-  --allow-out-of-scope. Negative control against unmodified bin/bale
-  confirmed the suite pins the gap (evidence 27's paired shape).
-- **tarball-core-first (board 22a)** — sid
-  `2026-07-25-tarball-core-first-004`, applied 2026-07-25. Core =
-  sections 1, 2, 5, 7; reference sections past a banner in numeric
-  order; zero renumbering, two tombstones, sorted line-set diff as
-  the zero-loss proof. ADR-0013 flipped Accepted via the sanctioned
-  two-line diff with a reverse-transform hash assertion (evidence
-  35); INDEX.md coherence swept; DOCS.md section 9 gained the
-  CLAUDE.md 11.2 / TARBALL.md 3.4 sanctioned pair (board 17) and the
-  grep-normalization paragraph (evidence 28's rider — section 9
-  placement was the worker's call, ratified over the brief's 7.4
-  candidate).
-- **Ratified in the sesh-002 chat:** ADR-0014 stays
-  Accepted-at-creation (the doc-gap loose end, closed above);
-  ADR-0005's Accepted flip, riding the queued test-layout-docs
-  session (board 23); every worker decision of both sessions, as
-  shipped.
-- **Master error on the record:** the 003 brief miscast a telemetry
-  claim label as a tracked test-file precedent; cost the worker a
-  probe round (evidence 34). The reconcile-the-precedent proposal
-  closed as nothing-to-find — the new suite is now the first real
-  tracked precedent.
-- **This master session** — sid `2026-07-25-orchestrator-sesh-002` —
-  interrogated 21/22a disjointness and refused it (execution-context
-  manifest's docs/ include intersects 22a's doc writes; evidence 25
-  annotated), serialized 21 before 22a with rationale stated for
-  contest, and authored both packs and briefs plus board 23's.
-  **Correction on the close-out:** the session's own whole-tree
-  request was the registry's blocking lock — every worker pack it
-  authored was inadmissible under ADR-0007 until the architect
-  unlocked sesh-002 (friction absorbed silently; the master checked
-  the workers against each other and never against its own scope) —
-  and the unlock left the session's self-landed deltas response with
-  no lock for responds_to to match. These deltas ship instead under
-  the narrow follow-on session `2026-07-25-master-deltas-005`
-  (evidence 36).
-
-Version at sitting close: 0.3.14 per both requests' pack-time
-provenance (sesh-002 and master-deltas-005 alike); verify with bale
---version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-27 (landed by this session,
-2026-07-25-orchestrator-detour-006, as its own deltas response —
-spawned nothing while open, per the bounded self-land rule in §5):**
-
-- **Lifecycle friction audit** — the detour the request goal asked
-  for. Walked BALE.md §5 and §9 whole, the pack intersection gate
-  and the clarification apply fork in source, and the full telemetry
-  corpus. Findings: the session-split flow is a folk recipe (its
-  only documentation is the ADR-0007 refusal's remedy string;
-  lineage between a split's parent and children is recorded
-  nowhere); unlock-class session exits are telemetry-invisible
-  (evidence 38); `bale unlock` has accreted into an undifferentiated
-  everything-else bucket (evidence 39); ADR-0011's named doc
-  follow-ups remain tracked-but-unowned. The well-worn paths (pack →
-  apply → merge/HOLD → retry/revert, bailout → handoff,
-  clarification → same-sid continuation) audited clean.
-- **The cold-start reframe.** The sitting's pivotal catch, from the
-  architect naming why this request stamps work_class "mixed": the
-  cold-start pack is the one command in the system with no Claude
-  author (evidence 37). Evidence 36's pending narrow-pack rule was
-  revised — the remedy is *scopeless* packing, not narrow packing —
-  and ratified with the sitting's other contracts (§5): the
-  architect's typed surface, supersession semantics, and
-  closure-as-recorded-event.
-- **Board grew 24–27** (scopeless packs + the scope wizard question,
-  closure telemetry, split supersession, lifecycle docs), serialized
-  24 → 25 → 26 → 27 with rationale on the rows. Board 13 annotated:
-  24 is its degenerate case, to be subsumed by 13's eventual design,
-  not collided with. Board 23 carried unchanged; its ordering
-  against 24–27 is the next master's call.
-- **This session** — sid `2026-07-25-orchestrator-detour-006` —
-  reconciled state (0.3.14 per the pack stamp; contract-doc hashes
-  match provenance byte-for-byte), ran the audit, and closes by
-  applying this deltas response against its own sid. The next master
-  session cold-starts fresh after this apply and authors the packs
-  and briefs for boards 23–27; until board 24 lands, its close-out
-  uses the interim manual form (§5).
-
-Version at sitting close: 0.3.14, unchanged — verify with bale
---version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-28 (landed by the narrow follow-on
-deltas session per the interim manual form; the master session
-2026-07-28-continue-master-001 unlocked before spawning):**
-
-- **State reconciled.** Contract-doc hashes matched provenance
-  byte-for-byte; context_included complete; 0.3.14 at sitting open.
-- **22a micro-review — CLOSED.** TARBALL.md's restructured
-  read-paths rows for sections 3 and 8 and the past-the-core banner
-  reviewed against the shipped bytes: accepted as shipped, no
-  edits. The §3 open micro-item clears.
-- **Board 23's authored pack was lost** between sittings (evidence
-  40) and re-authored this sitting from the board row, with two
-  concurrency-aware changes: tests/ excluded from its read set (the
-  concurrent session's lock) and the harness sentence pinned
-  trigger-shaped so it stays true across the concurrent landing.
-- **test-layout-docs (board 23) — DONE.** Sid
-  2026-07-28-test-layout-docs-004, applied 2026-07-28.
-  bale-internals.md gained closing section 6 (test layout;
-  placement ratified — renumbers nothing, the doc's 1–5 arc is
-  untouched); the stale v0.4-deferral clause retargeted; ADR-0005
-  flipped Accepted in the sanctioned shape with the
-  reverse-transform assertion (evidence 35's prescription,
-  executed); INDEX.md Proposed-set prose swept (0002–0004 and 0009
-  remain Proposed). Ratified: the ADR's historical interior lines
-  ("proposed — for ratification", the three-Proposed-ADRs note)
-  deliberately untouched — ADRs are captured at decision time and
-  the sanctioned shape rejects a wider diff.
-- **scopeless-packs (board 24) — DONE.** Sid
-  2026-07-28-scopeless-packs-003, applied 2026-07-28, v0.3.14 →
-  0.3.15. The read-only session shape landed: --read-only packs
-  open normally with recorded scope [], both ADR-0007 gates admit
-  siblings against it, and the own-scope drift gate refuses
-  anything it ships — masters-never-self-land is now mechanical.
-  The wizard gained the session-shape question (covers work-class
-  in the same exchange). The brief's sharp edge was real twice
-  over: [] fell into read_session_scope's malformed branch AND
-  format_scope_value independently rendered empty as whole-tree —
-  the skeptical-read requirement caught the second instance the
-  brief didn't predict. Two new files admitted per path at apply
-  (tests/harness.py, tests/test_readonly_pack.py) — the board-11
-  harness-extraction trigger fired and was taken, ADR-0014 shape
-  throughout. Ratified as shipped: the gate-after-wizard deferral
-  (only when the wizard answer could still change the scope;
-  fail-fast preserved on fully specified paths);
-  --allow-out-of-scope stays effective against read-only sessions
-  with the refusal and FORCE lines naming the session read-only;
-  read-only infers work-class meta (logged; explicit flag wins);
-  the --read-only spelling.
-- **Proposals disposed:** the read-only closure story is accepted
-  as a board 25 brief requirement (see the board 25 row); the
-  internals-§6 surfacing and the harness-sentence present-tense
-  flip are combined into a fold-in entry (see the registry).
-- **This deltas session** — lands these deltas into this document.
-
-Version at sitting close: 0.3.15 as of scopeless-packs, verified by
-the architect post-apply — re-verify with bale --version at the next
-sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-28/29 (landed by the narrow follow-on
-deltas session per the interim manual form; sids reconciled against
-claude/telemetry):**
-
-- **State reconciled.** Contract-doc hashes matched provenance
-  byte-for-byte; 0.3.15 at sitting open. The master session's own
-  unlock (pre-spawn, running pre-25 code) left no closure record —
-  expected; the machinery it would have used landed later the same
-  sitting.
-- **closure-telemetry (board 25) — DONE.** Sid
-  2026-07-29-closure-telemetry-001, applied 2026-07-29, v0.3.15 →
-  0.3.16. Unlock- and revert-terminated sessions now write closure
-  records: outcome "unlocked" and command "unlock" (both enums
-  extended additively), a nullable closure_reason field with six
-  reasons (abandoned, superseded-by-split,
-  reframed-after-clarification, master-closeout, crash-debris,
-  closed-read-only), --reason on unlock and revert, the
-  closed-read-only inference keyed on recorded scope exactly []
-  (explicit --reason wins), and crash-debris pointer cleanup
-  recording best-effort — with the worker's honesty refinement
-  ratified: a debris sid with no scope.json records [] rather than
-  stamping the conservative ["."] fabrication. CLOSURE_REASONS
-  one-homed in bale_report beside RECORD_VERSION; the UNLOCK
-  summary gains its telemetry row; §9.4 gains the trio-completing
-  sentence. Revert's reason threading asserted unit-shaped per
-  ADR-0003 (the HOLD-shaped E2E deferred to board 5's
-  multi-attempt tests). The §8.9 retitle deferred at build
-  (immutable-citer check unrunnable in-context); the architect
-  completed the check post-apply — ADR grep empty, no
-  commit-message citer (the git-log -S hit was the heading's own
-  introducing diff, which a retitle does not invalidate) — retitle
-  safe, rides board 27.
-- **split-supersession (board 26) — DONE.** Sid
-  2026-07-29-split-supersession-002, applied 2026-07-29, v0.3.16 →
-  0.3.17. bale pack --supersedes <sid> lands: the §5.2 exchange
-  (TTY prompt, decline default; piped stdin declines — pack has no
-  --no-interact, correcting the board row's original wording), the
-  parent closed through close_session_with_record (extracted from
-  cmd_unlock, shared by unlock and pack — one implementation), the
-  command enum gains "pack", depends_on.superseded_session added
-  nullable-not-required and stamped always (null when unused,
-  setdefault in build_request_manifest so handoff matches),
-  idempotent re-run gated on superseded-by-split closure history
-  only (abandoned closures refuse), HOLD-reached parents refused
-  with the revert remedy and no --force analog, and — the worker's
-  catch, ratified — a declined supersession refuses on every path
-  including disjoint scopes, where the brief's route-into-the-gate
-  design would have admitted a pack that silently closed nothing
-  and stamped no lineage (evidence 42). The gate still evaluates
-  all other open sessions. run_bale_pty extracted to
-  tests/harness.py on its second consumer. Doc touches: BALE.md
-  §7.1 step 5 remedy, §7.2 bullet, TARBALL.md §3.4 flag row.
-  Deferred: the HOLD-refusal test (ADR-0003 depth precedent; the
-  twin in cmd_unlock is covered).
-- **Worker-inference class surfaced twice** — both workers
-  predicted drift-gate refusals on their new test files from
-  reading context_included's enumerated file list; both
-  predictions were wrong because resolved_scope records declared
-  includes, so the directory include covered the new paths and
-  both applies ran clean with no override. Evidence 41;
-  countermeasures on boards 27 and 5.
-- **Proposals disposed:** rollback telemetry accepted as board 28;
-  unlock --json parity accepted as board 29; the orchestrated
-  accept spelling for --supersedes parked on board 10's harness
-  agenda (it revisits the authorship contract); bidirectional
-  lineage via apply's successor note annotated onto board 5's row.
-- **This deltas session** — lands these deltas into this document.
-
-Version at sitting close: 0.3.17 as of split-supersession, verified
-by the architect post-reinstall — re-verify with bale --version at
-the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-29/31 (landed by the narrow follow-on
-deltas session per the interim manual form; applied-state facts
-reconciled from architect-relayed notes.md and apply confirmations —
-claude/telemetry was not shipped in the deltas request, so apply
-timestamps and closure rows reconcile there at the next sitting's
-open):**
-
-- **State reconciled.** Contract-doc hashes matched provenance
-  byte-for-byte; 0.3.17 at sitting open. The cold-start master pack
-  was again not --read-only (second consecutive; the board-24 wizard
-  question now exists, so this is habit, not tooling) and the
-  architect unlocked pre-spawn — the first master close recorded by
-  the board-25 machinery.
-- **lifecycle-telemetry-parity (boards 28+29, fused) — DONE.** Sid
-  `2026-07-29-lifecycle-telemetry-parity-006`, v0.3.17 → 0.3.18.
-  First attempt HOLD on a suite-fixture defect (the sandbox repo
-  never gitignored .bale/, and rollback journals into
-  .bale/logs/<sid>.log before its dirty-tree guard runs — a state no
-  real bale repo reaches, since pack's §7 gitignore handling covers
-  it); the corrected retry applied, and the HOLD→retry pair is the
-  corpus's first live multi-attempt sequence. Board 28: rollback and
-  --undo append attempts on their clean-success paths only
-  (rolled-back / re-applied outcomes; the command enum gained
-  rollback — the third additive touch beyond the board row's two
-  outcome enums); closure_reason null (rollback closes no session);
-  unrecoverable scope records [] per the crash-debris honesty
-  precedent; summary rows gained the telemetry line. Board 29:
-  unlock --json, formatter one-homed in bale_report
-  (format_unlock_json's docstring owns the key contract); the debris
-  sweep rides its own `debris` key; --integration --json refused;
-  refusal paths fail()-shaped with empty stdout. Ratified as
-  shipped: no rollback --reason; the --undo summary-label
-  realignment; the fabricated-git applied-merge fixture (ADR-0003
-  depth); the dirty-tree-sees-bale's-own-record friction accepted
-  as-is with the guard-change proposal deferred to board 5's row.
-- **craft-tool-v1 (board 22b) — DONE.** Sid
-  `2026-07-29-craft-tool-v1-007`. Serialized behind 006 at apply as
-  planned: the ADR-0007 sibling-collision refusal fired on its
-  tests/ path while 006 was open, and its two ADR-0014 new files
-  (tools/craft_response.py, tests/test_craft_response.py) were
-  admitted per path at the own-scope gate, both refusals predicted
-  in the sitting plan before they fired. The tool: stdlib,
-  sandbox-run, per-request injected; computes every size_bytes and
-  sha256 from bytes; unfilled skeleton fields are empty strings, so
-  an unfilled skeleton cannot pass the judge; reports what's under
-  files/ faithfully, junk included (filtering would be the crafter
-  edging into validation); 0/2 exit surface with 1 reserved against
-  the lint's. Injection shipped via a deliberately temporary guarded
-  block + CRAFT_TOOL constant in bale_pack.py (bin/bale was the
-  concurrent session's lock); all five packaging surfaces touched;
-  TARBALL.md §5.2.1 collapsed to trigger + tool pointer with §5.2
-  keeping the schema-of-record and field semantics; no bin/bale E2E
-  per the brief's stated depth boundary (the execution-context
-  contract's firing condition was named so the worker didn't have to
-  guess).
-- **injection-consolidation-revert-json (board 30) — DONE.** Sid
-  `2026-07-29-injection-consolidation-revert-json-008`, v0.3.18 →
-  0.3.19 (the one bump also covering 007's unbumped injection
-  change, by design). Consolidation: craft_response.py joined
-  INJECTED_TOOLS and main()'s pack-time precheck; the guard block
-  and CRAFT_TOOL deleted; the guard-era injection tests replaced
-  (not extended) with exactly-the-list pins including the
-  narrowed-list-ships-no-crafter proof; the missing-crafter refusal
-  test closed the precheck gap 007 named. revert --json:
-  format_revert_json follows unlock's pattern minus debris and minus
-  the constant-true session_dir_wiped, plus origin_branch /
-  branch_deleted / lock_cleared / staging_state / staging_path;
-  machine staging facts computed in _discard_hold_state beside the
-  human row, never parsed from it; BALE.md §9.1 gained exactly one
-  pointer sentence, and the worker's grep found part 1's BALE.md
-  delta genuinely zero (the injection wording it would falsify never
-  existed — the stale spots found instead are 27 riders below). E2E
-  depth throughout; 72 tests green at close (65 before), the
-  both-tools-with-exec-bits pack E2E riding test_install_precheck.
-- **Worker-scope postscript (evidence 44):** 007 predicted its
-  drift and drifted by design; 008 reasoned from the brief's scope
-  statement rather than context_included, hedged correctly, and was
-  covered by the directory include — the evidence-41 countermeasure
-  functioning at brief level ahead of the §3.2 doc sentence.
-- **Proposals disposed:** the staging-row human rendering fold-in
-  accepted (registry entry below); the BALE.md §6.1 / §7.5 step 3
-  injected-tools staleness accepted as 27 riders with 007's §3.1
-  tools listing; the rollback dirty-tree/telemetry-record question
-  annotated onto board 5's row; 007's pack-E2E proposal taken early
-  by 008 rather than waiting for the v0.4 bucket.
-- **This deltas session** — lands these deltas into this document.
-
-Version at sitting close: 0.3.19 as of
-injection-consolidation-revert-json, confirmed by the deltas
-request's own pack-time provenance stamp — re-verify with bale
---version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-31 (landed by the narrow follow-on deltas
-session per the standing close-out form; applied-state facts
-reconciled from architect-relayed notes.md and apply confirmations —
-claude/telemetry reconciles at the next sitting's open):**
-
-- **State reconciled.** Contract-doc hashes matched provenance
-  byte-for-byte; 0.3.19 at sitting open. The master session ran
-  read-only (inferred from both worker packs opening and applying
-  with no ADR-0007 refusal against the open master — the board-24
-  shape's first full sitting; confirm at this deltas apply).
-  Sitting order deviated from §3's 27-first recommendation on the
-  manifest goal's authority (finish board 22), with rationale stated
-  for contest and accepted: 27 collides with 22c/22d on TARBALL.md
-  and documents more by running last.
-- **craft-kinds-v2 (board 22c) — DONE.** Sid
-  2026-07-31-craft-kinds-v2-003, applied 2026-07-31, no bump. The
-  crafter gained --kind {normal,bailout,clarification}: bailout
-  emits the §5.6.2 empty-surface manifest, a diagnostics.json
-  skeleton (session_id filled — mechanical, not judgment; ratified
-  over the brief's literal empty-values wording), a §5.7
-  headers-only handoff scaffold, and the kind-fixed no-op
-  apply.sh/validation.sh; clarification emits the questions[] stubs
-  (--questions N). Unfilled-cannot-pass proven per kind by lint
-  round trip. No third schema home: test-side key-set drift bridges
-  against schemas/. TARBALL.md §5.6.1/§5.6.2/§5.8/§5.9.2 shape
-  prose collapsed to trigger + tool pointer mirroring the
-  §5.2/§5.2.1 split; §5.7 kept whole as record; every removed
-  sentence accounted mechanized-or-redundant in notes.md. Ratified
-  as shipped: populated-files/ refusal as argument hygiene,
-  --changes-only refused / --apply-only allowed on non-normal
-  kinds, atomic refuse-overwrite pre-check, commented no-op
-  validation.sh, suite extension over a sibling file.
-- **probe-scaffold-22d (board 22d) — DONE.** Sid
-  2026-07-31-probe-scaffold-22d-004, applied 2026-07-31, no bump.
-  --probe SLUG emits the §4.2 canonical skeleton (sentinels,
-  capture-then-count integrity trailer, purpose-header shape) with
-  loud TODO placeholders that still run read-only with a
-  self-consistent count; §4.2's fenced block collapsed to trigger +
-  tool pointer with the audit-contract bullets kept; positional
-  response_dir now optional and refused-not-ignored under --probe;
-  --kind default moved to None for flag-error detectability;
-  kebab-only slug refusal; mutual exclusion widened to all nine
-  response-surface flags. Rider landed: the diagnostics-schema
-  bail_trigger pointer corrected 11.2 → 11.3 in schema and lint
-  embed together, with tests/test_schema_embeds.py as the durable
-  form of validate.sh's drift guard (response-manifest embed
-  included). Residue audit: three mechanizable findings (below) and
-  an explicit stop — nothing else in TARBALL.md is shape a worker
-  reconstructs.
-- **Board 22 CLOSED.** 22a–22d all DONE; the arc's stopping rule
-  held: probe-vs-guess, fit estimates, claim completeness, and
-  stay-in-lane remain prose by design.
-- **Proposals disposed:** 22d's three audit findings accepted and
-  fused as new board 31 (validation epilogue + exec-bit assertions
-  + lint feedback emitter); the 5.2 normal-kind no-scaffold pin
-  gains a ratified epilogue carve-out (checks are judgment; the
-  §7.3 reconciliation table is shape); PackInjectionSurface
-  skip-guard accepted as a 31 rider; VERSION bump re-queued onto 31
-  (two install-relevant tool sessions now unbumped; waiting for an
-  organic bin/ session inverts the 008 precedent — stated for
-  contest); 22c's schema-pointer proposal landed via 22d's rider;
-  the tar one-liners and §4.4 meta.json declined as trivia/judgment.
-- **Evidence 44 annotation** (append to evidence 44's entry, one
-  sentence): held twice more this sitting — both workers reasoned
-  new-file scope from the brief's directory-include sentence, zero
-  probes spent, both applies clean.
-- **This deltas session** — lands these deltas into this document.
-
-Version at sitting close: 0.3.19, unchanged (both sessions
-deliberately unbumped; the bump rides board 31) — verify with bale
---version at the next sitting's start per the standing rule.
-
-**Sitting summary, 2026-07-31 second sitting (this deltas
-session):**
-
-- **lifecycle-docs-closeout (board 27, session 007)** — ADR-0011
-  follow-up audit: most items had landed since the board row was
-  written (CLAUDE.md §3 mention, read-paths row, BALE.md §8.10.2
-  all present); the genuinely missing piece was the BALE.md §11
-  contract row, landed as row 25, wording verified at master review
-  against bale_validate.py (empty change surfaces on both
-  non-normal kinds; questions[] required on clarification,
-  forbidden elsewhere). Folk-recipe retirement was additive — no
-  verbatim prose existed to delete; §3.4 flow prose landed with the
-  evidence-42 decline set verified against bale_pack.py; CLAUDE.md
-  §11.2 pair-sync sentence per the DOCS.md §9 sanctioned pair.
-  Sweep's real gaps: §9 intro / §9.5 third exit
-  (superseded-by-split), §5 command-row flags, §5.4 cross-command
-  --json/--reason rows. All six riders landed.
-- **worker-toolkit-residue (board 31, session 008)** — the three
-  fused emissions landed; VERSION 0.3.20. Ratified: epilogue as
-  paste-ready stdout fragments (--validation-epilogue; a sourced
-  helper has no legal home — not a §5.1 artifact, not a project
-  file), three banner-separated parts with placement instructions;
-  verdict=missing [n/a] for claimed-but-unrecorded checks; python3
-  hard-require in the reconciliation (the toolkit already requires
-  it; no jq fallback). Accepted as shipped: the cross-run
-  one-source caveat (comment + doc framing; a stronger coupling, if
-  ever, is a lint-side textual set-comparison — parked as a
-  candidate rider for the next lint-touching session). Lint
-  --emit-feedback-mechanical emits only the four mechanically
-  derived members; linkage/provenance stay hand-added;
-  _recompute_mechanical one-derivation refactor pinned by two
-  tests. skipUnless rider proven both ways. Suite 113 green
-  (verified floor; see §7 amendment). One-apply-behind flagged
-  unprompted, as expected.
-- **master-deltas (session 009)** — deltas landed after one
-  packer-side clarification round (the stale-brief transport,
-  evidence 45) and one placeholder round (read-only confirmed,
-  matching the worker's stated §5.9.2 default). Ratified as
-  shipped: the version-at-sitting-close line, the §7 connective,
-  done-row bold placement per the page, document-scoped validation
-  with a both-directions negative control. Both of 009's proposals
-  accepted (see the §3 fold-in amendment and the §7 convention
-  line). Ratification closed in the sitting chat; no carried
-  loose end.
-
-Version at sitting close: 0.3.20 (bumped with 008) — verify with
-bale --version at the next sitting's start per the standing rule.
-
-## 3. In flight
-
-- **No sessions open** once this deltas session closes; 007 and
-  008 applied 2026-07-31.
-- **Next master sitting:** pack itself --read-only; keep the habit.
-  Queue: **board 32** (status clarification hint — small,
-  self-contained opener; its serialized-after-31 condition is
-  satisfied), then the strategic fork: **board 5** (trust ledger —
-  its full telemetry substrate now exists) vs **board 6** (blind
-  validation checkpoints); decide at the sitting, stated for
-  contest. Fold-in registry: board-30 staging-row rendering still
-  rides the next revert-path session; the reconciliation
-  label-column cap (008's proposal, accepted) rides the next
-  session touching tools/craft_response.py; the next session
-  touching bin/bale_pack.py carries two fused riders — the
-  pack-report README-identity echo (evidence 45) and a
+- The reconciliation label-column cap (008's proposal, accepted) —
+  rides the next session touching tools/craft_response.py.
+- Two fused riders on the next session touching bin/bale_pack.py:
+  the pack-report README-identity echo (evidence 45) and a
   --readme-file refusal on unresolved brief placeholders under one
   agreed sentinel form (009's proposal, accepted; sentinel form
   decided at that session, its convention line landing in
   TARBALL.md §3.4 alongside).
+
+Cleared at the v4 regeneration: the board-27 TARBALL.md §3.2
+context_included-vs-recorded-scope entry — the injected TARBALL.md
+already carries the sentence (§3.2: the tarball ships the flat file
+list while the recorded scope lives repo-side in the registry;
+verified at line 1108 of the copy injected into this session's
+request).
 
 ## 4. The board
 
@@ -805,25 +175,27 @@ compression sitting before harness scoping. Item numbers are
 identities, not sequence — they are cross-referenced from §5, §6,
 and §8, so done items keep their numbers as one-line pointers.
 
-1. **staging-from-target-base — DONE** this sitting (§2 summary):
-   target-base strategy landed, config-only opt-in, tracked-at-tip
-   guard.
+1. **staging-from-target-base — DONE** 2026-07-13/14 sitting
+   (pre-telemetry; home: git): target-base strategy landed,
+   config-only opt-in, tracked-at-tip guard.
 
-2. **drift-to-contract apply gate — DONE** 2026-07-15 (§2 summary):
-   own-scope apply gate landed, v0.3.10.
+2. **drift-to-contract apply gate — DONE** 2026-07-15 (sid
+   `2026-07-15-drift-gate-002`; telemetry): own-scope apply gate
+   landed, v0.3.10.
 
-3. **pack no-brief guard — DONE** this sitting (rode telemetry B1;
-   §2 summary): the --no-readme acknowledgment, TTY/piped split per
-   BALE.md §7. The evidence-11 failure class now has its mechanical
-   counter.
+3. **pack no-brief guard — DONE** 2026-07-13/14 sitting (rode
+   telemetry B1; pre-telemetry, home: git): the --no-readme
+   acknowledgment, TTY/piped split per BALE.md §7. The evidence-11
+   failure class now has its mechanical counter.
 
-4. **Feedback telemetry + response lint — DONE** this sitting, in
-   three sessions (§2 summary): response-lint (the blind-authored
+4. **Feedback telemetry + response lint — DONE** 2026-07-13/14
+   sitting, in three sessions (pre-telemetry — B2 itself created the
+   corpus; home: git): response-lint (the blind-authored
    lint, injected per request), telemetry B1 (dual-stream feedback
    block + day-one provenance stamping, per the §5 constraints), and
    telemetry B2 (durable records at `claude/telemetry/`, BALE.md
-   §8.9). The response-lint prose savings still bank in the
-   compression sitting (board 7).
+   §8.9). The response-lint prose savings banked in the compression
+   sitting (board 7).
 
 5. **bale stats / the trust ledger** — aggregates diagnostics,
    clarifications, and telemetry into per-work-class rates; gates all
@@ -876,36 +248,23 @@ and §8, so done items keep their numbers as one-line pointers.
    checkpoint exists to catch. Concrete grounding for this item.
 
 7. **Doc compression sitting — editorial phase COMPLETE**
-   2026-07-15/16, in three sessions after a ratified split (§2
-   sitting summary): tarball-ux-extraction-011 (§5.6.3/§5.9.3 →
-   BALE.md §8.10, tombstones + retargeted §5.2 reference),
-   tarball-compression-012 (TARBALL.md 75,148 → 71,487 bytes, −4.9%;
-   ADR-0013 created, Proposed), and claude-preflight-compression-001
-   (CLAUDE.md §11.2 925 → 397 words, −57%; whole file −9.4%;
-   INDEX.md updated). The original 35–45% pair target is **RETIRED
-   as mismeasured** — see evidence 26. Remaining injection-tax work
-   moves to the structural-split item (board 14). The doc-gap input
-   pile moves to board 15 (7c).
+   2026-07-15/16, three sessions after a ratified split (sids
+   `2026-07-15-tarball-ux-extraction-011`,
+   `2026-07-15-tarball-compression-012`,
+   `2026-07-16-claude-preflight-compression-001`; telemetry):
+   apply-time UX moved to BALE.md §8.10; TARBALL.md −4.9%;
+   CLAUDE.md §11.2 −57%. The 35–45% pair target RETIRED as
+   mismeasured (evidence 26); injection-tax work moved to board 14
+   (since retired → board 10); the doc-gap pile moved to board 15.
 
-8. **shrink-bin/bale arc — CLOSED** 2026-07-16, all three sessions
-   DONE in the ratified order, serialized on bin/:
-   - **8a docstring prune — DONE** (applied 2026-07-15, v0.3.11,
-     session 2026-07-15-docstring-prune-005): the 661-line / 41KB
-     version narrative dropped per the ratified
-     dropped-not-re-homed decision (§5); docstring cut to job +
-     index header.
-   - **8b pack-path extraction — DONE** (session
-     2026-07-15-pack-path-extraction-010, v0.3.12): bin/bale_pack.py
-     extracted; sections 11–15 documented banner gap; sibling
-     lazy-import idiom refined — sibling-owned entry points imported
-     from owning modules, not __main__.
-   - **8c apply-path extraction — DONE** (session
-     2026-07-16-apply-path-extraction-002, v0.3.13):
-     bin/bale_apply.py extracted; bin/bale 5,981 → 4,111 lines;
-     straggler helpers homed (git helpers → section 3,
-     resolve_inbound_path → section 8, handoff slicers → section 22,
-     staging trio → bale_apply); upgrade.sh
-     REQUIRED_RELEASE_MEMBERS backfilled including _bale_toml.py.
+8. **shrink-bin/bale arc — CLOSED** 2026-07-16, three sessions
+   serialized on bin/ (sids `2026-07-15-docstring-prune-005`
+   v0.3.11, `2026-07-15-pack-path-extraction-010` v0.3.12,
+   `2026-07-16-apply-path-extraction-002` v0.3.13; telemetry):
+   docstring cut to job + index header (version narrative dropped
+   per §5), bale_pack and bale_apply extracted, bin/bale 5,981 →
+   4,111 lines, sibling lazy-import idiom refined (sibling-owned
+   entry points imported from owning modules, not __main__).
 
 9. **Cross-project ADR + implementation** — LINKED sessions, not
    fused. Level 1: --link, shared link id, same interface-contract
@@ -936,7 +295,9 @@ and §8, so done items keep their numbers as one-line pointers.
       the only knob) vs tool-access lazy reading (today's economics,
       preserved). Any physical split of the globals, the retired
       board-14 shape included, is decided only after this choice is
-      made here; evidence 32 carries the rationale.
+      made here; evidence 32 carries the rationale. The 2026-07-21
+      packaging reference map lives in v3 of this doc, in git, if a
+      physical split is ever revived.
     - **Orchestrated accept spelling for --supersedes** (parked
       2026-07-29) — piped packs can never complete a supersession;
       correct until the authorship contract for worker-emitted
@@ -967,8 +328,9 @@ and §8, so done items keep their numbers as one-line pointers.
     sandbox harness (make_sandbox_home / make_install / make_repo /
     run_bale) into tests/harness.py when a second suite lands.
 
-12. **bale status staging row — DONE** 2026-07-15 (§2 summary):
-    per-session staging row in bale status landed, v0.3.11.
+12. **bale status staging row — DONE** 2026-07-15 (sid
+    `2026-07-15-status-staging-row-003`; telemetry): per-session
+    staging row in bale status landed, v0.3.11.
 
 13. **read-vs-write include separation** — a read-only include shape
     that ships context without claiming scope. Motivation:
@@ -988,27 +350,17 @@ and §8, so done items keep their numbers as one-line pointers.
     was five files — tally the cost.
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
-    MISFRAMED** 2026-07-25 (this master session, chat-ratified). The
-    physical split's premise — a fifth global doc reduces the
-    per-session context tax — conflated shipped bytes with read
-    tokens; on the human-carried transport the globals are
-    lazy-loaded via the read-paths tables and unread bytes cost
-    tarball size only (evidence 32). The split decision is
-    transport-relative and now waits on board 10's injection-model
-    agenda item. Replacement work: board 22. Riders re-homed to
-    board 22a (fold-in registry updated): ADR-0013's Accepted flip +
-    INDEX.md word flip, the board-17 sanctioned-pairs one-liner, the
-    evidence-28 grep-normalization one-liner. The 2026-07-21
-    packaging findings (GLOBAL_DOCS tuple at bin/bale 207 with two
-    further consumers at ~2135 and ~4426, contract_docs hash set,
-    build.sh RELEASE_FILES ~88, install.sh ~229, upgrade.sh
-    REQUIRED_RELEASE_MEMBERS ~141, validate.sh doc rows,
-    reinstall mirror — re-verified against source 2026-07-25) stand
-    as the reference map if board 10 ever revives a physical
-    split.
+    MISFRAMED** 2026-07-25 (chat-ratified; evidence 32): the
+    physical split's token-savings premise conflated shipped bytes
+    with read tokens; the split decision is transport-relative and
+    waits on board 10's injection-model agenda item. Replacement
+    work: board 22 (since closed). Riders re-homed to 22a and
+    landed there. The 2026-07-21 packaging reference map lives in
+    v3 of this doc, in git.
 
-15. **7c — doc-gap audit + landing — DONE** 2026-07-21 (§2 sitting
-    summary): gaps 2, 5, 6-schema landed; 3 already landed; 4
+15. **7c — doc-gap audit + landing — DONE** 2026-07-21 (sid
+    `2026-07-21-doc-gap-landing-002`; telemetry): gaps 2, 5,
+    6-schema landed; 3 already landed; 4
     skipped as adequately placed. Closing note: the deliberately
     tripped embedded-schema drift guard was cleared same-sitting by
     the lint-schema-refresh follow-on
@@ -1016,75 +368,60 @@ and §8, so done items keep their numbers as one-line pointers.
     than as its own row, matching how small follow-ons ride their
     parent (cf. board 3).
 
-16. **Transition-branch retirement — DONE** 2026-07-21 (§2 sitting
-    summary): no-stamp fallback → refusal, discard switch-only,
+16. **Transition-branch retirement — DONE** 2026-07-21 (sid
+    `2026-07-21-transition-branch-retirement-003`; telemetry):
+    no-stamp fallback → refusal, discard switch-only,
     git-decides dirty semantics ratified (§5).
 
 17. **DOCS.md sanctioned-pairs one-liner — DONE** 2026-07-25 (rode
-    22a; §2 second-sitting summary): the CLAUDE.md §11.2 ↔
+    22a — sid `2026-07-25-tarball-core-first-004`; telemetry): the
+    CLAUDE.md §11.2 ↔
     TARBALL.md §3.4 pair appended to the §9 sanctioned-pairs
     registry.
 
-18. **retry flag parity — DONE** 2026-07-21 (§2 sitting summary):
-    retry ice-out fixed; gate override flags closed across the
-    lifecycle, v0.3.14.
+18. **retry flag parity — DONE** 2026-07-21 (sid
+    `2026-07-21-retry-flag-parity-005`; telemetry): retry ice-out
+    fixed; gate override flags closed across the lifecycle,
+    v0.3.14.
 
-19. **retirement cleanup — DONE** 2026-07-21 (§2 sitting summary):
-    sid_sha short-circuit retired, detached-HEAD pack refusal
+19. **retirement cleanup — DONE** 2026-07-21 (sid
+    `2026-07-21-retirement-cleanup-007`; telemetry): sid_sha
+    short-circuit retired, detached-HEAD pack refusal
     landed; §7.1 renumbering defect caught at master review,
     corrected by board 20.
 
 20. **handoff refusal + numbering restoration — DONE** 2026-07-21,
-    applied 2026-07-22 (§2 sitting summary): §7.1 numbering
+    applied 2026-07-22 (sid
+    `2026-07-21-handoff-refusal-numbering-008`; telemetry): §7.1
+    numbering
     restored (interstitial step 4a), detached-HEAD refusal extended
     to handoff.
 
 21. **Extend main()'s install sanity check to handoff — DONE**
-    2026-07-25 (§2 second-sitting summary): gate widened in main()
+    2026-07-25 (sid `2026-07-25-handoff-install-precheck-003`;
+    telemetry): gate widened in main()
     to both request-building commands, BALE.md §5.4 rider clause
     landed, first tracked test suite shipped with it.
 
 22. **Global-doc mechanization arc (the worker toolkit) — CLOSED**
-    (arc complete, 2026-07-31) — replace
-    instructional prose with shipped tools wherever a rule is shape;
-    keep prose only where a rule is judgment. Ratified 2026-07-25
-    (contracts §5; evidence 33; the delivery pattern is
-    response_lint's — per-request injected, sandbox-run, no install).
-    Serialized phases, each its own session:
-    - **22a — TARBALL.md internal restructure + riders — DONE**
-      2026-07-25 (§2 second-sitting summary): core-first
-      ordering under stable section numbers (DOCS.md §6.4 —
-      in-file relocation pointers, zero renumbering), a sharpened
-      in-doc INDEX read-paths table with a situation-keyed trigger
-      sentence per reference section, and a past-the-core banner.
-      Doc-only, no code lock. Riders: ADR-0013 Accepted flip +
-      INDEX.md word flip, board 17's one-liner, evidence 28's
-      one-liner.
+    2026-07-31, all four phases DONE. The ratified pattern —
+    mechanize shape, keep judgment as prose — is §5's
+    mechanize-shape contract; the non-mechanizable residue stays
+    prose by design, with boards 4/5/6 as its control surface.
+    - **22a — TARBALL.md core-first restructure + riders — DONE**
+      2026-07-25 (sid `2026-07-25-tarball-core-first-004`;
+      telemetry).
     - **22b — craft tool v1, normal-response shape — DONE**
-      2026-07-29/31 sitting (§2 summary): tools/craft_response.py
-      landed with the ratified constraints intact —
-      crafter/validator separation held (no shared code with the
-      lint; argument hygiene on a 0/2 exit surface guards inputs,
-      never the finished response), unfilled skeleton fields are
-      empty strings the judge rejects, §5.2.1 collapsed to trigger
-      + tool pointer. Injection consolidated into INJECTED_TOOLS by
-      board 30 after shipping behind a temporary guarded block.
+      2026-07-29 (sid `2026-07-29-craft-tool-v1-007`; telemetry).
     - **22c — bailout + clarification shapes — DONE** 2026-07-31
-      (§2 sitting summary): --kind {bailout,clarification} emissions
-      landed from the schemas that already own them; §5.6.1/§5.6.2/
-      §5.8/§5.9.2 shape prose collapsed to trigger + tool pointers.
-    - **22d — probe header template and residue — DONE** 2026-07-31
-      (§2 sitting summary): the §4.2 scaffold landed with its fenced
-      block collapsed to trigger + tool pointer; residue audit
-      returned three mechanizable findings (fused as board 31) and
-      an explicit stop. The non-mechanizable residue — probe-vs-guess,
-      fit estimates, claim completeness, stay-in-lane — remains
-      prose by design; boards 4/5/6 are its control surface, not
-      tooling.
+      (sid `2026-07-31-craft-kinds-v2-003`; telemetry).
+    - **22d — probe scaffold + residue audit — DONE** 2026-07-31
+      (sid `2026-07-31-probe-scaffold-22d-004`; telemetry; the
+      audit's three findings fused as board 31).
 
-23. **test-layout-docs — DONE** 2026-07-28 (§2 sitting summary;
-    pack re-authored after the sesh-002 original was lost —
-    evidence 40). As ratified 2026-07-25 from session 003's
+23. **test-layout-docs — DONE** 2026-07-28 (sid
+    `2026-07-28-test-layout-docs-004`; telemetry; pack re-authored
+    after the sesh-002 original was lost — evidence 40). As ratified 2026-07-25 from session 003's
     Proposals: bale-internals.md gains the test layout (tests/ at
     repo root, stdlib unittest, ADR-0005 sandbox rules, harness
     inline for now) and loses the stale deferred-to-v0.4 sentence;
@@ -1094,64 +431,52 @@ and §8, so done items keep their numbers as one-line pointers.
     22a (claude/INDEX.md collision) and before 22b (the internals
     doc should describe tests/ before 22b's suite lands beside it).
 24. **Scopeless packs + the scope wizard question — DONE**
-    2026-07-28, v0.3.15 (§2 sitting summary; ratified decisions
-    recorded there). As designed: `bale pack`
-    gains a read-only session shape: the session opens normally in
-    the registry (sid, status row, telemetry, unlock) with recorded
-    scope *empty*. Everything downstream is existing machinery with
-    no special cases: an empty scope intersects nothing under
-    ADR-0007, so workers pack freely while the session stays open —
-    evidence 36's failure sequence becomes unreachable — and the
-    own-scope drift gate refuses any `changes[]` such a session
-    ships, converting masters-never-self-land from policy prose to
-    mechanical contract (the board-22 pattern). The pack wizard
-    gains the missing question — will this session land changes, or
-    is it read-only (discussion, orchestration, audit)? — so a bare
-    cold-start pack no longer resolves to whole-tree scope by silent
-    omission; the answer can also stamp `--work-class` (the flag
-    exists; the wizard never asks — evidence 37's corollary).
-    Serialized first: smallest risk, highest leverage, and it fixes
-    the next master's own working shape. Brief as board 13's
-    degenerate case. **Skeptical-read requirement:** the session is
-    invisible to the ADR-0006/0007 gates by design, safe only
-    because the drift gate refuses everything it might land — the
-    brief names that pairing as the load-bearing claim for the
-    worker to verify against both ADRs. Scope: bin/bale_pack.py, the
-    registry scope record's read side, BALE.md §5/§7 (§5 read whole
-    this sitting; §7 read before pinning — evidence 24), TARBALL.md
-    §3.4.
+    2026-07-28, v0.3.15 (sid `2026-07-28-scopeless-packs-003`;
+    telemetry): the read-only session shape landed —
+    masters-never-self-land is mechanical, and the wizard's
+    session-shape question covers work-class in the same exchange.
+    The shape and its design rationale are documented at BALE.md
+    §7.2 and TARBALL.md §3.4's --read-only flag row (the latter
+    verified in the injected copy at the v4 regeneration).
 
-25. **Closure telemetry — DONE** 2026-07-29, v0.3.15 → 0.3.16 (§2
-    sitting summary): unlock- and revert-terminated sessions write
+25. **Closure telemetry — DONE** 2026-07-29, v0.3.15 → 0.3.16 (sid
+    `2026-07-29-closure-telemetry-001`; telemetry): unlock- and
+    revert-terminated sessions write
     closure records; closure_reason enum (six reasons, additive) +
     --reason on both commands; closed-read-only inferred from
     recorded scope [].
 
 26. **Split supersession — DONE** 2026-07-29, v0.3.16 → 0.3.17
-    (§2 sitting summary): bale pack --supersedes landed;
+    (sid `2026-07-29-split-supersession-002`; telemetry): bale pack
+    --supersedes landed;
     decline-refuses-on-every-path ratified (evidence 42; piped
     stdin declines — pack has no --no-interact, correcting this
     row's original wording). Complement to board 13, not
     substitute: 13's design remains unprejudged — 26 handles the
     true write-scope splits that remain.
 
-27. **Lifecycle docs close-out — DONE** 2026-07-31 (session 007;
-    §2 sitting summary).
+27. **Lifecycle docs close-out — DONE** 2026-07-31 (sid
+    `2026-07-31-lifecycle-docs-closeout-007`; telemetry): the
+    ADR-0011 follow-up audit closed; BALE.md §11 contract row 25
+    landed with five sweep riders.
 
-28. **Rollback telemetry — DONE** 2026-07-29/31 sitting (§2
-    summary, fused with 29 into
-    `2026-07-29-lifecycle-telemetry-parity-006`): rollback and
+28. **Rollback telemetry — DONE** 2026-07-29 (fused with 29; sid
+    `2026-07-29-lifecycle-telemetry-parity-006`; telemetry —
+    the corpus's first live HOLD→retry multi-attempt pair):
+    rollback and
     --undo record on clean success; rolled-back/re-applied outcomes
     plus the rollback command enum value, all additive; v0.3.18.
 
-29. **unlock --json parity — DONE** 2026-07-29/31 sitting (§2
-    summary, same fused session as 28): format_unlock_json
+29. **unlock --json parity — DONE** 2026-07-29 (same fused session
+    as 28 — sid `2026-07-29-lifecycle-telemetry-parity-006`;
+    telemetry): format_unlock_json
     one-homed in bale_report; debris on its own key;
     --integration --json refused; refusals fail()-shaped.
 
 30. **INJECTED_TOOLS consolidation + revert --json + VERSION —
-    DONE** 2026-07-29/31 sitting (§2 summary; created and closed
-    within the sitting from 007's and 006's accepted proposals):
+    DONE** 2026-07-29 (sid
+    `2026-07-29-injection-consolidation-revert-json-008`; telemetry;
+    created and closed within its sitting from accepted proposals):
     the craft tool's temporary guarded injection block replaced by
     the one-source INJECTED_TOOLS entry + main() precheck coverage;
     revert --json to the same one-home contract unlock got;
@@ -1159,7 +484,10 @@ and §8, so done items keep their numbers as one-line pointers.
     landed here rather than waiting for the v0.4 bucket.
 
 31. **Worker-toolkit residue (from 22d's audit) + VERSION — DONE**
-    2026-07-31 (session 008; §2 sitting summary; VERSION 0.3.20).
+    2026-07-31 (sid `2026-07-31-worker-toolkit-residue-008`;
+    telemetry; VERSION 0.3.20): the three fused emissions landed —
+    validation epilogue, exec-bit assertions, lint
+    feedback-mechanical emitter.
 
 32. **bale status clarification hint** — the last unowned ADR-0011
     follow-up, accepted from 007's Proposals: the status next-step
@@ -1689,7 +1017,13 @@ New from the 2026-07-29/31 sitting:
     and the board-5-radar manifest stamp make it unnecessary. Held
     twice more the 2026-07-31 sitting — both workers reasoned
     new-file scope from the brief's directory-include sentence, zero
-    probes spent, both applies clean.
+    probes spent, both applies clean. [2026-07-31, v4 regeneration:
+    board 27's §3.2 sentence has landed — the injected TARBALL.md's
+    §3.2 now distinguishes the shipped flat file list from the
+    repo-side recorded scope (verified at line 1108 of the copy
+    injected into this session's request); the brief-carried
+    scope-statement convention remains good practice until the
+    board-5-radar manifest stamp exists.]
 
 New from the 2026-07-31 second sitting:
 
@@ -1754,7 +1088,8 @@ New from the 2026-07-31 second sitting:
   --readme-file); architect pastes, runs, relays worker output
   verbatim; kickbacks and judgment calls come to the master for
   ratification. Notes.md is relayed for EVERY session, including
-  post-merge (see the §2 loose end for why this line now exists).
+  post-merge (rationale: a v2-era relayed-notes loose end; the
+  narrative lives in v3, in git).
   Session references in this doc use the full sid, or NNN
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
