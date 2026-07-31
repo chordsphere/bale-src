@@ -42,7 +42,10 @@ in its own sid) is deltas-in-place; the master session
 2026-07-31-continue-plan-006 ran read-only; both worker packs
 (007, 008) opened and applied alongside it with no intersection
 refusal, and its deltas pack required one clarification
-round-trip (evidence 45).
+round-trip (evidence 45). This update (2026-07-31, landed by the
+micro-deltas session named in its own sid) is deltas-in-place,
+recording the prior deltas session's ratification; the master
+session 2026-07-31-continue-plan-006 ran read-only throughout.
 
 **Home change, effective this version:** this document lives IN the
 repo at `claude/MASTER.md`, landed by session `master-doc-landing`
@@ -760,6 +763,16 @@ session):**
   tests. skipUnless rider proven both ways. Suite 113 green
   (verified floor; see §7 amendment). One-apply-behind flagged
   unprompted, as expected.
+- **master-deltas (session 009)** — deltas landed after one
+  packer-side clarification round (the stale-brief transport,
+  evidence 45) and one placeholder round (read-only confirmed,
+  matching the worker's stated §5.9.2 default). Ratified as
+  shipped: the version-at-sitting-close line, the §7 connective,
+  done-row bold placement per the page, document-scoped validation
+  with a both-directions negative control. Both of 009's proposals
+  accepted (see the §3 fold-in amendment and the §7 convention
+  line). Ratification closed in the sitting chat; no carried
+  loose end.
 
 Version at sitting close: 0.3.20 (bumped with 008) — verify with
 bale --version at the next sitting's start per the standing rule.
@@ -777,9 +790,13 @@ bale --version at the next sitting's start per the standing rule.
   contest. Fold-in registry: board-30 staging-row rendering still
   rides the next revert-path session; the reconciliation
   label-column cap (008's proposal, accepted) rides the next
-  session touching tools/craft_response.py; the pack-report README
-  identity echo (evidence 45's mechanical counter) rides the next
-  session touching bin/bale_pack.py.
+  session touching tools/craft_response.py; the next session
+  touching bin/bale_pack.py carries two fused riders — the
+  pack-report README-identity echo (evidence 45) and a
+  --readme-file refusal on unresolved brief placeholders under one
+  agreed sentinel form (009's proposal, accepted; sentinel form
+  decided at that session, its convention line landing in
+  TARBALL.md §3.4 alongside).
 
 ## 4. The board
 
@@ -1738,6 +1755,10 @@ New from the 2026-07-31 second sitting:
   verbatim; kickbacks and judgment calls come to the master for
   ratification. Notes.md is relayed for EVERY session, including
   post-merge (see the §2 loose end for why this line now exists).
+  Session references in this doc use the full sid, or NNN
+  qualified by sitting — bare NNN collides across same-day
+  sittings (009's proposal, accepted 2026-07-31; going forward
+  only, no retroactive sweep).
 - One-apply-behind (meta-sessions §2): the apply that lands a change
   to apply-path code runs the OLD code one final time. Recurred four
   times in the v2 sitting; workers now flag it unprompted.
