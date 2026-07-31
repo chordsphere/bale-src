@@ -14,6 +14,15 @@ Two design-contract guards ride along:
 - an unfilled skeleton is invalid to the judge — crafted, completed
   output passes response_lint; crafted, *unfilled* output does not.
 
+Session 22c extends the surface to all three response kinds (--kind
+bailout / clarification). The new classes prove: back-compat on the
+normal path (--kind normal is byte-identical to the default), the two
+new kinds' unfilled-cannot-pass / filled-passes round trips against an
+actual response_lint run, the schema key-set drift bridges (the emitted
+skeletons match the repo schemas' required sets — the crafter embeds
+neither schema, per the one-home rule), and refuse-overwrite across the
+enlarged artifact sets.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -309,6 +318,313 @@ class CraftJudgeSeparation(unittest.TestCase):
                 capture_output=True, text=True)
             self.assertEqual(lint.returncode, 1,
                              "an unfilled skeleton must be lint-invalid")
+
+
+def run_lint(rdir: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(LINT), str(rdir)],
+        capture_output=True, text=True,
+    )
+
+
+def load_schema(name: str) -> dict:
+    return json.loads(
+        (REPO / "schemas" / name).read_text(encoding="utf-8"))
+
+
+HANDOFF_HEADERS = [
+    "# Handoff",
+    "## Original goal",
+    "## What I loaded",
+    "## What I explored",
+    "## What I learned",
+    "## Reading plan for the next session",
+    "## Salvageable work",
+]
+
+
+class CraftKindBackCompat(unittest.TestCase):
+    """--kind normal is the default: byte-identical output, both modes."""
+
+    def test_kind_normal_equals_default(self):
+        with tempfile.TemporaryDirectory() as td:
+            rdir = make_response_dir(Path(td), {"src/f.txt": b"f\n"})
+            for extra in ([], ["--changes-only"]):
+                with self.subTest(mode=extra or ["default"]):
+                    args = [str(rdir), "--sid", "s-042", *extra]
+                    plain = run_craft(*args)
+                    kinded = run_craft(*args, "--kind", "normal")
+                    self.assertEqual(plain.returncode, 0, plain.stderr)
+                    self.assertEqual(kinded.returncode, 0, kinded.stderr)
+                    self.assertEqual(plain.stdout, kinded.stdout)
+
+    def test_normal_write_still_emits_no_validation_sh(self):
+        """validation.sh stays the worker's hypothesis test on the normal
+        kind — the no-op is emitted only where the contract fixes it."""
+        with tempfile.TemporaryDirectory() as td:
+            rdir = make_response_dir(Path(td), {"src/f.txt": b"f\n"})
+            cp = run_craft(str(rdir), "--sid", "s-042", "--write")
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            self.assertFalse((rdir / "validation.sh").exists())
+
+
+class CraftBailoutKind(unittest.TestCase):
+    SID = "2026-07-30-bail-fixture-042"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = self.tmp / "response-042"
+        self.rdir.mkdir()
+
+    def write_bailout(self) -> subprocess.CompletedProcess:
+        return run_craft(str(self.rdir), "--sid", self.SID,
+                         "--kind", "bailout", "--write")
+
+    def fill_bailout(self):
+        """The worker's half: judgment fields, minimally but honestly."""
+        mpath = self.rdir / "manifest.json"
+        manifest = json.loads(mpath.read_text())
+        manifest["summary"] = ("attempted the fixture goal; "
+                               "architect-requested bail for the test")
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        dpath = self.rdir / "diagnostics.json"
+        diag = json.loads(dpath.read_text())
+        diag["bail_trigger"] = "other"
+        diag["bail_narrative"] = "fixture bailout for the craft->lint test"
+        dpath.write_text(json.dumps(diag, indent=2) + "\n")
+
+    def test_manifest_skeleton_shape(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID, "--kind", "bailout")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        m = json.loads(cp.stdout)
+        self.assertEqual(m["response_kind"], "bailout")
+        self.assertEqual(m["session_id"], self.SID)
+        self.assertEqual(m["responds_to"], self.SID)
+        self.assertEqual(m["summary"], "")           # worker's
+        self.assertEqual(m["changes"], [])           # 5.6.2 empty surfaces
+        self.assertEqual(m["deferred"], [])
+        self.assertEqual(m["validation_will_run"], [])
+        self.assertEqual(m["claims"], {})
+        self.assertNotIn("questions", m)             # bailouts carry none
+
+    def test_write_emits_the_full_artifact_set(self):
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        for name in ("manifest.json", "apply.sh", "validation.sh",
+                     "handoff.md", "diagnostics.json"):
+            self.assertTrue((self.rdir / name).is_file(), name)
+        # apply.sh is the verbatim 5.1.1 no-op; validation.sh a no-op too.
+        self.assertIn("No additional operations",
+                      (self.rdir / "apply.sh").read_text())
+        self.assertIn("No checks to run",
+                      (self.rdir / "validation.sh").read_text())
+        for script in ("apply.sh", "validation.sh"):
+            chk = subprocess.run(["bash", "-n", str(self.rdir / script)],
+                                 capture_output=True, text=True)
+            self.assertEqual(chk.returncode, 0, chk.stderr)
+
+    def test_handoff_scaffold_is_headers_only(self):
+        """5.7's section list, in order, and nothing else — handoff
+        content is judgment and stays the worker's."""
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        body = (self.rdir / "handoff.md").read_text()
+        lines = [ln for ln in body.splitlines() if ln.strip()]
+        self.assertEqual(lines, HANDOFF_HEADERS)
+
+    def test_diagnostics_skeleton_fields(self):
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        diag = json.loads((self.rdir / "diagnostics.json").read_text())
+        self.assertEqual(diag["session_id"], self.SID)  # mechanical: filled
+        self.assertEqual(diag["bail_trigger"], "")      # judgment: empty
+        self.assertEqual(diag["bail_narrative"], "")
+        self.assertEqual(diag["context_loaded"], [])
+        self.assertEqual(diag["exploration_paths"], [])
+        self.assertEqual(diag["tool_calls_summary"], {})
+        self.assertEqual(diag["what_would_save_next_time"], [])
+
+    def test_unfilled_skeleton_fails_the_judge(self):
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        lint = run_lint(self.rdir)
+        self.assertEqual(lint.returncode, 1,
+                         "an unfilled bailout skeleton must be lint-invalid")
+
+    def test_filled_skeleton_passes_the_judge(self):
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.fill_bailout()
+        lint = run_lint(self.rdir)
+        self.assertEqual(
+            lint.returncode, 0,
+            f"judge found findings:\n{lint.stdout}\n{lint.stderr}")
+
+    def test_write_refuses_partial_presence_and_writes_nothing(self):
+        """Refuse-overwrite covers the whole enlarged set, checked before
+        anything is written: a stray companion must not leave a
+        half-scaffolded response behind."""
+        (self.rdir / "handoff.md").write_text("stale\n")
+        cp = self.write_bailout()
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("--force", cp.stderr)
+        self.assertFalse((self.rdir / "manifest.json").exists(),
+                         "refusal must precede all writes")
+        cp2 = run_craft(str(self.rdir), "--sid", self.SID,
+                        "--kind", "bailout", "--write", "--force")
+        self.assertEqual(cp2.returncode, 0, cp2.stderr)
+        self.assertNotIn("stale", (self.rdir / "handoff.md").read_text())
+
+    def test_incoherent_flags_rejected(self):
+        for argv, needle in (
+            (["--deleted", "x.txt"], "--deleted/--executable"),
+            (["--executable", "x.sh"], "--deleted/--executable"),
+            (["--changes-only"], "--changes-only"),
+            (["--questions", "1"], "--questions"),
+        ):
+            with self.subTest(argv=argv):
+                cp = run_craft(str(self.rdir), "--sid", self.SID,
+                               "--kind", "bailout", *argv)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+
+    def test_populated_files_rejected(self):
+        (self.rdir / "files").mkdir()
+        (self.rdir / "files" / "left.txt").write_bytes(b"leftover\n")
+        cp = run_craft(str(self.rdir), "--sid", self.SID, "--kind", "bailout")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("no file changes", cp.stderr)
+
+
+class CraftClarificationKind(unittest.TestCase):
+    SID = "2026-07-30-clar-fixture-042"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = self.tmp / "response-042"
+        self.rdir.mkdir()
+
+    def test_manifest_skeleton_default_one_stub(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID,
+                       "--kind", "clarification")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        m = json.loads(cp.stdout)
+        self.assertEqual(m["response_kind"], "clarification")
+        self.assertEqual(m["changes"], [])           # 5.9.2 empty surfaces
+        self.assertEqual(m["deferred"], [])
+        self.assertEqual(m["validation_will_run"], [])
+        self.assertEqual(m["claims"], {})
+        self.assertEqual(len(m["questions"]), 1)
+        self.assertEqual(m["questions"][0], {
+            "question": "", "context": "",
+            "default_assumption": "", "why_blocked": "",
+        })
+
+    def test_questions_n_seeds_n_stubs(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID,
+                       "--kind", "clarification", "--questions", "3")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        qs = json.loads(cp.stdout)["questions"]
+        self.assertEqual(len(qs), 3)
+        for q in qs:
+            self.assertEqual(set(q), {"question", "context",
+                                      "default_assumption", "why_blocked"})
+            self.assertTrue(all(v == "" for v in q.values()))
+
+    def test_questions_bounds_and_placement(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID,
+                       "--kind", "clarification", "--questions", "0")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("at least 1", cp.stderr)
+        cp2 = run_craft(str(self.rdir), "--sid", self.SID,
+                        "--questions", "2")  # default kind: normal
+        self.assertEqual(cp2.returncode, 2)
+        self.assertIn("--kind clarification", cp2.stderr)
+
+    def test_write_artifact_set_no_bailout_companions(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID,
+                       "--kind", "clarification", "--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        for name in ("manifest.json", "apply.sh", "validation.sh"):
+            self.assertTrue((self.rdir / name).is_file(), name)
+        self.assertFalse((self.rdir / "handoff.md").exists())
+        self.assertFalse((self.rdir / "diagnostics.json").exists())
+        for script in ("apply.sh", "validation.sh"):
+            chk = subprocess.run(["bash", "-n", str(self.rdir / script)],
+                                 capture_output=True, text=True)
+            self.assertEqual(chk.returncode, 0, chk.stderr)
+        # Refuse/force across the set.
+        cp2 = run_craft(str(self.rdir), "--sid", self.SID,
+                        "--kind", "clarification", "--write")
+        self.assertEqual(cp2.returncode, 2)
+        self.assertIn("--force", cp2.stderr)
+        cp3 = run_craft(str(self.rdir), "--sid", self.SID,
+                        "--kind", "clarification", "--write", "--force")
+        self.assertEqual(cp3.returncode, 0, cp3.stderr)
+
+    def test_unfilled_fails_filled_passes_the_judge(self):
+        cp = run_craft(str(self.rdir), "--sid", self.SID,
+                       "--kind", "clarification", "--questions", "2",
+                       "--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        lint = run_lint(self.rdir)
+        self.assertEqual(lint.returncode, 1,
+                         "an unfilled clarification skeleton must be "
+                         "lint-invalid")
+
+        mpath = self.rdir / "manifest.json"
+        manifest = json.loads(mpath.read_text())
+        manifest["summary"] = "blocked on two fixture questions"
+        for q in manifest["questions"]:
+            q.update(question="which of A or B?",
+                     context="building the fixture",
+                     default_assumption="A",
+                     why_blocked="the two produce incompatible manifests")
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        lint2 = run_lint(self.rdir)
+        self.assertEqual(
+            lint2.returncode, 0,
+            f"judge found findings:\n{lint2.stdout}\n{lint2.stderr}")
+
+
+class SchemaDriftBridge(unittest.TestCase):
+    """The test-side drift bridge (no third home for the schemas): the
+    crafter embeds neither schema and never validates its output, so the
+    suite is where skeleton key sets and the repo schemas are held
+    together. If a schema gains or loses a required key, these fail and
+    name the drift."""
+
+    def test_diagnostics_skeleton_matches_schema_required_set(self):
+        schema = load_schema("diagnostics.schema.json")
+        with tempfile.TemporaryDirectory() as td:
+            rdir = Path(td) / "response-042"
+            rdir.mkdir()
+            cp = run_craft(str(rdir), "--sid", "s-042",
+                           "--kind", "bailout", "--write")
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            diag = json.loads((rdir / "diagnostics.json").read_text())
+        self.assertEqual(set(diag), set(schema["required"]),
+                         "diagnostics.json skeleton keys must equal the "
+                         "schema's required set — fix whichever side "
+                         "drifted")
+
+    def test_question_stub_matches_schema_entry_required_set(self):
+        schema = load_schema("response-manifest.schema.json")
+        entry_required = schema["properties"]["questions"]["items"]["required"]
+        with tempfile.TemporaryDirectory() as td:
+            rdir = Path(td) / "response-042"
+            rdir.mkdir()
+            cp = run_craft(str(rdir), "--sid", "s-042",
+                           "--kind", "clarification")
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            stub = json.loads(cp.stdout)["questions"][0]
+        self.assertEqual(set(stub), set(entry_required),
+                         "questions[] stub keys must equal the schema's "
+                         "required entry set — fix whichever side drifted")
 
 
 class PackInjectionSurface(unittest.TestCase):
