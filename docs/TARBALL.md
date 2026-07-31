@@ -1075,6 +1075,10 @@ Tar with: `tar -czf request-NNN.tar.gz request-NNN/`
   "context_included": [
     "context/charter-brief.md",
     "context/STATE.md"
+  ],
+  "resolved_scope": [
+    "STATE.md",
+    "charter-brief.md"
   ]
 }
 ```
@@ -1106,10 +1110,13 @@ Field semantics:
   **scope**: bale records it in the session registry at pack time,
   and three mechanical gates read it. The two are distinct surfaces:
   the tarball ships this flat file list, while the recorded scope
-  lives repo-side in the registry — a worker cannot see the recorded
-  scope from inside a tarball, and a directory include covers files
-  created under it later, so the shipped list understates what a
-  directory-shaped scope admits. A request whose scope shape matters
+  lives repo-side in the registry — and since bale v0.3.21 the
+  manifest's `resolved_scope` field (below) stamps the recorded
+  scope into the tarball, so the worker reads it there rather than
+  inferring it from this list. The shipped list still understates
+  what a directory-shaped scope admits: a directory include covers
+  files created under it later, which no flat file list can say. A
+  request whose scope shape matters
   to the work says so in its brief. Pack refuses a new session
   whose scope intersects an open session's; apply rejects a
   response whose `changes[]` paths collide with a *sibling*
@@ -1128,6 +1135,19 @@ Field semantics:
   operator decides at apply (rationale: ADR-0014). Any drift the
   operator does not admit refuses pre-staging and the session stays
   open.
+- **`resolved_scope`** — the session's declared scope exactly as the
+  registry records it (bale v0.3.21, board 33): normalized,
+  deduplicated, sorted repo-relative entries, directory entries
+  covering their subtrees; `[]` for a read-only pack (locks nothing,
+  may land nothing). This is the worker's authoritative read of what
+  the own-scope drift gate will enforce — a `changes[]` path outside
+  it lands only as operator-admitted drift (§5.4) — and it is
+  stamped from the same value the registry records, one source,
+  never a re-derivation. Additive per the
+  `depends_on.superseded_session` precedent: not required by the
+  schema, so previously stamped manifests (and hand-rolled requests)
+  stay valid and a worker holding one falls back to inferring scope
+  from `context_included`; every manifest bale builds carries it.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -1187,14 +1207,14 @@ or a packing behavior:
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
 | `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
-| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Combines with `--edit` to review the file before packing. |
+| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Also fails loudly when the resolved brief still contains an **unfilled placeholder**: any line containing the sentinel `TODO(brief)` (v0.3.21) — the convention a worker-authored brief uses to scaffold slots it hasn't filled, so a half-generated brief never ships; a worker authoring a brief writes exactly that form for anything left for the planner to complete, and fills or removes every such line before delivering a brief meant to pack. The pack report echoes the resolved README's identity — path, first heading line, and sha256 of the shipped bytes (v0.3.21; path + heading alone proved insufficient identity). Combines with `--edit` to review the file before packing. |
 | `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
 | `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
 | `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is documented in BALE.md §7. |
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with an **empty recorded scope** (v0.3.15) — the read-only session shape for discussion, orchestration, or audit. The empty scope intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-scope drift gate refuses every `changes[]` path a response under this sid ships). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Bare boolean; semantics in BALE.md §7.2. |
+| `--read-only` | Opens the session with an **empty recorded scope** (v0.3.15) — the read-only session shape for discussion, orchestration, or audit. The empty scope intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-scope drift gate refuses every `changes[]` path a response under this sid ships). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded scope `[]`, it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; semantics in BALE.md §7.2. |
 | `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in BALE.md §7.2. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |

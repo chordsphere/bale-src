@@ -70,6 +70,11 @@
       "items": { "type": "string", "minLength": 1 },
       "description": "Declarative list of what's in context/. Each entry is the in-tarball path (typically prefixed with context/)."
     },
+    "resolved_scope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "The session's declared scope exactly as the registry records it (v0.3.21, board 33): normalized, deduplicated, sorted repo-relative include entries — directory entries cover their subtrees — or [] for a read-only pack (locks nothing, may land nothing). Stamped by both request-building paths (pack, handoff) so the worker can read from inside the tarball what the ADR-0007 gates enforce repo-side; one source with the registry record, never a re-derivation. Additive per the depends_on.superseded_session precedent: not required, so previously stamped manifests stay valid; bale-built manifests always carry it."
+    },
     "provenance": {
       "type": "object",
       "additionalProperties": false,

@@ -53,6 +53,9 @@ SHAPE_QUESTION_MARKER = "Will this session land changes"
 DRIFT_REFUSAL_MARKER = "SCOPE-DRIFT-REFUSED"
 READONLY_MARKER = "read-only"
 INTERSECT_MARKER = "pack scope intersects"
+SWEEP_PROMPT_MARKER = "Close open read-only session"
+SWEEP_DECLINE_MARKER = "declining without a prompt"
+CLOSEOUT_MARKER = "Read-only session close-out"
 
 # run_bale_pty and PTY_TIMEOUT moved to tests/harness.py when the
 # supersession suite became their second consumer (one harness,
@@ -349,6 +352,168 @@ class ReadonlyPackTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("locks nothing, lands nothing", result.stdout)
         self.assertNotIn(". (whole tree)", result.stdout)
+
+    # -- board 33 (v0.3.21): the resolved_scope manifest stamp -----------
+
+    def stamped_manifest(self, sid: str) -> dict:
+        p = self.repo / ".bale" / "sessions" / sid / "manifest.json"
+        self.assertTrue(p.is_file(), msg=f"no stamped manifest at {p}")
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    def shipped_manifest(self, sid: str) -> dict:
+        """manifest.json out of the outbox tarball — the copy the worker
+        reads, cross-checked against the registry-side stamp."""
+        tb = self.repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+        self.assertTrue(tb.is_file(), msg=f"no outbox tarball at {tb}")
+        nnn = sid.rsplit("-", 1)[-1]
+        with tarfile.open(tb, "r:gz") as tf:
+            member = tf.extractfile(f"request-{nnn}/manifest.json")
+            assert member is not None
+            return json.loads(member.read().decode("utf-8"))
+
+    def test_manifest_stamps_empty_scope_for_readonly(self) -> None:
+        """A read-only pack stamps resolved_scope: [] — the manifest
+        carries the registry-recorded scope, [] for the read-only
+        shape, in both the stamped and the shipped copies."""
+        sid = self.assert_pack_ok(self.pack("--read-only"))
+        self.assertEqual(self.stamped_manifest(sid)["resolved_scope"], [])
+        self.assertEqual(self.shipped_manifest(sid)["resolved_scope"], [])
+
+    def test_manifest_stamp_equals_recorded_scope(self) -> None:
+        """A scoped pack's resolved_scope equals scope.json exactly —
+        one source, never a re-derivation."""
+        sid = self.assert_pack_ok(self.pack())
+        recorded = self.scope_json(sid)
+        self.assertEqual(recorded, ["hello.txt"])
+        self.assertEqual(self.stamped_manifest(sid)["resolved_scope"],
+                         recorded)
+        self.assertEqual(self.shipped_manifest(sid)["resolved_scope"],
+                         recorded)
+
+    # -- board 33 (v0.3.21): the read-only sweep -------------------------
+
+    def telemetry_record(self, sid: str) -> dict:
+        p = self.repo / "claude" / "telemetry" / f"{sid}.json"
+        self.assertTrue(p.is_file(), msg=f"expected telemetry record at {p}")
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    def readonly_pack_pty(self, *, slug: str, answers: str):
+        """A fully specified read-only pack under a pty, so the sweep
+        prompt (the only prompt on this path) can engage."""
+        return run_bale_pty(
+            self.install,
+            [
+                "pack", "read-only sweep test goal",
+                "--slug", slug,
+                "--include", "hello.txt",
+                "--no-readme",
+                "--read-only",
+            ],
+            cwd=self.repo, env=self.env, answers=answers,
+        )
+
+    def test_sweep_accept_default_closes_open_readonly(self) -> None:
+        """Bare Enter at the sweep prompt takes the ACCEPT default
+        (the deliberate inversion of --supersedes' decline default):
+        the open read-only session closes as closed-read-only with
+        command 'pack' through the closure machinery, durably."""
+        first = self.assert_pack_ok(self.pack("--read-only"))
+        code, output = self.readonly_pack_pty(slug="session-b",
+                                              answers="\n")
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(SWEEP_PROMPT_MARKER, output)
+        self.assertIn("[Y/n]", output,
+                      msg="the sweep prompt must show the accept default")
+        sids = self.open_sids()
+        self.assertEqual(len(sids), 1, msg=output)
+        self.assertNotIn(first, sids)
+        latest = self.telemetry_record(first)["attempts"][-1]
+        self.assertEqual(latest["outcome"], "unlocked")
+        self.assertEqual(latest["command"], "pack")
+        self.assertEqual(latest["closure_reason"], "closed-read-only")
+        self.assertEqual(latest["scope"], [])
+
+    def test_sweep_explicit_decline_keeps_session_open(self) -> None:
+        """'n' at the sweep prompt declines: nothing closes, both
+        read-only sessions stay open, no closure record is written."""
+        first = self.assert_pack_ok(self.pack("--read-only"))
+        code, output = self.readonly_pack_pty(slug="session-b",
+                                              answers="n\n")
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(SWEEP_PROMPT_MARKER, output)
+        sids = self.open_sids()
+        self.assertEqual(len(sids), 2, msg=output)
+        self.assertIn(first, sids)
+        self.assertFalse(
+            (self.repo / "claude" / "telemetry" / f"{first}.json").is_file())
+
+    def test_sweep_piped_declines_without_prompt(self) -> None:
+        """Piped stdin declines without a prompt — automation never
+        silently closes a session. Both sessions stay open and the
+        decline is logged, naming the unlock remedy."""
+        first = self.assert_pack_ok(self.pack("--read-only"))
+        second = self.pack("--read-only", slug="session-b")
+        self.assertEqual(
+            second.returncode, 0,
+            msg=f"stdout:\n{second.stdout}\nstderr:\n{second.stderr}",
+        )
+        combined = second.stdout + second.stderr
+        self.assertIn(SWEEP_DECLINE_MARKER, combined)
+        self.assertNotIn(SWEEP_PROMPT_MARKER, combined)
+        sids = self.open_sids()
+        self.assertEqual(len(sids), 2)
+        self.assertIn(first, sids)
+        self.assertFalse(
+            (self.repo / "claude" / "telemetry" / f"{first}.json").is_file())
+
+    def test_scoped_pack_never_sweeps(self) -> None:
+        """A worker (scoped) pack beside an open read-only session
+        neither prompts nor closes — the sweep is the read-only
+        pack's alone."""
+        first = self.assert_pack_ok(self.pack("--read-only"))
+        second = self.pack(slug="session-b")
+        self.assertEqual(second.returncode, 0, msg=second.stderr)
+        combined = second.stdout + second.stderr
+        self.assertNotIn("read-only sweep", combined)
+        self.assertIn(first, self.open_sids())
+
+    def test_apply_never_sweeps(self) -> None:
+        """An apply beside an open read-only session leaves it
+        untouched — here a sibling scoped session's response is run
+        through apply --dry-run; the apply's own verdict on the
+        fixture is irrelevant to this pin, which is only that the
+        apply pipeline neither prompts for nor closes the read-only
+        sibling."""
+        ro_sid = self.assert_pack_ok(self.pack("--read-only"))
+        scoped_sid = self.assert_pack_ok(self.pack(slug="session-b"))
+        tarball = self.build_response_tarball(
+            scoped_sid, path="hello.txt", content="hello edited\n")
+        result = run_bale(
+            self.install, ["apply", str(tarball), "--dry-run"],
+            cwd=self.repo, env=self.env,
+        )
+        combined = result.stdout + result.stderr
+        self.assertNotIn("read-only sweep", combined)
+        self.assertIn(ro_sid, self.open_sids())
+        self.assertFalse(
+            (self.repo / "claude" / "telemetry" / f"{ro_sid}.json").is_file())
+
+    # -- board 33 (v0.3.21): the open banner names its close-out ---------
+
+    def test_readonly_banner_names_both_closeouts(self) -> None:
+        """The read-only pack's end-of-run banner names both exits:
+        the next read-only pack's sweep, and `bale unlock <sid>`."""
+        result = self.pack("--read-only")
+        sid = self.assert_pack_ok(result)
+        self.assertIn(CLOSEOUT_MARKER, result.stdout)
+        self.assertIn("next read-only pack", result.stdout)
+        self.assertIn(f"bale unlock {sid}", result.stdout)
+
+    def test_scoped_banner_has_no_closeout(self) -> None:
+        """A scoped pack's banner is unchanged — no close-out lines."""
+        result = self.pack()
+        self.assert_pack_ok(result)
+        self.assertNotIn(CLOSEOUT_MARKER, result.stdout)
 
 
 if __name__ == "__main__":
