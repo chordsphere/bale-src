@@ -1,0 +1,22 @@
+{
+  "record_version": 1,
+  "session_id": "2026-06-18-fx-crash-001",
+  "created_at": "2026-06-18T10:00:00+00:00",
+  "updated_at": "2026-06-18T10:00:00+00:00",
+  "outcome": "unlocked",
+  "attempts": [
+    {
+      "at": "2026-06-18T10:00:00+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "crash-debris",
+      "tarball": null,
+      "validation": null,
+      "scope": [],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": null
+    }
+  ]
+}

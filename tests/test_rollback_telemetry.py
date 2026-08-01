@@ -172,11 +172,14 @@ class RollbackTelemetryTest(unittest.TestCase):
     def test_undo_appends_re_applied(self) -> None:
         self.make_applied_session()
         self.assert_ok(self.rollback(SID))
-        # The rollback's own record sits untracked, and the dirty-tree
-        # guard counts untracked files — commit it, as the operator of a
-        # durable record would (the same friction already exists between
-        # apply's record write and any later rollback). Flagged in the
-        # response's notes.md with a proposal.
+        # Since the board 5 D5 guard change (v0.3.23) the dirty-tree
+        # guard disregards untracked claude/telemetry/ paths, so this
+        # interleaved commit is no longer REQUIRED for the toggle —
+        # test_toggle_completes_without_interleaved_commit below pins
+        # that path. This test keeps the commit deliberately: it is the
+        # committed-variant coverage (the durable-record discipline an
+        # operator follows anyway), asserting the guard change did not
+        # disturb the ordinary tracked-record flow.
         self.git("add", "claude/telemetry")
         self.git("commit", "-m", "record rollback telemetry")
         result = self.rollback(SID, "--undo")

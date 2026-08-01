@@ -145,6 +145,18 @@ stamp of what a per-invocation `--allow-out-of-scope` admitted, uniform
 empty-list shape when none. `bin/bale` keeps wiring only, per the
 standing division.
 
+v0.3.24 (board 5 D6, the trust-ledger read side) adds the stats
+rendering pair as a fourth banner section at the end of the file:
+`format_stats_json` — the `bale stats --json` line, whose docstring OWNS
+the report's key contract (BALE.md §5.6 points at it and never
+duplicates the list) — and `format_stats_report`, the human report
+(per-class rate table and corpus rows as the reference body, the
+trailing summary block last per the module rule, and deliberately no
+next-step hint: stats is terminal, not a lifecycle step), plus the tiny
+`_pct` formatter they share. Aggregation lives in the new sibling
+`bin/bale_stats.py`; `bin/bale` keeps wiring only, per the standing
+division.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -1969,3 +1981,252 @@ def write_telemetry_record(repo: Path, sid: str, attempt: dict) -> Optional[str]
         log(f"telemetry: could not write {rel}: {e} — the apply outcome "
             f"stands; the record entry for this event is lost", force=True)
         return None
+
+
+# --- stats rendering (v0.3.24, board 5 D6) ---
+#
+# The `bale stats` read side's rendering half: bale_stats computes the
+# payload, these two render it — format_stats_json as the machine line
+# (its docstring OWNS the key contract; BALE.md §5.6 points here and
+# never duplicates the list), format_stats_report as the human report.
+# Both are pure string assemblers per the module rule; bin/bale keeps
+# wiring only. The human report follows the one stated rendering rule:
+# bulky reference first (the per-class rate table, epoch/coverage and
+# mix/cross-check rows), the crisp summary block LAST — and, unlike the
+# lifecycle commands, NO trailing next-step hint: stats is terminal, not
+# a lifecycle step.
+
+
+def _pct(rate) -> str:
+    """Render a 0..1 rate as a percentage, or the honest dash for None
+    (a zero denominator — no data, never a fabricated 0%)."""
+    if rate is None:
+        return "—"
+    return f"{rate * 100:.0f}%"
+
+
+def format_stats_json(stats: dict) -> str:
+    """Render the `bale stats --json` report as ONE line of JSON.
+
+    The stats sibling of format_pack_json / format_status_json
+    (v0.3.24): same stability rules (existing keys are never renamed or
+    removed; new keys may be added — the additive contract board 10's
+    grant harness pins its reads against), same one-compact-line shape,
+    same emission path (the caller emits via emit_json_line under json
+    mode's stream discipline — module docstring). THIS DOCSTRING OWNS
+    THE KEY CONTRACT (the one-home rule); BALE.md §5.6 and the CLI help
+    name the owner, never a second copy of the list. Unit and rate
+    definitions are brief-D2 semantics, implemented and documented in
+    bin/bale_stats.py; this list is the wire shape. The set:
+
+      outcome   "stats" — the only state that reaches the end-of-run
+                report; every failure path exits through fail() (stderr,
+                non-zero, nothing on stdout). Part of the one-place
+                outcome vocabulary this module owns (format_pack_json).
+      epoch     {first_sid, first_created_at} — the corpus start by
+                minimum created_at — or null on an empty corpus.
+                Pre-epoch sessions exist only in git and are not
+                counted. A whole-corpus fact: filters do not move it.
+      coverage  sub-epochs by attempt-key presence, each row
+                {first_sid, records_lacking} or null when no record
+                carries the key yet: closure_reason, clarification.
+                Whole-corpus facts, like epoch.
+      filters   echo of what was in effect: {work_class, since}, each
+                the given value or null.
+      corpus    context and membership totals:
+                  records                   record files loaded (whole
+                                            corpus; parse failures and
+                                            filtered versions excluded)
+                  parse_failures            unparseable/malformed files —
+                                            skipped, counted, named on
+                                            stderr
+                  filtered_record_versions  record_version > 1 files
+                  read_only_sessions        closure_reason
+                                            "closed-read-only" sessions
+                                            in the since-window (context
+                                            count; excluded from every
+                                            rate — detection keys on
+                                            closure_reason, never scope)
+                  crash_debris_sessions     "crash-debris" sessions in
+                                            the window (hygiene count)
+                  sessions                  classed membership after all
+                                            filters and exclusions
+                  in_flight_sessions        membership sessions whose
+                                            latest outcome is held /
+                                            scope-drift-refused /
+                                            rejected — counted beside,
+                                            never inside, the mix
+                  response_attempts / validated_attempts / checks
+                                            membership attempt totals
+                                            (D2 units)
+      classes   per-work-class rate rows keyed by resolved class
+                (including "unclassed"); each row carries every
+                numerator and denominator beside its rate, rates null
+                on a zero denominator:
+                  sessions, closed_sessions,
+                  response_attempts, validated_attempts,
+                  checks, checks_agree, checks_disagree, agreement_rate,
+                  unparsed_validated_attempts, unparsed_share,
+                  held_attempts, hold_rate,
+                  drift_refused_attempts, drift_refusal_rate,
+                  override_attempts, rejected_attempts,
+                  bailout_sessions, sessions_with_response_attempt,
+                  bailout_rate,
+                  clarified_sessions, clarification_epoch_sessions,
+                  clarification_rate
+      closure_mix
+                distribution over closed membership sessions: applied,
+                reverted, bailout (counts) and unlocked (an object
+                keyed by closure_reason, "unspecified" for a reasonless
+                record). rolled-back / re-applied envelopes count as
+                applied — post-close history lives in churn.
+      churn     {rolled_back, re_applied} — post-close event counts.
+      cross_checks
+                the dual-stream calibration view, beside the mechanical
+                rates, never blended in:
+                  clarification  {self_reported_sessions,
+                                  promoted_sessions, both, self_only,
+                                  promoted_only}
+                  budget         {pressure: {value: count, plus
+                                  "unreported"},
+                                  bailed_with_pressure_none}
+
+    Emitted as a single compact line (no indent) so the consumer
+    contract stays line-oriented. Pure: builds a string, prints
+    nothing; the caller emits it via emit_json_line.
+    """
+    payload = {"outcome": "stats", **stats}
+    return json.dumps(payload)
+
+
+def format_stats_report(stats: dict) -> str:
+    """Render the human `bale stats` report (BALE.md §5.6).
+
+    Reference body first, summary block last (module rule): the
+    per-class rate table — one row per class present in the filtered
+    corpus, columns for the D2 headline rates, each cell carrying its
+    numerator/denominator so the percentages stay auditable — then the
+    epoch, coverage, closure-mix, churn, and cross-check rows; then the
+    trailing format_summary_block with the corpus totals and the
+    filters in effect. No trailing next-step hint: stats is terminal.
+    Pure: builds a string, prints nothing.
+    """
+    lines: list[str] = []
+    classes: dict = stats["classes"]
+    if classes:
+        header = ["class", "sessions", "agree", "unparsed", "hold",
+                  "drift", "bailout", "clarified"]
+        table: list[list[str]] = [header]
+        for cls, row in classes.items():
+            table.append([
+                cls,
+                str(row["sessions"]),
+                f"{row['checks_agree']}/{row['checks']} "
+                f"({_pct(row['agreement_rate'])})",
+                f"{row['unparsed_validated_attempts']}/"
+                f"{row['validated_attempts']} "
+                f"({_pct(row['unparsed_share'])})",
+                f"{row['held_attempts']}/{row['validated_attempts']} "
+                f"({_pct(row['hold_rate'])})",
+                f"{row['drift_refused_attempts']}/"
+                f"{row['response_attempts']} "
+                f"({_pct(row['drift_refusal_rate'])})",
+                f"{row['bailout_sessions']}/"
+                f"{row['sessions_with_response_attempt']} "
+                f"({_pct(row['bailout_rate'])})",
+                f"{row['clarified_sessions']}/"
+                f"{row['clarification_epoch_sessions']} "
+                f"({_pct(row['clarification_rate'])})",
+            ])
+        widths = [max(len(r[i]) for r in table) for i in range(len(header))]
+        for i, row_cells in enumerate(table):
+            lines.append("  " + "  ".join(
+                cell.ljust(widths[j]) for j, cell in enumerate(row_cells)
+            ).rstrip())
+            if i == 0:
+                lines.append("  " + "  ".join(
+                    "-" * widths[j] for j in range(len(header))).rstrip())
+        extras = []
+        for cls, row in classes.items():
+            details = []
+            if row["checks_disagree"]:
+                details.append(f"disagree {row['checks_disagree']}")
+            if row["override_attempts"]:
+                details.append(f"overrides {row['override_attempts']}")
+            if row["rejected_attempts"]:
+                details.append(f"rejected {row['rejected_attempts']}")
+            if details:
+                extras.append(f"  {cls}: " + ", ".join(details))
+        if extras:
+            lines.append("")
+            lines.extend(extras)
+    else:
+        lines.append("  (no sessions in the filtered corpus)")
+
+    lines.append("")
+    epoch = stats["epoch"]
+    if epoch:
+        lines.append(f"  epoch: corpus begins {epoch['first_created_at']} "
+                     f"({epoch['first_sid']}); pre-epoch sessions exist "
+                     f"only in git and are not counted")
+    else:
+        lines.append("  epoch: empty corpus — no records under "
+                     "claude/telemetry/")
+    for key, label in (("closure_reason", "closure_reason"),
+                       ("clarification", "clarification")):
+        row = stats["coverage"][key]
+        if row is None:
+            lines.append(f"  coverage: {label} key not yet present in "
+                         f"any record")
+        else:
+            lines.append(f"  coverage: {label} key since "
+                         f"{row['first_sid']} "
+                         f"({row['records_lacking']} earlier records "
+                         f"lack it)")
+
+    mix = stats["closure_mix"]
+    unlocked = ", ".join(f"{reason} {count}"
+                         for reason, count in sorted(mix["unlocked"].items()))
+    lines.append(f"  closure mix: applied {mix['applied']}, reverted "
+                 f"{mix['reverted']}, bailout {mix['bailout']}, unlocked "
+                 f"[{unlocked or 'none'}]")
+    churn = stats["churn"]
+    if churn["rolled_back"] or churn["re_applied"]:
+        lines.append(f"  post-close churn: rolled-back "
+                     f"{churn['rolled_back']}, re-applied "
+                     f"{churn['re_applied']}")
+    clar = stats["cross_checks"]["clarification"]
+    lines.append(f"  cross-check clarification: self-reported "
+                 f"{clar['self_reported_sessions']}, promoted "
+                 f"{clar['promoted_sessions']}, both {clar['both']}, "
+                 f"self-only {clar['self_only']}, promoted-only "
+                 f"{clar['promoted_only']}")
+    budget = stats["cross_checks"]["budget"]
+    pressure = ", ".join(f"{value} {count}"
+                         for value, count in budget["pressure"].items())
+    lines.append(f"  cross-check budget: pressure [{pressure or 'none'}]"
+                 f", bailed with pressure 'none': "
+                 f"{budget['bailed_with_pressure_none']}")
+
+    corpus = stats["corpus"]
+    filters = stats["filters"]
+    filter_bits = []
+    if filters["work_class"]:
+        filter_bits.append(f"work-class {filters['work_class']}")
+    if filters["since"]:
+        filter_bits.append(f"since {filters['since']}")
+    rows = [
+        ("records", str(corpus["records"])),
+        ("sessions", f"{corpus['sessions']} classed "
+                     f"({corpus['in_flight_sessions']} in-flight)"),
+        ("attempts", f"{corpus['response_attempts']} response, "
+                     f"{corpus['validated_attempts']} validated, "
+                     f"{corpus['checks']} checks"),
+        ("parse failures", str(corpus["parse_failures"])),
+        ("filtered versions", str(corpus["filtered_record_versions"])),
+        ("read-only", str(corpus["read_only_sessions"])),
+        ("crash-debris", str(corpus["crash_debris_sessions"])),
+        ("filters", "; ".join(filter_bits) if filter_bits else "none"),
+    ]
+    body = "\n".join(lines)
+    return body + format_summary_block(rows)

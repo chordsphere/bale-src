@@ -1,0 +1,82 @@
+{
+  "record_version": 1,
+  "session_id": "2026-06-13-fx-clar-match-001",
+  "created_at": "2026-06-13T10:00:00+00:00",
+  "updated_at": "2026-06-13T10:00:00+00:00",
+  "outcome": "applied",
+  "attempts": [
+    {
+      "at": "2026-06-13T10:00:00+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests": "pass"
+        },
+        "claim_verdict": {
+          "tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "src"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "src/a.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.24",
+            "packer": "fixture",
+            "work_class": "code",
+            "model_identity": "fixture"
+          },
+          "linkage": {
+            "kind": "clarification",
+            "surfaced": "pre-build"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": false
+        }
+      },
+      "clarification": {
+        "rounds": 2,
+        "records": [
+          {
+            "n": 1,
+            "at": "2026-06-13T09:00:00+00:00",
+            "blocking_questions": 2
+          },
+          {
+            "n": 2,
+            "at": null,
+            "blocking_questions": 1
+          }
+        ]
+      },
+      "log": null
+    }
+  ]
+}
