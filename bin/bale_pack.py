@@ -2307,6 +2307,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
         log(f"supersedes {superseded_sid}: closed as superseded-by-split "
             f"(closure record at claude/telemetry/{superseded_sid}.json); "
             f"lineage stamped in depends_on.superseded_session")
+        # Reverse lineage (v0.3.23, board 5 D4): stamp superseded_by on
+        # the parent's closure attempt, now that the child sid exists.
+        # The exchange wrote that attempt pre-sid, so this is the same
+        # single writer (pack) enriching the closure it already
+        # recorded; the idempotent re-run of an aborted supersession
+        # pack re-stamps the same attempt in place — the completing
+        # pack's child sid wins, and the attempt count never grows.
+        # Best-effort like every telemetry write.
+        from bale_report import stamp_superseded_by  # lazy — see module docstring
+        stamp_rel = stamp_superseded_by(repo, superseded_sid, sid)
+        if stamp_rel:
+            log(f"supersedes {superseded_sid}: reverse lineage "
+                f"superseded_by={sid} stamped on the closure attempt "
+                f"({stamp_rel})")
     if swept_sids:
         # Same journaling rationale for the read-only sweep (v0.3.21):
         # the close events ran pre-sid; the durable closure lives in

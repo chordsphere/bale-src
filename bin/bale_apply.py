@@ -302,10 +302,13 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
          find them later. (Normal-PASS sessions wipe their session dir;
          bailouts keep theirs, since the next handoff session may chase
          this one for repeat-bailout warning.)
-      3. Print the §5.6.3 banner (`print_bailout_banner` does the layout).
-      4. Close the session in the ADR-0006 registry — the session is
+      3. Close the session in the ADR-0006 registry — the session is
          consumed. The user's explicit next action is `bale handoff
          <tarball>`, which opens a fresh session against a new sid.
+      4. Write the telemetry record (with the diagnostics embed and the
+         clarification stamp, v0.3.23), then print the §5.6.3 banner
+         (`print_bailout_banner` does the layout) — record before
+         banner so the banner's §8.9 telemetry row reports the write.
       5. Under json output mode (v0.2.8), emit the one-line machine
          report — outcome "bailout", verdict and merge null since no
          validation ran and no walkthrough decided anything.
@@ -330,6 +333,7 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
         format_apply_json,
         json_mode,
         print_bailout_banner,
+        read_clarification_summary,
         write_telemetry_record,
     )
     handoff_path = response_dir / "handoff.md"
@@ -367,8 +371,6 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
                  follow_symlinks=False)
     log(f"bailout artifacts preserved under {sessions_dir}")
 
-    print_bailout_banner(manifest, handoff_path, tarball_basename)
-
     # Close the session in the registry. The bailed session is consumed;
     # the next user action is `bale handoff <tarball>` (which itself opens
     # the follow-up session via the pack-style acquisition). The bailout's
@@ -381,21 +383,30 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
 
     # Telemetry record (v0.3.9, B2 — BALE.md §8.9). A bailout consumes its
     # session, so it is an apply close and it records: validation null
-    # (nothing ran), changes[] empty by §5.6.2, and — the piece that makes
+    # (nothing ran), changes[] empty by §5.6.2, and — the pieces that make
     # this branch worth recording — the feedback block verbatim, whose
     # self_reported.budget_pressure="bailed" is exactly the longitudinal
-    # signal board 5 aggregates. Written after close_session so a telemetry
-    # failure (already non-fatal) cannot even reorder the session's real
-    # state changes.
+    # signal board 5 aggregates, plus (v0.3.23, board 5 D1) the parsed,
+    # already-schema-validated diagnostics embedded verbatim and the
+    # close-time clarification stamp every closing event carries. Written
+    # after close_session so a telemetry failure (already non-fatal)
+    # cannot even reorder the session's real state changes, and BEFORE
+    # the banner (v0.3.23, D7.1) so the banner can carry the §8.9
+    # telemetry row its siblings carry.
     telemetry_rel = write_telemetry_record(
         repo, sid, build_telemetry_attempt(
             outcome="bailout", command=invoked_by,
             tarball=tarball_basename, manifest=manifest,
             scope=read_session_scope(repo, sid),
             log_path=f".bale/logs/{sid}.log",
+            diagnostics=diagnostics,
+            clarification=read_clarification_summary(repo, sid),
         ))
     if telemetry_rel:
         log(f"telemetry: recorded {telemetry_rel}")
+
+    print_bailout_banner(manifest, handoff_path, tarball_basename,
+                         telemetry=telemetry_rel)
 
     if json_mode():
         # Terminal json report (v0.2.8), emitted after the §5.6.3 banner
@@ -734,6 +745,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_summary_block,
         format_walkthrough_summary,
         json_mode,
+        read_clarification_summary,
         write_telemetry_record,
     )
     # The session log path as the json reports cite it (absolute) — the
@@ -1370,7 +1382,11 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                      locked_sid, no_interact=no_interact,
                      no_interact_source=no_interact_source)
 
-            # Telemetry record (v0.3.9, B2 — BALE.md §8.9).
+            # Telemetry record (v0.3.9, B2 — BALE.md §8.9). The merge is a
+            # closing event, so the attempt carries the close-time
+            # clarification stamp (v0.3.23, board 5 D1) — the HOLD/refusal
+            # attempts above deliberately do not: the stamp lives on the
+            # closing attempt only.
             telemetry_rel = write_telemetry_record(
                 repo, locked_sid, build_telemetry_attempt(
                     outcome="applied", command=invoked_by,
@@ -1381,6 +1397,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
                     log_path=f".bale/logs/{locked_sid}.log",
+                    clarification=read_clarification_summary(
+                        repo, locked_sid),
                 ))
             print(format_summary_block(
                 [
@@ -1514,6 +1532,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 validation_exit_code=exit_code,
                 validation_output=val_output,
                 log_path=f".bale/logs/{locked_sid}.log",
+                clarification=read_clarification_summary(repo, locked_sid),
             ))
         print(format_summary_block(
             [

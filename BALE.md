@@ -1640,6 +1640,9 @@ short-lived `.bale/sessions/<sid>/` directory:
 alike), `rejected` (any apply/retry that exits through a `fail()`
 path — the record is minimal there, since a rejected tarball's
 manifest is unvalidated; detail stays in the session log),
+`scope-drift-refused` (the own-scope drift gate's refusal at apply
+pre-flight, §8.1 step 14 — the session stays open, so a later
+attempt supersedes it the way a HOLD's does),
 `bailout` (the session is consumed, and the feedback block's
 `budget_pressure: "bailed"` is precisely the signal worth keeping),
 and — since v0.3.16 — `unlocked` (`bale unlock`, §9.3: the close
@@ -1769,7 +1772,23 @@ When apply encounters `response_kind: "clarification"`, it:
 
 A clarification writes no telemetry record: it suspends the session
 rather than closing it, and the eventual normal response records
-(§8.9).
+(§8.9). The rounds still reach the ledger (v0.3.23, board 5): every
+closing event — apply/retry terminal closes, `bale revert`, and
+every unlock-outcome close, whatever command drives it — stamps a
+bale-computed `clarification` summary (`{rounds, records[]}`, read
+from `.bale/clarifications/<sid>/` at close time) onto its closing
+attempt, and `{rounds: 0, records: []}` when the directory is
+absent. The always-stamp rule is the disambiguation: post-epoch, key
+presence with `rounds: 0` means *known zero*, key absence means
+*pre-epoch unknown* — so aggregation never conflates "no
+clarifications" with "no data". The stamp lives on closing attempts
+only (a `held`, `scope-drift-refused`, `rejected`, or rollback
+attempt is not a closure), and it is what makes step 3's
+survives-the-session preservation pay off: the directory outlives
+the session by design, and the close happens on the machine that
+holds it (§3.5) — a close on a different checkout stamps that
+checkout's honest `rounds: 0`, an accepted, self-announcing residual
+loss. Field shape: `telemetry-record.schema.json`.
 
 The suspension is visible in `bale status` (v0.3.22): a session with
 preserved records under `.bale/clarifications/<sid>/` and no
@@ -1879,7 +1898,17 @@ Steps:
    commit (`git rev-parse --verify <commit>^2` succeeds) or a normal
    commit.
 3. Refuse on a dirty working tree by default. Offer `--stash` to
-   `git stash` before running and `git stash pop` after.
+   `git stash` before running and `git stash pop` after. Untracked
+   paths under `claude/telemetry/` — the record bale itself leaves
+   untracked at close (§8.9) — are disregarded when judging
+   cleanliness (v0.3.23, board 5): `git revert` rewrites tracked
+   content only, and the one collision case (a revert that would
+   materialize a file at an untracked path) is refused loudly by git
+   itself. When they were the only dirt, rollback proceeds with a
+   log line naming them — which is what lets a rollback → `--undo`
+   toggle complete without an interleaved commit. A *modified
+   tracked* file under `claude/telemetry/` still refuses (a real
+   conflict surface); `--stash` and `--force` behavior is unchanged.
 4. Refuse if `reverted/<sid>` already exists, unless `--force`.
 5. Run `git revert --no-edit -m 1 <commit>` (merge) or
    `git revert --no-edit <commit>` (normal). Conflicts leave the

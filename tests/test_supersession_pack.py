@@ -321,5 +321,61 @@ class SupersessionPackTest(unittest.TestCase):
         self.assertEqual(self.open_sids(), [parent])
 
 
+    # -- board 5 D4 (v0.3.23): reverse lineage superseded_by -------------
+
+    def test_accept_stamps_superseded_by_on_closure_attempt(self) -> None:
+        """The accept path stamps the child sid onto the parent's
+        superseded-by-split closure attempt — same single writer, no
+        new attempt, envelope untouched."""
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        child = self.open_sids()[0]
+        record = self.telemetry_record(parent)
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="the stamp enriches the closure attempt; "
+                             "it never appends")
+        latest = record["attempts"][-1]
+        self.assertEqual(latest["closure_reason"], "superseded-by-split")
+        self.assertEqual(latest["superseded_by"], child)
+        self.assertEqual(record["outcome"], "unlocked",
+                         msg="the envelope still mirrors the closure — "
+                             "the stamp is not a new event")
+
+    def test_decline_stamps_nothing(self) -> None:
+        """A declined exchange closes nothing and stamps nothing — no
+        record exists at all for the still-open parent."""
+        parent = self.open_parent()
+        code, _output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="n\n")
+        self.assertNotEqual(code, 0)
+        self.assertFalse(
+            (self.repo / "claude" / "telemetry" / f"{parent}.json").exists())
+        self.assertEqual(self.open_sids(), [parent])
+
+    def test_idempotent_rerun_restamps_single_key(self) -> None:
+        """The re-run of an aborted supersession pack re-stamps the same
+        closure attempt in place: one attempt, one key, and the
+        completing pack's child sid wins."""
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        first_child = self.open_sids()[0]
+        self.assert_ok(run_bale(self.install, ["unlock", first_child],
+                                cwd=self.repo, env=self.env))
+        rerun = self.pack("--supersedes", parent, slug="child-retry")
+        child2 = self.packed_sid(rerun)
+        record = self.telemetry_record(parent)
+        split_attempts = [a for a in record["attempts"]
+                          if a.get("closure_reason") == "superseded-by-split"]
+        self.assertEqual(len(split_attempts), 1,
+                         msg="the re-run must not append a second closure")
+        self.assertEqual(split_attempts[0]["superseded_by"], child2,
+                         msg="latest write wins — the completing pack's "
+                             "child is the real supersessor")
+
+
 if __name__ == "__main__":
     unittest.main()
