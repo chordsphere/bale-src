@@ -118,6 +118,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     build_telemetry_attempt,
     emit_json_line,
     enable_json_mode,
+    format_clarification_value,
     format_integration_holder,
     format_integration_lock_value,
     format_open_sessions_value,
@@ -200,7 +201,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.21"
+VERSION = "0.3.22"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3451,6 +3452,14 @@ SESSION_STATE_IDLE = "idle"
 SESSION_STATE_PACKED = "packed"
 SESSION_STATE_HELD = "held"
 SESSION_STATE_ORPHAN = "orphan"
+# Clarification-suspended (v0.3.22, board 32): the session received a
+# clarification response (BALE.md §8.10.2) — lock held, no branch, blocking
+# questions preserved under .bale/clarifications/<sid>/ — and is awaiting the
+# architect's answers. Without this state the classifier misread the
+# suspension as `packed` (the request tarball usually still sits in the
+# outbox) or, with the outbox cleaned, as `orphan` — whose hint is
+# `bale unlock`, the one command that would discard a suspended session.
+SESSION_STATE_CLARIFICATION = "clarification"
 
 # How many outbox tarballs `bale status` lists by name before collapsing the
 # remainder into a "+N more" pointer. A busy outbox (the case that prompted
@@ -3465,13 +3474,14 @@ def _session_state_and_hint(
     lock_sid: Optional[str],
     has_branch: bool,
     has_outbox: bool,
+    has_clarification: bool = False,
 ) -> tuple[str, str, str]:
-    """Classify the open-session lifecycle state from three already-gathered facts.
+    """Classify the open-session lifecycle state from four already-gathered facts.
 
     Pure by design: every filesystem/git probe happens in _gather_status, and
     this maps the resulting booleans to (state, human-readable description,
     next-step hint). Keeping it pure makes it the cheap unit-test target ADR
-    0003 names — the four states are exhaustively checkable without touching
+    0003 names — the five states are exhaustively checkable without touching
     disk.
 
     The states (BALE.md §9.5) and the command that acts on each:
@@ -3482,8 +3492,23 @@ def _session_state_and_hint(
                 `bale apply` ran far enough to create       `bale retry` /
                 the branch but hasn't reached a terminal    `bale revert`
                 state (a HOLD verdict, or held for review).
+      - clarification  lock set, no branch, and a         → answer, then
+                preserved clarification record exists       `bale apply`
+                (.bale/clarifications/<sid>/ — BALE.md
+                §8.10.2): the session is suspended on
+                blocking questions, awaiting answers and
+                the follow-up normal response.
       - orphan  lock set, no branch, no outbox tarball:  → `bale unlock`
                 an abandoned lock with no git footprint.
+
+    Precedence when several facts hold: branch beats clarification —
+    a bale/<sid> branch means a normal response later applied and hit
+    HOLD, so the clarification round is history, not the live state —
+    and clarification beats the outbox reading, because "awaiting a
+    response" is exactly what a suspended session is NOT doing (a
+    response arrived; it was questions). Clarification also beats
+    orphan: a suspended session with a cleaned outbox must never read
+    as an abandoned lock, whose hint (`bale unlock`) would discard it.
     """
     if lock_sid is None:
         return (
@@ -3497,6 +3522,16 @@ def _session_state_and_hint(
             f"held — branch bale/{lock_sid} exists; apply not yet terminal",
             f"inspect, then `bale apply <response>`, `bale retry <response>`, "
             f"or `bale revert {lock_sid}`",
+        )
+    if has_clarification:
+        return (
+            SESSION_STATE_CLARIFICATION,
+            "clarification-suspended — the worker returned blocking "
+            "questions; session open, awaiting answers",
+            f"answer the questions in the worker's chat (records under "
+            f".bale/clarifications/{lock_sid}/), then "
+            f"`bale apply <response>` when the follow-up normal response "
+            f"arrives",
         )
     if has_outbox:
         return (
@@ -3599,6 +3634,22 @@ class StatusReport:
     # under the json report's additive `scopes` key — the visibility an
     # architect needs to plan the next concurrent pack's includes.
     session_scopes: dict = field(default_factory=dict)
+    # Clarification suspension (v0.3.22, board 32): facts read from
+    # .bale/clarifications/<sid>/ for the CLASSIFIED session (the oldest
+    # open sid, matching the session/goal rows). rounds is the count of
+    # preserved records (0 = none, and the other two fields then stay at
+    # their defaults); questions is the questions[] length of the latest
+    # record, or None when that record would not read or parse (unknown
+    # rather than guessed — the same degradation posture as the stamped
+    # manifest's goal above); latest_record is the latest record's
+    # repo-relative path, the pointer the architect opens to re-read the
+    # questions. Populated whenever records exist, independent of the
+    # classified state: a held session that clarified earlier still
+    # carries the facts (they are history worth a row), while the
+    # lifecycle state above says whether the suspension is live.
+    clarification_rounds: int = 0
+    clarification_questions: Optional[int] = None
+    clarification_latest: Optional[str] = None
     # ADR-0006 integration lock: None when not held (the normal state —
     # it is held only across apply's §8.6–§8.8 git window, or left stale
     # by an interrupted apply). When held, a dict with whatever of
@@ -3809,7 +3860,35 @@ def _gather_status(cwd: Path) -> StatusReport:
         and f"request-{lock_sid}.tar.gz" in report.outbox_tarballs
     )
 
-    state, desc, hint = _session_state_and_hint(lock_sid, has_branch, has_outbox)
+    # Clarification suspension (v0.3.22, board 32): a preserved record under
+    # .bale/clarifications/<sid>/ (written by apply's §8.10.2 handler, which
+    # keeps the session open) marks the classified session suspended on
+    # blocking questions. Presence drives the state; the round/question
+    # facts feed the dedicated row and the json report. Read-only,
+    # best-effort like the stamped-manifest read below: a record that won't
+    # parse still counts as a round (presence is the suspension fact), only
+    # the question count degrades to unknown — logged, never silent.
+    if lock_sid is not None:
+        clar_dir = repo / ".bale" / "clarifications" / lock_sid
+        if clar_dir.is_dir():
+            records = sorted(clar_dir.glob("*.json"))
+            if records:
+                report.clarification_rounds = len(records)
+                latest = records[-1]
+                report.clarification_latest = str(latest.relative_to(repo))
+                try:
+                    cm = json.loads(latest.read_text(encoding="utf-8"))
+                    qs = cm.get("questions")
+                    report.clarification_questions = (
+                        len(qs) if isinstance(qs, list) else None
+                    )
+                except (OSError, json.JSONDecodeError):
+                    log(f"status: could not read {latest}; "
+                        f"omitting question count")
+    has_clarification = report.clarification_rounds > 0
+
+    state, desc, hint = _session_state_and_hint(
+        lock_sid, has_branch, has_outbox, has_clarification)
     report.session_state = state
     report.session_desc = desc
     report.next_hint = hint
@@ -3920,6 +3999,25 @@ def _render_status(report: StatusReport) -> str:
                      format_staging_value(
                          report.staging_strategy,
                          report.staging_untracked_inputs)))
+            # Clarification facts (v0.3.22, board 32) for the classified
+            # session: rendered whenever records exist — under the
+            # clarification-suspended state this is the distinct row the
+            # suspension earns (the state description and the trailing
+            # next-step hint carry the "answer, then apply" framing);
+            # under `held` it is history worth seeing (the session
+            # clarified before its normal response hit HOLD). The value
+            # stays purely factual either way — rounds, blocking-question
+            # count, latest record path — so it never contradicts the
+            # state row. Rendering lives in bale_report
+            # (format_clarification_value), with the other status
+            # surfaces.
+            if report.clarification_rounds:
+                rows.append(
+                    ("clarification",
+                     format_clarification_value(
+                         report.clarification_rounds,
+                         report.clarification_questions,
+                         report.clarification_latest)))
 
         if report.outbox_tarballs:
             # Newest first (session IDs are date-prefixed, so a reverse sort is

@@ -29,7 +29,12 @@ untracked inputs, BALE.md §8.3 step 2) as a row value, used for status's
 `staging` row, per-sid in `format_open_sessions_value`'s listing — which
 grew the optional `staging_strategy` / `staging_untracked_inputs` pair —
 and reflected in `format_status_json`'s additive per-session
-strategy/untracked_inputs keys. The human-facing
+strategy/untracked_inputs keys. v0.3.22 (board 32) adds
+`format_clarification_value` to the family: the classified session's
+clarification-suspension facts (rounds, blocking-question count, latest
+record path — BALE.md §8.10.2) as status's `clarification` row, reflected
+in `format_status_json`'s additive `session.clarification` object and the
+`"clarification"` value on the session state enum. The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -965,14 +970,45 @@ def format_status_json(report) -> str:
                  bale_initialised   whether .bale/ exists
       session  null outside a git repository; else an object, present
                even when idle — the lifecycle state is a fact either way:
-                 state          "idle" | "packed" | "held" | "orphan"
-                                (BALE.md §9.5; the SESSION_STATE_*
-                                constants in bin/bale)
+                 state          "idle" | "packed" | "held" | "orphan" |
+                                "clarification" (BALE.md §9.5; the
+                                SESSION_STATE_* constants in bin/bale.
+                                "clarification" is additive, v0.3.22 —
+                                board 32: the classified session is
+                                suspended on a clarification response,
+                                BALE.md §8.10.2 — lock held, no branch,
+                                preserved record(s) under
+                                .bale/clarifications/<sid>/. It
+                                outranks the packed/orphan readings and
+                                is outranked by held; the precedence
+                                reasoning lives on
+                                _session_state_and_hint in bin/bale)
                  goal           the stamped request manifest's goal, or
                                 null (no open session, or no readable
                                 stamped manifest)
                  expects_probe  the stamped manifest's expects_probe
                                 value, or null likewise
+                 clarification  (additive, v0.3.22 — board 32) null when
+                                the classified session has no preserved
+                                clarification records (including idle);
+                                else an object:
+                                  rounds         count of preserved
+                                                 records under
+                                                 .bale/clarifications/
+                                                 <sid>/
+                                  questions      the latest record's
+                                                 questions[] length, or
+                                                 null when the record
+                                                 would not read or parse
+                                                 (unknown, not zero)
+                                  latest_record  repo-relative path of
+                                                 the latest record
+                                Present whenever records exist,
+                                independent of `state`: a held session
+                                that clarified earlier still carries the
+                                facts. Consumers dispatch on the state
+                                enum for the live suspension, on this
+                                object for the record facts.
                The human rows' prose — the state description and the
                next-step hint — is deliberately NOT in the contract: a
                machine consumer dispatches on the state enum, and the
@@ -1118,6 +1154,19 @@ def format_status_json(report) -> str:
             "state": report.session_state,
             "goal": report.session_goal,
             "expects_probe": report.session_expects_probe,
+            # Additive (v0.3.22, board 32): the classified session's
+            # clarification facts — null when no records exist, else the
+            # rounds/questions/latest_record object the docstring
+            # documents. Independent of `state` by design (a held
+            # session's earlier round is still a fact).
+            "clarification": (
+                {
+                    "rounds": report.clarification_rounds,
+                    "questions": report.clarification_questions,
+                    "latest_record": report.clarification_latest,
+                }
+                if report.clarification_rounds else None
+            ),
         }
         staging_obj = {
             "present": report.staging_present,
@@ -1405,6 +1454,39 @@ def format_staging_value(strategy: str, untracked_inputs: list = ()) -> str:
         return str(strategy)
     noun = "input" if len(inputs) == 1 else "inputs"
     return f"{strategy}; untracked {noun}: {', '.join(inputs)}"
+
+
+def format_clarification_value(rounds: int, questions=None,
+                               latest_record=None) -> str:
+    """Render the classified session's clarification facts as a row value
+    (v0.3.22, board 32).
+
+    `rounds` is the count of preserved records under
+    .bale/clarifications/<sid>/ — the caller only emits the row when it
+    is positive, but a zero renders sensibly anyway rather than assume
+    the caller. `questions` is the latest record's questions[] length,
+    or None when that record would not read or parse — spelled out as
+    unknown rather than dropped, the silent-skips-are-bugs posture
+    (CLAUDE.md §6) applied to a row value. `latest_record` is the latest
+    record's repo-relative path, the pointer the architect opens to
+    re-read the questions; omitted when the caller has none. The value
+    stays purely factual (rounds, count, path): the lifecycle state row
+    and the next-step hint carry the "suspended — answer, then apply"
+    framing, so this row can also serve a held session whose
+    clarification round is history without contradicting its state.
+    Used for the single classified session's `clarification` row.
+    """
+    if rounds <= 0:
+        return "none"
+    value = f"round {rounds} — "
+    if questions is None:
+        value += "question count unreadable (see the record)"
+    else:
+        noun = "question" if questions == 1 else "questions"
+        value += f"{questions} blocking {noun}"
+    if latest_record:
+        value += f"; latest record {latest_record}"
+    return value
 
 
 def format_open_sessions_value(open_sids: list, scopes: dict = None,

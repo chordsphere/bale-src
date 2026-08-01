@@ -579,7 +579,15 @@ lock); the stamped request's goal and `expects_probe`; the
 classified session's recorded scope (a read-only session's empty
 scope renders as such — "locks nothing, lands nothing" — never as an
 empty string or a whole-tree reading; v0.3.15) and effective staging
-posture; the outbox (capped, newest first, the open session's own tarball
+posture; the classified session's clarification facts when preserved
+records exist (v0.3.22 — a dedicated `clarification` row: rounds,
+blocking-question count, latest record path under
+`.bale/clarifications/<sid>/`), with a clarification-suspended
+session (§8.10.2) classified as its own lifecycle state —
+distinct from packed and, critically, from orphan, whose
+`bale unlock` hint would discard the suspension — and the trailing
+next-step hint saying so: answer the questions, then apply the
+follow-up normal response; the outbox (capped, newest first, the open session's own tarball
 pinned to the front); a light pointer at applied history, deferring
 the full applied/reverted view to `bale rollback --list`; and the
 config summary. A `[STATUS] <sid>` headline appears when a session
@@ -1763,6 +1771,15 @@ A clarification writes no telemetry record: it suspends the session
 rather than closing it, and the eventual normal response records
 (§8.9).
 
+The suspension is visible in `bale status` (v0.3.22): a session with
+preserved records under `.bale/clarifications/<sid>/` and no
+`bale/<sid>` branch classifies as **clarification-suspended** — its
+own lifecycle state, never the packed or abandoned-lock reading —
+with a dedicated row (rounds, blocking-question count, latest record
+path) and a next-step hint mirroring step 4 above (§5.5; the json
+report carries the state on the session enum and the facts under the
+additive `session.clarification` key).
+
 ---
 
 ## 9. Rollback, revert, unlock
@@ -2007,6 +2024,12 @@ lock. The three reachable states per session:
 Passed-and-kept is not a state. The apply walkthrough resolves
 PASS to either merge (→ empty + `applied/<sid>` tag) or revert
 (→ empty) before returning control.
+
+Clarification-suspension (§8.10.2) is a sub-state of the middle row
+— marker present, no branch — marked by preserved records under
+`.bale/clarifications/<sid>/`. It does not change the table's git
+transitions, but `bale status` classifies it distinctly (v0.3.22,
+§5.5) so a suspended session never reads as an abandoned lock.
 
 `bale unlock` is for the middle state only — it refuses on the
 third state (use `bale revert` instead). `bale rollback` operates
