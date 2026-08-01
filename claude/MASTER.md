@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-07-31-board-33-recovery-015`.
+Last landed by: `2026-08-01-master-deltas-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -84,12 +84,12 @@ consolidated into INJECTED_TOOLS. v0.3.15 → 0.3.19 across the arc.
 The telemetry corpus stops being numerator-only (evidence 38's
 counter).
 
-**Current version: 0.3.20** (bumped with board 31's session,
-2026-07-31) — a claim to verify, not a fact to trust: verify with
-`bale --version` at each sitting's open per the standing rule. For
-this entry the claim was checked against the v4-regeneration
-request's own pack-time provenance stamp and the 2026-07-31
-telemetry records' stamps, both 0.3.20.
+**Current version: 0.3.22** (bumped with board 32's session,
+`2026-07-31-board-32-status-clarification-hint-018`) — a claim to
+verify, not a fact to trust: verify with `bale --version` at each
+sitting's open per the standing rule. For this entry the claim was
+checked against this deltas request's own pack-time provenance
+stamp, 0.3.22.
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -115,18 +115,15 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **This v4 regeneration** (`2026-07-31-master-v4-regeneration-012`)
-  is the only write session of the 2026-07-31 doc-compression
-  sitting; the orchestrator session 011 ran read-only. Nothing else
-  open at landing.
+- **This deltas session** (`2026-08-01-master-deltas-002`) is the
+  2026-07-31 third sitting's close-out vehicle (master session
+  `2026-07-31-continue-plan-016`); nothing else open at landing.
 - **Next master sitting:** pack itself --read-only; keep the habit.
-  Queue: **board 33** first (read-only session lifecycle — the
-  board-24 precedent, fix the master's own working shape first;
-  ratified), then **board 32** (status clarification hint — small,
-  self-contained; its serialized-after-31 condition is satisfied),
-  then the strategic fork: **board 5** (trust ledger — its full
-  telemetry substrate now exists) vs **board 6** (blind validation
-  checkpoints); decide at the sitting, stated for contest.
+  Boards 33 and 32 are landed; the sitting opens with **board 5**
+  as a read-only design session producing the ledger brief (fork
+  decided this sitting, stated for contest in the sitting chat:
+  5's substrate completed this sitting; 6's mechanical stream
+  should be shaped by the ledger's spec, so 6 follows).
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -139,17 +136,6 @@ with the unverifiable ones carried verbatim and marked):
   regeneration — BALE.md not shipped.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
-- §8.9 retitle to "Telemetry record at session close" (2026-07-29,
-  deferred at board 25's build on the immutable-citer precondition;
-  citer check completed post-apply — ADR grep empty, no
-  commit-message citer, and numeric §8.9 citations are unaffected
-  by design) — rides the next BALE.md-touching session; board 33's
-  session is the likely carrier. [Carried verbatim; unverifiable at
-  the v4 regeneration and again at this landing — BALE.md not
-  shipped. Re-homed from the dead board-27 ride condition at
-  `2026-07-31-master-v4-ratification-microdeltas-013`, ratified in
-  the sitting chat. Carrier updated from board 32's session to
-  board 33's at `2026-07-31-board-33-recovery-015`.]
 - Revert's human staging-row rendering → bale_report (2026-07-31,
   accepted from session 008's Proposals): _discard_hold_state now
   computes the machine staging facts beside the inline
@@ -166,6 +152,12 @@ already carries the sentence (§3.2: the tarball ships the flat file
 list while the recorded scope lives repo-side in the registry;
 verified at line 1108 of the copy injected into this session's
 request).
+
+Cleared at this landing (`2026-08-01-master-deltas-002`): the
+BALE.md §8.9 retitle entry — verified pre-landed: the shipped
+BALE.md heading at line 1575 already read "Telemetry record at
+session close" when checked at the 2026-07-31 third sitting
+(master verification, `continue-plan-016`).
 
 ## 4. The board
 
@@ -329,6 +321,13 @@ and §8, so done items keep their numbers as one-line pointers.
     [Trigger spent — extraction done: the shared harness lives at
     tests/harness.py (§7); marked at
     `2026-07-31-board-33-recovery-015`.]
+    Added the 2026-07-31 third sitting, same v0.4-harness bucket
+    (accepted proposals): a bale-handoff E2E pinning the handoff
+    path's resolved_scope stamp through a real bailout fixture
+    (017's proposal); a real-apply clarification E2E pinning the
+    §8.10.2 handler's preserved-record shape to status detection
+    (018's proposal); an exact-key-set pin on format_status_json's
+    session object (master disposition of 018's look-closely item).
 
 12. **bale status staging row — DONE** 2026-07-15 (sid
     `2026-07-15-status-staging-row-003`; telemetry): per-session
@@ -491,51 +490,39 @@ and §8, so done items keep their numbers as one-line pointers.
     validation epilogue, exec-bit assertions, lint
     feedback-mechanical emitter.
 
-32. **bale status clarification hint** — the last unowned ADR-0011
-    follow-up, accepted from 007's Proposals: the status next-step
-    hint acknowledges an outstanding clarification
-    (suspended-session state), e.g. answer the questions in the
-    worker's chat. Scope hints: bin/bale status gather/render seam,
-    bin/bale_report.py; code or mixed work class. Its
-    serialize-after-31 condition is satisfied; free to spawn.
+32. **bale status clarification hint — DONE** 2026-07-31 (sid
+    `2026-07-31-board-32-status-clarification-hint-018`; telemetry;
+    VERSION 0.3.22): clarification-suspended state landed in status
+    — precedence held > clarification > packed > orphan (reasoning
+    on the classifier docstring); facts row renders whenever
+    records exist while the state description + trailer carry the
+    suspension framing; json `session.clarification` present when
+    rounds > 0, consumers dispatch on the state enum; detection
+    persists through the answered-but-unapplied window by design
+    (the hint covers both halves).
 
-33. **Read-only session lifecycle** — ratified in the 2026-07-31
-    doc-compression sitting chat; recorded at
-    `2026-07-31-board-33-recovery-015` (evidence 47 is why the
-    recording arrived a session late); implementation is a future
-    bin/bale_pack.py session. The ratified design, as this row's
-    spec:
-    - Pack stamps the recorded scope into the request
-      `manifest.json` as `resolved_scope` — the declared include-set
-      exactly as the registry records it, `[]` for read-only.
-      Additive schema, stamped always, per the superseded_session
-      precedent. This lands the board-5-radar stamp (evidence 41's
-      mechanical fix) and retires the evidence-44 brief-carried
-      scope-statement convention on landing.
-    - A new read-only pack that finds an open session with recorded
-      scope `[]` offers to close it (`closed-read-only`, command
-      `pack`, existing closure machinery). Worker packs and apply
-      never trigger the sweep.
-    - The sweep prompt defaults to ACCEPT (ratified; this inverts
-      the --supersedes decline-default because a read-only session
-      structurally cannot lose work); piped stdin declines, matching
-      the automation-never-silently-closes rule.
-    - The read-only pack's open banner names its own close-out (next
-      read-only pack, or `bale unlock <sid>` now) per the
-      every-command-names-its-successor contract.
-    - Absorbed riders, moved here from the §3 registry: the
-      pack-report README-identity echo (evidence 45) — spec
-      STRENGTHENED per evidence 47: the echo includes the resolved
-      brief's sha256, since path + first heading proved insufficient
-      identity — and the --readme-file refusal on unresolved brief
-      placeholders under the agreed sentinel form (009's proposal,
-      accepted; sentinel form as decided at that session, its
-      convention line landing in TARBALL.md §3.4 alongside). Likely
-      carrier for the §3 registry's §8.9 retitle entry.
-    - Out of scope for 33, by standing contract: no auto-close on
-      worker packs or apply; unlock remains the no-successor escape
-      hatch; no master-deltas lineage field (deferred to board 5's
-      design, 2026-07-27 contract unchanged).
+33. **Read-only session lifecycle — DONE** 2026-07-31 (sid
+    `2026-07-31-board-33-readonly-lifecycle-017`; telemetry;
+    VERSION 0.3.21): full ratified spec landed — the resolved_scope
+    stamp (additive schema key), the read-only sweep
+    (accept-default prompt, piped-stdin decline, `closed-read-only`
+    / command `pack` through close_session_with_record), the
+    close-out banner, the README identity echo (path + first
+    heading + sha256, uniform across authoring paths, null-together
+    json keys), and the placeholder refusal (sentinel `TODO(brief)`
+    — the TARBALL.md §3.4 convention line is the literal's one
+    home; re-ratified this sitting after the 009-chat decision
+    proved non-durable). Ratified judgment calls, recorded
+    compactly: the refusal fires at read time (`--edit` included,
+    matching the empty-file refusal's posture); sentinel scope is
+    `--readme-file` only (editor-path extension declined — the
+    interactive path is human-audited by construction; reopen
+    trigger is a live slip-through); the sweep skips HOLD-branched
+    read-only sessions with a logged revert remedy; multiple open
+    empty-scope sessions prompt per-session in registry order;
+    unlock's inference untouched, the value now reachable from two
+    commands. Landing retires the evidence-44 brief-carried
+    scope-statement convention.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1015,7 +1002,12 @@ New from the 2026-07-27 detour sitting:
     that it must. Corollary: "authored, not yet packed" is a state
     this doc should record only alongside where the artifact
     durably lives — otherwise record "ratified, packs unauthored"
-    and re-author at spawn time.
+    and re-author at spawn time. [2026-07-31, third sitting: the
+    board-33 spawn confirmed the corollary's boundary — the board
+    row re-authored the session fine, but the sentinel form, which
+    lived only in the 009 session's chat, did not survive to the
+    spawn and was re-ratified at authoring. Chat-only decisions
+    inside an otherwise durable row are the residual exposure.]
 
 New from the 2026-07-28/29 sitting:
 
@@ -1081,7 +1073,10 @@ New from the 2026-07-29/31 sitting:
     repo-side recorded scope (verified at line 1108 of the copy
     injected into this session's request); the brief-carried
     scope-statement convention remains good practice until the
-    board-5-radar manifest stamp exists.]
+    board-5-radar manifest stamp exists.] [2026-07-31, third
+    sitting: retired as designed — the resolved_scope stamp landed
+    at `-017`; from the next pack onward workers reason from the
+    stamp. (Board 32's request was the first live stamped pack.)]
 
 New from the 2026-07-31 second sitting:
 
@@ -1125,6 +1120,14 @@ New from the 2026-07-31 doc-compression sitting:
     inference-from-absence, and the sweep kills the lingering open
     session. Landed at `2026-07-31-board-33-recovery-015`; the
     sentence was in the unexecuted brief revision (evidence 47).]
+    [2026-07-31, third sitting: the master's own-shape verification
+    did not complete this sitting — the sitting-open `bale status`
+    paste was requested but not relayed, so whether
+    `continue-plan-016` was packed --read-only is recorded
+    UNVERIFIED; do not infer from the gate's silence — that
+    inference is this evidence entry's own subject. Board 33's
+    banner + sweep close the class from the next master pack
+    onward.]
 
 47. **A same-filename brief revision with an unchanged first heading
     defeats both layers of the evidence-45 identity glance.** The
@@ -1153,20 +1156,23 @@ New from the 2026-07-31 doc-compression sitting:
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. The suite grew across
   the 2026-07-29/31 sitting (rollback telemetry, unlock json, the
-  craft tool, revert json) and again across the 2026-07-31 second
-  sitting: 113 green at 008's close (98 at its pack — the
+  craft tool, revert json), again across the 2026-07-31 second
+  sitting (113 green at 008's close; 98 at its pack — the
   doc-carried 72 had gone stale within the sitting, re-proving this
   bullet's enumerate-from-the-tree rule; briefs state counts as
-  claims to verify) — enumerate suites from the tree (`ls tests/`),
+  claims to verify), and across the 2026-07-31 third sitting: 129
+  green at 017's close, 135 at 018's close per its notes (claims
+  to verify) — enumerate suites from the tree (`ls tests/`),
   not from this doc; the per-file list this bullet used to carry
-  went stale within two sittings, and this deltas session could not
+  went stale within two sittings, and deltas sessions cannot
   verify every new filename from a MASTER.md-only request. Named
   landmarks: shared sandbox harness at tests/harness.py (owns
   run_bale_pty; INSTALL_TREES copies bin/ docs/ schemas/ tools/
   from repo root — the include set for any session running it);
   test_readonly_pack.py drives the wizard via pty (likeliest flake
-  site per its session's notes). ADR-0005 (Accepted 2026-07-28)
-  governs.
+  site per its session's notes); the fabricated-suspension helper
+  follows test_revert_json.py's make_held_session precedent.
+  ADR-0005 (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
@@ -1174,7 +1180,7 @@ New from the 2026-07-31 doc-compression sitting:
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.3.20 (one-apply-behind:
+  still governs. bin/bale VERSION 0.3.22 (one-apply-behind:
   stamps from the next pack onward).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
