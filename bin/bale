@@ -4,7 +4,7 @@
 The CLI for the Claude tarball workflow: `bale pack` builds request
 tarballs, `bale apply` validates and integrates the response tarballs a
 worker Claude returns, and the ancillary commands (revert, rollback,
-retry, unlock, handoff, config init, status) manage the session
+retry, unlock, handoff, config init, status, stats) manage the session
 lifecycle around them. BALE.md at the repo root is the canonical design
 document — comments below cite its sections. Stdlib-only, Python 3.10+
 (3.11+ uses stdlib `tomllib`; 3.10 the vendored parser in
@@ -12,24 +12,25 @@ document — comments below cite its sections. Stdlib-only, Python 3.10+
 history now — recover any prior revision with a checkout.
 
 Sections:
-   1. Imports + constants                                 (~line   200)
-   2. Logging                                             (~line   250)
-   3. Shell / git helpers                                 (~line   340)
-   4. Hashing                                             (~line   390)
-   5. Session IDs and the per-day counter                 (~line   405)
-   6. Session registry + locks                            (~line   480)
-   7. .gitignore handling for the .bale/ directory        (~line   905)
-   8. Path safety + inbound path resolution               (~line   940)
-   9. Editor invocation                                   (~line  1050)
-  10. Baleignore matching (pack filter chain + apply rule 14) (~line 1110)
-  19. Revert                                              (~line  1360)
-  20. Retry                                               (~line  1610)
-  21. Unlock                                              (~line  1775)
-  22. Handoff                                             (~line  1960)
-  23. Hook invocation                                     (~line  2555)
-  24. Help and completion                                 (~line  2715)
-  25. Status                                              (~line  3115)
-  26. CLI                                                 (~line  3730)
+   1. Imports + constants                                 (~line   215)
+   2. Logging                                             (~line   270)
+   3. Shell / git helpers                                 (~line   355)
+   4. Hashing                                             (~line   405)
+   5. Session IDs and the per-day counter                 (~line   420)
+   6. Session registry + locks                            (~line   495)
+   7. .gitignore handling for the .bale/ directory        (~line  1015)
+   8. Path safety + inbound path resolution               (~line  1045)
+   9. Editor invocation                                   (~line  1160)
+  10. Baleignore matching (pack filter chain + apply rule 14) (~line 1220)
+  19. Revert                                              (~line  1470)
+  20. Retry                                               (~line  1770)
+  21. Unlock                                              (~line  1955)
+  22. Handoff                                             (~line  2255)
+  23. Hook invocation                                     (~line  2880)
+  24. Help and completion                                 (~line  3040)
+  25. Status                                              (~line  3445)
+  27. Stats                                               (~line  4155)
+  26. CLI                                                 (~line  4210)
 
 Sections 11-15 (the pack path: scope projection + threshold caps, slug
 validation, manifest and tarball construction, wizard, pack) were
@@ -43,7 +44,9 @@ resolve_inbound_path in the retitled section 8, and the handoff.md
 heading slicers in section 22 beside their consumer. Section numbers
 19-26 keep their old values — the banners are the searchable anchors and
 every cross-file "section N" comment stays true — so the 11-18 gap is
-deliberate, not drift.
+deliberate, not drift. Section 27 (Stats, v0.3.24) sits physically
+before section 26 so the CLI section stays the file's tail; the listing
+above is in physical order, the numbers stay stable.
 """
 
 from __future__ import annotations
@@ -131,6 +134,21 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_unlock_json,
     json_mode,
     write_telemetry_record,
+    format_stats_json,
+    format_stats_report,
+)
+
+# The `bale stats` aggregation core — corpus loading, parsing tolerances,
+# unit classification, and rate computation over claude/telemetry/ — lives
+# in the sibling bale_stats module (net-new in v0.3.24, board 5 D6, the
+# eighth sibling; same sys.path-insert mechanism as the seven above, and
+# like bale_rollback a from-the-start module rather than an extraction).
+# Rendering lives in bale_report (format_stats_json / format_stats_report,
+# imported above); this file keeps wiring only, per the standing division.
+from bale_stats import (  # noqa: E402 — sys.path tweak above is load-bearing
+    UNCLASSED,
+    WORK_CLASSES,
+    compute_stats,
 )
 
 # The pack path — file enumeration and filtering, scope projection +
@@ -202,7 +220,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.22"
+VERSION = "0.3.24"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4139,6 +4157,63 @@ def cmd_status(args) -> int:
 
 
 # ---------------------------------------------------------------------------
+# 27. Stats
+# ---------------------------------------------------------------------------
+# Wiring only (board 5 D6): aggregation is bale_stats.compute_stats, the
+# renderers are bale_report's format_stats_json / format_stats_report.
+# Numbered 27 but placed here, before section 26, so the CLI section stays
+# the file's tail — the same stable-numbers-over-physical-order posture
+# the 11-18 extraction gap already established.
+
+# The --work-class filter's choice list: the pack-side vocabulary
+# (BALE.md §7's work classes) plus the ledger's own bucket for sessions
+# with no feedback-bearing attempt. Sourced from bale_stats (top-of-file
+# sibling import) so the filter surface and the classifier can only
+# drift in one place.
+STATS_CLASS_CHOICES = (*WORK_CLASSES, UNCLASSED)
+
+
+def cmd_stats(args) -> int:
+    """`bale stats` — the trust ledger's read side (BALE.md §5.6).
+
+    Read-only: no lock, no git or filesystem writes, no clean-tree
+    requirement, exit 0 on a successful read (the `bale status`
+    posture). Reads tracked `claude/telemetry/` ONLY — never `.bale/`
+    (board 5 D1: the transient side varies by checkout and would poison
+    the rates) — and degrades gracefully when the directory is absent
+    or empty: an honest empty report, exit 0, not an error. Outside a
+    git repository the working directory itself is the base, matching
+    status's degrade-outside-a-repo posture.
+
+    --json swaps the human report for one line of JSON on stdout under
+    the shared stream discipline; bale_report.format_stats_json's
+    docstring owns the key contract. The `[bale] stats:` diagnostic
+    lines (skipped corrupt records, filtered future versions) go to
+    stderr in BOTH modes — see bale_stats's module docstring.
+    """
+    # Stream discipline first, before any line can print (matches
+    # cmd_pack / cmd_apply / cmd_status).
+    if args.json:
+        enable_json_mode()
+    since = None
+    if args.since:
+        try:
+            date.fromisoformat(args.since)
+        except ValueError:
+            fail(f"--since must be an ISO date (YYYY-MM-DD); got "
+                 f"{args.since!r}")
+        since = args.since
+    base = repo_root(Path.cwd()) or Path.cwd()
+    stats = compute_stats(base / "claude" / "telemetry",
+                          work_class=args.work_class, since=since)
+    if args.json:
+        emit_json_line(format_stats_json(stats))
+    else:
+        print(format_stats_report(stats))
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # 26. CLI
 # ---------------------------------------------------------------------------
 
@@ -4841,6 +4916,44 @@ def build_parser() -> argparse.ArgumentParser:
              "exit 0 on a successful read.",
     )
     p_status.set_defaults(func=cmd_status)
+
+    # stats
+    p_stats = sub.add_parser(
+        "stats",
+        help="Aggregate the claude/telemetry/ corpus into trust-ledger "
+             "rates.",
+        description=(
+            "Read-only aggregation over the tracked claude/telemetry/ "
+            "corpus (BALE.md \u00a75.6): per-work-class claim/verdict "
+            "agreement, HOLD, drift-refusal, bailout, and clarification "
+            "rates, the closure mix, epoch and coverage rows, and the "
+            "dual-stream cross-checks. Takes no lock, writes nothing, "
+            "never reads .bale/, and exits 0 on a successful read — an "
+            "absent or empty corpus is an honest empty report, not an "
+            "error."
+        ),
+    )
+    p_stats.add_argument(
+        "--work-class", choices=STATS_CLASS_CHOICES, default=None,
+        help="Filter the classed rows to one resolved work class "
+             "('unclassed' selects sessions with no feedback-bearing "
+             "attempt).",
+    )
+    p_stats.add_argument(
+        "--since", default=None, metavar="DATE",
+        help="ISO date (YYYY-MM-DD), inclusive, against each record's "
+             "created_at: restrict membership to records on or after it.",
+    )
+    p_stats.add_argument(
+        "--json", action="store_true",
+        help="Emit the stats report as one line of JSON on stdout "
+             "instead of the human report. The format_stats_json "
+             "docstring in bin/bale_report.py owns the key contract "
+             "(stable keys, additions only). Stream discipline matches "
+             "pack/apply --json: '[bale] ' lines go to stderr and "
+             "stdout carries exactly the JSON line.",
+    )
+    p_stats.set_defaults(func=cmd_stats)
 
     return p
 

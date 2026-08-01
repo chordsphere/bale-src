@@ -1,0 +1,29 @@
+{
+  "record_version": 1,
+  "session_id": "2026-06-16-fx-pack-close-001",
+  "created_at": "2026-06-16T10:00:00+00:00",
+  "updated_at": "2026-06-16T10:00:00+00:00",
+  "outcome": "unlocked",
+  "attempts": [
+    {
+      "at": "2026-06-16T10:00:00+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "superseded-by-split",
+      "tarball": null,
+      "validation": null,
+      "scope": [
+        "src"
+      ],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "superseded_by": "2026-06-16-fx-child-001",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "log": null
+    }
+  ]
+}

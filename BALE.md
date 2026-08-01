@@ -459,10 +459,12 @@ forward-looking entry.
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
+| `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, drift-refusal, bailout, and clarification rates, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
 
 No `log`, no `blame`, no `diag`. Inspection beyond `bale status`'s
-read-only dashboard (§5.5) is a Claude session — bale does not
-duplicate git's read commands.
+read-only dashboard (§5.5) and `bale stats`'s corpus aggregation
+(§5.6) is a Claude session — bale does not duplicate git's read
+commands.
 
 ### 5.1 Help and version
 
@@ -601,6 +603,73 @@ contract** — the stable key set (existing keys never renamed or
 removed; additions only), including the per-session staging-posture
 keys added in v0.3.11. This doc deliberately does not duplicate the
 key list; consult the docstring, not a copy here.
+
+### 5.6 `bale stats`
+
+The trust ledger's read side (v0.3.24, board 5): aggregate the
+tracked telemetry corpus into the per-work-class rates that autonomy
+grants (board 10) will be judged against.
+
+`bale stats [--work-class CLS] [--since DATE] [--json]`
+
+**Posture.** Read-only, the `bale status` family: no lock, no git or
+filesystem writes, no clean-tree requirement, exit 0 on a successful
+read. An absent or empty `claude/telemetry/` is an honest empty
+report, not an error. The command reads **`claude/telemetry/` only —
+never `.bale/`**: everything the rates consume lives on the tracked
+side, so a fresh clone computes the same numbers as the original
+machine, minus only records not yet committed there. The reader is
+the filesystem, matching §8.9's write-to-working-tree posture —
+uncommitted records count; git history is the corpus's timeline, not
+its reader.
+
+**What it reports.** One row per work class present in the filtered
+corpus — sessions resolve to the class on their latest
+feedback-bearing attempt, with an `unclassed` bucket for sessions
+carrying none — with the headline rates: claim/verdict agreement
+over checks, the unparsed-reconciliation share (a parse miss is a
+tooling fact, never folded into agreement), HOLD rate,
+drift-refusal rate with override incidence beside it, rejection and
+bailout figures, and the clarification rate over the sessions whose
+closing attempt carries the promoted stamp (key presence with
+`rounds: 0` is a known zero; key absence is pre-epoch unknown).
+Read-only sessions — detected by `closure_reason ==
+"closed-read-only"`, never by an empty scope, whose `[]` reading is
+overloaded by pre-ADR-0007 records — and crash-debris sessions are
+excluded from every rate and reported as context and hygiene counts.
+Around the table: the corpus epoch (first sid and date; pre-epoch
+sessions exist only in git and are not counted — stats does not mine
+git), the key-presence coverage rows for the `closure_reason` and
+`clarification` sub-epochs, the closure mix over closed sessions
+(with `unlocked` broken out by reason — superseded-by-split parents
+show there), the post-close churn counts (`rolled-back` /
+`re-applied`; the applied attempt stays in every mechanical
+denominator, and v1 deliberately does not reinterpret a rollback as
+a defect signal), the in-flight count beside the mix, and the two
+dual-stream cross-checks (self-reported clarification linkage vs the
+promoted stamp; the `budget_pressure` distribution vs bailout
+outcomes) reported beside the mechanical rates, never blended in.
+Corrupt records are skipped, counted, and named on stderr; records
+with `record_version > 1` are filtered and counted.
+
+**Flags.** `--work-class CLS` filters the classed rows to one
+resolved class (the §7 work classes plus `unclassed`) — the surface
+board 10's per-class grant evaluation reads. `--since DATE` (ISO
+date, inclusive, against `created_at`) restricts membership to the
+recent corpus; the epoch and coverage rows remain whole-corpus facts,
+and the filters in effect are echoed in the report. `--json` swaps
+the human report for one line of JSON on stdout under the shared
+§5.4 stream discipline. **The `format_stats_json` docstring in
+`bin/bale_report.py` owns the key contract** — stable keys, additions
+only (the same rule every `format_*_json` surface carries); this doc
+deliberately does not duplicate the key list. Aggregation semantics
+live in `bin/bale_stats.py`, whose docstrings restate the unit model
+and every rate's numerator and denominator.
+
+The human report renders the rate table and corpus rows as the
+reference body and ends on the standard summary block — corpus
+totals and the filters in effect — with no trailing next-step hint:
+stats is terminal, not a lifecycle step.
 
 ---
 

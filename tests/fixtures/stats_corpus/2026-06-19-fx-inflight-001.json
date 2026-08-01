@@ -1,0 +1,63 @@
+{
+  "record_version": 1,
+  "session_id": "2026-06-19-fx-inflight-001",
+  "created_at": "2026-06-19T10:00:00+00:00",
+  "updated_at": "2026-06-19T10:00:00+00:00",
+  "outcome": "held",
+  "attempts": [
+    {
+      "at": "2026-06-19T10:00:00+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "tests": "pass"
+        },
+        "claim_verdict": {
+          "tests": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "src"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "src/a.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.24",
+            "packer": "fixture",
+            "work_class": "code",
+            "model_identity": "fixture"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": false
+        }
+      },
+      "log": null
+    }
+  ]
+}
