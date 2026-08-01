@@ -392,10 +392,18 @@ def format_walkthrough_summary(
 
 
 def print_bailout_banner(manifest: dict, handoff_path: Path,
-                         tarball_basename: str) -> None:
+                         tarball_basename: str, *,
+                         telemetry: Optional[str]) -> None:
     """Per TARBALL.md §5.6.3 steps 1-3: the manifest.summary, the first
     section of handoff.md, a clear banner identifying the response as a
     bailout, and the explicit next-step instruction.
+
+    `telemetry` (v0.3.23, board 5 D7.1) is the record's repo-relative
+    path or None on a write failure; the banner carries the same
+    `telemetry:` row every other terminal banner does per §8.9's
+    rendering rule, which is why the caller now writes the record
+    before printing. Keyword-only and required so a stale caller
+    breaks loudly instead of silently dropping the row.
 
     The summary paragraph and the handoff excerpt are the bulky reference
     material, so they print FIRST, bracketed by `--- … ---` separators since
@@ -429,9 +437,15 @@ def print_bailout_banner(manifest: dict, handoff_path: Path,
     else:
         print(f"  (handoff.md has no `## ` section; check the file directly)")
 
-    # Crisp banner + next step LAST.
+    # Crisp banner + next step LAST. The telemetry row is §8.9's
+    # rendering-rule row, worded identically to every sibling banner.
     print(format_summary_block(
-        [("applied", "no changes — apply.sh and validation.sh were not run")],
+        [
+            ("applied", "no changes — apply.sh and validation.sh were not run"),
+            ("telemetry",
+             f"recorded {telemetry}" if telemetry
+             else "write failed — see log"),
+        ],
         status="BAILOUT",
         sid=manifest["session_id"],
         trailer=["  Next step:", f"    bale handoff {tarball_basename}"],
@@ -1678,6 +1692,8 @@ def build_telemetry_attempt(
     log_path: Optional[str] = None,
     overridden_paths: Optional[list] = None,
     closure_reason: Optional[str] = None,
+    diagnostics: Optional[dict] = None,
+    clarification: Optional[dict] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -1705,6 +1721,21 @@ def build_telemetry_attempt(
     rules (unlock always stamps; revert stamps only an explicit
     --reason) live at the call sites in bin/bale; this builder records
     what it is handed. Apply/retry call sites leave the default None.
+
+    `diagnostics` and `clarification` (v0.3.23, board 5) are the two
+    promoted transient inputs, and both use **key-presence semantics**:
+    when the argument is None the key is OMITTED from the attempt, not
+    written as null, because absence is the pre-epoch "unknown" state
+    aggregation must distinguish from a recorded value
+    (telemetry-record.schema.json's field descriptions carry the
+    doctrine). `diagnostics` is the bailout's diagnostics.json content
+    verbatim — symmetric with `feedback` — passed only by the bailout
+    close. `clarification` is the bale-computed summary of
+    `.bale/clarifications/<sid>/` (read_clarification_summary), passed
+    by every CLOSING call site — outcomes applied / reverted / bailout /
+    unlocked — and by no other: a held, drift-refused, rejected, or
+    rollback attempt is not a closure, so the closing attempt is the
+    one place the stamp lives.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -1717,7 +1748,7 @@ def build_telemetry_attempt(
             "claim_verdict": claim_verdict,
             "reconciliation_parsed": parsed,
         }
-    return {
+    attempt = {
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "outcome": outcome,
         "command": command,
@@ -1731,6 +1762,130 @@ def build_telemetry_attempt(
         "feedback": (manifest or {}).get("feedback"),
         "log": log_path,
     }
+    # Key-presence semantics (see docstring): omitted, never null-filled.
+    if diagnostics is not None:
+        attempt["diagnostics"] = diagnostics
+    if clarification is not None:
+        attempt["clarification"] = clarification
+    return attempt
+
+
+def read_clarification_summary(repo: Path, sid: str) -> dict:
+    """Summarize `.bale/clarifications/<sid>/` for the close-time stamp
+    (v0.3.23, board 5 D1).
+
+    Returns ``{"rounds": N, "records": [{"n": ..., "at": ...,
+    "blocking_questions": ...}, ...]}`` — and ``{"rounds": 0,
+    "records": []}`` when the directory is absent or empty, which is
+    exactly the point: every post-epoch closing attempt carries the key,
+    so ``rounds: 0`` means *known zero* while key absence means
+    *pre-epoch unknown* (the reconciliation_parsed disambiguation
+    doctrine applied to a new field). Callers pass the result to
+    build_telemetry_attempt's `clarification` parameter on closing
+    events only.
+
+    Per-record fields, computed here so no caller re-implements them:
+
+    - ``n`` — the round number from the record's NNN filename stem,
+      falling back to the 1-based sorted position for a stem that
+      isn't an integer (nothing writes such a name; tolerated rather
+      than crashed on).
+    - ``at`` — the record file's mtime as ISO 8601 UTC, the honest
+      available timestamp (the preserved manifest carries none of its
+      own).
+    - ``blocking_questions`` — len(questions) from the preserved
+      manifest, or null when the record won't parse. Presence still
+      counts as a round (the file IS the suspension fact, `bale
+      status`'s posture); only the count degrades, and the miss is
+      logged, never silent.
+
+    Read-only and never raises: an unreadable directory reads as the
+    honest zero it presents.
+    """
+    from __main__ import log  # lazy — the siblings' established mechanism
+    clar_dir = repo / ".bale" / "clarifications" / sid
+    summary: dict = {"rounds": 0, "records": []}
+    if not clar_dir.is_dir():
+        return summary
+    try:
+        records = sorted(clar_dir.glob("*.json"))
+    except OSError:
+        return summary
+    for pos, path in enumerate(records, start=1):
+        try:
+            n = int(path.stem)
+        except ValueError:
+            n = pos
+        try:
+            at = datetime.fromtimestamp(
+                path.stat().st_mtime, tz=timezone.utc,
+            ).isoformat(timespec="seconds")
+        except OSError:
+            at = None
+        blocking: Optional[int] = None
+        try:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            qs = manifest.get("questions")
+            if isinstance(qs, list):
+                blocking = len(qs)
+        except (OSError, json.JSONDecodeError):
+            log(f"telemetry: clarification record {path.name} for {sid} "
+                f"unreadable; stamping the round without a question count")
+        summary["records"].append(
+            {"n": n, "at": at, "blocking_questions": blocking})
+    summary["rounds"] = len(summary["records"])
+    return summary
+
+
+def stamp_superseded_by(repo: Path, parent_sid: str,
+                        child_sid: str) -> Optional[str]:
+    """Stamp `superseded_by: <child-sid>` onto the parent's
+    superseded-by-split closure attempt (v0.3.23, board 5 D4).
+
+    Called by pack once the child sid is minted — the closure attempt
+    itself was written earlier in the same command (the `--supersedes`
+    exchange runs before sid allocation), so the stamp is a second
+    write by the same single writer, enriching the closure event it
+    already recorded rather than appending a new one: the record's
+    envelope (`outcome`, `updated_at`) is deliberately untouched.
+    Targets the LATEST attempt whose closure_reason is
+    superseded-by-split; setting the key again on a re-run overwrites
+    in place, which is what makes the idempotent-re-run path
+    single-stamped — the re-run's child is the pack that actually
+    completed, so its sid wins.
+
+    Best-effort like every telemetry write: a missing, unreadable, or
+    stampless record is logged (force=True, the write-failure posture)
+    and returns None — pack's primary work stands. Returns the
+    record's repo-relative path on success.
+    """
+    from __main__ import log  # lazy — the siblings' established mechanism
+    path = telemetry_record_path(repo, parent_sid)
+    rel = str(path.relative_to(repo))
+    record = read_telemetry_record(repo, parent_sid)
+    if record is None:
+        log(f"telemetry: no readable record at {rel}; superseded_by "
+            f"lineage for {child_sid} not stamped", force=True)
+        return None
+    target = None
+    for attempt in record["attempts"]:
+        if attempt.get("closure_reason") == "superseded-by-split":
+            target = attempt
+    if target is None:
+        log(f"telemetry: {rel} has no superseded-by-split closure "
+            f"attempt; superseded_by lineage for {child_sid} not "
+            f"stamped", force=True)
+        return None
+    target["superseded_by"] = child_sid
+    try:
+        path.write_text(json.dumps(record, indent=2) + "\n",
+                        encoding="utf-8")
+        return rel
+    except OSError as e:
+        log(f"telemetry: could not stamp superseded_by on {rel}: {e} — "
+            f"the pack stands; the lineage edge for this close is lost",
+            force=True)
+        return None
 
 
 def read_telemetry_record(repo: Path, sid: str) -> Optional[dict]:

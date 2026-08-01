@@ -116,6 +116,7 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     CLOSURE_REASONS,
     build_telemetry_attempt,
+    read_clarification_summary,
     emit_json_line,
     enable_json_mode,
     format_clarification_value,
@@ -710,9 +711,13 @@ def close_session_with_record(
        outcome, whatever command produced it), `command` naming the
        producing command ("unlock", or "pack" for a supersession close —
        telemetry-record.schema.json's command enum), `closure_reason`
-       from CLOSURE_REASONS. Best-effort like every telemetry write:
-       a failure is logged inside write_telemetry_record and never
-       raises — the closure that already happened stands.
+       from CLOSURE_REASONS, and the close-time `clarification` stamp
+       every closing event carries (v0.3.23, board 5 D1) — computed
+       here from `.bale/clarifications/<sid>/`, which deliberately
+       survives both the session-dir wipe above and the close itself
+       (BALE.md §8.10.2 step 3). Best-effort like every telemetry
+       write: a failure is logged inside write_telemetry_record and
+       never raises — the closure that already happened stands.
 
     Returns (telemetry_rel, session_status): the record's repo-relative
     path (None on write failure) and the human summary of the session-dir
@@ -736,6 +741,7 @@ def close_session_with_record(
             scope=scope,
             closure_reason=closure_reason,
             log_path=log_path,
+            clarification=read_clarification_summary(repo, sid),
         ))
     return telemetry_rel, session_status
 
@@ -1710,6 +1716,7 @@ def cmd_revert(args: argparse.Namespace) -> int:
             manifest=stamped_manifest, scope=revert_scope,
             log_path=f".bale/logs/{sid}.log",
             closure_reason=args.reason,
+            clarification=read_clarification_summary(repo, sid),
         ))
 
     # End-of-run summary through the shared formatter (see the
@@ -2089,6 +2096,7 @@ def cmd_unlock(args: argparse.Namespace) -> int:
                     outcome="unlocked", command="unlock",
                     scope=debris_scope,
                     closure_reason="crash-debris",
+                    clarification=read_clarification_summary(repo, stale),
                 ))
             if debris_rel:
                 log(f"telemetry: recorded {debris_rel} (crash-debris "

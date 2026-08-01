@@ -256,5 +256,60 @@ class RollbackTelemetryTest(unittest.TestCase):
                       msg="the record honestly names the producing command")
 
 
+    # -- board 5 D5 (v0.3.23): the guard disregards untracked telemetry -
+
+    def test_toggle_completes_without_interleaved_commit(self) -> None:
+        """rollback leaves its own record untracked; --undo immediately
+        after proceeds anyway, disregarding exactly that path — the
+        friction the guard change exists to remove — with the log line
+        naming what was disregarded."""
+        self.make_applied_session()
+        self.assert_ok(self.rollback(SID))
+        result = self.rollback(SID, "--undo")
+        self.assert_ok(result)
+        self.assertIn("disregarding untracked telemetry", result.stdout)
+        self.assertIn(f"claude/telemetry/{SID}.json", result.stdout)
+        record = self.telemetry_record()
+        self.assertEqual([a["outcome"] for a in record["attempts"]],
+                         ["rolled-back", "re-applied"])
+
+    def test_modified_tracked_telemetry_still_refuses(self) -> None:
+        """A tracked telemetry file with uncommitted modifications is a
+        real conflict surface for git revert; the guard still refuses."""
+        self.make_applied_session()
+        self.assert_ok(self.rollback(SID))
+        self.git("add", "claude/telemetry")
+        self.git("commit", "-m", "record rollback telemetry")
+        p = self.record_path()
+        p.write_text(p.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        result = self.rollback(SID, "--undo")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("dirty", result.stderr.lower())
+
+    def test_untracked_non_telemetry_still_refuses(self) -> None:
+        """The disregard is a prefix, not a policy on untracked files:
+        stray untracked paths elsewhere refuse exactly as before."""
+        self.make_applied_session()
+        (self.repo / "stray.txt").write_text("stray\n", encoding="utf-8")
+        result = self.rollback(SID)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("dirty", result.stderr.lower())
+        self.assertFalse(self.record_path().exists())
+
+    def test_stash_path_unchanged_with_tracked_dirt(self) -> None:
+        """--stash on tracked dirt still stashes, reverts, and pops —
+        the guard change touches only the clean/dirty judgment."""
+        self.make_applied_session()
+        (self.repo / "hello.txt").write_text("hello edited\n",
+                                             encoding="utf-8")
+        result = self.rollback(SID, "--stash")
+        self.assert_ok(result)
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "hello edited\n",
+            msg="the stashed edit pops back after the revert lands")
+        self.assertEqual(self.telemetry_record()["outcome"], "rolled-back")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

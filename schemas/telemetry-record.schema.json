@@ -134,6 +134,41 @@
             "type": ["object", "null"],
             "description": "The response manifest's feedback block, verbatim (response-manifest.schema.json, v0.3.8 B1). Null when the manifest carried none (pre-B1 responses) or when the manifest was unavailable (some rejected paths)."
           },
+          "diagnostics": {
+            "type": ["object", "null"],
+            "description": "The bailout's diagnostics.json content, verbatim (v0.3.23, board 5 D1 — additive; record_version stays 1). Present on bailout attempts only: apply's bailout close already holds the parsed, schema-validated diagnostics in hand and embeds them symmetrically with feedback, promoting the transient .bale/sessions/<sid>/ copy's key facts to the tracked substrate stats reads. Absent on every other attempt and on all pre-v0.3.23 bailout attempts — key absence means the record predates the embed, never that diagnostics were empty."
+          },
+          "clarification": {
+            "type": "object",
+            "required": ["rounds", "records"],
+            "additionalProperties": true,
+            "description": "Bale-computed summary of .bale/clarifications/<sid>/ stamped at close time (v0.3.23, board 5 D1 — additive; record_version stays 1). Present on every post-epoch CLOSING attempt — outcomes applied, reverted, bailout, unlocked, whatever command drove the close — and on no other: held, scope-drift-refused, rejected, and rollback attempts are not closures. The always-stamp rule is the point: key presence with rounds: 0 means KNOWN ZERO (bale looked and found no clarification records on this checkout), while key absence means pre-epoch unknown — the reconciliation_parsed disambiguation doctrine applied to a new field, so aggregation never conflates 'no clarifications' with 'no data'. A clarification response itself still writes no record (it suspends, not closes — BALE.md section 8.10.2); the stamp is how the rounds reach the ledger when the session eventually closes.",
+            "properties": {
+              "rounds": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of preserved clarification records — len(records)."
+              },
+              "records": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": ["n", "at", "blocking_questions"],
+                  "properties": {
+                    "n": { "type": "integer", "description": "The round number from the record's NNN filename." },
+                    "at": { "type": ["string", "null"], "description": "The record file's mtime, ISO 8601 UTC — the honest available timestamp (the preserved manifest carries none of its own). Null if unreadable." },
+                    "blocking_questions": { "type": ["integer", "null"], "description": "len(questions) from the preserved manifest; null when the record would not parse — presence still counts as a round (the file is the suspension fact), only the count degrades." }
+                  }
+                }
+              }
+            }
+          },
+          "superseded_by": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The child session id, stamped by `bale pack --supersedes` onto the parent's superseded-by-split closure attempt once the child sid is minted (v0.3.23, board 5 D4 — additive; record_version stays 1). Single-writer: the same pack invocation that wrote the closure enriches it, so no cross-session write timing and no apply-side append. Present only on that closure attempt; absent everywhere else, including the one pre-v0.3.23 split record, which is deliberately not backfilled (its edge survives in git history). An aborted supersession pack's idempotent re-run re-stamps the same attempt in place — the completing pack's child sid wins."
+          },
           "log": {
             "type": ["string", "null"],
             "description": "Repo-relative path to the session log where full validation output and rejection detail live."

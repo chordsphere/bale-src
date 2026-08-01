@@ -184,12 +184,63 @@ def _conflicted_paths(repo: Path) -> list[str]:
 # Returns a "stash token" the caller pops after a successful revert, or None.
 # ---------------------------------------------------------------------------
 
+# The one directory whose *untracked* entries the guard disregards
+# (v0.3.23, board 5 D5). A prefix, not a pattern: exactly the tracked-side
+# telemetry home BALE.md §8.9 writes to.
+_TELEMETRY_PREFIX = "claude/telemetry/"
+
+
+def _split_untracked_telemetry(status: str) -> tuple[list[str], list[str]]:
+    """Split `git status --porcelain` output for the guard's judgment.
+
+    Takes `git status --porcelain -uall` output — `-uall` so an
+    entirely-untracked directory is enumerated file by file instead of
+    collapsing to one `?? claude/` entry the prefix test below could
+    not judge (the first record bale ever writes creates exactly that
+    state). Returns (disregarded_paths, remainder_lines):
+    `disregarded_paths` are the paths of `?? ` (untracked) entries
+    under `claude/telemetry/`, and `remainder_lines` is every other
+    non-blank status line verbatim.
+    Only the untracked marker qualifies; a modified/added/deleted tracked
+    file under the same prefix stays in the remainder (a real conflict
+    surface for `git revert`). Porcelain quotes paths containing special
+    characters; the surrounding quotes are stripped before the prefix
+    test so such a path is still judged by its real location.
+    """
+    disregarded: list[str] = []
+    remainder: list[str] = []
+    for line in status.splitlines():
+        if not line.strip():
+            continue
+        if line.startswith("?? "):
+            path = line[3:].strip()
+            if path.startswith('"') and path.endswith('"') and len(path) >= 2:
+                path = path[1:-1]
+            if (path.startswith(_TELEMETRY_PREFIX)
+                    or path == _TELEMETRY_PREFIX.rstrip("/")
+                    or path == _TELEMETRY_PREFIX):
+                disregarded.append(path)
+                continue
+        remainder.append(line)
+    return disregarded, remainder
+
 def _guard_dirty_tree(repo: Path, *, stash: bool, force: bool) -> Optional[str]:
     """Ensure the tree is clean enough to run `git revert`.
 
-    Clean tree → returns None (nothing stashed). Dirty tree:
-      - `--stash` → stash (including untracked) and return the stash ref so
-        the caller can pop it after the revert lands.
+    Clean tree → returns None (nothing stashed). Untracked paths under
+    `claude/telemetry/` are disregarded when judging cleanliness
+    (v0.3.23, board 5 D5; BALE.md §9.2 step 3): bale itself leaves the
+    record it just wrote untracked at apply/rollback close, so refusing
+    on it is friction with no protective value — `git revert` rewrites
+    tracked content only, and the one collision case (a revert that
+    would materialize a file at an untracked path) is refused loudly by
+    git itself. When those entries were the only dirt, the guard
+    proceeds with a log line naming them. A *modified tracked* file
+    under `claude/telemetry/` still refuses — that is a real conflict
+    surface — and so does any other dirt, unchanged:
+      - `--stash` → stash (including untracked — the disregarded
+        telemetry paths ride along, unchanged behavior) and return the
+        stash ref so the caller can pop it after the revert lands.
       - `--force` → log the bypass prominently and proceed without stashing
         (the user owns the consequences of reverting onto dirty state).
       - neither  → fail() with a message pointing at `--stash`.
@@ -197,6 +248,16 @@ def _guard_dirty_tree(repo: Path, *, stash: bool, force: bool) -> Optional[str]:
     from __main__ import log, fail, git, working_tree_clean
     clean, status = working_tree_clean(repo)
     if clean:
+        return None
+    # Judge on the -uall enumeration (see _split_untracked_telemetry);
+    # the refusal message below keeps the familiar collapsed `status`.
+    r = git(["status", "--porcelain", "-uall"], cwd=repo)
+    disregarded, remainder = _split_untracked_telemetry(r.stdout)
+    if disregarded and not remainder:
+        log("dirty-tree guard: disregarding untracked telemetry path(s) "
+            f"under claude/telemetry/ — {', '.join(disregarded)} — "
+            "written by bale and untouched by git revert; tree is "
+            "otherwise clean")
         return None
     if stash:
         # -u includes untracked files so the revert sees a truly clean tree;
