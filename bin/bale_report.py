@@ -2065,7 +2065,8 @@ def format_stats_json(stats: dict) -> str:
                 on a zero denominator:
                   sessions, closed_sessions,
                   response_attempts, validated_attempts,
-                  checks, checks_agree, checks_disagree, agreement_rate,
+                  checks, checks_agree, checks_disagree, checks_na,
+                  agreement_rate,
                   unparsed_validated_attempts, unparsed_share,
                   held_attempts, hold_rate,
                   drift_refused_attempts, drift_refusal_rate,
@@ -2074,6 +2075,14 @@ def format_stats_json(stats: dict) -> str:
                   bailout_rate,
                   clarified_sessions, clarification_epoch_sessions,
                   clarification_rate
+                The per-agreement counts follow the telemetry schema's
+                claim_verdict.agreement vocabulary, one named count per
+                value: checks_agree ("agree"), checks_disagree
+                ("disagree"), checks_na ("n/a" — the §7.3 residual: the
+                claim made no prediction, or the verdict was a skip or
+                never recorded; v0.3.25, additive). Over a well-formed
+                corpus the three sum to checks; agreement_rate keeps
+                its D2 all-checks denominator, n/a included.
       closure_mix
                 distribution over closed membership sessions: applied,
                 reverted, bailout (counts) and unlocked (an object
@@ -2151,6 +2160,8 @@ def format_stats_report(stats: dict) -> str:
             details = []
             if row["checks_disagree"]:
                 details.append(f"disagree {row['checks_disagree']}")
+            if row["checks_na"]:
+                details.append(f"n/a {row['checks_na']}")
             if row["override_attempts"]:
                 details.append(f"overrides {row['override_attempts']}")
             if row["rejected_attempts"]:

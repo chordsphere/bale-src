@@ -358,12 +358,22 @@ def _class_row(sessions: list[dict]) -> dict:
     Every numerator and denominator is reported beside its rate so the
     consumer (board 10's grant harness, a human reading the table) can
     re-derive or re-weight; a zero denominator renders the rate None.
+
+    Checks are counted per agreement value under the schema's own
+    vocabulary — agree / disagree / n/a
+    (telemetry-record.schema.json, claim_verdict.agreement) — one
+    named count per value, no catch-all bucket. Over a well-formed
+    corpus the three sum to `checks`; an out-of-vocabulary agreement
+    value counts in `checks` only and is named on stderr.
+    `agreement_rate` keeps its D2 definition untouched: agree over ALL
+    checks, n/a included.
     """
     response_attempts = 0
     validated_attempts = 0
     checks = 0
     checks_agree = 0
     checks_disagree = 0
+    checks_na = 0
     unparsed_validated = 0
     held_attempts = 0
     drift_refused_attempts = 0
@@ -398,13 +408,36 @@ def _class_row(sessions: list[dict]) -> dict:
             if validation.get("reconciliation_parsed") is True:
                 claim_verdict = validation.get("claim_verdict")
                 if isinstance(claim_verdict, dict):
-                    for entry in claim_verdict.values():
+                    for check_name, entry in claim_verdict.items():
                         checks += 1
                         agreement = (entry or {}).get("agreement")
                         if agreement == "agree":
                             checks_agree += 1
                         elif agreement == "disagree":
                             checks_disagree += 1
+                        elif agreement == "n/a":
+                            # The named residual: the §7.3 [n/a] tag —
+                            # the claim made no prediction (untested,
+                            # unknown) or the verdict was a skip or
+                            # never recorded. Counted by its schema
+                            # name; it stays inside agreement_rate's
+                            # all-checks denominator (D2 — naming the
+                            # bucket does not redefine the rate).
+                            checks_na += 1
+                        else:
+                            # The schema's agreement vocabulary is
+                            # exactly agree / disagree / n/a
+                            # (telemetry-record.schema.json,
+                            # claim_verdict.agreement); a value
+                            # outside it gets no catch-all bucket —
+                            # it counts in `checks` only, and is
+                            # named here rather than silently left
+                            # out of every per-value row.
+                            _warn(f"record {record['session_id']}: "
+                                  f"check {check_name!r} carries "
+                                  f"unrecognized agreement "
+                                  f"{agreement!r}; counted in checks "
+                                  f"only")
             else:
                 # A parse miss is a tooling fact, not worker
                 # disagreement — its own share, NEVER folded into
@@ -431,6 +464,9 @@ def _class_row(sessions: list[dict]) -> dict:
         "checks": checks,
         "checks_agree": checks_agree,
         "checks_disagree": checks_disagree,
+        "checks_na": checks_na,
+        # Denominator is ALL checks (D2) — n/a included, now visibly so
+        # via the named count above.
         "agreement_rate": _rate(checks_agree, checks),
         "unparsed_validated_attempts": unparsed_validated,
         "unparsed_share": _rate(unparsed_validated, validated_attempts),
