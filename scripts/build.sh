@@ -94,6 +94,7 @@ RELEASE_FILES=(
   bin/bale_report.py
   bin/bale_pack.py
   bin/bale_apply.py
+  bin/bale_stats.py
   bin/_bale_toml.py
   docs/CLAUDE.md
   docs/TARBALL.md
@@ -140,6 +141,24 @@ extract_bash_array() {
     }
     END { exit found ? 0 : 1 }
   ' "$1"
+}
+
+# True when $1 > $2, comparing X.Y.Z versions numerically per component.
+# Pure bash on purpose: `sort -V` is GNU-only and this script's other
+# portability seams (shasum fallback) say macOS is in play. Inputs are
+# guaranteed numeric-dotted by the callers (the scrape regex and the
+# VERSION read below).
+#   usage: version_gt A.B.C X.Y.Z
+version_gt() {
+  local -a a b
+  local i
+  IFS=. read -ra a <<< "$1"
+  IFS=. read -ra b <<< "$2"
+  for i in 0 1 2; do
+    (( ${a[i]:-0} > ${b[i]:-0} )) && return 0
+    (( ${a[i]:-0} < ${b[i]:-0} )) && return 1
+  done
+  return 1
 }
 
 # Die if stdin (one path per line) contains anything but plain relative
@@ -191,7 +210,10 @@ UPGRADE_LIST="$(extract_bash_array "$REPO_ROOT/upgrade.sh" REQUIRED_RELEASE_MEMB
 printf '%s\n' "$UPGRADE_LIST" | require_plain_paths "upgrade.sh REQUIRED_RELEASE_MEMBERS"
 not_in_release=""
 while IFS= read -r m; do
-  printf '%s\n' "$RELEASE_SORTED" | grep -qFx -- "$m" || not_in_release="$not_in_release $m"
+  # Herestring, not a pipeline: under pipefail, `printf | grep -q` can
+  # fail spuriously when grep exits at the first match and printf takes
+  # SIGPIPE — a rare false refusal observed in the wild (v0.3.25).
+  grep -qFx -- "$m" <<< "$RELEASE_SORTED" || not_in_release="$not_in_release $m"
 done <<< "$UPGRADE_LIST"
 [[ -z "$not_in_release" ]] \
   || die "upgrade.sh REQUIRED_RELEASE_MEMBERS is not a subset of RELEASE_FILES — not in RELEASE_FILES:$not_in_release"
@@ -206,7 +228,8 @@ log "pre-flight: tree coverage (bin/ docs/ schemas/ tools/)"
 uncovered=""
 while IFS= read -r f; do
   rel="${f#"$REPO_ROOT"/}"
-  printf '%s\n' "$RELEASE_SORTED" | grep -qFx -- "$rel" || uncovered="$uncovered $rel"
+  # Herestring for the same pipefail/SIGPIPE reason as the subset check.
+  grep -qFx -- "$rel" <<< "$RELEASE_SORTED" || uncovered="$uncovered $rel"
 done < <(find "$REPO_ROOT/bin" "$REPO_ROOT/docs" "$REPO_ROOT/schemas" "$REPO_ROOT/tools" \
            -name __pycache__ -prune -o -name '*.pyc' -prune -o -type f -print | sort)
 [[ -z "$uncovered" ]] \
@@ -217,14 +240,57 @@ log "  every file under bin/ docs/ schemas/ tools/ is in RELEASE_FILES"
 # VERSION = "X.Y.Z" assignment. The sed pattern matches the one in
 # validate.sh's "CLI surface" section so the two read the same line —
 # a regression in either is caught by the other on the next install.
+# The constant is read unconditionally (v0.3.25): the version-tag drift
+# guard below compares against it even under --version, because the
+# drift class is tree-vs-constant, not tree-vs-artifact-name — a
+# snapshot override must neither mask nor trip the guard.
+CONSTANT_VERSION=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$REPO_ROOT/bin/bale" | head -1)
+[[ -n "$CONSTANT_VERSION" ]] || die "could not read VERSION from bin/bale (no top-level VERSION = \"...\" assignment)"
 if [[ -n "$VERSION_OVERRIDE" ]]; then
   VERSION="$VERSION_OVERRIDE"
-  log "version: $VERSION (override)"
+  log "version: $VERSION (override; VERSION constant in bin/bale: $CONSTANT_VERSION)"
 else
-  VERSION=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$REPO_ROOT/bin/bale" | head -1)
-  [[ -n "$VERSION" ]] || die "could not read VERSION from bin/bale (no top-level VERSION = \"...\" assignment)"
+  VERSION="$CONSTANT_VERSION"
   log "version: $VERSION (from bin/bale)"
 fi
+
+# Pre-flight: version-tag drift (v0.3.25). A tree that cites a version
+# tag ABOVE bin/bale's VERSION constant is the session-005 drift class:
+# work annotated vX.Y.Z in comments and schema descriptions while the
+# constant lagged behind, adjudicated after the fact instead of caught
+# at build time. Scan the release surface — the same RELEASE_FILES set
+# every other pre-flight keys on, so the scanned set can't drift
+# separately — for v-prefixed semver tags and refuse, loudly, when the
+# highest exceeds the constant. Deliberately narrow: v-prefixed tags
+# only ("v0.3.25", the tree's citation form), because a bare X.Y.Z
+# pattern would false-positive on doc section references and data
+# values. A scrape that comes back empty is a broken pattern or file
+# set, not a clean tree — die rather than pass on nothing, the same
+# posture as reinstall.sh's empty-extraction check.
+log "pre-flight: version-tag drift"
+SCRAPED_TAGS="$(
+  for f in "${RELEASE_FILES[@]}"; do
+    grep -hoE 'v[0-9]+\.[0-9]+\.[0-9]+' "$REPO_ROOT/$f" || true
+  done | sed 's/^v//' | sort -u
+)"
+[[ -n "$SCRAPED_TAGS" ]] \
+  || die "version-tag drift: scraped zero v-prefixed version tags from the release surface — pattern or file set changed?"
+MAX_TAG=""
+while IFS= read -r t; do
+  if [[ -z "$MAX_TAG" ]] || version_gt "$t" "$MAX_TAG"; then
+    MAX_TAG="$t"
+  fi
+done <<< "$SCRAPED_TAGS"
+if version_gt "$MAX_TAG" "$CONSTANT_VERSION"; then
+  offenders=""
+  for f in "${RELEASE_FILES[@]}"; do
+    if grep -qE "v${MAX_TAG//./\\.}([^0-9]|\$)" "$REPO_ROOT/$f"; then
+      offenders="$offenders $f"
+    fi
+  done
+  die "version-tag drift: v$MAX_TAG (referenced in:$offenders) exceeds bin/bale's VERSION = \"$CONSTANT_VERSION\" — bump the constant, or fix the stray reference(s)"
+fi
+log "  highest referenced tag v$MAX_TAG <= VERSION constant $CONSTANT_VERSION"
 
 # Cheap pre-flight syntax checks. We'd rather fail before tarring than
 # ship a release whose first sign of trouble is a user's install.sh.

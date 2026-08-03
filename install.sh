@@ -225,6 +225,7 @@ INSTALL_LAYOUT=(
   bin/bale_report.py
   bin/bale_pack.py
   bin/bale_apply.py
+  bin/bale_stats.py
   bin/_bale_toml.py
   docs/CLAUDE.md
   docs/TARBALL.md
