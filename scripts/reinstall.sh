@@ -89,7 +89,11 @@ RELEASE_LIST_NL="$(printf '%s\n' "${RELEASE_FILES[@]}")"
 uncovered=""
 while IFS= read -r f; do
   rel="${f#"$REPO"/}"
-  printf '%s\n' "$RELEASE_LIST_NL" | grep -qFx -- "$rel" || uncovered="$uncovered $rel"
+  # Herestring, not a pipeline: under pipefail, `printf | grep -q` can
+  # fail spuriously when grep exits at the first match and printf takes
+  # SIGPIPE — a rare false refusal observed in the wild (v0.3.25); same
+  # fix as build.sh's tree-coverage and subset checks.
+  grep -qFx -- "$rel" <<< "$RELEASE_LIST_NL" || uncovered="$uncovered $rel"
 done < <(find "$REPO/bin" "$REPO/docs" "$REPO/schemas" "$REPO/tools" \
            -name __pycache__ -prune -o -name '*.pyc' -prune -o -type f -print | sort)
 [[ -z "$uncovered" ]] \

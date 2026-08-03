@@ -7,9 +7,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`, `bale_apply.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`, `bale_apply.py`, `bale_stats.py`)
 
-Eight Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
+Nine Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
 shim), no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
@@ -42,7 +42,11 @@ staging-path layout, the generated-artifact denial, the apply pipeline
 proper, and `cmd_apply` with its inspection surface (extracted in
 v0.3.13, the sixth extraction, same precedent and mechanism again;
 revert, retry, unlock, and handoff stayed in `bin/bale`, retry
-re-entering the pipeline through the module's public surface). The top
+re-entering the pipeline through the module's public surface).
+`bin/bale_stats.py` is the eighth sibling, imported by `bin/bale` for
+the `bale stats` aggregation core — like `bale_rollback` it is net-new
+code rather than an extraction (added in v0.3.24, board 5 D6) and is
+described below with the other siblings. The top
 of `bin/bale` declares constants (paths,
 version, path-safety refusals — the pack-side exclusion constants and
 threshold caps moved to `bale_pack` with the pack path);
@@ -281,6 +285,26 @@ is *for* — and stays stable as the per-section line numbers drift:
     (cluster 16, banner section 26 — renumbered from 25 when Status was
     inserted ahead of it); it is listed as cluster 18 to preserve the
     existing cluster numbers per this section's stable-numbering rule.
+19. **Stats wiring.** `cmd_stats` (introduced v0.3.24, board 5 D6) plus
+    `STATS_CLASS_CHOICES`, the `--work-class` filter's choice list,
+    sourced from `bale_stats`'s `WORK_CLASSES` / `UNCLASSED` so the
+    filter surface and the classifier can only drift in one place.
+    Wiring only, per the ratified board 5 division: aggregation is
+    `bale_stats.compute_stats` (the eighth sibling, described below),
+    rendering is `bale_report`'s `format_stats_json` /
+    `format_stats_report`. Read-only in `bale status`'s posture: no
+    lock, no git or filesystem writes, no clean-tree requirement, exit
+    0 on a successful read — an absent or empty `claude/telemetry/` is
+    an honest empty report, not an error, and outside a git repository
+    the working directory itself is the base. `--json` runs under the
+    shared v0.2.8 stream discipline; the `[bale] stats:` diagnostic
+    lines (skipped corrupt records, filtered future record versions) go
+    to stderr in BOTH modes — see the `bale_stats` module docstring for
+    why. By file order this cluster is banner section 27, placed
+    physically before the CLI parser (cluster 16, banner section 26) so
+    the CLI section stays the file's tail — stable numbers over
+    physical order, the same posture the 11–18 extraction gap already
+    established.
 
 `bin/bale_config.py` has three sections (with its own index header):
 loader/merger (`load_config`, `load_global_config`, `merged_config`,
@@ -480,9 +504,48 @@ flow, the `--json` stream discipline, and the pipeline's git topology
 are unchanged. Two names changed at the seam (declared above): the
 pipeline entry point and the rejected-attempt recorder went public.
 
-Two-level subparsing only — `bale <verb>` for eleven top-level commands
+`bin/bale_stats.py` is the eighth sibling (added in v0.3.24) and, like
+`bale_rollback`, **net-new code rather than an extraction** — it is the
+board 5 trust-ledger read side (`bale stats`, BALE.md §5.6), placed in
+its own module from the start (extraction-by-need, CODE.md §3.1):
+neither `bale_report` (rendering) nor `bin/bale` (wiring) is the home
+for corpus loading, unit classification, and rate computation. It owns
+the aggregation core end to end: corpus loading over the tracked
+`claude/telemetry/*.json` records with the parsing tolerances (a record
+that fails to parse is skipped, counted in the `parse_failures` row,
+and named on stderr — silent skips are bugs; a `record_version` above
+the supported version is filtered, counted, and likewise named), the
+brief-D2 unit model — response-attempt and validated-attempt detection,
+work-class resolution, read-only detection (keyed on
+`closure_reason == "closed-read-only"`, never on scope: a recorded
+scope of `[]` is overloaded, since pre-ADR-0007 records also read `[]`),
+crash-debris detection, and closure categorization — the epoch and
+coverage rows, and the per-class rate computation, where every rate
+reports its denominator and a zero-denominator rate is `None`: honest
+"no data", never a fabricated 0 or a crash. The corpus is the tracked
+substrate ONLY — `bale stats` never reads `.bale/` (board 5 D1: the
+transient side varies by checkout, and an input that varies by checkout
+would poison every rate), so a fresh clone computes the same rates as
+the original machine. Stateless and read-only: no writes, no locks, no
+git. Like the other single-cluster siblings it carries only a module
+docstring (no index header — CODE.md §2.1). `bin/bale` imports the
+public surface by name (`from bale_stats import ...`): `compute_stats`
+for `cmd_stats`, plus `WORK_CLASSES` / `UNCLASSED` for the
+`--work-class` choice list (cluster 19). Rendering stays in
+`bale_report` (`format_stats_json` / `format_stats_report`; the JSON
+key contract is owned by the `format_stats_json` docstring — one-home
+rule), and `bin/bale` keeps wiring only (cluster 19, banner section
+27). One deliberate deviation from the siblings' lazy-`__main__` `log`
+idiom: diagnostics go to `sys.stderr` directly in both modes, because
+the stats report's stdout is content (under `--json`, exactly one
+line) — which also keeps the module stdlib-pure and importable without
+`bin/bale` loaded, i.e. directly unit-testable.
+`tests/test_stats_aggregation.py` drives the command E2E over the
+fixture corpus at `tests/fixtures/stats_corpus/`.
+
+Two-level subparsing only — `bale <verb>` for twelve top-level commands
 (`pack`, `apply`, `retry`, `revert`, `rollback`, `unlock`, `handoff`,
-`config`, `help`, `completion`, `status`), plus `bale config <subcommand>`
+`config`, `help`, `completion`, `status`, `stats`), plus `bale config <subcommand>`
 for the config family. At v0.0.x the only `config` subcommand is `init`;
 `set`, `get`, `edit` are deliberately out of scope until they earn a place.
 `help` and `completion` (added v0.2.2) are top-level rather than nested
@@ -493,7 +556,10 @@ completion script to stdout. `status` (added v0.2.3) is likewise a
 top-level read-only surface — a dashboard of the working directory's
 bale state, flagless until v0.2.9 added `--json` — and it surfaces in
 `help` and `completion` for free (cluster 18), the flag included, since
-both read the one argparse parser.
+both read the one argparse parser. `stats` (added v0.3.24) is the second
+read-only top-level surface — the trust ledger's read side, wired in
+cluster 19 — and likewise surfaces in `help` and `completion` for free,
+its `--work-class`, `--since`, and `--json` flags included.
 
 ---
 
