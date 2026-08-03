@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-03-master-deltas-005`.
+Last landed by: `2026-08-03-ratification-microdeltas-006`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -139,7 +139,18 @@ sitting (evidence 47).]
   Board 5 is closed; the sitting opens with **board 6** as a design
   session shaped by the ledger's spec — its consumer surface is
   `stats --json`, with the additive key contract owned by
-  `format_stats_json`'s docstring.
+  `format_stats_json`'s docstring. The board-6 design pack ships the
+  ledger spec's exact consumer-surface language and the board-5
+  arc's upward report verbatim in `context/` (accepted from
+  `2026-08-03-master-deltas-005`'s Proposals; the §5
+  verbatim-proposal contract points the same direction) — this doc's
+  compressions are not a substitute where dispositions turn on exact
+  wording. Precondition, evidence 40's class, named in the proposal
+  itself: those artifacts land tracked first — the operator commits
+  the arc's brief files and upward report under
+  `claude/context/board-5-arc/` (or the opt-in responses archive)
+  before the board-6 pack is authored, and the pack --includes them
+  from there.
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report):
@@ -179,6 +190,19 @@ with the unverifiable ones carried verbatim and marked):
 - The reconciliation label-column cap (008's proposal, accepted) —
   rides the next session touching tools/craft_response.py. [Carried
   unchanged; unverified this sitting — same MASTER.md-only limit.]
+- BALE.md §13's v0.3 entry: qualify the `--verbose` residue's bare
+  "§7.4" citation with its doc (TARBALL.md §7.4 — inside BALE.md the
+  unqualified number resolves to BALE.md's own §7.4, Scope
+  projection, which is wrong), plus a read-only grep sweep of
+  BALE.md for other unqualified cross-doc section numbers — rides
+  board 34's 0.4.0 audit session, which will be reading the same
+  paragraph (accepted 2026-08-03 from
+  `2026-08-03-version-ladder-004`'s Proposals). The same touch
+  decides whether §13's v1.0 "(MASTER.md §1)" reference — BALE.md's
+  first cross-reference to MASTER.md anywhere, grep-verified by that
+  session — stays or becomes self-contained prose; master's recorded
+  lean: keep the citation until the ADR-0009/board-10 categorization
+  decision, revisit there.
 
 Cleared at this landing (`2026-08-03-master-deltas-005`): the
 BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
@@ -558,7 +582,14 @@ and §8, so done items keep their numbers as one-line pointers.
     empty-scope sessions prompt per-session in registry order;
     unlock's inference untouched, the value now reachable from two
     commands. Landing retires the evidence-44 brief-carried
-    scope-statement convention.
+    scope-statement convention. [2026-08-03: this row's own spec line
+    carries the literal it names inline. Safe today — the read-time
+    refusal is scoped to `--readme-file` per this row's ratified
+    judgment calls, and MASTER.md ships in `context/`, never as a
+    README — but any future widening of the refusal's scope to
+    shipped context files must account for this doc tripping it.
+    Observed in `2026-08-03-master-deltas-005`'s notes, concurred by
+    the master; no scope change made or implied.]
 
 34. **v0.4 cut** (ratified 2026-08-03; the ladder delta's normative
     text lands in BALE.md §13 via this sitting's sibling session —
