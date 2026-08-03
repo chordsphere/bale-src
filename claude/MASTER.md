@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-01-master-deltas-002`.
+Last landed by: `2026-08-03-master-deltas-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -84,12 +84,27 @@ consolidated into INJECTED_TOOLS. v0.3.15 → 0.3.19 across the arc.
 The telemetry corpus stops being numerator-only (evidence 38's
 counter).
 
-**Current version: 0.3.22** (bumped with board 32's session,
-`2026-07-31-board-32-status-clarification-hint-018`) — a claim to
-verify, not a fact to trust: verify with `bale --version` at each
-sitting's open per the standing rule. For this entry the claim was
-checked against this deltas request's own pack-time provenance
-stamp, 0.3.22.
+**The trust-ledger arc — CLOSED 2026-08-03** (board 5; six sids:
+design/orchestration `2026-08-01-board-5-ledger-design-004`
+(read-only), `2026-08-01-board-5-telemetry-promotion-005`,
+`2026-08-01-board-5-bale-stats-006`,
+`2026-08-01-stats-packaging-closeout-007`,
+`2026-08-03-stats-residual-bucket-002`,
+`2026-08-03-preserved-at-and-retag-003`). Version range 0.3.22 →
+0.3.27 across the arc (a claim to verify; per the arc's upward
+report — see the §2 version paragraph's check-note for this
+sitting's verification). First live run of the ledger: doc work is
+the first autonomy-grant candidate; contract-doc is where the noise
+concentrates — the misunderstanding-as-dominant-failure-class
+corroboration, at the ledger's own surface.
+
+**Current version: 0.3.27**, bumped across the board-5 arc
+(terminal bump at `2026-08-03-preserved-at-and-retag-003` per the
+arc's upward report — a claim to verify, not a fact to trust:
+verify with `bale --version` at each sitting's open per the
+standing rule). For this entry the claim was checked against this
+deltas request's own pack-time provenance stamp, 0.3.27 — the
+stamp agrees with the report.
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -115,25 +130,41 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **This deltas session** (`2026-08-01-master-deltas-002`) is the
-  2026-07-31 third sitting's close-out vehicle (master session
-  `2026-07-31-continue-plan-016`); nothing else open at landing.
-- **Next master sitting:** pack itself --read-only; keep the habit.
-  Boards 33 and 32 are landed; the sitting opens with **board 5**
-  as a read-only design session producing the ledger brief (fork
-  decided this sitting, stated for contest in the sitting chat:
-  5's substrate completed this sitting; 6's mechanical stream
-  should be shaped by the ledger's spec, so 6 follows).
+- **This sitting's close-out vehicles:** this deltas session
+  (`2026-08-03-master-deltas-005`) and the BALE.md §13 ladder
+  session are the 2026-08-01→03 sitting's close-out vehicles
+  (master session `2026-08-01-continue-plan-003`) — scope-disjoint,
+  no ordering constraint between them.
+- **Next master sitting:** pack itself read-only; keep the habit.
+  Board 5 is closed; the sitting opens with **board 6** as a design
+  session shaped by the ledger's spec — its consumer surface is
+  `stats --json`, with the additive key contract owned by
+  `format_stats_json`'s docstring.
+
+**Watches** (named re-triggers, no work; the first four carried
+verbatim from the board-5 arc's upward report):
+
+- Emitter-parser reconciliation drift: all three unparsed-
+  reconciliation records are 2026-07-31 consolidation-day straddlers;
+  everything post-consolidation parses. Re-trigger: any non-zero
+  unparsed share in `stats --since 2026-08-01`.
+- Drift-guard tag-reuse blindness (fires on tag-ahead, not reuse);
+  bit once (002/007 collision, repaired). Re-trigger: third
+  occurrence earns the guard a per-session-bump check.
+- Mixed `at` provenance in clarification records (pre-0.3.27 read
+  via mtime). Re-trigger: a stats consumer comparing per-record `at`.
+- Closure-mix membership revisit. Re-trigger: real unlock-closure
+  stamp accrual.
+- The ledger cannot yet distinguish predicted-grounds claims from
+  observed ones (the §5 claim-basis precedent's measurement gap).
+  Re-trigger: the board-6/10-era decision on an additive
+  claim-basis self-report field.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
 below was reconciled against shipped bytes at the v4 regeneration,
 with the unverifiable ones carried verbatim and marked):
 
-- BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
-  drift-refusal aggregation semantics → board 5's session
-  (unchanged). [Carried verbatim; unverifiable at the v4
-  regeneration — BALE.md not shipped.]
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
 - Revert's human staging-row rendering → bale_report (2026-07-31,
@@ -142,9 +173,19 @@ with the unverifiable ones carried verbatim and marked):
   staging_status display string; a small follow-up renders the human
   string from those facts in bale_report, deleting the last
   rendering residue from bin/bale's revert path (§19) — rides the
-  next session touching that path.
+  next session touching that path. [Carried unchanged; unverified
+  this sitting — a MASTER.md-only request cannot check whether the
+  board-5 arc touched that path.]
 - The reconciliation label-column cap (008's proposal, accepted) —
-  rides the next session touching tools/craft_response.py.
+  rides the next session touching tools/craft_response.py. [Carried
+  unchanged; unverified this sitting — same MASTER.md-only limit.]
+
+Cleared at this landing (`2026-08-03-master-deltas-005`): the
+BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
+drift-refusal aggregation semantics entry — landed at
+`2026-08-01-board-5-telemetry-promotion-005` per the arc's upward
+report (a claim; the sentence fold-in is named in the report's
+landed list).
 
 Cleared at the v4 regeneration: the board-27 TARBALL.md §3.2
 context_included-vs-recorded-scope entry — the injected TARBALL.md
@@ -188,36 +229,31 @@ and §8, so done items keep their numbers as one-line pointers.
    §8.9). The response-lint prose savings banked in the compression
    sitting (board 7).
 
-5. **bale stats / the trust ledger** — aggregates diagnostics,
-   clarifications, and telemetry into per-work-class rates; gates all
-   autonomy grants. Design constraints (ratified 2026-07-13, §5):
-   **autonomy grants weight the MECHANICAL stream; the self-reported
-   stream is itself a calibration target**, cross-checked against the
-   mechanical one — honest self-reporting is something a work class
-   earns trust FOR, never the substrate trust rests on. (The
-   self-oracle test, evidence 16, applied to the ledger itself.)
-   Notes from this sitting: dataset row one is packaging-lists-v2 —
-   the first apply after B2; aggregation should expect attempts[]
-   append semantics and reconciliation_parsed disambiguation per
-   BALE.md §8.9. Rider: a bailout banner telemetry row (ratified
-   trivial). Annotations (2026-07-29): aggregation keys read-only
-   detection on closure_reason, never on scope — [] is overloaded
-   (read-only sessions and no-scope debris records both read []);
-   the HOLD-shaped multi-attempt E2E deferred by 25's session lands
-   with this board's tests; this board's brief decides whether the
-   ledger wants the reverse lineage pointer (apply appending a
-   successor note to a superseded parent's record — 26's session's
-   proposal; jq over stamped manifests is the do-nothing baseline);
-   and the evidence-41 mechanical fix — stamping the declared scope
-   into the request manifest so workers reason from fact, not
-   inference — is on this board's radar. Annotation (2026-07-31,
-   from session 006's deferred proposal): rollback's dirty-tree
-   guard now refuses on the untracked telemetry record bale itself
-   wrote seconds earlier (a rollback → --undo toggle needs a commit
-   between halves); whether the guard should disregard
-   claude/telemetry/ turns on whether the ledger expects records
-   committed promptly, so this board's design decides it — the
-   guard change is deferred, not declined.
+5. **bale stats / the trust ledger — DONE** 2026-08-03, closed as
+   an arc (design/orchestration
+   `2026-08-01-board-5-ledger-design-004` read-only, plus applied
+   sids `2026-08-01-board-5-telemetry-promotion-005`,
+   `2026-08-01-board-5-bale-stats-006`,
+   `2026-08-01-stats-packaging-closeout-007`,
+   `2026-08-03-stats-residual-bucket-002`,
+   `2026-08-03-preserved-at-and-retag-003`; telemetry; v0.3.22 →
+   0.3.27 per the arc's upward report). The ledger is operational and already
+   signaling: first live run classed the corpus per work class, doc
+   is the first grant candidate, contract-doc concentrates the
+   noise (§2's arc summary; consumer surface `stats --json`, key
+   contract owned by `format_stats_json`'s docstring — board 6/10
+   input). Annotation dispositions: rollback guard — landed at 005,
+   disregards untracked claude/telemetry/; reverse lineage — landed
+   as the pack-stamped `superseded_by`; evidence-41 stamp — was
+   already landed at board 33; §8.9 sentence fold-in — landed at
+   005; the deferred HOLD multi-attempt E2E — landed at 005 per the
+   report. The bailout-banner telemetry-row rider is
+   presumed-landed-with-005 — the ratified "banner-order alignment
+   for bailout" strongly implies it but the report never confirms
+   it explicitly; unverified from a MASTER.md-only request,
+   recorded as inference, not fact. Design constraints and the
+   mechanical/self-reported trust split: §5 (ratified 2026-07-13),
+   unchanged.
 
 6. **Blind validation checkpoints — doctrine to mechanics** — the §1
    floor's "validation checkpoints are authored blind" line has no
@@ -524,6 +560,17 @@ and §8, so done items keep their numbers as one-line pointers.
     commands. Landing retires the evidence-44 brief-carried
     scope-statement convention.
 
+34. **v0.4 cut** (ratified 2026-08-03; the ladder delta's normative
+    text lands in BALE.md §13 via this sitting's sibling session —
+    §5 carries the summary): close the --verbose thread — pack and
+    revert are the remaining commands (retry gained it in v0.3.14
+    via flag parity, per §13's own v0.3 entry, read this sitting)
+    plus the §7.4 pass-through into validation.sh — then a
+    read-only audit diffing §13's v0.4 selftest checklist against
+    the actual suite (rollback conflict/merge-commit cases were
+    explicitly deferred to v0.4 and never picked up), then cut
+    0.4.0.
+
 ## 5. Contracts established (do not re-litigate casually)
 
 Carried forward: JSON vocabulary (outcome, sid, tarball, log,
@@ -694,6 +741,33 @@ recorded at `2026-07-31-board-33-recovery-015` — evidence 47):
   Board 33's row carries the implementation spec; this block states
   the rules — one home each.
 
+New, ratified 2026-08-03 (this sitting):
+
+- **The claim-basis precedent.** A validation claim of `pass` may
+  be grounded in prediction rather than observation when the
+  grounds are structural and the basis is fully disclosed in notes;
+  a predicted pass presented as observed is a violation. Both are
+  graded mechanically at apply — a wrong prediction lands as a
+  `disagree` in the ledger, so miscalibration costs the work
+  class's agreement rate. (Ratified at the sub-master level in the
+  board-5 arc's session 003, flagged upward as precedent-setting,
+  and ratified here; the ledger's predicted-vs-observed
+  measurement gap is a §3 watch.)
+- **Verbatim-proposal shipping.** Constraints or briefs citing a
+  prior session's proposal carry the proposal's notes.md text
+  verbatim, never a paraphrase — a paraphrase flattened a
+  conditional once (evidence 49) and the worker had to reconstruct
+  the intent.
+- **The version ladder re-coupling** (summary; the normative text
+  lands in BALE.md §13 via this sitting's sibling session): 0.4.0 =
+  the --verbose thread + the §13 checklist audit, then cut (board
+  34). 1.0.0 = contracts become promises — wire format,
+  record_version, and --json keys go breaking-change-costs-major —
+  gated on boards 6 and 10 landing and the first work class earning
+  and exercising a real autonomy grant; explicitly not gated on the
+  API-harness transport (separate component per §1) or lifting the
+  solo-project assumption (documented scope).
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
 
@@ -745,7 +819,11 @@ hygiene; (9) masters externalize their own state.
     board 4's packer-attributed telemetry field is the counter for
     it. Third occurrence, this sitting: a worker-authored rescope
     command omitted load-time import siblings — the class now spans
-    architect, master, and worker as packer.
+    architect, master, and worker as packer. [Next occurrence,
+    2026-08-03, sub-master-attributed: the execution-context
+    manifest set omitted from the board-5 arc's closeout pack (the
+    worker synthesized a partial tree; its prediction held) — the
+    class now spans sub-orchestrators as packer. See evidence 49.]
 14. **Commands authored from a stale picture of the repo carry
     stale scope statements** — the prior master's per-sid command
     said "out of scope: lifting the multi-open gate" AFTER the gate
@@ -1128,6 +1206,14 @@ New from the 2026-07-31 doc-compression sitting:
     inference is this evidence entry's own subject. Board 33's
     banner + sweep close the class from the next master pack
     onward.]
+    [2026-08-03, closing note: the UNVERIFIED item resolves —
+    `continue-plan-016`'s closure record shows scope `[]` closed
+    `closed-read-only` via command `pack` (ground truth per this
+    entry's own rule); the board-33 sweep then worked live twice on
+    2026-08-01 (`-016` swept by `continue-plan-001`'s pack, `-001`
+    swept by `continue-plan-003`'s). The habit-gap streak is broken
+    and the check is now mechanical via the `resolved_scope`
+    stamp.]
 
 47. **A same-filename brief revision with an unchanged first heading
     defeats both layers of the evidence-45 identity glance.** The
@@ -1147,6 +1233,45 @@ New from the 2026-07-31 doc-compression sitting:
     cheap because the ratified spec survived verbatim in the revised
     brief file — evidence 40's corollary held.
 
+New from the 2026-08-01→03 sitting (the board-5 arc):
+
+48. **The sentinel-literal collision: the read-time refusal fires
+    on any line containing the placeholder literal, by design, and
+    an instruction ABOUT the sentinel is such a line.** Rev A of
+    the board-5 design brief died at pack because a line
+    instructing about the placeholder sentinel contained the
+    literal itself. First live firing of the board-33 refusal — and
+    it caught a master-authored brief. This was correct behavior,
+    not a slip-through: board 33's reopen trigger stays unpulled.
+    Standing rule: briefs instructing about the sentinel cite
+    TARBALL.md §3.4's convention line (the literal's one home),
+    never the literal.
+
+49. **Paraphrase flattening at the packer** (from the board-5 arc's
+    process findings, sub-master-attributed): a queued proposal
+    transcribed into a constraint flattened a conditional; the
+    worker had to reconstruct the original intent from first
+    principles (it did, correctly). Corrective adopted and
+    exercised same-arc: constraints citing prior proposals ship the
+    proposal's notes.md text verbatim — now the §5
+    verbatim-proposal contract (ratified 2026-08-03). Same
+    finding's sibling: the execution-context manifest set omitted
+    from a closeout pack — the evidence-13 include-set class's next
+    occurrence, now spanning sub-orchestrators as packer; tallied
+    there.
+
+50. **First delegated orchestration arc completed.** A read-only
+    design session (`2026-08-01-board-5-ledger-design-004`) ran the
+    board-5 split end to end: six applied sessions, ratifications
+    at its own level, and a structured upward report partitioned
+    landed / ratified / escalated / on-watch. The report shape is
+    the escalation-contract prototype for board 10's harness
+    scoping. One-line corroboration of evidence 21's class at the
+    sub-master level: the arc's own rev-A brief mis-derived the
+    closure_reason first-carrier example (`continue-plan-005`;
+    actual: `split-supersession-002`, 30 prior lacking), and the
+    worker correctly implemented rule over example.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1154,33 +1279,28 @@ New from the 2026-07-31 doc-compression sitting:
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
-  run python3 -m unittest discover -s tests. The suite grew across
-  the 2026-07-29/31 sitting (rollback telemetry, unlock json, the
-  craft tool, revert json), again across the 2026-07-31 second
-  sitting (113 green at 008's close; 98 at its pack — the
-  doc-carried 72 had gone stale within the sitting, re-proving this
-  bullet's enumerate-from-the-tree rule; briefs state counts as
-  claims to verify), and across the 2026-07-31 third sitting: 129
-  green at 017's close, 135 at 018's close per its notes (claims
-  to verify) — enumerate suites from the tree (`ls tests/`),
-  not from this doc; the per-file list this bullet used to carry
-  went stale within two sittings, and deltas sessions cannot
-  verify every new filename from a MASTER.md-only request. Named
-  landmarks: shared sandbox harness at tests/harness.py (owns
-  run_bale_pty; INSTALL_TREES copies bin/ docs/ schemas/ tools/
-  from repo root — the include set for any session running it);
-  test_readonly_pack.py drives the wizard via pty (likeliest flake
-  site per its session's notes); the fabricated-suspension helper
-  follows test_revert_json.py's make_held_session precedent.
-  ADR-0005 (Accepted 2026-07-28) governs.
+  run python3 -m unittest discover -s tests. Enumerate suites from
+  the tree (`ls tests/`), never from this doc; counts stated in
+  briefs are claims to verify, and neither counts nor per-file
+  lists belong here (both went stale within sittings — the history
+  lives in git and telemetry). Named landmarks: shared sandbox
+  harness at tests/harness.py (owns run_bale_pty; INSTALL_TREES
+  copies bin/ docs/ schemas/ tools/ from repo root — the include
+  set for any session running the suite); test_readonly_pack.py
+  drives the wizard via pty (likeliest flake site per its session's
+  notes); the fabricated-suspension helper follows
+  test_revert_json.py's make_held_session precedent. ADR-0005
+  (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
-  bale_staging, bale_report, bale_rollback, _bale_toml. Load-time
+  bale_staging, bale_report, bale_rollback, bale_stats (the eighth
+  sibling — a claim; landed at `2026-08-01-board-5-bale-stats-006`
+  per the arc's upward report), _bale_toml. Load-time
   import set: pre-extraction it was bale_config, bale_validate,
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.3.22 (one-apply-behind:
+  still governs. bin/bale VERSION 0.3.27 (one-apply-behind:
   stamps from the next pack onward).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
