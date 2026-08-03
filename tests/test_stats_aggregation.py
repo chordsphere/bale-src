@@ -3,7 +3,9 @@
 
 Drives `bin/bale stats` end to end over the checked-in fixture corpus at
 ``tests/fixtures/stats_corpus/`` — one record per shape the real corpus
-and the schemas admit (brief D8): single-attempt applied; HOLD→retry;
+and the schemas admit (brief D8): single-attempt applied; HOLD→retry
+(whose retry also carries an ``[n/a]`` check — claim ``unknown``,
+verdict ``skip`` — the named agreement residual);
 drift-refused→applied with an override; rejected→applied (class
 inheritance to the feedback-less attempt); unlock ``abandoned``; unlock
 ``closed-read-only`` with ``[]`` scope; the overload case — ``[]``
@@ -119,7 +121,7 @@ class StatsAggregationTest(unittest.TestCase):
             "in_flight_sessions": 1,
             "response_attempts": 17,
             "validated_attempts": 14,
-            "checks": 18,
+            "checks": 19,
         })
 
         # Epoch: minimum created_at, and the pre-epoch statement is the
@@ -156,10 +158,16 @@ class StatsAggregationTest(unittest.TestCase):
         # checks: superseded HOLD attempts included (attempt history is
         # the point) and the rolled-back session's applied attempt stays
         # in every mechanical denominator.
-        self.assertEqual(code["checks"], 13)
+        self.assertEqual(code["checks"], 14)
         self.assertEqual(code["checks_agree"], 11)
         self.assertEqual(code["checks_disagree"], 2)
-        self.assertAlmostEqual(code["agreement_rate"], 11 / 13)
+        # The named residual: the hold-retry session's [n/a] check
+        # (claim "unknown", verdict "skip") lands in checks_na — every
+        # schema agreement value has its own count, no catch-all
+        # bucket — and STAYS in agreement_rate's all-checks denominator
+        # (D2: naming the residual does not redefine the rate).
+        self.assertEqual(code["checks_na"], 1)
+        self.assertAlmostEqual(code["agreement_rate"], 11 / 14)
         self.assertEqual(code["unparsed_validated_attempts"], 0)
         self.assertEqual(code["held_attempts"], 2)
         self.assertAlmostEqual(code["hold_rate"], 2 / 9)
@@ -186,7 +194,22 @@ class StatsAggregationTest(unittest.TestCase):
         self.assertEqual(doc["checks_agree"], 4)
         self.assertEqual(doc["unparsed_validated_attempts"], 1)
         self.assertAlmostEqual(doc["unparsed_share"], 1 / 4)
+        self.assertEqual(doc["checks_na"], 0,
+                         msg="an honest zero: doc has no [n/a] checks")
         self.assertAlmostEqual(doc["agreement_rate"], 1.0)
+
+        # The per-enum-value counts partition checks: over a corpus
+        # whose agreement values all come from the schema vocabulary
+        # (agree / disagree / n/a — this fixture corpus does), the
+        # three named counts sum to checks in every class row.
+        for cls, row in stats["classes"].items():
+            self.assertEqual(
+                row["checks_agree"] + row["checks_disagree"]
+                + row["checks_na"],
+                row["checks"],
+                msg=f"class {cls}: per-agreement-value counts must "
+                    f"sum to checks — an unnamed residual is exactly "
+                    f"what checks_na exists to eliminate")
         self.assertEqual(doc["clarified_sessions"], 1)
         self.assertEqual(doc["clarification_epoch_sessions"], 2)
 
@@ -325,6 +348,9 @@ class StatsAggregationTest(unittest.TestCase):
         # Reference body first: the per-class table and the corpus rows.
         self.assertIn("class", out)
         self.assertIn("agree", out)
+        # The named-residual annotation row: code's [n/a] check shows
+        # under the table beside disagree, by its schema name.
+        self.assertIn("n/a 1", out)
         self.assertIn("epoch: corpus begins 2026-06-01T10:00:00+00:00", out)
         self.assertIn("closure mix:", out)
         # Trailing summary block last, and NO next-step hint after it —

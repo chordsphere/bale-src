@@ -76,7 +76,8 @@
         "exit_code": 0,
         "claims": {
           "lint": "pass",
-          "tests": "pass"
+          "tests": "pass",
+          "typecheck": "unknown"
         },
         "claim_verdict": {
           "lint": {
@@ -88,6 +89,11 @@
             "claim": "pass",
             "verdict": "pass",
             "agreement": "agree"
+          },
+          "typecheck": {
+            "claim": "unknown",
+            "verdict": "skip",
+            "agreement": "n/a"
           }
         },
         "reconciliation_parsed": true
