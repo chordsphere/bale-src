@@ -157,7 +157,7 @@
                   "required": ["n", "at", "blocking_questions"],
                   "properties": {
                     "n": { "type": "integer", "description": "The round number from the record's NNN filename." },
-                    "at": { "type": ["string", "null"], "description": "The record file's mtime, ISO 8601 UTC — the honest available timestamp (the preserved manifest carries none of its own). Null if unreadable." },
+                    "at": { "type": ["string", "null"], "description": "The record's own preserved_at stamp when present (v0.3.27 — stamped by apply at preservation time, since mtime survives normal use but not every copy/restore path), else the record file's mtime as ISO 8601 UTC (the fallback for pre-v0.3.27 records, which carry no stamp of their own — deliberately not backfilled). Null when neither is available." },
                     "blocking_questions": { "type": ["integer", "null"], "description": "len(questions) from the preserved manifest; null when the record would not parse — presence still counts as a round (the file is the suspension fact), only the count degrades." }
                   }
                 }

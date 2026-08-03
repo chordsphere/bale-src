@@ -1802,9 +1802,14 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
       falling back to the 1-based sorted position for a stem that
       isn't an integer (nothing writes such a name; tolerated rather
       than crashed on).
-    - ``at`` — the record file's mtime as ISO 8601 UTC, the honest
-      available timestamp (the preserved manifest carries none of its
-      own).
+    - ``at`` — the record's own ``preserved_at`` stamp when present
+      (v0.3.27: `_apply_clarification` stamps it at preservation time,
+      since mtime survives normal use but not every copy/restore
+      path), else the record file's mtime as ISO 8601 UTC (the honest
+      available timestamp for pre-v0.3.27 records, which carry no
+      stamp of their own — deliberately not backfilled), else null. A
+      non-string or empty ``preserved_at`` is tolerated, not crashed
+      on: it reads as absent and the mtime fallback covers it.
     - ``blocking_questions`` — len(questions) from the preserved
       manifest, or null when the record won't parse. Presence still
       counts as a round (the file IS the suspension fact, `bale
@@ -1828,21 +1833,33 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
             n = int(path.stem)
         except ValueError:
             n = pos
-        try:
-            at = datetime.fromtimestamp(
-                path.stat().st_mtime, tz=timezone.utc,
-            ).isoformat(timespec="seconds")
-        except OSError:
-            at = None
         blocking: Optional[int] = None
+        preserved_at: Optional[str] = None
         try:
             manifest = json.loads(path.read_text(encoding="utf-8"))
             qs = manifest.get("questions")
             if isinstance(qs, list):
                 blocking = len(qs)
+            pa = manifest.get("preserved_at")
+            if isinstance(pa, str) and pa:
+                preserved_at = pa
         except (OSError, json.JSONDecodeError):
             log(f"telemetry: clarification record {path.name} for {sid} "
                 f"unreadable; stamping the round without a question count")
+        if preserved_at is not None:
+            # The record's own stamp (v0.3.27) beats mtime: mtime
+            # survives normal use but not every copy/restore path.
+            at = preserved_at
+        else:
+            # Stampless record — pre-v0.3.27, an unreadable file, or a
+            # malformed stamp. The mtime fallback is unchanged from the
+            # pre-stamp shape, then null.
+            try:
+                at = datetime.fromtimestamp(
+                    path.stat().st_mtime, tz=timezone.utc,
+                ).isoformat(timespec="seconds")
+            except OSError:
+                at = None
         summary["records"].append(
             {"n": n, "at": at, "blocking_questions": blocking})
     summary["rounds"] = len(summary["records"])
@@ -2080,7 +2097,7 @@ def format_stats_json(stats: dict) -> str:
                 value: checks_agree ("agree"), checks_disagree
                 ("disagree"), checks_na ("n/a" — the §7.3 residual: the
                 claim made no prediction, or the verdict was a skip or
-                never recorded; v0.3.25, additive). Over a well-formed
+                never recorded; v0.3.26, additive). Over a well-formed
                 corpus the three sum to checks; agreement_rate keeps
                 its D2 all-checks denominator, n/a included.
       closure_mix
