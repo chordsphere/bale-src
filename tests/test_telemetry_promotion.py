@@ -17,6 +17,16 @@ Pins the D1 contract on the two promoted transient inputs:
   only rule — is pinned by the HOLD→retry E2E
   (tests/test_hold_retry_e2e.py), whose fixture drives real apply
   closes.
+- **preserved_at preference in the stamp's `at` field (v0.3.27).**
+  Apply's clarification handler stamps a `preserved_at` sidecar key
+  into the preserved record, and read_clarification_summary prefers
+  it over the file's mtime — mtime survives normal use but not every
+  copy/restore path. The suite drives a real clarification tarball
+  through `bale apply` to pin the write side, then desyncs the file's
+  mtime and asserts the stamp wins at close; stampless records (the
+  pre-v0.3.27 shape the seed helper writes) pin the unchanged mtime
+  fallback, and a malformed (non-string) stamp degrades to mtime, not
+  a crash.
 - **Bailout diagnostics embed.** The bailout close embeds the parsed,
   schema-validated diagnostics.json verbatim on the bailout attempt
   (symmetric with feedback), stamps the clarification summary like
@@ -39,9 +49,11 @@ or via ``python3 -m unittest discover -s tests``.
 from __future__ import annotations
 
 import json
+import os
 import tarfile
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from harness import (
@@ -61,6 +73,14 @@ MISSING_DIAG_MARKER = "missing diagnostics.json"
 INVALID_DIAG_MARKER = "not valid JSON"
 
 KNOWN_ZERO = {"rounds": 0, "records": []}
+
+# A fixed epoch far from any test run's wall clock, for desyncing a
+# record file's mtime from its preserved_at stamp: if the summary's
+# `at` matches the ISO form of this epoch, mtime was read; if it
+# matches the stamp, preserved_at won.
+DESYNC_EPOCH = 946684800  # 2000-01-01T00:00:00+00:00
+DESYNC_ISO = datetime.fromtimestamp(
+    DESYNC_EPOCH, tz=timezone.utc).isoformat(timespec="seconds")
 
 
 class TelemetryPromotionTest(unittest.TestCase):
@@ -171,6 +191,44 @@ class TelemetryPromotionTest(unittest.TestCase):
             tf.add(str(rdir), arcname=f"response-{nnn}")
         return tarball
 
+    def build_clarification_tarball(self, sid: str) -> Path:
+        """A minimal, fully valid clarification response per TARBALL.md
+        §5.9.2: empty change surfaces, a non-empty four-field
+        questions[], and the no-op scripts the pre-flight requires of
+        every response. Drives the real §8.10.2 apply handler — the
+        write side of the preserved_at stamp (v0.3.27)."""
+        nnn = sid[-3:]
+        rdir = self.tmp / f"response-{nnn}-clar"
+        rdir.mkdir()
+        manifest = {
+            "session_id": sid,
+            "responds_to": sid,
+            "corrects": None,
+            "response_kind": "clarification",
+            "summary": "clarification fixture: blocking intent gap",
+            "changes": [],
+            "deferred": [],
+            "validation_will_run": [],
+            "claims": {},
+            "questions": [
+                {
+                    "question": "which epoch should the fixture pin?",
+                    "context": "test context",
+                    "default_assumption": "the desync epoch",
+                    "why_blocked": "test blocker",
+                },
+            ],
+        }
+        (rdir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        noop = "#!/usr/bin/env bash\n# no-op (test fixture)\nexit 0\n"
+        (rdir / "apply.sh").write_text(noop, encoding="utf-8")
+        (rdir / "validation.sh").write_text(noop, encoding="utf-8")
+        tarball = self.tmp / f"response-{nnn}-clar.tar.gz"
+        with tarfile.open(tarball, "w:gz") as tf:
+            tf.add(str(rdir), arcname=f"response-{nnn}")
+        return tarball
+
     @staticmethod
     def valid_diagnostics(sid: str) -> dict:
         """The universal envelope diagnostics.schema.json enforces."""
@@ -254,6 +312,85 @@ class TelemetryPromotionTest(unittest.TestCase):
         clar = self.record_attempt(sid)["clarification"]
         self.assertEqual(clar["rounds"], 1)
         self.assertIsNone(clar["records"][0]["blocking_questions"])
+
+    # -- preserved_at preference in the stamp's at field (v0.3.27) -------
+
+    def test_apply_stamps_preserved_at_and_close_prefers_it(self) -> None:
+        """The real §8.10.2 handler stamps preserved_at into the
+        preserved record, and the close-time summary prefers it over
+        mtime — proven by desyncing the file's mtime after apply."""
+        sid = self.packed_sid(self.pack(slug="promo-clar"))
+        tarball = self.build_clarification_tarball(sid)
+        result = run_bale(self.install, ["apply", str(tarball)],
+                          cwd=self.repo, env=self.env)
+        self.assert_ok(result)
+        record_path = (self.repo / ".bale" / "clarifications" / sid
+                       / "001.json")
+        self.assertTrue(record_path.is_file(),
+                        msg="apply preserves the manifest as 001.json")
+        preserved = json.loads(record_path.read_text(encoding="utf-8"))
+        stamp = preserved.get("preserved_at")
+        self.assertIsInstance(stamp, str,
+                              msg="the preserved copy carries its own "
+                                  "preserved_at stamp (v0.3.27)")
+        # Parseable ISO 8601 — the same shape every other `at` uses.
+        datetime.fromisoformat(stamp)
+        # The sidecar key rides beside the manifest, not around it:
+        # questions[] is still at the top level (no wrapper).
+        self.assertIn("questions", preserved)
+        # The session stays open — the clarification suspends it.
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="a clarification suspends; the session stays open")
+        # Desync: push the file's mtime far from the stamp. If the
+        # summary read mtime, `at` would be DESYNC_ISO; the stamp must
+        # win.
+        os.utime(record_path, (DESYNC_EPOCH, DESYNC_EPOCH))
+        self.assert_ok(run_bale(self.install, ["unlock", sid],
+                                cwd=self.repo, env=self.env))
+        clar = self.record_attempt(sid)["clarification"]
+        self.assertEqual(clar["rounds"], 1)
+        self.assertEqual(clar["records"][0]["at"], stamp,
+                         msg="preserved_at beats mtime in the close-time "
+                             "summary")
+        self.assertNotEqual(clar["records"][0]["at"], DESYNC_ISO)
+        self.assertEqual(clar["records"][0]["blocking_questions"], 1)
+
+    def test_stampless_record_falls_back_to_mtime(self) -> None:
+        """A record with no preserved_at — the pre-v0.3.27 shape the
+        seed helper writes — reads via the unchanged mtime fallback."""
+        sid = self.packed_sid(self.pack(slug="promo-nost"))
+        self.seed_clarifications(sid, [2])
+        record_path = (self.repo / ".bale" / "clarifications" / sid
+                       / "001.json")
+        os.utime(record_path, (DESYNC_EPOCH, DESYNC_EPOCH))
+        self.assert_ok(run_bale(self.install, ["unlock", sid],
+                                cwd=self.repo, env=self.env))
+        clar = self.record_attempt(sid)["clarification"]
+        self.assertEqual(clar["records"][0]["at"], DESYNC_ISO,
+                         msg="no stamp → the file's mtime, ISO 8601 UTC, "
+                             "exactly as before v0.3.27")
+        self.assertEqual(clar["records"][0]["blocking_questions"], 2)
+
+    def test_malformed_stamp_degrades_to_mtime(self) -> None:
+        """A non-string preserved_at is tolerated, never crashed on:
+        it reads as absent and the mtime fallback covers it."""
+        sid = self.packed_sid(self.pack(slug="promo-bad-at"))
+        clar_dir = self.repo / ".bale" / "clarifications" / sid
+        clar_dir.mkdir(parents=True)
+        record_path = clar_dir / "001.json"
+        record_path.write_text(
+            json.dumps({"questions": [{"question": "q"}],
+                        "preserved_at": 12345}, indent=2) + "\n",
+            encoding="utf-8")
+        os.utime(record_path, (DESYNC_EPOCH, DESYNC_EPOCH))
+        self.assert_ok(run_bale(self.install, ["unlock", sid],
+                                cwd=self.repo, env=self.env))
+        clar = self.record_attempt(sid)["clarification"]
+        self.assertEqual(clar["records"][0]["at"], DESYNC_ISO,
+                         msg="a malformed stamp degrades to the mtime "
+                             "fallback, not a crash")
+        self.assertEqual(clar["records"][0]["blocking_questions"], 1)
 
     # -- bailout: diagnostics embed, stamp, banner row -------------------
 

@@ -1829,7 +1829,12 @@ When apply encounters `response_kind: "clarification"`, it:
    session it suspended (its longitudinal value is precisely
    aggregation across completed sessions, TARBALL.md §5.9.4). `NNN`
    increments so a session that clarifies more than once keeps
-   every round.
+   every round. The preserved copy carries a `preserved_at` sidecar
+   key stamped at write time (v0.3.27) — the record's own timestamp,
+   preferred over file mtime by the close-time summary, since mtime
+   survives normal use but not every copy/restore path. Pre-v0.3.27
+   records have no stamp and read via the mtime fallback; they are
+   deliberately not backfilled.
 4. **Retains the lock — the session stays open.** This is the one
    deliberate divergence from the bailout, and it is the point: a
    bailout consumes its session (next step `bale handoff`, fresh

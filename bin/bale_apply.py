@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -447,7 +448,13 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
          merge wipes — the clarification record must outlive the session it
          suspended, since its whole longitudinal value is aggregation across
          *completed* sessions, TARBALL.md §5.9.4). NNN increments so a
-         session that clarifies more than once keeps every round.
+         session that clarifies more than once keeps every round. The
+         preserved copy carries a `preserved_at` sidecar key stamped at
+         write time (v0.3.27): mtime survives normal use but not every
+         copy/restore path, so the record holds its own timestamp, which
+         read_clarification_summary prefers over mtime. Pre-v0.3.27
+         records have no stamp and read via the mtime fallback — no
+         backfill.
       2. Print the §5.9.3 banner (`print_clarification_banner`).
       3. Under json output mode, emit the one-line machine report — outcome
          "clarification", verdict and merge null since no validation ran and
@@ -473,8 +480,17 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     clar_dir.mkdir(parents=True, exist_ok=True)
     seq = len(list(clar_dir.glob("*.json"))) + 1
     record_path = clar_dir / f"{seq:03d}.json"
+    # Sidecar key, not a wrapper (v0.3.27): the record stays a preserved
+    # manifest — every reader of questions[] keeps its shape, and
+    # read_clarification_summary's fallback chain (preserved_at, then
+    # mtime, then null) covers stampless pre-v0.3.27 records unchanged.
+    # A shallow copy keeps the in-memory manifest pristine for the
+    # banner below.
+    record = dict(manifest)
+    record["preserved_at"] = datetime.now(timezone.utc).isoformat(
+        timespec="seconds")
     record_path.write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
+        json.dumps(record, indent=2) + "\n", encoding="utf-8",
     )
     log(f"clarification manifest preserved at {record_path}")
 
