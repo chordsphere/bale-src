@@ -2473,14 +2473,24 @@ table.)*
   same source of truth, the argparse parser, so adding a flag in one
   place propagates to both surfaces automatically.)*
 
-v0.3 is not yet cut: the four apply flags above and apply-scoped
-`--verbose` landed in v0.2.1, inline help and bash completion landed in
-v0.2.2, and one thread remains open — the `--verbose` extension to the
-commands still without it (retry gained it in v0.3.14 via flag parity;
-pack and revert remain open) and the §7.4 pass-through of `--verbose`
-into `validation.sh` itself. The cut waits on that thread, or on an
-explicit architect's call to cut now and track the remainder under
-v0.3b.
+The counter and this phase model decoupled during the 0.3.x line:
+this paragraph long closed "v0.3 is not yet cut" while the shipped
+constant ran ahead — 0.3.27 at the 2026-08-03 ratification of the
+ladder below (version per that session's request provenance stamp).
+Re-coupled position, ratified: **v0.3 is the shipped series**, and
+**0.4.0 cuts** when two items close —
+
+- the `--verbose` thread — the residue named above: the commands
+  still without the flag (pack and revert; retry gained it in
+  v0.3.14 via flag parity) plus the §7.4 pass-through of `--verbose`
+  into `validation.sh` itself; and
+- a read-only audit diffing the v0.4 selftest checklist below
+  against the actual suite — the rollback conflict and merge-commit
+  cases were explicitly deferred to v0.4 and never picked up.
+
+Then cut. The ratified ladder supersedes the earlier escape hatch
+(an explicit architect's call to cut early and track the remainder
+under v0.3b); that clause is retired.
 
 ### v0.4 — selftest
 
@@ -2510,6 +2520,27 @@ but not landed:
 Any addition extends `bale_config.walk_configurables()` and
 `render_bale_toml()` in the same session — the wizard owns the
 discoverable surface (bale-internals.md §2.5).
+
+### v1.0 — contracts become promises
+
+Defined for the first time at the 2026-08-03 ratification. At 1.0.0
+the contracts become promises: the wire format (§6),
+`record_version` (§8.9), and the `--json` key contracts (§5.4) go
+breaking-change-costs-major — from the cut on, a breaking change to
+any of them costs a major version.
+
+Gates — both must hold before the cut:
+
+- boards 6 and 10 landing; and
+- the first work class earning **and exercising** a real autonomy
+  grant.
+
+Explicitly not gated on:
+
+- the API-harness transport — a separate component (MASTER.md §1),
+  not part of bale's own 1.0 surface; and
+- lifting the solo-project assumption — documented scope (§3.5),
+  not debt.
 
 ---
 
