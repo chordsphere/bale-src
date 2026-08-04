@@ -1,0 +1,113 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-board-33-recovery-015",
+  "created_at": "2026-07-31T16:44:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T16:44:40+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-07-31-board-33-recovery-015.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "board 33 present; boards 1-32 numbering untouched; no board 34": "pass",
+          "evidence 47 present; evidence 1-46 numbering untouched; no evidence 48": "pass",
+          "queue names board 33 before board 32": "pass",
+          "registry: no bale_pack.py fused-rider entry; no stale board-32 carrier string": "pass",
+          "board 11 harness-extraction trigger marked spent": "pass",
+          "section 2 sitting entry gains exactly one bracketed correction note": "pass",
+          "header last-landed-by names this sid exactly once": "pass"
+        },
+        "claim_verdict": {
+          "board 33 present; boards 1-32 numbering untouched; no board 34": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence 47 present; evidence 1-46 numbering untouched; no evidence 48": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "queue names board 33 before board 32": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "registry: no bale_pack.py fused-rider entry; no stale board-32 carrier string": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board 11 harness-extraction trigger marked spent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 2 sitting entry gains exactly one bracketed correction note": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header last-landed-by names this sid exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.20",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "a1d01f85afcf3977d08540828f4212192c6d9e1ff6547ca1cc25658f7a174edf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the section-5 block heading's exact wording was my choice (flagged in notes.md); the brief pinned the four rules and the date but not the heading form"
+          ],
+          "judgment_calls": [
+            "board 33's row opens with a provenance line (ratified-in-chat / recorded-at-this-sid / implementation-future) so the row is not read as landed",
+            "restored the blank line the fused-rider deletion took, keeping the Cleared paragraph outside the registry list",
+            "board 11's spent marker is a bracketed append (annotation shape), not a rewrite of the bullet"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-board-33-recovery-015.log"
+    }
+  ],
+  "updated_at": "2026-07-31T16:44:40+00:00",
+  "outcome": "applied"
+}

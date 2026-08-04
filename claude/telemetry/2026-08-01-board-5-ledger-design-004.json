@@ -1,0 +1,26 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-01-board-5-ledger-design-004",
+  "created_at": "2026-08-03T13:51:27+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T13:51:27+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope": [],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-01-board-5-ledger-design-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T13:51:27+00:00",
+  "outcome": "unlocked"
+}

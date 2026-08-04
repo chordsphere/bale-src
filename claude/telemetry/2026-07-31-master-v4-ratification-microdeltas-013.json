@@ -1,0 +1,122 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-master-v4-ratification-microdeltas-013",
+  "created_at": "2026-07-31T15:55:32+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T15:55:32+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-013.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "header last-landed-by names this sid, exactly once": "pass",
+          "registry: no board-27 ride condition; retitle entry re-homed; internals rider entry absent": "pass",
+          "evidence numbering: entries 10-46 once each, 1-9 prose-carried, no 47": "pass",
+          "reverse-transform equality against pre-image hashes (MASTER.md, INDEX.md)": "pass",
+          "task-4 negative control: first-sitting-scopeless claim absent (normalized sweep)": "pass",
+          "internals \u00a76: no trigger-shaped harness sentence; blockquote and INDEX mention the test layout": "pass",
+          "INDEX coherence both directions (claude/ inventory)": "pass"
+        },
+        "claim_verdict": {
+          "header last-landed-by names this sid, exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "registry: no board-27 ride condition; retitle entry re-homed; internals rider entry absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence numbering: entries 10-46 once each, 1-9 prose-carried, no 47": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reverse-transform equality against pre-image hashes (MASTER.md, INDEX.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "task-4 negative control: first-sitting-scopeless claim absent (normalized sweep)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "internals \u00a76: no trigger-shaped harness sentence; blockquote and INDEX mention the test layout": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX coherence both directions (claude/ inventory)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/context/bale-internals.md",
+        "claude/telemetry/2026-07-31-continue-plan-002.json",
+        "claude/telemetry/2026-07-31-continue-plan-006.json"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.20",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "a1d01f85afcf3977d08540828f4212192c6d9e1ff6547ca1cc25658f7a174edf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "board 24's session presumed (labeled a guess in notes.md) as the source of the two rider edits already present in the shipped bale-internals.md; attribution is cosmetic to the outcome",
+            "INDEX inventory paths not shipped in this request (BALE.md, ADRs, meta-sessions.md) assumed to resolve in the repo; the INDEX-coherence check verifies architect-side",
+            "\u00a73's '011 ran read-only' left standing on the orchestrator brief's own attestation \u2014 011's closure record was not shipped"
+          ],
+          "judgment_calls": [
+            "bale-internals.md ships no change despite write-set membership: two of the rider's three edits were already in the tree, so only the INDEX.md half lands (notes.md, task 6)",
+            "task-4 enumeration returned zero occurrences, so the correction lands only as evidence 46's positive record; adjacent-but-accurate sentences ('keep the habit', the lifecycle-arc list) left unedited (notes.md, task 4)",
+            "the retitle entry's bracketed annotation trimmed to record the re-homing and drop the now-resolved flagged-for-ratification sentence; the entry's own content kept verbatim",
+            "012's resolved 'no separate deltas pack follows unless\u2026' conditional kept and resolved narratively in the \u00a72 extension rather than deleted"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-master-v4-ratification-microdeltas-013.log"
+    }
+  ],
+  "updated_at": "2026-07-31T15:55:32+00:00",
+  "outcome": "applied"
+}

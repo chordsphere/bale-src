@@ -1,0 +1,124 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-01-board-5-bale-stats-006",
+  "created_at": "2026-08-01T04:33:44+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-01T04:33:44+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-006 (10).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "full test suite (unittest discover -s tests)": "pass",
+          "session-specific assertions (exec bit, BALE.md 5.6 + table row, one-home key contract, index header lists section 27, bale_stats reads only its telemetry dir and writes nothing, VERSION 0.3.24)": "pass"
+        },
+        "claim_verdict": {
+          "full test suite (unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (exec bit, BALE.md 5.6 + table row, one-home key contract, index header lists section 27, bale_stats reads only its telemetry dir and writes nothing, VERSION 0.3.24)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/telemetry",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json",
+        "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json",
+        "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json",
+        "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json",
+        "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json",
+        "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json",
+        "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json",
+        "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json",
+        "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json",
+        "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json",
+        "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json",
+        "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json",
+        "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json",
+        "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json",
+        "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json",
+        "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json",
+        "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json",
+        "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json",
+        "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json",
+        "tests/fixtures/stats_corpus/corrupt-record.json",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_stats_aggregation.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.22",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "VERSION skips 0.3.22 -> 0.3.24: session A's landed comments tag v0.3.23 but never bumped the constant, so 0.3.23 is treated as A's (unbumped) number and stats takes 0.3.24 (notes.md, ratify first).",
+            "D2's membership exclusions read as closure-mix exclusions too: read-only and crash-debris sessions live only in the context/hygiene counts and never in the mix (notes.md judgment call 1).",
+            "Epoch and coverage rows are whole-corpus facts untouched by --since/--work-class; context counts honor --since only (notes.md judgment call 2)."
+          ],
+          "judgment_calls": [
+            "Loader diagnostics write to sys.stderr directly instead of the lazy __main__ log() idiom, so corrupt-record naming lands on stderr in human and json modes alike.",
+            "cmd_stats is section 27, physically before section 26 so the CLI section stays the file tail; the index header's drifted line numbers were re-synced in the same pass.",
+            "Reasonless unlocked closures bucket as 'unspecified' in the mix; unknown envelope outcomes count as in-flight with a stderr warning; unknown work_class values form their own row.",
+            "The D2 coverage example (first closure_reason carrier / lacking count) does not reproduce against the shipped corpus; the mechanical key-presence rule was implemented as specified and the discrepancy is documented in notes.md."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/context/bale-internals.md (to ride the eighth-sibling mention; proposed in notes.md instead)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-01-board-5-bale-stats-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-01T04:33:44+00:00",
+  "outcome": "applied"
+}

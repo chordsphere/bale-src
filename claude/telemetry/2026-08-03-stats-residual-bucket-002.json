@@ -1,0 +1,103 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-stats-residual-bucket-002",
+  "created_at": "2026-08-03T12:35:44+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T12:35:44+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (24).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python unit suite: tests/test_stats_aggregation.py": "pass",
+          "full unittest discovery (tests/)": "pass",
+          "exec bit: validate.sh": "pass"
+        },
+        "claim_verdict": {
+          "python unit suite: tests/test_stats_aggregation.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full unittest discovery (tests/)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json",
+        "tests/test_stats_aggregation.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.25",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the constraint's 'presence and exec-bit rows for bin/bale_stats.py' was read as a transcription slip from the tools-style row pair: sibling bin modules are non-executable imports with presence-only rows, and an -x row would fail every healthy install \u2014 presence row shipped, deviation flagged in notes.md for ratification"
+          ],
+          "judgment_calls": [
+            "out-of-vocabulary agreement values count in checks only and are named on stderr \u2014 no catch-all bucket, per the schema-vocabulary constraint; matches the module's unrecognized-outcome posture",
+            "the [n/a] fixture check landed on the existing hold-retry record's retry attempt (claim unknown, verdict skip) rather than a new corpus record, confining the ripple to the check totals (corpus 19, code 14, agreement_rate 11/14)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/responses/response-007/notes.md \u2014 the queued validate.sh proposal's exact wording would have settled the exec-bit question without an assumption"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-03-stats-residual-bucket-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T12:35:44+00:00",
+  "outcome": "applied"
+}

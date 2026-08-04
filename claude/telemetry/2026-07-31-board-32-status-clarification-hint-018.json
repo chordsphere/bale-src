@@ -1,0 +1,93 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-board-32-status-clarification-hint-018",
+  "created_at": "2026-08-01T03:08:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-01T03:08:47+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-018 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "clarification-status suite (python3 tests/test_clarification_status.py)": "pass",
+          "full test suite (python3 -m unittest discover -s tests)": "pass"
+        },
+        "claim_verdict": {
+          "clarification-status suite (python3 tests/test_clarification_status.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_report.py",
+        "tests/test_clarification_status.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.21",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-07-31"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the human clarification row renders whenever preserved records exist for the classified session (held included), with only the state description and hint carrying the suspended framing \u2014 flagged in notes.md for ratify",
+            "the fabricated test state (records + lock-held-no-branch) is byte-equivalent to what _apply_clarification leaves behind; verified by reading the handler, not by driving it (out_of_scope kept the apply side untouched)"
+          ],
+          "judgment_calls": [
+            "state precedence held > clarification > packed > orphan, reasoned on _session_state_and_hint's docstring",
+            "an unparseable record still counts as a suspension round; only the question count degrades to unknown (logged, never silent)",
+            "json session.clarification is additive and present whenever rounds > 0, independent of the state enum"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-board-32-status-clarification-hint-018.log"
+    }
+  ],
+  "updated_at": "2026-08-01T03:08:47+00:00",
+  "outcome": "applied"
+}

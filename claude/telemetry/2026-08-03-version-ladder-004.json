@@ -1,0 +1,95 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-version-ladder-004",
+  "created_at": "2026-08-03T14:27:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T14:27:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-03-version-ladder-004.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "ladder anchors present (rewritten v0.3 close, v1.0 subsection, gates and non-gates)": "pass",
+          "escape-hatch clause removed (no 'v0.3 is not yet cut', no v0.3b remainder-tracking clause)": "pass",
+          "section stability (no renumbering: sections 1-15 headings and section 13's pre-existing subsections intact)": "pass"
+        },
+        "claim_verdict": {
+          "ladder anchors present (rewritten v0.3 close, v1.0 subsection, gates and non-gates)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "escape-hatch clause removed (no 'v0.3 is not yet cut', no v0.3b remainder-tracking clause)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section stability (no renumbering: sections 1-15 headings and section 13's pre-existing subsections intact)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.27",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master:2026-08-01-continue-plan-003",
+            "work_class": "contract-doc",
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-08-03"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The unqualified '\u00a77.4' in the carried residue wording refers to TARBALL.md \u00a77.4 (validation logging), not BALE.md \u00a77.4 \u2014 carried as-is, flagged in notes.md",
+            "'boards 6 and 10' and the MASTER.md \u00a71 citation are transported verbatim in substance from the brief without independent access to MASTER.md; the sibling deltas session lands that side"
+          ],
+          "judgment_calls": [
+            "Named the new subsection '### v1.0 \u2014 contracts become promises' to match \u00a713's existing '### vX.Y \u2014 name' pattern",
+            "Kept a one-sentence retirement notice for the v0.3b escape hatch inside the rewritten paragraph rather than deleting the clause silently \u2014 readers who remember the clause see its supersession",
+            "Rewrote the v0.3 close as decoupling-acknowledgment + two-item cut list rather than minimal prose surgery; the brief's 'state the current position honestly' read as licensing the fuller shape"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-03-version-ladder-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T14:27:13+00:00",
+  "outcome": "applied"
+}

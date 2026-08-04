@@ -1,0 +1,111 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-preserved-at-and-retag-003",
+  "created_at": "2026-08-03T13:46:16+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T13:46:16+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (23).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests: tests/test_telemetry_promotion.py": "pass",
+          "unit tests: full discovery (python3 -m unittest discover -s tests)": "pass",
+          "version assertions (VERSION == 0.3.27; no 0.3.25 literal remains under bin/)": "pass",
+          "exec-bit assertion: bin/bale": "pass"
+        },
+        "claim_verdict": {
+          "unit tests: tests/test_telemetry_promotion.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit tests: full discovery (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version assertions (VERSION == 0.3.27; no 0.3.25 literal remains under bin/)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertion: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "schemas",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_telemetry_promotion.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.25",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "test_release_packaging passes on the real checkout: its 7 errors in my sandbox are all FileNotFoundError on scripts/build.sh, which the request did not ship, and its tests build synthetic trees this change set cannot affect",
+            "session 002 introduced exactly one v0.3.25-tagged addition (the checks_na contract line) \u2014 established by full-tree grep, not by the request's enumeration alone"
+          ],
+          "judgment_calls": [
+            "sidecar key over wrapper for preserved_at, per the brief's keep-the-fallback-simplest criterion \u2014 stampless records take the identical code path and record shape as today",
+            "restructured read_clarification_summary to parse before stat so the stamp can be preferred; emitted dict is key-and-value identical for stampless records",
+            "claimed pass (not unknown) for full discovery despite the sandbox miss \u2014 reasoning in notes.md"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-03-preserved-at-and-retag-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T13:46:16+00:00",
+  "outcome": "applied"
+}

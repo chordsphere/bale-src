@@ -1,0 +1,102 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-01-stats-packaging-closeout-007",
+  "created_at": "2026-08-03T11:58:24+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T11:58:24+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-01-stats-packaging-closeout-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "release build in staging (scripts/build.sh)": "pass",
+          "python3 -m unittest discover -s tests": "pass"
+        },
+        "claim_verdict": {
+          "release build in staging (scripts/build.sh)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "bin/bale",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts/build.sh",
+        "scripts/reinstall.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.22",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), via claude.ai chat"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "bin/bale_stats.py is an imported sibling module, so it stays out of build.sh's EXECUTABLES and install.sh's chmod line, mirroring the other siblings",
+            "the drift guard scans the RELEASE_FILES surface only (not scripts/, tests/, or claude/) \u2014 the release surface is where the 005 drift lived, and fixture/test data would false-positive a wider scan",
+            "the guard matches v-prefixed tags only (vX.Y.Z, the tree's citation form); bare X.Y.Z would false-positive on section references and data values",
+            "under --version the guard still compares against bin/bale's constant (tree-vs-constant is the drift class), which also means an override build now dies on an unreadable VERSION line where it previously never read it"
+          ],
+          "judgment_calls": [
+            "scripts/reinstall.sh joined the change set beyond the brief's named files: its tree-coverage membership check shares the printf|grep -q pipefail/SIGPIPE flake observed firing a false refusal during validation rehearsal; in scope (scripts/), flagged in notes.md",
+            "bale-internals.md got cluster 19 (Stats wiring) and the twelve-command count in addition to the literal sibling paragraph \u2014 every prior sibling record updated the surrounding structure the same way",
+            "empty scrape in the drift guard is fatal, not a pass: zero tags means a broken pattern or file set, matching reinstall.sh's empty-extraction posture"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "upgrade.sh, validate.sh, schemas/, docs/ (repo copies) \u2014 the new suite and validation rehearsal had to synthesize them; harmless here, but a build.sh-touching session packs cleaner with the whole release surface"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-01-stats-packaging-closeout-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T11:58:24+00:00",
+  "outcome": "applied"
+}

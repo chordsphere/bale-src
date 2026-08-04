@@ -1,0 +1,32 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-stats-residual-bucket-001",
+  "created_at": "2026-08-03T12:07:26+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T12:07:26+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-03-stats-residual-bucket-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T12:07:26+00:00",
+  "outcome": "unlocked"
+}

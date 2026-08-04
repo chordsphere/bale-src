@@ -1,0 +1,83 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-master-deltas-005",
+  "created_at": "2026-08-03T14:36:51+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-03T14:36:51+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-005 (17).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "master-deltas content assertions (claude/MASTER.md)": "pass"
+        },
+        "claim_verdict": {
+          "master-deltas content assertions (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.27",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master:2026-08-01-continue-plan-003",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The report's landing/version facts are recorded as cited claims, never verified from this MASTER.md-only request (per constraint); the one verifiable claim (0.3.27) was checked against the request's provenance stamp and agrees.",
+            "The bailout-banner telemetry-row rider is recorded presumed-landed-with-005: inference from the ratified banner-order alignment, marked unverified on the board row as instructed."
+          ],
+          "judgment_calls": [
+            "Replaced both stale \u00a73 in-flight bullets, not only the first named one \u2014 the enumerated replacement content covered the second bullet's subject and leaving it would have self-contradicted \u00a73 (flagged in notes.md).",
+            "The evidence-13 tally is a dated bracket note appended in-entry, worded 'next occurrence' rather than an ordinal, since the entry's own occurrence counting is loose across entries 13/30 (flagged in notes.md).",
+            "Board 5's DONE row spells all six sids in full per \u00a77's full-sid convention, trading a little compactness for the doc's own anti-collision rule."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-03-master-deltas-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-03T14:36:51+00:00",
+  "outcome": "applied"
+}

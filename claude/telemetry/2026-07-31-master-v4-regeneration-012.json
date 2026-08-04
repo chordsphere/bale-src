@@ -1,0 +1,109 @@
+{
+  "record_version": 1,
+  "session_id": "2026-07-31-master-v4-regeneration-012",
+  "created_at": "2026-07-31T14:11:09+00:00",
+  "attempts": [
+    {
+      "at": "2026-07-31T14:11:09+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-012 (3).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "MASTER.md structural anchors (8 headings, board 1-32, evidence 1-45)": "pass",
+          "MASTER.md pointer sweep (zero '\u00a72 summary' citations)": "pass",
+          "INDEX.md coherence (entries resolve; claude/ docs listed)": "pass",
+          "byte-size sanity (MASTER.md material shrink, INDEX.md modest shrink)": "pass",
+          "negative control (anchor checker flags a seeded violation)": "pass"
+        },
+        "claim_verdict": {
+          "MASTER.md structural anchors (8 headings, board 1-32, evidence 1-45)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "MASTER.md pointer sweep (zero '\u00a72 summary' citations)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX.md coherence (entries resolve; claude/ docs listed)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "byte-size sanity (MASTER.md material shrink, INDEX.md modest shrink)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "negative control (anchor checker flags a seeded violation)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/telemetry"
+      ],
+      "overridden_paths": [],
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.20",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "a1d01f85afcf3977d08540828f4212192c6d9e1ff6547ca1cc25658f7a174edf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), worker for sid 2026-07-31-master-v4-regeneration-012"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The v3 prose's 'master-deltas-015' is a typo for the telemetry corpus's 2026-07-15-master-deltas-006; the cluster was accounted against the -006 record (flagged in notes.md).",
+            "The board-27-riding fold-in entries (section-8.9 retitle; internals-section-6 surfacing) did not land with session 007, based on v3's own summary of 007's landed set \u2014 BALE.md and bale-internals.md were not shipped for direct verification.",
+            "INDEX.md coherence will pass repo-side: no entry paths were changed, so the check verifies pre-existing inventory state this session could not see.",
+            "Post-compaction: the notes.md removal-accounting sections drafted pre-compaction were verified against the shipped files and telemetry corpus, not re-derived from a fresh full read of v3 (disclosed in notes.md)."
+          ],
+          "judgment_calls": [
+            "Kept board rows 4 and 23 near their prior length (neither was in the brief's compress-five list) and limited edits there to citation fixes plus one accounted tense fix.",
+            "Annotated rather than rewrote the two dead-ride fold-in entries, carrying the section-8.9 retitle verbatim per the brief and queueing the re-homing as a proposal.",
+            "Recorded the telemetry count as 47 against the brief's claimed 46 and named the uncited extra record.",
+            "Placed the going-forward convention in the header (the brief allowed header or section 3)."
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md, 'Session disclosure: a compaction occurred'"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-07-31-master-v4-regeneration-012.log"
+    }
+  ],
+  "updated_at": "2026-07-31T14:11:09+00:00",
+  "outcome": "applied"
+}
