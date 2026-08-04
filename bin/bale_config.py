@@ -213,6 +213,18 @@ VALIDATION_VALUES = (
     # but absent at the base tree = loud refusal at apply. Conventional
     # path the wizard suggests: scripts/validation.base.sh.
     "base",
+    # Flat list of check names (board 6 session B): the project's
+    # REQUIRED validation checks. When non-empty, apply's pre-flight
+    # step 15 (BALE.md §8.1) requires every name to appear verbatim in
+    # the response manifest's validation_will_run whenever changes[] is
+    # non-empty — the superset rule that converts the declaration floor
+    # to contract. Whole-project at v1: no file-type or path keying
+    # (the keyed-table shape is the same wizard-unwalkable structure
+    # the [validation] base decision rejected). A declared check may
+    # still [SKIP] with a reason at runtime (TARBALL.md §7.2), which is
+    # honest and visible; the rule is about declaration, not forced
+    # work. Absent/empty = no required set (today's behavior).
+    "required",
 )
 
 
@@ -716,6 +728,51 @@ def get_validation_base(cfg: dict) -> Optional[str]:
         fail(f"{BALE_CONFIG}: validation.base must be a repo-relative "
              f"path with no '..' components, got {val!r}")
     return val
+
+
+def get_validation_required(cfg: dict) -> list[str]:
+    """Return [validation].required from the merged config; absent or
+    empty → [] (no required set — apply's step-15 gate stays out of the
+    way, today's behavior).
+
+    The required-check set (board 6 session B; BALE.md §8.1 step 15): a
+    flat, whole-project list of check names the response manifest's
+    validation_will_run must include verbatim whenever changes[] is
+    non-empty. Consumed by the apply pipeline's superset gate.
+
+    Merged-config note: [validation] is project-layer only at v1
+    (ratified disposition 1) — merged_config never carries a global
+    value into this section, so this accessor reads the project's own
+    key or nothing.
+
+    Shape posture mirrors get_staging_untracked_inputs: a non-list
+    value, a non-string entry, or an empty-string entry is fatal — a
+    typo must not silently weaken the gate the planner thought was
+    pinned. Duplicate names are tolerated here (the gate deduplicates);
+    order is preserved as configured.
+    """
+    from __main__ import fail
+
+    validation_section = cfg.get("validation")
+    if validation_section is None:
+        return []
+    if not isinstance(validation_section, dict):
+        fail(f"{BALE_CONFIG}: [validation] must be a table, "
+             f"got {type(validation_section).__name__}")
+    raw = validation_section.get("required")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        fail(f"{BALE_CONFIG}: validation.required must be an array "
+             f"of check-name strings, got {type(raw).__name__}")
+    for i, entry in enumerate(raw):
+        if not isinstance(entry, str):
+            fail(f"{BALE_CONFIG}: validation.required[{i}] must be a "
+                 f"string, got {type(entry).__name__}")
+        if not entry.strip():
+            fail(f"{BALE_CONFIG}: validation.required[{i}] is empty; "
+                 f"remove the entry or name a check")
+    return [entry.strip() for entry in raw]
 
 
 # ---------------------------------------------------------------------------
@@ -1331,6 +1388,39 @@ def walk_configurables(existing: dict, *, layer: str,
         if val is not None:
             new.setdefault("validation", {})["base"] = val
 
+        # ---- [validation].required (PROJECT LAYER ONLY) ----------------------
+        # Board 6 session B: the required-check set apply's step-15 gate
+        # reads. Same project-only posture as validation.base above and
+        # the same list-walk machinery as staging.untracked_inputs —
+        # _prompt_path_list is the canonical wizard interface for
+        # list-shaped configurables (its docstring says so); check names
+        # are colon-separated on input like paths are. `inherited` is
+        # deliberately None: merged_config never carries a global value
+        # into [validation].
+        raw_cur_list = (existing_validation.get("required")
+                        if "required" in existing_validation else None)
+        current_list = (_coerce_path_list(raw_cur_list)
+                        if raw_cur_list is not None else None)
+
+        val_list = _prompt_path_list(
+            "validation.required",
+            current=current_list,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip.",
+                "Check names the worker's validation_will_run MUST",
+                "declare on every response that ships changes (BALE.md",
+                "8.1 step 15) — exact string match against the manifest",
+                "list. A declared check may still [SKIP] with a reason",
+                "at runtime; the rule is about declaration, not forced",
+                "work. Whole-project at v1 (no per-file-type keying).",
+                "Colon-separated names, e.g. tests:lint. Project-layer",
+                "only — the global wizard does not walk this key.",
+            ],
+        )
+        if val_list is not None:
+            new.setdefault("validation", {})["required"] = val_list
+
     return new
 
 
@@ -1458,10 +1548,13 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
                 parts.append(f"{key} = {json.dumps(identity_section[key])}")
         parts.append("")
 
-    # [validation] section (board 6 session A, blind checkpoint). Single
-    # string key; json.dumps covers it, including the empty-string skip
-    # form. Emitted in VALIDATION_VALUES order. Project-layer only by
-    # walk (disposition 1): the global wizard never puts this section in
+    # [validation] section (board 6 sessions A and B). Two keys: the
+    # string-scalar checkpoint path (`base`, including the empty-string
+    # skip form) and the list-shaped required-check set (`required`,
+    # including the empty-list suppress form) — the same serialization
+    # shapes the [apply]/[staging] sections cover. Emitted in
+    # VALIDATION_VALUES order. Project-layer only by walk
+    # (disposition 1): the global wizard never puts this section in
     # its dict, so a global bale.toml never gains it through this
     # renderer — and a hand-edited global [validation] is ignored by
     # merged_config regardless.
@@ -1470,7 +1563,14 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         parts.append("[validation]")
         for key in VALIDATION_VALUES:
             if key in validation_section:
-                parts.append(f"{key} = {json.dumps(validation_section[key])}")
+                v = validation_section[key]
+                if isinstance(v, list):
+                    rendered_array = ("["
+                                      + ", ".join(json.dumps(p) for p in v)
+                                      + "]")
+                    parts.append(f"{key} = {rendered_array}")
+                else:
+                    parts.append(f"{key} = {json.dumps(v)}")
         parts.append("")
 
     return "\n".join(parts)

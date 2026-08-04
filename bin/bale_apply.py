@@ -658,7 +658,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     no_interact: bool = False,
                     no_interact_source: str = "",
                     invoked_by: str = "apply",
-                    allow_out_of_scope: Optional[list[str]] = None) -> int:
+                    allow_out_of_scope: Optional[list[str]] = None,
+                    allow_missing_required_check: Optional[list[str]] = None,
+                    ) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
     + clean-tree guards) and cmd_retry (after _discard_hold_state has
@@ -714,6 +716,16 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     prior attempt — so a retry that needs the override re-states it, and
     one that omits it hits the drift gate like an un-overridden apply.
 
+    `allow_missing_required_check` (board 6 session B; cmd_apply/cmd_retry
+    --allow-missing-required-check, repeatable) names required-check NAMES
+    the step-15 superset gate below should admit despite being absent from
+    the manifest's validation_will_run. The override's unit is the check
+    name — the gate's own unit — and its contract is the ratified §5
+    override shape: per-invocation only (deliberately no config key),
+    re-stated on retry exactly like `allow_out_of_scope` above, never
+    carried from a prior attempt. Any missing name NOT admitted still
+    refuses. None/empty means no override.
+
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
     Each terminal outcome below (merge, inspect, revert; plus the bailout
@@ -758,6 +770,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         emit_json_line,
         format_apply_json,
         format_dry_run_report,
+        format_required_check_refusal,
         format_scope_drift_refusal,
         format_summary_block,
         format_walkthrough_summary,
@@ -984,6 +997,130 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # generated-artifact denial below, a clean pass adds no output,
         # keeping accepted-tarball output byte-identical to v0.3.9.
 
+        # 8.1 step 15 / §11 row 26 (board 6 session B): required-check
+        # superset gate — the drift gate's declaration-side sibling,
+        # sited beside it (appended as step 15 so steps 1–14 stay
+        # stable). The worker's validation_will_run is the declaration
+        # claims hang off (row 15: claims ⊆ validation_will_run); an
+        # under-declared set starves the calibration stream on exactly
+        # the checks that matter and is invisible to every gate above.
+        # When the project pins `[validation] required` (bale.toml,
+        # project layer only — get_validation_required), every required
+        # name must appear VERBATIM in validation_will_run whenever
+        # changes[] is non-empty. Name membership only — content stays
+        # review policy — and a declared check may still [SKIP] with a
+        # reason at runtime (TARBALL.md §7.2), grading n/a (§7.3):
+        # honest and visible rather than forced work. Fires only when
+        # the required set resolves non-empty AND changes[] is non-empty,
+        # so bailout and clarification manifests pass vacuously,
+        # read-only sessions never reach it (step 14 refuses their
+        # changes first), and unconfigured projects are entirely outside
+        # its blast radius. Manifest-and-config-only, so it runs under
+        # --dry-run (same report, no telemetry — no outcome occurred),
+        # mirroring step 14. --allow-missing-required-check <name>
+        # (per-invocation, repeatable, per-NAME, flag-only — the
+        # ratified override shape; a standing config opt-out is the
+        # rejected self-oracle-adjacent silent bypass) admits exactly
+        # the named names; any other missing name still refuses. The
+        # merged config is re-read here rather than threaded from
+        # cmd_apply/cmd_retry — both callers already run merged_config,
+        # the re-read is two small files, and resolving at the gate is
+        # what makes retry structurally inherit the project's current
+        # required set (same config, same gate). The same resolved
+        # config feeds the dry-run dangling-checkpoint prediction below
+        # (the sanctioned session-A rider), one read for both.
+        preflight_cfg = bale_config.merged_config(repo)
+        required_checks = bale_config.get_validation_required(preflight_cfg)
+        required_check_overridden: list[str] = []
+        if required_checks and (manifest.get("changes") or []):
+            declared = manifest.get("validation_will_run", []) or []
+            declared_set = set(declared)
+            # Dedupe preserving config order; exact string match per
+            # TARBALL.md §5.3's canonical-identifier rule.
+            missing = [n for n in dict.fromkeys(required_checks)
+                       if n not in declared_set]
+            allow_names = list(dict.fromkeys(
+                allow_missing_required_check or []))
+            required_check_overridden = [n for n in missing
+                                         if n in allow_names]
+            refused_names = [n for n in missing if n not in allow_names]
+            unused_names = [n for n in allow_names if n not in missing]
+            if unused_names:
+                # Named but not missing: harmless (declared, or not in
+                # the required set at all), but say so — the step-14
+                # unused_allow mirror; a silently ignored override flag
+                # is exactly the surprise the logging rules exist to
+                # prevent.
+                log(f"--allow-missing-required-check named check(s) "
+                    f"with no matching missing required check: "
+                    f"{', '.join(unused_names)} (no effect)")
+            if refused_names:
+                log(f"[REJECT] required checks missing (BALE.md §11 "
+                    f"row 26): validation_will_run omits required "
+                    f"check(s): {', '.join(refused_names)}. Required "
+                    f"set ([validation] required, project layer): "
+                    f"{', '.join(required_checks)}. Declared: "
+                    f"{', '.join(declared) if declared else '(empty)'}")
+                # A distinct, dispatchable outcome — the step-14
+                # refusal's structure exactly: rendering and the json
+                # line come from bale_report (wiring only here),
+                # telemetry records the attempt (except under
+                # --dry-run, which has no outcome), and the return
+                # keeps the session open, pre-staging, with no git
+                # side effects. The cmd_apply/cmd_retry SystemExit
+                # wrapper never fires (no SystemExit), so the attempt
+                # is not double-recorded as "rejected".
+                telemetry_rel = None
+                if not dry_run:
+                    telemetry_rel = write_telemetry_record(
+                        repo, locked_sid, build_telemetry_attempt(
+                            outcome="required-check-refused",
+                            command=invoked_by,
+                            tarball=tarball_path.name, manifest=manifest,
+                            scope=session_scope,
+                            overridden_paths=overridden_paths,
+                            required_check_overrides=(
+                                required_check_overridden),
+                            log_path=f".bale/logs/{locked_sid}.log",
+                        ))
+                print(format_required_check_refusal(
+                    sid=locked_sid,
+                    required=required_checks,
+                    declared=declared,
+                    missing=refused_names,
+                    overridden=required_check_overridden,
+                    telemetry=telemetry_rel,
+                    dry_run=dry_run,
+                ))
+                if json_mode():
+                    # Emitted on this exit-1 path deliberately, like
+                    # held/scope-drift-refused: an orchestrating
+                    # operator dispatches on the outcome key instead
+                    # of parsing prose.
+                    emit_json_line(format_apply_json(
+                        outcome="required-check-refused", sid=locked_sid,
+                        log_path=session_log,
+                        telemetry=telemetry_rel,
+                        required_checks={
+                            "missing": refused_names,
+                            "required": required_checks,
+                            "declared": declared,
+                            "overridden": required_check_overridden,
+                        },
+                    ))
+                return 1
+            if required_check_overridden:
+                # force=True: an admitted missing required check is an
+                # override event of the same species as
+                # --allow-out-of-scope — the FORCE: journal line is the
+                # session log's audit trail; the telemetry stamp at the
+                # terminal action is the durable copy.
+                log(f"missing required check(s) admitted by "
+                    f"--allow-missing-required-check: "
+                    f"{', '.join(required_check_overridden)} (required "
+                    f"set: {', '.join(required_checks)})", force=True)
+        # As with steps 13 and 14, a clean pass adds no output.
+
         # 8.1 step 13 / §11 row 20: generated-artifact denial. Response
         # tarballs ship source, never generated artifacts (TARBALL.md
         # §5.1); a manifest-only check like the scope gate above, so it
@@ -1079,6 +1216,34 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # commit. A passing dry-run means the tarball would be accepted for a
         # real apply.
         if dry_run:
+            # Dry-run dangling-checkpoint prediction (board 6 session B —
+            # the sanctioned session-A rider): the real dangling refusal
+            # sits past this exit (§8.2 resolves base_sha first), so a
+            # dry-run on a checkpoint-configured project would report a
+            # clean plan for an apply that refuses. Resolve the target
+            # base READ-ONLY here — rev-parse and cat-file only, no
+            # session-dir stamps — and predict the same refusal. Gated on
+            # a configured checkpoint so unconfigured projects' dry-run
+            # behavior stays byte-identical. preflight_cfg is the step-15
+            # gate's merged-config read, reused.
+            dry_checkpoint = bale_config.get_validation_base(preflight_cfg)
+            if dry_checkpoint is not None:
+                dry_origin = resolve_target_branch(repo, locked_sid)
+                dry_base = git(["rev-parse", f"refs/heads/{dry_origin}"],
+                               cwd=repo).stdout.strip()
+                dry_probe = git(
+                    ["cat-file", "-e", f"{dry_base}:{dry_checkpoint}"],
+                    cwd=repo, check=False)
+                if dry_probe.returncode != 0:
+                    fail(f"[REJECT] blind checkpoint missing at the base "
+                         f"tree: bale.toml [validation] base names "
+                         f"{dry_checkpoint!r}, but {dry_origin}'s tip "
+                         f"({dry_base[:7]}) has no committed file at that "
+                         f"path — a real apply would refuse the same way. "
+                         f"A working-tree-only checkpoint is not yet "
+                         f"the project's oracle (committed-is-ratified). "
+                         f"Remedies: commit the checkpoint at the named "
+                         f"path, or clear the key via `bale config init`.")
             print(format_dry_run_report(manifest, locked_sid,
                                         response_kind="normal"))
             log("dry-run: validated; no git side effects performed")
@@ -1501,6 +1666,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     tarball=tarball_path.name, manifest=manifest,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
+                    required_check_overrides=required_check_overridden,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
@@ -1561,6 +1727,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     tarball=tarball_path.name, manifest=manifest,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
+                    required_check_overrides=required_check_overridden,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
@@ -1640,6 +1807,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 tarball=tarball_path.name, manifest=manifest,
                 scope=session_scope,
                 overridden_paths=overridden_paths,
+                required_check_overrides=required_check_overridden,
                 validation_state=state,
                 validation_exit_code=exit_code,
                 validation_output=val_output,
@@ -1902,6 +2070,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             repo, tarball_path, locked_sid, args.staging_dir,
             dry_run=True, verbose=args.verbose,
             allow_out_of_scope=args.allow_out_of_scope,
+            allow_missing_required_check=args.allow_missing_required_check,
         )
 
     # 8.1 step 5 — the ADR-0008 narrow rule, replacing the blanket
@@ -1926,6 +2095,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             verbose=args.verbose, no_interact=no_interact,
             no_interact_source=no_interact_source,
             allow_out_of_scope=args.allow_out_of_scope,
+            allow_missing_required_check=args.allow_missing_required_check,
         )
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "apply",
