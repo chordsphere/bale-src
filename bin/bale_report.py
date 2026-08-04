@@ -277,6 +277,7 @@ def format_walkthrough_summary(
     response_dir: Path,
     staging: Path,
     repo: Path,
+    checkpoint: Optional[dict] = None,
 ) -> str:
     """Build the BALE.md §8.7 walkthrough summary block as a single string.
 
@@ -284,6 +285,17 @@ def format_walkthrough_summary(
     against the live repo (which is the cheapest way to get an accurate
     origin..sid_branch diffstat and matches the inspection command we tell
     the user to run). The caller prints the returned string.
+
+    `checkpoint` (board 6 session A, additive) is the executed blind
+    checkpoint's stamp when one ran — the same object the telemetry
+    attempt records ({"configured": True, "state", "exit_code",
+    "script": {...}, ...}) — or None when no checkpoint is configured,
+    in which case the output is byte-identical to the pre-board-6 shape.
+    When present, the validation row attributes the outcome per source
+    (`checkpoint: PASS · worker validation: HOLD (exit 1)`), and a
+    checkpoint exit 2 gets its own phrasing — "the planner's checkpoint
+    itself errored" — because the remedy differs: the planner's
+    artifact broke, not the worker's.
     """
     from __main__ import git  # lazy — see module docstring
 
@@ -376,7 +388,27 @@ def format_walkthrough_summary(
     # Crisp verdict block LAST — the thing the eye lands on. Origin/branch/
     # summary plus a one-line validation roll-up; the per-check table and the
     # full diff are in the reference block above.
-    if claims:
+    if checkpoint is not None:
+        # Per-source attribution (board 6 D2). Both states are named in
+        # one row; the claims-count context stays because the claims
+        # describe the WORKER's script only (the checkpoint has no
+        # claims by construction — nothing to reconcile).
+        cp_exit = checkpoint.get("exit_code")
+        if cp_exit == 0:
+            cp_part = "checkpoint: PASS"
+        elif cp_exit == 2:
+            cp_part = ("checkpoint: errored (exit 2) — the planner's "
+                       "checkpoint itself errored; inspect the "
+                       "checkpoint script")
+        else:
+            cp_part = f"checkpoint: HOLD (exit {cp_exit})"
+        wk_part = ("worker validation: PASS" if exit_code == 0
+                   else f"worker validation: HOLD (exit {exit_code})")
+        claims_note = (f"; {len(claims)} claim(s), per-check table "
+                       f"above, verdict in log" if claims
+                       else "; no project-level claims")
+        validation_row = f"{cp_part} · {wk_part}{claims_note}"
+    elif claims:
         validation_row = (
             f"exit={exit_code} ({len(claims)} claim(s); "
             f"per-check table above, verdict in log)"
@@ -850,6 +882,7 @@ def format_apply_json(
     origin_branch: Optional[str] = None,
     telemetry: Optional[str] = None,
     drift: Optional[dict] = None,
+    checkpoint: Optional[dict] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -910,6 +943,24 @@ def format_apply_json(
                  session_scope       the session's declared scope
                  overridden_paths    paths a partial --allow-out-of-scope
                                      did admit on this invocation
+      checkpoint (board 6 session A, additive) the blind checkpoint's
+               result on the three walkthrough outcomes, mirroring the
+               telemetry stamp's semantics: null when validation.sh did
+               not run (bailout, clarification, dry-run,
+               scope-drift-refused); {"configured": false} when
+               validation ran with no checkpoint pinned (the known-zero
+               form); when one ran, an object with per-source detail:
+                 configured  true
+                 state       "PASS" | "HOLD" — this script's own state
+                             (exit 0 = PASS; PASS of the ATTEMPT
+                             requires the verdict object's state too)
+                 exit_code   the checkpoint's TARBALL.md §7.5 exit code
+                             (2 = the planner's checkpoint itself
+                             errored)
+                 script      {path, sha256} — the executed BASE-TREE
+                             bytes' identity (BALE.md §8.5)
+                 stamp_matched  bool|null — null until the request-side
+                             provenance stamp exists to verify against
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites
@@ -953,6 +1004,12 @@ def format_apply_json(
         # §8.1 step 14) — object on outcome=scope-drift-refused, null on
         # every other outcome.
         "drift": drift,
+        # board 6 session A, additive: the blind checkpoint's result —
+        # null when validation.sh did not run; {"configured": false}
+        # when it ran with no checkpoint pinned; else the per-source
+        # detail object (semantics in the docstring above, the key
+        # list's one home).
+        "checkpoint": checkpoint,
     }
     return json.dumps(payload)
 
@@ -1706,6 +1763,7 @@ def build_telemetry_attempt(
     closure_reason: Optional[str] = None,
     diagnostics: Optional[dict] = None,
     clarification: Optional[dict] = None,
+    checkpoint: Optional[dict] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -1748,6 +1806,21 @@ def build_telemetry_attempt(
     unlocked — and by no other: a held, drift-refused, rejected, or
     rollback attempt is not a closure, so the closing attempt is the
     one place the stamp lives.
+
+    `checkpoint` (board 6 session A) is the blind checkpoint stamp,
+    ALWAYS present on every validated attempt post-epoch and absent on
+    every other — key presence = epoch membership, so aggregation never
+    conflates "no checkpoint configured" with "pre-epoch no data" (the
+    reconciliation-parsed / clarification disambiguation doctrine
+    applied a third time). The always-stamp invariant is owned HERE:
+    when `validation_state` is not None the key is written — the
+    caller's object when given, else the known-zero
+    `{"configured": false}` — and when validation did not run the key
+    is omitted regardless of the argument (no checkpoint executed on a
+    rejected or drift-refused attempt, so there is nothing to stamp).
+    Blind outcomes never merge into `claim_verdict`: the checkpoint has
+    no claims by construction, and a merged row would fabricate a
+    prediction that was never made.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -1779,6 +1852,11 @@ def build_telemetry_attempt(
         attempt["diagnostics"] = diagnostics
     if clarification is not None:
         attempt["clarification"] = clarification
+    # Always-stamp on validated attempts (board 6 D4; see docstring):
+    # key presence = epoch membership, configured:false = known-zero.
+    if validation_state is not None:
+        attempt["checkpoint"] = (checkpoint if checkpoint is not None
+                                 else {"configured": False})
     return attempt
 
 

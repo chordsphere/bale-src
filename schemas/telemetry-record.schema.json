@@ -115,6 +115,41 @@
               }
             }
           },
+          "checkpoint": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Board 6 session A: the blind checkpoint's result on this attempt (BALE.md section 8.5). Key-presence semantics — the reconciliation_parsed / clarification disambiguation doctrine applied a third time: the key is PRESENT on every validated attempt written post-epoch and ABSENT otherwise (pre-epoch records, and attempts where validation.sh did not run), so aggregation never conflates 'no checkpoint configured' with 'pre-epoch no data'. {\"configured\": false} is the known-zero form. Blind outcomes never merge into validation.claim_verdict: the checkpoint has no claims by construction, and a merged row would fabricate a prediction that was never made.",
+            "required": ["configured"],
+            "properties": {
+              "configured": {
+                "type": "boolean",
+                "description": "True when the merged config's [validation] base named a checkpoint and it executed on this attempt; false is the known-zero form — validation ran with no checkpoint pinned."
+              },
+              "state": {
+                "type": "string",
+                "enum": ["PASS", "HOLD"],
+                "description": "The checkpoint script's OWN state: PASS on exit 0, HOLD otherwise. The attempt's overall validation.state requires both scripts' exit 0 for PASS (BALE.md section 8.6); this field carries the per-source attribution."
+              },
+              "exit_code": {
+                "type": "integer",
+                "description": "The checkpoint's exit code (TARBALL.md section 7.5: 0 pass, 1 check failed, 2 the script itself errored — surfaced as 'the planner's checkpoint itself errored', since the remedy differs from a worker failure)."
+              },
+              "script": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": ["path", "sha256"],
+                "description": "Identity of the EXECUTED bytes: the repo-relative configured path and the sha256 of the base-tree blob (git show <base_sha>:<path>) that actually ran — never the staged overlay's copy. This hash is what makes the provenance verification auditable after the fact.",
+                "properties": {
+                  "path": { "type": "string" },
+                  "sha256": { "type": "string" }
+                }
+              },
+              "stamp_matched": {
+                "type": ["boolean", "null"],
+                "description": "Whether the executed base-tree bytes matched the request manifest's pack-time provenance stamp; null when the request carried no stamp (hand-rolled requests, and every request until the pack-side stamping lands)."
+              }
+            }
+          },
           "scope": {
             "type": "array",
             "items": { "type": "string" },

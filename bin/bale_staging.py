@@ -10,8 +10,9 @@ staging strategy — BALE.md §8.3 step 2 — via the private helpers
 `_materialize_target_tree`, `_copy_git_dir`, and
 `_overlay_declared_untracked`), the post-`apply.sh` reconciliation of staging
 against the manifest (`reconcile_staging_against_manifest`, with its private
-tree-snapshot helper `_walk_tree_sha256`), running the response's
-`validation.sh` in staging
+tree-snapshot helper `_walk_tree_sha256`), running the planner's blind
+checkpoint from base-tree bytes (`run_blind_checkpoint`, board 6 session A —
+BALE.md §8.5), running the response's `validation.sh` in staging
 (`run_validation_sh`), and building the session commit from the validated
 staging content via git plumbing (`build_session_commit`, which replaced the
 checkout-consuming `apply_changes_to_worktree` when ADR-0008 landed in
@@ -22,11 +23,13 @@ CODE.md §4.2's size threshold — the third extraction sibling after
 import mechanism.
 
 Behavior-preserving move: the functions keep the signatures and call sites they
-had in `bin/bale`. The six public entry points (`check_response_shell_syntax`,
+had in `bin/bale`. The public entry points (`check_response_shell_syntax`,
 `verify_files_against_manifest`, `stage_response`,
-`reconcile_staging_against_manifest`, `run_validation_sh`,
-`build_session_commit`) are pulled back into `bin/bale`'s namespace via
-`from bale_staging import ...`, so the apply-pipeline callers still write them
+`reconcile_staging_against_manifest`, `run_blind_checkpoint`,
+`run_validation_sh`,
+`build_session_commit`) are pulled into the apply path's namespace via
+`from bale_staging import ...` (in `bale_apply` since v0.3.13), so the
+apply-pipeline callers still write them
 unqualified — the by-name convention `bale_validate` established, chosen here
 over `bale_config`'s qualified style precisely because it leaves the call sites
 untouched. `_walk_tree_sha256` is private to this cluster (its only caller is
@@ -60,6 +63,7 @@ See claude/context/bale-internals.md for how this module sits next to `bin/bale`
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -684,6 +688,157 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
         f"{len(actual_deleted)} deleted, "
         f"{len(actual_modified)} modified"
     )
+
+
+def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
+                         checkpoint_path: str, sid: str, *,
+                         verbose: bool = False) -> dict:
+    """Materialize and run the planner's blind checkpoint from BASE-TREE
+    bytes; log a banded section; return
+    {"path", "sha256", "exit_code", "output"}.
+
+    The board-6 misunderstanding control (BALE.md §8.5): the executed
+    script is `git show <base_sha>:<checkpoint_path>` — the committed
+    version at the target tip the session commit is built against —
+    NEVER the staging copy, which is the current project state plus the
+    response overlay and therefore the worker's post-overlay version
+    whenever the response touched it. Consequences, each deliberate:
+
+    - A response that modifies the checkpoint is checked against the
+      old one — in-flight self-grading is structurally impossible, not
+      policy-refused.
+    - An uncommitted working-tree edit to the checkpoint is not honored:
+      committed-is-ratified, matching the dangling-config refusal.
+    - The rule is staging-strategy-independent: working-tree and
+      target-base staging both stage from states that could already
+      contain drift; base-tree extraction bypasses both.
+
+    Materialization rule (ratified disposition 5): `git show` emits blob
+    bytes only — the exec bit lives in tree metadata and does not
+    survive materialization — so this runner BOTH restores the mode
+    explicitly (from the tree entry's mode via `git ls-tree`, falling
+    back to 0o755) AND invokes via the interpreter (`bash <script>`,
+    exactly as run_validation_sh invokes the worker script). Either
+    alone satisfies the decision; doing both makes silent non-execution
+    impossible by construction. The temp copy lives OUTSIDE staging
+    (tempfile.mkdtemp) so it can never collide with the staged tree or
+    the §8.4 reconciliation walk, and is removed on the way out.
+
+    Capture and logging mirror run_validation_sh's two paths: verbose
+    streams live (stderr merged into stdout) while collecting; default
+    captures quietly. Both write to `.bale/logs/<sid>.log` inside a
+    banded section — `=== blind checkpoint (<path>, <sha256[:12]>) ===`
+    — and close by writing the `=== worker validation.sh ===` band, so
+    the two invocations' output is attributed in the log even though
+    each is captured on its own and the §7.3 reconciliation parse of the
+    WORKER's output never sees checkpoint lines. The bands appear only
+    when a checkpoint is configured: an unconfigured project's log stays
+    byte-identical to today's.
+
+    Exit-code semantics per script (TARBALL.md §7.5, unchanged): 0 pass,
+    1 check failed, 2 the script itself errored. The PASS/HOLD
+    derivation that combines this exit code with the worker's is the
+    caller's (BALE.md §8.6), outside either script. The returned sha256
+    is the hash of the executed base-tree bytes — the value the D4
+    telemetry stamp records and the value session C's provenance
+    verification will audit after the fact.
+
+    Raises via fail() when materialization itself breaks (a `git show`
+    failure after the dangling pre-check passed means the base tree
+    changed mid-apply or git itself errored — both worth stopping for).
+    """
+    from __main__ import fail, log
+
+    # Base-tree bytes, binary-exact: hashed and executed as-is, so the
+    # subprocess call is direct (text=False) rather than through the
+    # __main__ text-mode git helper.
+    shown = subprocess.run(
+        ["git", "show", f"{base_sha}:{checkpoint_path}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if shown.returncode != 0:
+        fail(f"could not materialize the blind checkpoint "
+             f"{checkpoint_path!r} from the base tree {base_sha[:7]}: "
+             f"{shown.stderr.decode(errors='replace').strip()}")
+    script_bytes = shown.stdout
+    script_sha = hashlib.sha256(script_bytes).hexdigest()
+
+    # Tree-entry mode for the explicit restore half of disposition 5.
+    # ls-tree output: "<mode> blob <sha>\t<path>"; a parse miss falls
+    # back to 0o755 — restoring executability is the safe direction, and
+    # the interpreter invocation below runs the script regardless.
+    mode = 0o755
+    ls = subprocess.run(
+        ["git", "ls-tree", base_sha, "--", checkpoint_path],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if ls.returncode == 0 and ls.stdout.strip():
+        tree_mode = ls.stdout.split()[0]
+        if tree_mode == "100644":
+            mode = 0o644
+
+    tmpdir = tempfile.mkdtemp(prefix="bale-checkpoint-")
+    try:
+        script = Path(tmpdir) / Path(checkpoint_path).name
+        script.write_bytes(script_bytes)
+        script.chmod(mode | 0o500)  # owner read+exec at minimum
+
+        log(f"running blind checkpoint {checkpoint_path} "
+            f"(base-tree bytes {script_sha[:12]}, {base_sha[:7]})"
+            + (" (verbose: streaming live)..." if verbose else "..."))
+
+        log_file = repo / ".bale" / "logs" / f"{sid}.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        band = (f"=== blind checkpoint ({checkpoint_path}, "
+                f"{script_sha[:12]}) ===")
+
+        if verbose:
+            proc = subprocess.Popen(
+                ["bash", str(script)],
+                cwd=str(staging),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            collected: list[str] = []
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                collected.append(line)
+            returncode = proc.wait()
+            merged = "".join(collected)
+            with log_file.open("a", encoding="utf-8") as f:
+                f.write(f"\n{band}\n")
+                f.write(merged)
+                f.write(f"\n--- blind checkpoint exit code: {returncode} "
+                        f"---\n")
+                f.write("\n=== worker validation.sh ===\n")
+            return {"path": checkpoint_path, "sha256": script_sha,
+                    "exit_code": returncode, "output": merged}
+
+        result = subprocess.run(
+            ["bash", str(script)],
+            cwd=str(staging),
+            capture_output=True,
+            text=True,
+        )
+        with log_file.open("a", encoding="utf-8") as f:
+            f.write(f"\n{band}\n")
+            f.write(result.stdout)
+            if result.stderr:
+                f.write("\n--- blind checkpoint stderr ---\n")
+                f.write(result.stderr)
+            f.write(f"\n--- blind checkpoint exit code: "
+                    f"{result.returncode} ---\n")
+            f.write("\n=== worker validation.sh ===\n")
+        combined = result.stdout + (("\n" + result.stderr)
+                                    if result.stderr else "")
+        return {"path": checkpoint_path, "sha256": script_sha,
+                "exit_code": result.returncode, "output": combined}
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
