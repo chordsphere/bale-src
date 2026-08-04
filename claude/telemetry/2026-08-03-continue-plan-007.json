@@ -1,0 +1,26 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-03-continue-plan-007",
+  "created_at": "2026-08-04T17:55:25+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-04T17:55:25+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope": [],
+      "overridden_paths": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-03-continue-plan-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-04T17:55:25+00:00",
+  "outcome": "unlocked"
+}
