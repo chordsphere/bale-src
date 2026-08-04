@@ -747,6 +747,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         build_session_commit,
         check_response_shell_syntax,
         reconcile_staging_against_manifest,
+        run_blind_checkpoint,
         run_validation_sh,
         stage_response,
         verify_files_against_manifest,
@@ -1119,6 +1120,36 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         staging_cfg = bale_config.merged_config(repo)
         staging_strategy = bale_config.get_staging_strategy(staging_cfg)
         staging_untracked = bale_config.get_staging_untracked_inputs(staging_cfg)
+        # Blind checkpoint (board 6 session A, BALE.md §8.5): resolve the
+        # [validation] base key from the same merged config — project
+        # layer only by construction (disposition 1; merged_config never
+        # inherits the section from global). Resolved here, beside the
+        # staging strategy, because the dangling check below needs
+        # base_sha in hand — and refusing HERE is still pre-staging: no
+        # staging tree exists, no branch exists, and the session stays
+        # open with no git side effects beyond the session-dir stamps
+        # every apply writes.
+        checkpoint_path = bale_config.get_validation_base(staging_cfg)
+        if checkpoint_path is not None:
+            probe = git(["cat-file", "-e", f"{base_sha}:{checkpoint_path}"],
+                        cwd=repo, check=False)
+            if probe.returncode != 0:
+                # Configured-but-dangling = loud refusal (never a silent
+                # skip — a broken oracle reference is a bug by hard rule).
+                # Committed-is-ratified is deliberate: a working-tree-only
+                # checkpoint the planner has not committed is not yet the
+                # project's oracle.
+                fail(f"[REJECT] blind checkpoint missing at the base tree: "
+                     f"bale.toml [validation] base names "
+                     f"{checkpoint_path!r}, but {origin_branch}'s tip "
+                     f"({base_sha[:7]}) has no committed file at that "
+                     f"path. A working-tree-only checkpoint is not yet "
+                     f"the project's oracle (committed-is-ratified). "
+                     f"Remedies: commit the checkpoint at the named path, "
+                     f"or clear the key via `bale config init`.")
+            log(f"blind checkpoint configured: {checkpoint_path} "
+                f"(bale.toml [validation] base, project layer; "
+                f"base-tree bytes will run)")
         if staging_strategy != "working-tree":
             log(f"staging strategy: {staging_strategy} "
                 f"(bale.toml [staging]; default is working-tree)")
@@ -1213,12 +1244,49 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         log(f"created branch {sid_branch} at {origin_branch} tip "
             f"({base_sha[:7]})")
 
+        # Blind checkpoint first (BALE.md §8.5, board 6): the planner's
+        # misunderstanding control frames what follows in the log, its
+        # separately-captured invocation keeps the §7.3 reconciliation
+        # parse of the WORKER's output untouched, and a checkpoint that
+        # errors (exit 2) is surfaced before the worker's longer run
+        # spends its budget. Both scripts ALWAYS run — a checkpoint FAIL
+        # does not skip the worker (a checkpoint FAIL beside a worker
+        # PASS is precisely the misunderstanding-with-calibrated-worker
+        # signal the dual stream exists to surface), and the worker's
+        # run below is unconditional.
+        checkpoint_result = None
+        if checkpoint_path is not None:
+            checkpoint_result = run_blind_checkpoint(
+                repo, staging, base_sha, checkpoint_path,
+                locked_sid, verbose=verbose)
+            log(f"blind checkpoint exit code: "
+                f"{checkpoint_result['exit_code']} ({checkpoint_path})")
+
         # Run validation.sh in staging. The captured output feeds the
         # telemetry record's §7.3 claim/verdict promotion (v0.3.9, B2).
         exit_code, val_output = run_validation_sh(
             repo, response_dir, staging, manifest,
             locked_sid, verbose=verbose)
         log(f"validation.sh exit code: {exit_code}")
+
+        # The D4 telemetry stamp for every validated attempt this apply
+        # records (BALE.md §8.9): key presence = post-epoch; configured
+        # false = the known-zero form; when the checkpoint ran, the
+        # per-source state/exit plus the executed base-tree bytes' hash.
+        # stamp_matched is null until session C's provenance stamp
+        # exists to verify against (requests carry no stamp yet).
+        if checkpoint_result is None:
+            checkpoint_stamp: dict = {"configured": False}
+        else:
+            checkpoint_stamp = {
+                "configured": True,
+                "state": ("PASS" if checkpoint_result["exit_code"] == 0
+                          else "HOLD"),
+                "exit_code": checkpoint_result["exit_code"],
+                "script": {"path": checkpoint_path,
+                           "sha256": checkpoint_result["sha256"]},
+                "stamp_matched": None,
+            }
 
         # Telemetry inputs (v0.3.9, B2): session_scope was read at the
         # own-scope drift gate above — once, before any terminal action's
@@ -1266,11 +1334,33 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             fail(f"could not build the session commit for {sid_branch}: "
                  f"{e.stderr or e.stdout or e}")
         state = "PASS" if exit_code == 0 else "HOLD"
+        if checkpoint_result is not None:
+            # PASS requires BOTH exit codes 0 (BALE.md §8.6); the
+            # envelope vocabulary stays PASS/HOLD — additive posture —
+            # with attribution carried everywhere the outcome renders.
+            if checkpoint_result["exit_code"] != 0:
+                state = "HOLD"
         if state == "PASS":
             log(f"committed changes to {sid_branch} "
                 f"({session_commit[:7]}; checkout untouched)")
-        else:
+        elif checkpoint_result is None:
             log(f"validation FAILED (exit={exit_code}); held as commit "
+                f"{session_commit[:7]} on {sid_branch} — inspect with "
+                f"`git diff {origin_branch}..{sid_branch}`; checkout "
+                f"untouched")
+        else:
+            # Attribute the HOLD per source (board 6 D2): the remedy
+            # differs by which script objected — and a checkpoint exit 2
+            # means the PLANNER's artifact broke, not the worker's.
+            cp_exit = checkpoint_result["exit_code"]
+            cp_desc = ("PASS" if cp_exit == 0 else
+                       "errored (exit 2) — the planner's checkpoint "
+                       "itself errored; inspect the checkpoint script"
+                       if cp_exit == 2 else f"HOLD (exit {cp_exit})")
+            wk_desc = ("PASS" if exit_code == 0
+                       else f"HOLD (exit {exit_code})")
+            log(f"HOLD — blind checkpoint: {cp_desc} · worker "
+                f"validation: {wk_desc}; held as commit "
                 f"{session_commit[:7]} on {sid_branch} — inspect with "
                 f"`git diff {origin_branch}..{sid_branch}`; checkout "
                 f"untouched")
@@ -1289,6 +1379,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             response_dir=response_dir,
             staging=staging,
             repo=repo,
+            checkpoint=checkpoint_stamp if checkpoint_result is not None
+            else None,
         ))
         action = prompt_walkthrough_action(
             state, no_interact=no_interact,
@@ -1412,6 +1504,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
+                    checkpoint=checkpoint_stamp,
                     log_path=f".bale/logs/{locked_sid}.log",
                     clarification=read_clarification_summary(
                         repo, locked_sid),
@@ -1440,6 +1533,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 emit_json_line(format_apply_json(
                     outcome="applied", sid=locked_sid, log_path=session_log,
                     state=state, exit_code=exit_code,
+                    checkpoint=checkpoint_stamp,
                     claims=manifest.get("claims", {}) or {},
                     action="merge", merged=True,
                     tag=f"applied/{locked_sid}", origin_branch=origin_branch,
@@ -1470,6 +1564,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
+                    checkpoint=checkpoint_stamp,
                     log_path=f".bale/logs/{locked_sid}.log",
                 ))
             print(format_summary_block(
@@ -1496,6 +1591,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 emit_json_line(format_apply_json(
                     outcome="held", sid=locked_sid, log_path=session_log,
                     state=state, exit_code=exit_code,
+                    checkpoint=checkpoint_stamp,
                     claims=manifest.get("claims", {}) or {},
                     action="inspect", merged=False,
                     origin_branch=origin_branch,
@@ -1547,6 +1643,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 validation_state=state,
                 validation_exit_code=exit_code,
                 validation_output=val_output,
+                checkpoint=checkpoint_stamp,
                 log_path=f".bale/logs/{locked_sid}.log",
                 clarification=read_clarification_summary(repo, locked_sid),
             ))
@@ -1569,6 +1666,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             emit_json_line(format_apply_json(
                 outcome="reverted", sid=locked_sid, log_path=session_log,
                 state=state, exit_code=exit_code,
+                checkpoint=checkpoint_stamp,
                 claims=manifest.get("claims", {}) or {},
                 action="revert", merged=False,
                 origin_branch=origin_branch,

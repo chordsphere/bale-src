@@ -187,6 +187,34 @@ IDENTITY_VALUES = (
     "packer",
 )
 
+# Value-shaped configurables under the [validation] section — the blind-
+# checkpoint surface (board 6 session A). Same trio contract as
+# APPLY_VALUES / STAGING_VALUES / IDENTITY_VALUES: each key has a typed
+# accessor, a walk_configurables() block, and a render_bale_toml() branch.
+# Unlike every section above, [validation] is PROJECT-LAYER ONLY at v1
+# (ratified 2026-08-04, disposition 1): the wizard walks it in project
+# mode only, and merged_config never inherits it from the global layer.
+# The rationale, from the ratification: the checkpoint script must be
+# committed per-repo regardless (the dangling rule), so a global key
+# never saves more than one config line — while adding a dual-resolution
+# rule under which the same global key silently names a different oracle
+# in every repo it touches, including repos where a file happens to sit
+# at the conventional path without the planner ever having ratified it.
+# Oracle-by-coincidence is a worse failure than one line of per-repo
+# config. The layered form (project overrides global per-key, "" to
+# suppress) is the recorded deferred widening; it must answer
+# oracle-by-coincidence before it lands.
+VALIDATION_VALUES = (
+    # String: repo-relative path of the planner-authored blind checkpoint
+    # script, committed at the project's tree. Executed by `bale apply`
+    # from the BASE TREE's bytes (git show <base_sha>:<path>) — never the
+    # staged overlay — before the worker's validation.sh (BALE.md §8.5).
+    # Absent/empty = no blind checkpoint (today's behavior). Configured
+    # but absent at the base tree = loud refusal at apply. Conventional
+    # path the wizard suggests: scripts/validation.base.sh.
+    "base",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -363,6 +391,21 @@ def merged_config(repo: Path) -> dict:
             out_identity[key] = g_identity[key]
     if out_identity:
         merged["identity"] = out_identity
+
+    # [validation] — PROJECT LAYER ONLY (ratified disposition 1; see
+    # VALIDATION_VALUES). Deliberately no `elif key in g_validation`
+    # branch: a [validation] table in the global file is ignored here,
+    # never inherited, so a hand-edited global key cannot silently name
+    # a different oracle in every repo (oracle-by-coincidence). The
+    # layered form is the recorded deferred widening.
+    p_validation = (p.get("validation")
+                    if isinstance(p.get("validation"), dict) else {})
+    out_validation: dict = {}
+    for key in VALIDATION_VALUES:
+        if key in p_validation:
+            out_validation[key] = p_validation[key]
+    if out_validation:
+        merged["validation"] = out_validation
 
     return merged
 
@@ -627,6 +670,52 @@ def get_identity_packer(cfg: dict) -> Optional[str]:
              f"got {type(raw).__name__}")
     val = raw.strip()
     return val or None
+
+
+def get_validation_base(cfg: dict) -> Optional[str]:
+    """Return [validation].base from the merged config, or None if unset.
+
+    The blind-checkpoint path (board 6 session A; BALE.md §8.5): a
+    repo-relative path to the planner-authored checkpoint script,
+    committed at the project's tree. Consumed by the apply pipeline,
+    which executes the BASE TREE's bytes at that path — never the staged
+    overlay — before the worker's validation.sh.
+
+    Merged-config note: [validation] is project-layer only at v1
+    (ratified disposition 1) — merged_config never carries a global
+    value into this section, so this accessor reads the project's own
+    key or nothing.
+
+    Empty string reads as unset (the wizard's skip form; with no global
+    inheritance there is nothing to suppress, but the shape stays
+    consistent with the sibling accessors). A non-string shape is fatal,
+    matching the sibling readers' posture: a typo must not silently
+    disable the oracle the planner thought was pinned. So is a path
+    that is absolute or escapes the repo (`..` components): the key's
+    contract is a repo-relative committed script, and an escaping value
+    is either a typo or interference — both loud.
+    """
+    from __main__ import fail
+
+    validation_section = cfg.get("validation")
+    if validation_section is None:
+        return None
+    if not isinstance(validation_section, dict):
+        fail(f"{BALE_CONFIG}: [validation] must be a table, "
+             f"got {type(validation_section).__name__}")
+    raw = validation_section.get("base")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: validation.base must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    if not val:
+        return None
+    if os.path.isabs(val) or ".." in Path(val).parts:
+        fail(f"{BALE_CONFIG}: validation.base must be a repo-relative "
+             f"path with no '..' components, got {val!r}")
+    return val
 
 
 # ---------------------------------------------------------------------------
@@ -1206,6 +1295,42 @@ def walk_configurables(existing: dict, *, layer: str,
     if val is not None:
         new.setdefault("identity", {})["packer"] = val
 
+    # ---- [validation].base (PROJECT LAYER ONLY) -----------------------------
+    # Walked only in project mode, per the ratified disposition 1 recorded
+    # on VALIDATION_VALUES: the checkpoint must be committed per-repo
+    # regardless, and a global key would let the same value silently name
+    # a different oracle in every repo it touches. `bale config init
+    # --global` therefore never gains this prompt, and `inherited` is
+    # deliberately not consulted (merged_config never carries a global
+    # value into [validation] anyway).
+    if layer == "project":
+        existing_validation = (existing.get("validation")
+                               if isinstance(existing.get("validation"), dict)
+                               else {})
+        raw_cur = existing_validation.get("base")
+        current = raw_cur if isinstance(raw_cur, str) else None
+
+        val = _prompt_value(
+            "validation.base",
+            current=current,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip; you can pin one later.",
+                "Repo-relative path of this project's planner-authored",
+                "BLIND CHECKPOINT script (BALE.md 8.5). When set, `bale",
+                "apply` runs the committed version of this script from",
+                "the session's base tree — never the response's staged",
+                "copy — before the worker's validation.sh, and PASS",
+                "requires both to exit 0. The script must be committed:",
+                "config naming a path absent at the base tree refuses",
+                "the apply loudly. Conventional path:",
+                "scripts/validation.base.sh. Project-layer only — the",
+                "global wizard does not walk this key.",
+            ],
+        )
+        if val is not None:
+            new.setdefault("validation", {})["base"] = val
+
     return new
 
 
@@ -1331,6 +1456,21 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         for key in IDENTITY_VALUES:
             if key in identity_section:
                 parts.append(f"{key} = {json.dumps(identity_section[key])}")
+        parts.append("")
+
+    # [validation] section (board 6 session A, blind checkpoint). Single
+    # string key; json.dumps covers it, including the empty-string skip
+    # form. Emitted in VALIDATION_VALUES order. Project-layer only by
+    # walk (disposition 1): the global wizard never puts this section in
+    # its dict, so a global bale.toml never gains it through this
+    # renderer — and a hand-edited global [validation] is ignored by
+    # merged_config regardless.
+    validation_section = cfg.get("validation") or {}
+    if validation_section:
+        parts.append("[validation]")
+        for key in VALIDATION_VALUES:
+            if key in validation_section:
+                parts.append(f"{key} = {json.dumps(validation_section[key])}")
         parts.append("")
 
     return "\n".join(parts)

@@ -1500,22 +1500,65 @@ the target branch's tip (§8.2) and is never checked out — under
 ADR-0008 the commit and merge are built with plumbing, so the user's
 working tree is untouched regardless of outcome.
 
+**Blind checkpoint (board 6).** A project may pin a planner-authored
+**blind checkpoint** script via `bale.toml`'s `[validation] base` — a
+single repo-relative path key, wizard-walked by `bale config init` at
+the **project layer only** (the global wizard does not walk it, and
+the merge never inherits it from the global file; ratified
+disposition 1 — a global key would let the same value silently name a
+different oracle in every repo it touches). Absent key = no blind
+checkpoint: today's worker-validation-only behavior, byte-identical.
+Configured but absent at the base tree = loud refusal before staging
+(committed-is-ratified: a working-tree-only checkpoint the planner
+has not committed is not yet the project's oracle; the remedy is to
+commit it at the named path or clear the key via `bale config init`).
+
+When configured, **both scripts always run, separately invoked and
+separately captured; checkpoint first.** The executed checkpoint
+bytes come from the **base tree** — `git show <git_head_at_apply>:
+<path>`, materialized to a temporary location outside staging and run
+with `cwd=staging/` — never the staged overlay, whose copy is the
+worker's post-overlay version whenever the response touched it. A
+response that modifies the checkpoint is therefore checked against
+the old one: in-flight self-grading is structurally impossible, not
+policy-refused. `git show` emits blob bytes only, so the runner
+restores the exec bit explicitly from the tree entry's mode AND
+invokes via the interpreter — silent non-execution is outside the
+contract. A checkpoint failure does not skip the worker's run and a
+worker failure does not skip the checkpoint: a checkpoint FAIL
+beside a worker PASS is precisely the misunderstanding-with-
+calibrated-worker signal the dual stream exists to surface.
+
 1. Create the bale branch: `git branch bale/<sid>
    <git_head_at_apply>`.
-2. Place the response manifest at `staging/.bale-manifest.json` so
+2. When a blind checkpoint is configured: materialize and run it
+   from base-tree bytes as above; stream its output into the session
+   log under a banded header — `=== blind checkpoint (<path>,
+   <sha256 prefix>) ===` — closed by a `=== worker validation.sh
+   ===` band, so the two invocations' output is attributed. The
+   checkpoint does not read the manifest and produces no §7.3
+   claims block: claims are the worker's predictions, and the
+   checkpoint has no claims by construction.
+3. Place the response manifest at `staging/.bale-manifest.json` so
    `validation.sh` can read the claims for the reconciliation block.
-3. Run `bash validation.sh` with `cwd=staging/`. Capture stdout,
-   stderr, exit code, and the claims-vs-verdict reconciliation block.
-4. Stream output to `.bale/logs/<sid>.log` and (if `--verbose`) to
+4. Run `bash validation.sh` with `cwd=staging/`. Capture stdout,
+   stderr, exit code, and the claims-vs-verdict reconciliation block
+   (the reconciliation parse reads the worker script's captured
+   output only — the checkpoint's never interleaves with it).
+5. Stream output to `.bale/logs/<sid>.log` and (if `--verbose`) to
    the terminal.
 
-Validation exit codes (per `TARBALL.md` 7.5):
+Validation exit codes (per `TARBALL.md` 7.5), **per script** —
+each keeps the vocabulary individually:
 
 - `0` — passed.
 - `1` — at least one check failed.
 - `2` — the script itself errored. Surfaced distinctly in the
   walkthrough: *"validation script itself errored; inspect the
-  script."*
+  script"* for the worker's, and *"the planner's checkpoint itself
+  errored; inspect the checkpoint script"* for the checkpoint's —
+  the remedy differs, because the planner's artifact broke, not the
+  worker's.
 
 ### 8.6 Commit or hold
 
@@ -1558,9 +1601,14 @@ plumbing, never through a checkout:
    `git update-ref refs/heads/bale/<sid> <commit>
    <git_head_at_apply>`.
 
-If validation exited 0: mark the branch as `[PASS]` for the
-walkthrough. If validation exited 1 or 2: mark as `[HOLD]` with the
-reason from validation output. A HOLD is a commit on `bale/<sid>` —
+If validation exited 0 — **and, when a blind checkpoint ran, its exit
+code was also 0 (§8.5: PASS requires both)** — mark the branch as
+`[PASS]` for the walkthrough. Otherwise mark as `[HOLD]`, attributed
+per source everywhere the outcome renders — the banded session log,
+the walkthrough summary (`checkpoint: PASS · worker validation: HOLD
+(exit 1)`), the `--json` report's additive `checkpoint` key, and the
+telemetry stamp (§8.9). The envelope vocabulary stays PASS/HOLD; the
+attribution is additive. A HOLD is a commit on `bale/<sid>` —
 inert, since nothing has the branch checked out — and inspection is
 identical in UX to PASS inspection: `git diff <origin>..bale/<sid>`,
 `git log bale/<sid>`, plus the per-sid staging directory, which is
@@ -1699,6 +1747,13 @@ short-lived `.bale/sessions/<sid>/` directory:
   authoring convention, not an enforced contract — a parse miss is
   recorded, never silently skipped);
 - **validation exit state** (PASS/HOLD and the §7.5 exit code);
+- the **blind checkpoint stamp** (board 6): an `attempts[].checkpoint`
+  object on every validated attempt post-epoch — key presence is
+  epoch membership, `{"configured": false}` is the known-zero form,
+  and an executed checkpoint records its per-source state, exit code,
+  and the executed base-tree bytes' `{path, sha256}` (§8.5). Blind
+  outcomes never merge into `claim_verdict`: the checkpoint has no
+  claims by construction;
 - **includes shipped vs paths changed** — the session's recorded
   scope (`sessions/<sid>/scope.json`) and every `changes[].path`,
   both raw; aggregation computes the drift;
