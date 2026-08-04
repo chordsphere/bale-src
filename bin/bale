@@ -1951,7 +1951,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
                               no_interact=no_interact,
                               no_interact_source=no_interact_source,
                               invoked_by="retry",
-                              allow_out_of_scope=args.allow_out_of_scope)
+                              allow_out_of_scope=args.allow_out_of_scope,
+                              allow_missing_required_check=(
+                                  args.allow_missing_required_check))
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
                                 tarball_path.name, e)
@@ -4489,19 +4491,36 @@ def build_parser() -> argparse.ArgumentParser:
              "record.",
     )
     p_apply.add_argument(
+        "--allow-missing-required-check", action="append", default=None,
+        metavar="NAME", dest="allow_missing_required_check",
+        help="Admit one required check name past the required-check "
+             "superset gate (BALE.md §8.1 step 15, §11 row 26) despite "
+             "its absence from the manifest's validation_will_run. "
+             "Repeat the flag per name; any missing required name NOT "
+             "named still refuses. Per-invocation only — there is "
+             "deliberately no config key, per the ratified override "
+             "contract (a standing opt-out is the rejected "
+             "self-oracle-adjacent silent bypass). Every effective use "
+             "is logged prominently (FORCE: line in the session log) "
+             "and the admitted names are stamped into the session's "
+             "telemetry record.",
+    )
+    p_apply.add_argument(
         "--json", action="store_true",
         help="Emit the end-of-run apply report as one line of JSON on "
              "stdout. Keys are a stable contract for downstream tooling: "
              "outcome (applied|held|reverted|bailout|clarification|"
-             "dry-run|scope-drift-refused), sid, log, "
+             "dry-run|scope-drift-refused|required-check-refused), sid, log, "
              "verdict (validation.sh state/exit_code/claims; null when it "
              "did not run), merge (walkthrough action/merged/tag/"
              "origin_branch; null when no walkthrough ran), drift (the "
-             "own-scope refusal detail; null otherwise). Stream "
+             "own-scope refusal detail; null otherwise), required_checks "
+             "(the required-check refusal detail; null otherwise). Stream "
              "discipline: '[bale] ' lines, prompts, and the human banners "
              "go to stderr; stdout carries exactly the JSON line on the "
              "reporting paths — exit 0, plus the held/reverted/"
-             "scope-drift-refused exit-1 outcomes. Error paths exit "
+             "scope-drift-refused/required-check-refused exit-1 outcomes. "
+             "Error paths exit "
              "through stderr with nothing on "
              "stdout. Pair with --no-interact for scripted runs. No effect "
              "with --show-validator/--show-apply-script, whose whole "
@@ -4526,7 +4545,8 @@ def build_parser() -> argparse.ArgumentParser:
             "against apply.search_paths in bale.toml the same way `bale "
             "apply` does.\n\n"
             "The per-attempt flags mirror `bale apply`'s (--verbose, "
-            "--no-interact, --allow-out-of-scope, --json), since retry "
+            "--no-interact, --allow-out-of-scope, "
+            "--allow-missing-required-check, --json), since retry "
             "reruns the same pipeline. Apply's inspection flags "
             "(--show-validator, --show-apply-script, --dry-run) are "
             "deliberately absent here: they read the tarball or the open "
@@ -4578,6 +4598,20 @@ def build_parser() -> argparse.ArgumentParser:
              "retry that needs it re-states it. Every use is logged "
              "prominently (FORCE: line in the session log) and the "
              "admitted paths are stamped into the session's telemetry "
+             "record.",
+    )
+    p_retry.add_argument(
+        "--allow-missing-required-check", action="append", default=None,
+        metavar="NAME", dest="allow_missing_required_check",
+        help="Admit one required check name past the required-check "
+             "superset gate (BALE.md §8.1 step 15, §11 row 26) — same "
+             "semantics as `bale apply --allow-missing-required-check`. "
+             "Repeat the flag per name; any missing required name NOT "
+             "named still refuses. Per-invocation only — no config key, "
+             "and the override is never carried forward from a failed "
+             "apply attempt: a retry that needs it re-states it. Every "
+             "effective use is logged prominently (FORCE: line) and the "
+             "admitted names are stamped into the session's telemetry "
              "record.",
     )
     p_retry.add_argument(

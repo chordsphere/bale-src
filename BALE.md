@@ -529,6 +529,21 @@ The following flags apply across multiple commands:
   the operator re-states it at retry, so an overridden apply that
   HOLDs is not iced out of its own session. Overrides admitted on any
   attempt, apply or retry, are stamped per-attempt (§8.9).
+- `--allow-missing-required-check <name>` — apply-scoped, repeatable
+  (one check name per flag; board 6 session B): admit exactly the
+  named required check(s) past the required-check superset gate
+  (§8.1 step 15, §11 row 26) despite their absence from the
+  manifest's `validation_will_run`; any other missing required name
+  still refuses. The override's unit is the check name — the gate's
+  own unit. Per-invocation only — there is deliberately no config
+  key, per the ratified override contract (a standing config opt-out
+  is the rejected self-oracle-adjacent silent bypass) — and every
+  effective use is logged prominently (FORCE: line) and stamped into
+  the session's telemetry record as `required_check_overrides`
+  (§8.9). `bale retry` takes the same flag: the gate reruns on retry
+  and the override is never carried forward from the failed attempt
+  — the operator re-states it, exactly as with
+  `--allow-out-of-scope`.
 - `--json` — swap the command's end-of-run report for one line of
   JSON on stdout, under a shared stream discipline: `[bale] `
   informational lines and the human block go to stderr, stdout
@@ -1383,13 +1398,53 @@ Pipeline steps:
     that needs it re-states it, and a retry that omits it refuses
     here. The refusal is pre-staging either way, so the session stays
     open and recoverable.
+15. Required-check superset gate (board 6 session B — the
+    drift-to-contract conversion's declaration-side sibling; appended
+    as step 15 so steps 1–14 stay stable, and sited beside step 14 in
+    the pipeline). When the project's `[validation] required` set
+    (bale.toml, project layer only — the same `[validation]` section
+    as §8.5's checkpoint key, wizard-walked by `bale config init`)
+    resolves non-empty AND the manifest's `changes[]` is non-empty:
+    every required name must appear **verbatim** in the manifest's
+    `validation_will_run` (exact string match — the TARBALL.md §5.3
+    canonical-identifier rule's unit). The declaration is what claims
+    hang off (row 15: `claims ⊆ validation_will_run`), so an
+    under-declared set starves the calibration stream on exactly the
+    checks that matter; this gate converts a floor of that declaration
+    to contract — partially, since name membership cannot verify a
+    check's content, which stays review policy. A declared check may
+    still `[SKIP]` with a reason at runtime (TARBALL.md §7.2), grading
+    `n/a` (§7.3) — honest and visible rather than forced work. The
+    refusal renders BOTH sets (required and declared) so a near-miss
+    is visible, keeps the session open pre-staging with no git side
+    effects, records telemetry outcome `required-check-refused`
+    (`validation: null` — nothing ran), and in `--json` mode is the
+    one-line report with that outcome and a `required_checks` detail
+    object. `--allow-missing-required-check <name>` (repeatable,
+    per-invocation only, per-**name** — the gate's own unit;
+    deliberately no config key, per the ratified override contract: a
+    standing config opt-out is the rejected self-oracle-adjacent
+    silent bypass) admits exactly the named names past the gate while
+    any other missing name still refuses; every effective use logs a
+    FORCE: session-log line and the admitted names are stamped into
+    the attempt's `required_check_overrides` (§8.9). A named-but-not-
+    missing name logs a no-effect line, mirroring step 14's unused
+    override handling. Manifest-and-config-only, so it runs under
+    `--dry-run` (same report and exit; no telemetry record, since no
+    outcome occurred) and passes vacuously for bailout and
+    clarification manifests, whose `changes[]` is empty; read-only
+    sessions never reach it — step 14 refuses their changes first —
+    and unconfigured projects are entirely outside its blast radius.
+    `bale retry` takes the same flag and runs the same gate: the
+    override is re-stated per invocation exactly as step 14's is,
+    never carried from the failed attempt.
 
-If any of 1–14 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–15 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
-staging branch, no file modifications. (The step-14 refusal
-additionally reports through its structured surfaces above; its
-telemetry attempt records outcome `scope-drift-refused` rather than
-`rejected`.)
+staging branch, no file modifications. (The step-14 and step-15
+refusals additionally report through their structured surfaces above;
+their telemetry attempts record outcomes `scope-drift-refused` and
+`required-check-refused` respectively rather than `rejected`.)
 
 ### 8.2 Stamp session
 
@@ -1512,6 +1567,12 @@ Configured but absent at the base tree = loud refusal before staging
 (committed-is-ratified: a working-tree-only checkpoint the planner
 has not committed is not yet the project's oracle; the remedy is to
 commit it at the named path or clear the key via `bale config init`).
+`bale apply --dry-run` predicts the dangling refusal too (board 6
+session B, the sanctioned session-A rider): when a checkpoint is
+configured, the dry-run resolves the session's target base
+read-only — rev-parse and cat-file only, no session-dir stamps — and
+refuses with the same message a real apply would; unconfigured
+projects' dry-run behavior is unchanged.
 
 When configured, **both scripts always run, separately invoked and
 separately captured; checkpoint first.** The executed checkpoint
@@ -2334,6 +2395,7 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 23 | Detached-HEAD refusal: `bale pack` refuses when the repo's HEAD is detached, before any prompt, tarball, or session state — the integration-target stamp requires a real branch (§7.1 step 4a; the apply-side stamp requirement is row 8's resolution step, §8.1 step 5); listed here out of phase order to keep rows 4–22 stable | pack pre-flight |
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
+| 26 | Required-check superset (board 6 session B): when the project's `[validation] required` set is non-empty and `changes[]` is non-empty, every required name appears verbatim in the manifest's `validation_will_run`. Per-invocation `--allow-missing-required-check NAME` (repeatable; no config key, per the ratified override contract) admits exactly the named names — any other missing name still refuses. The refusal renders both sets, keeps the session open with no git side effects, records telemetry outcome `required-check-refused`, and in `--json` mode is the one-line report with that outcome and a `required_checks` detail object (§8.1 step 15); appended after row 25 per the appended-row precedent, so rows 1–25 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

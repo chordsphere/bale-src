@@ -80,8 +80,15 @@ CLOSED_OUTCOMES = frozenset({
 # Envelope outcomes that mean the session is IN-FLIGHT (D2): reported as a
 # count, excluded from the closure mix. Stats reads only the corpus, never
 # the .bale/ registry — in-flight is the corpus's honest view, not a
-# lock-state claim.
-IN_FLIGHT_OUTCOMES = frozenset({"held", "scope-drift-refused", "rejected"})
+# lock-state claim. required-check-refused (board 6 session B — the D3
+# coordination rider that lands WITH the gate, not after it): the step-15
+# refusal keeps its session open exactly as the drift refusal does, so a
+# session whose latest outcome is the new refusal is in-flight, never
+# misclassed into the closure mix. The fuller stats rates for the new
+# outcome are session D's; this membership line cannot wait for them.
+IN_FLIGHT_OUTCOMES = frozenset({
+    "held", "scope-drift-refused", "rejected", "required-check-refused",
+})
 
 # The work_class vocabulary the pack surface stamps (BALE.md §7), plus the
 # ledger's own bucket for sessions with no feedback-bearing attempt.

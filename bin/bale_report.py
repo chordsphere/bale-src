@@ -722,6 +722,69 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     )
 
 
+def format_required_check_refusal(*, sid: str, required: list,
+                                  declared: list, missing: list,
+                                  overridden: list,
+                                  telemetry: Optional[str],
+                                  dry_run: bool = False) -> str:
+    """Render the required-check superset refusal (BALE.md §8.1 step 15,
+    §11 row 26; board 6 session B).
+
+    The human face of the declaration-side gate, mirroring
+    format_scope_drift_refusal above: the response's
+    validation_will_run omits check name(s) the project's
+    `[validation] required` set demands, and the apply refused before
+    any staging or git work. The block renders BOTH sets — the required
+    set and the declared list — so a near-miss (a renamed or
+    paraphrased check) is visible at a glance, plus any names a partial
+    --allow-missing-required-check did admit, and closes with the three
+    remedies as trailer lines. The session stays open, which is why
+    every remedy is a re-run rather than a repack-from-scratch. The
+    third remedy is the planner's: the required set is project config,
+    so changing it is a `bale config init` action, not a worker one.
+
+    Follows the module's summary-block-last rule trivially (the block
+    is the whole output) and the pure-string-assembler rule: builds a
+    string, prints nothing; the json twin is format_apply_json's
+    `required_checks` key, not this renderer. Under `dry_run` the
+    telemetry row reports that no record was written (a dry-run has no
+    outcome — BALE.md §8.9) and a row notes the prediction.
+    """
+    rows: list[tuple[str, str]] = [
+        ("missing required", ", ".join(missing)),
+        ("required set", f"{', '.join(required)} "
+                         f"([validation] required, project layer)"),
+        ("declared", ", ".join(declared) if declared
+         else "(validation_will_run is empty)"),
+    ]
+    if overridden:
+        rows.append(("admitted by flag", ", ".join(overridden)))
+    if dry_run:
+        rows.append(("dry-run", "a real apply would refuse the same way"))
+        rows.append(("telemetry", "not recorded (dry-run has no outcome)"))
+    else:
+        rows.append(("telemetry",
+                     f"recorded {telemetry}" if telemetry
+                     else "write failed — see log"))
+    trailer = [
+        "The session stays open; nothing was staged or committed. "
+        "Either:",
+        "  - regenerate the response with the required checks declared "
+        "in validation_will_run — a declared check may still [SKIP] "
+        "with a reason at runtime,",
+        "  - admit specific names deliberately: `bale apply <tarball> "
+        "--allow-missing-required-check <name>` (repeat per name),",
+        "  - or change the project's required set via `bale config "
+        "init` (planner action).",
+    ]
+    return format_summary_block(
+        rows,
+        status="REQUIRED-CHECK-REFUSED",
+        sid=sid,
+        trailer=trailer,
+    )
+
+
 # --- json output mode (v0.2.8) ---
 #
 # Shared state for `bale pack --json` and `bale apply --json`. The stream-
@@ -883,6 +946,7 @@ def format_apply_json(
     telemetry: Optional[str] = None,
     drift: Optional[dict] = None,
     checkpoint: Optional[dict] = None,
+    required_checks: Optional[dict] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -911,6 +975,13 @@ def format_apply_json(
                            the dispatchable key an orchestrator branches
                            on instead of parsing prose). Emitted under
                            --dry-run too when the plan would refuse.
+               "required-check-refused"
+                           the required-check superset gate refused
+                           (BALE.md §8.1 step 15, §11 row 26; board 6
+                           session B; exit 1, session open — same
+                           dispatchable posture as the drift refusal).
+                           Emitted under --dry-run too when the plan
+                           would refuse.
                Together with pack's "packed" these are the whole outcome
                vocabulary; extend it here, never with caller-side literals.
       sid      the session id the response was applied against.
@@ -943,6 +1014,16 @@ def format_apply_json(
                  session_scope       the session's declared scope
                  overridden_paths    paths a partial --allow-out-of-scope
                                      did admit on this invocation
+      required_checks (board 6 session B, additive) the required-check
+               refusal detail on the required-check-refused outcome, null
+               on every other. An object:
+                 missing     the required names validation_will_run
+                             omits and no override admitted
+                 required    the project's `[validation] required` set
+                 declared    the manifest's validation_will_run verbatim
+                 overridden  names a partial
+                             --allow-missing-required-check did admit
+                             on this invocation
       checkpoint (board 6 session A, additive) the blind checkpoint's
                result on the three walkthrough outcomes, mirroring the
                telemetry stamp's semantics: null when validation.sh did
@@ -1010,6 +1091,10 @@ def format_apply_json(
         # detail object (semantics in the docstring above, the key
         # list's one home).
         "checkpoint": checkpoint,
+        # board 6 session B, additive: the required-check refusal detail
+        # (BALE.md §8.1 step 15) — object on outcome=
+        # required-check-refused, null on every other outcome.
+        "required_checks": required_checks,
     }
     return json.dumps(payload)
 
@@ -1760,6 +1845,7 @@ def build_telemetry_attempt(
     validation_output: Optional[str] = None,
     log_path: Optional[str] = None,
     overridden_paths: Optional[list] = None,
+    required_check_overrides: Optional[list] = None,
     closure_reason: Optional[str] = None,
     diagnostics: Optional[dict] = None,
     clarification: Optional[dict] = None,
@@ -1785,6 +1871,18 @@ def build_telemetry_attempt(
     override admitted while other drift still refused; the refused paths
     themselves are recoverable from scope vs change_paths, both already
     recorded raw.
+
+    `required_check_overrides` (board 6 session B) is the
+    overridden_paths mirror for the step-15 required-check gate: the
+    required-check NAMES a per-invocation
+    `--allow-missing-required-check` admitted past the gate on this
+    attempt. Bale-computed, always a list: empty means no override was
+    in play (including every pre-session-B attempt, where the key is
+    absent). On a `required-check-refused` attempt it carries what a
+    PARTIAL override admitted while other missing names still refused;
+    the refused names themselves are recoverable from the refusal's
+    session-log line, and the manifest's declared list is on the
+    attempt via the promoted change surfaces.
 
     `closure_reason` (v0.3.16) stamps why a session closed on unlock and
     revert attempts — one of CLOSURE_REASONS, or None. The stamping
@@ -1842,6 +1940,7 @@ def build_telemetry_attempt(
         "validation": validation,
         "scope": list(scope or []),
         "overridden_paths": list(overridden_paths or []),
+        "required_check_overrides": list(required_check_overrides or []),
         "change_paths": [c.get("path") for c in
                          (manifest or {}).get("changes", []) or []],
         "feedback": (manifest or {}).get("feedback"),
