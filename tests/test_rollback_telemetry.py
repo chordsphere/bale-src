@@ -270,7 +270,11 @@ class RollbackTelemetryTest(unittest.TestCase):
         self.assert_ok(self.rollback(SID))
         result = self.rollback(SID, "--undo")
         self.assert_ok(result)
-        self.assertIn("disregarding untracked telemetry", result.stdout)
+        # The log-line phrasing generalized in v0.3.30 when the guard
+        # gained the archive_dir carve-out (BALE.md §9.2 step 3) — the
+        # pinned sentinel is the disregard announcement plus the exact
+        # telemetry path it names.
+        self.assertIn("disregarding untracked bale-written", result.stdout)
         self.assertIn(f"claude/telemetry/{SID}.json", result.stdout)
         record = self.telemetry_record()
         self.assertEqual([a["outcome"] for a in record["attempts"]],

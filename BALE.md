@@ -1868,6 +1868,28 @@ on EOF.
   move), the change count, the preserved staging path, and the
   rollback hint: *"To roll back this bale: `bale rollback <sid>`, or
   `bale rollback` for the most recent."*
+  When `bale.toml` sets `[apply] archive_dir` (v0.3.30, the landed
+  §13 v0.5 candidate; valid at both config layers like the sibling
+  `[apply]` keys, repo-relative only), the merge path additionally
+  copies whichever of the response's prose artifacts the tarball
+  actually included — `README.md`, `notes.md`, plus a legacy
+  `next-prompt.md` (§6.2) — into `<archive_dir>/<sid>/` as
+  **untracked working-tree files**, after the merge has durably
+  landed and before the `post_apply_pass` hook (so a hook that
+  consumes the archive sees it on disk). Committing the copies stays
+  the operator's job; bale never auto-commits. The per-sid directory
+  uses the full sid, so paths are collision-free across same-day
+  sessions and include-ready for later packs as-is. Applied outcome
+  only: HOLD, revert, bailout, and clarification archive nothing,
+  and the key unset preserves the pre-archival behavior
+  byte-identically. A copy failure after the merge **logs loudly and
+  reports in the closing banner but is never fatal** — it cannot
+  un-apply or HOLD the merged session. The banner gains an `archive`
+  row only when the key is configured (copied count and destination,
+  the copy-FAILED form, or an explicit nothing-to-archive line), and
+  the `--json` report gains the additive `archive` key — object on
+  this outcome when configured, null otherwise; the key list's one
+  home is `format_apply_json`'s docstring (§5.4's owner rule).
 - **Inspect** (HOLD only). The session stays open in the registry;
   branch persists with the committed session changes; the user's
   checkout was never switched. The integration
@@ -2193,16 +2215,22 @@ Steps:
    commit.
 3. Refuse on a dirty working tree by default. Offer `--stash` to
    `git stash` before running and `git stash pop` after. Untracked
-   paths under `claude/telemetry/` — the record bale itself leaves
-   untracked at close (§8.9) — are disregarded when judging
-   cleanliness (v0.3.23, board 5): `git revert` rewrites tracked
-   content only, and the one collision case (a revert that would
-   materialize a file at an untracked path) is refused loudly by git
-   itself. When they were the only dirt, rollback proceeds with a
-   log line naming them — which is what lets a rollback → `--undo`
-   toggle complete without an interleaved commit. A *modified
-   tracked* file under `claude/telemetry/` still refuses (a real
-   conflict surface); `--stash` and `--force` behavior is unchanged.
+   paths bale itself leaves behind are disregarded when judging
+   cleanliness: the telemetry record under `claude/telemetry/`
+   (§8.9; v0.3.23, board 5), and — when `[apply] archive_dir` is
+   configured — archived response artifacts matching exactly the
+   `<archive_dir>/<sid>/<artifact>` shape apply writes at merge
+   (§8.8; v0.3.30 — shape-matched rather than whole-prefix, because
+   archive_dir is user-configured ground where unrelated untracked
+   work may sit). The rationale is shared: `git revert` rewrites
+   tracked content only, and the one collision case (a revert that
+   would materialize a file at an untracked path) is refused loudly
+   by git itself. When such entries were the only dirt, rollback
+   proceeds with a log line naming them — which is what lets a
+   rollback → `--undo` toggle complete without an interleaved
+   commit. A *modified tracked* file at the same locations still
+   refuses (a real conflict surface); `--stash` and `--force`
+   behavior is unchanged.
 4. Refuse if `reverted/<sid>` already exists, unless `--force`.
 5. Run `git revert --no-edit -m 1 <commit>` (merge) or
    `git revert --no-edit <commit>` (normal). Conflicts leave the
@@ -2739,7 +2767,10 @@ but not landed:
   `archive_dir = "claude/responses"`) so the apply pipeline can copy
   whichever of `README.md` and `notes.md` (plus a legacy
   `next-prompt.md`, §6.2) the response actually included into the
-  project's archive convention.
+  project's archive convention. *(Landed in v0.3.30 as
+  `[apply] archive_dir`, ahead of the phase's own cut — behavior in
+  §8.8, rollback-guard interplay in §9.2 step 3, wizard trio in
+  `bale_config` per the contract below.)*
 
 Any addition extends `bale_config.walk_configurables()` and
 `render_bale_toml()` in the same session — the wizard owns the

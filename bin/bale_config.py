@@ -137,6 +137,18 @@ APPLY_VALUES = (
     # decline, matching the interactive prompt's decline default.
     # Interactive runs always prompt regardless of this key.
     "hook_auto_accept",
+    # String: repo-relative directory of the project's response-archive
+    # convention (BALE.md §13's v0.5 candidate, landed). When set, the
+    # apply pipeline's applied outcome — after the merge succeeds, and
+    # only then — copies whichever of the response's prose artifacts
+    # (README.md, notes.md, plus a legacy next-prompt.md) the response
+    # actually included into <archive_dir>/<sid>/ as untracked
+    # working-tree files; committing them stays the operator's job.
+    # Absent/empty = no archival (today's behavior, byte-identical).
+    # Repo-relative only: the copies are working-tree writes, so an
+    # absolute or repo-escaping value is a typo or interference — the
+    # typed accessor refuses both loudly.
+    "archive_dir",
 )
 
 # The two admissible values of staging.strategy (BALE.md §8.3 step 2).
@@ -549,6 +561,51 @@ def get_apply_hook_auto_accept(cfg: dict) -> bool:
     Interactive runs never consult this key — they always prompt.
     """
     return bool(_get_apply_bool(cfg, "hook_auto_accept"))
+
+
+def get_apply_archive_dir(cfg: dict) -> Optional[str]:
+    """Return [apply].archive_dir from the merged config, or None if unset.
+
+    Consumed by the apply pipeline's applied outcome (BALE.md §8.8):
+    after a successful merge, the response's prose artifacts are copied
+    into <archive_dir>/<sid>/. Absent section or absent key returns None
+    — no archival, today's behavior. Empty string reads as unset (the
+    wizard's suppress form at the project layer — overriding an
+    inherited global value with "no archival here").
+
+    A non-string shape is fatal, matching the sibling readers' posture:
+    a typo must not silently disable the archival the user thought was
+    wired up. So is a value that is absolute or escapes the repo
+    (`..` components): the key's contract is untracked working-tree
+    writes inside the project (get_validation_base's posture, for the
+    same reason — an escaping value is either a typo or interference,
+    both loud). Trailing slashes are stripped so the value joins
+    cleanly; no tilde or env-var expansion — the committed file names a
+    repo-relative literal, portable by construction.
+    """
+    from __main__ import fail
+
+    apply_section = cfg.get("apply")
+    if apply_section is None:
+        return None
+    if not isinstance(apply_section, dict):
+        fail(f"{BALE_CONFIG}: [apply] must be a table, "
+             f"got {type(apply_section).__name__}")
+    raw = apply_section.get("archive_dir")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: apply.archive_dir must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    if not val:
+        return None
+    # Shape check BEFORE trailing-slash normalization, so "/" is caught
+    # as the absolute path it is rather than collapsing to "" (unset).
+    if os.path.isabs(val) or ".." in Path(val).parts:
+        fail(f"{BALE_CONFIG}: apply.archive_dir must be a repo-relative "
+             f"path with no '..' components, got {raw!r}")
+    return val.rstrip("/")
 
 
 def apply_bool_source(repo: Path, key: str) -> Optional[str]:
@@ -1257,6 +1314,37 @@ def walk_configurables(existing: dict, *, layer: str,
     if val_b is not None:
         new.setdefault("apply", {})["hook_auto_accept"] = val_b
 
+    # ---- [apply].archive_dir -------------------------------------------------
+    # String value with the standard ""-suppress form when a global value
+    # is inherited; walked at both layers like the sibling [apply] keys.
+    # The strict shape checks (repo-relative, no '..') live in the typed
+    # accessor at read time — the wizard reads raw and tolerates oddness,
+    # same defensive posture as the list/bool keys above.
+    raw_cur = existing_apply.get("archive_dir")
+    current = raw_cur if isinstance(raw_cur, str) else None
+    raw_inh = inherited_apply.get("archive_dir")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
+    val = _prompt_value(
+        "apply.archive_dir",
+        current=current,
+        inherited=inh,
+        description=[
+            "Optional. Enter to skip; you can wire one up later.",
+            "Repo-relative directory of this project's response-archive",
+            "convention (e.g. claude/responses). When set, a successful",
+            "`bale apply` merge copies whichever of the response's",
+            "README.md and notes.md the response included into",
+            "<archive_dir>/<sid>/ as untracked working-tree files, so",
+            "worker prose is include-ready for later packs without the",
+            "extract-rename round. Committing the copies stays your job",
+            "— bale never auto-commits. Unset = no archival. HOLDs,",
+            "reverts, bailouts, and clarifications archive nothing.",
+        ],
+    )
+    if val is not None:
+        new.setdefault("apply", {})["archive_dir"] = val
+
     # ---- [staging].strategy -------------------------------------------------
     # A string enum rather than a free value; _prompt_value is generic, so
     # the enum check runs after the prompt, keeping current on an invalid
@@ -1516,6 +1604,13 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         for key in ("no_interact", "hook_auto_accept"):
             if key in apply_section:
                 parts.append(f"{key} = {json.dumps(apply_section[key])}")
+        # archive_dir: string scalar (v0.5 archival), last per APPLY_VALUES
+        # order. json.dumps covers it, including the empty-string suppress
+        # form. Persisted literally — the repo-relative value is portable
+        # by construction; validation lives in the typed accessor.
+        if "archive_dir" in apply_section:
+            parts.append(
+                f"archive_dir = {json.dumps(apply_section['archive_dir'])}")
         parts.append("")
 
     # [staging] section (BALE.md §8.3 step 2). Same serialization shapes
