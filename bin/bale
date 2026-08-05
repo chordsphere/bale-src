@@ -220,7 +220,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.27"
+VERSION = "0.3.28"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1953,7 +1953,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
                               invoked_by="retry",
                               allow_out_of_scope=args.allow_out_of_scope,
                               allow_missing_required_check=(
-                                  args.allow_missing_required_check))
+                                  args.allow_missing_required_check),
+                              accept_checkpoint_change=(
+                                  args.accept_checkpoint_change))
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
                                 tarball_path.name, e)
@@ -4358,6 +4360,26 @@ def build_parser() -> argparse.ArgumentParser:
              "that the architect pastes.",
     )
     p_pack.add_argument(
+        "--allow-checkpoint-in-scope", action="store_true",
+        dest="allow_checkpoint_in_scope",
+        help="Admit a pack whose resolved include set covers the "
+             "project's blind checkpoint path ([validation] base in "
+             "bale.toml), past the pack-time blindness refusal (v0.3.28, "
+             "board 6 session C; BALE.md §7.1 step 4b). Without it, pack "
+             "refuses such a scope: the checkpoint is the planner's "
+             "oracle, and a session shown or scoped over its own oracle "
+             "is the self-oracle shape the refusal exists to close. The "
+             "sanctioned ordinary update path needs no session at all — "
+             "the planner edits and commits the checkpoint directly. "
+             "Per-invocation only, flag-only — deliberately no config "
+             "key, per the ratified override contract (a standing "
+             "opt-out is the rejected self-oracle-adjacent silent "
+             "bypass). Every use is logged prominently (FORCE: line) "
+             "and the admission is stamped into the request manifest's "
+             "provenance (checkpoint_scope_admitted), so the session's "
+             "telemetry carries it via the response's provenance echo.",
+    )
+    p_pack.add_argument(
         "--read-only", action="store_true",
         help="Open the session with an EMPTY recorded scope (v0.3.15): "
              "the read-only session shape for discussion, orchestration, "
@@ -4506,6 +4528,22 @@ def build_parser() -> argparse.ArgumentParser:
              "telemetry record.",
     )
     p_apply.add_argument(
+        "--accept-checkpoint-change", action="store_true",
+        dest="accept_checkpoint_change",
+        help="Accept a blind checkpoint that changed between pack and "
+             "apply (v0.3.28, board 6 session C; BALE.md §8.5): the "
+             "request's pack-time provenance stamp no longer matches "
+             "the base-tree bytes about to run, and without this flag "
+             "apply refuses — the oracle changed, a legitimate planner "
+             "edit or interference, and either is worth stopping for. "
+             "With it, apply executes the CURRENT base-tree version — "
+             "the planner's latest committed oracle, never the stale "
+             "stamped bytes — logs a FORCE: line, and records "
+             "stamp_matched: false in the attempt's telemetry stamp. "
+             "Per-invocation only — deliberately no config key, per "
+             "the ratified override contract.",
+    )
+    p_apply.add_argument(
         "--json", action="store_true",
         help="Emit the end-of-run apply report as one line of JSON on "
              "stdout. Keys are a stable contract for downstream tooling: "
@@ -4546,7 +4584,8 @@ def build_parser() -> argparse.ArgumentParser:
             "apply` does.\n\n"
             "The per-attempt flags mirror `bale apply`'s (--verbose, "
             "--no-interact, --allow-out-of-scope, "
-            "--allow-missing-required-check, --json), since retry "
+            "--allow-missing-required-check, --accept-checkpoint-change, "
+            "--json), since retry "
             "reruns the same pipeline. Apply's inspection flags "
             "(--show-validator, --show-apply-script, --dry-run) are "
             "deliberately absent here: they read the tarball or the open "
@@ -4613,6 +4652,18 @@ def build_parser() -> argparse.ArgumentParser:
              "effective use is logged prominently (FORCE: line) and the "
              "admitted names are stamped into the session's telemetry "
              "record.",
+    )
+    p_retry.add_argument(
+        "--accept-checkpoint-change", action="store_true",
+        dest="accept_checkpoint_change",
+        help="Accept a blind checkpoint that changed between pack and "
+             "apply — same semantics as `bale apply "
+             "--accept-checkpoint-change` (retry reruns the same "
+             "pipeline): the current base-tree version runs, the use is "
+             "FORCE-logged, and the attempt's telemetry stamp records "
+             "stamp_matched: false. Per-invocation only — no config "
+             "key, and the override is never carried forward from a "
+             "failed apply attempt: a retry that needs it re-states it.",
     )
     p_retry.add_argument(
         "--json", action="store_true",

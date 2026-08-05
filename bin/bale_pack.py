@@ -610,10 +610,11 @@ def build_provenance_block(
     *,
     packer_flag: Optional[str] = None,
     work_class: str = "mixed",
+    checkpoint_scope_admitted: bool = False,
 ) -> dict:
     """Assemble the request manifest's provenance block (v0.3.8, B1).
 
-    Stamps four facts about the pack, per request-manifest.schema.json:
+    Stamps six facts about the pack, per request-manifest.schema.json:
 
     - `bale_version` — this install's VERSION constant.
     - `contract_docs` — sha256 of each injected global doc, hashed from
@@ -628,6 +629,28 @@ def build_provenance_block(
       check), never silently mis-attributed.
     - `work_class` — the --work-class enum value; callers with no flag
       surface (handoff) pass the "mixed" default.
+    - `checkpoint` (v0.3.28, board 6 session C) — the contract_docs
+      precedent extended to the blind checkpoint: `{path, sha256}` of
+      the configured `[validation] base` script's bytes at the
+      pack-time target tip (HEAD — pack refuses a detached HEAD
+      upstream, so HEAD is the target branch's tip), or explicit null
+      when no checkpoint is configured. Absence of the KEY therefore
+      remains the pre-v0.3.28 / hand-rolled-request signal, which is
+      what keeps apply's stamp verification (BALE.md §8.5) additive.
+      Configured-but-dangling at the tip is a loud refusal — the D1
+      dangling rule caught at request-build time, before apply ever
+      sees the broken oracle reference — though on the pack path
+      checkpoint_blindness_preflight already refused it pre-sid; the
+      re-check here is defense in depth for the handoff path and any
+      future caller.
+    - `checkpoint_scope_admitted` (v0.3.28, session C) — true when the
+      caller admitted a checkpoint-covering scope past the pack-time
+      blindness refusal via --allow-checkpoint-in-scope; false
+      otherwise (including every handoff, which has no such flag).
+      Stamped unconditionally so bale-built blocks keep a uniform
+      shape (the superseded_session precedent), and echoed into
+      telemetry via the response's feedback.mechanical.provenance —
+      which is how the session's record carries the admission.
 
     Reads the merged config itself so both request-building call sites
     stay wiring-thin. Doc hashing reads the same DOCS_DIR files
@@ -638,6 +661,7 @@ def build_provenance_block(
         DOCS_DIR,
         GLOBAL_DOCS,
         VERSION,
+        fail,
         log,
     )
     import bale_config  # lazy — see module docstring
@@ -647,21 +671,144 @@ def build_provenance_block(
         h.update((DOCS_DIR / doc).read_bytes())
         contract_docs[doc] = h.hexdigest()
 
+    merged = bale_config.merged_config(repo)
+
     packer = packer_flag.strip() if isinstance(packer_flag, str) else None
     if not packer:
-        packer = bale_config.get_identity_packer(bale_config.merged_config(repo))
+        packer = bale_config.get_identity_packer(merged)
     if not packer:
         packer = "unconfigured"
         log("provenance: no packer identity set — stamping "
             "packer=\"unconfigured\". Set one with `bale config init` "
             "([identity].packer) or pass --packer.")
 
+    # The checkpoint stamp (v0.3.28, session C). Bytes come from the
+    # committed tip, never the working tree — committed-is-ratified,
+    # the same rule apply's execution side holds (BALE.md §8.5) — so
+    # the stamped hash is exactly what apply's base-tree extraction
+    # will hash when nothing changed in between. Binary-exact via a
+    # direct subprocess call (text=False), mirroring
+    # run_blind_checkpoint's extraction, so stamp and execution hash
+    # the same bytes.
+    checkpoint_path = bale_config.get_validation_base(merged)
+    checkpoint_stamp: Optional[dict] = None
+    if checkpoint_path is not None:
+        blob = subprocess.run(
+            ["git", "show", f"HEAD:{checkpoint_path}"],
+            cwd=str(repo), capture_output=True,
+        )
+        if blob.returncode != 0:
+            fail(f"blind checkpoint missing at the pack-time tip: "
+                 f"bale.toml [validation] base names "
+                 f"{checkpoint_path!r}, but HEAD has no committed file "
+                 f"at that path. A working-tree-only checkpoint is not "
+                 f"yet the project's oracle (committed-is-ratified). "
+                 f"Remedies: commit the checkpoint at the named path, "
+                 f"or clear the key via `bale config init`.")
+        checkpoint_stamp = {
+            "path": checkpoint_path,
+            "sha256": hashlib.sha256(blob.stdout).hexdigest(),
+        }
+        log(f"provenance: checkpoint stamped {checkpoint_path} "
+            f"(sha256 {checkpoint_stamp['sha256'][:12]}, HEAD bytes)")
+
     return {
         "bale_version": VERSION,
         "contract_docs": contract_docs,
         "packer": packer,
         "work_class": work_class,
+        "checkpoint": checkpoint_stamp,
+        "checkpoint_scope_admitted": bool(checkpoint_scope_admitted),
     }
+
+
+def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
+                                   *, allow: bool) -> bool:
+    """The pack-time blindness gate (v0.3.28, board 6 session C; BALE.md
+    §7.1 step 4b): refuse a resolved include set that covers the
+    configured blind checkpoint's path, and refuse a configured
+    checkpoint that dangles at the pack-time tip.
+
+    Returns True when a covering scope was admitted past the refusal by
+    --allow-checkpoint-in-scope (the caller stamps the admission into
+    the manifest's provenance), False otherwise — including the vacuous
+    cases: no checkpoint configured, or a scope that does not cover it
+    (a read-only pack's empty scope covers nothing by construction).
+
+    The two refusals, in check order:
+
+    - **Dangling at the tip** (the D1 rule, caught at request-build
+      time): bale.toml names a checkpoint HEAD has no committed file
+      for. Caught here, pre-sid, so the broken oracle reference never
+      produces a session doomed to refuse at apply; the provenance
+      stamp builder re-checks as defense in depth for the handoff path.
+    - **Scope covers the checkpoint** (D5 layer 1, the contract layer):
+      the checkpoint is the planner's oracle, and any path by which the
+      worker under evaluation authors or selects its own oracle is the
+      self-oracle shape this refusal closes. Coverage uses the same
+      containment test as the apply-side drift gate (scope_covers_path
+      — directory entries cover subtrees, "." covers everything), so
+      the two gates agree on what "in scope" means; keeping the path
+      out of scope here is what lets the existing step-14 drift gate do
+      the rest at apply time. The sanctioned ordinary update path needs
+      no session at all: the checkpoint is planner-authored by the §1
+      floor's own wording, so the planner edits and commits it
+      directly, exactly as they edit bale.toml. The override exists for
+      the deliberate exception (a checkpoint-maintenance session the
+      planner chooses to delegate); its use is loud (FORCE: line) and
+      recorded (the provenance stamp the caller writes).
+
+    Sited before the ADR-0007 disjointness gate on both of cmd_pack's
+    gate paths, so a blindness refusal precedes any scope-collision
+    conversation. bale.toml itself is deliberately NOT added to this
+    refusal at v1: it is legitimately session-editable (hooks,
+    staging), in-flight retargeting is already inert (apply reads the
+    merged config from the repo working tree, never the staged
+    overlay), and a merged bale.toml edit is a one-line, review-visible
+    diff — the accepted residue, re-trigger: the first observed worker
+    edit to [validation] keys in a merged session.
+    """
+    from __main__ import fail, log, scope_covers_path  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+    from bale_report import format_checkpoint_scope_refusal  # lazy — see module docstring
+
+    checkpoint_path = bale_config.get_validation_base(
+        bale_config.merged_config(repo))
+    if checkpoint_path is None:
+        return False
+
+    probe = subprocess.run(
+        ["git", "cat-file", "-e", f"HEAD:{checkpoint_path}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if probe.returncode != 0:
+        fail(f"blind checkpoint missing at the pack-time tip: bale.toml "
+             f"[validation] base names {checkpoint_path!r}, but HEAD "
+             f"has no committed file at that path. A working-tree-only "
+             f"checkpoint is not yet the project's oracle "
+             f"(committed-is-ratified). Remedies: commit the checkpoint "
+             f"at the named path, or clear the key via "
+             f"`bale config init`.")
+
+    if not scope_covers_path(pack_scope, checkpoint_path):
+        log(f"checkpoint blindness gate passed: pack scope does not "
+            f"cover {checkpoint_path}")
+        return False
+
+    if not allow:
+        fail(format_checkpoint_scope_refusal(
+            checkpoint_path=checkpoint_path, scope=pack_scope))
+
+    # force=True: an admitted checkpoint-covering scope is an override
+    # event of the same species as --allow-out-of-scope — the FORCE:
+    # line is the audit trail; the provenance stamp
+    # (checkpoint_scope_admitted, echoed into telemetry via the
+    # response's provenance echo) is the durable copy.
+    log(f"checkpoint-covering scope admitted by "
+        f"--allow-checkpoint-in-scope: pack scope covers "
+        f"{checkpoint_path} (the planner delegated oracle maintenance "
+        f"deliberately; admission stamped into provenance)", force=True)
+    return True
 
 
 def build_request_tarball(
@@ -1918,9 +2065,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
     wizard_engaged = args.goal is None or args.slug is None
     gate_deferred = wizard_engaged and not args.read_only
     admitted_alongside: Optional[tuple] = None
+    checkpoint_scope_admitted = False
     if not gate_deferred:
-        admitted_alongside = _run_scope_gate(
-            [] if args.read_only else resolved_scope(list(args.include)))
+        _early_scope = [] if args.read_only else resolved_scope(
+            list(args.include))
+        # Checkpoint blindness gate (v0.3.28, board 6 session C; BALE.md
+        # §7.1 step 4b) — before the disjointness gate, so a self-oracle
+        # scope is refused ahead of any scope-collision conversation.
+        checkpoint_scope_admitted = checkpoint_blindness_preflight(
+            repo, _early_scope, allow=args.allow_checkpoint_in_scope)
+        admitted_alongside = _run_scope_gate(_early_scope)
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
     # fields (goal positional, --slug) is missing AND stdin is a TTY.
@@ -1951,6 +2105,11 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # down, read back by the gates as "locks nothing, may land nothing".
     pack_scope = [] if args.read_only else resolved_scope(list(args.include))
     if gate_deferred:
+        # Same order as the pre-flight path: blindness gate (v0.3.28,
+        # session C) before the disjointness gate, now that the wizard's
+        # session-shape answer has finalized the scope.
+        checkpoint_scope_admitted = checkpoint_blindness_preflight(
+            repo, pack_scope, allow=args.allow_checkpoint_in_scope)
         admitted_alongside = _run_scope_gate(pack_scope)
 
     # A declined supersession that survives the gate (the parent's scope
@@ -2354,6 +2513,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "pack offers to close this session, or run `bale unlock` now")
     provenance = build_provenance_block(
         repo, packer_flag=args.packer, work_class=work_class,
+        checkpoint_scope_admitted=checkpoint_scope_admitted,
     )
     log(f"provenance: packer={provenance['packer']!r} "
         f"work_class={provenance['work_class']!r} "

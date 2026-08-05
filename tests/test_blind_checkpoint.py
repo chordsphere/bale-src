@@ -121,7 +121,14 @@ class BlindCheckpointE2ETest(unittest.TestCase):
     def packed_sid(self, *, include_checkpoint: bool = False) -> str:
         includes = ["--include", "hello.txt"]
         if include_checkpoint:
-            includes += ["--include", CHECKPOINT_PATH]
+            # A checkpoint-covering scope needs the session-C admission
+            # flag (v0.3.28): pack's blindness gate refuses it otherwise.
+            # This fixture is exactly the deliberate delegation case the
+            # override exists for — the in-flight-tampering test needs
+            # the checkpoint edit to be IN scope so the drift gate does
+            # not refuse it first.
+            includes += ["--include", CHECKPOINT_PATH,
+                         "--allow-checkpoint-in-scope"]
         result = run_bale(
             self.install,
             ["pack", "blind checkpoint e2e goal: rewrite hello.txt",
@@ -252,9 +259,12 @@ class BlindCheckpointE2ETest(unittest.TestCase):
         self.assertEqual(
             stamp["script"]["sha256"], v1_sha,
             msg="the stamp hashes the EXECUTED base-tree bytes")
-        self.assertIsNone(stamp["stamp_matched"],
-                          msg="no pack-time provenance stamp exists yet; "
-                              "null is the honest value")
+        self.assertIs(stamp["stamp_matched"], True,
+                      msg="the pack-time provenance stamp exists since "
+                          "v0.3.28 (session C) and the oracle did not "
+                          "change between pack and apply — the in-flight "
+                          "edit is staged, never committed, so the "
+                          "base-tree bytes still match the stamp")
 
     def test_checkpoint_fail_holds_and_worker_still_runs(self) -> None:
         """PASS requires both: checkpoint FAIL beside worker PASS is a
@@ -335,9 +345,16 @@ class BlindCheckpointE2ETest(unittest.TestCase):
     def test_dangling_config_refuses_before_staging(self) -> None:
         """Config naming a checkpoint absent at the base tree is a loud
         refusal: non-zero exit, remedy text, session open, no bale
-        branch (the refusal is pre-staging, pre-branch)."""
-        self.configure_checkpoint("scripts/never-committed.sh")
+        branch (the refusal is pre-staging, pre-branch).
+
+        The dangling key is written AFTER the pack (v0.3.28, session C):
+        pack itself now refuses a dangling checkpoint at its own
+        pre-flight — the D1 rule caught at request-build time — so the
+        apply-side refusal this test pins arises only when the config
+        broke between pack and apply, which is the sequence built
+        here."""
         sid = self.packed_sid()
+        self.configure_checkpoint("scripts/never-committed.sh")
 
         tarball = self.build_response_tarball(sid, name="dangling",
                                               validation_exit=0)
