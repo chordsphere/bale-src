@@ -1,0 +1,126 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-board-6-stats-read-side-001",
+  "created_at": "2026-08-05T00:39:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T00:39:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-05-board-6-stats-read-side-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "full test suite (python3 -m unittest discover -s tests)": "pass",
+          "exec bit (bin/bale)": "pass",
+          "session assertions (version, BALE.md row 29, stats key contract)": "pass"
+        },
+        "claim_verdict": {
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit (bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions (version, BALE.md row 29, stats key contract)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-blindness-enforcement-006.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-checkpoint-core-004.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-superset-gate-005.md",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json",
+        "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json",
+        "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json",
+        "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json",
+        "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json",
+        "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json",
+        "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json",
+        "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json",
+        "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_stats_aggregation.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.28",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-04-board-6-blind-checkpoint-design-003",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "the brief's 'refusal count and override count' read literally: the required-check surfaces are counts, not rates (the drift override-count precedent)",
+            "checkpoint exit 2 counts inside the checkpoint-HOLD numerator (keyed on the stamp's own state); the split-out errored count is proposed, not landed",
+            "wire names fixed in format_stats_json's docstring per its ownership: checkpointed_attempts, checkpoint_hold_attempts, checkpoint_hold_rate, required_check_refused_attempts, required_check_override_attempts, coverage key 'checkpoint'",
+            "new fixtures dated inside the corpus (2026-06-21..29) and all classed 'code' so prior class rows and the --since window stay stable",
+            "the retry rider pins the observed section-8.9 wrapper behavior (a rejected attempt on the refused retry) rather than my first-draft no-attempt assumption",
+            "the coverage line's 'earlier' wording dropped as date-inaccurate \u2014 a small in-lane renderer fix"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-board-6-stats-read-side-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T00:39:13+00:00",
+  "outcome": "applied"
+}
