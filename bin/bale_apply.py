@@ -327,6 +327,7 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
         fail,
         log,
         read_session_scope,
+        sweep_commit,
     )
     from bale_validate import validate_diagnostics  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
@@ -406,6 +407,15 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
         ))
     if telemetry_rel:
         log(f"telemetry: recorded {telemetry_rel}")
+
+    # Auto-sweep (v0.3.32; BALE.md §8.8): a bailout consumes its session
+    # — a closing event — and performs no git mutation of its own, so
+    # the sweep commit interleaves with nothing. Config-gated (resolved
+    # here, not at the normal pipeline's pre-flight, since the bailout
+    # branch forks before it); silent when unset, loud and never fatal
+    # when enabled.
+    sweep_commit(repo, sid, "bailout",
+                 [telemetry_rel] if telemetry_rel else [])
 
     print_bailout_banner(manifest, handoff_path, tarball_basename,
                          telemetry=telemetry_rel)
@@ -899,6 +909,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         scope_covers_path,
         scope_path,
         scope_paths_intersect,
+        sweep_commit,
     )
     import bale_config  # lazy — see module docstring
     from bale_staging import (  # lazy — see module docstring
@@ -1185,6 +1196,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # and can never fail() after the merge has landed (the archival
         # contract: loud, never fatal, never un-applies).
         archive_dir_cfg = bale_config.get_apply_archive_dir(preflight_cfg)
+        # [apply].sweep follows the same pattern (v0.3.32): consumed
+        # only after a terminal outcome's git mutation is complete, but
+        # resolved HERE through the strict accessor so a non-bool typo
+        # refuses before staging — post-outcome code passes the
+        # validated value into sweep_commit and can never fail() after
+        # the merge (the sweep contract: loud, never fatal).
+        sweep_cfg = bale_config.get_apply_sweep(preflight_cfg)
         required_check_overridden: list[str] = []
         if required_checks and (manifest.get("changes") or []):
             declared = manifest.get("validation_will_run", []) or []
@@ -1966,6 +1984,20 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     clarification=read_clarification_summary(
                         repo, locked_sid),
                 ))
+            # Auto-sweep (v0.3.32; BALE.md §8.8): config-gated commit
+            # of exactly what this invocation wrote — the telemetry
+            # record above plus the archive copies. Sited after the
+            # merge completed, the branch advanced, and the record
+            # exists on disk, so the sweep commit never interleaves
+            # with the merge — it is its own commit on top. `enabled`
+            # was resolved at pre-flight (sweep_cfg), so nothing here
+            # can fail() post-merge; sweep_commit itself is loud and
+            # never fatal.
+            sweep_result = sweep_commit(
+                repo, locked_sid, "applied",
+                ([telemetry_rel] if telemetry_rel else [])
+                + list(archived_paths),
+                enabled=sweep_cfg)
             summary_rows = [
                 ("tag", f"applied/{locked_sid}"),
                 ("branch", f"{origin_branch} (merged — {merged_note})"),
@@ -1987,10 +2019,19 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                                   f"{archive_dir_cfg}/{locked_sid}/; {detail}")
                     summary_rows.append(("archive", detail))
                 elif archived_paths:
+                    # "(uncommitted)" is the standing contract — except
+                    # when this invocation's sweep just committed the
+                    # copies, where it would be false on its face.
+                    archived_state = (
+                        "committed by sweep"
+                        if sweep_result is not None
+                        and sweep_result.get("status") == "committed"
+                        else "uncommitted")
                     summary_rows.append(
                         ("archive",
                          f"{len(archived_paths)} file(s) → "
-                         f"{archive_dir_cfg}/{locked_sid}/ (uncommitted)"))
+                         f"{archive_dir_cfg}/{locked_sid}/ "
+                         f"({archived_state})"))
                 else:
                     summary_rows.append(
                         ("archive", "nothing to archive — response shipped "
@@ -1999,6 +2040,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 ("telemetry",
                  f"recorded {telemetry_rel}" if telemetry_rel
                  else "write failed — see log"))
+            # Sweep row only when [apply].sweep is enabled (sweep_result
+            # is None otherwise) — unset stays byte-identical to the
+            # pre-sweep banner, the archive-row precedent. The detail is
+            # the same loud line the log carries: committed-as,
+            # nothing-to-commit, or the skip with its reason.
+            if sweep_result is not None:
+                summary_rows.append(("sweep", sweep_result["detail"]))
             print(format_summary_block(
                 summary_rows,
                 status="PASS",
@@ -2139,6 +2187,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 log_path=f".bale/logs/{locked_sid}.log",
                 clarification=read_clarification_summary(repo, locked_sid),
             ))
+        # Auto-sweep (v0.3.32; BALE.md §8.8): the walkthrough revert is
+        # a closing event and _discard_hold_state's git mutation is
+        # complete. `enabled` resolved at pre-flight (sweep_cfg) — the
+        # no-post-outcome-fail() contract, same as the applied path.
+        sweep_commit(repo, locked_sid, "reverted",
+                     [telemetry_rel] if telemetry_rel else [],
+                     enabled=sweep_cfg)
         print(format_summary_block(
             [
                 ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),

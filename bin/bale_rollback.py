@@ -467,18 +467,33 @@ def _record_rollback_attempt(repo: Path, sid: str, outcome: str) -> Optional[str
     write_telemetry_record and never raises — the revert that already
     landed stands. Returns the record's repo-relative path, or None on a
     write failure (the caller's summary row reports which).
+
+    Auto-sweep rider (v0.3.32; BALE.md §8.8): when [apply].sweep is
+    enabled, the appended record is committed here as its own commit on
+    top of the revert that just landed — sweep runs strictly after the
+    dirty-tree guard's window closed and after _run_revert's git work
+    completed, so it interleaves with nothing. This trigger is what
+    keeps the rollback → --undo toggle working under sweep: the append
+    turns a previously-committed record into a *modified tracked* file,
+    which the guard's untracked-only carve-out deliberately refuses —
+    committing it immediately restores the clean tree the next guard
+    run expects. Silent when the key is unset; loud and never fatal
+    when enabled.
     """
     from __main__ import (build_telemetry_attempt, read_session_scope,
-                          scope_file_path, write_telemetry_record)
+                          scope_file_path, sweep_commit,
+                          write_telemetry_record)
     scope = (read_session_scope(repo, sid)
              if scope_file_path(repo, sid).exists() else [])
-    return write_telemetry_record(
+    rel = write_telemetry_record(
         repo, sid, build_telemetry_attempt(
             outcome=outcome, command="rollback",
             scope=scope,
             closure_reason=None,
             log_path=f".bale/logs/{sid}.log",
         ))
+    sweep_commit(repo, sid, outcome, [rel] if rel else [])
+    return rel
 
 
 # ---------------------------------------------------------------------------

@@ -1943,6 +1943,44 @@ on EOF.
   the integration lock. Same operation regardless
   of whether validation passed or held.
 
+**Auto-sweep commits** (`[apply] sweep`, v0.3.32; valid at both
+config layers like the sibling `[apply]` keys, default false). When
+enabled, after bale finishes writing files it owns at a
+closure-shaped event, it stages **exactly those files** and commits
+them — the mechanized form of the manual git dance that previously
+landed bale-written bookkeeping. The owned set for a given
+invocation: the telemetry record(s) it wrote or updated this
+invocation (§8.9), and the archive copies `archive_dir` made this
+invocation. The trigger moments are the closure-shaped events:
+apply's terminal outcomes (merge, the walkthrough revert, a
+bailout), `bale revert`, `bale unlock` (including its crash-debris
+record), pack's session closes (the read-only sweep and the
+supersession close, §7.2), and rollback's clean success paths
+(`rolled-back` / `re-applied`, §9.2). Held states and refusals sweep
+nothing — the session continues, and the record rides to its
+eventual closure. A sweep commit **never interleaves with the
+merge**: every trigger runs after the parent event's git mutation is
+durably complete, so the sweep is always its own commit on top, on
+the current branch — where the manual sweep would have landed it.
+The staging is pathspec-only (`git add -- <paths>`, `git commit
+-- <paths>`): never a directory glob, never `git add -A`, and an
+operator's unrelated dirty files — staged or not — are untouched by
+construction. The commit message is one conventioned shape carrying
+the sid and event: `[bale sweep <sid>] <event>`, joining `[bale
+<sid>]` (§8.6) and `[bale rollback <sid>]` (§9.2) in the message
+family. Loud either way: `sweep: committed <n> file(s) as
+<short-sha>` or `sweep: nothing to commit` (an event that wrote
+nothing sweeps nothing), plus a `sweep` banner row on the applied
+outcome when the key is set. Degenerate git states — an in-progress
+merge, a detached HEAD, or a git identity that cannot commit — skip
+loudly and leave the files for a manual sweep; a sweep failure after
+a successful apply **can never convert the apply into a failure**
+(the archive-dir loud-never-fatal precedent; on the apply pipeline
+the key is resolved at pre-flight through the strict accessor, so a
+malformed value refuses before staging, never post-merge). Unset or
+false, every path is byte-identical to today: bale writes the files
+untracked and never commits.
+
 ### 8.9 Telemetry record at session close
 
 Every apply close writes (or updates) a durable per-session telemetry
@@ -2042,7 +2080,11 @@ The session commit is built per-manifest-entry from `changes[]`
 (§8.6); injecting a bale-generated file would desync the manifest
 from the commit and break the §8.4 reconciliation contract. So the
 record lands untracked at apply close, and the user commits it with
-their next ordinary commit. Telemetry can never break an apply: a
+their next ordinary commit — or, when `[apply] sweep` is enabled
+(§8.8), bale commits it immediately as its own `[bale sweep <sid>]
+<event>` commit on top, which keeps the manifest/commit contract
+intact: the sweep is a separate commit, never an injection into the
+session or merge commit. Telemetry can never break an apply: a
 write failure is logged loudly and the apply's outcome stands.
 
 **Rendering.** One summary-block row (`telemetry: recorded <path>`,
@@ -2256,7 +2298,16 @@ Steps:
    rollback → `--undo` toggle complete without an interleaved
    commit. A *modified tracked* file at the same locations still
    refuses (a real conflict surface); `--stash` and `--force`
-   behavior is unchanged.
+   behavior is unchanged. Under `[apply] sweep` (§8.8) the carve-out
+   is unchanged and the sweep runs entirely post-guard-window: the
+   guard judges the tree before any git mutation, and the sweep
+   commits only after the revert has landed. What preserves the
+   toggle there is the rollback trigger itself — each clean rollback
+   and `--undo` commits its own telemetry append immediately, so the
+   record (tracked once swept) never sits modified when the next
+   guard runs; a skipped sweep leaves it modified-tracked, and the
+   next guard's refusal is the loud manual-sweep prompt, exactly the
+   conservatism the modified-tracked rule exists for.
 4. Refuse if `reverted/<sid>` already exists, unless `--force`.
 5. Run `git revert --no-edit -m 1 <commit>` (merge) or
    `git revert --no-edit <commit>` (normal). Conflicts leave the

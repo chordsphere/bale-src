@@ -149,6 +149,18 @@ APPLY_VALUES = (
     # absolute or repo-escaping value is a typo or interference — the
     # typed accessor refuses both loudly.
     "archive_dir",
+    # Bool. Config-gated auto-sweep commits of bale-written bookkeeping
+    # (v0.3.32; BALE.md §8.8): when true, the closure-shaped events —
+    # apply's terminal outcomes, unlock, revert, rollback/undo, and
+    # pack's session closes — stage exactly the telemetry record(s)
+    # written this invocation plus the archive_dir copies made this
+    # invocation, and commit them as `[bale sweep <sid>] <event>`.
+    # Never a directory glob, never `git add -A`; degenerate git states
+    # (in-progress merge, detached HEAD, no committable identity) skip
+    # loudly and leave the files for a manual sweep. Absent/false =
+    # today's behavior byte-identically: bale writes the files
+    # untracked and never commits.
+    "sweep",
 )
 
 # The two admissible values of staging.strategy (BALE.md §8.3 step 2).
@@ -606,6 +618,21 @@ def get_apply_archive_dir(cfg: dict) -> Optional[str]:
         fail(f"{BALE_CONFIG}: apply.archive_dir must be a repo-relative "
              f"path with no '..' components, got {raw!r}")
     return val.rstrip("/")
+
+
+def get_apply_sweep(cfg: dict) -> bool:
+    """Return [apply].sweep from the merged config; absent → False.
+
+    Consumed by the closure-shaped events (BALE.md §8.8): when True,
+    the event's telemetry/archive writes are staged and committed by
+    sweep_commit in bin/bale; absent/False leaves them untracked —
+    today's behavior, byte-identical. Bool-shaped like no_interact, so
+    an explicit `false` at the project layer overrides an inherited
+    global `true` (per-key replacement covers it). The strict non-bool
+    fatality lives in _get_apply_bool: a typo must not silently flip
+    whether bale commits to the operator's repo.
+    """
+    return bool(_get_apply_bool(cfg, "sweep"))
 
 
 def apply_bool_source(repo: Path, key: str) -> Optional[str]:
@@ -1345,6 +1372,37 @@ def walk_configurables(existing: dict, *, layer: str,
     if val is not None:
         new.setdefault("apply", {})["archive_dir"] = val
 
+    # ---- [apply].sweep -------------------------------------------------------
+    # Bool with the standard prompt shape; walked at both layers like
+    # the sibling [apply] bools (an explicit project-layer false
+    # overrides an inherited global true via per-key replacement).
+    raw_cur_b = existing_apply.get("sweep")
+    current_b = raw_cur_b if isinstance(raw_cur_b, bool) else None
+    raw_inh_b = inherited_apply.get("sweep")
+    inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
+
+    val_b = _prompt_bool(
+        "apply.sweep",
+        current=current_b,
+        inherited=inh_b,
+        description=[
+            "Optional. Enter to skip.",
+            "true = after bale finishes writing files it owns at a",
+            "session-closing event (the telemetry record, and archive",
+            "copies when apply.archive_dir is set), it stages exactly",
+            "those files and commits them as `[bale sweep <sid>]",
+            "<event>` — never a directory glob, never `git add -A`;",
+            "your unrelated dirty files are untouched. Degenerate git",
+            "states (in-progress merge, detached HEAD, no committable",
+            "identity) skip loudly and leave the files for a manual",
+            "sweep. false/unset = bale writes the files untracked and",
+            "never commits — today's behavior (false also overrides an",
+            "inherited true).",
+        ],
+    )
+    if val_b is not None:
+        new.setdefault("apply", {})["sweep"] = val_b
+
     # ---- [staging].strategy -------------------------------------------------
     # A string enum rather than a free value; _prompt_value is generic, so
     # the enum check runs after the prompt, keeping current on an invalid
@@ -1611,6 +1669,11 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         if "archive_dir" in apply_section:
             parts.append(
                 f"archive_dir = {json.dumps(apply_section['archive_dir'])}")
+        # sweep: bool scalar (v0.3.32 auto-sweep), last per APPLY_VALUES
+        # order. json.dumps(True) == "true", a valid TOML boolean, so
+        # the same serializer covers it.
+        if "sweep" in apply_section:
+            parts.append(f"sweep = {json.dumps(apply_section['sweep'])}")
         parts.append("")
 
     # [staging] section (BALE.md §8.3 step 2). Same serialization shapes

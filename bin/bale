@@ -220,7 +220,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.31"
+VERSION = "0.3.32"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -700,6 +700,131 @@ def resolve_open_session(repo: Path, requested: Optional[str], *,
     )
 
 
+def sweep_commit(repo: Path, sid: str, event: str, paths: list,
+                 enabled: Optional[bool] = None) -> Optional[dict]:
+    """Config-gated auto-sweep commit of bale-written bookkeeping
+    (v0.3.32; BALE.md §8.8): stage exactly `paths` — the telemetry
+    record(s) and archive copies THIS invocation wrote — and commit
+    them as `[bale sweep <sid>] <event>`.
+
+    Gating: `[apply] sweep` in the merged config, resolved through the
+    strict typed accessor. Unset/false returns None with no output of
+    any kind — every path byte-identical to today. Callers on paths
+    where a post-action fail() would be unacceptable (the apply
+    pipeline, whose merge has already landed) resolve the key at
+    pre-flight and pass `enabled`; other callers leave it None and the
+    resolve happens here, wrapped so a malformed key degrades to a
+    loud skip rather than converting an already-completed closure into
+    a failure.
+
+    Contract, when enabled:
+
+    - **Stages only the enumerated paths.** `git add -- <paths>` then
+      `git commit -m <msg> -- <paths>` — the pathspec form commits the
+      named paths' working-tree state only, so an operator's unrelated
+      dirty files (including content they had staged) are untouched by
+      construction. Never a directory glob, never `git add -A`.
+    - **Loud either way**: `sweep: committed <n> file(s) as
+      <short-sha>` or `sweep: nothing to commit` (an event that wrote
+      nothing sweeps nothing — the empty-paths case, and the case
+      where the enumerated paths carry no uncommitted change).
+    - **Degenerate states skip loudly, never fail the parent**: an
+      in-progress merge, a detached HEAD, or a git identity that
+      cannot commit logs the skip and leaves the files untracked for a
+      manual sweep. Any unexpected git failure takes the same path —
+      this function never raises, and a sweep failure after a
+      successful apply must not convert the apply into a failure (the
+      archive-dir loud-never-fatal precedent).
+    - **Never interleaves with the merge**: every call site runs after
+      the parent event's git mutation is durably complete (the merge
+      commit, the revert commit, or a no-git closure), so the sweep is
+      always its own commit on top.
+
+    Returns None when the key is unset/false; otherwise a dict for the
+    caller's optional banner row: {"status": "committed"|"nothing"|
+    "skipped", "detail": <human string>, plus "sha"/"files" on the
+    committed form}. The commit lands on the current branch — where
+    the manual sweep this mechanizes would have landed it.
+    """
+    import bale_config  # lazy — sibling module, loaded by bin/bale
+    try:
+        if enabled is None:
+            enabled = bale_config.get_apply_sweep(
+                bale_config.merged_config(repo))
+        if not enabled:
+            return None
+
+        real = [p for p in dict.fromkeys(paths or [])
+                if p and (repo / p).exists()]
+        if not real:
+            log("sweep: nothing to commit")
+            return {"status": "nothing", "detail": "nothing to commit"}
+
+        # Anything to commit at all? Judged on exactly the enumerated
+        # paths — an already-committed record (a retry after a swept
+        # HOLD-close, say) is a legitimate nothing, not an error.
+        status = git(["status", "--porcelain", "-uall", "--", *real],
+                     cwd=repo, check=False)
+        changed = [ln[3:].strip().strip('"')
+                   for ln in status.stdout.splitlines() if ln.strip()]
+        if status.returncode != 0 or not changed:
+            log("sweep: nothing to commit")
+            return {"status": "nothing", "detail": "nothing to commit"}
+
+        def _skip(reason: str) -> dict:
+            log(f"sweep: skipped — {reason}; {len(changed)} file(s) left "
+                f"for a manual sweep ({', '.join(changed)})", force=True)
+            return {"status": "skipped",
+                    "detail": f"skipped — {reason}; files left for a "
+                              f"manual sweep"}
+
+        # Degenerate-state checks, each a named loud skip.
+        if git(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+               cwd=repo, check=False).returncode == 0:
+            return _skip("a merge is in progress")
+        if git(["symbolic-ref", "--quiet", "HEAD"],
+               cwd=repo, check=False).returncode != 0:
+            return _skip("detached HEAD")
+        if git(["var", "GIT_COMMITTER_IDENT"],
+               cwd=repo, check=False).returncode != 0:
+            return _skip("git identity cannot commit (user.name/"
+                         "user.email unset)")
+
+        add = git(["add", "--", *real], cwd=repo, check=False)
+        if add.returncode != 0:
+            return _skip(f"git add failed "
+                         f"({(add.stderr or add.stdout).strip()})")
+        commit = git(["commit", "-m", f"[bale sweep {sid}] {event}",
+                      "--", *real], cwd=repo, check=False)
+        if commit.returncode != 0:
+            # Best-effort unstage of what the add above staged, so a
+            # failed sweep leaves the index as it found it.
+            git(["reset", "-q", "HEAD", "--", *real], cwd=repo,
+                check=False)
+            return _skip(f"git commit failed "
+                         f"({(commit.stderr or commit.stdout).strip()})")
+        short = git(["rev-parse", "--short", "HEAD"],
+                    cwd=repo, check=False).stdout.strip()
+        log(f"sweep: committed {len(changed)} file(s) as {short}")
+        return {"status": "committed", "sha": short, "files": changed,
+                "detail": f"committed {len(changed)} file(s) as {short}"}
+    except SystemExit:
+        # A strict-accessor fail() already printed its error; the
+        # parent event's state change stands, so degrade to a loud
+        # skip rather than exiting after the fact.
+        log("sweep: skipped — config error (see above); files left for "
+            "a manual sweep", force=True)
+        return {"status": "skipped",
+                "detail": "skipped — config error; files left for a "
+                          "manual sweep"}
+    except Exception as e:  # never fail the parent — see docstring
+        log(f"sweep: skipped — unexpected error ({e}); files left for "
+            f"a manual sweep", force=True)
+        return {"status": "skipped",
+                "detail": "skipped — unexpected error; files left for "
+                          "a manual sweep"}
+
+
 def close_session_with_record(
     repo: Path,
     sid: str,
@@ -736,6 +861,10 @@ def close_session_with_record(
        (BALE.md §8.10.2 step 3). Best-effort like every telemetry
        write: a failure is logged inside write_telemetry_record and
        never raises — the closure that already happened stands.
+    5. sweep_commit (v0.3.32; BALE.md §8.8) — the config-gated
+       auto-sweep of the record just written, event-stamped with the
+       closure_reason. A no-op producing no output when [apply].sweep
+       is unset/false; loud and never fatal when enabled.
 
     Returns (telemetry_rel, session_status): the record's repo-relative
     path (None on write failure) and the human summary of the session-dir
@@ -761,6 +890,15 @@ def close_session_with_record(
             log_path=log_path,
             clarification=read_clarification_summary(repo, sid),
         ))
+    # 5. Auto-sweep (v0.3.32; BALE.md §8.8): config-gated, after the
+    #    record exists on disk. No git mutation preceded this in the
+    #    close-with-record sequencing, so the sweep commit interleaves
+    #    with nothing. The one path this invocation wrote is the
+    #    record; the event stamped in the commit message is the
+    #    closure_reason (more informative than the uniform "unlocked"
+    #    outcome across unlock, supersession, and read-only closes).
+    sweep_commit(repo, sid, closure_reason,
+                 [telemetry_rel] if telemetry_rel else [])
     return telemetry_rel, session_status
 
 
@@ -1736,6 +1874,12 @@ def cmd_revert(args: argparse.Namespace) -> int:
             closure_reason=args.reason,
             clarification=read_clarification_summary(repo, sid),
         ))
+    # Auto-sweep (v0.3.32; BALE.md §8.8): revert is a closing event and
+    # this invocation's git mutation (_discard_hold_state) is complete,
+    # so the sweep commit interleaves with nothing. Config-gated;
+    # silent when unset, loud and never fatal when enabled.
+    sweep_commit(repo, sid, "reverted",
+                 [telemetry_rel] if telemetry_rel else [])
 
     # End-of-run summary through the shared formatter (see the
     # "Shared end-of-run summary formatting" section) so `bale revert`
@@ -2123,6 +2267,10 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             if debris_rel:
                 log(f"telemetry: recorded {debris_rel} (crash-debris "
                     f"closure for {stale})")
+            # Auto-sweep (v0.3.32): the debris record is a closure
+            # record like any other; config-gated, silent when unset.
+            sweep_commit(repo, stale, "crash-debris",
+                         [debris_rel] if debris_rel else [])
             debris = {"sid": stale, "telemetry": debris_rel}
         print()
         print("  no open session; nothing to unlock.")
