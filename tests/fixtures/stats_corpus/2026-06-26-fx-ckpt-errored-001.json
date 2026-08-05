@@ -1,0 +1,74 @@
+{
+  "record_version": 1,
+  "session_id": "2026-06-26-fx-ckpt-errored-001",
+  "created_at": "2026-06-26T10:00:00+00:00",
+  "updated_at": "2026-06-26T10:00:00+00:00",
+  "outcome": "held",
+  "attempts": [
+    {
+      "at": "2026-06-26T10:00:00+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "tests": "pass"
+        },
+        "claim_verdict": {
+          "tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "src"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "src/a.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.29",
+            "packer": "fixture",
+            "work_class": "code",
+            "model_identity": "fixture"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": false
+        }
+      },
+      "log": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 2,
+        "script": {
+          "path": "scripts/validation.base.sh",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+        },
+        "stamp_matched": true
+      }
+    }
+  ]
+}

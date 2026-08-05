@@ -17,7 +17,18 @@ cross-check directions (including a null ``records[].at``); a
 pack-closed ``unlocked`` session carrying a ``rounds: 0`` stamp (inside
 the epoch denominator, per the close-keyed rule); a missing work_class
 (→ ``unclassed``); post-close ``rolled-back``; crash-debris; and a
-recent record for the ``--since`` window.
+recent record for the ``--since`` window. The board 6 session D
+extension (v0.3.29) adds one record per new shape the checkpoint and
+required-check surfaces admit: the known-zero ``configured: false``
+stamp; checkpoint PASS with a verified stamp; HOLD attributed to the
+checkpoint alone, to the worker alone, and to both; the checkpoint
+itself erroring (exit 2 — still a checkpoint-attributed HOLD in the
+stamp's own state); an admitted divergence (``stamp_matched: false``);
+a ``required-check-refused`` latest outcome (in-flight, validation
+null, therefore no checkpoint key — the always-stamp rule's other
+half); and an effective ``required_check_overrides`` entry on an
+applied attempt. Pre-epoch key absence is the original eighteen
+records, which the ``checkpoint`` coverage row counts as lacking.
 
 Oracle doctrine per ADR-0002: observable-state assertions against the
 documented contract — the ``--json`` line is asserted key-by-key from
@@ -108,20 +119,22 @@ class StatsAggregationTest(unittest.TestCase):
 
         self.assertEqual(stats["outcome"], "stats")
 
-        # Corpus context: 20 files = 18 records + 1 parse failure + 1
+        # Corpus context: 29 files = 27 records + 1 parse failure + 1
         # filtered future version; one read-only and one crash-debris
-        # session leave 16 classed members, one of them in-flight.
+        # session leave 25 classed members, six of them in-flight (the
+        # original held session, the four checkpoint-HOLD shapes, and
+        # the required-check-refused session).
         self.assertEqual(stats["corpus"], {
-            "records": 18,
+            "records": 27,
             "parse_failures": 1,
             "filtered_record_versions": 1,
             "read_only_sessions": 1,
             "crash_debris_sessions": 1,
-            "sessions": 16,
-            "in_flight_sessions": 1,
-            "response_attempts": 17,
-            "validated_attempts": 14,
-            "checks": 19,
+            "sessions": 25,
+            "in_flight_sessions": 6,
+            "response_attempts": 26,
+            "validated_attempts": 22,
+            "checks": 27,
         })
 
         # Epoch: minimum created_at, and the pre-epoch statement is the
@@ -132,15 +145,26 @@ class StatsAggregationTest(unittest.TestCase):
         })
 
         # Coverage by key presence: the two earliest records lack the
-        # closure_reason key (pre-v0.3.16 shapes); seven records carry a
-        # clarification stamp, so eleven of eighteen lack it.
+        # closure_reason key (pre-v0.3.16 shapes); eleven records carry
+        # a clarification stamp (seven original + the four session-D
+        # applied closes), so sixteen of twenty-seven lack it.
         self.assertEqual(stats["coverage"]["closure_reason"], {
             "first_sid": "2026-06-05-fx-applied-001",
             "records_lacking": 2,
         })
         self.assertEqual(stats["coverage"]["clarification"], {
             "first_sid": "2026-06-12-fx-bailout-001",
-            "records_lacking": 11,
+            "records_lacking": 11 + 5,
+        })
+        # The board 6 sub-epoch (v0.3.29, session D): eight records
+        # carry the checkpoint stamp somewhere — every session-D
+        # fixture with a validated attempt. The required-check-refused
+        # record does NOT carry it (validation never ran; the
+        # always-stamp rule's other half), so it counts among the
+        # nineteen lacking, beside the eighteen pre-epoch originals.
+        self.assertEqual(stats["coverage"]["checkpoint"], {
+            "first_sid": "2026-06-21-fx-ckpt-zero-001",
+            "records_lacking": 19,
         })
 
         # The scopeless overload: [] scope with NO closure_reason key is
@@ -151,39 +175,60 @@ class StatsAggregationTest(unittest.TestCase):
         self.assertEqual(stats["corpus"]["read_only_sessions"], 1)
 
         code = stats["classes"]["code"]
-        self.assertEqual(code["sessions"], 9)
-        self.assertEqual(code["closed_sessions"], 8)
-        self.assertEqual(code["response_attempts"], 11)
-        self.assertEqual(code["validated_attempts"], 9)
+        self.assertEqual(code["sessions"], 18)
+        self.assertEqual(code["closed_sessions"], 12)
+        self.assertEqual(code["response_attempts"], 20)
+        self.assertEqual(code["validated_attempts"], 17)
         # checks: superseded HOLD attempts included (attempt history is
         # the point) and the rolled-back session's applied attempt stays
-        # in every mechanical denominator.
-        self.assertEqual(code["checks"], 14)
-        self.assertEqual(code["checks_agree"], 11)
-        self.assertEqual(code["checks_disagree"], 2)
+        # in every mechanical denominator; each session-D fixture adds
+        # one check.
+        self.assertEqual(code["checks"], 22)
+        self.assertEqual(code["checks_agree"], 18)
+        self.assertEqual(code["checks_disagree"], 3)
         # The named residual: the hold-retry session's [n/a] check
         # (claim "unknown", verdict "skip") lands in checks_na — every
         # schema agreement value has its own count, no catch-all
         # bucket — and STAYS in agreement_rate's all-checks denominator
         # (D2: naming the residual does not redefine the rate).
         self.assertEqual(code["checks_na"], 1)
-        self.assertAlmostEqual(code["agreement_rate"], 11 / 14)
+        self.assertAlmostEqual(code["agreement_rate"], 18 / 22)
         self.assertEqual(code["unparsed_validated_attempts"], 0)
-        self.assertEqual(code["held_attempts"], 2)
-        self.assertAlmostEqual(code["hold_rate"], 2 / 9)
+        self.assertEqual(code["held_attempts"], 6)
+        self.assertAlmostEqual(code["hold_rate"], 6 / 17)
         self.assertEqual(code["drift_refused_attempts"], 1)
-        self.assertAlmostEqual(code["drift_refusal_rate"], 1 / 11)
+        self.assertAlmostEqual(code["drift_refusal_rate"], 1 / 20)
         self.assertEqual(code["override_attempts"], 1,
                          msg="override incidence is a count beside the "
                              "drift refusals, not a rate")
         self.assertEqual(code["bailout_sessions"], 1)
-        self.assertEqual(code["sessions_with_response_attempt"], 9)
-        self.assertAlmostEqual(code["bailout_rate"], 1 / 9)
+        self.assertEqual(code["sessions_with_response_attempt"], 18)
+        self.assertAlmostEqual(code["bailout_rate"], 1 / 18)
         # Clarification epoch: only closed sessions whose closing attempt
-        # carries the stamp; rounds >= 1 clarifies.
+        # carries the stamp; rounds >= 1 clarifies. The four session-D
+        # applied closes carry the known-zero stamp, widening the epoch
+        # denominator without clarifying.
         self.assertEqual(code["clarified_sessions"], 1)
-        self.assertEqual(code["clarification_epoch_sessions"], 4)
-        self.assertAlmostEqual(code["clarification_rate"], 1 / 4)
+        self.assertEqual(code["clarification_epoch_sessions"], 8)
+        self.assertAlmostEqual(code["clarification_rate"], 1 / 8)
+
+        # -- board 6 session D: the checkpoint rows (D4.2) ------------
+        # The denominator is validated attempts whose stamp reads
+        # configured: true — six fixtures (PASS, three HOLD
+        # attributions, exit 2, accepted divergence). The two
+        # configured: false stamps (known-zero) and every pre-epoch
+        # attempt (no key) stay outside it, for different reasons the
+        # ledger never conflates.
+        self.assertEqual(code["checkpointed_attempts"], 6)
+        # The numerator keys on the stamp's OWN state — the per-source
+        # attribution: checkpoint-alone HOLD, both-HOLD, and the exit-2
+        # error all count; the worker-alone HOLD (checkpoint PASS) does
+        # not, whatever the attempt's envelope state was.
+        self.assertEqual(code["checkpoint_hold_attempts"], 3)
+        self.assertAlmostEqual(code["checkpoint_hold_rate"], 3 / 6)
+        # The step-15 gate's pair, counts beside the drift pair.
+        self.assertEqual(code["required_check_refused_attempts"], 1)
+        self.assertEqual(code["required_check_override_attempts"], 1)
 
         doc = stats["classes"]["doc"]
         self.assertEqual(doc["sessions"], 4)
@@ -197,6 +242,15 @@ class StatsAggregationTest(unittest.TestCase):
         self.assertEqual(doc["checks_na"], 0,
                          msg="an honest zero: doc has no [n/a] checks")
         self.assertAlmostEqual(doc["agreement_rate"], 1.0)
+        # Pre-epoch key absence (session D): every doc record predates
+        # board 6, so the class has no checkpointed attempts at all —
+        # counts are honest zeros and the rate is null on the zero
+        # denominator, never a fabricated 0%.
+        self.assertEqual(doc["checkpointed_attempts"], 0)
+        self.assertEqual(doc["checkpoint_hold_attempts"], 0)
+        self.assertIsNone(doc["checkpoint_hold_rate"])
+        self.assertEqual(doc["required_check_refused_attempts"], 0)
+        self.assertEqual(doc["required_check_override_attempts"], 0)
 
         # The per-enum-value counts partition checks: over a corpus
         # whose agreement values all come from the schema vocabulary
@@ -240,7 +294,7 @@ class StatsAggregationTest(unittest.TestCase):
         # read-only and crash-debris never appear, the superseded parent
         # shows under its reason, in-flight sits beside the mix.
         self.assertEqual(stats["closure_mix"], {
-            "applied": 12,
+            "applied": 16,
             "reverted": 0,
             "bailout": 1,
             "unlocked": {"abandoned": 1, "superseded-by-split": 1},
@@ -260,7 +314,7 @@ class StatsAggregationTest(unittest.TestCase):
             "promoted_only": 1,
         })
         self.assertEqual(stats["cross_checks"]["budget"], {
-            "pressure": {"none": 12, "tight": 2, "unreported": 2},
+            "pressure": {"none": 21, "tight": 2, "unreported": 2},
             "bailed_with_pressure_none": 1,
         })
 
@@ -306,7 +360,7 @@ class StatsAggregationTest(unittest.TestCase):
                          msg="context counts honor the since-window")
         # …while the whole-corpus facts stay corpus facts: the epoch is
         # the corpus's true start and records counts every loaded file.
-        self.assertEqual(stats["corpus"]["records"], 18)
+        self.assertEqual(stats["corpus"]["records"], 27)
         self.assertEqual(stats["epoch"]["first_sid"],
                          "2026-06-01-fx-pre-cr-001")
 
@@ -330,6 +384,9 @@ class StatsAggregationTest(unittest.TestCase):
         self.assertEqual(stats["corpus"]["sessions"], 0)
         self.assertIsNone(stats["epoch"])
         self.assertIsNone(stats["coverage"]["closure_reason"])
+        self.assertIsNone(stats["coverage"]["checkpoint"],
+                          msg="the session-D coverage row degrades the "
+                              "same honest way: no carrier, no sub-epoch")
         self.assertEqual(stats["classes"], {})
         # Human mode degrades the same way.
         result = run_bale(self.install, ["stats"], cwd=self.repo,
@@ -351,6 +408,18 @@ class StatsAggregationTest(unittest.TestCase):
         # The named-residual annotation row: code's [n/a] check shows
         # under the table beside disagree, by its schema name.
         self.assertIn("n/a 1", out)
+        # Session D surfaces: the ckpt column renders the
+        # checkpoint-HOLD rate over checkpointed attempts for code and
+        # the honest dash for the pre-epoch classes; the step-15 pair
+        # shows in the extras line by name; the checkpoint coverage
+        # row sits beside its two siblings.
+        self.assertIn("ckpt", out)
+        self.assertIn("3/6 (50%)", out)
+        self.assertIn("0/0 (—)", out)
+        self.assertIn("required-check refused 1", out)
+        self.assertIn("required-check overrides 1", out)
+        self.assertIn("coverage: checkpoint key since "
+                      "2026-06-21-fx-ckpt-zero-001", out)
         self.assertIn("epoch: corpus begins 2026-06-01T10:00:00+00:00", out)
         self.assertIn("closure mix:", out)
         # Trailing summary block last, and NO next-step hint after it —

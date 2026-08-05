@@ -30,6 +30,12 @@ doctrine — observable state, never golden comparisons):
 - a stampless request (the provenance.checkpoint key stripped from the
   persisted session manifest, simulating a hand-rolled or pre-v0.3.28
   request) verifies nothing and stamps stamp_matched: null;
+- the retry path re-states the flag (v0.3.29, board 6 session D — the
+  session-C notes' proposed rider): after a HOLD, a diverged oracle
+  refuses `bale retry` without `--accept-checkpoint-change` exactly as
+  apply would, and re-stating the flag on the retry invocation admits
+  it — current base-tree bytes run, stamp_matched: false on the retry
+  attempt beside the HOLD attempt's verified true;
 - a read-only pack passes the blindness gate vacuously (empty scope
   covers nothing) while still stamping checkpoint provenance.
 
@@ -146,9 +152,13 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         p = self.repo / ".bale" / "sessions" / sid / "manifest.json"
         return json.loads(p.read_text(encoding="utf-8"))
 
-    def build_response_tarball(self, sid: str, *, name: str) -> Path:
+    def build_response_tarball(self, sid: str, *, name: str,
+                               validation_exit: int = 0) -> Path:
         """A valid normal response modifying hello.txt (in scope).
-        Sizes and hashes computed, never transcribed."""
+        Sizes and hashes computed, never transcribed. `validation_exit`
+        drives the worker verdict — 1 for the retry rider's HOLD leg,
+        the default 0 everywhere else (the pre-rider behavior,
+        unchanged)."""
         nnn = sid[-3:]
         rdir = self.tmp / name / f"response-{nnn}"
         (rdir / "files").mkdir(parents=True)
@@ -179,10 +189,11 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         (rdir / "apply.sh").write_text(
             "#!/usr/bin/env bash\n# no-op (test fixture)\nexit 0\n",
             encoding="utf-8")
+        verdict = "FAIL" if validation_exit else "PASS"
         (rdir / "validation.sh").write_text(
             "#!/usr/bin/env bash\n"
-            "echo \"[PASS] fixture check\"\n"
-            "exit 0\n",
+            f"echo \"[{verdict}] fixture check\"\n"
+            f"exit {validation_exit}\n",
             encoding="utf-8")
         tarball = self.tmp / name / f"response-{nnn}.tar.gz"
         with tarfile.open(tarball, "w:gz") as tf:
@@ -410,6 +421,106 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
             hashlib.sha256(
                 checkpoint_script(V2_MARKER).encode("utf-8")).hexdigest(),
             msg="the telemetry stamp hashes the executed current bytes")
+
+    def test_retry_refuses_divergence_and_restates_the_flag(self) -> None:
+        """The lifecycle-wide re-state contract, pinned on the retry
+        wiring (v0.3.29, board 6 session D — the session-C notes'
+        proposed rider): a HOLD leaves the session open, the planner
+        diverges the oracle, and `bale retry` without the flag refuses
+        exactly as apply would; re-stating `--accept-checkpoint-change`
+        on the retry invocation admits it — the CURRENT base-tree
+        bytes run and the retry attempt records stamp_matched: false
+        beside the first attempt's verified true."""
+        sid = self._packed_sid_with_committed_checkpoint()
+
+        # Attempt 1: worker validation fails while the oracle still
+        # matches its stamp — a plain HOLD (piped default: inspect),
+        # session open, stamp verified on that attempt.
+        holding = self.build_response_tarball(sid, name="retryhold",
+                                              validation_exit=1)
+        held = run_bale(self.install, ["apply", str(holding)],
+                        cwd=self.repo, env=self.env)
+        self.assertEqual(held.returncode, 1,
+                         msg=f"stdout:\n{held.stdout}\n"
+                             f"stderr:\n{held.stderr}")
+        record = self.telemetry_record(sid)
+        self.assertEqual(record["outcome"], "held")
+        first_stamp = record["attempts"][0]["checkpoint"]
+        self.assertIs(first_stamp["stamp_matched"], True)
+        self.assertEqual(
+            first_stamp["script"]["sha256"],
+            hashlib.sha256(
+                checkpoint_script(V1_MARKER).encode("utf-8")).hexdigest())
+
+        # The planner edits and commits the oracle post-HOLD.
+        self.commit_checkpoint(checkpoint_script(V2_MARKER),
+                               message="planner edits the oracle mid-hold")
+
+        # Retry WITHOUT the flag: the same divergence refusal apply
+        # gives — nothing carried from any earlier invocation, the
+        # session stays open, and no second attempt is recorded (the
+        # refusal is pre-staging, pre-telemetry).
+        fixed = self.build_response_tarball(sid, name="retryfix")
+        refused = run_bale(self.install, ["retry", str(fixed)],
+                           cwd=self.repo, env=self.env)
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(DIVERGENCE_PHRASE, combined)
+        self.assertIn("--accept-checkpoint-change", combined,
+                      msg="the retry refusal names its override "
+                          "successor too")
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="the refused retry leaves the session open")
+        # The refusal lands in telemetry through the shared
+        # rejected-path wrapper (BALE.md §8.9) — a `rejected` attempt
+        # with validation null and, by the always-stamp rule's other
+        # half, no checkpoint key: nothing executed, so there is
+        # nothing to stamp.
+        record = self.telemetry_record(sid)
+        self.assertEqual(len(record["attempts"]), 2)
+        rejected_attempt = record["attempts"][1]
+        self.assertEqual(rejected_attempt["outcome"], "rejected")
+        self.assertEqual(rejected_attempt["command"], "retry")
+        self.assertIsNone(rejected_attempt["validation"])
+        self.assertNotIn("checkpoint", rejected_attempt)
+
+        # Retry WITH the flag re-stated on this invocation: admitted —
+        # the CURRENT base-tree oracle runs and the retry merges.
+        merged = run_bale(
+            self.install,
+            ["retry", str(fixed), "--accept-checkpoint-change"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            merged.returncode, 0,
+            msg=f"stdout:\n{merged.stdout}\nstderr:\n{merged.stderr}")
+
+        log = self.session_log(sid)
+        self.assertIn("FORCE:", log)
+        self.assertIn(V2_MARKER, log,
+                      msg="the CURRENT (post-edit) base-tree oracle ran "
+                          "on the retry")
+
+        # All three attempts accumulated (the §8.9 append semantics):
+        # the HOLD, the rejected divergence refusal, and the admitted
+        # retry — the validated pair each carrying its own verification
+        # result: verified true on the HOLD, admitted false on the
+        # retry. The per-attempt stamp is what makes the mid-session
+        # divergence auditable later.
+        record = self.telemetry_record(sid)
+        self.assertEqual(record["outcome"], "applied")
+        self.assertEqual(len(record["attempts"]), 3)
+        held_attempt, _rejected, applied_attempt = record["attempts"]
+        self.assertEqual(applied_attempt["command"], "retry")
+        self.assertIs(held_attempt["checkpoint"]["stamp_matched"], True)
+        retry_stamp = applied_attempt["checkpoint"]
+        self.assertIs(retry_stamp["stamp_matched"], False)
+        self.assertEqual(
+            retry_stamp["script"]["sha256"],
+            hashlib.sha256(
+                checkpoint_script(V2_MARKER).encode("utf-8")).hexdigest(),
+            msg="the retry's telemetry stamp hashes the executed "
+                "current bytes")
 
     def test_stampless_request_verifies_nothing(self) -> None:
         """A request without the provenance.checkpoint key — a

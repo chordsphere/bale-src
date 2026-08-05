@@ -2331,8 +2331,12 @@ def format_stats_json(stats: dict) -> str:
                 counted. A whole-corpus fact: filters do not move it.
       coverage  sub-epochs by attempt-key presence, each row
                 {first_sid, records_lacking} or null when no record
-                carries the key yet: closure_reason, clarification.
-                Whole-corpus facts, like epoch.
+                carries the key yet: closure_reason, clarification,
+                checkpoint (v0.3.29, board 6 session D — the blind
+                checkpoint stamp's sub-epoch; the stamp is present on
+                every validated attempt post-session-A, so key-presence
+                detection is exact here too). Whole-corpus facts, like
+                epoch.
       filters   echo of what was in effect: {work_class, since}, each
                 the given value or null.
       corpus    context and membership totals:
@@ -2373,6 +2377,10 @@ def format_stats_json(stats: dict) -> str:
                   held_attempts, hold_rate,
                   drift_refused_attempts, drift_refusal_rate,
                   override_attempts, rejected_attempts,
+                  checkpointed_attempts, checkpoint_hold_attempts,
+                  checkpoint_hold_rate,
+                  required_check_refused_attempts,
+                  required_check_override_attempts,
                   bailout_sessions, sessions_with_response_attempt,
                   bailout_rate,
                   clarified_sessions, clarification_epoch_sessions,
@@ -2385,6 +2393,25 @@ def format_stats_json(stats: dict) -> str:
                 never recorded; v0.3.26, additive). Over a well-formed
                 corpus the three sum to checks; agreement_rate keeps
                 its D2 all-checks denominator, n/a included.
+                The blind-checkpoint keys (v0.3.29, board 6 session D,
+                additive): checkpointed_attempts counts validated
+                attempts whose checkpoint stamp is configured: true
+                (key absence is pre-epoch, configured: false the
+                known-zero — both outside the denominator);
+                checkpoint_hold_attempts counts those whose stamp's
+                own state is "HOLD" (the per-source attribution — the
+                checkpoint objected or errored regardless of the
+                worker's verdict); checkpoint_hold_rate is the second
+                over the first, null on zero. The required-check keys
+                (same session): required_check_refused_attempts counts
+                response attempts with outcome required-check-refused
+                (the step-15 gate, session B), and
+                required_check_override_attempts counts attempts with
+                a non-empty required_check_overrides list — both
+                counts beside the drift refusal/override pair, and
+                like drift's, override incidence is a count, not a
+                rate. Semantics in bin/bale_stats.py's _class_row
+                docstring.
       closure_mix
                 distribution over closed membership sessions: applied,
                 reverted, bailout (counts) and unlocked (an object
@@ -2426,7 +2453,7 @@ def format_stats_report(stats: dict) -> str:
     classes: dict = stats["classes"]
     if classes:
         header = ["class", "sessions", "agree", "unparsed", "hold",
-                  "drift", "bailout", "clarified"]
+                  "ckpt", "drift", "bailout", "clarified"]
         table: list[list[str]] = [header]
         for cls, row in classes.items():
             table.append([
@@ -2439,6 +2466,13 @@ def format_stats_report(stats: dict) -> str:
                 f"({_pct(row['unparsed_share'])})",
                 f"{row['held_attempts']}/{row['validated_attempts']} "
                 f"({_pct(row['hold_rate'])})",
+                # The blind-checkpoint HOLD rate (v0.3.29, board 6
+                # session D): checkpoint-attributed HOLDs over the
+                # attempts a checkpoint actually ran on; the honest
+                # dash renders every pre-epoch or unconfigured class.
+                f"{row['checkpoint_hold_attempts']}/"
+                f"{row['checkpointed_attempts']} "
+                f"({_pct(row['checkpoint_hold_rate'])})",
                 f"{row['drift_refused_attempts']}/"
                 f"{row['response_attempts']} "
                 f"({_pct(row['drift_refusal_rate'])})",
@@ -2468,6 +2502,15 @@ def format_stats_report(stats: dict) -> str:
                 details.append(f"overrides {row['override_attempts']}")
             if row["rejected_attempts"]:
                 details.append(f"rejected {row['rejected_attempts']}")
+            # The step-15 gate's pair (v0.3.29, board 6 session D):
+            # counts beside the drift pair above, rendered only when
+            # non-zero like every other extras entry.
+            if row["required_check_refused_attempts"]:
+                details.append(f"required-check refused "
+                               f"{row['required_check_refused_attempts']}")
+            if row["required_check_override_attempts"]:
+                details.append(f"required-check overrides "
+                               f"{row['required_check_override_attempts']}")
             if details:
                 extras.append(f"  {cls}: " + ", ".join(details))
         if extras:
@@ -2486,7 +2529,8 @@ def format_stats_report(stats: dict) -> str:
         lines.append("  epoch: empty corpus — no records under "
                      "claude/telemetry/")
     for key, label in (("closure_reason", "closure_reason"),
-                       ("clarification", "clarification")):
+                       ("clarification", "clarification"),
+                       ("checkpoint", "checkpoint")):
         row = stats["coverage"][key]
         if row is None:
             lines.append(f"  coverage: {label} key not yet present in "
@@ -2494,8 +2538,7 @@ def format_stats_report(stats: dict) -> str:
         else:
             lines.append(f"  coverage: {label} key since "
                          f"{row['first_sid']} "
-                         f"({row['records_lacking']} earlier records "
-                         f"lack it)")
+                         f"({row['records_lacking']} records lack it)")
 
     mix = stats["closure_mix"]
     unlocked = ", ".join(f"{reason} {count}"

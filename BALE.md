@@ -459,7 +459,7 @@ forward-looking entry.
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
-| `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, drift-refusal, bailout, and clarification rates, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
+| `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, checkpoint-HOLD, drift-refusal, bailout, and clarification rates, the required-check refusal/override counts, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
 
 No `log`, no `blame`, no `diag`. Inspection beyond `bale status`'s
 read-only dashboard (§5.5) and `bale stats`'s corpus aggregation
@@ -643,19 +643,35 @@ corpus — sessions resolve to the class on their latest
 feedback-bearing attempt, with an `unclassed` bucket for sessions
 carrying none — with the headline rates: claim/verdict agreement
 over checks, the unparsed-reconciliation share (a parse miss is a
-tooling fact, never folded into agreement), HOLD rate,
-drift-refusal rate with override incidence beside it, rejection and
+tooling fact, never folded into agreement), HOLD rate, the blind
+checkpoint's rows (v0.3.29, board 6 session D) — the
+checkpointed-attempt count (validated attempts whose `checkpoint`
+stamp reads `configured: true`; key absence is pre-epoch, the
+known-zero `configured: false` form is post-epoch-unconfigured, and
+neither enters the denominator) and the checkpoint-HOLD count and
+rate over it, keyed on the stamp's own per-source `state` so a
+checkpoint objection is counted whatever the worker's verdict was —
+drift-refusal rate with override incidence beside it, the
+required-check refusal and override counts beside the drift pair
+(the step-15 gate's `required-check-refused` attempts and the
+attempts carrying a non-empty `required_check_overrides` list; like
+drift's, override incidence is a count, not a rate), rejection and
 bailout figures, and the clarification rate over the sessions whose
 closing attempt carries the promoted stamp (key presence with
 `rounds: 0` is a known zero; key absence is pre-epoch unknown).
+Blind-checkpoint outcomes never enter the claim/verdict counts: the
+checkpoint has no claims by construction (§8.5), so agreement is the
+worker's calibration stream alone.
 Read-only sessions — detected by `closure_reason ==
 "closed-read-only"`, never by an empty scope, whose `[]` reading is
 overloaded by pre-ADR-0007 records — and crash-debris sessions are
 excluded from every rate and reported as context and hygiene counts.
 Around the table: the corpus epoch (first sid and date; pre-epoch
 sessions exist only in git and are not counted — stats does not mine
-git), the key-presence coverage rows for the `closure_reason` and
-`clarification` sub-epochs, the closure mix over closed sessions
+git), the key-presence coverage rows for the `closure_reason`,
+`clarification`, and `checkpoint` sub-epochs (the last since
+v0.3.29 — the blind checkpoint stamp is present on every validated
+attempt post-session-A, so presence detection is exact there too), the closure mix over closed sessions
 (with `unlocked` broken out by reason — superseded-by-split parents
 show there), the post-close churn counts (`rolled-back` /
 `re-applied`; the applied attempt stays in every mechanical
@@ -2486,6 +2502,7 @@ before staging (steps 1–15 of section 8.1) or before commit (sections
 | 26 | Required-check superset (board 6 session B): when the project's `[validation] required` set is non-empty and `changes[]` is non-empty, every required name appears verbatim in the manifest's `validation_will_run`. Per-invocation `--allow-missing-required-check NAME` (repeatable; no config key, per the ratified override contract) admits exactly the named names — any other missing name still refuses. The refusal renders both sets, keeps the session open with no git side effects, records telemetry outcome `required-check-refused`, and in `--json` mode is the one-line report with that outcome and a `required_checks` detail object (§8.1 step 15); appended after row 25 per the appended-row precedent, so rows 1–25 stay stable | apply pre-flight |
 | 27 | Checkpoint blindness (v0.3.28, board 6 session C): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a resolved include set that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty scope covers nothing). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
 | 28 | Checkpoint provenance stamp verification (v0.3.28, board 6 session C): when the request manifest carries `provenance.checkpoint` (stamped by pack: the oracle's `{path, sha256}` at the pack-time tip, or explicit null) and a checkpoint is configured at apply, the base-tree bytes about to run must match the stamp; divergence refuses pre-staging with the session open and no git side effects. Per-invocation `--accept-checkpoint-change` (apply and retry, re-stated each invocation) admits the change — the CURRENT base-tree version runs, FORCE-logged, `stamp_matched: false` recorded in the attempt's telemetry stamp; a verified match records true, a stampless request verifies nothing and records null. `--dry-run` predicts the refusal (§8.5); appended after row 27 per the appended-row precedent, so rows 1–27 stay stable | apply pre-flight |
+| 29 | Dangling-checkpoint refusal, apply side (board 6 session A): when `bale.toml`'s `[validation] base` names a blind checkpoint with no committed file at that path in the session's base tree, apply refuses before staging — no staging tree, no `bale/<sid>` branch, session open (committed-is-ratified: a working-tree-only checkpoint is not yet the project's oracle; remedies: commit the checkpoint at the named path, or clear the key via `bale config init`). `--dry-run` predicts the refusal when a checkpoint is configured (the session-B rider; §8.5), and pack's own earlier catch is row 27's dangling half — this row is the apply-side backstop that also covers hand-rolled requests and post-pack config edits. Contract prose in §8.5; row appended after row 28 in v0.3.29 (board 6 session D, the session-C notes' proposed backfill) per the appended-row precedent, so rows 1–28 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
