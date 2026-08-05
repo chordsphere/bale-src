@@ -84,8 +84,9 @@ CLOSED_OUTCOMES = frozenset({
 # coordination rider that lands WITH the gate, not after it): the step-15
 # refusal keeps its session open exactly as the drift refusal does, so a
 # session whose latest outcome is the new refusal is in-flight, never
-# misclassed into the closure mix. The fuller stats rates for the new
-# outcome are session D's; this membership line cannot wait for them.
+# misclassed into the closure mix. The fuller stats rows for the outcome
+# — the per-class refusal and override counts — landed in session D
+# (v0.3.29, _class_row); this membership line preceded them by contract.
 IN_FLIGHT_OUTCOMES = frozenset({
     "held", "scope-drift-refused", "rejected", "required-check-refused",
 })
@@ -374,6 +375,28 @@ def _class_row(sessions: list[dict]) -> dict:
     value counts in `checks` only and is named on stderr.
     `agreement_rate` keeps its D2 definition untouched: agree over ALL
     checks, n/a included.
+
+    Blind-checkpoint rows (v0.3.29, board 6 session D, brief D4.2):
+    a CHECKPOINTED attempt is a validated attempt whose
+    `attempts[].checkpoint` stamp carries `configured: true` — the
+    key-presence epoch doctrine means pre-epoch attempts (no key) and
+    known-zero attempts (`configured: false`) are both outside the
+    denominator, for different, never-conflated reasons. The
+    checkpoint-HOLD count is the checkpointed attempts whose stamp's
+    own `state` is "HOLD" (the per-source attribution field — the
+    checkpoint script objected or errored, regardless of the worker's
+    verdict), and the rate is that count over checkpointed attempts,
+    None on a zero denominator. Blind outcomes never touch the
+    claim/verdict counts above: the checkpoint has no claims by
+    construction.
+
+    Required-check rows (same session, brief D3/D4.2): the refusal
+    count is the response attempts whose outcome is
+    `required-check-refused` (the step-15 gate, board 6 session B),
+    and the override count is the attempts carrying a non-empty
+    `required_check_overrides` list — both counts beside the drift
+    rows, mirroring drift's refusal/override pair; override incidence
+    is a count, not a rate, per the drift precedent.
     """
     response_attempts = 0
     validated_attempts = 0
@@ -386,6 +409,10 @@ def _class_row(sessions: list[dict]) -> dict:
     drift_refused_attempts = 0
     override_attempts = 0
     rejected_attempts = 0
+    checkpointed_attempts = 0
+    checkpoint_hold_attempts = 0
+    required_check_refused_attempts = 0
+    required_check_override_attempts = 0
     bailout_sessions = 0
     sessions_with_response_attempt = 0
     closed_sessions = 0
@@ -406,11 +433,35 @@ def _class_row(sessions: list[dict]) -> dict:
                 drift_refused_attempts += 1
             elif outcome == "rejected":
                 rejected_attempts += 1
+            elif outcome == "required-check-refused":
+                # The step-15 superset gate's refusal (board 6 session
+                # B; counted here since session D) — a count beside the
+                # drift refusals, same species, different gate.
+                required_check_refused_attempts += 1
             if attempt.get("overridden_paths"):
                 override_attempts += 1
+            if attempt.get("required_check_overrides"):
+                # Effective --allow-missing-required-check use — the
+                # overridden_paths mirror in the gate's own unit (check
+                # names). Absent on pre-session-B records; a truthy
+                # check reads absence and [] the same honest way.
+                required_check_override_attempts += 1
             if not is_validated_attempt(attempt):
                 continue
             validated_attempts += 1
+            checkpoint = attempt.get("checkpoint")
+            if isinstance(checkpoint, dict) \
+                    and checkpoint.get("configured") is True:
+                # The D4.2 denominator: validated attempts where a
+                # blind checkpoint actually executed. Pre-epoch
+                # attempts (no key) and known-zero stamps
+                # (configured: false) both stay outside it.
+                checkpointed_attempts += 1
+                if checkpoint.get("state") == "HOLD":
+                    # The stamp's own per-source state: the checkpoint
+                    # objected (exit 1) or errored (exit 2), whatever
+                    # the worker's verdict was.
+                    checkpoint_hold_attempts += 1
             validation = attempt["validation"]
             if validation.get("reconciliation_parsed") is True:
                 claim_verdict = validation.get("claim_verdict")
@@ -483,6 +534,12 @@ def _class_row(sessions: list[dict]) -> dict:
         "drift_refusal_rate": _rate(drift_refused_attempts, response_attempts),
         "override_attempts": override_attempts,
         "rejected_attempts": rejected_attempts,
+        "checkpointed_attempts": checkpointed_attempts,
+        "checkpoint_hold_attempts": checkpoint_hold_attempts,
+        "checkpoint_hold_rate": _rate(checkpoint_hold_attempts,
+                                      checkpointed_attempts),
+        "required_check_refused_attempts": required_check_refused_attempts,
+        "required_check_override_attempts": required_check_override_attempts,
         "bailout_sessions": bailout_sessions,
         "sessions_with_response_attempt": sessions_with_response_attempt,
         "bailout_rate": _rate(bailout_sessions,
@@ -532,6 +589,12 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
     coverage = {
         "closure_reason": _coverage_row(records, "closure_reason"),
         "clarification": _coverage_row(records, "clarification"),
+        # The board 6 sub-epoch (v0.3.29, session D): the checkpoint
+        # stamp's always-on-validated-attempts key, detected by
+        # presence exactly like its two siblings — a record whose
+        # validated attempts all predate session A lacks the key
+        # everywhere and lands in records_lacking.
+        "checkpoint": _coverage_row(records, "checkpoint"),
     }
 
     windowed = [r for r in records
