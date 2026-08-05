@@ -1328,6 +1328,32 @@ open and the user can just retry — no `bale unlock` required.
 Print the absolute path to `request-NNN.tar.gz` and the sid. The
 user copy-pastes or uploads from there.
 
+**The tree-position echo** (v0.3.31, board-6 upward report — operator
+state legibility at the pack surface). Pack names where the tree is
+at the moment of paste, on two surfaces:
+
+- **A pre-flight banner line** — `tree position: branch <branch>;
+  latest applied <sid>` (or `none yet`) — emitted immediately after
+  the §7.1 step-4a detached-HEAD refusal: after every earlier
+  pre-flight refusal, so reject-early is intact (a doomed command
+  still fails before any echo or prompt), and before the §7.2
+  supersession exchange and the §7.3 wizard, so a re-pasted stale
+  command becomes visible before the operator invests any answers.
+- **The end-of-run report** — the same two facts as summary rows
+  (`branch`, `latest applied`) and, under `--json`, as the additive
+  keys `branch` and `applied_latest`. The json key contract's one
+  home is `format_pack_json`'s docstring in `bale_report.py`
+  (DOCS.md's one-home rule), as for every other pack-report key.
+
+The latest-applied fact is the same one the status applied row
+renders, read from the same source (`applied_tags` in `bin/bale`;
+most recent `applied/<sid>` tag by creation date). The echo is
+legibility, not enforcement: pack cannot know a goal is stale; the
+operator can, once the fact is in front of them. `bale status`
+remains the ground-truth consultation surface (its applied row also
+carries the count and the `bale rollback --list` pointer, which the
+echo deliberately does not duplicate).
+
 ---
 
 ## 8. Apply pipeline

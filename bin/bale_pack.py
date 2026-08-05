@@ -1798,6 +1798,7 @@ def git_init_walkthrough(cwd: Path, *, force: bool) -> Path:
 def cmd_pack(args: argparse.Namespace) -> int:
     from __main__ import (  # lazy — see module docstring
         BALEIGNORE_FILE,
+        applied_tags,
         current_branch,
         ensure_bale_gitignored,
         fail,
@@ -1826,6 +1827,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         enable_json_mode,
         format_pack_json,
         format_summary_block,
+        format_tree_position,
+        tree_position_rows,
     )
     from bale_validate import validate_request_manifest  # lazy — see module docstring
     # json output mode (v0.2.8): stream discipline engages first, before
@@ -1970,7 +1973,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # branch, so this fires only for a pre-existing detached checkout.
     # No override flag: there is no session state a detached pack could
     # produce that apply would accept.
-    if current_branch(repo) == "HEAD":
+    pack_branch = current_branch(repo)
+    if pack_branch == "HEAD":
         fail(
             "HEAD is detached — bale pack stamps the currently checked-out "
             "branch as the session's integration target (ADR-0008), and a "
@@ -1978,6 +1982,26 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "out the branch this session should integrate into, then "
             "re-pack."
         )
+
+    # Tree-position echo (v0.3.31; BALE.md §7.7). Pack says where the
+    # tree is at the moment of paste — the current branch and the most
+    # recent applied sid (the same fact the status applied row renders,
+    # read from the same source, applied_tags) — because a stale
+    # re-pasted pack command does its damage exactly when the operator's
+    # picture of the tree has fallen one session behind the tree itself.
+    # Sited here deliberately: after every earlier pre-flight refusal
+    # (reject-early intact — a doomed command still costs zero
+    # keystrokes and sees no echo), and before the supersession exchange
+    # and the wizard, so the operator sees the position before investing
+    # any answers. Pre-sid, so log() reaches the terminal but no session
+    # journal exists yet; the end-of-run report (human rows + --json
+    # keys, the summary site below) carries the same facts durably.
+    # bale_report owns the rendering; this site only gathers and wires.
+    # applied_count is deliberately unrendered (the ratified lean: the
+    # echo is the latest sid + branch; `bale status` stays the
+    # ground-truth consultation surface for the fuller applied row).
+    _applied_count, applied_latest = applied_tags(repo)
+    log(format_tree_position(branch=pack_branch, applied_latest=applied_latest))
 
     # Split supersession (v0.3.17, board 26): resolve --supersedes and
     # run its exchange BEFORE the disjointness gate on both paths — the
@@ -2612,6 +2636,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
             readme_path=readme_echo_path,
             readme_heading=readme_echo_heading,
             readme_sha256=readme_echo_sha256,
+            branch=pack_branch,
+            applied_latest=applied_latest,
         ))
     else:
         rows = [
@@ -2627,6 +2653,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 ("readme heading", readme_echo_heading),
                 ("readme sha256", readme_echo_sha256),
             ]
+        # The tree-position echo's report half (v0.3.31; BALE.md §7.7):
+        # the same facts the pre-flight banner line named, restated in
+        # the block the operator reads last — the banner is visibility
+        # at paste time, these rows are the durable record beside the
+        # sid. bale_report owns the rendering (tree_position_rows).
+        rows += tree_position_rows(
+            branch=pack_branch, applied_latest=applied_latest)
         trailer = [
             "Send the tarball to Claude. When the response tarball comes back,",
             "run: bale apply <response-tarball>",
