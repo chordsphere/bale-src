@@ -1,0 +1,99 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-execution-context-amendment-006",
+  "created_at": "2026-08-05T01:42:17+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T01:42:17+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-006 (14).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "new execution-context entry present exactly once": "pass",
+          "old enumerated execution-context entry absent": "pass",
+          "reverse-transform confinement (evidence-35 pattern)": "pass"
+        },
+        "claim_verdict": {
+          "new execution-context entry present exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "old enumerated execution-context entry absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reverse-transform confinement (evidence-35 pattern)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-checkpoint-core-004.md",
+        "claude/context/board-6-arc/upward-report-2026-08-05.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.29",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-05-operator-friction-master-004",
+            "work_class": "contract-doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai chat, self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "The amended entry stays in place under the 'New, ratified 2026-07-21' block rather than moving to a new dated block; the wording's own parenthetical carries the 2026-08-05 amendment date, and relocating it would widen the diff past the confinement constraint.",
+            "Confinement validation uses the evidence-35 reverse-transform check as the brief's reference pattern \u2014 it fit cleanly (single contiguous entry swap, exactly invertible), so no equivalent substitute was needed."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-execution-context-amendment-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T01:42:17+00:00",
+  "outcome": "applied"
+}

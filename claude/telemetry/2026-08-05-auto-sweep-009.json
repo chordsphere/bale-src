@@ -1,0 +1,108 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-auto-sweep-009",
+  "created_at": "2026-08-05T03:29:24+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T03:29:24+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-05-auto-sweep-009.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests (unittest discover -s tests)": "pass",
+          "session-specific assertions (sweep contract anchors)": "pass"
+        },
+        "claim_verdict": {
+          "unit tests (unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (sweep contract anchors)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_rollback.py",
+        "tests/test_auto_sweep.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.31",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-04-continue-plan-002",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), worker session 2026-08-05-auto-sweep-009 \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "\"the config surface row\" read as the APPLY_VALUES entry plus the BALE.md \u00a78.8 prose beside archive_dir's \u2014 shipped BALE.md carries no config-key table (flagged in notes.md)",
+            "the sweep commit landing on the current branch (including after a checkout-untouched merge) matches the manual dance being mechanized (flagged in notes.md for review)"
+          ],
+          "judgment_calls": [
+            "rollback/undo joined the trigger set \u2014 required to keep the rollback \u2192 --undo toggle clean once the record is tracked (notes.md, the guard-interaction finding)",
+            "held/refusal/rejected/clarification outcomes sweep nothing; the record rides to the session's eventual closure",
+            "close_session_with_record stamps the closure_reason as the commit-message event rather than the uniform 'unlocked'",
+            "malformed-key posture split: strict refusal at apply pre-flight, loud-skip degrade on the no-pre-flight commands (notes.md)",
+            "telemetry stamp and --json sweep key deliberately omitted at v1 (deferred[], with the chicken-and-egg reasoning in notes.md)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-auto-sweep-009.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T03:29:24+00:00",
+  "outcome": "applied"
+}

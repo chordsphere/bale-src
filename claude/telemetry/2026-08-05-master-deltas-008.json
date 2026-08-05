@@ -1,0 +1,104 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-master-deltas-008",
+  "created_at": "2026-08-05T02:56:10+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T02:56:10+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-008 (12).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tarball section-7 insertion reverse-transform (docs/TARBALL.md)": "pass",
+          "master-deltas section confinement (claude/MASTER.md)": "pass",
+          "delta presence + wording fidelity (claude/MASTER.md, docs/TARBALL.md)": "pass"
+        },
+        "claim_verdict": {
+          "tarball section-7 insertion reverse-transform (docs/TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "master-deltas section confinement (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "delta presence + wording fidelity (claude/MASTER.md, docs/TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md",
+        "claude/context/board-6-arc",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/MASTER.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.31",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-04-continue-plan-002",
+            "work_class": "mixed",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai worker session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the stale 2026-08-03 close-out-vehicles bullet in section 3 was removable although delta 2 did not name it (flagged first in notes.md)",
+            "delta 10's 'section 2 milestones' resolves to a new board-6 arc block, section 2 having no existing 1.0.0-gate wording (verified before editing, per the brief)"
+          ],
+          "judgment_calls": [
+            "section 6 entries grouped 51-53 findings then 54 version/cadence, with cross-references keyed to 54",
+            "delta 3 quotes D4.3's decision sentence and cites the three reasons by reference rather than paraphrasing them into the watch",
+            "delta 8's two entries landed in the fold-in registry per the brief, classification flagged contestable in notes.md as the brief directs"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-master-deltas-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T02:56:10+00:00",
+  "outcome": "applied"
+}

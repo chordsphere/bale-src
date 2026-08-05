@@ -1,0 +1,113 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-pack-tree-echo-007",
+  "created_at": "2026-08-05T02:14:28+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T02:14:28+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (11).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "test suite (python3 -m unittest discover -s tests; ~60-90s)": "pass",
+          "exec bit: bin/bale": "pass",
+          "BALE.md \u00a77.7 echo assertion": "pass"
+        },
+        "claim_verdict": {
+          "test suite (python3 -m unittest discover -s tests; ~60-90s)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md \u00a77.7 echo assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_tree_position_echo.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.30",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-05-operator-friction-master-004",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai chat interface)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the ratified lean's 'latest applied sid and current branch' means the count stays unrendered in the echo (gathered and deliberately discarded; status keeps the fuller row)",
+            "the new test file ships non-executable, matching every sibling test's mode despite the shebang convention"
+          ],
+          "judgment_calls": [
+            "made applied_tags public (was _applied_tags) rather than importing a private name across the __main__ seam \u2014 no precedent existed for the latter",
+            "sited the echo immediately after the detached-HEAD refusal: earliest point with repo+branch known, all prior refusals still reject-early, precedes supersession exchange and wizard",
+            "no post-sid journal duplication of the banner line \u2014 the end-of-run report carries the facts durably; journal gap flagged in notes.md with a proposal",
+            "flat json keys (branch, applied_latest) matching the pack report's readme_* additive precedent rather than status's nested applied object"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-pack-tree-echo-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T02:14:28+00:00",
+  "outcome": "applied"
+}
