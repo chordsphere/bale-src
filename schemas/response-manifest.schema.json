@@ -214,6 +214,20 @@
                   "type": "string",
                   "enum": ["code", "doc", "contract-doc", "meta", "mixed"]
                 },
+                "checkpoint": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["path", "sha256"],
+                  "description": "Echo of the request's provenance.checkpoint stamp (v0.3.28, board 6 session C) — the blind checkpoint's pack-time {path, sha256} identity, or null when the request was packed with no checkpoint configured. Optional so echoes of pre-v0.3.28 requests (which carry no key) stay valid; when the request carries it, the verbatim echo does too.",
+                  "properties": {
+                    "path":   { "type": "string", "minLength": 1 },
+                    "sha256": { "type": "string", "minLength": 1 }
+                  }
+                },
+                "checkpoint_scope_admitted": {
+                  "type": "boolean",
+                  "description": "Echo of the request's provenance.checkpoint_scope_admitted stamp (v0.3.28, board 6 session C): whether the planner admitted a checkpoint-covering pack scope with --allow-checkpoint-in-scope. Optional so echoes of pre-v0.3.28 requests stay valid."
+                },
                 "model_identity": {
                   "type": "string",
                   "minLength": 1,

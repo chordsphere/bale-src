@@ -785,6 +785,108 @@ def format_required_check_refusal(*, sid: str, required: list,
     )
 
 
+def format_checkpoint_scope_refusal(*, checkpoint_path: str,
+                                    scope: list) -> str:
+    """Render the pack-time checkpoint blindness refusal (v0.3.28,
+    board 6 session C; BALE.md §7.1 step 4b, §11 row 27).
+
+    The human face of the D5 contract layer: the pack's resolved
+    include set covers the configured blind checkpoint's path, and pack
+    refused before any sid, tarball, or session state. Unlike the
+    apply-side gates above, this refusal rides `fail()` on the pack
+    path — pre-sid, there is no session to keep open and no telemetry
+    attempt to write — so the renderer builds a single fail-message
+    string rather than a summary block. Pure: builds a string, prints
+    nothing; the caller (checkpoint_blindness_preflight) passes it to
+    fail().
+
+    The refusal names its successors, per the every-refusal-names-its-
+    successor contract: narrow the includes, or — planner authority —
+    re-run with --allow-checkpoint-in-scope, whose use is FORCE-logged
+    and stamped into the request manifest's provenance. The ordinary
+    update path is named too, because it is the remedy most askers
+    actually want: the checkpoint is planner-authored, so the planner
+    edits and commits it directly — no session, no override.
+    """
+    rendered_scope = ", ".join(scope) if scope else "(empty)"
+    return (
+        f"pack scope covers the blind checkpoint (board 6 blindness "
+        f"contract): the resolved include set ({rendered_scope}) covers "
+        f"{checkpoint_path!r}, the planner-authored oracle this "
+        f"project's bale.toml [validation] base pins. A session scoped "
+        f"over its own oracle is the self-oracle shape this refusal "
+        f"closes — checkpoints are authored blind, by the planner from "
+        f"the request, never by the worker building against them. "
+        f"Remedies: narrow this pack with --include paths that do not "
+        f"cover the checkpoint; update the checkpoint directly (planner "
+        f"action — edit, commit, no session needed); or, planner "
+        f"authority, re-run with --allow-checkpoint-in-scope to "
+        f"delegate oracle maintenance deliberately (per-invocation, "
+        f"flag-only; the admission is FORCE-logged and stamped into the "
+        f"request manifest's provenance)."
+    )
+
+
+def format_checkpoint_stamp_refusal(*, checkpoint_path: str,
+                                    stamped: Optional[dict],
+                                    current_sha256: str,
+                                    base_sha: str,
+                                    origin_branch: str,
+                                    dry_run: bool = False) -> str:
+    """Render the apply-time checkpoint stamp-divergence refusal
+    (v0.3.28, board 6 session C; BALE.md §8.5, §11 row 28).
+
+    The human face of the D5 provenance layer: the request manifest's
+    pack-time `provenance.checkpoint` stamp does not match the
+    base-tree bytes about to run — the oracle changed between pack and
+    apply. A legitimate planner edit and interference look identical
+    from here, and either is worth stopping for; the refusal therefore
+    names both successors: re-pack against the current tip (the honest
+    path when the planner edited deliberately), or
+    --accept-checkpoint-change, which executes the CURRENT base-tree
+    version — the planner's latest committed oracle, never the stale
+    stamped bytes — logs a FORCE: line, and records stamp_matched:
+    false in the attempt's telemetry stamp.
+
+    Like its dangling-refusal sibling (session A), this rides `fail()`
+    pre-staging: the session stays open, no git side effects, no
+    telemetry attempt. Pure: builds a string, prints nothing. `stamped`
+    is the request's stamp object ({path, sha256}) or None — the
+    explicit-null stamp, a pack that saw no configured checkpoint where
+    one is configured now, which is the same divergence with a
+    different 'before'. Under `dry_run` a trailer notes the prediction.
+    """
+    if stamped is None:
+        before = ("the request was packed with NO checkpoint configured "
+                  "(provenance.checkpoint: null)")
+    elif stamped.get("path") != checkpoint_path:
+        before = (f"the request stamped a different oracle path: "
+                  f"{stamped.get('path')!r} "
+                  f"(sha256 {str(stamped.get('sha256'))[:12]})")
+    else:
+        before = (f"the request stamped sha256 "
+                  f"{str(stamped.get('sha256'))[:12]} for this path")
+    tail = (" (dry-run prediction: a real apply would refuse the same "
+            "way)" if dry_run else "")
+    return (
+        f"[REJECT] blind checkpoint changed since pack (board 6 "
+        f"provenance contract): the base-tree bytes about to run — "
+        f"{checkpoint_path!r} at {origin_branch}'s tip "
+        f"({base_sha[:7]}), sha256 {current_sha256[:12]} — do not "
+        f"match the request's pack-time provenance stamp: {before}. "
+        f"The oracle changed between pack and apply; a legitimate "
+        f"planner edit and interference look identical from here, and "
+        f"either is worth stopping for. Remedies: re-pack against the "
+        f"current tip so the session runs under the oracle the planner "
+        f"ratified; or accept the change deliberately with "
+        f"--accept-checkpoint-change (per-invocation), which executes "
+        f"the current base-tree version — the planner's latest "
+        f"committed oracle, never the stale stamped bytes — logs a "
+        f"FORCE: line, and records stamp_matched: false in the "
+        f"attempt's telemetry stamp.{tail}"
+    )
+
+
 # --- json output mode (v0.2.8) ---
 #
 # Shared state for `bale pack --json` and `bale apply --json`. The stream-
@@ -1040,8 +1142,14 @@ def format_apply_json(
                              errored)
                  script      {path, sha256} — the executed BASE-TREE
                              bytes' identity (BALE.md §8.5)
-                 stamp_matched  bool|null — null until the request-side
-                             provenance stamp exists to verify against
+                 stamp_matched  bool|null — the §8.5 provenance
+                             verification's result (v0.3.28, session C):
+                             true when the executed base-tree bytes
+                             matched the request's pack-time stamp,
+                             false when a divergence was admitted by
+                             --accept-checkpoint-change, null when the
+                             request carried no provenance.checkpoint
+                             key (hand-rolled, or packed pre-0.3.28)
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites

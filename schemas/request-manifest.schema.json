@@ -107,6 +107,20 @@
           "type": "string",
           "enum": ["code", "doc", "contract-doc", "meta", "mixed"],
           "description": "Coarse class of the session's intended work, from the --work-class flag; defaults to 'mixed' rather than being required. Seed enum — extend by schema edit, not free text."
+        },
+        "checkpoint": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "description": "The blind checkpoint's pack-time identity (v0.3.28, board 6 session C — the contract_docs precedent extended): the configured [validation] base path and the sha256 of its committed bytes at the pack-time target tip, or explicit null when no checkpoint is configured. Absence of the KEY is the pre-v0.3.28 / hand-rolled-request signal, which is what keeps apply's stamp verification (BALE.md section 8.5) additive: verification runs only when the key is present, and stampless requests validate and apply unchanged with stamp_matched null. Additive per the resolved_scope precedent: not required, so previously stamped manifests stay valid; bale-built manifests always carry it.",
+          "properties": {
+            "path":   { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "minLength": 1 }
+          }
+        },
+        "checkpoint_scope_admitted": {
+          "type": "boolean",
+          "description": "True when the pack's resolved include set covered the configured checkpoint's path and the planner admitted it past the pack-time blindness refusal with --allow-checkpoint-in-scope (v0.3.28, board 6 session C); false otherwise, including every handoff-built request. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
         }
       }
     }

@@ -820,6 +820,38 @@ pastes output back. Bale does not have a `probe-apply` or
    already cross-referenced externally, and cross-referenced numbers
    never renumber — DOCS.md §6.4 — so the insertion takes an
    interstitial label and the sequence keeps its original meanings.)
+4b. **Checkpoint blindness pre-flight** (v0.3.28, board 6 session C;
+   §11 row 27). When the merged config pins a blind checkpoint
+   (`[validation] base`, §8.5), two refusals run before the step-5
+   gate, on both of its firing paths (pre-flight when the scope is
+   final on the command line; post-wizard otherwise, beside the
+   deferred gate): **dangling at the tip** — the checkpoint path has
+   no committed file at HEAD (the §8.5 committed-is-ratified rule,
+   caught at request-build time so a broken oracle reference never
+   produces a session doomed to refuse at apply); and **scope covers
+   the checkpoint** — the pack's resolved include set covers the
+   checkpoint's path, by the same containment semantics as the
+   own-scope drift gate (directory entries cover subtrees, `.`
+   covers everything; a read-only pack's empty scope covers nothing
+   and passes vacuously). The covering refusal is the board-6
+   blindness contract's pack-time layer: the checkpoint is the
+   planner's oracle, authored blind, and keeping it out of scope
+   here is what lets the §8.1 step-14 drift gate do the rest at
+   apply time. The refusal names its successors: narrow the
+   includes; update the checkpoint directly (planner action — edit,
+   commit, no session needed, the sanctioned ordinary path); or,
+   planner authority, `--allow-checkpoint-in-scope` (per-invocation,
+   flag-only — no config key, per the ratified override contract),
+   which admits the scope, logs a FORCE: line, and stamps
+   `checkpoint_scope_admitted: true` into the manifest's provenance
+   (§7.2) so the session's telemetry carries the admission via the
+   response's provenance echo. bale.toml itself is deliberately not
+   added to the refusal at v1 — it is legitimately session-editable,
+   in-flight retargeting is inert (apply reads the merged config
+   from the repo working tree, never the staged overlay), and a
+   merged bale.toml edit is a one-line, review-visible diff; the
+   accepted residue's re-trigger is the first observed worker edit
+   to `[validation]` keys in a merged session.
 5. Scope-disjointness gate (ADR-0007), read from the session
    registry (ADR-0006). With no session open, proceed — unchanged
    behavior. With open sessions, admit the pack exactly when its
@@ -875,9 +907,19 @@ The inputs:
   directories exactly like apply's tarball argument (§7.3).
 - **provenance identity** (v0.3.8) — two stamps for the manifest's
   `provenance` block, alongside the ones bale computes itself
-  (`bale_version`, and the sha256 of each injected global doc, hashed
+  (`bale_version`; the sha256 of each injected global doc, hashed
   from the install at pack time so a contract-doc edit between two
-  packs is visible in the longitudinal record):
+  packs is visible in the longitudinal record; and, since v0.3.28 —
+  board 6 session C, the contract_docs precedent extended — the
+  **checkpoint stamp**: `provenance.checkpoint` carries `{path,
+  sha256}` of the configured `[validation] base` script's committed
+  bytes at the pack-time tip, or explicit null when no checkpoint is
+  configured, so absence of the KEY remains the pre-v0.3.28 /
+  hand-rolled-request signal; apply verifies the base-tree bytes
+  about to run against this stamp, §8.5 — plus
+  `provenance.checkpoint_scope_admitted`, the boolean record of a
+  §7.1 step-4b covering-scope admission, false on every ordinary
+  pack and every handoff):
   - `--packer <name>` names who authored this pack. Precedence:
     the flag > `[identity].packer` in `<repo>/bale.toml` > the global
     `bale.toml`'s `[identity].packer` (either set via `bale config
@@ -892,6 +934,18 @@ The inputs:
     is absent; a read-only session that never names one stamps `meta`
     (inferred and logged — a session that lands nothing is doing
     orchestration, discussion, or audit work).
+- **allow-checkpoint-in-scope** (v0.3.28, board 6 session C) —
+  `--allow-checkpoint-in-scope`, a bare boolean admitting a resolved
+  include set that covers the configured blind checkpoint's path past
+  the §7.1 step-4b blindness refusal. The override exists for the
+  deliberate exception — a checkpoint-maintenance session the planner
+  chooses to delegate — and its contract is the ratified override
+  shape: per-invocation, flag-only, no config key (a standing opt-out
+  is the rejected self-oracle-adjacent silent bypass). Every use logs
+  a FORCE: line and stamps `checkpoint_scope_admitted: true` into the
+  manifest's provenance, which the response's provenance echo carries
+  into telemetry — loud and recorded, the same species as
+  `--allow-out-of-scope`.
 - **read-only** (v0.3.15) — `--read-only`, a bare boolean, opens the
   session with an **empty recorded scope**: the read-only session
   shape for discussion, orchestration, or audit. The session opens
@@ -1573,6 +1627,40 @@ configured, the dry-run resolves the session's target base
 read-only — rev-parse and cat-file only, no session-dir stamps — and
 refuses with the same message a real apply would; unconfigured
 projects' dry-run behavior is unchanged.
+
+**Provenance stamp verification** (v0.3.28, board 6 session C; §11
+row 28). Pack stamped the oracle's identity into the request
+manifest — `provenance.checkpoint = {path, sha256}` of the committed
+tip bytes, or explicit null when none was configured (§7.2) — and
+apply reads it back from the registry's persisted copy
+(`.bale/sessions/<sid>/manifest.json`, the one the operator's own
+pack wrote, so a doctored response tarball cannot carry a forged
+stamp past it). Before execution, beside the dangling check and
+equally pre-staging: hash the base-tree bytes about to run and
+compare to the stamp. Divergence — a hash mismatch, a retargeted
+path, or a null stamp where a checkpoint is configured now — means
+the oracle changed between pack and apply; a legitimate planner edit
+and interference look identical from here, and either is worth
+stopping for. The refusal names its successors: re-pack against the
+current tip, or `--accept-checkpoint-change` (per-invocation,
+flag-only — the ratified override shape; `bale retry` takes the same
+flag and re-states it per invocation, never carrying it from a
+failed attempt), which executes the **current** base-tree version —
+the planner's latest committed oracle, never the stale stamped
+bytes — logs a FORCE: line, and records `stamp_matched: false` in
+the attempt's §8.9 telemetry stamp. A verified match records
+`stamp_matched: true`; a request carrying no `provenance.checkpoint`
+key at all (hand-rolled, or packed pre-v0.3.28) verifies nothing —
+logged, never silent — and records `stamp_matched: null`, keeping
+older requests on today's behavior. The dry-run rider above predicts
+this refusal too, with the same message plus a prediction trailer.
+One residue is logged rather than refused — the accepted config-edit
+residue of the blindness design (re-trigger: the first observed
+worker edit to `[validation]` keys in a merged session): an oracle
+removed between pack and apply (an object stamp beside a
+now-unconfigured project) has no about-to-run bytes to verify, so
+the attempt validates with the worker's script only, with a loud
+note naming the removal.
 
 When configured, **both scripts always run, separately invoked and
 separately captured; checkpoint first.** The executed checkpoint
@@ -2365,7 +2453,7 @@ transition path (§9.1 step 3), and read-only queries (`status`,
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–13 of section 8.1) or before commit (sections
+before staging (steps 1–15 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
@@ -2396,6 +2484,8 @@ before staging (steps 1–13 of section 8.1) or before commit (sections
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
 | 26 | Required-check superset (board 6 session B): when the project's `[validation] required` set is non-empty and `changes[]` is non-empty, every required name appears verbatim in the manifest's `validation_will_run`. Per-invocation `--allow-missing-required-check NAME` (repeatable; no config key, per the ratified override contract) admits exactly the named names — any other missing name still refuses. The refusal renders both sets, keeps the session open with no git side effects, records telemetry outcome `required-check-refused`, and in `--json` mode is the one-line report with that outcome and a `required_checks` detail object (§8.1 step 15); appended after row 25 per the appended-row precedent, so rows 1–25 stay stable | apply pre-flight |
+| 27 | Checkpoint blindness (v0.3.28, board 6 session C): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a resolved include set that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty scope covers nothing). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
+| 28 | Checkpoint provenance stamp verification (v0.3.28, board 6 session C): when the request manifest carries `provenance.checkpoint` (stamped by pack: the oracle's `{path, sha256}` at the pack-time tip, or explicit null) and a checkpoint is configured at apply, the base-tree bytes about to run must match the stamp; divergence refuses pre-staging with the session open and no git side effects. Per-invocation `--accept-checkpoint-change` (apply and retry, re-stated each invocation) admits the change — the CURRENT base-tree version runs, FORCE-logged, `stamp_matched: false` recorded in the attempt's telemetry stamp; a verified match records true, a stampless request verifies nothing and records null. `--dry-run` predicts the refusal (§8.5); appended after row 27 per the appended-row precedent, so rows 1–27 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

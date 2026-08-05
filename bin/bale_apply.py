@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import shutil
 import subprocess
@@ -648,6 +649,66 @@ def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
     return sorted(offending)
 
 
+# --- Checkpoint provenance stamp (v0.3.28, board 6 session C) -----------------
+#
+# The request-side half of the §8.5 stamp verification: pack stamped
+# `provenance.checkpoint` ({path, sha256} of the oracle's tip bytes, or
+# explicit null when none was configured) into the request manifest,
+# which persist_pack_session copied to .bale/sessions/<sid>/manifest.json.
+# Apply reads it back from there — the registry copy is the one the
+# operator's own pack wrote, so a doctored response tarball cannot carry
+# a forged stamp past it.
+
+def read_request_checkpoint_stamp(
+        repo: Path, sid: str) -> tuple[bool, Optional[dict]]:
+    """Return (key_present, stamp) from the session's persisted request
+    manifest's provenance block.
+
+    `key_present` False means the request carried no
+    `provenance.checkpoint` key at all — a hand-rolled request, a
+    pre-v0.3.28 pack, or (defensively) a missing/unreadable session
+    manifest, each logged so the skip is never silent. That is the
+    "verify nothing, stamp_matched: null" case (BALE.md §8.5). When
+    True, `stamp` is the key's value: a {path, sha256} object, or None
+    for the explicit-null stamp (packed with no checkpoint configured).
+    """
+    from __main__ import log  # lazy — see module docstring
+    manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
+    try:
+        request_manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except OSError as e:
+        log(f"note: session request manifest unreadable at "
+            f"{manifest_path} ({e}); checkpoint provenance verification "
+            f"skipped (treated as a stampless request)")
+        return (False, None)
+    except json.JSONDecodeError as e:
+        log(f"note: session request manifest at {manifest_path} is not "
+            f"valid JSON ({e}); checkpoint provenance verification "
+            f"skipped (treated as a stampless request)")
+        return (False, None)
+    provenance = request_manifest.get("provenance")
+    if not isinstance(provenance, dict) or "checkpoint" not in provenance:
+        return (False, None)
+    stamp = provenance.get("checkpoint")
+    return (True, stamp if isinstance(stamp, dict) else None)
+
+
+def base_tree_sha256(repo: Path, base_sha: str, path: str) -> Optional[str]:
+    """sha256 of the committed blob at `base_sha:path`, or None when no
+    blob exists there. Binary-exact via a direct subprocess call
+    (text=False), the same extraction run_blind_checkpoint performs, so
+    verification and execution hash the same bytes.
+    """
+    shown = subprocess.run(
+        ["git", "show", f"{base_sha}:{path}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if shown.returncode != 0:
+        return None
+    return hashlib.sha256(shown.stdout).hexdigest()
+
+
 # ---------------------------------------------------------------------------
 # 2. Apply: pipeline
 # ---------------------------------------------------------------------------
@@ -660,6 +721,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     invoked_by: str = "apply",
                     allow_out_of_scope: Optional[list[str]] = None,
                     allow_missing_required_check: Optional[list[str]] = None,
+                    accept_checkpoint_change: bool = False,
                     ) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
@@ -726,6 +788,21 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     carried from a prior attempt. Any missing name NOT admitted still
     refuses. None/empty means no override.
 
+    `accept_checkpoint_change` (v0.3.28, board 6 session C; cmd_apply/
+    cmd_retry --accept-checkpoint-change) admits a blind checkpoint whose
+    base-tree bytes no longer match the request manifest's pack-time
+    `provenance.checkpoint` stamp — the §8.5 stamp verification below,
+    which otherwise refuses pre-staging (the oracle changed between pack
+    and apply). On admission the CURRENT base-tree version runs — the
+    planner's latest committed oracle, never the stale stamped bytes —
+    the use is FORCE-logged, and the attempt's telemetry stamp records
+    stamp_matched: false. Same ratified override contract as the two
+    flags above: per-invocation only, no config key, re-stated on retry,
+    never carried from a prior attempt. Verification runs only when the
+    request carries the provenance.checkpoint key AND a checkpoint is
+    configured now; a stampless request (hand-rolled, or packed
+    pre-0.3.28) verifies nothing and stamps stamp_matched: null.
+
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
     Each terminal outcome below (merge, inspect, revert; plus the bailout
@@ -769,6 +846,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         build_telemetry_attempt,
         emit_json_line,
         format_apply_json,
+        format_checkpoint_stamp_refusal,
         format_dry_run_report,
         format_required_check_refusal,
         format_scope_drift_refusal,
@@ -1244,6 +1322,39 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                          f"the project's oracle (committed-is-ratified). "
                          f"Remedies: commit the checkpoint at the named "
                          f"path, or clear the key via `bale config init`.")
+                # Stamp-divergence prediction (v0.3.28, session C — the
+                # same rider extended): the real verification sits past
+                # this exit too, and it is manifest-and-git-read-only, so
+                # a dry-run predicts it. With --accept-checkpoint-change
+                # given, predict the admission instead, exactly as a real
+                # apply would take it.
+                dry_stamp_present, dry_stamp = read_request_checkpoint_stamp(
+                    repo, locked_sid)
+                if dry_stamp_present:
+                    dry_sha = base_tree_sha256(
+                        repo, dry_base, dry_checkpoint)
+                    dry_matched = (dry_sha is not None
+                                   and isinstance(dry_stamp, dict)
+                                   and dry_stamp.get("path") == dry_checkpoint
+                                   and dry_stamp.get("sha256") == dry_sha)
+                    if dry_matched:
+                        log(f"dry-run: checkpoint provenance stamp "
+                            f"verified ({dry_checkpoint} sha256 "
+                            f"{dry_sha[:12]})")
+                    elif not accept_checkpoint_change:
+                        fail(format_checkpoint_stamp_refusal(
+                            checkpoint_path=dry_checkpoint,
+                            stamped=dry_stamp,
+                            current_sha256=dry_sha or "",
+                            base_sha=dry_base,
+                            origin_branch=dry_origin,
+                            dry_run=True,
+                        ))
+                    else:
+                        log("dry-run: checkpoint changed since pack; a "
+                            "real apply with --accept-checkpoint-change "
+                            "would execute the current base-tree bytes "
+                            "and record stamp_matched: false")
             print(format_dry_run_report(manifest, locked_sid,
                                         response_kind="normal"))
             log("dry-run: validated; no git side effects performed")
@@ -1295,6 +1406,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # open with no git side effects beyond the session-dir stamps
         # every apply writes.
         checkpoint_path = bale_config.get_validation_base(staging_cfg)
+        # The §8.5 stamp verification's result, threaded into the D4
+        # telemetry stamp below (v0.3.28, session C): True on a verified
+        # match, False on a divergence admitted by
+        # --accept-checkpoint-change, None when no checkpoint runs or
+        # the request carried no provenance.checkpoint key.
+        checkpoint_stamp_matched: Optional[bool] = None
         if checkpoint_path is not None:
             probe = git(["cat-file", "-e", f"{base_sha}:{checkpoint_path}"],
                         cwd=repo, check=False)
@@ -1312,9 +1429,87 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                      f"the project's oracle (committed-is-ratified). "
                      f"Remedies: commit the checkpoint at the named path, "
                      f"or clear the key via `bale config init`.")
+            # Provenance stamp verification (v0.3.28, board 6 session C;
+            # BALE.md §8.5) — the D5 provenance layer, sited beside its
+            # dangling-refusal sibling because both need base_sha in hand
+            # and both are pre-staging: hash the base-tree bytes about to
+            # run and compare to the request's pack-time stamp. Divergence
+            # means the oracle changed between pack and apply — a
+            # legitimate planner edit or interference, and either is worth
+            # stopping for. Verification runs only when the request
+            # carries the provenance.checkpoint key, keeping hand-rolled
+            # and pre-v0.3.28 requests on today's behavior with
+            # stamp_matched: null.
+            stamp_present, stamp = read_request_checkpoint_stamp(
+                repo, locked_sid)
+            if stamp_present:
+                current_sha = base_tree_sha256(
+                    repo, base_sha, checkpoint_path)
+                if current_sha is None:
+                    # The cat-file probe just passed; a show failure here
+                    # means the base tree changed mid-apply or git itself
+                    # errored — both worth stopping for.
+                    fail(f"could not read the blind checkpoint "
+                         f"{checkpoint_path!r} from the base tree "
+                         f"{base_sha[:7]} for provenance verification")
+                matched = (isinstance(stamp, dict)
+                           and stamp.get("path") == checkpoint_path
+                           and stamp.get("sha256") == current_sha)
+                if matched:
+                    checkpoint_stamp_matched = True
+                    log(f"checkpoint provenance stamp verified: "
+                        f"{checkpoint_path} sha256 {current_sha[:12]} "
+                        f"matches the pack-time stamp")
+                elif not accept_checkpoint_change:
+                    fail(format_checkpoint_stamp_refusal(
+                        checkpoint_path=checkpoint_path,
+                        stamped=stamp,
+                        current_sha256=current_sha,
+                        base_sha=base_sha,
+                        origin_branch=origin_branch,
+                    ))
+                else:
+                    # force=True: an admitted oracle change is an override
+                    # event of the same species as --allow-out-of-scope —
+                    # the FORCE: line is the audit trail; the telemetry
+                    # stamp's stamp_matched: false is the durable copy.
+                    checkpoint_stamp_matched = False
+                    stamped_desc = ("null (packed with no checkpoint "
+                                    "configured)" if stamp is None else
+                                    f"{stamp.get('path')} sha256 "
+                                    f"{str(stamp.get('sha256'))[:12]}")
+                    log(f"checkpoint change accepted by "
+                        f"--accept-checkpoint-change: executing the "
+                        f"CURRENT base-tree bytes ({checkpoint_path} "
+                        f"sha256 {current_sha[:12]}) over the pack-time "
+                        f"stamp ({stamped_desc}); stamp_matched: false "
+                        f"will be recorded", force=True)
+            else:
+                log("request carries no checkpoint provenance stamp "
+                    "(hand-rolled, or packed pre-0.3.28); verification "
+                    "skipped — stamp_matched: null")
             log(f"blind checkpoint configured: {checkpoint_path} "
                 f"(bale.toml [validation] base, project layer; "
                 f"base-tree bytes will run)")
+        else:
+            # The removed-oracle residue (v0.3.28, session C): the
+            # request stamped a checkpoint but the merged config names
+            # none now, so nothing will run and there are no
+            # about-to-run bytes to verify. Logged loudly rather than
+            # refused: in-flight removal is impossible (apply reads the
+            # config from the repo working tree, never the staged
+            # overlay), so this is a planner config edit — the same
+            # accepted bale.toml residue D5 records, re-trigger: the
+            # first observed worker edit to [validation] keys in a
+            # merged session.
+            _sp, _stamp = read_request_checkpoint_stamp(repo, locked_sid)
+            if _sp and isinstance(_stamp, dict):
+                log(f"note: the request stamped a blind checkpoint "
+                    f"({_stamp.get('path')}, sha256 "
+                    f"{str(_stamp.get('sha256'))[:12]}) but bale.toml "
+                    f"names none now — the oracle was removed between "
+                    f"pack and apply (a planner config edit); this "
+                    f"attempt validates with the worker's script only")
         if staging_strategy != "working-tree":
             log(f"staging strategy: {staging_strategy} "
                 f"(bale.toml [staging]; default is working-tree)")
@@ -1438,8 +1633,11 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # records (BALE.md §8.9): key presence = post-epoch; configured
         # false = the known-zero form; when the checkpoint ran, the
         # per-source state/exit plus the executed base-tree bytes' hash.
-        # stamp_matched is null until session C's provenance stamp
-        # exists to verify against (requests carry no stamp yet).
+        # stamp_matched carries the §8.5 provenance verification's
+        # result (v0.3.28, session C): true on a verified match, false
+        # on a divergence admitted by --accept-checkpoint-change, null
+        # when the request carried no provenance.checkpoint key
+        # (hand-rolled, or packed pre-0.3.28).
         if checkpoint_result is None:
             checkpoint_stamp: dict = {"configured": False}
         else:
@@ -1450,7 +1648,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 "exit_code": checkpoint_result["exit_code"],
                 "script": {"path": checkpoint_path,
                            "sha256": checkpoint_result["sha256"]},
-                "stamp_matched": None,
+                "stamp_matched": checkpoint_stamp_matched,
             }
 
         # Telemetry inputs (v0.3.9, B2): session_scope was read at the
@@ -2071,6 +2269,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             dry_run=True, verbose=args.verbose,
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
+            accept_checkpoint_change=args.accept_checkpoint_change,
         )
 
     # 8.1 step 5 — the ADR-0008 narrow rule, replacing the blanket
@@ -2096,6 +2295,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             no_interact_source=no_interact_source,
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
+            accept_checkpoint_change=args.accept_checkpoint_change,
         )
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "apply",

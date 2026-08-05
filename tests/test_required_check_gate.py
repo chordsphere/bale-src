@@ -502,11 +502,17 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
     def test_dry_run_predicts_dangling_checkpoint(self) -> None:
         """A dry-run on a project whose [validation] base names an
         uncommitted path refuses with the dangling message — the same
-        refusal a real apply would raise past the dry-run exit."""
+        refusal a real apply would raise past the dry-run exit.
+
+        The dangling key is written AFTER the pack (v0.3.28, session C):
+        pack itself now refuses a dangling checkpoint at its own
+        pre-flight, so the state this rider predicts — apply-side
+        dangling — arises only when the config broke between pack and
+        apply, which is exactly the sequence built here."""
+        sid = self.packed_sid()
         (self.repo / "bale.toml").write_text(
             "[validation]\nbase = \"scripts/validation.base.sh\"\n",
             encoding="utf-8")
-        sid = self.packed_sid()
         tarball = self.build_response_tarball(
             sid, name="dangdry", validation_will_run=["fixture check"])
         dry = run_bale(self.install,

@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+"""Hermetic E2E for blindness enforcement (board 6 session C, v0.3.28).
+
+Covers the D8 session-C assertion set against the documented contract
+(BALE.md §7.1 step 4b, §7.2, §8.5, §11 rows 27–28; ADR-0002 oracle
+doctrine — observable state, never golden comparisons):
+
+- pack refuses a resolved include set that covers the configured
+  checkpoint's path — by direct file include and by directory include
+  (the same containment semantics as the drift gate) — before any sid
+  or session state exists;
+- --allow-checkpoint-in-scope admits the covering scope: the pack
+  succeeds, the FORCE: line lands in the output, and the request
+  manifest's provenance stamps checkpoint_scope_admitted: true;
+- the provenance stamp is present and correct when a checkpoint is
+  configured ({path, sha256} equal to the committed bytes' hash) and
+  explicit null when none is — key presence being what separates a
+  v0.3.28 pack from a hand-rolled or pre-stamp request;
+- pack refuses a configured-but-dangling checkpoint at its own
+  pre-flight (the D1 rule caught at request-build time);
+- apply refuses when the base-tree bytes about to run diverge from the
+  request's pack-time stamp (the oracle changed between pack and
+  apply): remedy text present, session stays open, no bale/<sid>
+  branch — the refusal is pre-staging, pre-branch;
+- `bale apply --dry-run` predicts the same divergence refusal;
+- --accept-checkpoint-change executes the CURRENT base-tree bytes —
+  asserted on EXECUTED output (the new marker ran; the stale stamped
+  version's marker did not) — and records stamp_matched: false in the
+  attempt's telemetry stamp;
+- a stampless request (the provenance.checkpoint key stripped from the
+  persisted session manifest, simulating a hand-rolled or pre-v0.3.28
+  request) verifies nothing and stamps stamp_matched: null;
+- a read-only pack passes the blindness gate vacuously (empty scope
+  covers nothing) while still stamping checkpoint provenance.
+
+Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
+``tests/harness.py`` carries it; see its module docstring.
+
+Run directly::
+
+    python3 tests/test_checkpoint_provenance.py
+
+or via ``python3 -m unittest discover -s tests``.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import subprocess
+import tarfile
+import tempfile
+import unittest
+from pathlib import Path
+
+from harness import (
+    bale_env,
+    git_env,
+    make_install,
+    make_repo,
+    make_sandbox_home,
+    run_bale,
+    run_checked,
+)
+
+CHECKPOINT_PATH = "scripts/validation.base.sh"
+
+# Sentinels for the surfaces this file pins.
+SCOPE_REFUSAL_PHRASE = "pack scope covers the blind checkpoint"
+PACK_DANGLING_PHRASE = "blind checkpoint missing at the pack-time tip"
+DIVERGENCE_PHRASE = "blind checkpoint changed since pack"
+STAMPLESS_PHRASE = "request carries no checkpoint provenance stamp"
+V1_MARKER = "PROV-MARKER-V1"
+V2_MARKER = "PROV-MARKER-V2"
+
+NEW_CONTENT = "hello from the provenance fixture response\n"
+
+
+def checkpoint_script(marker: str, exit_code: int = 0) -> str:
+    """A committed-checkpoint fixture honoring TARBALL.md §7.2/§7.5."""
+    verdict = "PASS" if exit_code == 0 else "FAIL"
+    return (
+        "#!/usr/bin/env bash\n"
+        f"echo \"[{verdict}] {marker}\"\n"
+        f"exit {exit_code}\n"
+    )
+
+
+class CheckpointProvenanceE2ETest(unittest.TestCase):
+    """The board 6 session C contract, driven through real pack/apply."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-cpprov-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.genv = git_env(self.home)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    # -- fixture ---------------------------------------------------------
+
+    def configure_checkpoint(self, path: str = CHECKPOINT_PATH) -> None:
+        """Write bale.toml naming the checkpoint (hand-edit is valid —
+        the wizard is canonical, not exclusive; the strict accessor is
+        what pack and apply read through)."""
+        (self.repo / "bale.toml").write_text(
+            f"[validation]\nbase = \"{path}\"\n", encoding="utf-8")
+
+    def commit_checkpoint(self, body: str,
+                          message: str = "pin blind checkpoint") -> str:
+        """Commit the checkpoint script; return the committed bytes'
+        sha256 — the tip identity both the pack stamp and apply's
+        verification must agree on."""
+        p = self.repo / CHECKPOINT_PATH
+        p.parent.mkdir(parents=True, exist_ok=True)
+        data = body.encode("utf-8")
+        p.write_bytes(data)
+        p.chmod(0o755)
+        run_checked(["git", "add", CHECKPOINT_PATH],
+                    cwd=self.repo, env=self.genv)
+        run_checked(["git", "commit", "-m", message],
+                    cwd=self.repo, env=self.genv)
+        return hashlib.sha256(data).hexdigest()
+
+    def pack(self, *extra_args: str, slug: str = "cp-prov"):
+        """Run a minimal in-scope pack; return the CompletedProcess."""
+        return run_bale(
+            self.install,
+            ["pack", "checkpoint provenance e2e goal: rewrite hello.txt",
+             "--slug", slug, "--include", "hello.txt", *extra_args,
+             "--no-readme"],
+            cwd=self.repo, env=self.env,
+        )
+
+    def only_open_sid(self) -> str:
+        root = self.repo / ".bale" / "sessions"
+        sids = [d.name for d in root.iterdir() if (d / "open").is_file()]
+        self.assertEqual(len(sids), 1)
+        return sids[0]
+
+    def session_request_manifest(self, sid: str) -> dict:
+        p = self.repo / ".bale" / "sessions" / sid / "manifest.json"
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    def build_response_tarball(self, sid: str, *, name: str) -> Path:
+        """A valid normal response modifying hello.txt (in scope).
+        Sizes and hashes computed, never transcribed."""
+        nnn = sid[-3:]
+        rdir = self.tmp / name / f"response-{nnn}"
+        (rdir / "files").mkdir(parents=True)
+        data = NEW_CONTENT.encode("utf-8")
+        (rdir / "files" / "hello.txt").write_bytes(data)
+        manifest = {
+            "session_id": sid,
+            "responds_to": sid,
+            "corrects": None,
+            "response_kind": "normal",
+            "summary": "checkpoint provenance fixture: rewrite hello.txt",
+            "changes": [
+                {
+                    "path": "hello.txt",
+                    "action": "modified",
+                    "reason": "the goal's rewrite; the fixture's "
+                              "in-scope payload change",
+                    "size_bytes": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+            ],
+            "deferred": [],
+            "validation_will_run": ["fixture check"],
+            "claims": {},
+        }
+        (rdir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        (rdir / "apply.sh").write_text(
+            "#!/usr/bin/env bash\n# no-op (test fixture)\nexit 0\n",
+            encoding="utf-8")
+        (rdir / "validation.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "echo \"[PASS] fixture check\"\n"
+            "exit 0\n",
+            encoding="utf-8")
+        tarball = self.tmp / name / f"response-{nnn}.tar.gz"
+        with tarfile.open(tarball, "w:gz") as tf:
+            tf.add(str(rdir), arcname=f"response-{nnn}")
+        return tarball
+
+    def session_log(self, sid: str) -> str:
+        p = self.repo / ".bale" / "logs" / f"{sid}.log"
+        self.assertTrue(p.is_file(), msg=f"expected session log at {p}")
+        return p.read_text(encoding="utf-8")
+
+    def telemetry_record(self, sid: str) -> dict:
+        p = self.repo / "claude" / "telemetry" / f"{sid}.json"
+        self.assertTrue(p.is_file(), msg=f"expected telemetry record at {p}")
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    def assert_no_bale_branch(self, sid: str, why: str) -> None:
+        rp = subprocess.run(
+            ["git", "rev-parse", "--verify", f"refs/heads/bale/{sid}"],
+            cwd=self.repo, env=self.genv, capture_output=True, text=True)
+        self.assertNotEqual(rp.returncode, 0, msg=why)
+
+    # -- pack side: the blindness gate (D5 layer 1) ----------------------
+
+    def test_pack_refuses_direct_include_of_checkpoint(self) -> None:
+        """A resolved include set naming the checkpoint path directly is
+        refused, pre-sid: remedy text present, no session opened, no
+        session directory created."""
+        self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        self.configure_checkpoint()
+        refused = self.pack("--include", CHECKPOINT_PATH)
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertIn("--allow-checkpoint-in-scope", combined,
+                      msg="the refusal names its override successor")
+        self.assertFalse(
+            (self.repo / ".bale" / "sessions").exists(),
+            msg="the refusal is pre-sid — no session state may exist")
+
+    def test_pack_refuses_directory_include_covering_checkpoint(self) -> None:
+        """Coverage uses the drift gate's containment semantics: a
+        directory include covering the checkpoint's parent refuses the
+        same way a direct include does."""
+        self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        self.configure_checkpoint()
+        refused = self.pack("--include", "scripts")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn(SCOPE_REFUSAL_PHRASE,
+                      refused.stdout + refused.stderr)
+
+    def test_override_admits_and_stamps_the_admission(self) -> None:
+        """--allow-checkpoint-in-scope admits the covering scope: the
+        pack succeeds, the FORCE: line is in the output, and provenance
+        stamps checkpoint_scope_admitted: true beside the checkpoint
+        stamp itself."""
+        sha = self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        self.configure_checkpoint()
+        admitted = self.pack("--include", "scripts",
+                             "--allow-checkpoint-in-scope")
+        self.assertEqual(
+            admitted.returncode, 0,
+            msg=f"stdout:\n{admitted.stdout}\nstderr:\n{admitted.stderr}")
+        combined = admitted.stdout + admitted.stderr
+        self.assertIn("FORCE:", combined)
+        self.assertIn("--allow-checkpoint-in-scope", combined)
+        provenance = self.session_request_manifest(
+            self.only_open_sid())["provenance"]
+        self.assertIs(provenance["checkpoint_scope_admitted"], True)
+        self.assertEqual(provenance["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
+
+    def test_pack_refuses_dangling_checkpoint(self) -> None:
+        """Config naming a checkpoint absent at the pack-time tip is a
+        loud pack refusal — the D1 rule caught at request-build time,
+        before a session doomed to refuse at apply can exist."""
+        self.configure_checkpoint("scripts/never-committed.sh")
+        refused = self.pack()
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(PACK_DANGLING_PHRASE, combined)
+        self.assertIn("committed-is-ratified", combined)
+
+    def test_read_only_pack_passes_gate_and_still_stamps(self) -> None:
+        """A read-only pack's empty scope covers nothing, so the
+        blindness gate passes vacuously — and the provenance stamp is
+        still written (a master session's request records the oracle it
+        was packed under too)."""
+        sha = self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        self.configure_checkpoint()
+        packed = run_bale(
+            self.install,
+            ["pack", "read-only alongside a pinned checkpoint",
+             "--slug", "cp-ro", "--read-only", "--include", "hello.txt",
+             "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            packed.returncode, 0,
+            msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
+        provenance = self.session_request_manifest(
+            self.only_open_sid())["provenance"]
+        self.assertEqual(provenance["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
+        self.assertIs(provenance["checkpoint_scope_admitted"], False)
+
+    # -- pack side: the stamp itself (D5 layer 2, write half) ------------
+
+    def test_stamp_present_and_correct_when_configured(self) -> None:
+        """provenance.checkpoint carries the configured path and the
+        sha256 of the COMMITTED tip bytes — asserted against a hash
+        computed from the bytes handed to git, with a diverging
+        working-tree edit in place to prove the stamp never reads the
+        working tree (committed-is-ratified)."""
+        sha = self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        # A working-tree-only edit the stamp must NOT honor.
+        (self.repo / CHECKPOINT_PATH).write_text(
+            checkpoint_script("working-tree-only-edit"), encoding="utf-8")
+        self.configure_checkpoint()
+        packed = self.pack()
+        self.assertEqual(
+            packed.returncode, 0,
+            msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
+        provenance = self.session_request_manifest(
+            self.only_open_sid())["provenance"]
+        self.assertEqual(
+            provenance["checkpoint"],
+            {"path": CHECKPOINT_PATH, "sha256": sha},
+            msg="the stamp hashes the committed tip bytes, never a "
+                "working-tree copy")
+
+    def test_stamp_explicit_null_when_unconfigured(self) -> None:
+        """No [validation] config: the key is PRESENT with value null —
+        the known-zero form that keeps key ABSENCE meaning a
+        hand-rolled or pre-v0.3.28 request."""
+        packed = self.pack()
+        self.assertEqual(packed.returncode, 0)
+        provenance = self.session_request_manifest(
+            self.only_open_sid())["provenance"]
+        self.assertIn("checkpoint", provenance)
+        self.assertIsNone(provenance["checkpoint"])
+        self.assertIs(provenance["checkpoint_scope_admitted"], False)
+
+    # -- apply side: stamp verification (D5 layer 2, read half) ----------
+
+    def _packed_sid_with_committed_checkpoint(self) -> str:
+        self.commit_checkpoint(checkpoint_script(V1_MARKER))
+        self.configure_checkpoint()
+        packed = self.pack()
+        self.assertEqual(
+            packed.returncode, 0,
+            msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
+        return self.only_open_sid()
+
+    def test_divergence_refuses_before_staging(self) -> None:
+        """The planner edits and commits the checkpoint after pack: the
+        base-tree bytes about to run no longer match the stamp, and
+        apply refuses — remedy text present, session open, no bale
+        branch (pre-staging, pre-branch)."""
+        sid = self._packed_sid_with_committed_checkpoint()
+        self.commit_checkpoint(checkpoint_script(V2_MARKER),
+                               message="planner edits the oracle post-pack")
+        tarball = self.build_response_tarball(sid, name="diverge")
+        refused = run_bale(self.install, ["apply", str(tarball)],
+                           cwd=self.repo, env=self.env)
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(DIVERGENCE_PHRASE, combined)
+        self.assertIn("--accept-checkpoint-change", combined,
+                      msg="the refusal names its override successor")
+        self.assertIn("re-pack", combined,
+                      msg="the refusal names the honest-path successor")
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="the refusal leaves the session open")
+        self.assert_no_bale_branch(
+            sid, "no bale/<sid> branch may exist after the refusal — it "
+                 "must fire before branch creation")
+
+    def test_dry_run_predicts_divergence(self) -> None:
+        """`bale apply --dry-run` refuses a diverged checkpoint with the
+        same message plus the prediction trailer — the session-B rider's
+        pattern extended to the stamp verification."""
+        sid = self._packed_sid_with_committed_checkpoint()
+        self.commit_checkpoint(checkpoint_script(V2_MARKER),
+                               message="planner edits the oracle post-pack")
+        tarball = self.build_response_tarball(sid, name="divergedry")
+        dry = run_bale(self.install,
+                       ["apply", str(tarball), "--dry-run"],
+                       cwd=self.repo, env=self.env)
+        self.assertEqual(dry.returncode, 1,
+                         msg=f"stdout:\n{dry.stdout}\n"
+                             f"stderr:\n{dry.stderr}")
+        combined = dry.stdout + dry.stderr
+        self.assertIn(DIVERGENCE_PHRASE, combined)
+        self.assertIn("a real apply would refuse the same way", combined)
+
+    def test_accept_change_runs_current_bytes_and_records_false(self) -> None:
+        """--accept-checkpoint-change executes the CURRENT base-tree
+        version — asserted on EXECUTED output: the post-pack oracle's
+        marker ran, the stale stamped version's did not — logs FORCE:,
+        and records stamp_matched: false in the telemetry stamp."""
+        sid = self._packed_sid_with_committed_checkpoint()
+        self.commit_checkpoint(checkpoint_script(V2_MARKER),
+                               message="planner edits the oracle post-pack")
+        tarball = self.build_response_tarball(sid, name="accept")
+        merged = run_bale(
+            self.install,
+            ["apply", str(tarball), "--accept-checkpoint-change"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            merged.returncode, 0,
+            msg=f"stdout:\n{merged.stdout}\nstderr:\n{merged.stderr}")
+
+        log = self.session_log(sid)
+        self.assertIn("FORCE:", log)
+        self.assertIn(V2_MARKER, log,
+                      msg="the CURRENT (post-edit) base-tree oracle ran")
+        self.assertNotIn(V1_MARKER, log,
+                         msg="the stale stamped bytes must never execute")
+
+        stamp = self.telemetry_record(sid)["attempts"][-1]["checkpoint"]
+        self.assertIs(stamp["stamp_matched"], False)
+        self.assertEqual(
+            stamp["script"]["sha256"],
+            hashlib.sha256(
+                checkpoint_script(V2_MARKER).encode("utf-8")).hexdigest(),
+            msg="the telemetry stamp hashes the executed current bytes")
+
+    def test_stampless_request_verifies_nothing(self) -> None:
+        """A request without the provenance.checkpoint key — a
+        hand-rolled request, or one packed pre-v0.3.28, simulated by
+        stripping the key from the persisted session manifest — verifies
+        nothing (logged, never silent) and stamps stamp_matched: null,
+        even when the oracle changed post-pack."""
+        sid = self._packed_sid_with_committed_checkpoint()
+        manifest_path = (self.repo / ".bale" / "sessions" / sid
+                         / "manifest.json")
+        request_manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+        del request_manifest["provenance"]["checkpoint"]
+        del request_manifest["provenance"]["checkpoint_scope_admitted"]
+        manifest_path.write_text(
+            json.dumps(request_manifest, indent=2) + "\n", encoding="utf-8")
+        # A post-pack oracle edit a stamped request would refuse on.
+        self.commit_checkpoint(checkpoint_script(V2_MARKER),
+                               message="planner edits the oracle post-pack")
+
+        tarball = self.build_response_tarball(sid, name="stampless")
+        merged = run_bale(self.install, ["apply", str(tarball)],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            merged.returncode, 0,
+            msg=f"stdout:\n{merged.stdout}\nstderr:\n{merged.stderr}")
+
+        log = self.session_log(sid)
+        self.assertIn(STAMPLESS_PHRASE, log,
+                      msg="the skipped verification is logged, never silent")
+        stamp = self.telemetry_record(sid)["attempts"][-1]["checkpoint"]
+        self.assertIsNone(stamp["stamp_matched"])
+        self.assertIs(stamp["configured"], True,
+                      msg="the checkpoint still RAN — only the "
+                          "verification was skipped")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

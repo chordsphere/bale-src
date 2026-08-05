@@ -146,7 +146,7 @@
               },
               "stamp_matched": {
                 "type": ["boolean", "null"],
-                "description": "Whether the executed base-tree bytes matched the request manifest's pack-time provenance stamp; null when the request carried no stamp (hand-rolled requests, and every request until the pack-side stamping lands)."
+                "description": "The BALE.md section 8.5 provenance verification's result (v0.3.28, board 6 session C): true when the executed base-tree bytes matched the request manifest's pack-time provenance.checkpoint stamp; false when a divergence was admitted by --accept-checkpoint-change (the current base-tree version ran); null when the request carried no provenance.checkpoint key (hand-rolled requests, and requests packed pre-0.3.28)."
               }
             }
           },
