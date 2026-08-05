@@ -659,6 +659,75 @@ def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
 # operator's own pack wrote, so a doctored response tarball cannot carry
 # a forged stamp past it.
 
+# The response prose artifacts the [apply].archive_dir mechanism copies
+# (BALE.md §8.8): the two optional artifacts TARBALL.md §5.1 defines,
+# plus the retired-but-tolerated next-prompt.md (TARBALL.md §5.5 /
+# BALE.md §6.2) so pre-retirement archives round-trip too. One source:
+# the archival copy loop and the rollback guard's carve-out
+# (bale_rollback) both read this tuple.
+ARCHIVABLE_RESPONSE_ARTIFACTS = ("README.md", "notes.md", "next-prompt.md")
+
+
+def archive_response_artifacts(repo: Path, response_dir: Path, sid: str,
+                               archive_dir: str) -> tuple[list[str], list[str]]:
+    """Copy the response's prose artifacts into <archive_dir>/<sid>/.
+
+    The [apply].archive_dir mechanism (BALE.md §8.8, the landed v0.5
+    candidate): called on the applied outcome only, AFTER the merge has
+    succeeded. Copies whichever of ARCHIVABLE_RESPONSE_ARTIFACTS the
+    response actually included — absence of an artifact is meaningful
+    (TARBALL.md §5.1) and archives nothing for that name.
+
+    The copies are untracked working-tree writes; committing them is the
+    operator's job, by design — bale writes files, never commits them.
+    Destination files are overwritten if present (idempotent re-copy).
+
+    Returns (copied, failed): repo-relative destination paths that landed,
+    and artifact names whose copy failed. **Never raises, never fatal**:
+    by the time this runs the merge has landed and the session is closed,
+    so a copy failure must not un-apply or HOLD anything — each failure
+    is logged loudly (force-level) and surfaced to the caller for the
+    closing banner, honoring the no-silent-skip rule (CLAUDE.md §6).
+    """
+    from __main__ import log  # lazy — see module docstring
+
+    copied: list[str] = []
+    failed: list[str] = []
+    present = [name for name in ARCHIVABLE_RESPONSE_ARTIFACTS
+               if (response_dir / name).is_file()]
+    if not present:
+        log(f"archive_dir: response shipped none of "
+            f"{', '.join(ARCHIVABLE_RESPONSE_ARTIFACTS)} — nothing to archive")
+        return copied, failed
+
+    dest_dir = repo / archive_dir / sid
+    try:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        # The whole batch fails; name every artifact so the banner and the
+        # log agree on what did NOT land. Loud, never fatal (docstring).
+        log(f"ARCHIVE FAILED: could not create {dest_dir}: {e} — "
+            f"{', '.join(present)} were NOT archived; the merge itself "
+            f"landed and is unaffected. Copy them by hand from the "
+            f"response tarball if needed.", force=True)
+        return copied, list(present)
+
+    for name in present:
+        dest = dest_dir / name
+        try:
+            shutil.copyfile(response_dir / name, dest)
+        except OSError as e:
+            log(f"ARCHIVE FAILED: could not copy {name} to {dest}: {e} — "
+                f"the merge itself landed and is unaffected. Copy it by "
+                f"hand from the response tarball if needed.", force=True)
+            failed.append(name)
+            continue
+        rel = f"{archive_dir}/{sid}/{name}"
+        copied.append(rel)
+        log(f"archived {name} → {rel}")
+    return copied, failed
+
+
 def read_request_checkpoint_stamp(
         repo: Path, sid: str) -> tuple[bool, Optional[dict]]:
     """Return (key_present, stamp) from the session's persisted request
@@ -1109,6 +1178,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # (the sanctioned session-A rider), one read for both.
         preflight_cfg = bale_config.merged_config(repo)
         required_checks = bale_config.get_validation_required(preflight_cfg)
+        # [apply].archive_dir is CONSUMED post-merge (§8.8), but its
+        # strict accessor is fatal on a malformed shape — so it is
+        # resolved HERE, at pre-flight, where a typo refuses before any
+        # staging exists. Post-merge code only uses this validated value
+        # and can never fail() after the merge has landed (the archival
+        # contract: loud, never fatal, never un-applies).
+        archive_dir_cfg = bale_config.get_apply_archive_dir(preflight_cfg)
         required_check_overridden: list[str] = []
         if required_checks and (manifest.get("changes") or []):
             declared = manifest.get("validation_will_run", []) or []
@@ -1841,11 +1917,28 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             log(f"tagged applied/{locked_sid}, closed session, "
                 f"deleted {sid_branch}")
 
+            # Response-artifact archival ([apply].archive_dir — BALE.md
+            # §8.8, the landed v0.5 candidate). Applied outcome only, and
+            # sited after the merge has durably landed: a copy failure
+            # logs loudly and reports in the closing banner below, but can
+            # never un-apply or HOLD the merged session
+            # (archive_response_artifacts' contract). Unset key = no
+            # archival, no banner row — today's behavior. `archive_dir_cfg`
+            # was resolved at pre-flight through the strict accessor, so a
+            # malformed key refused before staging — nothing here can
+            # fail() after the merge.
+            archived_paths: list[str] = []
+            archive_failed: list[str] = []
+            if archive_dir_cfg:
+                archived_paths, archive_failed = archive_response_artifacts(
+                    repo, response_dir, locked_sid, archive_dir_cfg)
+
             # post_apply_pass hook. Silent no-op when not configured. Prompts
             # the user before invoking; a decline is logged and silent. The
             # hook runs after the merge so a hook-side failure can't unwind
             # bale's primary work — at this point the session is durably
-            # applied and tagged.
+            # applied and tagged (and any configured archival has already
+            # run, so a hook that consumes the archive sees it on disk).
             #
             # merged_config layers global under project so a single config
             # call covers both `<install>/user/bale.toml` and `<repo>/bale.toml`.
@@ -1873,16 +1966,41 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     clarification=read_clarification_summary(
                         repo, locked_sid),
                 ))
+            summary_rows = [
+                ("tag", f"applied/{locked_sid}"),
+                ("branch", f"{origin_branch} (merged — {merged_note})"),
+                ("files", f"{len(manifest['changes'])} changed"),
+                ("staging", f"{staging} (preserved for inspection)"),
+            ]
+            # Archive row only when [apply].archive_dir is configured —
+            # unset stays byte-identical to the pre-archival banner. The
+            # failure form is loud in the banner as well as the log
+            # (no-silent-skip, CLAUDE.md §6); the shipped-nothing form is
+            # named too, since "configured but empty" is a fact the
+            # operator should see rather than infer.
+            if archive_dir_cfg:
+                if archive_failed:
+                    detail = (f"copy FAILED for {', '.join(archive_failed)} "
+                              f"— see log; merge unaffected")
+                    if archived_paths:
+                        detail = (f"{len(archived_paths)} file(s) → "
+                                  f"{archive_dir_cfg}/{locked_sid}/; {detail}")
+                    summary_rows.append(("archive", detail))
+                elif archived_paths:
+                    summary_rows.append(
+                        ("archive",
+                         f"{len(archived_paths)} file(s) → "
+                         f"{archive_dir_cfg}/{locked_sid}/ (uncommitted)"))
+                else:
+                    summary_rows.append(
+                        ("archive", "nothing to archive — response shipped "
+                                    "no README.md or notes.md"))
+            summary_rows.append(
+                ("telemetry",
+                 f"recorded {telemetry_rel}" if telemetry_rel
+                 else "write failed — see log"))
             print(format_summary_block(
-                [
-                    ("tag", f"applied/{locked_sid}"),
-                    ("branch", f"{origin_branch} (merged — {merged_note})"),
-                    ("files", f"{len(manifest['changes'])} changed"),
-                    ("staging", f"{staging} (preserved for inspection)"),
-                    ("telemetry",
-                     f"recorded {telemetry_rel}" if telemetry_rel
-                     else "write failed — see log"),
-                ],
+                summary_rows,
                 status="PASS",
                 sid=locked_sid,
                 trailer=[
@@ -1902,6 +2020,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     action="merge", merged=True,
                     tag=f"applied/{locked_sid}", origin_branch=origin_branch,
                     telemetry=telemetry_rel,
+                    # Additive archival result ([apply].archive_dir): an
+                    # object only when the key is configured — unset keeps
+                    # the pre-archival report (modulo the additive null).
+                    archive=(None if not archive_dir_cfg else {
+                        "dir": f"{archive_dir_cfg}/{locked_sid}",
+                        "copied": archived_paths,
+                        "failed": archive_failed,
+                    }),
                 ))
             return 0
 

@@ -1049,6 +1049,7 @@ def format_apply_json(
     drift: Optional[dict] = None,
     checkpoint: Optional[dict] = None,
     required_checks: Optional[dict] = None,
+    archive: Optional[dict] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -1126,6 +1127,19 @@ def format_apply_json(
                  overridden  names a partial
                              --allow-missing-required-check did admit
                              on this invocation
+      archive  (v0.3.30, additive) the response-artifact archival result
+               ([apply].archive_dir, BALE.md §8.8) — an object on the
+               applied outcome when the key is configured, null on every
+               other outcome and whenever the key is unset (unset stays
+               byte-identical modulo this additive-null key). An object:
+                 dir     "<archive_dir>/<sid>" — the per-sid destination
+                         the copies landed under, repo-relative
+                 copied  repo-relative destination paths that landed
+                         (may be [] when the response shipped none of
+                         the archivable artifacts)
+                 failed  artifact names whose copy failed — loud in the
+                         banner and the log, never fatal after the
+                         merge; [] on a clean run
       checkpoint (board 6 session A, additive) the blind checkpoint's
                result on the three walkthrough outcomes, mirroring the
                telemetry stamp's semantics: null when validation.sh did
@@ -1203,6 +1217,11 @@ def format_apply_json(
         # (BALE.md §8.1 step 15) — object on outcome=
         # required-check-refused, null on every other outcome.
         "required_checks": required_checks,
+        # v0.3.30, additive: the response-artifact archival result
+        # ([apply].archive_dir, BALE.md §8.8) — object on the applied
+        # outcome when the key is configured, null otherwise (semantics
+        # in the docstring above, the key list's one home).
+        "archive": archive,
     }
     return json.dumps(payload)
 

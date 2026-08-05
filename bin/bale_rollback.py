@@ -185,27 +185,67 @@ def _conflicted_paths(repo: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 # The one directory whose *untracked* entries the guard disregards
-# (v0.3.23, board 5 D5). A prefix, not a pattern: exactly the tracked-side
-# telemetry home BALE.md §8.9 writes to.
+# wholesale (v0.3.23, board 5 D5). A prefix, not a pattern: exactly the
+# tracked-side telemetry home BALE.md §8.9 writes to.
 _TELEMETRY_PREFIX = "claude/telemetry/"
 
 
-def _split_untracked_telemetry(status: str) -> tuple[list[str], list[str]]:
+def _is_bale_archive_artifact(path: str, archive_dir: Optional[str]) -> bool:
+    """True when `path` has exactly the shape the [apply].archive_dir
+    mechanism writes (v0.3.30; BALE.md §8.8): `<archive_dir>/<sid>/<name>`
+    where <sid> parses as a real session id and <name> is one of the
+    archivable response artifacts.
+
+    Deliberately shape-matched rather than a whole-prefix disregard like
+    `_TELEMETRY_PREFIX` above: the telemetry home is a fixed path bale
+    owns outright, while archive_dir is user-configured and may sit in a
+    directory the user also works in — disregarding only what bale
+    itself demonstrably wrote keeps the guard's conservatism. `None`
+    archive_dir (the key unset) matches nothing.
+    """
+    if not archive_dir:
+        return False
+    prefix = archive_dir.rstrip("/") + "/"
+    if not path.startswith(prefix):
+        return False
+    rest = path[len(prefix):]
+    parts = rest.split("/")
+    if len(parts) != 2:
+        return False
+    sid, name = parts
+    # Lazy sibling imports (module docstring idiom): the artifact tuple's
+    # one home is the apply module that writes the copies, and the sid
+    # grammar's one home is bin/bale's parser.
+    import bale_apply
+    if name not in bale_apply.ARCHIVABLE_RESPONSE_ARTIFACTS:
+        return False
+    from __main__ import parse_session_id
+    try:
+        parse_session_id(sid)
+    except ValueError:
+        return False
+    return True
+
+
+def _split_untracked_disregarded(
+        status: str, archive_dir: Optional[str]) -> tuple[list[str], list[str]]:
     """Split `git status --porcelain` output for the guard's judgment.
 
     Takes `git status --porcelain -uall` output — `-uall` so an
     entirely-untracked directory is enumerated file by file instead of
-    collapsing to one `?? claude/` entry the prefix test below could
+    collapsing to one `?? claude/` entry the tests below could
     not judge (the first record bale ever writes creates exactly that
     state). Returns (disregarded_paths, remainder_lines):
-    `disregarded_paths` are the paths of `?? ` (untracked) entries
-    under `claude/telemetry/`, and `remainder_lines` is every other
-    non-blank status line verbatim.
+    `disregarded_paths` are the paths of `?? ` (untracked) entries that
+    bale itself left behind — under `claude/telemetry/` (v0.3.23), or
+    matching the [apply].archive_dir artifact shape
+    (`_is_bale_archive_artifact`, v0.3.30) — and `remainder_lines` is
+    every other non-blank status line verbatim.
     Only the untracked marker qualifies; a modified/added/deleted tracked
-    file under the same prefix stays in the remainder (a real conflict
+    file under the same locations stays in the remainder (a real conflict
     surface for `git revert`). Porcelain quotes paths containing special
-    characters; the surrounding quotes are stripped before the prefix
-    test so such a path is still judged by its real location.
+    characters; the surrounding quotes are stripped before the tests
+    so such a path is still judged by its real location.
     """
     disregarded: list[str] = []
     remainder: list[str] = []
@@ -221,43 +261,58 @@ def _split_untracked_telemetry(status: str) -> tuple[list[str], list[str]]:
                     or path == _TELEMETRY_PREFIX):
                 disregarded.append(path)
                 continue
+            if _is_bale_archive_artifact(path, archive_dir):
+                disregarded.append(path)
+                continue
         remainder.append(line)
     return disregarded, remainder
 
 def _guard_dirty_tree(repo: Path, *, stash: bool, force: bool) -> Optional[str]:
     """Ensure the tree is clean enough to run `git revert`.
 
-    Clean tree → returns None (nothing stashed). Untracked paths under
-    `claude/telemetry/` are disregarded when judging cleanliness
-    (v0.3.23, board 5 D5; BALE.md §9.2 step 3): bale itself leaves the
-    record it just wrote untracked at apply/rollback close, so refusing
-    on it is friction with no protective value — `git revert` rewrites
-    tracked content only, and the one collision case (a revert that
-    would materialize a file at an untracked path) is refused loudly by
-    git itself. When those entries were the only dirt, the guard
-    proceeds with a log line naming them. A *modified tracked* file
-    under `claude/telemetry/` still refuses — that is a real conflict
-    surface — and so does any other dirt, unchanged:
+    Clean tree → returns None (nothing stashed). Untracked paths that
+    bale itself left behind are disregarded when judging cleanliness
+    (BALE.md §9.2 step 3): the telemetry record under
+    `claude/telemetry/` (v0.3.23, board 5 D5), and — when the project
+    configures [apply].archive_dir — response-artifact copies matching
+    exactly the `<archive_dir>/<sid>/<artifact>` shape apply writes at
+    merge (v0.3.30; shape test in `_is_bale_archive_artifact`, which
+    keeps the carve-out narrower than the telemetry prefix because
+    archive_dir is user-configured ground). The rationale is the same
+    for both: bale wrote them and leaves them uncommitted by design, so
+    refusing on them is friction with no protective value — `git
+    revert` rewrites tracked content only, and the one collision case
+    (a revert that would materialize a file at an untracked path) is
+    refused loudly by git itself. When those entries were the only
+    dirt, the guard proceeds with a log line naming them. A *modified
+    tracked* file at the same locations still refuses — that is a real
+    conflict surface — and so does any other dirt, unchanged:
       - `--stash` → stash (including untracked — the disregarded
-        telemetry paths ride along, unchanged behavior) and return the
+        paths ride along, unchanged behavior) and return the
         stash ref so the caller can pop it after the revert lands.
       - `--force` → log the bypass prominently and proceed without stashing
         (the user owns the consequences of reverting onto dirty state).
       - neither  → fail() with a message pointing at `--stash`.
     """
     from __main__ import log, fail, git, working_tree_clean
+    import bale_config  # lazy — sibling module, loaded by bin/bale
     clean, status = working_tree_clean(repo)
     if clean:
         return None
-    # Judge on the -uall enumeration (see _split_untracked_telemetry);
+    # Judge on the -uall enumeration (see _split_untracked_disregarded);
     # the refusal message below keeps the familiar collapsed `status`.
+    # The archive_dir read goes through the strict typed accessor: a
+    # malformed key is fatal here exactly as it is at apply — a typo
+    # must not silently change which paths the guard disregards.
+    archive_dir = bale_config.get_apply_archive_dir(
+        bale_config.merged_config(repo))
     r = git(["status", "--porcelain", "-uall"], cwd=repo)
-    disregarded, remainder = _split_untracked_telemetry(r.stdout)
+    disregarded, remainder = _split_untracked_disregarded(r.stdout, archive_dir)
     if disregarded and not remainder:
-        log("dirty-tree guard: disregarding untracked telemetry path(s) "
-            f"under claude/telemetry/ — {', '.join(disregarded)} — "
-            "written by bale and untouched by git revert; tree is "
-            "otherwise clean")
+        log("dirty-tree guard: disregarding untracked bale-written "
+            f"path(s) — {', '.join(disregarded)} — telemetry and/or "
+            "archived response artifacts, untouched by git revert; tree "
+            "is otherwise clean")
         return None
     if stash:
         # -u includes untracked files so the revert sees a truly clean tree;
