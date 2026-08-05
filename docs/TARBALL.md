@@ -844,6 +844,16 @@ the modified files, plus session-specific assertions for behaviors
 that changed. The project's CI plays the regression-prevention role
 after the bale is merged; `validation.sh` does not duplicate it.
 
+Some projects additionally pin a planner-authored **blind
+checkpoint** that bale runs in staging beside `validation.sh`
+(checkpoint first; both always run). It is authored blind — by the
+planner from the request, never by the worker building against it —
+and the worker neither writes, edits, nor declares it:
+`validation_will_run` and `claims` describe the worker's own script
+only. A project may also pin required check names the worker's
+`validation_will_run` must include; apply refuses an omission, and a
+declared check may still `[SKIP]` with a reason at runtime.
+
 ### 7.1 The staging-copy approach
 
 Validation never writes to the real project. The full pipeline:

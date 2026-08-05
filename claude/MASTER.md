@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-03-ratification-microdeltas-006`.
+Last landed by: `2026-08-05-master-deltas-008`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -98,13 +98,31 @@ the first autonomy-grant candidate; contract-doc is where the noise
 concentrates — the misunderstanding-as-dominant-failure-class
 corroboration, at the ledger's own surface.
 
-**Current version: 0.3.27**, bumped across the board-5 arc
-(terminal bump at `2026-08-03-preserved-at-and-retag-003` per the
-arc's upward report — a claim to verify, not a fact to trust:
-verify with `bale --version` at each sitting's open per the
-standing rule). For this entry the claim was checked against this
-deltas request's own pack-time provenance stamp, 0.3.27 — the
-stamp agrees with the report.
+**The blind-checkpoint arc — CLOSED 2026-08-05** (board 6; five
+sids: design/orchestration
+`2026-08-04-board-6-blind-checkpoint-design-003` (read-only),
+`2026-08-04-board-6-checkpoint-core-004`,
+`2026-08-04-board-6-superset-gate-005`,
+`2026-08-04-board-6-blindness-enforcement-006`,
+`2026-08-05-board-6-stats-read-side-001`). Version range 0.3.27 →
+0.3.29 across the arc, sessions A and B landed unbumped at 0.3.27
+(the first cadence divergence — §6 entry 54 carries it and the open
+doc-only ruling). The §1 floor's "validation checkpoints are
+authored blind" line now has its implementation — home, execution,
+gate, blindness enforcement, and ledger read side (the arc's upward
+report, shipped in `claude/context/board-6-arc/`). The 1.0.0 gate's
+board-6 dependency is satisfied; the gate now waits on board 10 and
+the first exercised autonomy grant (§5's ladder contract, wording
+unchanged there).
+
+**Current version: 0.3.31**, architect-verified against the live
+install 2026-08-05 (the standing rule: verify with `bale --version`
+at each sitting's open). Post-arc trail:
+`execution-context-amendment-006` (doc-only) landed unbumped — the
+open cadence ruling, §6 entry 54 — then 0.3.30 (`archive-dir-005`)
+and 0.3.31 (`pack-tree-echo-007`). For this entry the architect's
+verification was additionally checked against this deltas request's
+own pack-time provenance stamp, 0.3.31 — the stamp agrees.
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -130,30 +148,20 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **This sitting's close-out vehicles:** this deltas session
-  (`2026-08-03-master-deltas-005`) and the BALE.md §13 ladder
-  session are the 2026-08-01→03 sitting's close-out vehicles
-  (master session `2026-08-01-continue-plan-003`) — scope-disjoint,
-  no ordering constraint between them.
-- **Next master sitting:** pack itself read-only; keep the habit.
-  Board 5 is closed; the sitting opens with **board 6** as a design
-  session shaped by the ledger's spec — its consumer surface is
-  `stats --json`, with the additive key contract owned by
-  `format_stats_json`'s docstring. The board-6 design pack ships the
-  ledger spec's exact consumer-surface language and the board-5
-  arc's upward report verbatim in `context/` (accepted from
-  `2026-08-03-master-deltas-005`'s Proposals; the §5
-  verbatim-proposal contract points the same direction) — this doc's
-  compressions are not a substitute where dispositions turn on exact
-  wording. Precondition, evidence 40's class, named in the proposal
-  itself: those artifacts land tracked first — the operator commits
-  the arc's brief files and upward report under
-  `claude/context/board-5-arc/` (or the opt-in responses archive)
-  before the board-6 pack is authored, and the pack --includes them
-  from there.
+- **Operator-friction master session** (directed by the architect;
+  board-6 arc upward report, escalation 4): a dedicated read-only
+  master session disposes the operator-friction arc in discussion
+  before delegation. Its charter carries the friction findings'
+  transfer and the disposition of the authored-and-shelved archival
+  pack command, plus operator state legibility (§6 entry 53). The
+  arc's finding 3 is already retired — `archive_dir` landed at
+  0.3.30 and the architect opted in at the global layer
+  (`archive_dir claude/responses`); archives materialize on future
+  applies, none on disk at this writing.
 
 **Watches** (named re-triggers, no work; the first four carried
-verbatim from the board-5 arc's upward report):
+verbatim from the board-5 arc's upward report, the last three from
+the board-6 arc's):
 
 - Emitter-parser reconciliation drift: all three unparsed-
   reconciliation records are 2026-07-31 consolidation-day straddlers;
@@ -168,8 +176,21 @@ verbatim from the board-5 arc's upward report):
   stamp accrual.
 - The ledger cannot yet distinguish predicted-grounds claims from
   observed ones (the §5 claim-basis precedent's measurement gap).
-  Re-trigger: the board-6/10-era decision on an additive
-  claim-basis self-report field.
+  Owner: board 10 — ratified 2026-08-04, master disposition 3, per
+  the rev-B brief's D4.3: "board 10 owns it, for three recorded
+  reasons" (the reasons live in D4.3; the brief is shipped in
+  `claude/context/board-6-arc/`). Re-trigger: board 10's decision
+  on the additive claim-basis self-report field. One live datum
+  already on that desk: session A's predicted packaging-suite claim,
+  graded `agree` at apply.
+- Removed-oracle residue: flips log-to-refusal on the first observed
+  worker-authored edit to `[validation]` keys in a merged session
+  (C's else-branch note makes it ~10 lines).
+- `[validation]` layering: the deferred widening re-triggers only on
+  a case that answers oracle-by-coincidence (disposition 1's trade,
+  recorded in the rev B brief's D1).
+- Required-set keyed form: re-triggers on systematic per-class
+  `[SKIP]` noise in the ledger's new rows.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -203,6 +224,21 @@ with the unverifiable ones carried verbatim and marked):
   session — stays or becomes self-contained prose; master's recorded
   lean: keep the citation until the ADR-0009/board-10 categorization
   decision, revisit there.
+- `claude/context/bale-internals.md` §2.5 schema-snippet true-up —
+  whether the snippet-not-extended precedent ([staging] v0.3.7,
+  [identity] v0.3.8, followed consistently by board-6 sessions A–C,
+  so the eventual true-up is a single sweep) is policy or accident;
+  the question is recorded, not answered. Rides the next small doc
+  session touching that file. (Source: session A's notes and the
+  board-6 arc report's on-watch line.)
+- The checkpoint exit-2 stats split — an additive
+  `checkpoint_errored_attempts` count (stamp `exit_code == 2`)
+  beside the HOLD count; v1 folds the planner's-artifact-errored
+  case into checkpoint-HOLD, which is right for the
+  misunderstanding rate but hides oracle fragility from the ledger;
+  the stamp preserves `exit_code`, so the read side can split later
+  with no write-side change. Rides board 10, on its harness asking
+  the question. (Source: session D's notes proposal.)
 
 Cleared at this landing (`2026-08-03-master-deltas-005`): the
 BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
@@ -279,24 +315,32 @@ and §8, so done items keep their numbers as one-line pointers.
    mechanical/self-reported trust split: §5 (ratified 2026-07-13),
    unchanged.
 
-6. **Blind validation checkpoints — doctrine to mechanics** — the §1
-   floor's "validation checkpoints are authored blind" line has no
-   implementation; land one: a planner-pinned `validation.base.sh`
-   per project (or a `[validation] required = [...]` table in
-   bale.toml keyed by touched file types), run unconditionally in
-   staging with the worker's script ADDITIVE, plus an apply pre-flight
-   rule that validation_will_run ⊇ the required set for the touched
-   paths. This partially converts "validation_will_run is honest and
-   complete" from policy to contract. **Keep the worker's
-   validation.sh** — it is where claims come from and feeds the
-   calibration stream; the blind checkpoint is the misunderstanding
-   control. They answer different questions (is the worker calibrated
-   vs did the worker understand); the ledger consumes both.
-   **Motivating evidence, 2026-07-21:** two same-day master-review
-   catches — the runtime-loaded include gap and the §7.1
-   renumbering — were invisible to in-lane worker checks by
-   construction; both are the exact shape a planner-authored blind
-   checkpoint exists to catch. Concrete grounding for this item.
+6. **Blind validation checkpoints — doctrine to mechanics — DONE**
+   2026-08-05, closed as an arc (design/orchestration
+   `2026-08-04-board-6-blind-checkpoint-design-003` read-only, plus
+   applied sids `2026-08-04-board-6-checkpoint-core-004`,
+   `2026-08-04-board-6-superset-gate-005`,
+   `2026-08-04-board-6-blindness-enforcement-006`,
+   `2026-08-05-board-6-stats-read-side-001`; telemetry; v0.3.27 →
+   0.3.29 per the arc's upward report, sessions A and B landed
+   unbumped at 0.3.27 — §6 entry 54). Four sessions landed, none
+   reverted; the §1 floor's "validation checkpoints are authored
+   blind" line has its implementation — home (`[validation] base`,
+   project-only), base-tree blind execution, the step-15 superset
+   gate (`[validation] required`), blindness enforcement (pack-side
+   covering refusal, provenance stamp, registry-copy verification),
+   and the ledger read side. Design ratified 2026-08-04 (rev-B
+   brief, shipped in `claude/context/board-6-arc/` with the upward
+   report and all four sessions' notes); the sub-master's
+   ratified-at-level list reviewed and uncontested by the master
+   2026-08-05. Escalations disposed: the execution-context
+   amendment landed (`execution-context-amendment-006`; §5's
+   amended contract); the TARBALL.md §7 sentence landed this
+   vehicle (disposition 2); the §3 watch re-owner landed this
+   vehicle (disposition 3); the handoff-covering mechanism ratified
+   (§5, this sitting); the operator-friction arc transferred to its
+   own read-only master session (§3). Coexistence contract and
+   motivating evidence: §5 (ratified 2026-07-13), unchanged.
 
 7. **Doc compression sitting — editorial phase COMPLETE**
    2026-07-15/16, three sessions after a ratified split (sids
@@ -805,6 +849,24 @@ New, ratified 2026-08-03 (this sitting):
   API-harness transport (separate component per §1) or lifting the
   solo-project assumption (documented scope).
 
+New, ratified 2026-08-05 (this sitting):
+
+- **The handoff-covering disposition** (ratified, unimplemented):
+  `bale handoff` runs the covering refusal
+  (`checkpoint_blindness_preflight`) against its reading-plan
+  scope, with a mirroring per-invocation admission flag. Source:
+  session C's notes proposal (verbatim text shipped in
+  `claude/context/board-6-arc/`) plus the architect's disposition
+  relayed 2026-08-05, quoted: "run the covering refusal on the
+  handoff path with a mirroring per-invocation admission flag."
+  Rationale carried from the arc report's escalation 2: a handoff
+  whose reading-plan scope covers the checkpoint silently re-opens
+  the layer-1 hole, and the rare legitimate case — a bailed
+  checkpoint-maintenance session — was already flag-admitted once
+  at pack, so a flat refusal strands exactly that handoff.
+  Implementation is a separate worker session, pack authorable from
+  either lineage on request.
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
 
@@ -1309,12 +1371,73 @@ New from the 2026-08-01→03 sitting (the board-5 arc):
     actual: `split-supersession-002`, 30 prior lacking), and the
     worker correctly implemented rule over example.
 
+New from the 2026-08-04→05 sitting (the board-6 arc):
+
+51. **One operator command per emission, and phases never share a
+    message.** Two instances from the arc: the session-B
+    precondition's three-command block, fed to a paste-hostile
+    terminal, ran as one line and tar consumed the git commands as
+    member names; and a must-run-later command stacked paste-ready
+    below a must-run-first one let the operator's tree picture fall
+    a session behind (the entry-53 chain). Standing corrective,
+    adopted mid-arc: the single-line rule extends from pack
+    commands to every operator command emitted — one command per
+    block, or an explicit `&&` one-liner when the operator asks for
+    one paste — with its pair: commands for different phases never
+    share a message. (Arc report, findings 1 and 5.)
+
+52. **When the second instance of a drift appears, fix the class,
+    not the file.** Two chmod rounds for exec-bit drift the WSL
+    mount re-imported on every copy; the close was at the source —
+    `/etc/wsl.conf` automount metadata options, verified 644 on the
+    mount — not a third per-file chmod. (Arc report, finding 2.)
+
+53. **The misunderstanding-control doctrine functioned live on a
+    redundant pack.** After an entry-51 ordering slip, session D's
+    pack command was re-pasted after D had already applied and the
+    reinstall hook had installed 0.3.29, so a stale goal rode
+    forward against a tree that had moved past it. The receiving
+    worker verified the tree against the goal, ran the suite,
+    refused to fabricate a change set, and asked — live
+    misunderstanding-control evidence, at the cost of one burned
+    NNN and one unlock (the redundant
+    `2026-08-05-board-6-stats-read-side-003` closed by operator
+    unlock, no successor; its telemetry closure record is the
+    durable trace). Corrective beyond entry 51's pair: the friction
+    session's charter gains operator state legibility — `bale
+    status` as the ground truth consulted before any pack when
+    state is uncertain, a tooling-surface question as much as a
+    discipline one. (Arc report, finding 5.)
+
+54. **The version finding and the open doc-only cadence question.**
+    The board-6 arc ran 0.3.27 → 0.3.29 with sessions A and B
+    landed unbumped at 0.3.27 — the first cadence divergence,
+    recorded in session C's notes. Post-arc,
+    `execution-context-amendment-006` (doc-only) landed unbumped,
+    then 0.3.30 (`archive-dir-005`) and 0.3.31
+    (`pack-tree-echo-007`). A close-out arithmetic expecting 0.3.32
+    assumed a bump for the doc-only 006; the live install reads
+    0.3.31 (architect-verified 2026-08-05). Attribution: the 0.3.32
+    claim originated in that close-out arithmetic — not in the
+    arc's upward report (which claims 0.3.29, correct for its date)
+    nor at the master desk. **Open ruling, recorded for
+    ratification: are doc-only sessions bump-exempt?** If the
+    ruling is that they owe bumps, 006 is the second cadence
+    divergence and feeds the tag-reuse watch's counter; this entry
+    states that conditionally, pending the ruling. Until it lands,
+    the `execution-context-amendment-006` precedent (landed
+    unbumped) governs doc-only sessions.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
   /mnt/c/Users/chord/Downloads/. Files saved via browser may carry
   CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
 - A post_pack hook copies request tarballs to Downloads.
+- Response archival is opted in at the global config layer:
+  `archive_dir claude/responses` (the `archive_dir` candidate
+  landed at 0.3.30). Archives materialize on future applies — none
+  on disk at this writing.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. Enumerate suites from
   the tree (`ls tests/`), never from this doc; counts stated in
@@ -1337,8 +1460,9 @@ New from the 2026-08-01→03 sitting (the board-5 arc):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.3.27 (one-apply-behind:
-  stamps from the next pack onward).
+  still governs. bin/bale VERSION 0.3.31,
+  architect-verified against the live install 2026-08-05
+  (one-apply-behind: stamps from the next pack onward).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
