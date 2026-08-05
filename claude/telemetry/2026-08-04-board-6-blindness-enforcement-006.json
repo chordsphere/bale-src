@@ -1,0 +1,129 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-04-board-6-blindness-enforcement-006",
+  "created_at": "2026-08-05T00:03:24+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T00:03:24+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-006 (13).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit test suite (unittest discover -s tests)": "pass",
+          "session assertions: version and flag surfaces": "pass",
+          "session assertions: BALE.md section 11 rider and rows": "pass",
+          "session assertions: schema additive keys": "pass"
+        },
+        "claim_verdict": {
+          "unit test suite (unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: version and flag surfaces": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: BALE.md section 11 rider and rows": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: schema additive keys": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-checkpoint-core-004.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-superset-gate-005.md",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_required_check_gate.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.27",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "142fd8f571b386a7bf666c086861b1d78176dead7fdc2ddcd902f0e92f13140f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-04-board-6-blind-checkpoint-design-003",
+            "work_class": "code",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The stamp-verification prose belongs in BALE.md section 8.5 beside its dangling-refusal sibling (session A's precedent for checkpoint refusals sited past the section 8.1 numbering), even though the brief's D7 touch list names section 8.1; the check needs base_sha, which section 8.1's numbered steps do not have in hand.",
+            "An oracle REMOVED between pack and apply (object stamp, now-unconfigured project) logs loudly but does not refuse: nothing is about to run, so there are no bytes to verify, and a config edit is exactly the bale.toml residue D5 accepts at v1 with a named re-trigger.",
+            "The pack-side dangling refusal fires at pack pre-flight (pre-sid), reading 'caught earlier' in D5 layer 2 as earlier-than-apply at the earliest sensible point, rather than only at provenance-stamp time."
+          ],
+          "judgment_calls": [
+            "Divergence covers three shapes under one refusal: hash mismatch, retargeted stamp path, and a null stamp beside a now-configured checkpoint \u2014 each is 'the oracle changed between pack and apply'.",
+            "Apply reads the stamp from the registry's persisted request manifest (.bale/sessions/<sid>/manifest.json), never from anything the response tarball carries, so a doctored response cannot forge a stamp.",
+            "The response manifest's strict provenance echo (and the lint's embedded copy) widened with the request-schema change as a coordination rider \u2014 without it every post-C response filling feedback honestly fails validation.",
+            "checkpoint_scope_admitted stamps as a provenance sibling boolean (uniform shape, always present on bale-built blocks) rather than widening the ratified {path, sha256} stamp object.",
+            "Session A's and B's fixtures that configured a dangling checkpoint BEFORE packing now configure it after \u2014 pack refuses the broken config at its own pre-flight, which is also the truer fixture for the apply-side state those tests pin."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-04-board-6-blindness-enforcement-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T00:03:24+00:00",
+  "outcome": "applied"
+}
