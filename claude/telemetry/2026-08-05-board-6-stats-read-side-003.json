@@ -1,0 +1,40 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-board-6-stats-read-side-003",
+  "created_at": "2026-08-05T01:10:48+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T01:10:48+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-blindness-enforcement-006.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-checkpoint-core-004.md",
+        "claude/context/board-6-arc/notes-2026-08-04-board-6-superset-gate-005.md",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-05-board-6-stats-read-side-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T01:10:48+00:00",
+  "outcome": "unlocked"
+}

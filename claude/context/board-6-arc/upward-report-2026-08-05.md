@@ -127,7 +127,7 @@ measurement gap now on board 10's desk.
   doc session's question; B and C followed it consistently in the
   meantime, so the eventual true-up is a single sweep.
 
-## Process findings against my own orchestration (four; two closed in-arc)
+## Process findings against my own orchestration (five; two closed in-arc)
 
 1. **Multi-line command blocks fed to a paste-hostile terminal.**
    The session-B precondition's three-command block ran as one line
@@ -153,13 +153,33 @@ measurement gap now on board 10's desk.
    pack authoring, cost nothing — but the amended contract wording
    in escalation 1 is what prevents the class, tracking the rule
    rather than the enumeration.
+5. **A redundant session was packed against a tree that had moved
+   past its goal.** After an instruction-ordering slip (a
+   must-run-later command stacked paste-ready below a
+   must-run-first one — my emission), the operator's picture of
+   the tree fell one session behind the tree itself, and session
+   D's pack command was re-pasted after D had already applied and
+   the reinstall hook had installed 0.3.29. The stale goal rode
+   forward; the worker receiving it verified the tree against the
+   goal, ran the suite, refused to fabricate a change set, and
+   asked — the misunderstanding-control doctrine functioning live,
+   at the cost of one burned NNN and one unlock. Correctives: the
+   single-paste rule gains its pair — commands for different
+   phases never share a message — and the friction session's
+   charter gains operator state legibility (`bale status` as the
+   ground truth consulted before any pack when state is uncertain,
+   which is a tooling-surface question as much as a discipline
+   one).
 
 ## Residual close-out
 
 This design session closes read-only at the next read-only pack's
 sweep — the architect's new master pack will trigger it; accept the
 default — or `bale unlock 2026-08-04-board-6-blind-checkpoint-design-003`
-now. After it: board 6 closeable on the record; the MASTER.md board-6
-row update rides your next deltas landing per the v4 convention,
+now. The redundant `2026-08-05-board-6-stats-read-side-003` session
+(finding 5) closes by operator unlock with no successor and nothing
+landed; its telemetry closure record is the durable trace. After
+both: board 6 closeable on the record; the MASTER.md board-6 row
+update rides your next deltas landing per the v4 convention,
 consuming this report; the two ratified doc deltas await the same
 vehicle. Nothing else is open or queued from this desk.
