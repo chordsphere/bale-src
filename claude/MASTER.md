@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-05-master-deltas-008`.
+Last landed by: `2026-08-05-ratification-microdeltas-010`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -115,14 +115,15 @@ board-6 dependency is satisfied; the gate now waits on board 10 and
 the first exercised autonomy grant (§5's ladder contract, wording
 unchanged there).
 
-**Current version: 0.3.31**, architect-verified against the live
-install 2026-08-05 (the standing rule: verify with `bale --version`
-at each sitting's open). Post-arc trail:
+**Current version: 0.3.32** (`2026-08-05-auto-sweep-009`, code
+session, cadence-conformant; the standing rule stands: verify with
+`bale --version` at each sitting's open). Post-arc trail:
 `execution-context-amendment-006` (doc-only) landed unbumped — the
-open cadence ruling, §6 entry 54 — then 0.3.30 (`archive-dir-005`)
-and 0.3.31 (`pack-tree-echo-007`). For this entry the architect's
-verification was additionally checked against this deltas request's
-own pack-time provenance stamp, 0.3.31 — the stamp agrees.
+open cadence ruling, §6 entry 54 — then 0.3.30 (`archive-dir-005`),
+0.3.31 (`pack-tree-echo-007`), and 0.3.32 (`auto-sweep-009`). For
+this entry the value was verified against this deltas request's own
+pack-time provenance stamp per the deltas-005 precedent — the stamp
+reads 0.3.32 and agrees.
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -148,20 +149,25 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **Operator-friction master session** (directed by the architect;
-  board-6 arc upward report, escalation 4): a dedicated read-only
-  master session disposes the operator-friction arc in discussion
-  before delegation. Its charter carries the friction findings'
-  transfer and the disposition of the authored-and-shelved archival
-  pack command, plus operator state legibility (§6 entry 53). The
-  arc's finding 3 is already retired — `archive_dir` landed at
-  0.3.30 and the architect opted in at the global layer
-  (`archive_dir claude/responses`); archives materialize on future
-  applies, none on disk at this writing.
+- **Operator-friction master session — charter narrowed** (directed
+  by the architect; board-6 arc upward report, escalation 4): the
+  sweep item is disposed — mechanized by `2026-08-05-auto-sweep-009`
+  at the architect's direction 2026-08-05, superseding the charter
+  for that item — and the authored-and-shelved archival pack command
+  is dead, superseded by `archive-dir-005` (the 0.3.30 landing, §2's
+  trail). The charter's remainder is the state-legibility question
+  (the arc's finding 5; §6 entry 53): it either folds into the next
+  sitting or takes its own short session, architect's choice at
+  spawn.
+- **Next sitting:** the board-10 harness discussion, via a fresh
+  read-only master pack, whose sweep closes
+  `2026-08-04-board-6-blind-checkpoint-design-003` and
+  `2026-08-04-continue-plan-002` at the accept-default.
 
 **Watches** (named re-triggers, no work; the first four carried
-verbatim from the board-5 arc's upward report, the last three from
-the board-6 arc's):
+verbatim from the board-5 arc's upward report, the next three from
+the board-6 arc's, the last from `2026-08-05-auto-sweep-009`'s
+notes):
 
 - Emitter-parser reconciliation drift: all three unparsed-
   reconciliation records are 2026-07-31 consolidation-day straddlers;
@@ -191,6 +197,9 @@ the board-6 arc's):
   recorded in the rev B brief's D1).
 - Required-set keyed form: re-triggers on systematic per-class
   `[SKIP]` noise in the ledger's new rows.
+- Sweep current-branch commit skip predicate (a two-line change,
+  named in `auto-sweep-009`'s notes). Re-trigger: the first
+  observed off-target-checkout confusion.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -228,9 +237,11 @@ with the unverifiable ones carried verbatim and marked):
   whether the snippet-not-extended precedent ([staging] v0.3.7,
   [identity] v0.3.8, followed consistently by board-6 sessions A–C,
   so the eventual true-up is a single sweep) is policy or accident;
-  the question is recorded, not answered. Rides the next small doc
-  session touching that file. (Source: session A's notes and the
-  board-6 arc report's on-watch line.)
+  the question is recorded, not answered. The same carrier gains
+  the §4 sweep config row (one internals sweep, same carrier as
+  the §2.5 true-up; source: `2026-08-05-auto-sweep-009`'s notes).
+  Rides the next small doc session touching that file. (Source:
+  session A's notes and the board-6 arc report's on-watch line.)
 - The checkpoint exit-2 stats split — an additive
   `checkpoint_errored_attempts` count (stamp `exit_code == 2`)
   beside the HOLD count; v1 folds the planner's-artifact-errored
@@ -239,6 +250,10 @@ with the unverifiable ones carried verbatim and marked):
   the stamp preserves `exit_code`, so the read side can split later
   with no write-side change. Rides board 10, on its harness asking
   the question. (Source: session D's notes proposal.)
+- The additive json `sweep` object plus stats read side
+  (accepted-recorded from `2026-08-05-auto-sweep-009`'s notes),
+  session authorable on request — a natural early customer of the
+  board-10 era. Rides board 10.
 
 Cleared at this landing (`2026-08-03-master-deltas-005`): the
 BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
@@ -259,6 +274,23 @@ BALE.md §8.9 retitle entry — verified pre-landed: the shipped
 BALE.md heading at line 1575 already read "Telemetry record at
 session close" when checked at the 2026-07-31 third sitting
 (master verification, `continue-plan-016`).
+
+Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`, 0.3.32):
+`[apply] sweep`, default-off, the architect opted in at the global
+layer beside `archive_dir`; the manual telemetry/archive dance is
+retired (standing fact: §7). Ratified judgment calls, one line
+each, dated 2026-08-05 at the master desk:
+
+- Rollback and `--undo` joined the trigger set: the first sweep
+  makes records tracked, and rollback's append would strand a
+  modified-tracked file against the untracked-only carve-out — the
+  worker's catch; the carve-out stays conservative.
+- Continuing states accumulate into one closure commit, with
+  `closure_reason` as the commit event.
+- Sweep commits land on the current branch.
+- The malformed-key refusal/skip asymmetry is deliberate:
+  pre-flight refusal on apply, loud never-fatal skip on post-hoc
+  commands.
 
 ## 4. The board
 
@@ -1436,8 +1468,11 @@ New from the 2026-08-04→05 sitting (the board-6 arc):
 - A post_pack hook copies request tarballs to Downloads.
 - Response archival is opted in at the global config layer:
   `archive_dir claude/responses` (the `archive_dir` candidate
-  landed at 0.3.30). Archives materialize on future applies — none
-  on disk at this writing.
+  landed at 0.3.30). `[apply] sweep` landed default-off
+  (`2026-08-05-auto-sweep-009`, 0.3.32), with the architect opted
+  in at the global layer beside `archive_dir`; the manual
+  telemetry/archive dance is retired. Archives materialize on
+  future applies — none on disk at this writing.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. Enumerate suites from
   the tree (`ls tests/`), never from this doc; counts stated in
