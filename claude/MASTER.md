@@ -691,9 +691,15 @@ New, ratified 2026-07-21:
   (4a) are the sanctioned insertion shape.
 - **Execution-context manifest:** any session whose fixtures execute
   bin/bale end to end includes, verbatim: all of bin/, all of
-  schemas/, the four global docs under docs/, and
-  tools/response_lint.py. Copied, never re-derived. (The
-  countermeasure for evidence 30's class.)
+  schemas/, the four global docs under docs/, every tools/ member
+  named in bin/bale's INJECTED_TOOLS, and the scripts the test suite
+  executes — today scripts/build.sh and install.sh (equivalently:
+  all of tools/, scripts/build.sh, install.sh). The set tracks the
+  rule, not the enumeration: when INJECTED_TOOLS grows or the suite
+  gains an executed script, the set grows with it, no contract edit
+  needed. Copied, never re-derived. (Countermeasure for evidence
+  30's class; amended 2026-08-05 from the enumerated form after the
+  board-6 arc's two include-gap instances — sessions A and B.)
 - **ADR-0013 flips to Accepted:** ratified; the flip lands with
   board 14's session (see the fold-in registry). [2026-07-25: board
   14 retired; the flip rides board 22a per the registry.]
