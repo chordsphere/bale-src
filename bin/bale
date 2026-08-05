@@ -220,7 +220,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.30"
+VERSION = "0.3.31"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3698,13 +3698,19 @@ def _branch_exists(repo: Path, branch: str) -> bool:
     return r.returncode == 0
 
 
-def _applied_tags(repo: Path) -> tuple[int, Optional[str]]:
+def applied_tags(repo: Path) -> tuple[int, Optional[str]]:
     """Return (count, most-recent-sid) for applied/<sid> tags in `repo`.
 
     Most-recent is by tag creation date (matching how `bale rollback` reasons
     about applied history), reported as the bare sid with the `applied/` prefix
     stripped. This is a deliberately light touch: `bale rollback --list` is the
-    full applied/reverted/re-applied view, and status only points at it.
+    full applied/reverted/re-applied view, and its consumers only point at it.
+
+    Two consumers, one source (v0.3.31): the status applied row, and pack's
+    tree-position echo (BALE.md §7.7) — the echo exists precisely because it
+    renders the same fact status does, so both read it here. Public since
+    v0.3.31 (was `_applied_tags`) for exactly that cross-module share;
+    behavior unchanged.
     """
     r = git(["for-each-ref", "--sort=-creatordate",
              "--format=%(refname:short)", "refs/tags/applied/"],
@@ -3942,7 +3948,7 @@ def _gather_status(cwd: Path) -> StatusReport:
                 log(f"status: could not read {manifest_path}; "
                     f"omitting goal", )
 
-    report.applied_count, report.applied_latest = _applied_tags(repo)
+    report.applied_count, report.applied_latest = applied_tags(repo)
     _summarise_config(repo, report)
     return report
 

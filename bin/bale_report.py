@@ -967,6 +967,8 @@ def format_pack_json(
     readme_path: Optional[str] = None,
     readme_heading: Optional[str] = None,
     readme_sha256: Optional[str] = None,
+    branch: Optional[str] = None,
+    applied_latest: Optional[str] = None,
 ) -> str:
     """Render the `bale pack --json` end-of-run report as ONE line of JSON.
 
@@ -1006,6 +1008,20 @@ def format_pack_json(
                      tarball — the identity proper, since path + heading
                      alone proved insufficient — or null with no README.
                      All three are null together or set together.
+      branch         the tree-position echo (v0.3.31; additive keys, per
+                     the stable-contract rule above; BALE.md §7.7): the
+                     branch checked out at pack time. Always a real
+                     branch name in practice — the detached-HEAD refusal
+                     rejects before the report can render — nullable
+                     only as the additive-parameter default.
+      applied_latest the tree-position echo's other half: the most
+                     recent applied sid (applied/<sid> tag by creation
+                     date — the same fact the status applied row
+                     renders, from the same source, applied_tags in
+                     bin/bale), or null when nothing has been applied
+                     yet. The human summary renders that null as
+                     "none yet" (tree_position_rows); here it stays
+                     null so a consumer tests a value, not a phrase.
 
     Emitted as a single compact line (no indent) so the consumer contract
     stays line-oriented. Since v0.2.8 json mode carries stream discipline
@@ -1029,6 +1045,8 @@ def format_pack_json(
         "readme_path": readme_path,
         "readme_heading": readme_heading,
         "readme_sha256": readme_sha256,
+        "branch": branch,
+        "applied_latest": applied_latest,
     }
     return json.dumps(payload)
 
@@ -1699,6 +1717,51 @@ def format_revert_json(
 
 
 # --- status: session-registry human-value formatters (v0.3.0, ADR-0006) ---
+
+def format_tree_position(*, branch: str, applied_latest) -> str:
+    """Render pack's tree-position echo as one informational line body
+    (v0.3.31; BALE.md §7.7).
+
+    The echo exists for operator state legibility at the pack surface:
+    a stale re-pasted pack command does its damage exactly when the
+    operator's mental model of the tree has fallen behind the tree
+    itself, and pack said nothing about where the tree is at the moment
+    of paste. This line names the two facts that make the staleness
+    visible — the current branch, and the most recent applied sid (the
+    same fact the status applied row renders, read from the same
+    source: applied_tags in bin/bale). `applied_latest` is that sid or
+    None; None renders as "none yet", matching the status row's honest
+    empty. cmd_pack emits the line through log() immediately after the
+    detached-HEAD refusal — before the supersession exchange and the
+    wizard, so the operator sees it before investing any answers, and
+    after every earlier pre-flight refusal, so reject-early is intact.
+
+    This function and tree_position_rows below are the wording's one
+    home (the same rendering contract as every other row value in this
+    module): bale_pack gathers the facts and wires them here. Pure:
+    builds a string, prints nothing.
+    """
+    applied = applied_latest if applied_latest is not None else "none yet"
+    return f"tree position: branch {branch}; latest applied {applied}"
+
+
+def tree_position_rows(*, branch: str, applied_latest) -> list:
+    """The tree-position echo as end-of-run summary rows (v0.3.31).
+
+    The report half of the echo format_tree_position documents (BALE.md
+    §7.7): the same two facts as (label, value) pairs for the human
+    summary block, so the facts survive past the scroll of the wizard
+    and threshold prompts into the block the operator actually reads
+    last. Same None → "none yet" rendering, one wording rule for both
+    surfaces. The --json parity keys (`branch`, `applied_latest`) live
+    in format_pack_json, whose docstring owns that key contract.
+    """
+    applied = applied_latest if applied_latest is not None else "none yet"
+    return [
+        ("branch", str(branch)),
+        ("latest applied", applied),
+    ]
+
 
 def format_scope_value(scope: list) -> str:
     """Render one session's recorded scope (ADR-0007) as a row value.
