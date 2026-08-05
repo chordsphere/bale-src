@@ -1,0 +1,94 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-05-ratification-microdeltas-010",
+  "created_at": "2026-08-05T03:42:53+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-05T03:42:53+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-010 (2).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "confinement: untouched-section hashes (sections 1, 4, 5, 6, 8)": "pass",
+          "delta content anchors (deltas 1-5)": "pass"
+        },
+        "claim_verdict": {
+          "confinement: untouched-section hashes (sections 1, 4, 5, 6, 8)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "delta content anchors (deltas 1-5)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.32",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "2026-08-04-continue-plan-002",
+            "work_class": "meta",
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "\"the \u00a73/\u00a77 seam\" read as the record straddling both sections: landing block + judgment calls at the \u00a73 tail, standing fact in \u00a77's archival bullet (flagged in notes.md)",
+            "design-003 and continue-plan-002 expanded to full sids 2026-08-04-board-6-blind-checkpoint-design-003 and 2026-08-04-continue-plan-002 per the doc's bare-NNN collision rule"
+          ],
+          "judgment_calls": [
+            "dropped the old charter bullet's finding-3 status sentence in the \u00a73 narrowing; \u00a77 is the standing-fact home (notes.md)",
+            "reworded the watches preamble attribution to stay honest after the appended watch",
+            "left \u00a77's bin/bale VERSION 0.3.31 landmark and the archives-on-disk indexical untouched \u2014 outside the brief's named lines; proposed the true-up in notes.md",
+            "\u00a72 verification sentence grounded on the pack-time provenance stamp (the observable), not a live install read"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-05-ratification-microdeltas-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-05T03:42:53+00:00",
+  "outcome": "applied"
+}
