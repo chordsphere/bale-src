@@ -1,6 +1,6 @@
 # ADR-0003: Selftest dogfood depth — two tiers, no recursion into the real install
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 - **Supersedes:** —
 - **Superseded by:** —
@@ -77,3 +77,4 @@ anticipates: an ordinary library would not need the "by absolute path,
 never `$PATH`" invariant, and would have no reinstall-recursion footgun to
 rule out. Coupled tightly with ADR-0005 (the sandbox that makes the E2E
 tier safe) and ADR-0004 (the factories that build its temp repos).
+2026-08-05: ratified at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011), recognizing exercised practice.
