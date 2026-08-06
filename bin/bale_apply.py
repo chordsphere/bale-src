@@ -2170,7 +2170,11 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # [REVERT]+revert (work backed out cleanly) lives in the
         # printed banner, not the exit code — exit code carries the
         # binary "work landed or not" signal only.
-        status = _discard_hold_state(repo, locked_sid)
+        # --verbose (v0.4.0, the accepted 005 rider) rides into the
+        # helper the same way cmd_revert's call does: the discard's
+        # captured git output streams live; the default path is
+        # byte-identical.
+        status = _discard_hold_state(repo, locked_sid, verbose=verbose)
         close_session(repo, locked_sid)
         release_integration_lock(repo)
         log(f"walkthrough revert: {locked_sid}; session closed")

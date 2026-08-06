@@ -1064,7 +1064,7 @@ The inputs:
     collision; the pack is evaluated against every other open session
     as usual.
 
-  By contract (§5 authorship line, TARBALL.md §3.4) the flag is
+  By contract (TARBALL.md §3.4) the flag is
   **worker-authored only**: it appears in worker-emitted rescope
   commands that the architect pastes. Nothing enforces this in code —
   the doc carries the policy. The flag is never overloaded for
@@ -2821,20 +2821,19 @@ The counter and this phase model decoupled during the 0.3.x line:
 this paragraph long closed "v0.3 is not yet cut" while the shipped
 constant ran ahead — 0.3.27 at the 2026-08-03 ratification of the
 ladder below (version per that session's request provenance stamp).
-Re-coupled position, ratified: **v0.3 is the shipped series**, and
-**0.4.0 cuts** when two items close —
-
-- the `--verbose` thread — the residue named above: the commands
-  still without the flag (pack and revert; retry gained it in
-  v0.3.14 via flag parity) plus the §7.4 pass-through of `--verbose`
-  into `validation.sh` itself; and
-- a read-only audit diffing the v0.4 selftest checklist below
-  against the actual suite — the rollback conflict and merge-commit
-  cases were explicitly deferred to v0.4 and never picked up.
-
-Then cut. The ratified ladder supersedes the earlier escape hatch
-(an explicit architect's call to cut early and track the remainder
-under v0.3b); that clause is retired.
+The ratified re-coupling held: **v0.3 is the shipped series**, and
+0.4.0 was gated on two items — the `--verbose` thread residue (the
+commands still without the flag, plus the TARBALL.md §7.4
+pass-through of `--verbose` into `validation.sh` itself) and a
+read-only audit diffing the v0.4 selftest checklist below against
+the actual suite. Both closed on 2026-08-06: the thread at v0.3.35
+(the parenthetical above), and the audit in
+`2026-08-06-v04-selftest-audit-006` — doc-only, findings recorded
+in that session's notes, the gap list riding forward as post-cut
+work under the v0.4 phase. **Cut 2026-08-06 at 0.4.0.** The
+ratified ladder superseded the earlier escape hatch (an explicit
+architect's call to cut early and track the remainder under v0.3b);
+that clause stays retired.
 
 ### v0.4 — selftest
 

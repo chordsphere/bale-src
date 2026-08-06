@@ -222,7 +222,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.35"
+VERSION = "0.4.0"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2092,8 +2092,11 @@ def cmd_retry(args: argparse.Namespace) -> int:
     refuse_dirty_on_target(repo, resolve_target_branch(repo, locked_sid))
 
     # Cleanup is no-op if there's no HOLD to discard (e.g. user packed but
-    # never tried apply). In that case retry behaves like apply.
-    status = _discard_hold_state(repo, locked_sid)
+    # never tried apply). In that case retry behaves like apply. --verbose
+    # (v0.4.0, the accepted 005 rider) rides into the helper the same way
+    # cmd_revert's call does: the discard's captured git output streams
+    # live; the default path is byte-identical.
+    status = _discard_hold_state(repo, locked_sid, verbose=args.verbose)
     if not status["branch_existed"]:
         log("no prior apply attempt for this session; retry equivalent to apply")
 

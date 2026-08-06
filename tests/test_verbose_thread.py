@@ -21,6 +21,11 @@ residue, plus the riding staging-row fold-in:
   byte-identical to the old inline strings (all four states unit-
   checked against the shipped renderer), and revert's human summary
   still carries the projected row.
+- The v0.4.0 rider (the accepted 005 proposal): the other two
+  `_discard_hold_state` callers thread the already-present verbose
+  flag — `bale retry --verbose` and the apply walkthrough's revert
+  action stream the discard's captured git output; both default
+  surfaces emit no verbose lines, same parity pin as pack/revert.
 
 The response tarball fixture mirrors test_hold_retry_e2e's shape
 (computed hashes, real scripts); the HOLD fixture for revert mirrors
@@ -54,6 +59,7 @@ from harness import (
     make_repo,
     make_sandbox_home,
     run_bale,
+    run_bale_pty,
     run_checked,
 )
 
@@ -295,6 +301,66 @@ class VerboseThreadTest(unittest.TestCase):
                       msg="the default invocation must stay exactly "
                           "`bash validation.sh` — no arguments")
         self.assertNotIn(f"{ARGV_SENTINEL}--verbose]", log_text)
+
+    # -- pinned behavior 5: the discard-path threading (v0.4.0 rider) ----
+
+    def test_retry_verbose_streams_discard_git_output(self) -> None:
+        """`bale retry --verbose` threads the flag into
+        _discard_hold_state: the prior attempt's branch -D result
+        streams live before the pipeline re-runs."""
+        sid = self.make_held_session()
+        tarball = self.build_response_tarball(sid, name="retry-verbose")
+        result = run_bale(self.install,
+                          ["retry", str(tarball), "--verbose"],
+                          cwd=self.repo, env=self.env)
+        self.assert_ok(result)
+        combined = result.stdout + result.stderr
+        self.assertIn(f"verbose: git branch -D bale/{sid}", combined)
+        self.assertIn("Deleted branch", combined)
+
+    def test_retry_default_emits_no_verbose_lines(self) -> None:
+        sid = self.make_held_session()
+        tarball = self.build_response_tarball(sid, name="retry-default")
+        result = run_bale(self.install, ["retry", str(tarball)],
+                          cwd=self.repo, env=self.env)
+        self.assert_ok(result)
+        combined = result.stdout + result.stderr
+        self.assertNotIn(VERBOSE_MARKER, combined,
+                         msg="the default retry surface must stay "
+                             "byte-parity with the pre-rider behavior")
+
+    def test_walkthrough_revert_verbose_streams_discard_git_output(
+            self) -> None:
+        """The apply walkthrough's revert action threads the pipeline's
+        verbose flag into _discard_hold_state: choosing [r] under
+        `apply --verbose` streams the branch -D result."""
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(sid, name="walkrevert-verbose")
+        exit_code, output = run_bale_pty(
+            self.install, ["apply", str(tarball), "--verbose"],
+            cwd=self.repo, env=self.env, answers="r\n")
+        self.assertEqual(
+            exit_code, 1,
+            msg=f"walkthrough revert exits 1 (work did not land); "
+                f"output:\n{output}")
+        self.assertIn(f"verbose: git branch -D bale/{sid}", output)
+        self.assertIn("Deleted branch", output)
+
+    def test_walkthrough_revert_default_emits_no_verbose_lines(self) -> None:
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(sid, name="walkrevert-default")
+        exit_code, output = run_bale_pty(
+            self.install, ["apply", str(tarball)],
+            cwd=self.repo, env=self.env, answers="r\n")
+        self.assertEqual(
+            exit_code, 1,
+            msg=f"walkthrough revert exits 1 (work did not land); "
+                f"output:\n{output}")
+        self.assertIn(f"bale/{sid} deleted", output,
+                      msg="the revert action must still have run")
+        self.assertNotIn(VERBOSE_MARKER, output,
+                         msg="the default walkthrough-revert surface must "
+                             "stay byte-parity with the pre-rider behavior")
 
     # -- pinned behavior 4: the staging-row projection -------------------
 
