@@ -505,9 +505,16 @@ The following flags apply across multiple commands:
 - `--verbose` — stream validation output and other long-running
   command output to stdout in addition to the log file. (Landed
   apply-scoped in v0.2.1 — `bale apply --verbose` streams `validation.sh`
-  output live — and extended to `bale retry --verbose` in v0.3.14, since
-  retry reruns the same pipeline; wiring it across the other commands
-  listed here is future work.)
+  output live — extended to `bale retry --verbose` in v0.3.14 via flag
+  parity, and closed across the surface in v0.3.35: `bale pack
+  --verbose` streams the filter-chain drop decisions and the tarball
+  build trail, `bale revert --verbose` streams the discard's captured
+  git output, and on the apply/retry verbose path the flag is also
+  forwarded onto `validation.sh`'s own argv so the script's TARBALL.md
+  §7.4 verbose mode engages inside it, not just around it. The
+  remaining commands carry no captured long-running surface warranting
+  the flag — handoff's tarball build is the one candidate, deliberately
+  left quiet until a session asks for it.)
 - `--no-interact` — non-TTY mode. Skips prompts; the default action
   (Enter key equivalent) is taken at every prompt point. (Landed
   apply-scoped in v0.2.5 — `bale apply --no-interact` and `bale retry
@@ -2797,7 +2804,9 @@ table.)*
   output to the session log only by default and live-streams to the
   terminal under `--verbose`, per §8.5 step 4. Wiring `--verbose` across
   the other commands the §5.4 global-flags list anticipates, and the §7.4
-  pass-through of `--verbose` into `validation.sh` itself, remain open.)*
+  pass-through of `--verbose` into `validation.sh` itself, closed in
+  v0.3.35 — pack and revert gained the flag and the verbose path forwards
+  it onto the script's argv; status per §5.4's updated bullet.)*
 - Optional bash completion (`source` it from shell rc — not required
   for any functionality). *(Landed in v0.2.2 as `bale completion bash`,
   which walks `build_parser()` once and emits a self-contained bash

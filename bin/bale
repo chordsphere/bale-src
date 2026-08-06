@@ -128,6 +128,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_open_sessions_value,
     format_revert_json,
     format_scope_value,
+    format_staging_row,
     format_staging_value,
     format_status_json,
     format_summary_block,
@@ -221,7 +222,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.34"
+VERSION = "0.3.35"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -1620,7 +1621,8 @@ def is_baleignore_match(rel: str, matcher: Optional[BaleignoreMatcher]) -> bool:
 # 19. Revert
 # ---------------------------------------------------------------------------
 
-def _discard_hold_state(repo: Path, sid: str) -> dict:
+def _discard_hold_state(repo: Path, sid: str, *,
+                        verbose: bool = False) -> dict:
     """Discard the HOLD-applied state for sid.
 
     Switches off bale/<sid> if checked out (refusing loudly, WIP
@@ -1653,16 +1655,38 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
         {
             "branch_existed": bool,
             "origin_branch": str | None,
-            "staging_status": str,  # "wiped (path)" / "already gone" / "not recorded"
             "staging_state": str,   # "wiped" | "unremovable" | "already-gone" | "not-recorded"
             "staging_path": str | None,  # the recorded staging path, when one was
+            "staging_error": str | None, # rmtree failure text, "unremovable" only
         }
-    staging_status is the human row; staging_state/staging_path are the
-    same facts as machine keys (v0.3.19, for `bale revert --json`) —
-    derived here from the filesystem alongside the human string, never
-    parsed back out of it (the same posture cmd_unlock's
-    session_dir_wiped takes).
+    Machine facts only (v0.3.35, the accepted session-008 fold-in): the
+    human `staging` row is rendered from these keys by
+    bale_report.format_staging_row at both discard consumers (cmd_revert's
+    summary block and the apply walkthrough's revert branch) — derived
+    here from the filesystem, never parsed back out of a display string
+    (the same posture cmd_unlock's session_dir_wiped takes, now with the
+    rendering residue gone from this path too). staging_error joins the
+    facts because the "unremovable" row carries the OSError text, which
+    the v0.3.19 pair (state, path) alone could not reproduce.
+
+    `verbose` (v0.3.35, `bale revert --verbose` — BALE.md §5.4): echo the
+    captured stdout/stderr of the git operations this discard runs
+    (branch verification, the inspection-checkout switch, `branch -D`)
+    live as they complete, prefixed per stream. Default keeps today's
+    quiet path byte-identical — the [bale] log lines stay the whole
+    trail. Echoes go through print(), so under `--json` they follow the
+    stream discipline to stderr like every other informational line.
     """
+    def _echo_git(label: str, r) -> None:
+        # Verbose-only: surface the captured git output that the quiet
+        # path discards. Both streams, prefixed, skipping empties.
+        if not verbose:
+            return
+        for stream_name, text in (("stdout", r.stdout), ("stderr", r.stderr)):
+            for ln in (text or "").splitlines():
+                if ln.strip():
+                    print(f"[bale] verbose: git {label} {stream_name}: {ln}")
+
     sessions_dir = repo / ".bale" / "sessions" / sid
     sid_branch = f"bale/{sid}"
 
@@ -1677,6 +1701,7 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
     # Branch handling.
     branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
                        cwd=repo, check=False)
+    _echo_git(f"rev-parse --verify {sid_branch}", branch_check)
     branch_existed = branch_check.returncode == 0
     origin_branch: Optional[str] = None
 
@@ -1718,6 +1743,7 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
             log(f"on {sid_branch}; switching to {origin_branch}")
             switched = git(["checkout", origin_branch], cwd=repo,
                            check=False)
+            _echo_git(f"checkout {origin_branch}", switched)
             if switched.returncode != 0:
                 detail = (switched.stderr or switched.stdout or "").strip()
                 fail(f"cannot switch from {sid_branch} to {origin_branch}: "
@@ -1730,7 +1756,8 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
             log(f"on {current}; deleting {sid_branch} without changing branch")
 
         # Force-delete the bale branch.
-        git(["branch", "-D", sid_branch], cwd=repo)
+        deleted = git(["branch", "-D", sid_branch], cwd=repo)
+        _echo_git(f"branch -D {sid_branch}", deleted)
         log(f"deleted branch {sid_branch}")
     else:
         log(f"no branch {sid_branch} to discard (no prior apply attempt)")
@@ -1744,32 +1771,30 @@ def _discard_hold_state(repo: Path, sid: str) -> dict:
     # may have already removed it, or the session never made it past the
     # exists() pre-check at apply time. Don't fail the whole operation
     # for an unremovable staging dir; the git side is already reverted.
+    staging_error: Optional[str] = None
     if recorded_staging is None:
-        staging_status = "not recorded"
         staging_state = "not-recorded"
         log("no recorded staging path; skipping staging cleanup")
     elif recorded_staging.exists():
         try:
             shutil.rmtree(recorded_staging)
             log(f"wiped staging at {recorded_staging}")
-            staging_status = f"wiped ({recorded_staging})"
             staging_state = "wiped"
         except OSError as e:
             log(f"warning: could not remove {recorded_staging}: {e}")
-            staging_status = f"left in place ({recorded_staging}: {e})"
             staging_state = "unremovable"
+            staging_error = str(e)
     else:
         log(f"staging at {recorded_staging} already gone")
-        staging_status = "already gone"
         staging_state = "already-gone"
 
     return {
         "branch_existed": branch_existed,
         "origin_branch": origin_branch,
-        "staging_status": staging_status,
         "staging_state": staging_state,
         "staging_path": (str(recorded_staging)
                          if recorded_staging is not None else None),
+        "staging_error": staging_error,
     }
 
 
@@ -1847,8 +1872,10 @@ def cmd_revert(args: argparse.Namespace) -> int:
                 f"recording the revert without it")
     revert_scope = read_session_scope(repo, sid)
 
-    # Shared cleanup (9.1 steps 2-5, plus staging cleanup).
-    status = _discard_hold_state(repo, sid)
+    # Shared cleanup (9.1 steps 2-5, plus staging cleanup). --verbose
+    # (v0.3.35) rides into the helper: the captured git output of the
+    # discard streams live; the default path is byte-identical.
+    status = _discard_hold_state(repo, sid, verbose=args.verbose)
 
     # 9.1 step 6: close this sid in the registry if it was open. Threaded
     # (ADR-0006): the close targets the reverted session itself, never
@@ -1898,7 +1925,13 @@ def cmd_revert(args: argparse.Namespace) -> int:
         [
             ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
             ("lock", "cleared" if lock_cleared else "unchanged"),
-            ("staging", status["staging_status"]),
+            # v0.3.35: the human row is a projection of the machine facts
+            # (bale_report.format_staging_row owns the rendering — the
+            # accepted session-008 fold-in).
+            ("staging", format_staging_row(
+                state=status["staging_state"],
+                path=status["staging_path"],
+                error=status["staging_error"])),
             ("telemetry",
              f"recorded {telemetry_rel}" if telemetry_rel
              else "write failed — see log"),
@@ -4623,6 +4656,18 @@ def build_parser() -> argparse.ArgumentParser:
              "do not use to silence a soft-breach prompt without thinking.",
     )
     p_pack.add_argument(
+        "--verbose", action="store_true",
+        help="Stream pack's quiet phases live (BALE.md §5.4): a per-path "
+             "line for every file the filter chain drops (naming which "
+             "filter — baked-in dir, secret pattern, .baleignore/session "
+             "exclude, outside --include) and the tarball build trail "
+             "(injected docs and tools, manifest, README, each context "
+             "copy, the tar step). Hook output already streams live with "
+             "or without the flag. Walk lines run pre-session and reach "
+             "the terminal only; build lines also land in "
+             ".bale/logs/<sid>.log. Default output is unchanged.",
+    )
+    p_pack.add_argument(
         "--json", action="store_true",
         help="Emit the end-of-run pack report as one line of JSON on stdout "
              "instead of the human summary block. Keys are a stable contract "
@@ -4900,6 +4945,16 @@ def build_parser() -> argparse.ArgumentParser:
              "telemetry record as closure_reason (BALE.md §8.9). "
              "Optional: omitted records null — the 'reverted' outcome "
              "already names the event.",
+    )
+    p_revert.add_argument(
+        "--verbose", action="store_true",
+        help="Stream the captured output of the git operations the "
+             "discard runs (branch verification, the inspection-checkout "
+             "switch, branch -D) live as they complete (BALE.md §5.4). "
+             "Default output is unchanged — the [bale] log lines remain "
+             "the whole trail. Under --json the verbose lines follow the "
+             "stream discipline to stderr; stdout still carries exactly "
+             "the one JSON line.",
     )
     p_revert.add_argument(
         "--json", action="store_true",

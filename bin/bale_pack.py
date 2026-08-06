@@ -306,6 +306,7 @@ def walk_for_pack(
     caps: PackCaps,
     force: bool,
     matcher: Optional[BaleignoreMatcher] = None,
+    verbose: bool = False,
 ) -> PackProjection:
     """Enumerate files for pack, applying the filter chain, while accumulating
     file count, total size, max depth, and per-top-level-dir totals.
@@ -334,7 +335,30 @@ def walk_for_pack(
     the file ('foo.txt' is depth 0, 'a/b/foo.txt' is depth 2). A cap of
     20 means files up to 20 directories deep are allowed; the 21st-level
     file trips the cap. Files at depth 0 are bucketed under '(root)' in
-    largest_dirs so root-level files don't disappear from the report."""
+    largest_dirs so root-level files don't disappear from the report.
+
+    `verbose` (v0.3.35, `bale pack --verbose` — BALE.md §5.4): stream a
+    per-path line for every file the filter chain drops, naming which
+    filter dropped it — the walk's decisions are otherwise invisible
+    (the projection block reports totals only). The lines print through
+    the __main__ log() path; the walk runs pre-sid, so they reach the
+    terminal without a session-journal copy — matching every other
+    pre-sid line — and under --json the stream swap routes them to
+    stderr like all informational output. On the soft-breach [e] re-walk
+    the trail re-prints against the updated matcher, which is the honest
+    rendering of a re-decided walk. Default (False) is byte-identical to
+    today: no per-path output, surviving files summarized after the
+    walk as before.
+    """
+    def _drop(rel: str, why: str) -> None:
+        # Verbose-only per-path trail (docstring above). Quiet path
+        # unchanged — including its import surface: log resolves from
+        # __main__ only when --verbose engaged (same posture as
+        # build_request_tarball's trail).
+        if verbose:
+            from __main__ import log  # lazy — verbose-only
+            log(f"verbose: skip {rel} ({why})")
+
     files: list[str] = []
     total_bytes = 0
     max_depth_seen = 0
@@ -346,14 +370,19 @@ def walk_for_pack(
         # Filter chain — matches gather_files_for_pack's body so the
         # surviving set on a no-cap run is consistent across entry points.
         if not (repo / rel).is_file():
+            _drop(rel, "not a regular file")
             continue
         if is_under_excluded_dir(rel):
+            _drop(rel, "baked-in excluded directory")
             continue
         if is_secret_excluded(rel, repo):
+            _drop(rel, "secret pattern")
             continue
         if matcher is not None and matcher.matches(rel):
+            _drop(rel, ".baleignore / session exclude")
             continue
         if not is_under_include(rel, includes):
+            _drop(rel, "outside --include")
             continue
 
         # File survives. Account for it before the cap check, so the
@@ -834,6 +863,7 @@ def build_request_tarball(
     out_path: Path,
     *,
     readme_body: Optional[str] = None,
+    verbose: bool = False,
 ) -> None:
     """Write the request tarball to out_path. Layout per TARBALL.md section 3.1.
 
@@ -854,6 +884,17 @@ def build_request_tarball(
     The caller is responsible for path safety on each entry's
     context_relative_path (no traversal, no absolute, no .bale/.git prefix);
     both current callers feed already-filtered inputs.
+
+    `verbose` (v0.3.35, `bale pack --verbose` — BALE.md §5.4): stream the
+    build trail live — one line per injected global doc and tool, the
+    manifest and optional README writes, each context entry as it copies,
+    and the final tar step. The build is otherwise a quiet phase between
+    "selected N files" and "wrote <tarball>", which on a large context is
+    exactly the stretch an operator stares at. Lines go through the
+    __main__ log() path: pack's call site runs post-sid, so they land on
+    the terminal AND in the session log; `bale handoff` (the other
+    caller) passes nothing and stays byte-identical — the flag is
+    pack-scoped for now.
     """
     from __main__ import (  # lazy — see module docstring
         DOCS_DIR,
@@ -861,6 +902,17 @@ def build_request_tarball(
         INJECTED_TOOLS,
         TOOLS_DIR,
     )
+
+    def _trail(msg: str) -> None:
+        # Verbose-only build trail (docstring above). Quiet path
+        # unchanged — including its import surface: log resolves from
+        # __main__ only when --verbose engaged, so harness drivers that
+        # stub a partial __main__ (the injection-surface suite) keep
+        # working without the flag.
+        if verbose:
+            from __main__ import log  # lazy — verbose-only
+            log(f"verbose: {msg}")
+
     nnn = sid[-3:]
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -872,6 +924,7 @@ def build_request_tarball(
         # follow_symlinks=False preserves mode bits — see the context-files
         # copy below for why that matters for the rest of the tarball.
         for doc in GLOBAL_DOCS:
+            _trail(f"inject global doc {doc}")
             shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
 
         # Inject the worker-side tools beside the four globals, per
@@ -887,10 +940,12 @@ def build_request_tarball(
         tools_dir = request_dir / "tools"
         tools_dir.mkdir()
         for tool in INJECTED_TOOLS:
+            _trail(f"inject tool tools/{tool}")
             shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
                          follow_symlinks=False)
 
         # manifest.json.
+        _trail("write manifest.json")
         (request_dir / "manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n", encoding="utf-8",
         )
@@ -899,6 +954,7 @@ def build_request_tarball(
         # prose; omitted otherwise. Trailing newline is normalized so the
         # tarball doesn't ship the rare buffer that ends mid-line.
         if readme_body is not None:
+            _trail("write README.md")
             text = readme_body if readme_body.endswith("\n") else readme_body + "\n"
             (request_dir / "README.md").write_text(text, encoding="utf-8")
 
@@ -909,12 +965,14 @@ def build_request_tarball(
         context_dir = request_dir / "context"
         context_dir.mkdir()
         for rel, src in context_entries:
+            _trail(f"copy context/{rel}")
             dst = context_dir / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst, follow_symlinks=False)
 
         # Tar with arcname so the archive's top-level entry is `request-NNN/`,
         # independent of the temp directory's filesystem path.
+        _trail(f"tar request-{nnn}/ -> {out_path}")
         with tarfile.open(out_path, "w:gz") as tf:
             tf.add(str(request_dir), arcname=f"request-{nnn}")
 
@@ -2334,6 +2392,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     while True:
         projection = walk_for_pack(
             repo, args.include, caps=caps, force=args.force, matcher=matcher,
+            verbose=args.verbose,
         )
         files = projection.files
         if not files:
@@ -2604,6 +2663,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         build_request_tarball(
             sid, context_entries, manifest, tarball_path,
             readme_body=args._readme_body,
+            verbose=args.verbose,
         )
     except Exception as e:
         if tarball_path.exists():

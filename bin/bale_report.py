@@ -34,7 +34,12 @@ strategy/untracked_inputs keys. v0.3.22 (board 32) adds
 clarification-suspension facts (rounds, blocking-question count, latest
 record path — BALE.md §8.10.2) as status's `clarification` row, reflected
 in `format_status_json`'s additive `session.clarification` object and the
-`"clarification"` value on the session state enum. The human-facing
+`"clarification"` value on the session state enum. v0.3.35 (the accepted
+session-008 fold-in) adds `format_staging_row`: the discard summary's
+human `staging` row rendered from `_discard_hold_state`'s machine facts
+(state/path/error), used by `bale revert`'s summary block and the apply
+walkthrough's revert branch — the last rendering residue out of
+bin/bale's revert path. The human-facing
 four were extracted from `bin/bale`'s sections 16
 ("Apply: helpers") and 18 ("Apply") in v0.2.6 — the fifth sibling module and
 the fourth extraction, after `bale_config` (v0.0.4), `bale_validate`
@@ -1918,6 +1923,44 @@ def format_staging_value(strategy: str, untracked_inputs: list = ()) -> str:
         return str(strategy)
     noun = "input" if len(inputs) == 1 else "inputs"
     return f"{strategy}; untracked {noun}: {', '.join(inputs)}"
+
+
+def format_staging_row(*, state: str, path=None, error=None) -> str:
+    """Render the discard summary's human `staging` row from the machine
+    facts (v0.3.35, the accepted session-008 fold-in).
+
+    `_discard_hold_state` in bin/bale (section 19) derives the machine
+    keys — `staging_state` ("wiped" | "already-gone" | "not-recorded" |
+    "unremovable"), `staging_path`, and `staging_error` (the OSError
+    text, "unremovable" only) — from the filesystem; this renderer turns
+    them into the display string both discard consumers print (`bale
+    revert`'s summary block and the apply walkthrough's revert branch).
+    Rendering from the facts, never the other way around, is the same
+    posture the v0.3.19 --json keys took: the machine values are the
+    source and the human row is a projection, so the two can never
+    drift. Output is byte-identical to the strings the helper used to
+    build inline:
+
+      wiped        → "wiped (<path>)"
+      already-gone → "already gone"
+      not-recorded → "not recorded"
+      unremovable  → "left in place (<path>: <error>)"
+
+    An unrecognized state renders as itself with the path appended when
+    one is given — a visible oddity beats a KeyError inside a summary
+    block that prints after the discard already ran.
+
+    Pure: builds a string, prints nothing.
+    """
+    if state == "wiped":
+        return f"wiped ({path})"
+    if state == "already-gone":
+        return "already gone"
+    if state == "not-recorded":
+        return "not recorded"
+    if state == "unremovable":
+        return f"left in place ({path}: {error})"
+    return f"{state} ({path})" if path is not None else str(state)
 
 
 def format_clarification_value(rounds: int, questions=None,

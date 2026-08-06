@@ -933,6 +933,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_dry_run_report,
         format_required_check_refusal,
         format_scope_drift_refusal,
+        format_staging_row,
         format_summary_block,
         format_walkthrough_summary,
         json_mode,
@@ -2204,7 +2205,15 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             [
                 ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
                 ("lock", "cleared"),
-                ("staging", status['staging_status']),
+                # v0.3.35: rendered from the machine facts by
+                # bale_report.format_staging_row (the accepted
+                # session-008 fold-in) — same projection cmd_revert's
+                # summary block uses, since both paths run the same
+                # _discard_hold_state cleanup.
+                ("staging", format_staging_row(
+                    state=status["staging_state"],
+                    path=status["staging_path"],
+                    error=status["staging_error"])),
                 ("telemetry",
                  f"recorded {telemetry_rel}" if telemetry_rel
                  else "write failed — see log"),
