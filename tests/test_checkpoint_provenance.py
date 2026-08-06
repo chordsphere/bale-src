@@ -239,6 +239,11 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
         self.assertIn("--allow-checkpoint-in-scope", combined,
                       msg="the refusal names its override successor")
+        # The caller-aware remedy sentence (v0.3.34): pack's refusal
+        # carries the pack-flavored narrowing remedy, never handoff's —
+        # only the one sentence differs between callers.
+        self.assertIn("narrow this pack with --include paths", combined)
+        self.assertNotIn("re-bail with a reading plan", combined)
         self.assertFalse(
             (self.repo / ".bale" / "sessions").exists(),
             msg="the refusal is pre-sid — no session state may exist")
@@ -723,6 +728,15 @@ class HandoffBlindnessGateTest(unittest.TestCase):
         self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
         self.assertIn("--allow-checkpoint-in-scope", combined,
                       msg="the refusal names its override successor")
+        # The caller-aware remedy sentence (v0.3.34): the handoff
+        # refusal swaps only the narrowing remedy — a handoff's scope
+        # is the reading plan's resolved cite set, so --include is not
+        # its lever; the diagnosis and flag lines above stay byte-shared
+        # with pack's.
+        self.assertIn("re-bail with a reading plan that does not cite "
+                      "the checkpoint", combined)
+        self.assertNotIn("narrow this pack with --include paths",
+                         combined)
         self.assertEqual(self.open_sids(), [],
                          msg="the refusal is pre-sid — no session opened")
         self.assertEqual(

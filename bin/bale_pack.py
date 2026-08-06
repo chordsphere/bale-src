@@ -726,7 +726,8 @@ def build_provenance_block(
 
 
 def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
-                                   *, allow: bool) -> bool:
+                                   *, allow: bool,
+                                   caller: str = "pack") -> bool:
     """The pack-time blindness gate (v0.3.28, board 6 session C; BALE.md
     §7.1 step 4b): refuse a resolved include set that covers the
     configured blind checkpoint's path, and refuse a configured
@@ -768,7 +769,13 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
     second caller: same gate, run pre-sid against the handoff's
     reading-plan scope, with the mirroring --allow-checkpoint-in-scope
     flag feeding `allow` — one implementation, so the two
-    request-building paths cannot drift on what "in scope" means. bale.toml itself is deliberately NOT added to this
+    request-building paths cannot drift on what "in scope" means.
+    `caller` (v0.3.34) names which command is refusing — "pack"
+    (default) or "handoff" — and is passed through verbatim to
+    format_checkpoint_scope_refusal, which swaps only the
+    narrowing-remedy sentence on it (the diagnosis and flag-successor
+    text stay byte-shared; the swap's rationale lives on the
+    formatter). Pack's call sites ride the default unedited. bale.toml itself is deliberately NOT added to this
     refusal at v1: it is legitimately session-editable (hooks,
     staging), in-flight retargeting is already inert (apply reads the
     merged config from the repo working tree, never the staged
@@ -805,7 +812,8 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
 
     if not allow:
         fail(format_checkpoint_scope_refusal(
-            checkpoint_path=checkpoint_path, scope=pack_scope))
+            checkpoint_path=checkpoint_path, scope=pack_scope,
+            caller=caller))
 
     # force=True: an admitted checkpoint-covering scope is an override
     # event of the same species as --allow-out-of-scope — the FORCE:
@@ -1238,7 +1246,7 @@ def _resolve_supersession(args: argparse.Namespace,
             f"decline default applies without a prompt (nothing closed)")
 
     if accepted:
-        telemetry_rel, _ = close_session_with_record(
+        telemetry_rel, _, _ = close_session_with_record(
             repo, sid,
             closure_reason="superseded-by-split",
             command="pack",
@@ -1350,7 +1358,7 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
                     f"open for the next read-only pack or `bale unlock "
                     f"{sid}`")
             continue
-        telemetry_rel, _ = close_session_with_record(
+        telemetry_rel, _, _ = close_session_with_record(
             repo, sid,
             closure_reason="closed-read-only",
             command="pack",

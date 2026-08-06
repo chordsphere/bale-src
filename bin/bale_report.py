@@ -786,7 +786,8 @@ def format_required_check_refusal(*, sid: str, required: list,
 
 
 def format_checkpoint_scope_refusal(*, checkpoint_path: str,
-                                    scope: list) -> str:
+                                    scope: list,
+                                    caller: str = "pack") -> str:
     """Render the pack-time checkpoint blindness refusal (v0.3.28,
     board 6 session C; BALE.md §7.1 step 4b, §11 row 27).
 
@@ -807,8 +808,22 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
     update path is named too, because it is the remedy most askers
     actually want: the checkpoint is planner-authored, so the planner
     edits and commits it directly — no session, no override.
+
+    `caller` (v0.3.34) picks the narrowing-remedy sentence only —
+    "pack" (default): narrow the pack's --include set; "handoff":
+    re-bail with a reading plan that does not cite the checkpoint (a
+    handoff's scope is the plan's resolved cite set, so --include is
+    not its lever). The diagnosis, the sanctioned-ordinary-path
+    reminder, and the flag-successor lines stay byte-shared between
+    callers by ratified constraint — only the one sentence swaps.
     """
     rendered_scope = ", ".join(scope) if scope else "(empty)"
+    if caller == "handoff":
+        narrowing_remedy = ("re-bail with a reading plan that does not "
+                            "cite the checkpoint")
+    else:
+        narrowing_remedy = ("narrow this pack with --include paths that "
+                            "do not cover the checkpoint")
     return (
         f"pack scope covers the blind checkpoint (board 6 blindness "
         f"contract): the resolved include set ({rendered_scope}) covers "
@@ -817,10 +832,9 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
         f"over its own oracle is the self-oracle shape this refusal "
         f"closes — checkpoints are authored blind, by the planner from "
         f"the request, never by the worker building against them. "
-        f"Remedies: narrow this pack with --include paths that do not "
-        f"cover the checkpoint; update the checkpoint directly (planner "
-        f"action — edit, commit, no session needed); or, planner "
-        f"authority, re-run with --allow-checkpoint-in-scope to "
+        f"Remedies: {narrowing_remedy}; update the checkpoint directly "
+        f"(planner action — edit, commit, no session needed); or, "
+        f"planner authority, re-run with --allow-checkpoint-in-scope to "
         f"delegate oracle maintenance deliberately (per-invocation, "
         f"flag-only; the admission is FORCE-logged and stamped into the "
         f"request manifest's provenance)."
@@ -1051,6 +1065,32 @@ def format_pack_json(
     return json.dumps(payload)
 
 
+def format_sweep_json(sweep_result: Optional[dict]) -> Optional[dict]:
+    """Normalize a sweep_commit return (bin/bale) into the json `sweep`
+    object the surfaces below carry (v0.3.34).
+
+    One normalizer for every surface so the object's shape cannot drift
+    between apply, unlock, and revert: sweep_commit's dict carries
+    `sha`/`files` only on the committed form, and a machine consumer
+    wants stable keys — so the absent members normalize to null / [].
+    None passes through as None (json null): the sweep did not run,
+    either because `[apply].sweep` is unset/false or because the
+    outcome performs no sweep. The key list this feeds is owned by
+    format_apply_json's docstring (the sub-object's one home); the
+    unlock/revert docstrings point there.
+
+    Pure: builds a dict (or None), prints nothing.
+    """
+    if sweep_result is None:
+        return None
+    return {
+        "status": sweep_result.get("status"),
+        "detail": sweep_result.get("detail"),
+        "sha": sweep_result.get("sha"),
+        "files": list(sweep_result.get("files") or []),
+    }
+
+
 def format_apply_json(
     *,
     outcome: str,
@@ -1068,6 +1108,7 @@ def format_apply_json(
     checkpoint: Optional[dict] = None,
     required_checks: Optional[dict] = None,
     archive: Optional[dict] = None,
+    sweep: Optional[dict] = None,
 ) -> str:
     """Render the `bale apply --json` end-of-run report as ONE line of JSON.
 
@@ -1182,6 +1223,28 @@ def format_apply_json(
                              --accept-checkpoint-change, null when the
                              request carried no provenance.checkpoint
                              key (hand-rolled, or packed pre-0.3.28)
+      sweep    (v0.3.34, additive) the auto-sweep's result
+               ([apply].sweep, BALE.md §8.8) — whether the bookkeeping
+               this invocation wrote (the telemetry record, the archive
+               copies) was committed, so an operator dispatching on the
+               json line no longer has to read stderr for it. Null when
+               no sweep ran: the key is unset/false, or the outcome
+               performs no sweep (held, clarification, dry-run, and the
+               refusal outcomes — the sweep trigger set is unchanged by
+               this key). Else an object, the caller's sweep_commit
+               return normalized to stable keys (format_sweep_json —
+               THIS list is the sub-object's one home; the unlock and
+               revert docstrings point here):
+                 status  "committed" | "nothing" | "skipped" —
+                         committed as its own commit on top, a
+                         legitimate nothing-to-commit, or a loud skip
+                         with the files left for a manual sweep
+                 detail  the same human line the log and banner carry
+                         (the skip's reason lives here)
+                 sha     the sweep commit's short sha on the committed
+                         form; null otherwise
+                 files   the committed repo-relative paths; [] on the
+                         nothing and skipped forms
 
     `state` None means "validation.sh did not run" and yields verdict:
     null; `action` None likewise yields merge: null. At today's call sites
@@ -1240,6 +1303,11 @@ def format_apply_json(
         # outcome when the key is configured, null otherwise (semantics
         # in the docstring above, the key list's one home).
         "archive": archive,
+        # v0.3.34, additive: the auto-sweep's result ([apply].sweep,
+        # BALE.md §8.8) — object when a sweep ran this invocation, null
+        # when the key is unset/false or the outcome performs no sweep
+        # (semantics in the docstring above, the sub-object's one home).
+        "sweep": format_sweep_json(sweep),
     }
     return json.dumps(payload)
 
@@ -1561,6 +1629,7 @@ def format_unlock_json(
     branch_preserved: bool = False,
     telemetry: Optional[str] = None,
     debris: Optional[dict] = None,
+    sweep: Optional[dict] = None,
 ) -> str:
     """Render the `bale unlock --json` end-of-run report as ONE line of JSON.
 
@@ -1612,10 +1681,33 @@ def format_unlock_json(
                  sid        the sid the stale pointer named
                  telemetry  repo-relative path of its crash-debris record,
                             or null on a (logged) write failure
+                 sweep      (v0.3.34, additive) the auto-sweep's result
+                            for the crash-debris record — the debris
+                            record's sweep rides here, not under the
+                            top-level `sweep` key, the same way its
+                            telemetry path does. Null when no sweep ran;
+                            else the object format_apply_json's docstring
+                            owns (the sub-object's one home).
+      sweep    (v0.3.34, additive) the auto-sweep's result for the closed
+               sid's closure record ([apply].sweep, BALE.md §8.8) — null
+               when no sweep ran ([apply].sweep unset/false, or the
+               no-op outcome, whose only sweep is the debris record's,
+               above), else the object format_apply_json's docstring owns
+               (the sub-object's one home).
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
     """
+    debris_payload: Optional[dict] = None
+    if debris is not None:
+        # Normalize the debris record's own sweep through the shared
+        # normalizer so the sub-object's shape has one producer; the
+        # call site hands the raw sweep_commit return through.
+        debris_payload = {
+            "sid": debris.get("sid"),
+            "telemetry": debris.get("telemetry"),
+            "sweep": format_sweep_json(debris.get("sweep")),
+        }
     payload = {
         "outcome": outcome,
         "sid": sid,
@@ -1624,7 +1716,11 @@ def format_unlock_json(
         "session_dir_wiped": session_dir_wiped,
         "branch_preserved": branch_preserved,
         "telemetry": telemetry,
-        "debris": debris,
+        "debris": debris_payload,
+        # v0.3.34, additive: the closed sid's closure-record sweep —
+        # null when no sweep ran (semantics in the docstring above; the
+        # sub-object's one home is format_apply_json's docstring).
+        "sweep": format_sweep_json(sweep),
     }
     return json.dumps(payload)
 
@@ -1640,6 +1736,7 @@ def format_revert_json(
     staging_state: str,
     staging_path: Optional[str],
     telemetry: Optional[str],
+    sweep: Optional[dict] = None,
 ) -> str:
     """Render the `bale revert --json` end-of-run report as ONE line of JSON.
 
@@ -1697,6 +1794,11 @@ def format_revert_json(
                repo-relative path of the record this revert appended to
                (claude/telemetry/<sid>.json, BALE.md §8.9), or null on a
                (logged) write failure.
+      sweep    (v0.3.34, additive) the auto-sweep's result for the
+               record above ([apply].sweep, BALE.md §8.8) — null when no
+               sweep ran ([apply].sweep unset/false), else the object
+               format_apply_json's docstring owns (the sub-object's one
+               home).
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
@@ -1712,6 +1814,10 @@ def format_revert_json(
         "staging_state": staging_state,
         "staging_path": staging_path,
         "telemetry": telemetry,
+        # v0.3.34, additive: the closure record's sweep — null when no
+        # sweep ran (semantics in the docstring above; the sub-object's
+        # one home is format_apply_json's docstring).
+        "sweep": format_sweep_json(sweep),
     }
     return json.dumps(payload)
 

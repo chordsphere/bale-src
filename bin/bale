@@ -221,7 +221,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.3.33"
+VERSION = "0.3.34"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -867,9 +867,12 @@ def close_session_with_record(
        closure_reason. A no-op producing no output when [apply].sweep
        is unset/false; loud and never fatal when enabled.
 
-    Returns (telemetry_rel, session_status): the record's repo-relative
-    path (None on write failure) and the human summary of the session-dir
-    wipe, for the caller's end-of-run rows.
+    Returns (telemetry_rel, session_status, sweep_result): the record's
+    repo-relative path (None on write failure), the human summary of the
+    session-dir wipe, and the step-5 sweep_commit return (None when
+    [apply].sweep is unset/false) — the third element added v0.3.34 so
+    cmd_unlock's --json report can carry the sweep object; callers with
+    no json surface discard it.
     """
     if scope is None:
         scope = read_session_scope(repo, sid)
@@ -898,9 +901,9 @@ def close_session_with_record(
     #    record; the event stamped in the commit message is the
     #    closure_reason (more informative than the uniform "unlocked"
     #    outcome across unlock, supersession, and read-only closes).
-    sweep_commit(repo, sid, closure_reason,
-                 [telemetry_rel] if telemetry_rel else [])
-    return telemetry_rel, session_status
+    sweep_result = sweep_commit(repo, sid, closure_reason,
+                                [telemetry_rel] if telemetry_rel else [])
+    return telemetry_rel, session_status, sweep_result
 
 
 def read_lock(repo: Path) -> Optional[str]:
@@ -1878,9 +1881,10 @@ def cmd_revert(args: argparse.Namespace) -> int:
     # Auto-sweep (v0.3.32; BALE.md §8.8): revert is a closing event and
     # this invocation's git mutation (_discard_hold_state) is complete,
     # so the sweep commit interleaves with nothing. Config-gated;
-    # silent when unset, loud and never fatal when enabled.
-    sweep_commit(repo, sid, "reverted",
-                 [telemetry_rel] if telemetry_rel else [])
+    # silent when unset, loud and never fatal when enabled. The return
+    # rides the --json report's sweep key (v0.3.34).
+    sweep_result = sweep_commit(repo, sid, "reverted",
+                                [telemetry_rel] if telemetry_rel else [])
 
     # End-of-run summary through the shared formatter (see the
     # "Shared end-of-run summary formatting" section) so `bale revert`
@@ -1916,6 +1920,9 @@ def cmd_revert(args: argparse.Namespace) -> int:
             staging_state=status["staging_state"],
             staging_path=status["staging_path"],
             telemetry=telemetry_rel,
+            # v0.3.34, additive: the sweep_commit return from above —
+            # null when [apply].sweep is unset/false.
+            sweep=sweep_result,
         ))
     return 0
 
@@ -2270,9 +2277,13 @@ def cmd_unlock(args: argparse.Namespace) -> int:
                     f"closure for {stale})")
             # Auto-sweep (v0.3.32): the debris record is a closure
             # record like any other; config-gated, silent when unset.
-            sweep_commit(repo, stale, "crash-debris",
-                         [debris_rel] if debris_rel else [])
-            debris = {"sid": stale, "telemetry": debris_rel}
+            # The return rides the debris object (v0.3.34) so the
+            # --json no-op report carries it — normalized inside
+            # format_unlock_json, raw here.
+            debris_sweep = sweep_commit(repo, stale, "crash-debris",
+                                        [debris_rel] if debris_rel else [])
+            debris = {"sid": stale, "telemetry": debris_rel,
+                      "sweep": debris_sweep}
         print()
         print("  no open session; nothing to unlock.")
         if args.json:
@@ -2362,7 +2373,7 @@ def cmd_unlock(args: argparse.Namespace) -> int:
     # the helper wipes — a machine key derived from the filesystem, not
     # parsed back out of the human session_status wording.
     session_dir_existed = (repo / ".bale" / "sessions" / sid).exists()
-    telemetry_rel, session_status = close_session_with_record(
+    telemetry_rel, session_status, sweep_result = close_session_with_record(
         repo, sid,
         closure_reason=closure_reason,
         command="unlock",
@@ -2406,6 +2417,10 @@ def cmd_unlock(args: argparse.Namespace) -> int:
             session_dir_wiped=session_dir_existed,
             branch_preserved=branch_exists,
             telemetry=telemetry_rel,
+            # v0.3.34, additive: the closure record's sweep_commit
+            # return from close_session_with_record — null when
+            # [apply].sweep is unset/false.
+            sweep=sweep_result,
         ))
     return 0
 
@@ -2903,7 +2918,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # such a handoff refuses without the flag, the same way a
         # default whole-tree pack does.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
-            repo, handoff_scope, allow=args.allow_checkpoint_in_scope)
+            repo, handoff_scope, allow=args.allow_checkpoint_in_scope,
+            caller="handoff")
 
         # Allocate the new session id NOW (after all the validation
         # gates) so the per-day counter doesn't burn an NNN on a pack
@@ -5028,7 +5044,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Take a bailout response tarball (response_kind=\"bailout\", "
             "TARBALL.md §5.6.3) and build a new request tarball that "
-            "ships its handoff.md as the sole context entry, inheriting "
+            "ships its handoff.md plus the source files its reading "
+            "plan cites as the context entries, inheriting "
             "the original session's goal verbatim. The new session id "
             "keeps the slug and bumps the date/counter. Refuses while "
             "any session is open in the registry (apply or unlock them "
