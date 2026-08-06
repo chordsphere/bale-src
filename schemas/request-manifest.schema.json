@@ -120,7 +120,7 @@
         },
         "checkpoint_scope_admitted": {
           "type": "boolean",
-          "description": "True when the pack's resolved include set covered the configured checkpoint's path and the planner admitted it past the pack-time blindness refusal with --allow-checkpoint-in-scope (v0.3.28, board 6 session C); false otherwise, including every handoff-built request. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
+          "description": "True when the request's scope covered the configured checkpoint's path and the planner admitted it past the blindness refusal with --allow-checkpoint-in-scope — pack's resolved include set (v0.3.28, board 6 session C) or handoff's reading-plan scope (the mirroring flag, v0.3.33); false otherwise. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
         }
       }
     }
