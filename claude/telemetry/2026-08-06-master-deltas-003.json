@@ -1,0 +1,111 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-master-deltas-003",
+  "created_at": "2026-08-06T17:19:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T17:19:58+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (28).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "adr sanctioned-diff reverse-transform": "pass",
+          "index status sweep": "pass",
+          "master deltas assertions": "pass"
+        },
+        "claim_verdict": {
+          "adr sanctioned-diff reverse-transform": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "index status sweep": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "master deltas assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "bin/bale",
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/context/adr"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/context/adr/0002-test-oracle.md",
+        "claude/context/adr/0003-selftest-dogfood-depth.md",
+        "claude/context/adr/0004-test-fixtures.md",
+        "claude/context/adr/0009-orchestration-doc-plan.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.34",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The 0.3.33/0.3.34 per-session version attribution is arithmetic over two code sessions under the cadence ruling; the 0.3.34 endpoint is read from the shipped constant and the request's provenance stamp",
+            "ADR-0009's 'same citation' read as the sitting citation without 'recognizing exercised practice' (nothing was exercised for a doc-deferral ADR)",
+            "The prior-entries-byte-stable constraint permits dated bracketed appends (the file's entry-44/46 convention); entry 54's resolution and the fold-in registry annotation use that shape"
+          ],
+          "judgment_calls": [
+            "Annotated the fold-in registry's json-sweep entry as landed-at-B2 despite its absence from the brief's untouched list, to avoid contradicting the new evidence entry 56 in the same file",
+            "Landed the pinned section-7 suite landmark beside the standing no-counts sentence unedited; the tension is flagged in notes.md for master disposition",
+            "0004's and 0009's extra clauses ride each ADR's single appended dated line so the diffs stay inside the DOCS.md section-9 sanctioned flip shape",
+            "Updated the MASTER.md header's last-landed-by line per its own edited-in-place convention though the cargo does not name it"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-master-deltas-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T17:19:58+00:00",
+  "outcome": "applied"
+}
