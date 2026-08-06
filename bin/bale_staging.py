@@ -867,6 +867,22 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     as it arrives while being collected for the log. Exit-code semantics
     (0 pass / 1 check-failed / 2 script-errored, TARBALL.md §7.5) are
     identical on both paths.
+
+    The §7.4 pass-through (v0.3.35): when `verbose` is set, the script is
+    invoked as `bash validation.sh --verbose`, so TARBALL.md §7.4's own
+    verbose mode ("prints command output live") engages inside the script,
+    not just around it. Forwarded unconditionally on the verbose path —
+    the contract doc has specified the flag since the section was written,
+    a script that ignores its argv (most of them) is unaffected, and a
+    strict script that rejects unknown arguments fails loudly in verbose
+    mode only, with the streamed output showing why; re-running without
+    --verbose restores the bare invocation. The default (non-verbose)
+    invocation stays exactly `bash validation.sh` — byte-identical to
+    every prior release. Retry inherits the pass-through for free: it
+    reruns this same path with its own --verbose flag. The blind
+    checkpoint (run_blind_checkpoint) deliberately does NOT receive the
+    flag: it is planner-authored with no §7.4 contract on its argv, and
+    its invocation stays stable.
     """
     from __main__ import log
     val_dst = staging / "validation.sh"
@@ -890,7 +906,9 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
         # immediately, and collect for the log. bufsize=1 + text mode gives
         # line-buffered reads; iterating proc.stdout blocks per line until EOF.
         proc = subprocess.Popen(
-            ["bash", "validation.sh"],
+            # §7.4 pass-through: the operator's --verbose rides onto the
+            # script's own argv (docstring above owns the rationale).
+            ["bash", "validation.sh", "--verbose"],
             cwd=str(staging),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
