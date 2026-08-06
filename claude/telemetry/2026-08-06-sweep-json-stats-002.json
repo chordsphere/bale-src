@@ -1,0 +1,127 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-sweep-json-stats-002",
+  "created_at": "2026-08-06T15:57:03+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T15:57:03+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (34).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "test suite: test_auto_sweep.py": "pass",
+          "test suite: test_unlock_json.py": "pass",
+          "test suite: test_revert_json.py": "pass",
+          "test suite: test_checkpoint_provenance.py": "pass",
+          "full test discovery (tests/)": "pass"
+        },
+        "claim_verdict": {
+          "test suite: test_auto_sweep.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite: test_unlock_json.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite: test_revert_json.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite: test_checkpoint_provenance.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test discovery (tests/)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_auto_sweep.py",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_revert_json.py",
+        "tests/test_unlock_json.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.33",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the 'both callers pass-through' rider phrasing means the caller identity flows through the shared gate (checkpoint_blindness_preflight) rather than each command calling the formatter directly \u2014 the gate is the formatter's only caller in the tree, so the pass-through parameter lives there with a 'pack' default and only cmd_handoff's call names itself"
+          ],
+          "judgment_calls": [
+            "stamp DEFERRED with reasoning (charter option 3) and the stats read side deferred with it \u2014 schemas and bale_stats.py deliberately untouched; case in notes.md",
+            "json sweep key is null for both disabled-config and no-sweep-outcome, mirroring the archive key's posture",
+            "close_session_with_record widened to a 3-tuple; pack's two callers discard the sweep result (pack json sweep key proposed, not landed \u2014 see notes.md Proposals)",
+            "B1 refusal assertions needed no loosening; remedy renderings pinned by added assertions instead"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-sweep-json-stats-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T15:57:03+00:00",
+  "outcome": "applied"
+}
