@@ -1,0 +1,123 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-handoff-covering-001",
+  "created_at": "2026-08-06T13:55:05+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T13:55:05+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-06-handoff-covering-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest discover -s tests (staging)": "pass",
+          "handoff flag surface assertion (bale handoff --help)": "pass",
+          "version constant assertion (0.3.33)": "pass",
+          "BALE.md contract row 30 assertion": "pass",
+          "exec bit (bin/bale)": "pass"
+        },
+        "claim_verdict": {
+          "unittest discover -s tests (staging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "handoff flag surface assertion (bale handoff --help)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version constant assertion (0.3.33)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md contract row 30 assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit (bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "schemas/request-manifest.schema.json",
+        "tests/test_checkpoint_provenance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.32",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai, self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The ['.'] whole-tree fallback for a plan-less handoff is intended to hit the covering refusal (mirroring a default whole-tree pack) rather than earn an exception \u2014 kept and pinned by a test; reasoning and the friction consequence in notes.md."
+          ],
+          "judgment_calls": [
+            "Gate sited pre-sid in cmd_handoff (after reading-plan resolution, before NNN allocation) \u2014 pack's 'precedes the disjointness gate' precedent mapped by its invariant, not its letter; notes.md has the reasoning.",
+            "Tests placed in test_checkpoint_provenance.py, not the brief's guessed test_blind_checkpoint.py \u2014 it is the session-C blindness-gate suite; notes.md has the reasoning.",
+            "Trued up a third stale spot the pins did not name: the request-manifest schema's checkpoint_scope_admitted description (in scope, prose-only)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-handoff-covering-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T13:55:05+00:00",
+  "outcome": "applied"
+}
