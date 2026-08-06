@@ -178,6 +178,9 @@ class RevertJsonTest(unittest.TestCase):
             msg="the machine-readable telemetry path is the point of "
                 "the feature")
         self.assertTrue(payload["log"].endswith(f".bale/logs/{sid}.log"))
+        # The v0.3.34 additive sweep key: null when [apply].sweep is
+        # unset — the additive-null contract.
+        self.assertIsNone(payload["sweep"])
         # The facts the keys report really happened.
         self.assertFalse(self.branch_exists(f"bale/{sid}"))
         self.assertTrue((self.repo / payload["telemetry"]).is_file())
@@ -196,6 +199,28 @@ class RevertJsonTest(unittest.TestCase):
         self.assert_ok(result)
         payload = parse_single_json_line(result.stdout)
         self.assertEqual(payload["closure_reason"], "superseded-by-split")
+
+    # -- pinned behavior 2b: the sweep object when enabled (v0.3.34) -----
+
+    def test_sweep_object_rides_the_key_when_enabled(self) -> None:
+        """[apply].sweep = true: the closure record's sweep commits and
+        the json line carries the committed object — status, sha, and
+        the record as the one file (key contract: format_apply_json's
+        docstring, the sub-object's one home)."""
+        (self.repo / "bale.toml").write_text(
+            "[apply]\nsweep = true\n", encoding="utf-8")
+        self.git("add", "bale.toml")
+        self.git("commit", "-m", "configure bale.toml")
+        sid = self.make_held_session()
+
+        result = self.revert("--json")
+        self.assert_ok(result)
+        payload = parse_single_json_line(result.stdout)
+        sweep = payload["sweep"]
+        self.assertEqual(sweep["status"], "committed")
+        self.assertTrue(sweep["sha"])
+        self.assertEqual(sweep["files"],
+                         [f"claude/telemetry/{sid}.json"])
 
     # -- pinned behavior 3: staging facts as machine keys ----------------
 

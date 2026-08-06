@@ -414,8 +414,8 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     # here, not at the normal pipeline's pre-flight, since the bailout
     # branch forks before it); silent when unset, loud and never fatal
     # when enabled.
-    sweep_commit(repo, sid, "bailout",
-                 [telemetry_rel] if telemetry_rel else [])
+    sweep_result = sweep_commit(repo, sid, "bailout",
+                                [telemetry_rel] if telemetry_rel else [])
 
     print_bailout_banner(manifest, handoff_path, tarball_basename,
                          telemetry=telemetry_rel)
@@ -423,11 +423,14 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     if json_mode():
         # Terminal json report (v0.2.8), emitted after the §5.6.3 banner
         # (which json mode routed to stderr) so the stdout line a consumer
-        # waits on is the last thing this command does.
+        # waits on is the last thing this command does. The sweep object
+        # (v0.3.34, additive) is the sweep_commit return above — null
+        # when [apply].sweep is unset/false.
         emit_json_line(format_apply_json(
             outcome="bailout", sid=sid,
             log_path=repo / ".bale" / "logs" / f"{sid}.log",
             telemetry=telemetry_rel,
+            sweep=sweep_result,
         ))
     return 0
 
@@ -2068,6 +2071,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     action="merge", merged=True,
                     tag=f"applied/{locked_sid}", origin_branch=origin_branch,
                     telemetry=telemetry_rel,
+                    # v0.3.34, additive: the sweep_commit return from
+                    # above — null when [apply].sweep is unset/false.
+                    sweep=sweep_result,
                     # Additive archival result ([apply].archive_dir): an
                     # object only when the key is configured — unset keeps
                     # the pre-archival report (modulo the additive null).
@@ -2191,9 +2197,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # a closing event and _discard_hold_state's git mutation is
         # complete. `enabled` resolved at pre-flight (sweep_cfg) — the
         # no-post-outcome-fail() contract, same as the applied path.
-        sweep_commit(repo, locked_sid, "reverted",
-                     [telemetry_rel] if telemetry_rel else [],
-                     enabled=sweep_cfg)
+        sweep_result = sweep_commit(repo, locked_sid, "reverted",
+                                    [telemetry_rel] if telemetry_rel else [],
+                                    enabled=sweep_cfg)
         print(format_summary_block(
             [
                 ("branch", f"{status['origin_branch']} ({sid_branch} deleted)"),
@@ -2218,6 +2224,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 action="revert", merged=False,
                 origin_branch=origin_branch,
                 telemetry=telemetry_rel,
+                # v0.3.34, additive: the sweep_commit return from above
+                # — null when [apply].sweep is unset/false.
+                sweep=sweep_result,
             ))
         return 1
 

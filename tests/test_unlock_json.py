@@ -140,6 +140,10 @@ class UnlockJsonTest(unittest.TestCase):
             msg="the machine-readable telemetry path is the point of "
                 "the feature")
         self.assertTrue(payload["log"].endswith(f".bale/logs/{sid}.log"))
+        # The v0.3.34 additive sweep key: null when [apply].sweep is
+        # unset (this sandbox never sets it) — the additive-null
+        # contract, same posture as apply's archive key.
+        self.assertIsNone(payload["sweep"])
         # Stream discipline: the human trail moved to stderr, whole.
         self.assertIn("[bale]", result.stderr)
         self.assertIn("[UNLOCK]", result.stderr,
@@ -189,6 +193,12 @@ class UnlockJsonTest(unittest.TestCase):
         self.assertEqual(debris["sid"], debris_sid)
         self.assertTrue(debris["telemetry"].startswith("claude/telemetry/"))
         self.assertTrue((self.repo / debris["telemetry"]).is_file())
+        # The debris record's own sweep rides under debris (v0.3.34),
+        # not the top-level key; null here since [apply].sweep is unset.
+        self.assertIsNone(debris["sweep"])
+        self.assertIsNone(payload["sweep"],
+                          msg="the no-op's only sweep is the debris "
+                              "record's — the top-level key stays null")
 
     # -- pinned behavior 5: refusal paths stay fail()-shaped -------------
 

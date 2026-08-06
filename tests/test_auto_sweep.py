@@ -22,6 +22,10 @@ Drives real `bale pack` → `bale apply` / `bale unlock` /
   under sweep because each clean rollback commits its own telemetry
   append (BALE.md §9.2 step 3) — the sweep runs post-guard-window
   and the carve-out is unchanged;
+- **json visibility** (v0.3.34): the additive `sweep` object on the
+  apply and unlock `--json` lines mirrors sweep_commit's return —
+  committed with sha and files, skipped with the reason, null when
+  the key is unset — without disturbing the stream discipline;
 - **wizard trio**: `bale config init` walks `apply.sweep` at both
   layers and an Enter-through re-run preserves a set value.
 
@@ -401,6 +405,119 @@ class RollbackToggleTest(AutoSweepBase):
         self.assertEqual(
             self.git_out("status", "--porcelain", "-uall").strip(), "",
             msg="every bale-written file swept; nothing left dirty")
+
+
+class SweepJsonTest(AutoSweepBase):
+    """The v0.3.34 json visibility surface: the additive `sweep` object
+    on the apply and unlock json lines mirrors sweep_commit's return —
+    an operator dispatching on the json line sees whether bookkeeping
+    landed without reading stderr. Key contract: format_apply_json's
+    docstring (the sub-object's one home); null = no sweep ran."""
+
+    def parse_single_json_line(self, stdout: str) -> dict:
+        lines = [ln for ln in stdout.splitlines() if ln.strip()]
+        self.assertEqual(
+            len(lines), 1,
+            msg=f"expected exactly one stdout line under --json; got "
+                f"{len(lines)}:\n{stdout}")
+        payload = json.loads(lines[0])
+        self.assertIsInstance(payload, dict)
+        return payload
+
+    def test_applied_json_carries_committed_sweep_object(self) -> None:
+        """Enabled happy path under --json: outcome applied, sweep is
+        the committed object — status, the loud detail line, the short
+        sha, and exactly the owned file set."""
+        self.configure(sweep=True, archive=True)
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(sid, name="resp")
+
+        result = run_bale(self.install,
+                          ["apply", str(tarball), "--json"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        payload = self.parse_single_json_line(result.stdout)
+        self.assertEqual(payload["outcome"], "applied")
+        sweep = payload["sweep"]
+        self.assertEqual(sweep["status"], "committed")
+        self.assertTrue(sweep["detail"].startswith("committed 3 file(s)"))
+        self.assertTrue(sweep["sha"],
+                        msg="the committed form carries the short sha")
+        self.assertEqual(
+            self.git_out("rev-parse", "--short", "HEAD").strip(),
+            sweep["sha"],
+            msg="the sha names the sweep commit the json line reports")
+        self.assertEqual(sorted(sweep["files"]), sorted([
+            f"claude/telemetry/{sid}.json",
+            f"{ARCHIVE_DIR}/{sid}/README.md",
+            f"{ARCHIVE_DIR}/{sid}/notes.md",
+        ]))
+        # The human sweep line moved to stderr with the rest of the
+        # trail — the stream discipline is untouched by the new key.
+        self.assertIn("sweep: committed", result.stderr)
+
+    def test_applied_json_sweep_null_when_unset(self) -> None:
+        """The additive-null contract: [apply].sweep unset/false keeps
+        the report shape with sweep: null — byte-identical semantics to
+        the pre-key report modulo the additive key."""
+        self.configure(sweep=False, archive=False)
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(sid, name="resp")
+
+        result = run_bale(self.install,
+                          ["apply", str(tarball), "--json"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        payload = self.parse_single_json_line(result.stdout)
+        self.assertEqual(payload["outcome"], "applied")
+        self.assertIsNone(payload["sweep"])
+
+    def test_unlock_json_carries_committed_sweep_object(self) -> None:
+        """The unlock surface: the closure record's sweep rides the
+        top-level key — status committed, files exactly the record."""
+        self.configure(sweep=True, archive=False)
+        sid = self.packed_sid()
+
+        result = run_bale(self.install, ["unlock", "--json"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        payload = self.parse_single_json_line(result.stdout)
+        self.assertEqual(payload["outcome"], "unlocked")
+        sweep = payload["sweep"]
+        self.assertEqual(sweep["status"], "committed")
+        self.assertEqual(sweep["files"],
+                         [f"claude/telemetry/{sid}.json"])
+        self.assertEqual(self.head_subject(),
+                         f"[bale sweep {sid}] abandoned",
+                         msg="the event stamp is the closure_reason")
+
+    def test_unlock_json_skipped_object_names_the_reason(self) -> None:
+        """The degenerate-skip face on the json surface: a detached
+        HEAD reports status skipped, the reason in detail, sha null,
+        files empty — the loud skip, machine-readable."""
+        self.configure(sweep=True, archive=False)
+        sid = self.packed_sid()
+        env = git_env(self.home)
+        run_checked(["git", "checkout", "--detach", "--quiet"],
+                    cwd=self.repo, env=env)
+
+        result = run_bale(self.install, ["unlock", sid, "--json"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        payload = self.parse_single_json_line(result.stdout)
+        sweep = payload["sweep"]
+        self.assertEqual(sweep["status"], "skipped")
+        self.assertIn("detached HEAD", sweep["detail"])
+        self.assertIsNone(sweep["sha"])
+        self.assertEqual(sweep["files"], [])
 
 
 class SweepWizardTest(AutoSweepBase):
