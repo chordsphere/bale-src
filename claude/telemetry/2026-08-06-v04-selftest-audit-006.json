@@ -1,0 +1,116 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-v04-selftest-audit-006",
+  "created_at": "2026-08-06T19:36:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T19:36:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-06-v04-selftest-audit-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "file syntax (markdown utf-8 + heading inventory)": "pass",
+          "citation anchors (five qualified cross-doc citations)": "pass",
+          "bare-citation census (12 self-refs + 1 byte-stable exception)": "pass",
+          "byte-stability of the v0.4 checklist and cut-condition paragraph": "pass"
+        },
+        "claim_verdict": {
+          "file syntax (markdown utf-8 + heading inventory)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "citation anchors (five qualified cross-doc citations)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bare-citation census (12 self-refs + 1 byte-stable exception)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "byte-stability of the v0.4 checklist and cut-condition paragraph": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "schemas",
+        "scripts",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.35",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai web session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the 'cut-condition paragraph' in the byte-stability constraint is the whole ratified block ('Re-coupled position...' through 'Then cut...'), bullets included \u2014 so its bare \u00a77.4 was reported, not edited",
+            "'run the suite' against the shipped context tree as repo root is a valid execution (harness resolves REPO_ROOT to tests/..); the two install.sh-reading errors are attributed to the missing baseline file, not to the code"
+          ],
+          "judgment_calls": [
+            "qualified four sweep-found cross-doc bares beyond the mandated one, reading the brief's 'fix the ones that are unambiguously cross-doc citations' as sanctioning them; each is listed with its site in notes.md for review",
+            "left the '\u00a75 authorship line' citation untouched as ambiguous rather than guessing a target",
+            "kept the MASTER.md \u00a71 reference per the recorded lean; the sweep surfaced nothing contrary",
+            "rewrapped only within each edit's own sentence span so the diff stays reviewable line-local"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "install.sh"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-v04-selftest-audit-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T19:36:13+00:00",
+  "outcome": "applied"
+}
