@@ -1520,10 +1520,10 @@ Pipeline steps:
     to contract — partially, since name membership cannot verify a
     check's content, which stays review policy. A declared check may
     still `[SKIP]` with a reason at runtime (TARBALL.md §7.2), grading
-    `n/a` (§7.3) — honest and visible rather than forced work. The
-    refusal renders BOTH sets (required and declared) so a near-miss
-    is visible, keeps the session open pre-staging with no git side
-    effects, records telemetry outcome `required-check-refused`
+    `n/a` (TARBALL.md §7.3) — honest and visible rather than forced
+    work. The refusal renders BOTH sets (required and declared) so a
+    near-miss is visible, keeps the session open pre-staging with no
+    git side effects, records telemetry outcome `required-check-refused`
     (`validation: null` — nothing ran), and in `--json` mode is the
     one-line report with that outcome and a `required_checks` detail
     object. `--allow-missing-required-check <name>` (repeatable,
@@ -1737,8 +1737,8 @@ calibrated-worker signal the dual stream exists to surface.
    log under a banded header — `=== blind checkpoint (<path>,
    <sha256 prefix>) ===` — closed by a `=== worker validation.sh
    ===` band, so the two invocations' output is attributed. The
-   checkpoint does not read the manifest and produces no §7.3
-   claims block: claims are the worker's predictions, and the
+   checkpoint does not read the manifest and produces no TARBALL.md
+   §7.3 claims block: claims are the worker's predictions, and the
    checkpoint has no claims by construction.
 3. Place the response manifest at `staging/.bale-manifest.json` so
    `validation.sh` can read the claims for the reconciliation block.
@@ -1826,10 +1826,10 @@ The reference block, in order:
 
 - The **claims table** — each `claims` key with Claude's prediction,
   plus a pointer to `.bale/logs/<sid>.log` for the verdicts. The
-  per-check `[PASS] / [FAIL] / [SKIP]` lines and the §7.3-style
-  claims-vs-verdict reconciliation live in that log, streamed there
-  while `validation.sh` ran (§8.5 step 4); the walkthrough surfaces
-  the claims side so review is self-contained.
+  per-check `[PASS] / [FAIL] / [SKIP]` lines and the TARBALL.md
+  §7.3-style claims-vs-verdict reconciliation live in that log,
+  streamed there while `validation.sh` ran (§8.5 step 4); the
+  walkthrough surfaces the claims side so review is self-contained.
 - A **diffstat** over `origin..bale/<sid>` — the same rev range as
   the inspection command below. PASS and HOLD alike are commits on
   the session branch (§8.6), so one range covers both outcomes.
@@ -2007,7 +2007,8 @@ short-lived `.bale/sessions/<sid>/` directory:
   output (with a `reconciliation_parsed` flag, since the block is an
   authoring convention, not an enforced contract — a parse miss is
   recorded, never silently skipped);
-- **validation exit state** (PASS/HOLD and the §7.5 exit code);
+- **validation exit state** (PASS/HOLD and the TARBALL.md §7.5 exit
+  code);
 - the **blind checkpoint stamp** (board 6): an `attempts[].checkpoint`
   object on every validated attempt post-epoch — key presence is
   epoch membership, `{"configured": false}` is the known-zero form,
@@ -2803,10 +2804,11 @@ table.)*
   v0.2.1, apply-scoped: `run_validation_sh` now routes `validation.sh`
   output to the session log only by default and live-streams to the
   terminal under `--verbose`, per §8.5 step 4. Wiring `--verbose` across
-  the other commands the §5.4 global-flags list anticipates, and the §7.4
-  pass-through of `--verbose` into `validation.sh` itself, closed in
-  v0.3.35 — pack and revert gained the flag and the verbose path forwards
-  it onto the script's argv; status per §5.4's updated bullet.)*
+  the other commands the §5.4 global-flags list anticipates, and the
+  TARBALL.md §7.4 pass-through of `--verbose` into `validation.sh`
+  itself, closed in v0.3.35 — pack and revert gained the flag and the
+  verbose path forwards it onto the script's argv; status per §5.4's
+  updated bullet.)*
 - Optional bash completion (`source` it from shell rc — not required
   for any functionality). *(Landed in v0.2.2 as `bale completion bash`,
   which walks `build_parser()` once and emits a self-contained bash
