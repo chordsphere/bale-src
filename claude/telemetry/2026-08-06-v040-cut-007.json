@@ -1,0 +1,124 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-v040-cut-007",
+  "created_at": "2026-08-06T23:30:41+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T23:30:41+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (12).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "version constant (bin/bale VERSION == 0.4.0)": "pass",
+          "BALE.md pinned spans (section 13 cut record; section 7.2 prune)": "pass",
+          "discard-path verbose wiring (retry and walkthrough-revert call sites)": "pass",
+          "test suite (unittest discover)": "pass",
+          "exec-bit (bin/bale)": "pass"
+        },
+        "claim_verdict": {
+          "version constant (bin/bale VERSION == 0.4.0)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md pinned spans (section 13 cut record; section 7.2 prune)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "discard-path verbose wiring (retry and walkthrough-revert call sites)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite (unittest discover)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit (bin/bale)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_verbose_thread.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.3.35",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the full unittest suite is the right project-level test check for validation.sh at this cut (~70s, inside the TARBALL.md 7.6 budget) rather than a scoped subset \u2014 a version cut wants the whole regression surface",
+            "naming the audit session id in the BALE.md 13 cut record is within 'prose, no test counts' \u2014 it is how 'that session's notes' stays resolvable for a later reader"
+          ],
+          "judgment_calls": [
+            "the bare 7.4 citation resolved by QUALIFYING it as TARBALL.md 7.4 inside the rewrite (not dropping it) \u2014 said in notes as the brief asked",
+            "rider 1's parity pins added to the existing tests/test_verbose_thread.py (005's suite) rather than a new file \u2014 the rider completes that thread and reuses its fixtures and pty runner",
+            "the v0.3 --verbose parenthetical left byte-untouched: it already records the v0.3.35 close from 005",
+            "the decoupling-history opening sentence of the cut-condition paragraph kept verbatim; the rewrite starts at the re-coupling"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-v040-cut-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T23:30:41+00:00",
+  "outcome": "applied"
+}
