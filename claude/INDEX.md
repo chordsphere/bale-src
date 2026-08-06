@@ -51,14 +51,14 @@ deleted.
   whether `TESTS.md` should exist yet, or planning the v0.4 selftest.
 - `context/adr/0002-test-oracle.md` — what decides selftest pass/fail:
   observable contract state (git/fs/lock), narrow golden, no self-grading.
-  Status: Proposed. Pull when designing or reviewing selftest assertions.
+  Status: Accepted. Pull when designing or reviewing selftest assertions.
 - `context/adr/0003-selftest-dogfood-depth.md` — two test tiers (unit on pure
   helpers + CLI E2E via `bin/bale` by absolute path); no recursion into the
-  real install. Status: Proposed. Pull when building the v0.4 harness or any
+  real install. Status: Accepted. Pull when building the v0.4 harness or any
   test that drives the CLI.
 - `context/adr/0004-test-fixtures.md` — programmatic factories from the
   documented wire format as primary; narrow pinned fixtures for bad/old
-  inputs; no recorded corpus. Status: Proposed. Pull when authoring test
+  inputs; no recorded corpus. Status: Accepted. Pull when authoring test
   inputs or the fixture layer.
 - `context/adr/0005-test-hermeticity.md` — fully sandboxed suite (temp
   `HOME`/`BALE_INSTALL`, no real reinstall, stubbed `$EDITOR`); hard rules on
@@ -96,7 +96,7 @@ deleted.
   ORCHESTRATION.md per the ADR-0001 precedent; the doctrine skeleton (seam
   decomposition, blind checkpoints, HOLD triage, escalation, trust phasing)
   is recorded in the ADR; explainer at harness time, global doc when
-  orchestration is real. Status: Proposed. Pull when planning orchestration
+  orchestration is real. Status: Accepted. Pull when planning orchestration
   or harness work, or deciding whether an orchestration doc should exist yet.
 - `context/adr/0010-paste-back-probes.md` — probes default to a strictly
   read-only paste-back block (sentinels, bounded output, integrity trailer)
@@ -144,10 +144,9 @@ deleted.
   generically. Status: Accepted. Pull when touching scope doctrine,
   the own-scope drift gate, pack include guidance, or the lane rule.
 
-Current status: 0001, 0005, 0006, 0007, 0008, 0010, 0011, 0012,
-0013, and 0014 are Accepted; 0002–0004 and 0009 are Proposed. The
-Proposed set waits deliberately — 0002–0004 precede the v0.4 harness
-work they govern, and 0009 defers the doc it is about. Each ADR
+Current status: all fourteen ADRs (0001–0014) are Accepted; the
+last Proposed set (0002–0004 and 0009) was ratified at the board-10
+tidy-up sitting (2026-08-05-discuss-harness-011). Each ADR
 file's own Status and Notes lines carry its ratification and flip
 record; the flip-by-flip narrative lives in git.
 

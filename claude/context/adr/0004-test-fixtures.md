@@ -1,6 +1,6 @@
 # ADR-0004: Test fixtures — programmatic factories from the documented format
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 - **Supersedes:** —
 - **Superseded by:** —
@@ -76,3 +76,4 @@ single discoverable surface for configurables (bale-internals.md §2.5). A
 fixture corpus that has to be hand-maintained against an evolving format is
 the testing analogue of a parallel command registry: duplicated bookkeeping
 that drifts.
+2026-08-05: ratified at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011), recognizing exercised practice; the factory-independence conformance check (factories built from docs/schemas, never from pack's own code) is assigned to board 34's audit session.

@@ -1,6 +1,6 @@
 # ADR-0009: Defer ORCHESTRATION.md; record the doctrine skeleton here until promotion
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-06
 - **Supersedes:** —
 - **Superseded by:** —
@@ -107,3 +107,4 @@ ADR-0001 deferred a doc because the content didn't exist yet; this ADR
 defers one because the *reader* doesn't exist yet. Same discipline,
 different missing ingredient — in both cases the skeleton is scaffolded,
 the trigger is named, and the file waits.
+2026-08-05: ratified at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011); staging plan unchanged; the step-2 trigger (draft claude/context/orchestration.md when harness work starts) is armed for the spec-intake sitting.

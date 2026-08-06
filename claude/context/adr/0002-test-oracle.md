@@ -1,6 +1,6 @@
 # ADR-0002: Test oracle for bale — assert against observable contract state
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 - **Supersedes:** —
 - **Superseded by:** —
@@ -69,3 +69,4 @@ bale is already *partially* self-validating operationally (meta-sessions
 `install.sh && validate.sh`). That is a happy property, not an oracle —
 this ADR is about the harness's deliberate checks, which should not lean on
 the producer to grade itself.
+2026-08-05: ratified at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011), recognizing exercised practice.

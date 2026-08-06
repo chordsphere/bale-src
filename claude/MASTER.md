@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-05-ratification-microdeltas-010`.
+Last landed by: `2026-08-06-master-deltas-003`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -115,15 +115,21 @@ board-6 dependency is satisfied; the gate now waits on board 10 and
 the first exercised autonomy grant (§5's ladder contract, wording
 unchanged there).
 
-**Current version: 0.3.32** (`2026-08-05-auto-sweep-009`, code
+**Current version: 0.3.34** (`2026-08-06-sweep-json-stats-002`, code
 session, cadence-conformant; the standing rule stands: verify with
 `bale --version` at each sitting's open). Post-arc trail:
-`execution-context-amendment-006` (doc-only) landed unbumped — the
-open cadence ruling, §6 entry 54 — then 0.3.30 (`archive-dir-005`),
-0.3.31 (`pack-tree-echo-007`), and 0.3.32 (`auto-sweep-009`). For
-this entry the value was verified against this deltas request's own
-pack-time provenance stamp per the deltas-005 precedent — the stamp
-reads 0.3.32 and agrees.
+`execution-context-amendment-006` (doc-only) landed unbumped — now
+the rule, not a divergence: the cadence ruling, §5, ratified
+2026-08-05; §6 entry 54's conditional resolves with it — then
+0.3.30 (`archive-dir-005`), 0.3.31 (`pack-tree-echo-007`), 0.3.32
+(`auto-sweep-009`), and the tidy-up sitting's Bucket B: 0.3.33
+(`2026-08-06-handoff-covering-001`) and 0.3.34
+(`2026-08-06-sweep-json-stats-002`) — the per-session split is
+arithmetic over two code sessions under the cadence ruling; the
+endpoint is what was read. For this entry the value was read from
+the VERSION constant in the bin/bale copy shipped read-only in this
+deltas request (0.3.34), and the request's own pack-time provenance
+stamp agrees.
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -149,20 +155,20 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **Operator-friction master session — charter narrowed** (directed
-  by the architect; board-6 arc upward report, escalation 4): the
-  sweep item is disposed — mechanized by `2026-08-05-auto-sweep-009`
-  at the architect's direction 2026-08-05, superseding the charter
-  for that item — and the authored-and-shelved archival pack command
-  is dead, superseded by `archive-dir-005` (the 0.3.30 landing, §2's
-  trail). The charter's remainder is the state-legibility question
-  (the arc's finding 5; §6 entry 53): it either folds into the next
-  sitting or takes its own short session, architect's choice at
-  spawn.
-- **Next sitting:** the board-10 harness discussion, via a fresh
-  read-only master pack, whose sweep closes
-  `2026-08-04-board-6-blind-checkpoint-design-003` and
-  `2026-08-04-continue-plan-002` at the accept-default.
+- **The board-10 tidy-up sitting (2026-08-05/06, master
+  `2026-08-05-discuss-harness-011`) is closed.** Bucket A ratified
+  in chat: the four ADR flips (0002–0004 and 0009 — all fourteen
+  ADRs now Accepted), the cadence ruling (§5), and the
+  operator-friction-charter fold-in (state legibility onto board
+  10; the charter is closed). Bucket B landed:
+  `2026-08-06-handoff-covering-001` and
+  `2026-08-06-sweep-json-stats-002` (§6 entries 55–56; the version
+  trail is §2's). The sitting-close deltas — this landing — carried
+  the cargo.
+- **Next, in order:** board 34's v0.4 arc (opening with the
+  --verbose thread close), then board 13's read-vs-write design
+  session, then the sandbox ADR (the ADR-0005 extension), then the
+  board-10 spec-intake sitting.
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report, the next three from
@@ -200,6 +206,19 @@ notes):
 - Sweep current-branch commit skip predicate (a two-line change,
   named in `auto-sweep-009`'s notes). Re-trigger: the first
   observed off-target-checkout confusion.
+- Plan-less handoff whole-tree refusal friction: a bailout whose
+  reading plan cites no files resolves to whole-tree scope, so in a
+  checkpoint-configured project every plan-less handoff now
+  requires the admission flag. Shape kept deliberately (whole-tree
+  really is covering; it mirrors a default whole-tree pack).
+  Re-trigger: the first real-world plan-less handoff refusal; then
+  decide fallback breadth vs. remedy text.
+- Sweep stamp deferral: no telemetry stamp of sweep results, by
+  reasoned deferral (§6 entry 56). Re-triggers, either
+  independently: demand for longitudinal committed-sweep data
+  builds the git-log-derived stats view (no schema change needed);
+  demand for sweep-skip rates reopens the stamp question with
+  fresh eyes.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -253,7 +272,16 @@ with the unverifiable ones carried verbatim and marked):
 - The additive json `sweep` object plus stats read side
   (accepted-recorded from `2026-08-05-auto-sweep-009`'s notes),
   session authorable on request — a natural early customer of the
-  board-10 era. Rides board 10.
+  board-10 era. Rides board 10. [2026-08-06: the write side landed
+  at `2026-08-06-sweep-json-stats-002` (§5's contract, §6 entry
+  56); the stats read side deferred with the stamp question per
+  the charter's conditional — the deferral is a §3 watch.]
+- Pack-json `sweep` key, list-shaped (the read-only sweep can
+  close several sids; supersession close rides too). Plumbing
+  landed at `2026-08-06-sweep-json-stats-002`
+  (`close_session_with_record` 3-tuple; pack's callers currently
+  discard). Carrier: the next `bale_pack.py` or pack-json touch,
+  or board 10's json-surface enumeration, whichever first.
 
 Cleared at this landing (`2026-08-03-master-deltas-005`): the
 BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
@@ -429,6 +457,16 @@ and §8, so done items keep their numbers as one-line pointers.
       2026-07-29) — piped packs can never complete a supersession;
       correct until the authorship contract for worker-emitted
       commands is revisited here.
+    **Added at the board-10 tidy-up sitting (2026-08-05/06):**
+    - **Operator state legibility** — folded in from the closed
+      operator-friction charter (its remainder; evidence 53's
+      corrective). With it, the status-rendering observation:
+      open-session absence is signaled only by silence — a
+      candidate for an explicit open-count line when status
+      becomes the orchestrator's ground truth.
+    - **ADR-0009 Accepted arms its step-2 trigger** — draft
+      `claude/context/orchestration.md` when harness work starts —
+      at the spec-intake sitting.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -484,7 +522,13 @@ and §8, so done items keep their numbers as one-line pointers.
     brief accordingly.] Evidence-25 recurrence, 2026-07-31: board
     31's harness-driven INSTALL_TREES include set forced
     near-whole-tree recorded scope for a session whose write set
-    was five files — tally the cost.
+    was five files — tally the cost. [2026-08-06: evidence 25's
+    fourth tally — the tidy-up sitting's Bucket B pair
+    (`2026-08-06-handoff-covering-001`,
+    `2026-08-06-sweep-json-stats-002`) forced serial by
+    execution-context include intersection over disjoint write
+    sets (§6 entry 57) — strengthens this row's pre-harness
+    slot.]
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
     MISFRAMED** 2026-07-25 (chat-ratified; evidence 32): the
@@ -883,7 +927,8 @@ New, ratified 2026-08-03 (this sitting):
 
 New, ratified 2026-08-05 (this sitting):
 
-- **The handoff-covering disposition** (ratified, unimplemented):
+- **The handoff-covering disposition** (ratified; implementation
+  landed — see the closing note):
   `bale handoff` runs the covering refusal
   (`checkpoint_blindness_preflight`) against its reading-plan
   scope, with a mirroring per-invocation admission flag. Source:
@@ -897,7 +942,26 @@ New, ratified 2026-08-05 (this sitting):
   checkpoint-maintenance session — was already flag-admitted once
   at pack, so a flat refusal strands exactly that handoff.
   Implementation is a separate worker session, pack authorable from
-  either lineage on request.
+  either lineage on request. [2026-08-06: implemented at
+  `2026-08-06-handoff-covering-001`, with the one-text constraint
+  subsequently relaxed for the remedy sentence only — caller-aware
+  rendering, landed at `2026-08-06-sweep-json-stats-002`; the
+  diagnosis and flag-successor lines stay byte-shared.]
+
+New, ratified at the board-10 tidy-up sitting (2026-08-05/06,
+master `2026-08-05-discuss-harness-011`):
+
+- **The cadence ruling** (ratified 2026-08-05): doc-only sessions
+  are bump-exempt; the `execution-context-amendment-006` precedent
+  is now the rule, not a divergence. (The sitting-close deltas
+  session recording this is itself governed by it: doc-only, no
+  VERSION bump shipped.)
+- **The json `sweep` object** (ratified at the master desk
+  2026-08-06): null means no sweep ran — covering both collapsing
+  disabled and no-sweep-event, the archive-key posture; the key
+  list is owned by `format_apply_json`'s docstring, with the
+  unlock and revert docstrings pointing there; `debris.sweep`
+  carries the debris record's result.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -1458,7 +1522,42 @@ New from the 2026-08-04→05 sitting (the board-6 arc):
     divergence and feeds the tag-reuse watch's counter; this entry
     states that conditionally, pending the ruling. Until it lands,
     the `execution-context-amendment-006` precedent (landed
-    unbumped) governs doc-only sessions.
+    unbumped) governs doc-only sessions. [2026-08-05/06, closing
+    note: the ruling landed — doc-only sessions are bump-exempt
+    (§5, ratified 2026-08-05) — so `execution-context-amendment-006`
+    is no second divergence; the tag-reuse watch counter stays at
+    one.]
+
+New from the 2026-08-05/06 sitting (the board-10 tidy-up):
+
+55. **Handoff covering landed**
+    (`2026-08-06-handoff-covering-001`): the covering refusal
+    extended to the handoff path pre-sid — the invariant mapped,
+    not pack's letter, so no NNN is burned on a refusal; scope
+    computation hoisted for one-value; the admission flag mirrors
+    pack's spelling and stamps true through the shared builder;
+    §11 row 30; a schema description true-up caught in-scope beyond
+    the brief's pin list; test home deviated to the session-C suite
+    with reasoning. 232 green (session-claimed).
+
+56. **Sweep json landed; the stamp question resolved as reasoned
+    deferral** (`2026-08-06-sweep-json-stats-002`): the sweep json
+    object landed across apply/unlock/revert. No telemetry stamp
+    of sweep results: the next-attempt stamp has near-zero coverage
+    (every sweep event is sid-terminal), and a sidecar breaks the
+    clean-tree invariant exactly on the skip paths; the stats read
+    side deferred with it per the charter's conditional. Both
+    handoff-covering riders landed at their exact seams; no
+    assertion loosening needed.
+
+57. **The board-10 tidy-up sitting itself**
+    (`2026-08-05-discuss-harness-011`): Bucket A ratified in chat,
+    Bucket B landed serialized, the sitting-close deltas (this
+    landing) carried the cargo. The Bucket B serialization was
+    forced by execution-context include intersection over disjoint
+    write sets — evidence 25's fourth tally; and this session's own
+    bin/bale read-only include (one constant) is the same shape in
+    miniature.
 
 ## 7. Standing environment facts
 
@@ -1484,8 +1583,13 @@ New from the 2026-08-04→05 sitting (the board-6 arc):
   set for any session running the suite); test_readonly_pack.py
   drives the wizard via pty (likeliest flake site per its session's
   notes); the fabricated-suspension helper follows
-  test_revert_json.py's make_held_session precedent. ADR-0005
-  (Accepted 2026-07-28) governs.
+  test_revert_json.py's make_held_session precedent. Suite
+  landmark, claim-marked: 232 tests green as of
+  `2026-08-06-handoff-covering-001` (2026-08-06, session-claimed),
+  with `2026-08-06-sweep-json-stats-002`'s sweep-json and
+  remedy-rendering assertions added on top — carried from those
+  sessions' claims, not re-verified (a doc session does not run
+  the suite). ADR-0005 (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, bale_stats (the eighth
@@ -1495,9 +1599,10 @@ New from the 2026-08-04→05 sitting (the board-6 arc):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.3.31,
-  architect-verified against the live install 2026-08-05
-  (one-apply-behind: stamps from the next pack onward).
+  still governs. bin/bale VERSION 0.3.34,
+  read from the constant in the copy shipped read-only with the
+  2026-08-06 sitting-close deltas request (tree state; the live
+  install trails one-apply-behind as ever).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
