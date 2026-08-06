@@ -1076,9 +1076,7 @@ both by the architect authoring a pack by hand and by Claude when
 emitting a `CLAUDE.md` §11.2 rescope offer.
 
 Bale also fills `manifest.project` automatically as
-`basename $(git rev-parse --show-toplevel)`. This is overridable via
-`.bale.toml` in v0.5+ for users who want a different name than the
-repo directory.
+`basename $(git rev-parse --show-toplevel)`.
 
 ### 7.3 Wizard flow when args missing
 
