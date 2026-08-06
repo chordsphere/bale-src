@@ -165,10 +165,9 @@ sitting (evidence 47).]
   `2026-08-06-sweep-json-stats-002` (§6 entries 55–56; the version
   trail is §2's). The sitting-close deltas — this landing — carried
   the cargo.
-- **Next, in order:** board 34's v0.4 arc (opening with the
-  --verbose thread close), then board 13's read-vs-write design
-  session, then the sandbox ADR (the ADR-0005 extension), then the
-  board-10 spec-intake sitting.
+- **Next, in order:** board 13's read-vs-write design session, then
+  the sandbox ADR (the ADR-0005 extension), then the board-10
+  spec-intake sitting.
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report, the next three from
@@ -227,31 +226,19 @@ with the unverifiable ones carried verbatim and marked):
 
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
-- Revert's human staging-row rendering → bale_report (2026-07-31,
-  accepted from session 008's Proposals): _discard_hold_state now
-  computes the machine staging facts beside the inline
-  staging_status display string; a small follow-up renders the human
-  string from those facts in bale_report, deleting the last
-  rendering residue from bin/bale's revert path (§19) — rides the
-  next session touching that path. [Carried unchanged; unverified
-  this sitting — a MASTER.md-only request cannot check whether the
-  board-5 arc touched that path.]
 - The reconciliation label-column cap (008's proposal, accepted) —
   rides the next session touching tools/craft_response.py. [Carried
   unchanged; unverified this sitting — same MASTER.md-only limit.]
-- BALE.md §13's v0.3 entry: qualify the `--verbose` residue's bare
-  "§7.4" citation with its doc (TARBALL.md §7.4 — inside BALE.md the
-  unqualified number resolves to BALE.md's own §7.4, Scope
-  projection, which is wrong), plus a read-only grep sweep of
-  BALE.md for other unqualified cross-doc section numbers — rides
-  board 34's 0.4.0 audit session, which will be reading the same
-  paragraph (accepted 2026-08-03 from
-  `2026-08-03-version-ladder-004`'s Proposals). The same touch
-  decides whether §13's v1.0 "(MASTER.md §1)" reference — BALE.md's
-  first cross-reference to MASTER.md anywhere, grep-verified by that
-  session — stays or becomes self-contained prose; master's recorded
-  lean: keep the citation until the ADR-0009/board-10 categorization
-  decision, revisit there.
+- **`bale handoff --verbose` for its tarball build.** What: a
+  `--verbose` flag on handoff passing `verbose=True` into its
+  `build_request_tarball` call. Why: the build-trail machinery is
+  in place with a default-off kwarg; handoff builds the same quiet
+  tarball pack does. Recorded in §5.4's updated bullet as the one
+  remaining candidate surface. Scope hints: bin/bale §22, the
+  handoff subparser in §26. (Accepted 2026-08-06 from
+  `2026-08-06-verbose-thread-close-005`'s Proposals, text verbatim;
+  rides the next session touching bin/bale §22 or the handoff
+  subparser, §26.)
 - `claude/context/bale-internals.md` §2.5 schema-snippet true-up —
   whether the snippet-not-extended precedent ([staging] v0.3.7,
   [identity] v0.3.8, followed consistently by board-6 sessions A–C,
@@ -282,6 +269,19 @@ with the unverifiable ones carried verbatim and marked):
   (`close_session_with_record` 3-tuple; pack's callers currently
   discard). Carrier: the next `bale_pack.py` or pack-json touch,
   or board 10's json-surface enumeration, whichever first.
+
+Cleared at this landing (`2026-08-06-sitting-close-deltas-008`),
+both from the board-34 arc: the revert staging-row → bale_report
+entry — landed at `2026-08-06-verbose-thread-close-005` [2026-08-06:
+one addition beyond the accepted shape — the return dict grew
+`staging_error`, the rmtree OSError text, internal-only; the
+`--json` key contract untouched]; and BALE.md §13's
+citation-qualification entry — landed at
+`2026-08-06-v04-selftest-audit-006` (the mandated edit plus four
+sweep fixes), its one sanctioned exception, the cut-condition
+paragraph's bare §7.4, resolved at `2026-08-06-v040-cut-007` by
+qualification; the v1.0 "(MASTER.md §1)" reference kept per the
+recorded lean, revisit point unchanged (ADR-0009/board-10).
 
 Cleared at this landing (`2026-08-03-master-deltas-005`): the
 BALE.md §8.9 outcome-list sentence (`scope-drift-refused`) +
@@ -319,6 +319,26 @@ each, dated 2026-08-05 at the master desk:
 - The malformed-key refusal/skip asymmetry is deliberate:
   pre-flight refusal on apply, loud never-fatal skip on post-hoc
   commands.
+
+Ratified judgment calls, one line each, dated 2026-08-06 at the
+master desk (the board-34 arc: 005 =
+`2026-08-06-verbose-thread-close-005`, 006 =
+`2026-08-06-v04-selftest-audit-006`, 007 =
+`2026-08-06-v040-cut-007`):
+
+- Unconditional `--verbose` forwarding onto validation.sh's argv on
+  the verbose path — loud-and-recoverable over silent probing (005).
+- The blind checkpoint stays flagless: no TARBALL.md §7.4 contract
+  on its argv (005).
+- `staging_error` accepted as an internal machine fact (005).
+- The 0.4.0 cut proceeds on the audit alone — the ladder's gate is
+  the audit; gaps ride forward recorded (006).
+- The BALE.md §7.2 stale "§5 authorship line" pruned (006, landed
+  007).
+- install.sh joins the suite-run baseline (006).
+- The cut-paragraph §7.4 qualified rather than absorbed, and the
+  audit sid named in BALE.md §13 per the TARBALL.md §5.5
+  retiring-session precedent (007).
 
 ## 4. The board
 
@@ -467,6 +487,14 @@ and §8, so done items keep their numbers as one-line pointers.
     - **ADR-0009 Accepted arms its step-2 trigger** — draft
       `claude/context/orchestration.md` when harness work starts —
       at the spec-intake sitting.
+    **Added 2026-08-06 (from the architect, at the board-34
+    sitting close):**
+    - **The escalation contract subsumes worker→master
+      clarification relay** — today intent questions flow worker →
+      architect → master → architect → worker via TARBALL.md §5.9's
+      clarification response, with the architect as transport; the
+      harness-era design should carry that channel with the
+      architect moving from transport to overseer.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -528,7 +556,23 @@ and §8, so done items keep their numbers as one-line pointers.
     `2026-08-06-sweep-json-stats-002`) forced serial by
     execution-context include intersection over disjoint write
     sets (§6 entry 57) — strengthens this row's pre-harness
-    slot.]
+    slot.] [2026-08-06, the architect's ratified design input,
+    chat-ratified at the master desk — the board-13 design session
+    opens from this constraint: the separation's value is freeing
+    the read side (generous whole-tree shipping without lock cost),
+    not walling the write side. The write-set declaration is a
+    concurrency forecast, not a permission wall — worker edits
+    outside the declared write set surface at apply as drift and
+    are admitted per path, ADR-0014's posture generalized from new
+    files to modified ones; mechanical refusal is reserved for
+    paths contended by another open session's write set (finding 2
+    is the failure class it guards); worker judgment past the ask
+    is graded by the ledger, not prevented by scope.] [2026-08-06:
+    evidence 25's fifth tally — the board-34 arc's
+    `2026-08-06-verbose-thread-close-005` and
+    `2026-08-06-v04-selftest-audit-006` each carried the
+    near-whole-tree suite-run baseline for write sets of four
+    files and one file respectively.]
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
     MISFRAMED** 2026-07-25 (chat-ratified; evidence 32): the
@@ -711,16 +755,60 @@ and §8, so done items keep their numbers as one-line pointers.
     Observed in `2026-08-03-master-deltas-005`'s notes, concurred by
     the master; no scope change made or implied.]
 
-34. **v0.4 cut** (ratified 2026-08-03; the ladder delta's normative
-    text lands in BALE.md §13 via this sitting's sibling session —
-    §5 carries the summary): close the --verbose thread — pack and
-    revert are the remaining commands (retry gained it in v0.3.14
-    via flag parity, per §13's own v0.3 entry, read this sitting)
-    plus the §7.4 pass-through into validation.sh — then a
-    read-only audit diffing §13's v0.4 selftest checklist against
-    the actual suite (rollback conflict/merge-commit cases were
-    explicitly deferred to v0.4 and never picked up), then cut
-    0.4.0.
+34. **v0.4 cut — DONE** 2026-08-06, closed as an arc (ratified
+    2026-08-03; sids `2026-08-06-verbose-thread-close-005` 0.3.35,
+    `2026-08-06-v04-selftest-audit-006` doc-only under the cadence
+    ruling, `2026-08-06-v040-cut-007` 0.4.0; telemetry): the v0.4
+    arc complete, 0.4.0 cut 2026-08-06 — the --verbose thread
+    closed, the read-only audit diffed §13's v0.4 selftest
+    checklist against the actual suite, and the cut proceeded on
+    the audit alone per the ratified call (§3). The ladder's
+    deferred-rollback suspect was refuted in its narrow form by the
+    audit (real conflict and merge-commit mainline both driven;
+    qualifiers in 006's notes); residual gaps moved to board 35.
+
+35. **Selftest gap-closure arc** — seeded 2026-08-06 at the
+    board-34 close from that arc's residuals. Owns the 0.4.0
+    audit's ranked gap list, verbatim from
+    `2026-08-06-v04-selftest-audit-006`'s notes:
+
+    1. **Malformed-tarball apply pre-flight** (sha256 mismatch, path
+       safety, artifact denial, empty reason, duplicate path,
+       reconciliation mismatch). Largest uncovered contract surface —
+       these are the §11 rows the whole trust story leans on. Cost:
+       moderate; one suite with a tamper-helper over the existing
+       fixture builder, one test per row.
+    2. **`apply.sh` real operations** (delete, rename's removal half,
+       exec-bit restore + its §7.7 assertion). Cost: small; extend the
+       existing fixture builder past the no-op.
+    3. **Pack §7.4 caps / `--exclude` / `.baleignore` / `--force`.**
+       Cost: moderate (cap tests need controlled tree sizes; the pty
+       runner already exists for the `[e]` branch).
+    4. **Rollback `--list`** and the **plain-commit** branch. Cost:
+       trivial for `--list`; small for plain-commit (fabricate a
+       non-merge applied tag).
+    5. **`unlock --integration` clear path.** Cost: trivial.
+    6. **Worker `validation.sh` exit 2.** Cost: trivial (one more
+       fixture exit code).
+    7. **Handoff happy path** — adjacent, not in the checklist's
+       verbs: `bale handoff` is tested only at its install-precheck
+       refusal; the repackaging itself is untested.
+
+    First session: the accepted proposal (accepted 2026-08-06 from
+    006's Proposals, text verbatim): **What:** A malformed-tarball
+    apply pre-flight suite (gap 1), with gap 2's real-operations
+    `apply.sh` fixtures folded in, as the first v0.4 work once the
+    cut question is disposed. **Why:** This session's audit shows
+    the reject surface of the apply contract — the rows §11
+    enumerates and the trust ledger presumes — is the one checklist
+    area with no live coverage at all; everything else on the
+    checklist has at least a partial pin. The fixture builder in
+    test_hold_retry_e2e already constructs manifests and hashes
+    programmatically, so a tamper helper is a small step from
+    existing code. **Scope hints:** tests/ only, plus harness.py if
+    the tamper helper lands there; independent of the citation
+    work; ordering-free against gaps 3–7. Gaps 3–7 are queued
+    behind it, ordering-free.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1579,17 +1667,18 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   lists belong here (both went stale within sittings — the history
   lives in git and telemetry). Named landmarks: shared sandbox
   harness at tests/harness.py (owns run_bale_pty; INSTALL_TREES
-  copies bin/ docs/ schemas/ tools/ from repo root — the include
-  set for any session running the suite); test_readonly_pack.py
+  copies bin/ docs/ schemas/ tools/ from repo root, but the
+  recorded suite-run include baseline is **bin/ docs/ schemas/
+  tools/ scripts/ + install.sh at root** — the suite also reads
+  scripts/build.sh and install.sh from repo root, outside the
+  INSTALL_TREES copy, the misses that cost
+  `2026-08-06-verbose-thread-close-005` seven errors and
+  `2026-08-06-v04-selftest-audit-006` two, per those sessions'
+  includes_missing signals); test_readonly_pack.py
   drives the wizard via pty (likeliest flake site per its session's
   notes); the fabricated-suspension helper follows
-  test_revert_json.py's make_held_session precedent. Suite
-  landmark, claim-marked: 232 tests green as of
-  `2026-08-06-handoff-covering-001` (2026-08-06, session-claimed),
-  with `2026-08-06-sweep-json-stats-002`'s sweep-json and
-  remedy-rendering assertions added on top — carried from those
-  sessions' claims, not re-verified (a doc session does not run
-  the suite). ADR-0005 (Accepted 2026-07-28) governs.
+  test_revert_json.py's make_held_session precedent. ADR-0005
+  (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
   8a/8b/8c arc), bale_pack, bale_apply, bale_config, bale_validate,
   bale_staging, bale_report, bale_rollback, bale_stats (the eighth
@@ -1599,9 +1688,11 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.3.34,
-  read from the constant in the copy shipped read-only with the
-  2026-08-06 sitting-close deltas request (tree state; the live
+  still governs. bin/bale VERSION 0.4.0 (trail: 0.3.34 → 0.3.35 at
+  `2026-08-06-verbose-thread-close-005` → 0.4.0 at
+  `2026-08-06-v040-cut-007`), read from the constant in the copy
+  shipped read-only with the board-34 sitting-close deltas request,
+  `2026-08-06-sitting-close-deltas-008` (tree state; the live
   install trails one-apply-behind as ever).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
