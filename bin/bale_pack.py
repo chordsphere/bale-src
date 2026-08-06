@@ -639,14 +639,17 @@ def build_provenance_block(
       what keeps apply's stamp verification (BALE.md §8.5) additive.
       Configured-but-dangling at the tip is a loud refusal — the D1
       dangling rule caught at request-build time, before apply ever
-      sees the broken oracle reference — though on the pack path
-      checkpoint_blindness_preflight already refused it pre-sid; the
-      re-check here is defense in depth for the handoff path and any
-      future caller.
+      sees the broken oracle reference — though both request-building
+      paths (pack, and handoff since v0.3.33) run
+      checkpoint_blindness_preflight pre-sid and already refused it;
+      the re-check here is defense in depth for any future caller.
     - `checkpoint_scope_admitted` (v0.3.28, session C) — true when the
-      caller admitted a checkpoint-covering scope past the pack-time
-      blindness refusal via --allow-checkpoint-in-scope; false
-      otherwise (including every handoff, which has no such flag).
+      caller admitted a checkpoint-covering scope past the blindness
+      refusal via --allow-checkpoint-in-scope; false otherwise. Both
+      request-building paths carry the flag and pass their own gate's
+      admission through this parameter — pack against its resolved
+      include set (v0.3.28), handoff against its reading-plan scope
+      (the mirroring flag, v0.3.33).
       Stamped unconditionally so bale-built blocks keep a uniform
       shape (the superseded_session precedent), and echoed into
       telemetry via the response's feedback.mechanical.provenance —
@@ -741,7 +744,8 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
       time): bale.toml names a checkpoint HEAD has no committed file
       for. Caught here, pre-sid, so the broken oracle reference never
       produces a session doomed to refuse at apply; the provenance
-      stamp builder re-checks as defense in depth for the handoff path.
+      stamp builder re-checks as defense in depth for any future
+      caller.
     - **Scope covers the checkpoint** (D5 layer 1, the contract layer):
       the checkpoint is the planner's oracle, and any path by which the
       worker under evaluation authors or selects its own oracle is the
@@ -760,7 +764,11 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
 
     Sited before the ADR-0007 disjointness gate on both of cmd_pack's
     gate paths, so a blindness refusal precedes any scope-collision
-    conversation. bale.toml itself is deliberately NOT added to this
+    conversation. cmd_handoff (v0.3.33; BALE.md §11 row 30) is the
+    second caller: same gate, run pre-sid against the handoff's
+    reading-plan scope, with the mirroring --allow-checkpoint-in-scope
+    flag feeding `allow` — one implementation, so the two
+    request-building paths cannot drift on what "in scope" means. bale.toml itself is deliberately NOT added to this
     refusal at v1: it is legitimately session-editable (hooks,
     staging), in-flight retargeting is already inert (apply reads the
     merged config from the repo working tree, never the staged

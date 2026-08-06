@@ -37,7 +37,16 @@ doctrine — observable state, never golden comparisons):
   it — current base-tree bytes run, stamp_matched: false on the retry
   attempt beside the HOLD attempt's verified true;
 - a read-only pack passes the blindness gate vacuously (empty scope
-  covers nothing) while still stamping checkpoint provenance.
+  covers nothing) while still stamping checkpoint provenance;
+- the handoff path runs the same gate (v0.3.33, §11 row 30): a
+  handoff whose reading-plan scope covers the configured checkpoint
+  refuses pre-sid without `--allow-checkpoint-in-scope` (no new
+  session state), the mirroring flag admits it — FORCE-logged,
+  `checkpoint_scope_admitted: true` stamped through the shared
+  provenance builder — a non-covering reading plan passes with the
+  stamp false, and a reading plan citing no files resolves to the
+  whole tree, which covers the checkpoint and refuses the same way a
+  default whole-tree pack does.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring.
@@ -556,6 +565,232 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         self.assertIs(stamp["configured"], True,
                       msg="the checkpoint still RAN — only the "
                           "verification was skipped")
+
+
+class HandoffBlindnessGateTest(unittest.TestCase):
+    """The handoff-side covering refusal (v0.3.33, BALE.md §11 row 30):
+    the same gate implementation as pack's, run pre-sid against the
+    handoff's reading-plan scope, with the mirroring per-invocation
+    admission flag stamping through the shared provenance builder.
+
+    Fixture flow per test: pack an ordinary in-scope session, apply a
+    bailout response whose handoff.md reading plan cites a chosen file
+    set (closing the session — handoff refuses while any is open), then
+    run `bale handoff` against the bailout tarball."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-cpho-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.genv = git_env(self.home)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    # -- fixture ---------------------------------------------------------
+
+    def configure_checkpoint(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            f"[validation]\nbase = \"{CHECKPOINT_PATH}\"\n",
+            encoding="utf-8")
+
+    def commit_checkpoint(self) -> str:
+        """Commit the checkpoint script; return the committed bytes'
+        sha256 (the tip identity the provenance stamp must carry)."""
+        p = self.repo / CHECKPOINT_PATH
+        p.parent.mkdir(parents=True, exist_ok=True)
+        data = checkpoint_script(V1_MARKER).encode("utf-8")
+        p.write_bytes(data)
+        p.chmod(0o755)
+        run_checked(["git", "add", CHECKPOINT_PATH],
+                    cwd=self.repo, env=self.genv)
+        run_checked(["git", "commit", "-m", "pin blind checkpoint"],
+                    cwd=self.repo, env=self.genv)
+        return hashlib.sha256(data).hexdigest()
+
+    def packed_and_bailed_sid(self, *, reading_plan_paths) -> tuple[str, Path]:
+        """Pack an ordinary session, apply a bailout whose reading plan
+        cites `reading_plan_paths` (backtick-inline, the §5.7 shape the
+        extractor parses; None omits the section entirely), and return
+        (bailed_sid, bailout_tarball). The apply closes the session, so
+        `bale handoff` can open the successor."""
+        packed = run_bale(
+            self.install,
+            ["pack", "handoff blindness e2e goal: rewrite hello.txt",
+             "--slug", "cp-ho", "--include", "hello.txt", "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            packed.returncode, 0,
+            msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
+        root = self.repo / ".bale" / "sessions"
+        sids = [d.name for d in root.iterdir() if (d / "open").is_file()]
+        self.assertEqual(len(sids), 1)
+        sid = sids[0]
+
+        nnn = sid[-3:]
+        rdir = self.tmp / "bailout" / f"response-{nnn}"
+        rdir.mkdir(parents=True)
+        manifest = {
+            "session_id": sid,
+            "responds_to": sid,
+            "corrects": None,
+            "response_kind": "bailout",
+            "summary": "bailout fixture: goal did not fit the budget",
+            "changes": [],
+            "deferred": [],
+            "validation_will_run": [],
+            "claims": {},
+        }
+        (rdir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        handoff_md = ("# Handoff\n\n## Original goal\n\n"
+                      "handoff blindness e2e goal: rewrite hello.txt\n")
+        if reading_plan_paths is not None:
+            cites = "\n".join(
+                f"- read `{p}` before building" for p in reading_plan_paths)
+            handoff_md += ("\n## Reading plan for the next session\n\n"
+                           f"{cites}\n")
+        (rdir / "handoff.md").write_text(handoff_md, encoding="utf-8")
+        diagnostics = {
+            "session_id": sid,
+            "bail_trigger": "mid-build-budget-panic",
+            "bail_narrative": "fixture narrative: the change set outgrew "
+                              "the estimate mid-build.",
+            "context_loaded": [
+                {"path": "hello.txt", "verdict": "necessary", "note": ""},
+            ],
+            "exploration_paths": [
+                {"what": "sized the change set", "verdict": "productive",
+                 "note": ""},
+            ],
+            "tool_calls_summary": {"bash": 3},
+            "what_would_save_next_time": ["split the goal at the seam"],
+        }
+        (rdir / "diagnostics.json").write_text(
+            json.dumps(diagnostics, indent=2) + "\n", encoding="utf-8")
+        noop = "#!/usr/bin/env bash\n# no-op (test fixture)\nexit 0\n"
+        (rdir / "apply.sh").write_text(noop, encoding="utf-8")
+        (rdir / "validation.sh").write_text(noop, encoding="utf-8")
+        tarball = self.tmp / "bailout" / f"response-{nnn}.tar.gz"
+        with tarfile.open(tarball, "w:gz") as tf:
+            tf.add(str(rdir), arcname=f"response-{nnn}")
+
+        applied = run_bale(self.install, ["apply", str(tarball)],
+                           cwd=self.repo, env=self.env)
+        self.assertEqual(
+            applied.returncode, 0,
+            msg=f"stdout:\n{applied.stdout}\nstderr:\n{applied.stderr}")
+        return sid, tarball
+
+    def handoff(self, tarball: Path, *extra_args: str):
+        return run_bale(self.install, ["handoff", str(tarball), *extra_args],
+                        cwd=self.repo, env=self.env)
+
+    def open_sids(self) -> list[str]:
+        root = self.repo / ".bale" / "sessions"
+        return [d.name for d in root.iterdir() if (d / "open").is_file()]
+
+    def session_dirs(self) -> set[str]:
+        root = self.repo / ".bale" / "sessions"
+        return {d.name for d in root.iterdir() if d.is_dir()}
+
+    def new_session_request_manifest(self, bailed_sid: str) -> dict:
+        opens = self.open_sids()
+        self.assertEqual(len(opens), 1)
+        new_sid = opens[0]
+        self.assertNotEqual(new_sid, bailed_sid)
+        p = self.repo / ".bale" / "sessions" / new_sid / "manifest.json"
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    # -- the E2Es --------------------------------------------------------
+
+    def test_handoff_refuses_covering_reading_plan(self) -> None:
+        """A reading plan citing the checkpoint path resolves to a
+        covering scope: handoff refuses pre-sid — remedy text present,
+        the flag named as successor, no new session state of any
+        kind."""
+        self.commit_checkpoint()
+        self.configure_checkpoint()
+        bailed_sid, tarball = self.packed_and_bailed_sid(
+            reading_plan_paths=["hello.txt", CHECKPOINT_PATH])
+
+        refused = self.handoff(tarball)
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertIn("--allow-checkpoint-in-scope", combined,
+                      msg="the refusal names its override successor")
+        self.assertEqual(self.open_sids(), [],
+                         msg="the refusal is pre-sid — no session opened")
+        self.assertEqual(
+            self.session_dirs(), {bailed_sid},
+            msg="no new session directory may exist after the refusal")
+
+    def test_handoff_flag_admits_and_stamps(self) -> None:
+        """--allow-checkpoint-in-scope on handoff admits the covering
+        reading-plan scope: the handoff succeeds, the FORCE: line lands,
+        and the NEW request's provenance stamps
+        checkpoint_scope_admitted: true beside the checkpoint stamp —
+        through the same builder pack stamps through."""
+        sha = self.commit_checkpoint()
+        self.configure_checkpoint()
+        bailed_sid, tarball = self.packed_and_bailed_sid(
+            reading_plan_paths=["hello.txt", CHECKPOINT_PATH])
+
+        admitted = self.handoff(tarball, "--allow-checkpoint-in-scope")
+        self.assertEqual(
+            admitted.returncode, 0,
+            msg=f"stdout:\n{admitted.stdout}\nstderr:\n{admitted.stderr}")
+        combined = admitted.stdout + admitted.stderr
+        self.assertIn("FORCE:", combined)
+        self.assertIn("--allow-checkpoint-in-scope", combined)
+        provenance = self.new_session_request_manifest(bailed_sid)[
+            "provenance"]
+        self.assertIs(provenance["checkpoint_scope_admitted"], True)
+        self.assertEqual(provenance["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
+
+    def test_handoff_noncovering_plan_passes_and_stamps_false(self) -> None:
+        """A reading plan that does not cover the checkpoint passes the
+        gate without the flag — the pack-baseline mirror — and the new
+        request stamps checkpoint_scope_admitted: false beside the
+        checkpoint stamp."""
+        sha = self.commit_checkpoint()
+        self.configure_checkpoint()
+        bailed_sid, tarball = self.packed_and_bailed_sid(
+            reading_plan_paths=["hello.txt"])
+
+        passed = self.handoff(tarball)
+        self.assertEqual(
+            passed.returncode, 0,
+            msg=f"stdout:\n{passed.stdout}\nstderr:\n{passed.stderr}")
+        provenance = self.new_session_request_manifest(bailed_sid)[
+            "provenance"]
+        self.assertIs(provenance["checkpoint_scope_admitted"], False)
+        self.assertEqual(provenance["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
+
+    def test_handoff_empty_plan_whole_tree_refuses(self) -> None:
+        """A reading plan citing no files resolves to ["."] — the
+        conservative whole-tree fallback — which covers any configured
+        checkpoint: the handoff refuses the same way a default
+        whole-tree pack does, and the flag remains the admission
+        path."""
+        self.commit_checkpoint()
+        self.configure_checkpoint()
+        bailed_sid, tarball = self.packed_and_bailed_sid(
+            reading_plan_paths=None)
+
+        refused = self.handoff(tarball)
+        self.assertNotEqual(refused.returncode, 0)
+        combined = refused.stdout + refused.stderr
+        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertEqual(self.open_sids(), [],
+                         msg="the refusal is pre-sid — no session opened")
+        self.assertEqual(self.session_dirs(), {bailed_sid})
 
 
 if __name__ == "__main__":
