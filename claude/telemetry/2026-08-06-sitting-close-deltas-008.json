@@ -1,0 +1,99 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-06-sitting-close-deltas-008",
+  "created_at": "2026-08-06T23:59:29+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-06T23:59:29+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-06-sitting-close-deltas-008.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session-specific assertions: MASTER.md deltas": "pass",
+          "session-specific assertions: BALE.md \u00a77.2 prune": "pass"
+        },
+        "claim_verdict": {
+          "session-specific assertions: MASTER.md deltas": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions: BALE.md \u00a77.2 prune": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.0",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable today"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's '>' markers on the two verbatim blocks are its quoting device, not shipped bytes \u2014 text carried unchanged, re-indented to the board row's four-space continuation",
+            "A1's 'bullet' means the suite-landmark sentence span inside the section-7 Tests bullet, not the whole Tests bullet \u2014 the no-counts sentence and the ADR-0005 pointer stay"
+          ],
+          "judgment_calls": [
+            "B3 compressed lines qualify bare cross-doc citations (TARBALL.md section 7.4, BALE.md section 7.2) since the brief asked for compression, not verbatim",
+            "section 2's 'Current version: 0.3.34' paragraph left untouched \u2014 A2 named section 7 only; the now-visible disagreement is flagged in notes.md with a true-up proposal",
+            "B2 clears recorded via the registry's remove-plus-'Cleared at this landing' idiom, with the staging_error addition as a dated bracket inside the record",
+            "D took the expected branch: verified no project-name key in walk_configurables, pruned the sentence, claimed nothing; the should-a-key-exist question reported for board 15 in notes.md"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-06-sitting-close-deltas-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-06T23:59:29+00:00",
+  "outcome": "applied"
+}
