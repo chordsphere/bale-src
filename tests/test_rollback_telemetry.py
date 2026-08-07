@@ -24,6 +24,18 @@ The suite asserts:
 - the shipped schema's vocabulary gained the three additive values the
   record relies on.
 
+Board 35 (small pins, gap 4) added the two remaining rollback surfaces
+without live coverage:
+
+- `--list` — statuses per applied/<sid> tag (applied / reverted /
+  re-applied), most-recent-first ordering, the empty-repo message, and
+  the read-only contradiction refusal (`--list` with a sid);
+- the plain-commit branch — an applied/<sid> tag on a NON-merge commit
+  (BALE.md 9.2 step 2 handles it explicitly): the revert runs without
+  `-m 1` (a clean revert is itself the proof — `-m 1` on a plain
+  commit is a git error) and the summary is recovered from the
+  commit's own subject rather than a second parent.
+
 The applied-session fixture fabricates git state directly (branch,
 `[bale <sid>] <summary>` commit, --no-ff merge, `applied/<sid>` tag) —
 the durable record rollback operates on — rather than driving a full
@@ -44,6 +56,7 @@ or via ``python3 -m unittest discover -s tests``.
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -100,21 +113,40 @@ class RollbackTelemetryTest(unittest.TestCase):
         run_checked(["git", *args], cwd=self.repo, env=self.git_env)
 
     def make_applied_session(self, sid: str = SID,
-                             summary: str = "add the widget file") -> None:
+                             summary: str = "add the widget file",
+                             filename: str = "widget.txt") -> None:
         """Fabricate the durable record apply's merge path leaves behind:
         a --no-ff merge on main whose second parent's subject is
         `[bale <sid>] <summary>`, tagged applied/<sid>. The bale branch
-        is deleted afterwards, as a completed apply leaves it."""
+        is deleted afterwards, as a completed apply leaves it.
+
+        `filename` lets the --list test fabricate several sessions in
+        one repo without their file changes colliding on revert."""
         branch = f"bale/{sid}"
         self.git("checkout", "-b", branch)
-        (self.repo / "widget.txt").write_text("line1\nline2-bale\nline3\n",
-                                              encoding="utf-8")
-        self.git("add", "widget.txt")
+        (self.repo / filename).write_text("line1\nline2-bale\nline3\n",
+                                          encoding="utf-8")
+        self.git("add", filename)
         self.git("commit", "-m", f"[bale {sid}] {summary}")
         self.git("checkout", "main")
         self.git("merge", "--no-ff", branch, "-m", f"merge [bale {sid}]")
         self.git("tag", f"applied/{sid}")
         self.git("branch", "-D", branch)
+
+    def make_applied_plain_commit(self, sid: str,
+                                  summary: str = "add the plain file",
+                                  filename: str = "plain.txt") -> None:
+        """Fabricate the applied tag's OTHER shape: a plain (non-merge)
+        commit on main with the `[bale <sid>] <summary>` subject, tagged
+        applied/<sid>. Apply's merge path never writes this — it always
+        tags a --no-ff merge — but BALE.md 9.2 step 2 handles it
+        explicitly (a hand-tagged apply, a squashed history), so the
+        detection branch stays live behavior worth pinning."""
+        (self.repo / filename).write_text("plain-bale content\n",
+                                          encoding="utf-8")
+        self.git("add", filename)
+        self.git("commit", "-m", f"[bale {sid}] {summary}")
+        self.git("tag", f"applied/{sid}")
 
     def rollback(self, *extra: str):
         return run_bale(self.install, ["rollback", *extra],
@@ -258,6 +290,107 @@ class RollbackTelemetryTest(unittest.TestCase):
         self.assertIn("rollback", attempt_props["command"]["enum"],
                       msg="the record honestly names the producing command")
 
+
+    # -- board 35 gap 4a: rollback --list ---------------------------------
+
+    def test_list_reports_status_per_session(self) -> None:
+        """`--list` is read-only reporting: per-tag status, most-recent-
+        first ordering, the empty message, and the contradiction refusal.
+        Subtests run in sequence against one repo — each fabrication
+        builds on the previous state, the way a real history would."""
+        sid_a = "2026-07-20-list-fixture-001"
+        sid_b = "2026-07-21-list-fixture-002"
+
+        with self.subTest(variant="no applied tags"):
+            result = self.rollback("--list")
+            self.assert_ok(result)
+            self.assertIn("no applied/<sid> tags reachable from HEAD.",
+                          result.stdout)
+
+        # Two applied sessions, A then B — B sits nearer HEAD, so the
+        # topological most-recent-first ordering must list B before A.
+        self.make_applied_session(sid_a, summary="session A",
+                                  filename="widget-a.txt")
+        self.make_applied_session(sid_b, summary="session B",
+                                  filename="widget-b.txt")
+
+        def status_lines(stdout: str) -> dict:
+            """Map sid -> its status word from the listing rows."""
+            out = {}
+            for line in stdout.splitlines():
+                parts = line.split()
+                if len(parts) == 2 and parts[1] in (sid_a, sid_b):
+                    out[parts[1]] = parts[0]
+            return out
+
+        with self.subTest(variant="both applied, most recent first"):
+            result = self.rollback("--list")
+            self.assert_ok(result)
+            self.assertEqual(status_lines(result.stdout),
+                             {sid_a: "applied", sid_b: "applied"})
+            self.assertLess(result.stdout.index(sid_b),
+                            result.stdout.index(sid_a),
+                            msg="most-recent-first: B is nearer HEAD")
+            self.assertIn("2 applied session(s)", result.stdout)
+
+        with self.subTest(variant="reverted status after rollback"):
+            self.assert_ok(self.rollback(sid_a))
+            result = self.rollback("--list")
+            self.assert_ok(result)
+            self.assertEqual(status_lines(result.stdout),
+                             {sid_a: "reverted", sid_b: "applied"})
+
+        with self.subTest(variant="re-applied status after --undo"):
+            self.assert_ok(self.rollback(sid_a, "--undo"))
+            result = self.rollback("--list")
+            self.assert_ok(result)
+            self.assertEqual(status_lines(result.stdout),
+                             {sid_a: "re-applied", sid_b: "applied"})
+
+        with self.subTest(variant="--list with a sid is a contradiction"):
+            result = self.rollback("--list", sid_a)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("read-only", result.stderr)
+            # The refusal named the condition instead of silently
+            # ignoring one flag (CLAUDE.md 6: silent skips are bugs).
+            self.assertIn("does not take a sid or --undo", result.stderr)
+
+    # -- board 35 gap 4b: the plain-commit branch -------------------------
+
+    def test_plain_commit_rollback(self) -> None:
+        """An applied/<sid> tag on a NON-merge commit rolls back cleanly:
+        detection takes the plain branch (the log names it), the revert
+        runs without `-m 1` — which would be a git error on a plain
+        commit, so the clean exit is itself the proof — and the summary
+        for the amended message comes from the commit's own subject,
+        there being no second parent to read."""
+        sid = "2026-07-22-plain-fixture-001"
+        summary = "add the plain file"
+        self.make_applied_plain_commit(sid, summary=summary)
+
+        result = self.rollback(sid)
+        self.assert_ok(result)
+        self.assertIn(ROLLED_BACK_HEADLINE, result.stdout)
+        self.assertIn("plain commit", result.stdout,
+                      msg="detection took the non-merge branch")
+
+        # The revert really landed: the file the plain commit added is
+        # gone, the tag exists, and the amended subject carries the
+        # summary recovered from the plain commit's own subject.
+        self.assertFalse((self.repo / "plain.txt").exists(),
+                         msg="reverting the plain commit removes its file")
+        run_checked(["git", "rev-parse", "--verify",
+                     f"refs/tags/reverted/{sid}"],
+                    cwd=self.repo, env=self.git_env)
+        head = subprocess.run(
+            ["git", "log", "-1", "--format=%s"],
+            cwd=self.repo, env=self.git_env, capture_output=True, text=True)
+        self.assertEqual(head.stdout.strip(),
+                         f"[bale rollback {sid}] {summary}")
+
+        record = self.telemetry_record(sid)
+        self.assertEqual(record["outcome"], "rolled-back")
+        self.assertEqual(record["attempts"][0]["command"], "rollback")
 
     # -- board 5 D5 (v0.3.23): the guard disregards untracked telemetry -
 

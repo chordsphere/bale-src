@@ -25,6 +25,16 @@ The suite asserts:
 - `--integration --json` is refused (the report is session-shaped);
 - human mode emits no JSON.
 
+Board 35 (small pins, gap 5) added the `--integration` CLEAR path
+itself (v0.3.2), previously covered only through its --json refusal:
+a held lock is removed with the holder named and the live-apply
+caveat printed; the not-held case is a benign exit-0 no-op; and an
+unparseable lock file still clears, degrading to rows-only (no
+[UNLOCK] headline, since a headline needs a sid the file couldn't
+yield). The class fabricates `.bale/integration.lock` directly — the
+lock is repo-level state apply holds only across its git window, so
+the file is exactly what the command sees.
+
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring.
 
@@ -239,6 +249,76 @@ class UnlockJsonTest(unittest.TestCase):
         self.assertIn("[UNLOCK]", result.stdout,
                       msg="the human block stays on stdout when the "
                           "stream swap never happens")
+
+
+class UnlockIntegrationTest(unittest.TestCase):
+    """`bale unlock --integration`: the clear path (board 35 gap 5)."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-unlockint-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.lock = self.repo / ".bale" / "integration.lock"
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def unlock_integration(self):
+        return run_bale(self.install, ["unlock", "--integration"],
+                        cwd=self.repo, env=self.env)
+
+    def test_integration_clear_path(self) -> None:
+        """Subtests run in sequence against one repo: the not-held no-op
+        first (nothing exists yet), then a well-formed lock cleared with
+        the holder named, then an unparseable lock cleared rows-only."""
+        holder_sid = "2026-07-30-integration-fixture-001"
+
+        with self.subTest(variant="not held is a benign no-op"):
+            result = self.unlock_integration()
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            self.assertIn("integration lock is not held; nothing to unlock.",
+                          result.stdout)
+
+        with self.subTest(variant="held lock clears, holder named"):
+            self.lock.parent.mkdir(parents=True, exist_ok=True)
+            self.lock.write_text(json.dumps({
+                "sid": holder_sid,
+                "pid": 12345,
+                "acquired_at": "2026-07-30T12:00:00+00:00",
+            }) + "\n", encoding="utf-8")
+            result = self.unlock_integration()
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            self.assertFalse(self.lock.exists(),
+                             msg="the clear path's one job")
+            self.assertIn(f"cleared (was held by session {holder_sid}, "
+                          f"pid 12345", result.stdout)
+            self.assertIn("[UNLOCK]", result.stdout)
+            self.assertIn(holder_sid, result.stdout)
+            # The one caveat the summary insists on: only safe while no
+            # apply is mid-integration.
+            self.assertIn("Only clear this while no `bale apply` is "
+                          "running", result.stdout)
+
+        with self.subTest(variant="unparseable lock clears rows-only"):
+            self.lock.write_text("not json{", encoding="utf-8")
+            result = self.unlock_integration()
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            self.assertFalse(self.lock.exists(),
+                             msg="an unreadable lock is exactly the "
+                                 "debris the command exists to clear")
+            self.assertIn("holder unknown (unparseable lock file)",
+                          result.stdout)
+            self.assertNotIn("[UNLOCK]", result.stdout,
+                             msg="no sid, no headline — rows-only degrade")
 
 
 if __name__ == "__main__":
