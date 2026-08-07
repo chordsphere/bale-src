@@ -1,0 +1,93 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-sitting-close-deltas-007",
+  "created_at": "2026-08-07T02:14:57+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T02:14:57+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (13).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "MASTER.md delta assertions (session-specific)": "pass"
+        },
+        "claim_verdict": {
+          "MASTER.md delta assertions (session-specific)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.2",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude (fable 5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "commit d4874ae in board row 13 is carried from the brief unverified (no git in a MASTER.md-only request); the board-13-arc files' presence was verified",
+            "the brief's '>' markers in the R fold-in sources read as its quoting device, not shipped bytes (the 008-session precedent)"
+          ],
+          "judgment_calls": [
+            "watches-list provenance parenthetical trued up (one sentence beyond the brief's letter, same surface, so the additions don't falsify it)",
+            "board row 13 condensed per the arc-close precedent; motivating history dropped to git with the row saying so",
+            "board row 35's ranked gap list kept verbatim; only the spent first-session paragraph replaced",
+            "E59 recorded as a new numbered entry per the brief rather than a third bracket on entry 12, with a cross-pointer added",
+            "the closed board-10 tidy-up bullet in section 3 left byte-untouched per 'nothing else changes'; its now-ambiguous 'this landing' phrase flagged with a proposal"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-07-sitting-close-deltas-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T02:14:57+00:00",
+  "outcome": "applied"
+}
