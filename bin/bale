@@ -222,7 +222,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.4.2"
+VERSION = "0.4.3"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -3073,6 +3073,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
                 context_entries,
                 new_manifest,
                 tarball_out,
+                # --verbose (v0.4.3, the accepted 005 fold-in): stream the
+                # build trail through the same default-off kwarg pack
+                # threads (v0.3.35). Sited post-sid — set_log_file already
+                # ran — so the trail lands on the terminal AND in the
+                # session log, same as pack's call site.
+                verbose=args.verbose,
             )
         except Exception as e:
             if tarball_out.exists():
@@ -5158,9 +5164,10 @@ def build_parser() -> argparse.ArgumentParser:
             "was also a bailout; chained handoffs are a smell, and the "
             "warning is informational only (no flag suppresses or escalates "
             "it). With --edit-goal, opens $EDITOR on the inherited goal "
-            "before packing. With --force, bypasses the home-directory "
-            "refusal that all bale commands enforce — same semantics as "
-            "`bale pack --force`."
+            "before packing. With --verbose, streams the tarball build "
+            "trail live, same as `bale pack --verbose`. With --force, "
+            "bypasses the home-directory refusal that all bale commands "
+            "enforce — same semantics as `bale pack --force`."
         ),
     )
     p_handoff.add_argument(
@@ -5182,6 +5189,16 @@ def build_parser() -> argparse.ArgumentParser:
              "override is logged with the FORCE: prefix. Has no effect "
              "on the chained-bailout lineage warning, which is "
              "informational only and prints regardless.",
+    )
+    p_handoff.add_argument(
+        "--verbose", action="store_true",
+        help="Stream handoff's tarball build trail live (BALE.md §5.4): "
+             "injected docs and tools, manifest, each context copy "
+             "(handoff.md and every reading-plan file), the tar step — "
+             "the same build-trail machinery `bale pack --verbose` "
+             "streams, on the second request-building path. Default "
+             "output is unchanged — the [bale] log lines remain the "
+             "whole trail.",
     )
     p_handoff.add_argument(
         "--allow-checkpoint-in-scope", action="store_true",
