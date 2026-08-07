@@ -1,6 +1,6 @@
 # ADR-0016: Sandbox bale's execution of response scripts
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-07
 - **Supersedes:** —
 - **Superseded by:** —
@@ -169,3 +169,5 @@ Authored Proposed per the ADR-0005 precedent — ratification happens
 at the master desk, where the four flagged positions and the
 environment-scrubbing extension are each accept-or-strike decisions.
 The sandbox build itself, and any source changes, are board 10's.
+
+2026-08-07: ratified at the master desk, all five positions including the environment-scrubbing extension; sitting sid 2026-08-07-sandbox-adr-009.

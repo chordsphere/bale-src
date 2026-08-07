@@ -166,17 +166,18 @@ deleted.
   staging), uniform across all three scripts, default-on for
   attended applies with a per-invocation escape, planner-granted
   per-project network hatch; mechanism deferred to board 10 (WSL
-  constraint recorded). Status: Proposed. Pull when planning the
-  board-10 sandbox build, touching the apply-time script invocation
-  paths, or ratifying at the master desk.
+  constraint recorded). Status: Accepted (ratified 2026-08-07 at
+  the master desk, all five positions including the
+  environment-scrubbing extension). Pull when planning the
+  board-10 sandbox build or touching the apply-time script
+  invocation paths.
 
-Current status: of the sixteen ADRs (0001–0016), fourteen are
-Accepted, one — ADR-0007 — is Superseded (by ADR-0015, the
-board-13 read-vs-write separation, ratified and landed 2026-08-07),
-and one — ADR-0016, the response-script sandbox doctrine — is
-Proposed, awaiting ratification at the master desk.
-The last Proposed set before that (0002–0004 and 0009) was ratified
-at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011).
+Current status: of the sixteen ADRs (0001–0016), fifteen are
+Accepted and one — ADR-0007 — is Superseded (by ADR-0015, the
+board-13 read-vs-write separation, ratified and landed 2026-08-07).
+None is Proposed: the last, ADR-0016 (the response-script sandbox
+doctrine), was ratified at the master desk 2026-08-07, all five
+positions including the environment-scrubbing extension.
 Each ADR file's own Status and Notes lines carry its ratification
 and flip record; the flip-by-flip narrative lives in git.
 

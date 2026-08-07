@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-07-sitting-close-deltas-007`.
+Last landed by: `2026-08-07-sitting-close-deltas-012`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -153,10 +153,10 @@ sitting (evidence 47).]
   `2026-08-06-sweep-json-stats-002` (§6 entries 55–56; the version
   trail is §2's). The sitting-close deltas — this landing — carried
   the cargo.
-- **Next, in order:** the sandbox ADR (the ADR-0005 extension),
-  then the board-10 spec-intake sitting. Board-35 gaps 3–7 remain
-  available as concurrent filler under the new model where
-  forecasts stay disjoint.
+- **Next, in order:** the sandbox ADR is done (ADR-0016 Accepted;
+  flip landing this vehicle). The board-10 spec-intake sitting
+  moves to the head. The gap-3 pack-guards session is in flight,
+  concurrent with this one.
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report, the next three from
@@ -220,7 +220,11 @@ and the last two from the board-13 arc):
   early-forecast-signal proposal), cited not restated:
   refusal-then-admit double-counts drift; default packs read
   precision 1.0 by construction; per-attempt counting over-weights
-  retried sessions.
+  retried sessions. First datum accrued 2026-08-07: 011's unused
+  tests/test_install_precheck.py forecast entry
+  (`2026-08-07-board-35-handoff-happy-011`) — packer-side
+  imprecision, master-authored pack; one accrual, no clustering,
+  no action.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -232,16 +236,6 @@ with the unverifiable ones carried verbatim and marked):
 - The reconciliation label-column cap (008's proposal, accepted) —
   rides the next session touching tools/craft_response.py. [Carried
   unchanged; unverified this sitting — same MASTER.md-only limit.]
-- **`bale handoff --verbose` for its tarball build.** What: a
-  `--verbose` flag on handoff passing `verbose=True` into its
-  `build_request_tarball` call. Why: the build-trail machinery is
-  in place with a default-off kwarg; handoff builds the same quiet
-  tarball pack does. Recorded in §5.4's updated bullet as the one
-  remaining candidate surface. Scope hints: bin/bale §22, the
-  handoff subparser in §26. (Accepted 2026-08-06 from
-  `2026-08-06-verbose-thread-close-005`'s Proposals, text verbatim;
-  rides the next session touching bin/bale §22 or the handoff
-  subparser, §26.)
 - `claude/context/bale-internals.md` §2.5 schema-snippet true-up —
   whether the snippet-not-extended precedent ([staging] v0.3.7,
   [identity] v0.3.8, followed consistently by board-6 sessions A–C,
@@ -318,6 +312,47 @@ with the unverifiable ones carried verbatim and marked):
   anyway keeps the one-corpus doctrine whole. **Scope hints:**
   `tests/fixtures/stats_corpus/`, `tests/test_stats_aggregation.py`;
   no source changes."
+- Checkpoint `bash -n` fail-fast: `check_response_shell_syntax`
+  gates `apply.sh` and `validation.sh` only; a syntax-errored
+  checkpoint surfaces mid-pipeline. Rides board 10 or the next
+  session touching that function. (Source:
+  `2026-08-07-sandbox-adr-009`'s surprises.)
+- gather_files_for_pack verbose kwarg in cmd_handoff — rides the
+  next session touching bin/bale's handoff surface. Text verbatim
+  from `2026-08-07-board-35-handoff-happy-011`'s Proposals:
+  "**What:** `cmd_handoff` calls `gather_files_for_pack(repo,
+  extracted_paths)` without the `verbose` kwarg the function
+  already carries, so `handoff --verbose` streams the build trail
+  but not the filter-chain drop narration pack streams.
+  **Why:** The accepted fold-in's text scoped this session to the
+  `build_request_tarball` call, so I stayed in that lane — but the
+  asymmetry is visible to a user: a reading-plan file silently
+  dropped by the filter chain (typo, gitignored) is exactly what
+  `--verbose` exists to narrate, and the dropped-candidates line
+  in the session log is a coarser signal.
+  **Scope hints:** `bin/bale` cmd_handoff (one kwarg), plus one
+  assertion in `tests/test_handoff_happy.py`. Trivial rider for
+  the next session touching that surface."
+- build_request_tarball docstring stale sentence — rides the next
+  session with bin/bale_pack.py in forecast. Text verbatim from
+  `2026-08-07-board-35-handoff-happy-011`'s Proposals: "**What:**
+  `bin/bale_pack.py`'s `build_request_tarball` docstring ends
+  "`bale handoff` (the other caller) passes nothing and stays
+  byte-identical — the flag is pack-scoped for now." This session
+  makes that false. **Why:** `bale_pack.py` was a hard constraint
+  this session (sibling sessions open), so the sentence ships
+  stale. One-line prose fix, no behavior. **Scope hints:**
+  `bin/bale_pack.py`, docstring only; rides any next session with
+  that file in forecast."
+- test_apply_preflight.py module-docstring history true-up: the
+  "earlier behavior pin documented the identical-duplicate
+  acceptance" line misattributes session 1, which deliberately
+  pinned nothing there (`2026-08-07-board-35-small-pins-010`'s
+  wrinkle). One line; rides the next touch of that file.
+
+Cleared at this landing (`2026-08-07-sitting-close-deltas-012`):
+the `bale handoff --verbose` entry — landed at
+`2026-08-07-board-35-handoff-happy-011`.
 
 Cleared at this landing (`2026-08-06-sitting-close-deltas-008`),
 both from the board-34 arc: the revert staging-row → bale_report
@@ -421,6 +456,47 @@ master desk (the board-13 arc: 004 =
 - The sweep read the conflation class wider than literal
   concurrency assertions (006).
 - "scope" survives as the concept's name (006).
+
+Ratified judgment calls, one line each, dated 2026-08-07 at the
+master desk (009 = `2026-08-07-sandbox-adr-009`, 010 =
+`2026-08-07-board-35-small-pins-010`, 011 =
+`2026-08-07-board-35-handoff-happy-011`):
+
+- Uniform confinement across all three executed scripts,
+  checkpoint included — the one-merge-deep trust argument; the
+  board-6 invocation asymmetries preserved as Consequences (009).
+- Attended path default-on with a loud per-invocation escape —
+  the manual path proves the sandbox by hand (009).
+- Network hatch planner-granted, per-project, contract-only;
+  relaxes network, never filesystem confinement (009).
+- Mechanism deferred to board 10; the WSL constraint is the one
+  fact the implementation inherits (009).
+- Environment scrubbing (allowlisted child env) ratified in —
+  full inheritance of the operator's environment was verified
+  live (009).
+- Row-8 landed as its own class in the forecast file; the
+  off-target case pins the checkout-free contract from both
+  sides (010).
+- Test-local make_applied_session filename parameter; harness.py
+  untouched per constraint (010).
+- Plain-commit proof shape: clean revert as detection proof, plus
+  the log line and subject recovery (010).
+- Exit-2 pinned as HOLD with the code preserved verbatim in the
+  walkthrough row and telemetry; fixture inline past the helper's
+  exit-1 semantics (010).
+- Unlock unparseable-lock rows-only carve-out pinned beyond the
+  bare clear path (010).
+- The handoff happy-path suite in its own new file
+  (tests/test_handoff_happy.py, admitted drift); the precheck
+  forecast entry stood unused — first accrual under the
+  forecast-precision watch, packer-side (011).
+- The context-prefixed context_included form pinned as shipped;
+  the plan-less whole-tree fallback pinned AS-IS per the standing
+  watch; the verbose double-write pinned as promised behavior
+  (011).
+- Row-32 found already pinned by board-13b (check and test
+  shipped together); duplication declined; confirmed at the
+  master desk against the sitting-close-007 tree state (010).
 
 ## 4. The board
 
@@ -541,7 +617,15 @@ and §8, so done items keep their numbers as one-line pointers.
       self-declared. Fine while a human reads every script; a
       non-negotiable prerequisite for unattended workers (network
       off, FS confined to staging). ADR-0005's hermeticity doctrine
-      knows why; it doesn't yet cover this surface.
+      knows why; it doesn't yet cover this surface. [2026-08-07:
+      doctrine half closed — ADR-0016 Accepted (ratified
+      2026-08-07 at the master desk; flip landed this vehicle);
+      the implementation half remains here, now unblocked:
+      mechanism selection under the WSL constraint, the invocation
+      wrapper, the per-invocation escape flag, the per-project
+      network-grant config surface, the env allowlist, and the
+      checkpoint bash -n fail-fast candidate (§3 fold-in
+      registry).]
     - **MASTER.md category promotion** — this doc is a project doc
       today (see §5); when masters multiply, the master-handoff
       category wants the ADR-0009 staging treatment (explainer at
@@ -873,6 +957,26 @@ and §8, so done items keep their numbers as one-line pointers.
     declared-untracked-inputs pin (both from 002's notes), and the
     post-epoch stats-corpus fixtures (fold-in registry carries B's
     proposal verbatim). Gaps 3–7 remain queued, ordering-free.
+
+    Session 2 — DONE 2026-08-07
+    (`2026-08-07-board-35-small-pins-010`, tests-only bump-exempt;
+    telemetry): gaps 4, 5, 6 plus the row-8 pin; row-32 found
+    already covered (board-13b, see the ratified line); the
+    covered/excluded census is in the session's archived notes.
+
+    Session 3 — DONE 2026-08-07
+    (`2026-08-07-board-35-handoff-happy-011`, 0.4.3; telemetry):
+    gap 7 end to end plus the accepted --verbose fold-in;
+    tests/test_handoff_happy.py is the suite's new home (admitted
+    drift); the census and the residual edge surfaces (edit-goal
+    pty, repeat-bailout warning text, missing-request-manifest
+    fail path, force/home-dir semantics) are in the archived
+    notes.
+
+    Remaining queue: gap 3 (in flight), the row-21
+    declared-untracked-inputs pin (needs target-base
+    choreography), the post-epoch stats-corpus fixtures (rides
+    the next test_stats_aggregation.py touch).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1758,6 +1862,17 @@ New from the 2026-08-07 sitting (the board-13 arc):
     Evidence 25's serialization class did not recur and is
     structurally closed.
 
+New from the 2026-08-07 sitting (the board-35 sessions):
+
+61. **Queue staleness is real under concurrency; the drill-down
+    doctrine caught it at zero cost.** The row-32 near-duplication
+    miss: an item queued from session 1's notes was closed by an
+    intervening session (board-13b) before its carrier ran; caught
+    because the worker verified the shipped tree before building
+    rather than trusting the queue. Sids:
+    `2026-08-07-board-35-small-pins-010`,
+    `2026-08-07-board-13b-epoch-ledger-005`.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1804,16 +1919,19 @@ New from the 2026-08-07 sitting (the board-13 arc):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.2 (trail: 0.4.0 → 0.4.1 at
+  still governs. bin/bale VERSION 0.4.3 (trail: 0.4.0 → 0.4.1 at
   `2026-08-07-board-13a-forecast-surface-004` → 0.4.2 at
-  `2026-08-07-board-13b-epoch-ledger-005`;
-  `2026-08-07-board-13c-contract-docs-006` doc-only and
-  `2026-08-07-board-35-apply-preflight-002` tests-only, both
-  bump-exempt per the §5 cadence rulings), read from the constant
-  in the copy shipped read-only with this sitting-close deltas
-  request, `2026-08-07-sitting-close-deltas-007`, whose pack-time
-  provenance stamp agrees (tree state; the live install trails
-  one-apply-behind as ever).
+  `2026-08-07-board-13b-epoch-ledger-005` → 0.4.3 at
+  `2026-08-07-board-35-handoff-happy-011`, the handoff --verbose
+  flag; `2026-08-07-board-13c-contract-docs-006` and
+  `2026-08-07-sandbox-adr-009` doc-only,
+  `2026-08-07-board-35-apply-preflight-002` and
+  `2026-08-07-board-35-small-pins-010` tests-only, all
+  bump-exempt per the §5 cadence rulings), recorded from the
+  sitting's ratified cargo — bin/bale is not shipped with this
+  deltas request, `2026-08-07-sitting-close-deltas-012`, so the
+  standing verify-at-sitting-open rule (§2) is the next check
+  (the live install trails one-apply-behind as ever).
 - The registry's scope.json records the write forecast as of 0.4.1
   (ADR-0015); pre-separation open sessions read as over-forecasts
   (conservative, self-clearing at close).
@@ -1845,7 +1963,7 @@ Traceability from finding to disposition; the board carries the work.
 | # | Finding | Disposition |
 |---|---------|-------------|
 | 1a | validation.sh is a self-oracle (worker grades own work) | Board 6 (blind checkpoints) + board 4/5 (calibration streams) |
-| 1b | validation.sh runs unsandboxed with operator privileges | Board 10 agenda item (harness prerequisite) |
+| 1b | validation.sh runs unsandboxed with operator privileges | Doctrine: ADR-0016 (Accepted 2026-08-07). Implementation: board 10 (harness prerequisite) |
 | 2 | Own-scope drift × concurrency = silent clobber; created-collision error is safe but cryptic | Board 2 |
 | 3 | Claim/verdict calibration signal evaporates into transient logs | Board 4 (first-class durable field) |
 | 4 | No provenance: unversioned contract docs, unattributed responses | Board 4 (day-one stamping, §5 contract) |
