@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-07-sitting-close-deltas-012`.
+Last landed by: `2026-08-07-ratification-microdeltas-014`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -343,12 +343,46 @@ with the unverifiable ones carried verbatim and marked):
   this session (sibling sessions open), so the sentence ships
   stale. One-line prose fix, no behavior. **Scope hints:**
   `bin/bale_pack.py`, docstring only; rides any next session with
-  that file in forecast."
+  that file in forecast." The same carrier gains a second rider —
+  "Name the pattern's source in the negation refusal", What/Why
+  verbatim from `2026-08-07-board-35-pack-guards-013`'s Proposals:
+  "**What:** When `build_pack_matcher`'s combined parse trips the
+  negation guard, the failure message says "invalid session
+  exclude pattern" regardless of whether the offending line came
+  from `--exclude` or from `.baleignore`. On the wizard path the
+  file was pre-validated by `load_baleignore`, so the wording
+  holds there; on the fully-specified CLI path a negation line in
+  `.baleignore` reaches this branch and gets attributed to the
+  session. Split the message by source, or re-validate the file
+  lines separately before composing. **Why:** Observed while
+  enumerating the composition surface this session (the code
+  comment at the `fail()` assumes the file "was already validated
+  by load_baleignore in any surface that called it", which the
+  fully-specified path doesn't). A user who typed no `--exclude`
+  and is told their session exclude pattern is invalid will look
+  in the wrong place. I deliberately did not pin this wording in
+  the suite so the fix isn't fighting a test."
 - test_apply_preflight.py module-docstring history true-up: the
   "earlier behavior pin documented the identical-duplicate
   acceptance" line misattributes session 1, which deliberately
   pinned nothing there (`2026-08-07-board-35-small-pins-010`'s
   wrinkle). One line; rides the next touch of that file.
+- A `--slow` convention for the test tree — conditional,
+  deliberately unscheduled: the re-trigger is the first session
+  whose additions would cross the §7.6 two-minute target, and
+  that session builds the gate harness-level (tests/harness.py,
+  validate.sh, a docs line) rather than per-suite. Current
+  margin: ~111s scaled of 120s after board-35 session 4. What/Why
+  verbatim from `2026-08-07-board-35-pack-guards-013`'s
+  Proposals: "**What:** An opt-in env-var gate (e.g.
+  `BALE_TEST_SLOW=1` + `skipUnless`) for generation-heavy cases,
+  established once as a harness-level helper rather than
+  per-suite. **Why:** This session brought the scaled wall to
+  ~111s of the 120s target with nothing left to trim that doesn't
+  cost audit-named coverage. The *next* generation-heavy suite
+  won't have that luxury; better to introduce the convention
+  deliberately (with `validate.sh` and the docs knowing about it)
+  than as a side effect of whichever session first overruns."
 
 Cleared at this landing (`2026-08-07-sitting-close-deltas-012`):
 the `bale handoff --verbose` entry — landed at
@@ -497,6 +531,34 @@ master desk (009 = `2026-08-07-sandbox-adr-009`, 010 =
 - Row-32 found already pinned by board-13b (check and test
   shipped together); duplication declined; confirmed at the
   master desk against the sitting-close-007 tree state (010).
+
+Ratified judgment calls, one line each, dated 2026-08-07 at the
+master desk (012 = `2026-08-07-sitting-close-deltas-012`, 013 =
+`2026-08-07-board-35-pack-guards-013`):
+
+- The version trail's home is §7 per the one-home collapse; §2
+  untouched is the correct strict reading (012).
+- The 0.4.3 marked-relay accepted; verified at this microdeltas
+  landing — the missing bin/bale was a packer-side includes gap,
+  recorded as such (012).
+- Session 1's dated record retained verbatim; record-then-current
+  ratified — dated DONE records are history (012).
+- The dangling INDEX sentence removal inside the named true-up
+  accepted (012).
+- The ADR-0016 Notes line stands as landed; the sid-label
+  imprecision is on the record via the relay, append-only
+  respected (012).
+- The evidence-35 reverse-transform ratified as the assertion
+  shape for future ADR flips (012).
+- Sparse-file soft-breach with the mirrored constant; subprocess
+  doctrine kept, drift fails loudly (013).
+- Harness promotion declined at one consumer per the one-harness
+  trigger (013).
+- Per-test sandboxes retained; hermeticity over runtime (013).
+- The soft file-count breach excluded — one prompt path, no new
+  behavior for its generation cost (013).
+- The negation-refusal wording deliberately unpinned ahead of its
+  own proposed fix (013).
 
 ## 4. The board
 
@@ -973,9 +1035,18 @@ and §8, so done items keep their numbers as one-line pointers.
     fail path, force/home-dir semantics) are in the archived
     notes.
 
-    Remaining queue: gap 3 (in flight), the row-21
-    declared-untracked-inputs pin (needs target-base
-    choreography), the post-epoch stats-corpus fixtures (rides
+    Session 4 — DONE 2026-08-07
+    (`2026-08-07-board-35-pack-guards-013`, tests-only bump-exempt;
+    telemetry): gap 3 closed — the cap family with force, exclude,
+    baleignore, their union composition, and the full prompt
+    branch set; one new suite `tests/test_pack_guards.py`; the
+    covered/excluded census is in the session's archived notes;
+    suite 323 tests, ~111s scaled against the §7.6 target.
+
+    Remaining queue: the ranked gap list 1–7 is complete. The row
+    stays open owning two queued residuals with named carriers:
+    the row-21 declared-untracked-inputs pin (needs target-base
+    choreography), and the post-epoch stats-corpus fixtures (rides
     the next test_stats_aggregation.py touch).
 
 ## 5. Contracts established (do not re-litigate casually)
@@ -1927,11 +1998,10 @@ New from the 2026-08-07 sitting (the board-35 sessions):
   `2026-08-07-sandbox-adr-009` doc-only,
   `2026-08-07-board-35-apply-preflight-002` and
   `2026-08-07-board-35-small-pins-010` tests-only, all
-  bump-exempt per the §5 cadence rulings), recorded from the
-  sitting's ratified cargo — bin/bale is not shipped with this
-  deltas request, `2026-08-07-sitting-close-deltas-012`, so the
-  standing verify-at-sitting-open rule (§2) is the next check
-  (the live install trails one-apply-behind as ever).
+  bump-exempt per the §5 cadence rulings), verified from the
+  VERSION constant in the copy shipped read-only with
+  `2026-08-07-ratification-microdeltas-014` (the live install
+  trails one-apply-behind as ever).
 - The registry's scope.json records the write forecast as of 0.4.1
   (ADR-0015); pre-separation open sessions read as over-forecasts
   (conservative, self-clearing at close).
