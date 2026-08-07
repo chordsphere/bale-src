@@ -48,6 +48,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
@@ -851,8 +852,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     --json`, flag parity) and rides the same gated emission points.
 
     `allow_out_of_scope` (v0.3.10, board 2; cmd_apply --allow-out-of-scope,
-    repeatable) names changes[] paths the own-scope drift gate below should
-    admit despite lying outside the session's declared scope. Per
+    repeatable) names changes[] paths the own-forecast drift gate below
+    should admit despite lying outside the session's write forecast
+    (ADR-0015: worker judgment past the ask, admitted per path). Per
     invocation only — there is deliberately no config key — and any drift
     path NOT named still refuses. None/empty means no override. cmd_retry
     accepts and threads the same flag since v0.3.14 (flag parity), passing
@@ -991,6 +993,31 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         validate_response_manifest(manifest)
         log("manifest schema validation passed")
 
+        # 8.1 step 16 / §11 row 32 (v0.4.2, the board-35 rider ratified
+        # at the master desk 2026-08-07): duplicate changes[] paths.
+        # TARBALL.md §5.2 has called a duplicated path invalid all along
+        # — it makes the files/ ↔ changes[] mirror correspondence
+        # ambiguous — and the worker-side lint's DUPLICATE_PATH row
+        # already says so; this converts the prose to apply-side
+        # contract, closing the prose-vs-enforcement disagreement the
+        # board-35 session verified (an identical duplicate applied
+        # cleanly). Identical path STRINGS, the lint's own basis, so the
+        # two surfaces agree on what a duplicate is; a conflicting
+        # duplicate that would previously have limped to the sha
+        # mismatch now refuses here, at the manifest checks where the
+        # disease actually lives. Manifest-only, so it runs under
+        # --dry-run and passes vacuously for bailout and clarification
+        # manifests, whose changes[] is empty.
+        duplicate_paths = sorted(p for p, n in Counter(
+            c.get("path") for c in manifest.get("changes", []) or []
+            if isinstance(c.get("path"), str)
+        ).items() if n > 1)
+        if duplicate_paths:
+            fail(f"[REJECT] duplicate changes[] path(s) (BALE.md §11 "
+                 f"row 32): {', '.join(duplicate_paths)} — a duplicated "
+                 f"path makes the files/ <-> changes[] correspondence "
+                 f"ambiguous (TARBALL.md §5.2)")
+
         # 8.1 step 6 / §11 row 9, read against the ADR-0006 registry: the
         # sid the response names must be an open session. With several
         # sessions open (ADR-0007), cmd_apply already resolved
@@ -1002,18 +1029,20 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             fail(f"manifest.responds_to={manifest['responds_to']!r} does not "
                  f"match the open session {locked_sid!r}")
 
-        # 8.1 step 7 / §11 row 19 (ADR-0007): cross-session scope
-        # collision. Whatever this response's worker did, its changes may
-        # not land on files ANOTHER open session has in scope — bale's
-        # overlay is whole-file replacement, so a later apply authored
-        # against a stale snapshot would silently clobber the sibling's
-        # work and the --no-ff merge would land clean. This is the real
-        # guard; the pack-time gate is only the conservative early one.
-        # Own-scope drift (changes outside this session's own scope with
-        # no sibling claiming the path) remains policy, caught at review
-        # (BALE.md §2.2, TARBALL.md §8) — unchanged by ADR-0007. With at
-        # most one session open there are no siblings and this is a
-        # no-op; bailout and clarification manifests carry empty
+        # 8.1 step 7 / §11 row 19 (ADR-0007, re-based onto forecasts by
+        # ADR-0015): cross-session forecast collision. Whatever this
+        # response's worker did, its changes may not land on paths
+        # ANOTHER open session's write forecast claims — bale's overlay
+        # is whole-file replacement, so a later apply authored against a
+        # stale snapshot would silently clobber the sibling's work and
+        # the --no-ff merge would land clean. This is the one mechanical
+        # refusal the ADR-0015 model reserves (no override flag,
+        # deliberately: admission never crosses a sibling's forecast);
+        # the pack-time gate is only the conservative early one. Read
+        # includes participate in nothing — a sibling may land inside
+        # this session's read set, the accepted read-staleness residue.
+        # With at most one session open there are no siblings and this
+        # is a no-op; bailout and clarification manifests carry empty
         # changes[], so they pass vacuously. Runs under --dry-run too —
         # read-only, and a dry-run should predict the rejection.
         sibling_sids = [s for s in open_sessions(repo) if s != locked_sid]
@@ -1035,35 +1064,45 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     for sib_sid, paths in collisions
                 )
                 fail(
-                    f"[REJECT] cross-session scope collision (ADR-0007): "
-                    f"changes[] lands on paths in another open session's "
-                    f"scope — {detail}. Apply or close the sibling "
-                    f"session(s) first (`bale apply <its tarball>`, `bale "
-                    f"revert <sid>`, or `bale unlock`), then re-run this "
-                    f"apply."
+                    f"[REJECT] cross-session forecast collision "
+                    f"(ADR-0015, re-basing ADR-0007): changes[] lands on "
+                    f"paths inside another open session's write forecast "
+                    f"— {detail}. This refusal takes no override "
+                    f"(admission never crosses a sibling's forecast); "
+                    f"apply or close the sibling session(s) first "
+                    f"(`bale apply <its tarball>`, `bale revert <sid>`, "
+                    f"or `bale unlock`), then re-run this apply."
                 )
-            log(f"cross-session scope collision check passed against "
+            log(f"cross-session forecast collision check passed against "
                 f"{len(sibling_sids)} sibling session(s): "
                 f"{', '.join(sibling_sids)}")
 
-        # 8.1 step 14 / §11 row 22 (v0.3.10, board 2): own-scope drift
-        # gate — the drift-to-contract conversion of the stay-in-the-lane
-        # rule, sited beside its step-7 sibling above. The 008 audit's
-        # finding 2: two sessions can each drift into the same UNCLAIMED
-        # file, pass every ADR-0007 declared-vs-declared gate, and the
+        # 8.1 step 14 / §11 row 22 (v0.3.10, board 2; forecast
+        # vocabulary and doctrine per ADR-0015, board 13): own-forecast
+        # drift gate — sited beside its step-7 sibling above. The 008
+        # audit's finding 2: two sessions can each drift into the same
+        # UNCLAIMED file, pass every declared-vs-declared gate, and the
         # second whole-file overlay clobbers the first under a clean
         # --no-ff merge. So: every changes[] path must lie inside THIS
-        # session's own declared scope (the pack-time include set,
-        # sessions/<sid>/scope.json — read conservatively as whole-tree
-        # when missing/unreadable, which also keeps default whole-tree
-        # packs entirely outside this gate's blast radius). Created paths
-        # are rejected the same as modified — the clobber scenario is
-        # precisely two sessions creating the same unclaimed file.
+        # session's own recorded write forecast
+        # (sessions/<sid>/scope.json — post-separation the forecast,
+        # with pre-separation sessions' recorded include sets reading
+        # as over-forecasts; read conservatively as whole-tree when
+        # missing/unreadable, which also keeps default whole-tree
+        # packs entirely outside this gate's blast radius). Created
+        # paths are refused the same as modified — the clobber scenario
+        # is precisely two sessions creating the same unclaimed file.
+        # Under ADR-0015 the forecast is a forecast, not a wall: an
+        # out-of-forecast edit is worker judgment past the ask —
+        # shipped, enumerated in notes.md, admitted per path, graded by
+        # the ledger — never a silent landing, and never a landing on a
+        # path a sibling's forecast claims (step 7 above, which an
+        # admission here cannot cross).
         # --allow-out-of-scope (per-invocation, repeatable; no config
         # key) admits exactly the named paths; any other drift still
         # refuses. The refusal is pre-staging: no git side effects, the
-        # session stays open, and the remedies are a regenerated
-        # response, a deliberate per-path override, or an unlock+repack.
+        # session stays open, and the remedies are a per-path admission,
+        # a regenerated response, or an unlock+repack.
         # Manifest-only, so it runs under --dry-run (same report, no
         # telemetry — no outcome occurred) and passes vacuously for
         # bailout and clarification manifests, whose changes[] is empty.
@@ -1082,21 +1121,21 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         refused_paths = [p for p in drift_paths if p not in allow_norm]
         unused_allow = [p for p in allow_norm if p not in drift_paths]
         if unused_allow:
-            # Named but not drifting: harmless (in-scope or not in the
-            # change set at all), but say so — a silently ignored
-            # override flag is exactly the surprise the logging rules
-            # exist to prevent.
+            # Named but not drifting: harmless (inside the forecast or
+            # not in the change set at all), but say so — a silently
+            # ignored override flag is exactly the surprise the logging
+            # rules exist to prevent.
             log(f"--allow-out-of-scope named path(s) with no matching "
-                f"out-of-scope change: {', '.join(unused_allow)} "
+                f"out-of-forecast change: {', '.join(unused_allow)} "
                 f"(no effect)")
         if refused_paths:
             scope_rendered = (", ".join(session_scope) if session_scope
-                              else "(read-only session — empty scope; "
+                              else "(read-only session — empty forecast; "
                                    "lands nothing)")
-            log(f"[REJECT] own-scope drift (BALE.md §11 row 22): "
+            log(f"[REJECT] own-forecast drift (BALE.md §11 row 22): "
                 f"{len(refused_paths)} changes[] path(s) outside session "
-                f"{locked_sid}'s declared scope — "
-                f"{', '.join(refused_paths)}; declared scope: "
+                f"{locked_sid}'s write forecast — "
+                f"{', '.join(refused_paths)}; write forecast: "
                 f"{scope_rendered}")
             # A drift refusal is a distinct, dispatchable outcome — it
             # does NOT ride the generic fail() path: the human rendering
@@ -1149,11 +1188,11 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # from a session packed to land none, and the audit trail
             # should record that that is exactly what they overrode.
             scope_note = (", ".join(session_scope) if session_scope
-                          else "read-only session — empty scope; the "
+                          else "read-only session — empty forecast; the "
                                "override lands changes from a session "
                                "packed to land none")
-            log(f"own-scope drift admitted by --allow-out-of-scope: "
-                f"{', '.join(overridden_paths)} (declared scope: "
+            log(f"own-forecast drift admitted by --allow-out-of-scope: "
+                f"{', '.join(overridden_paths)} (write forecast: "
                 f"{scope_note})", force=True)
         # No pass-path log line beyond the reads above: like the
         # generated-artifact denial below, a clean pass adds no output,
@@ -1750,7 +1789,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             }
 
         # Telemetry inputs (v0.3.9, B2): session_scope was read at the
-        # own-scope drift gate above — once, before any terminal action's
+        # own-forecast drift gate above — once, before any terminal action's
         # cleanup can wipe .bale/sessions/<sid>/ — and is reused by the
         # terminal actions' telemetry calls below, alongside the
         # overridden_paths the gate computed (v0.3.10).

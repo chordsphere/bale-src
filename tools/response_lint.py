@@ -346,6 +346,27 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   "description": "Where the compaction disclosure was recorded (e.g. 'notes.md' or a chat pointer); null when occurred is false."
                 }
               }
+            },
+            "forecast_departures": {
+              "type": "array",
+              "description": "The worker's own structured account of judgment past the ask (v0.4.2, ADR-0015 board 13 E2, ratified — additive and OPTIONAL, so every pre-epoch manifest stays valid and omission means the session declares no departures). One entry per changes[] path the worker shipped outside the session's write forecast: path plus why, the structured twin of the notes.md enumeration (which remains the human-facing account and the apply-walkthrough input; this field is the aggregable one). Apply persists the feedback block verbatim into telemetry, so `bale stats` cross-checks these declarations against the mechanically admitted overridden_paths — an admitted path with no declared departure is the ADR-0014 audit smell, computed instead of eyeballed.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "why"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The repo-relative changes[] path shipped outside the forecast."
+                  },
+                  "why": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Why the goal required this path — the argument the drift makes for itself."
+                  }
+                }
+              }
             }
           }
         }

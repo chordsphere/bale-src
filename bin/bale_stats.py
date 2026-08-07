@@ -55,6 +55,7 @@ semantics, not the wire key set.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -320,6 +321,82 @@ def _rate(numerator: int, denominator: int) -> Optional[float]:
 
 
 # ---------------------------------------------------------------------------
+# Forecast epoch and containment (ADR-0015, board 13 session B)
+# ---------------------------------------------------------------------------
+
+# The write-forecast epoch marker (ADR-0015, design brief I.5): the
+# attempt-level key bale stamps on every post-epoch attempt, absent
+# before. Key presence is epoch membership — post-epoch, attempts[].scope
+# holds the session's write forecast, and drift computed against it is
+# judgment past the ask; pre-epoch, scope was the conflated include set
+# and drift against it was structurally near zero. The forecast rows
+# below read post-epoch attempts ONLY, so the two eras never aggregate
+# into one lying trend line. record_version stays 1 (additive).
+FORECAST_SCOPE_KIND = "write-forecast"
+
+
+def _scope_norm(p: str) -> str:
+    """Normalize one path for forecast containment.
+
+    A deliberate stdlib-pure mirror of `scope_path` in bin/bale (same
+    normal form: repo-relative, forward-slash, no trailing slash, no
+    leading `./`; empty and `.` both mean the whole tree). Duplicated
+    rather than imported because this module's contract is
+    importability without bin/bale loaded (module docstring); the
+    mirror is pinned by tests/test_forecast_ledger.py so the two homes
+    cannot drift silently.
+    """
+    s = os.path.normpath(p.strip()).replace(os.sep, "/")
+    return "." if s in ("", ".") else s
+
+
+def _forecast_covers(entries: list, path: str) -> bool:
+    """True when a normalized change path lies inside the forecast.
+
+    The stdlib-pure mirror of `scope_covers_path` in bin/bale — the
+    drift gate's own containment test, so the drift the ledger counts
+    is exactly the drift the gate saw: an entry covers the path when
+    the entry is "." (the whole tree), equals the path, or is a
+    directory ancestor of it; an empty forecast covers nothing (the
+    read-only shape). `entries` must already be _scope_norm'd; the
+    path is normalized here.
+    """
+    p = _scope_norm(path)
+    return any(
+        entry == "." or p == entry or p.startswith(entry + "/")
+        for entry in entries
+    )
+
+
+def _departure_paths(attempt: dict) -> set:
+    """The worker's self-declared forecast departures on one attempt,
+    as a normalized path set.
+
+    Reads feedback.self_reported.forecast_departures — the additive
+    optional [{path, why}] field (ADR-0015 E2, ratified;
+    response-manifest.schema.json) apply persists verbatim into the
+    record. Tolerant like every feedback read: a missing block, a
+    non-list field, or a malformed entry reads as no declaration —
+    the cross-check reports what was declared, never crashes on what
+    wasn't.
+    """
+    feedback = attempt.get("feedback")
+    if not isinstance(feedback, dict):
+        return set()
+    reported = feedback.get("self_reported")
+    if not isinstance(reported, dict):
+        return set()
+    departures = reported.get("forecast_departures")
+    if not isinstance(departures, list):
+        return set()
+    return {
+        _scope_norm(d["path"]) for d in departures
+        if isinstance(d, dict) and isinstance(d.get("path"), str)
+        and d["path"].strip()
+    }
+
+
+# ---------------------------------------------------------------------------
 # Epoch and coverage (D2)
 # ---------------------------------------------------------------------------
 
@@ -397,6 +474,40 @@ def _class_row(sessions: list[dict]) -> dict:
     `required_check_overrides` list — both counts beside the drift
     rows, mirroring drift's refusal/override pair; override incidence
     is a count, not a rate, per the drift precedent.
+
+    Forecast rows (ADR-0015, board 13 session B — design brief I.5).
+    All three read POST-EPOCH response attempts only: attempts whose
+    `scope_kind` reads FORECAST_SCOPE_KIND, where `scope` is the
+    session's recorded write forecast. Pre-epoch attempts (no key)
+    aggregate under the pre-separation semantics above and never
+    enter these denominators — key absence is the epoch boundary.
+    Both scoping signals below are about the packer's forecasts, not
+    the worker's discipline (ADR-0014's doctrine generalized):
+
+    - **Forecast drift rate** — a post-epoch response attempt DRIFTS
+      when at least one of its change_paths lies outside the forecast
+      (`_forecast_covers`, the drift gate's own containment, so the
+      ledger's drift is the gate's drift). The rate is drifting
+      attempts over post-epoch response attempts — the drift the
+      constraint says the ledger grades: judgment past the ask.
+      Drift clustering reads as forecasts drawn too NARROW.
+    - **Admission rate** — path-granular, the unit the operator
+      decides in: admitted drift paths (the attempt's drift set ∩ its
+      `overridden_paths`) over all drift paths, both summed as
+      per-attempt unique-path counts across post-epoch response
+      attempts. The refused complement is derivable
+      (`forecast_drift_paths - forecast_admitted_paths`).
+    - **Forecast precision** — touched forecast entries over forecast
+      entries, where an entry is TOUCHED when any change path lies
+      under it (same containment, per-entry). Counted per attempt
+      across post-epoch response attempts that recorded at least one
+      change path — an attempt that landed nothing (a pre-manifest
+      rejection) measures nothing about forecast width and stays
+      outside both counts; a retried session's forecast is counted
+      once per attempt, symmetric with the drift denominators.
+      `forecast_entries_untouched` is reported beside the rate — the
+      imprecision count itself. Imprecision clustering reads as
+      forecasts drawn too WIDE, the mirror signal.
     """
     response_attempts = 0
     validated_attempts = 0
@@ -413,6 +524,13 @@ def _class_row(sessions: list[dict]) -> dict:
     checkpoint_hold_attempts = 0
     required_check_refused_attempts = 0
     required_check_override_attempts = 0
+    forecast_attempts = 0
+    forecast_drift_attempts = 0
+    forecast_drift_paths = 0
+    forecast_admitted_paths = 0
+    forecast_entries = 0
+    forecast_entries_touched = 0
+    forecast_entries_untouched = 0
     bailout_sessions = 0
     sessions_with_response_attempt = 0
     closed_sessions = 0
@@ -446,6 +564,41 @@ def _class_row(sessions: list[dict]) -> dict:
                 # names). Absent on pre-session-B records; a truthy
                 # check reads absence and [] the same honest way.
                 required_check_override_attempts += 1
+            if attempt.get("scope_kind") == FORECAST_SCOPE_KIND:
+                # The write-forecast epoch (ADR-0015; docstring above
+                # carries every definition). Post-epoch only: key
+                # presence is epoch membership.
+                forecast_attempts += 1
+                forecast = [_scope_norm(e) for e in
+                            (attempt.get("scope") or [])
+                            if isinstance(e, str) and e.strip()]
+                change_paths = {
+                    _scope_norm(p) for p in
+                    (attempt.get("change_paths") or [])
+                    if isinstance(p, str) and p.strip()
+                }
+                drift = {p for p in change_paths
+                         if not _forecast_covers(forecast, p)}
+                if drift:
+                    forecast_drift_attempts += 1
+                forecast_drift_paths += len(drift)
+                admitted = {_scope_norm(p) for p in
+                            (attempt.get("overridden_paths") or [])
+                            if isinstance(p, str) and p.strip()}
+                forecast_admitted_paths += len(drift & admitted)
+                if change_paths:
+                    # Precision only over attempts that landed
+                    # something: an empty change set measures nothing
+                    # about forecast width (docstring).
+                    entries = sorted(set(forecast))
+                    touched = [e for e in entries
+                               if any(e == "." or p == e
+                                      or p.startswith(e + "/")
+                                      for p in change_paths)]
+                    forecast_entries += len(entries)
+                    forecast_entries_touched += len(touched)
+                    forecast_entries_untouched += (len(entries)
+                                                   - len(touched))
             if not is_validated_attempt(attempt):
                 continue
             validated_attempts += 1
@@ -540,6 +693,18 @@ def _class_row(sessions: list[dict]) -> dict:
                                       checkpointed_attempts),
         "required_check_refused_attempts": required_check_refused_attempts,
         "required_check_override_attempts": required_check_override_attempts,
+        "forecast_attempts": forecast_attempts,
+        "forecast_drift_attempts": forecast_drift_attempts,
+        "forecast_drift_rate": _rate(forecast_drift_attempts,
+                                     forecast_attempts),
+        "forecast_drift_paths": forecast_drift_paths,
+        "forecast_admitted_paths": forecast_admitted_paths,
+        "forecast_admission_rate": _rate(forecast_admitted_paths,
+                                         forecast_drift_paths),
+        "forecast_entries": forecast_entries,
+        "forecast_entries_untouched": forecast_entries_untouched,
+        "forecast_precision": _rate(forecast_entries_touched,
+                                    forecast_entries),
         "bailout_sessions": bailout_sessions,
         "sessions_with_response_attempt": sessions_with_response_attempt,
         "bailout_rate": _rate(bailout_sessions,
@@ -595,6 +760,11 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
         # validated attempts all predate session A lacks the key
         # everywhere and lands in records_lacking.
         "checkpoint": _coverage_row(records, "checkpoint"),
+        # The write-forecast sub-epoch (ADR-0015, board 13 session B):
+        # the scope_kind key bale stamps on every post-epoch attempt.
+        # Detected by presence like its three siblings; the forecast
+        # rows in _class_row read only inside this sub-epoch.
+        "scope_kind": _coverage_row(records, "scope_kind"),
     }
 
     windowed = [r for r in records
@@ -654,6 +824,36 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
         if stamp is not None and isinstance(stamp.get("rounds"), int) \
                 and stamp["rounds"] >= 1:
             promoted_clar.add(record["session_id"])
+    # The departures-vs-admissions cross-check (ADR-0015 / design brief
+    # I.5): the worker's self-declared forecast_departures against the
+    # mechanically admitted overridden_paths, path-granular per
+    # post-epoch response attempt, per-attempt set counts summed. An
+    # admitted path with NO declared departure ("admitted_only") is the
+    # ADR-0014 audit smell, now computed instead of eyeballed; a
+    # declared path never admitted ("declared_only") is either refused
+    # drift or a worker misjudging its own forecast — both worth eyes.
+    # Self-reported beside mechanical, never blended (D2's posture).
+    fd_declared = 0
+    fd_admitted = 0
+    fd_both = 0
+    fd_admitted_only = 0
+    fd_declared_only = 0
+    for record in membership:
+        for attempt in record["attempts"]:
+            if not is_response_attempt(attempt):
+                continue
+            if attempt.get("scope_kind") != FORECAST_SCOPE_KIND:
+                continue
+            declared = _departure_paths(attempt)
+            admitted = {_scope_norm(p) for p in
+                        (attempt.get("overridden_paths") or [])
+                        if isinstance(p, str) and p.strip()}
+            fd_declared += len(declared)
+            fd_admitted += len(admitted)
+            fd_both += len(declared & admitted)
+            fd_admitted_only += len(admitted - declared)
+            fd_declared_only += len(declared - admitted)
+
     pressure: dict[str, int] = {}
     bailed_with_none = 0
     for record in membership:
@@ -706,6 +906,13 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "budget": {
                 "pressure": dict(sorted(pressure.items())),
                 "bailed_with_pressure_none": bailed_with_none,
+            },
+            "forecast_departures": {
+                "declared_paths": fd_declared,
+                "admitted_paths": fd_admitted,
+                "both": fd_both,
+                "admitted_only": fd_admitted_only,
+                "declared_only": fd_declared_only,
             },
         },
     }

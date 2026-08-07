@@ -150,10 +150,15 @@
               }
             }
           },
+          "scope_kind": {
+            "type": "string",
+            "enum": ["write-forecast"],
+            "description": "The write-forecast epoch key (v0.4.2, ADR-0015 board 13 session B — the reconciliation_parsed disambiguation doctrine applied a fourth time). PRESENT on every attempt written post-epoch and ABSENT before: key presence is epoch membership, so aggregation never averages pre-separation drift rates (scope = the conflated include set; drift structurally near zero) against forecast-era ones (scope = the write forecast; drift expected nonzero by design — judgment past the ask). Stamped unconditionally by build_telemetry_attempt on every command's attempts, so no per-call-site branching can desync the epoch. The one value today names the one post-epoch meaning; record_version stays 1 (additive), and `bale stats` computes its forecast rows over attempts carrying this key only."
+          },
           "scope": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "The session's declared scope — the resolved include set recorded at pack time (the 'includes shipped' side of the includes-vs-changes comparison). Empty when no scope was recorded (pre-ADR-0007 sessions) — and on rollback attempts when the session directory (and its scope.json) is long gone at rollback time (v0.3.18): [] records 'not recoverable' honestly, never a fabricated whole-tree scope."
+            "description": "The session's recorded scope, raw. Post-separation (ADR-0015 — attempts carrying scope_kind) this is the session's WRITE FORECAST: what the session forecast landing, which the drift the aggregation computes from scope vs change_paths grades as judgment past the ask. Pre-separation attempts (no scope_kind key) recorded the conflated resolved include set — the 'includes shipped' side of the includes-vs-changes comparison — and open sessions packed pre-separation read as over-forecasts. Empty when no scope was recorded (pre-ADR-0007 sessions), for the read-only session shape (the empty forecast), and on rollback attempts when the session directory (and its scope.json) is long gone at rollback time (v0.3.18): [] records 'not recoverable' honestly, never a fabricated whole-tree scope."
           },
           "overridden_paths": {
             "type": "array",
