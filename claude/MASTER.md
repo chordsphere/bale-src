@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-06-master-deltas-003`.
+Last landed by: `2026-08-07-sitting-close-deltas-007`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -115,21 +115,9 @@ board-6 dependency is satisfied; the gate now waits on board 10 and
 the first exercised autonomy grant (§5's ladder contract, wording
 unchanged there).
 
-**Current version: 0.3.34** (`2026-08-06-sweep-json-stats-002`, code
-session, cadence-conformant; the standing rule stands: verify with
-`bale --version` at each sitting's open). Post-arc trail:
-`execution-context-amendment-006` (doc-only) landed unbumped — now
-the rule, not a divergence: the cadence ruling, §5, ratified
-2026-08-05; §6 entry 54's conditional resolves with it — then
-0.3.30 (`archive-dir-005`), 0.3.31 (`pack-tree-echo-007`), 0.3.32
-(`auto-sweep-009`), and the tidy-up sitting's Bucket B: 0.3.33
-(`2026-08-06-handoff-covering-001`) and 0.3.34
-(`2026-08-06-sweep-json-stats-002`) — the per-session split is
-arithmetic over two code sessions under the cadence ruling; the
-endpoint is what was read. For this entry the value was read from
-the VERSION constant in the bin/bale copy shipped read-only in this
-deltas request (0.3.34), and the request's own pack-time provenance
-stamp agrees.
+**Current version:** one home — §7's bin/bale landmark (collapse
+ratified 2026-08-07; the standing rule stands: verify with
+`bale --version` at each sitting's open).
 
 **v4 regeneration (this compression sitting's record).** The
 2026-07-31 doc-compression sitting: the read-only orchestrator
@@ -165,14 +153,15 @@ sitting (evidence 47).]
   `2026-08-06-sweep-json-stats-002` (§6 entries 55–56; the version
   trail is §2's). The sitting-close deltas — this landing — carried
   the cargo.
-- **Next, in order:** board 13's read-vs-write design session, then
-  the sandbox ADR (the ADR-0005 extension), then the board-10
-  spec-intake sitting.
+- **Next, in order:** the sandbox ADR (the ADR-0005 extension),
+  then the board-10 spec-intake sitting. Board-35 gaps 3–7 remain
+  available as concurrent filler under the new model where
+  forecasts stay disjoint.
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report, the next three from
-the board-6 arc's, the last from `2026-08-05-auto-sweep-009`'s
-notes):
+the board-6 arc's, one from `2026-08-05-auto-sweep-009`'s notes,
+and the last two from the board-13 arc):
 
 - Emitter-parser reconciliation drift: all three unparsed-
   reconciliation records are 2026-07-31 consolidation-day straddlers;
@@ -218,6 +207,20 @@ notes):
   builds the git-log-derived stats view (no schema change needed);
   demand for sweep-skip rates reopens the stamp question with
   fresh eyes.
+- Read-staleness (board-13 design brief I.6; the separation's
+  named price): a sibling may land inside an open session's read
+  set. Re-trigger: post-epoch HOLDs clustering in the
+  opened-before-a-sibling-landed-inside-its-read-set class; remedy
+  shape if it fires is a data-gated pack-time warning, never a
+  refusal.
+- Forecast precision (accruing from the first post-epoch apply):
+  drift clustering = forecasts too narrow; imprecision clustering =
+  too wide; both packer-side signals. Three reading caveats from
+  `2026-08-07-board-13b-epoch-ledger-005`'s archived notes (its
+  early-forecast-signal proposal), cited not restated:
+  refusal-then-admit double-counts drift; default packs read
+  precision 1.0 by construction; per-attempt counting over-weights
+  retried sessions.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -269,6 +272,52 @@ with the unverifiable ones carried verbatim and marked):
   (`close_session_with_record` 3-tuple; pack's callers currently
   discard). Carrier: the next `bale_pack.py` or pack-json touch,
   or board 10's json-surface enumeration, whichever first.
+- Crafter epilogue separable fragments — same carrier as the
+  label-column-cap entry above (the next
+  tools/craft_response.py touch). Text verbatim from
+  `2026-08-07-board-13c-contract-docs-006`'s notes: "The crafted
+  validation epilogue emits its `reconcile_claims` call inline at
+  the end of the pasted fragment; pasted before the checks per its
+  own instruction, that call fires early. I removed the early call
+  and kept the end-of-script one. Possibly worth a crafter tweak
+  (emit the definitions and the call as separable fragments);
+  flagging rather than proposing formally since it may be
+  deliberate."
+- BALE.md §7/§7.2 includes-as-scope true-up — rides the next
+  BALE.md-touching session. Text verbatim from
+  `2026-08-07-board-13c-contract-docs-006`'s Proposals: "**What:**
+  True up BALE.md's own §7/§7.2 prose wherever it still describes
+  includes as the gated scope, if session B's sweep does not
+  already cover it. **Why:** This session's sweep was confined to
+  its two-file forecast; I could not verify BALE.md (shipped
+  read-only, session B's forecast) agrees with the revised
+  TARBALL.md §3.4 rows that point into it. **Scope hints:** BALE.md
+  §7.2 (`--read-only`, `--supersedes` semantics); only after B
+  lands, to avoid restating what it already fixed."
+- TARBALL.md §5.2.2 gains a `forecast_departures` sentence — rides
+  the next TARBALL.md-touching session. Source:
+  `2026-08-07-board-13b-epoch-ledger-005`'s notes, the
+  "Coordination with session C" paragraph — TARBALL.md was session
+  C's forecast (mechanically refused at B's apply) and C's E1
+  charge did not cover §5.2.2, so the feedback-block walk-through
+  does not yet mention the field; the schema description carries
+  the full contract meanwhile.
+- Post-epoch stats-corpus fixtures — rides board 35 (the next
+  test_stats_aggregation.py touch). Text verbatim from
+  `2026-08-07-board-13b-epoch-ledger-005`'s Proposals: "**What:**
+  Add one or two post-epoch fixture records (carrying `scope_kind`,
+  a forecast, drift, an admission, and a `forecast_departures`
+  block) to `tests/fixtures/stats_corpus/` and extend
+  `test_stats_aggregation.py`'s hand-derived assertions to cover
+  them. **Why:** The full-corpus test whole-dict-asserts the corpus
+  counts, so adding fixtures perturbs nearly every expectation in
+  that file — too invasive to ride along this session. My new suite
+  seeds its own synthetic corpus instead, which covers the
+  semantics but leaves the shared corpus wholly pre-epoch. Folding
+  the shapes in when that file's expectations are next touched
+  anyway keeps the one-corpus doctrine whole. **Scope hints:**
+  `tests/fixtures/stats_corpus/`, `tests/test_stats_aggregation.py`;
+  no source changes."
 
 Cleared at this landing (`2026-08-06-sitting-close-deltas-008`),
 both from the board-34 arc: the revert staging-row → bale_report
@@ -339,6 +388,39 @@ master desk (the board-34 arc: 005 =
 - The cut-paragraph §7.4 qualified rather than absorbed, and the
   audit sid named in BALE.md §13 per the TARBALL.md §5.5
   retiring-session precedent (007).
+
+Ratified judgment calls, one line each, dated 2026-08-07 at the
+master desk (the board-13 arc: 004 =
+`2026-08-07-board-13a-forecast-surface-004`, 005 =
+`2026-08-07-board-13b-epoch-ledger-005`, 006 =
+`2026-08-07-board-13c-contract-docs-006`):
+
+- Status omits the include-set row — the session block answers
+  "what is enforced" and includes no longer are (004).
+- Typed `--write` skips the wizard's read-only half of the
+  session-shape exchange (004).
+- The `checkpoint_scope_admitted` description true-up accepted —
+  in-scope beyond the pin list, enumerated (004).
+- The read-side refusal keys on declared includes, not walked
+  files (004).
+- No migration code for pre-separation open sessions; the refusal
+  text carries the transition (004).
+- The bale_stats containment mirror stays, with its subprocess
+  drift guard; restructure re-triggers on a third helper home
+  (005).
+- Rate units as shipped: admission path-granular, precision
+  entry-granular, denominators beside rates (005).
+- The duplicate gate fires on identical path strings, matching the
+  lint's basis; conflicting duplicates refuse earlier at row 32
+  (005).
+- CLAUDE.md §6 cites ADR-0015 — TARBALL.md's citation convention
+  as precedent (006).
+- The ratified kernel elaborated, not quoted (006).
+- The convention paragraph's bold lead renamed after a citer check
+  (006).
+- The sweep read the conflation class wider than literal
+  concurrency assertions (006).
+- "scope" survives as the concept's name (006).
 
 ## 4. The board
 
@@ -535,44 +617,26 @@ and §8, so done items keep their numbers as one-line pointers.
     `2026-07-15-status-staging-row-003`; telemetry): per-session
     staging row in bale status landed, v0.3.11.
 
-13. **read-vs-write include separation** — a read-only include shape
-    that ships context without claiming scope. Motivation:
-    includes-as-scope conflates the read set with the write set, so
-    read-context includes are concurrency locks AND inflate the
-    drift gate's admitted surface; separating them unlocks
-    concurrency and tightens the gate to the true write set. Touches
-    pack, the registry scope record, both ADR-0007 gates, and the
-    drift gate — not small; slot after the compression sitting
-    (board 7), before board 5 consumes scope data. (Evidence 25 is
-    the observed cost.) [2026-07-27: board 24 lands the degenerate
-    slice — a whole-request empty write-scope declaration; 13's
-    eventual design subsumes 24 rather than colliding with it —
-    brief accordingly.] Evidence-25 recurrence, 2026-07-31: board
-    31's harness-driven INSTALL_TREES include set forced
-    near-whole-tree recorded scope for a session whose write set
-    was five files — tally the cost. [2026-08-06: evidence 25's
-    fourth tally — the tidy-up sitting's Bucket B pair
-    (`2026-08-06-handoff-covering-001`,
-    `2026-08-06-sweep-json-stats-002`) forced serial by
-    execution-context include intersection over disjoint write
-    sets (§6 entry 57) — strengthens this row's pre-harness
-    slot.] [2026-08-06, the architect's ratified design input,
-    chat-ratified at the master desk — the board-13 design session
-    opens from this constraint: the separation's value is freeing
-    the read side (generous whole-tree shipping without lock cost),
-    not walling the write side. The write-set declaration is a
-    concurrency forecast, not a permission wall — worker edits
-    outside the declared write set surface at apply as drift and
-    are admitted per path, ADR-0014's posture generalized from new
-    files to modified ones; mechanical refusal is reserved for
-    paths contended by another open session's write set (finding 2
-    is the failure class it guards); worker judgment past the ask
-    is graded by the ledger, not prevented by scope.] [2026-08-06:
-    evidence 25's fifth tally — the board-34 arc's
-    `2026-08-06-verbose-thread-close-005` and
-    `2026-08-06-v04-selftest-audit-006` each carried the
-    near-whole-tree suite-run baseline for write sets of four
-    files and one file respectively.]
+13. **read-vs-write separation — DONE** 2026-08-07, closed as an
+    arc (design/orchestration
+    `2026-08-07-board-13-read-write-design-003` read-only, plus
+    applied sids `2026-08-07-board-13a-forecast-surface-004`,
+    `2026-08-07-board-13b-epoch-ledger-005`,
+    `2026-08-07-board-13c-contract-docs-006`; telemetry; versions
+    0.4.1 → 0.4.2 across the arc, C bump-exempt per the cadence
+    ruling). ADR-0015 Accepted; ADR-0007 flipped Superseded with
+    the evidence-35 reverse-transform assertion. E1–E5 ratified at
+    the master desk 2026-08-07, E3 with the read-side
+    ships-the-oracle refusal. Doctrine's one home: ADR-0015 (§5
+    carries the pointer plus the two desk dispositions). Design
+    artifacts committed at `claude/context/board-13-arc/` (commit
+    d4874ae). B and C ran as the first deliberate post-separation
+    concurrent pair; B's `tools/response_lint.py` embed was the
+    first live modified-file per-path admission (§6 entry 60).
+    Evidence 25's serialization class is structurally closed — its
+    entry carries the closing pointer. This row's motivating
+    history (five evidence-25 tallies, the architect's ratified
+    design input) lives in git, pre-landing versions of this doc.
 
 14. **Doc-compression sitting, structural phase — RETIRED AS
     MISFRAMED** 2026-07-25 (chat-ratified; evidence 32): the
@@ -794,21 +858,21 @@ and §8, so done items keep their numbers as one-line pointers.
        verbs: `bale handoff` is tested only at its install-precheck
        refusal; the repackaging itself is untested.
 
-    First session: the accepted proposal (accepted 2026-08-06 from
-    006's Proposals, text verbatim): **What:** A malformed-tarball
-    apply pre-flight suite (gap 1), with gap 2's real-operations
-    `apply.sh` fixtures folded in, as the first v0.4 work once the
-    cut question is disposed. **Why:** This session's audit shows
-    the reject surface of the apply contract — the rows §11
-    enumerates and the trust ledger presumes — is the one checklist
-    area with no live coverage at all; everything else on the
-    checklist has at least a partial pin. The fixture builder in
-    test_hold_retry_e2e already constructs manifests and hashes
-    programmatically, so a tamper helper is a small step from
-    existing code. **Scope hints:** tests/ only, plus harness.py if
-    the tamper helper lands there; independent of the citation
-    work; ordering-free against gaps 3–7. Gaps 3–7 are queued
-    behind it, ordering-free.
+    Session 1 — DONE 2026-08-07
+    (`2026-08-07-board-35-apply-preflight-002`, tests-only
+    bump-exempt per the §5 cadence extension; telemetry): gap 1's
+    reject suite plus gap 2's real-operations suite landed as two
+    files (ratified layout), the response-tarball builder extracted
+    to tests/harness.py (`build_response_dir` /
+    `tar_response_dir`), and the coverage/exclusion census — which
+    §11 rows are covered, which are excluded and why — is in the
+    session's archived notes. The duplicate-path finding's
+    disposition — add the check — landed at board-13b as §11 row
+    32 (§5's contract). Queue additions, ordering-free within gaps
+    3–7: the row-8 dirty-on-target pin and the row-21
+    declared-untracked-inputs pin (both from 002's notes), and the
+    post-epoch stats-corpus fixtures (fold-in registry carries B's
+    proposal verbatim). Gaps 3–7 remain queued, ordering-free.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1051,6 +1115,22 @@ master `2026-08-05-discuss-harness-011`):
   unlock and revert docstrings pointing there; `debris.sweep`
   carries the debris record's result.
 
+New, ratified 2026-08-07 (this sitting, master
+`2026-08-07-continue-plan-001`):
+
+- **The cadence extension:** tests-only sessions are bump-exempt,
+  by the cadence ruling's rationale (no shipped-tool behavior
+  change). First exercised by
+  `2026-08-07-board-35-apply-preflight-002`.
+- **The read-vs-write separation:** ADR-0015 (Accepted) is the one
+  home for the doctrine; §5 records only the pointer plus the two
+  desk dispositions not in the ADR — no registry-side read set
+  (data-gated, Q3), minimal status rendering (Q4). E1–E5 ratified,
+  E3 with the read-side ships-the-oracle refusal.
+- **Duplicate-path pre-flight:** prose and enforcement agree —
+  TARBALL.md §5.2's invalidity is now mechanical at §11 row 32
+  (string-identity basis, matching the lint).
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
 
@@ -1189,7 +1269,10 @@ New from the 2026-07-15 sitting:
     2026-07-25 (sesh-002): the ratified execution-context manifest's
     docs/ include forced boards 21 and 22a to serialize — the
     contract itself is now a lock generator, sharpening board 13's
-    priority.
+    priority. [2026-08-07: structurally closed — board 13 landed
+    the read-vs-write separation (ADR-0015), includes stopped
+    gating concurrency, and the class did not recur in the first
+    post-separation concurrent pair (board row 13; §6 entry 60).]
 
 New from the 2026-07-15/16 sitting:
 
@@ -1647,6 +1730,34 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
     bin/bale read-only include (one constant) is the same shape in
     miniature.
 
+New from the 2026-08-07 sitting (the board-13 arc):
+
+58. **The evidence-13 class's next occurrence,
+    master-attributed at this desk:** the board-13 design brief's
+    question 6 asked the worker to confirm wording of the §5
+    execution-context contract — text living only in MASTER.md,
+    deliberately unshipped. The worker searched, refused to guess,
+    escalated (design brief Q1); the desk disposed it from the
+    text's home. The class now includes brief-referenced unshipped
+    text alongside unshipped imports and runtime files.
+
+59. **Third successful §11.6 recovery**
+    (`2026-08-07-board-13a-forecast-surface-004`): compaction
+    after implementation, before validation; re-grounded, every
+    hash recomputed at step 10, suite and lint re-run, feedback
+    stamp set, apply clean. The
+    disclosure-plus-mechanical-recomputation pattern holds for the
+    third time (entry 12 carries the first two).
+
+60. **First post-separation concurrent pair ran live** (B ∥ C,
+    forecasts disjoint, zero unpredicted gate firings): the one
+    out-of-forecast path (B's `tools/response_lint.py`, forced by
+    the schema-embed coupling) was pre-enumerated in notes and
+    admitted per path at apply — the generalized modified-file
+    admission's first live use, same day as its ratification.
+    Evidence 25's serialization class did not recur and is
+    structurally closed.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1658,15 +1769,18 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   landed at 0.3.30). `[apply] sweep` landed default-off
   (`2026-08-05-auto-sweep-009`, 0.3.32), with the architect opted
   in at the global layer beside `archive_dir`; the manual
-  telemetry/archive dance is retired. Archives materialize on
-  future applies — none on disk at this writing.
+  telemetry/archive dance is retired. Archives now materialize on
+  disk under `claude/responses/` (first landed at the 2026-08-07
+  sitting).
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. Enumerate suites from
   the tree (`ls tests/`), never from this doc; counts stated in
   briefs are claims to verify, and neither counts nor per-file
   lists belong here (both went stale within sittings — the history
   lives in git and telemetry). Named landmarks: shared sandbox
-  harness at tests/harness.py (owns run_bale_pty; INSTALL_TREES
+  harness at tests/harness.py (owns run_bale_pty and, as of
+  `2026-08-07-board-35-apply-preflight-002`, build_response_dir /
+  tar_response_dir; INSTALL_TREES
   copies bin/ docs/ schemas/ tools/ from repo root, but the
   recorded suite-run include baseline is **bin/ docs/ schemas/
   tools/ scripts/ + install.sh at root** — the suite also reads
@@ -1676,7 +1790,9 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   `2026-08-06-v04-selftest-audit-006` two, per those sessions'
   includes_missing signals); test_readonly_pack.py
   drives the wizard via pty (likeliest flake site per its session's
-  notes); the fabricated-suspension helper follows
+  notes); test_apply_preflight.py is the apply reject/operations
+  home; the bale_stats containment mirror is pinned by
+  ContainmentMirrorTest; the fabricated-suspension helper follows
   test_revert_json.py's make_held_session precedent. ADR-0005
   (Accepted 2026-07-28) governs.
 - Repo: ~/bale-src. bin/ modules: bale (4,111 lines after the
@@ -1688,12 +1804,19 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.0 (trail: 0.3.34 → 0.3.35 at
-  `2026-08-06-verbose-thread-close-005` → 0.4.0 at
-  `2026-08-06-v040-cut-007`), read from the constant in the copy
-  shipped read-only with the board-34 sitting-close deltas request,
-  `2026-08-06-sitting-close-deltas-008` (tree state; the live
-  install trails one-apply-behind as ever).
+  still governs. bin/bale VERSION 0.4.2 (trail: 0.4.0 → 0.4.1 at
+  `2026-08-07-board-13a-forecast-surface-004` → 0.4.2 at
+  `2026-08-07-board-13b-epoch-ledger-005`;
+  `2026-08-07-board-13c-contract-docs-006` doc-only and
+  `2026-08-07-board-35-apply-preflight-002` tests-only, both
+  bump-exempt per the §5 cadence rulings), read from the constant
+  in the copy shipped read-only with this sitting-close deltas
+  request, `2026-08-07-sitting-close-deltas-007`, whose pack-time
+  provenance stamp agrees (tree state; the live install trails
+  one-apply-behind as ever).
+- The registry's scope.json records the write forecast as of 0.4.1
+  (ADR-0015); pre-separation open sessions read as over-forecasts
+  (conservative, self-clearing at close).
 - This document: `claude/MASTER.md` in the repo, tracked and listed
   in `INDEX.md`. Include it in any session that needs
   the gameplan; keep it out of sessions that don't (it is master
@@ -1704,7 +1827,9 @@ New from the 2026-08-05/06 sitting (the board-10 tidy-up):
   verbatim; kickbacks and judgment calls come to the master for
   ratification. Notes.md is relayed for EVERY session, including
   post-merge (rationale: a v2-era relayed-notes loose end; the
-  narrative lives in v3, in git).
+  narrative lives in v3, in git). Worker packs are now authored
+  with explicit `--write` forecasts; includes are weighed as
+  context, not locks (ADR-0015).
   Session references in this doc use the full sid, or NNN
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
