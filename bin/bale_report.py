@@ -792,52 +792,91 @@ def format_required_check_refusal(*, sid: str, required: list,
 
 def format_checkpoint_scope_refusal(*, checkpoint_path: str,
                                     scope: list,
-                                    caller: str = "pack") -> str:
+                                    caller: str = "pack",
+                                    side: str = "forecast") -> str:
     """Render the pack-time checkpoint blindness refusal (v0.3.28,
-    board 6 session C; BALE.md §7.1 step 4b, §11 row 27).
+    board 6 session C; BALE.md §7.1 step 4b, §11 rows 27 and 31;
+    re-based and extended by ADR-0015, board 13 E3).
 
-    The human face of the D5 contract layer: the pack's resolved
-    include set covers the configured blind checkpoint's path, and pack
-    refused before any sid, tarball, or session state. Unlike the
-    apply-side gates above, this refusal rides `fail()` on the pack
-    path — pre-sid, there is no session to keep open and no telemetry
-    attempt to write — so the renderer builds a single fail-message
-    string rather than a summary block. Pure: builds a string, prints
-    nothing; the caller (checkpoint_blindness_preflight) passes it to
-    fail().
+    The human face of the D5 contract layer, in two variants keyed on
+    `side`:
+
+    - **"forecast"** (default): the session's resolved write forecast
+      covers the configured blind checkpoint's path — the worker under
+      evaluation could land edits to its own oracle.
+    - **"read"**: the resolved read include set would ship the
+      checkpoint's bytes in context/ — the graded entity reading its
+      oracle, the hazard the separation newly exposes once reads stop
+      gating (a pack whose --write excludes the oracle while its
+      includes cover it).
+
+    Unlike the apply-side gates above, this refusal rides `fail()` on
+    the pack path — pre-sid, there is no session to keep open and no
+    telemetry attempt to write — so the renderer builds a single
+    fail-message string rather than a summary block. Pure: builds a
+    string, prints nothing; the caller (checkpoint_blindness_preflight)
+    passes it to fail().
 
     The refusal names its successors, per the every-refusal-names-its-
-    successor contract: narrow the includes, or — planner authority —
-    re-run with --allow-checkpoint-in-scope, whose use is FORCE-logged
-    and stamped into the request manifest's provenance. The ordinary
-    update path is named too, because it is the remedy most askers
-    actually want: the checkpoint is planner-authored, so the planner
-    edits and commits it directly — no session, no override.
+    successor contract: narrow the offending declaration, or — planner
+    authority — re-run with --allow-checkpoint-in-scope, whose use is
+    FORCE-logged and stamped into the request manifest's provenance
+    (one flag, one stamp, both sides — the delegation decision is one
+    decision). The ordinary update path is named too, because it is
+    the remedy most askers actually want: the checkpoint is
+    planner-authored, so the planner edits and commits it directly —
+    no session, no override.
 
     `caller` (v0.3.34) picks the narrowing-remedy sentence only —
-    "pack" (default): narrow the pack's --include set; "handoff":
-    re-bail with a reading plan that does not cite the checkpoint (a
-    handoff's scope is the plan's resolved cite set, so --include is
-    not its lever). The diagnosis, the sanctioned-ordinary-path
-    reminder, and the flag-successor lines stay byte-shared between
-    callers by ratified constraint — only the one sentence swaps.
+    "pack" (default) or "handoff" (a handoff's forecast is the reading
+    plan's resolved cite set, so neither --write nor --include is its
+    lever). Within a side, the diagnosis, the
+    sanctioned-ordinary-path reminder, and the flag-successor lines
+    stay byte-shared between callers by ratified constraint — only the
+    one sentence swaps.
     """
     rendered_scope = ", ".join(scope) if scope else "(empty)"
     if caller == "handoff":
         narrowing_remedy = ("re-bail with a reading plan that does not "
                             "cite the checkpoint")
-    else:
+    elif side == "read":
         narrowing_remedy = ("narrow this pack with --include paths that "
-                            "do not cover the checkpoint")
+                            "do not cover the checkpoint (the read set "
+                            "is the shipping surface, so --include is "
+                            "its lever)")
+    else:
+        narrowing_remedy = ("narrow this pack's write forecast with "
+                            "--write paths that do not cover the "
+                            "checkpoint (a pack without --write "
+                            "forecasts its resolved include set)")
+    if side == "read":
+        diagnosis = (
+            f"pack includes ship the blind checkpoint (board 6 blindness "
+            f"contract, ADR-0015 read side): the resolved include set "
+            f"({rendered_scope}) covers {checkpoint_path!r}, the "
+            f"planner-authored oracle this project's bale.toml "
+            f"[validation] base pins, so the oracle's bytes would ship "
+            f"in context/ to the very worker it grades. A session shown "
+            f"its own oracle is the self-oracle shape this refusal "
+            f"closes — checkpoints are authored blind, by the planner "
+            f"from the request, never read by the worker building "
+            f"against them. "
+        )
+    else:
+        diagnosis = (
+            f"write forecast covers the blind checkpoint (board 6 "
+            f"blindness contract): the resolved write forecast "
+            f"({rendered_scope}) covers {checkpoint_path!r}, the "
+            f"planner-authored oracle this project's bale.toml "
+            f"[validation] base pins. A session forecasting changes to "
+            f"its own oracle is the self-oracle shape this refusal "
+            f"closes — checkpoints are authored blind, by the planner "
+            f"from the request, never by the worker building against "
+            f"them. "
+        )
     return (
-        f"pack scope covers the blind checkpoint (board 6 blindness "
-        f"contract): the resolved include set ({rendered_scope}) covers "
-        f"{checkpoint_path!r}, the planner-authored oracle this "
-        f"project's bale.toml [validation] base pins. A session scoped "
-        f"over its own oracle is the self-oracle shape this refusal "
-        f"closes — checkpoints are authored blind, by the planner from "
-        f"the request, never by the worker building against them. "
-        f"Remedies: {narrowing_remedy}; update the checkpoint directly "
+        diagnosis
+        + f"Remedies: {narrowing_remedy}; update the checkpoint directly "
         f"(planner action — edit, commit, no session needed); or, "
         f"planner authority, re-run with --allow-checkpoint-in-scope to "
         f"delegate oracle maintenance deliberately (per-invocation, "
@@ -1875,20 +1914,25 @@ def tree_position_rows(*, branch: str, applied_latest) -> list:
 
 
 def format_scope_value(scope: list) -> str:
-    """Render one session's recorded scope (ADR-0007) as a row value.
+    """Render one session's recorded write forecast (the ADR-0007
+    gates' record, forecast semantics per ADR-0015) as a row value.
 
-    Scope entries are the session's resolved include set as
+    Entries are the session's recorded forecast as
     read_session_scope returns them — normalized repo-relative paths,
-    ["."] for a whole-tree session (a default pack, a handoff whose
+    ["."] for a whole-tree session (a default pack with neither
+    --write nor --include, a handoff whose
     reading plan cited no files, or a session with no recorded scope at
     all), or [] for a read-only session (v0.3.15: `bale pack
-    --read-only` or the wizard's read-only answer). The whole-tree case
+    --read-only` or the wizard's read-only answer). A session packed
+    before the separation renders its old include set here — read by
+    the gates as an over-forecast, so the row stays an honest render
+    of what is enforced. The whole-tree case
     is spelled out rather than left as a bare dot, since "." reads as
     noise to anyone not versed in the gate's normal form; the empty
     case is spelled out rather than printed as an empty string — a
-    read-only session's scope should say what it is, not vanish;
+    read-only session's forecast should say what it is, not vanish;
     everything else is the entries verbatim, comma-joined. Used for the
-    single classified session's `scope` row and per-sid in
+    single classified session's `write forecast` row and per-sid in
     format_open_sessions_value's listing.
     """
     entries = [str(s) for s in scope]

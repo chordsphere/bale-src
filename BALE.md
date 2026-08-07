@@ -846,26 +846,46 @@ pastes output back. Bale does not have a `probe-apply` or
 4b. **Checkpoint blindness pre-flight** (v0.3.28, board 6 session C;
    §11 row 27). When the merged config pins a blind checkpoint
    (`[validation] base`, §8.5), two refusals run before the step-5
-   gate, on both of its firing paths (pre-flight when the scope is
+   gate, on both of its firing paths (pre-flight when the forecast is
    final on the command line; post-wizard otherwise, beside the
    deferred gate): **dangling at the tip** — the checkpoint path has
    no committed file at HEAD (the §8.5 committed-is-ratified rule,
    caught at request-build time so a broken oracle reference never
-   produces a session doomed to refuse at apply); and **scope covers
-   the checkpoint** — the pack's resolved include set covers the
+   produces a session doomed to refuse at apply); **the write
+   forecast covers
+   the checkpoint** (re-based per ADR-0015) — the pack's resolved
+   write forecast (`--write`, or its include-set default) covers the
    checkpoint's path, by the same containment semantics as the
-   own-scope drift gate (directory entries cover subtrees, `.`
-   covers everything; a read-only pack's empty scope covers nothing
-   and passes vacuously). The covering refusal is the board-6
+   own-forecast drift gate (directory entries cover subtrees, `.`
+   covers everything; a read-only pack's empty forecast covers
+   nothing
+   and passes vacuously); and **the read includes would ship the
+   checkpoint** (the ADR-0015 read-side half, board-13 E3, §11 row
+   31) — the resolved include set covers the checkpoint's path, so
+   its bytes would ship in `context/` to the very worker the oracle
+   grades. The covering refusal is the board-6
    blindness contract's pack-time layer: the checkpoint is the
-   planner's oracle, authored blind, and keeping it out of scope
+   planner's oracle, authored blind, and keeping it out of the
+   forecast
    here is what lets the §8.1 step-14 drift gate do the rest at
-   apply time. The refusal names its successors: narrow the
-   includes; update the checkpoint directly (planner action — edit,
+   apply time; the read-side refusal closes the other face of the
+   self-oracle shape, which separation newly exposes — under the
+   conflated model shown-and-forecast were one set, so a shipped
+   oracle was always also a refused forecast; once reads stop
+   gating, the graded entity could otherwise be handed its oracle
+   with every forecast-keyed gate passing clean. (A default pack —
+   neither `--write` nor `--include` — covered the checkpoint under
+   the conflated model too, so unflagged packs refuse exactly as
+   before; the read side newly bites only the pack whose forecast
+   excludes the oracle while its includes cover it.) The refusal
+   names its successors: narrow the offending declaration (`--write`
+   for the forecast half, `--include` for the read half);
+   update the checkpoint directly (planner action — edit,
    commit, no session needed, the sanctioned ordinary path); or,
    planner authority, `--allow-checkpoint-in-scope` (per-invocation,
    flag-only — no config key, per the ratified override contract),
-   which admits the scope, logs a FORCE: line, and stamps
+   which admits whichever half fired — one flag, one delegation
+   decision — logs a FORCE: line, and stamps
    `checkpoint_scope_admitted: true` into the manifest's provenance
    (§7.2) so the session's telemetry carries the admission via the
    response's provenance echo. bale.toml itself is deliberately not
@@ -875,28 +895,36 @@ pastes output back. Bale does not have a `probe-apply` or
    merged bale.toml edit is a one-line, review-visible diff; the
    accepted residue's re-trigger is the first observed worker edit
    to `[validation]` keys in a merged session.
-5. Scope-disjointness gate (ADR-0007), read from the session
+5. Forecast-disjointness gate (ADR-0015, re-basing ADR-0007's
+   pack-time gate), read from the session
    registry (ADR-0006). With no session open, proceed — unchanged
    behavior. With open sessions, admit the pack exactly when its
-   declared scope — the resolved include set: normalized `--include`
-   paths, or `.` (the whole tree) for a default pack — is disjoint
-   from every open session's recorded scope (`sessions/<sid>/scope.json`).
+   resolved **write forecast** — normalized `--write` paths; the
+   resolved include set when `--write` is absent (`.`, the whole
+   tree, for a default pack); `[]` under `--read-only` — is disjoint
+   from every open session's recorded forecast
+   (`sessions/<sid>/scope.json`).
    Intersection is over paths, with directory entries covering their
    subtrees and `.` covering everything; a session without a recorded
-   scope reads as whole-tree (conservative). On intersection, refuse
+   scope reads as whole-tree (conservative), and a session packed
+   before the separation reads its recorded include set as its
+   forecast — an over-forecast, the same conservative direction,
+   self-clearing at close. On intersection, refuse
    with a message naming the colliding session(s) and entries and the
-   remedies: narrower `--include`, apply the open session's response,
+   remedies: a narrower `--write` forecast, apply the open session's
+   response,
    `bale unlock` an abandoned one, or — when this pack splits and
    supersedes the colliding session — re-run with `--supersedes <sid>`
    (§7.2, v0.3.17), whose accepted exchange closes that parent as
    superseded-by-split *before* this gate evaluates, clearing exactly
    that one collision; the pack still gates against every other open
-   session. Includes are a deliberately
-   conservative proxy for change scope, so the gate can
-   false-positive; a pack it admits is one whose workers were never
-   shown overlapping files. A default whole-tree pack intersects
-   every open session — broad scope and concurrency are mutually
-   exclusive by design. An **empty** recorded scope (a read-only
+   session. Read includes participate in nothing here (ADR-0015):
+   broad *reading* and concurrency stop being mutually exclusive;
+   broad *forecasting* and concurrency remain so. A pack that never
+   types `--write` forecasts its include set, so a default whole-tree
+   pack still intersects
+   every open session — no behavior change for anyone not using the
+   flag. An **empty** recorded forecast (a read-only
    session, `--read-only` or the wizard's read-only answer — §7.2,
    v0.3.15) intersects nothing: the gate admits any pack alongside
    it, and admits it alongside any open session.
@@ -920,6 +948,30 @@ The inputs:
   `claude-decides`).
 - **includes** (list of file or directory paths) — defaults to the
   entire working tree (minus baked-in and `.baleignore` exclusions).
+  Since ADR-0015 the include set is the **read set** and nothing
+  more: it selects what ships in `context/` and participates in no
+  gate — generous shipping no longer costs locks.
+- **write forecast** (ADR-0015) — `--write PATH...`, the `--include`
+  grammar exactly (repeatable, multiple paths per flag, directory
+  entries cover their subtrees), declaring where this session is
+  expected to land changes. This — not the include set — is the
+  session's recorded scope: persisted to
+  `sessions/<sid>/scope.json`, stamped as the manifest's
+  `resolved_scope`, and read by the disjointness (§7.1 step 5),
+  sibling-collision (§8.1 step 7), and own-forecast drift (§8.1 step
+  14) gates. Entries name existing paths (ADR-0014's rule held on
+  this surface: nobody pre-names the response's new files — forecast
+  the directory they will land under); at least one path is
+  required, since the empty forecast has exactly one spelling
+  (`--read-only`), and combining the two flags refuses as
+  contradictory at arg-parse, before any prompt. Entries need not be
+  a subset of the includes. **Absent `--write`, the forecast is the
+  resolved include set** — the load-bearing compatibility default: a
+  pack that never types the flag behaves byte-for-byte as before the
+  separation, so separation is opt-in per pack. The forecast is a
+  forecast, not a wall: out-of-forecast work ships enumerated and is
+  admitted per path at apply (§8.1 step 14), and the ledger grades
+  the drift.
 - **excludes** (list of patterns) — appended to the always-excluded
   set for this session only.
 - **readme prose** (optional) — the request's `README.md` body.
@@ -1090,6 +1142,10 @@ Will this session land changes, and of what kind?
   [c] code   [d] doc   [t] contract-doc   [m] meta   [x] mixed (default)
   [r] read-only — nothing lands (discussion, orchestration, audit)
 > c
+Where will changes land? [Enter = same as the includes]
+  (space-separated paths; a write forecast, not a wall — out-of-forecast work
+  surfaces at apply for per-path admission. Directory entries cover subtrees.)
+> src/widgets
 Anything to exclude from the default-include-everything? > data/
 Any constraints? (one per line, blank to finish)
 > no breaking changes to the public API
@@ -1110,14 +1166,33 @@ the whole-tree default is now an answered default. The `[r]` answer
 opens the session read-only (empty recorded scope — §7.2, §7.6);
 its work class, absent an explicit `--work-class`, is inferred as
 `meta` and logged. Per-field skip applies as everywhere in the
-wizard: `--read-only` on the CLI skips the exchange entirely, and
+wizard: `--read-only` on the CLI skips the exchange entirely,
 `--work-class` alone reduces it to the binary
-lands-changes-or-read-only half. Because this answer can empty the
-pack's scope, the §7.1 step 5 disjointness gate defers to just
-after the wizard on this path (only when neither `--read-only` nor
-a fully specified command already fixed the scope) — otherwise a
-whole-tree provisional scope would refuse a pack the user was about
-to declare read-only, before the question could be asked. On every
+lands-changes-or-read-only half, and a typed `--write` (a non-empty
+forecast IS the lands-changes declaration) reduces it to the
+work-class half.
+
+**The where-will-changes-land follow-up** (ADR-0015) rides the
+exchange's lands-changes branch — the cold-start pack is the one
+command with no Claude author, so this prompt is where the
+separation meets a user who has never heard of it. It accepts a
+space-separated path list; each entry must name an existing path
+(the ADR-0014 rule, re-prompted interactively on a miss); and bare
+Enter takes the forecast-defaults-to-includes resolution — the
+cold-start user presses Enter and gets exactly the pre-separation
+pack. The prompt names its own semantics in one line (a forecast,
+not a wall — out-of-forecast work surfaces at apply for per-path
+admission). Skipped when the shape resolved read-only or `--write`
+already answered it. Because the shape answer can empty the
+pack's forecast and the follow-up can narrow it, the §7.1 step 5
+disjointness gate defers to just
+after the wizard on this path (only when neither `--read-only`, nor
+`--write`, nor
+a fully specified command already fixed the forecast) — otherwise a
+whole-tree provisional forecast would refuse a pack the user was
+about
+to declare read-only or forecast narrowly, before the question
+could be asked. On every
 fully specified path the gate fires in pre-flight, before any
 prompt, exactly as before.
 
@@ -1300,10 +1375,16 @@ After the tarball is on disk and validated for structure:
 
 1. Write `.bale/sessions/<sid>/manifest.json` (the request's
    manifest, for `bale apply` to verify the response against),
-   `.bale/sessions/<sid>/scope.json` (the resolved include set — the
-   session's scope, which the ADR-0007 gates read; step 5 of §7.1 and
-   step 7 of §8.1 — or `[]` for a read-only session, v0.3.15: a
-   recorded **empty** scope is a distinct third state that reads back
+   `.bale/sessions/<sid>/scope.json` (the resolved **write forecast**,
+   ADR-0015 — the `--write` set, its include-set default, or `[]` for
+   a read-only session, v0.3.15 — which the gates read; step 5 of
+   §7.1 and
+   step 7 of §8.1. The record is reinterpreted, not reshaped: same
+   file, same JSON form, same helpers, and an open session recorded
+   pre-separation reads its include set back as an over-forecast —
+   conservative, self-clearing. A
+   recorded **empty** forecast is a distinct third state that reads
+   back
    as exactly that — locks nothing, may land nothing — never falling
    through to the conservative whole-tree read reserved for a
    *missing or malformed* scope.json; since v0.3.21 the same value is
@@ -2590,7 +2671,7 @@ before staging (steps 1–15 of section 8.1) or before commit (sections
 |---|-------|-------|
 | 1 | Path-location refusal (cwd / repo root not a system directory) | pack pre-flight |
 | 2 | Home-directory refusal (cwd not exactly `$HOME`, unless `--force`) | pack pre-flight |
-| 3 | Scope disjointness (ADR-0007): the pack's resolved include set is disjoint from every open session's recorded scope — directory entries cover subtrees, `.` covers everything, includes as a conservative proxy for change scope | pack pre-flight |
+| 3 | Forecast disjointness (ADR-0015, re-basing ADR-0007's pack-time gate): the pack's resolved write forecast — `--write`, its include-set default, or `[]` under `--read-only` — is disjoint from every open session's recorded forecast; directory entries cover subtrees, `.` covers everything, read includes participate in nothing, and a pre-separation session's recorded include set reads as an over-forecast (conservative) | pack pre-flight |
 | 4 | Threshold caps (file count, size, depth) within configured limits | pack scope projection |
 | 5 | Tar archive integrity (extractable, no path-traversal entries) | apply pre-flight |
 | 6 | Manifest schema valid (all required keys, no unknowns) | apply pre-flight |
@@ -2614,10 +2695,11 @@ before staging (steps 1–15 of section 8.1) or before commit (sections
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
 | 26 | Required-check superset (board 6 session B): when the project's `[validation] required` set is non-empty and `changes[]` is non-empty, every required name appears verbatim in the manifest's `validation_will_run`. Per-invocation `--allow-missing-required-check NAME` (repeatable; no config key, per the ratified override contract) admits exactly the named names — any other missing name still refuses. The refusal renders both sets, keeps the session open with no git side effects, records telemetry outcome `required-check-refused`, and in `--json` mode is the one-line report with that outcome and a `required_checks` detail object (§8.1 step 15); appended after row 25 per the appended-row precedent, so rows 1–25 stay stable | apply pre-flight |
-| 27 | Checkpoint blindness (v0.3.28, board 6 session C): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a resolved include set that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty scope covers nothing). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
+| 27 | Checkpoint blindness, write side (v0.3.28, board 6 session C; re-based onto the forecast by ADR-0015): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a resolved write forecast that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty forecast covers nothing — its read side is row 31's business). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering forecast — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
 | 28 | Checkpoint provenance stamp verification (v0.3.28, board 6 session C): when the request manifest carries `provenance.checkpoint` (stamped by pack: the oracle's `{path, sha256}` at the pack-time tip, or explicit null) and a checkpoint is configured at apply, the base-tree bytes about to run must match the stamp; divergence refuses pre-staging with the session open and no git side effects. Per-invocation `--accept-checkpoint-change` (apply and retry, re-stated each invocation) admits the change — the CURRENT base-tree version runs, FORCE-logged, `stamp_matched: false` recorded in the attempt's telemetry stamp; a verified match records true, a stampless request verifies nothing and records null. `--dry-run` predicts the refusal (§8.5); appended after row 27 per the appended-row precedent, so rows 1–27 stay stable | apply pre-flight |
 | 29 | Dangling-checkpoint refusal, apply side (board 6 session A): when `bale.toml`'s `[validation] base` names a blind checkpoint with no committed file at that path in the session's base tree, apply refuses before staging — no staging tree, no `bale/<sid>` branch, session open (committed-is-ratified: a working-tree-only checkpoint is not yet the project's oracle; remedies: commit the checkpoint at the named path, or clear the key via `bale config init`). `--dry-run` predicts the refusal when a checkpoint is configured (the session-B rider; §8.5), and pack's own earlier catch is row 27's dangling half — this row is the apply-side backstop that also covers hand-rolled requests and post-pack config edits. Contract prose in §8.5; row appended after row 28 in v0.3.29 (board 6 session D, the session-C notes' proposed backfill) per the appended-row precedent, so rows 1–28 stay stable | apply pre-flight |
-| 30 | Checkpoint blindness, handoff side (v0.3.33): when `[validation] base` pins a blind checkpoint, `bale handoff` runs the same gate implementation as row 27 — the dangling refusal and the covering refusal — against its reading-plan scope (the resolved set of files the bailout's reading plan pre-packs; a plan citing no files resolves to the whole tree, which covers any configured checkpoint), pre-sid, so a refused handoff burns no NNN and leaves no session state. Per-invocation `--allow-checkpoint-in-scope` (mirroring pack's spelling; flag-only, no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the new request manifest through the shared provenance builder, so a bailed checkpoint-maintenance session's handoff renews its admission deliberately rather than inheriting pack's silently; appended after row 29 per the appended-row precedent, so rows 1–29 stay stable | handoff pre-flight |
+| 30 | Checkpoint blindness, handoff side (v0.3.33): when `[validation] base` pins a blind checkpoint, `bale handoff` runs the same gate implementation as rows 27 and 31 — the dangling refusal and the covering refusal — against its reading-plan-derived forecast (the resolved set of files the bailout's reading plan pre-packs, which on this path is both the read set and the conservative forecast, so one value covers both halves; a plan citing no files resolves to the whole tree, which covers any configured checkpoint), pre-sid, so a refused handoff burns no NNN and leaves no session state. Per-invocation `--allow-checkpoint-in-scope` (mirroring pack's spelling; flag-only, no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the new request manifest through the shared provenance builder, so a bailed checkpoint-maintenance session's handoff renews its admission deliberately rather than inheriting pack's silently; appended after row 29 per the appended-row precedent, so rows 1–29 stay stable | handoff pre-flight |
+| 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3): when `[validation] base` pins a blind checkpoint, pack refuses a resolved include set that would ship the checkpoint's content in `context/` to the worker the oracle grades — containment on the resolved include set, same semantics as row 27, conservative by construction (an exclude that would drop the file at walk time still refuses; the remedies are cheap). Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired, since the delegation decision is one decision (§7.1 step 4b). A default pack (no `--include`) covered the checkpoint under the conflated model too, so unflagged packs refuse exactly as before; the row newly bites only a pack whose forecast excludes the oracle while its includes cover it. Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

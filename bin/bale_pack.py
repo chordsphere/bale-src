@@ -587,13 +587,20 @@ def build_request_manifest(
     a populated dict pointing at the bailout it's continuing from, which is
     the only path that sets `previous_response` non-null in v0.0.6.
 
-    `resolved_scope` (v0.3.21, board 33) is the session's declared scope
-    stamped into the manifest — the same value the caller records in the
+    `resolved_scope` (v0.3.21, board 33; reinterpreted by ADR-0015) is
+    the session's recorded write forecast stamped into the manifest —
+    the same value the caller records in the
     registry (persist_pack_session's `scope`), serialized here so the
-    worker can read from inside the tarball what the ADR-0007 gates will
-    enforce repo-side: `[]` for a read-only pack, the resolved include
-    set otherwise. One source, never a re-derivation: callers pass the
-    exact list they persist. Required keyword-only — both request-building
+    worker can read from inside the tarball what the drift and
+    disjointness gates will
+    enforce repo-side: `[]` for a read-only pack, the resolved --write
+    set (or its include-set default) otherwise. The key's name and its
+    contract to the worker — the authoritative read of what the
+    own-scope drift gate enforces; one source with the registry
+    record, never a re-derivation — survive the reinterpretation
+    verbatim; what the VALUE is (forecast, not include set) is the
+    ADR-0015 change, carried in the schema description. Required
+    keyword-only — both request-building
     paths (pack, handoff) always stamp it — while the schema addition is
     additive per the `superseded_session` precedent (the property is not
     required, so previously stamped manifests stay valid).
@@ -756,19 +763,26 @@ def build_provenance_block(
 
 def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
                                    *, allow: bool,
-                                   caller: str = "pack") -> bool:
+                                   caller: str = "pack",
+                                   read_includes: Optional[list] = None,
+                                   ) -> bool:
     """The pack-time blindness gate (v0.3.28, board 6 session C; BALE.md
-    §7.1 step 4b): refuse a resolved include set that covers the
-    configured blind checkpoint's path, and refuse a configured
-    checkpoint that dangles at the pack-time tip.
+    §7.1 step 4b; re-based and extended by ADR-0015, board 13 E3):
+    refuse a resolved write forecast that covers the configured blind
+    checkpoint's path, refuse a resolved read include set that would
+    ship the checkpoint's content (`read_includes`, when given), and
+    refuse a configured checkpoint that dangles at the pack-time tip.
 
-    Returns True when a covering scope was admitted past the refusal by
-    --allow-checkpoint-in-scope (the caller stamps the admission into
-    the manifest's provenance), False otherwise — including the vacuous
-    cases: no checkpoint configured, or a scope that does not cover it
-    (a read-only pack's empty scope covers nothing by construction).
+    Returns True when a covering forecast or an oracle-shipping include
+    set was admitted past the refusal by --allow-checkpoint-in-scope
+    (the caller stamps the admission into the manifest's provenance —
+    one flag, one stamp, both halves), False otherwise — including the
+    vacuous cases: no checkpoint configured, or a forecast and include
+    set that neither cover nor ship it (a read-only pack's empty
+    forecast covers nothing by construction; its includes can still
+    ship the oracle, which is exactly the read-side case).
 
-    The two refusals, in check order:
+    The three refusals, in check order:
 
     - **Dangling at the tip** (the D1 rule, caught at request-build
       time): bale.toml names a checkpoint HEAD has no committed file
@@ -776,35 +790,58 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
       produces a session doomed to refuse at apply; the provenance
       stamp builder re-checks as defense in depth for any future
       caller.
-    - **Scope covers the checkpoint** (D5 layer 1, the contract layer):
-      the checkpoint is the planner's oracle, and any path by which the
-      worker under evaluation authors or selects its own oracle is the
-      self-oracle shape this refusal closes. Coverage uses the same
-      containment test as the apply-side drift gate (scope_covers_path
-      — directory entries cover subtrees, "." covers everything), so
-      the two gates agree on what "in scope" means; keeping the path
-      out of scope here is what lets the existing step-14 drift gate do
-      the rest at apply time. The sanctioned ordinary update path needs
-      no session at all: the checkpoint is planner-authored by the §1
-      floor's own wording, so the planner edits and commits it
-      directly, exactly as they edit bale.toml. The override exists for
-      the deliberate exception (a checkpoint-maintenance session the
-      planner chooses to delegate); its use is loud (FORCE: line) and
-      recorded (the provenance stamp the caller writes).
+    - **Forecast covers the checkpoint** (D5 layer 1, the contract
+      layer, re-based per ADR-0015): the checkpoint is the planner's
+      oracle, and any path by which the worker under evaluation lands
+      edits to its own oracle is the self-oracle shape this refusal
+      closes. Coverage uses the same containment test as the
+      apply-side drift gate (scope_covers_path — directory entries
+      cover subtrees, "." covers everything), so the two gates agree
+      on what "in forecast" means; keeping the path out of the
+      forecast here is what lets the existing step-14 drift gate do
+      the rest at apply time.
+    - **Read includes ship the checkpoint** (the ADR-0015 read-side
+      half, board 13 E3 as ratified): once reads stop gating, a
+      generous include set can ship the oracle's bytes to the very
+      worker the oracle grades while every forecast-keyed gate passes
+      clean — the graded entity reading its oracle, the other face of
+      the self-oracle shape. Checked with the same containment
+      semantics against `read_includes` (pack passes its resolved
+      include set; handoff passes nothing, because its reading-plan
+      forecast IS its read set and the forecast half above already
+      covered it). Conservative by construction: containment on the
+      resolved include set, so an exclude pattern that would drop the
+      file at walk time still refuses here — the cheap remedies
+      (narrow the includes, or the same override) resolve it. Note
+      that a default pack (no --include → ["."]) covered the
+      checkpoint under the conflated model too, so the pre-separation
+      refusal behavior of unflagged packs is unchanged; the read side
+      only newly bites the pack whose --write excludes the oracle
+      while its includes would ship it.
 
-    Sited before the ADR-0007 disjointness gate on both of cmd_pack's
-    gate paths, so a blindness refusal precedes any scope-collision
-    conversation. cmd_handoff (v0.3.33; BALE.md §11 row 30) is the
-    second caller: same gate, run pre-sid against the handoff's
-    reading-plan scope, with the mirroring --allow-checkpoint-in-scope
-    flag feeding `allow` — one implementation, so the two
-    request-building paths cannot drift on what "in scope" means.
-    `caller` (v0.3.34) names which command is refusing — "pack"
-    (default) or "handoff" — and is passed through verbatim to
-    format_checkpoint_scope_refusal, which swaps only the
-    narrowing-remedy sentence on it (the diagnosis and flag-successor
-    text stay byte-shared; the swap's rationale lives on the
-    formatter). Pack's call sites ride the default unedited. bale.toml itself is deliberately NOT added to this
+    The sanctioned ordinary update path needs no session at all: the
+    checkpoint is planner-authored by the §1 floor's own wording, so
+    the planner edits and commits it directly, exactly as they edit
+    bale.toml. The override exists for the deliberate exception (a
+    checkpoint-maintenance session the planner chooses to delegate);
+    its use is loud (FORCE: line) and recorded (the provenance stamp
+    the caller writes), and one flag deliberately admits whichever
+    half (or both) fired — the delegation decision is one decision.
+
+    Sited before the ADR-0015 forecast-disjointness gate on both of
+    cmd_pack's gate paths, so a blindness refusal precedes any
+    forecast-collision conversation. cmd_handoff (v0.3.33; BALE.md §11
+    row 30) is the second caller: same gate, run pre-sid against the
+    handoff's reading-plan-derived forecast, with the mirroring
+    --allow-checkpoint-in-scope flag feeding `allow` — one
+    implementation, so the two request-building paths cannot drift on
+    what "in forecast" means. `caller` (v0.3.34) names which command
+    is refusing — "pack" (default) or "handoff" — and is passed
+    through verbatim to format_checkpoint_scope_refusal, which swaps
+    only the narrowing-remedy sentence on it (the diagnosis and
+    flag-successor text stay byte-shared per side; the swap's
+    rationale lives on the formatter). bale.toml itself is
+    deliberately NOT added to this
     refusal at v1: it is legitimately session-editable (hooks,
     staging), in-flight retargeting is already inert (apply reads the
     merged config from the repo working tree, never the staged
@@ -834,24 +871,39 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
              f"at the named path, or clear the key via "
              f"`bale config init`.")
 
-    if not scope_covers_path(pack_scope, checkpoint_path):
-        log(f"checkpoint blindness gate passed: pack scope does not "
-            f"cover {checkpoint_path}")
+    forecast_covers = scope_covers_path(pack_scope, checkpoint_path)
+    reads_ship = (read_includes is not None
+                  and scope_covers_path(read_includes, checkpoint_path))
+
+    if not forecast_covers and not reads_ship:
+        log(f"checkpoint blindness gate passed: neither the write "
+            f"forecast nor the read includes cover {checkpoint_path}")
         return False
 
     if not allow:
+        # The forecast half is the graver diagnosis (landing edits to
+        # the oracle) and the one whose containment the drift gate
+        # backstops, so it names the refusal when both halves fire.
         fail(format_checkpoint_scope_refusal(
-            checkpoint_path=checkpoint_path, scope=pack_scope,
-            caller=caller))
+            checkpoint_path=checkpoint_path,
+            scope=pack_scope if forecast_covers else read_includes,
+            caller=caller,
+            side="forecast" if forecast_covers else "read"))
 
-    # force=True: an admitted checkpoint-covering scope is an override
-    # event of the same species as --allow-out-of-scope — the FORCE:
-    # line is the audit trail; the provenance stamp
-    # (checkpoint_scope_admitted, echoed into telemetry via the
-    # response's provenance echo) is the durable copy.
-    log(f"checkpoint-covering scope admitted by "
-        f"--allow-checkpoint-in-scope: pack scope covers "
-        f"{checkpoint_path} (the planner delegated oracle maintenance "
+    # force=True: an admitted checkpoint-covering forecast (or
+    # oracle-shipping include set) is an override event of the same
+    # species as --allow-out-of-scope — the FORCE: line is the audit
+    # trail; the provenance stamp (checkpoint_scope_admitted, echoed
+    # into telemetry via the response's provenance echo) is the
+    # durable copy.
+    fired = []
+    if forecast_covers:
+        fired.append(f"the write forecast covers {checkpoint_path}")
+    if reads_ship:
+        fired.append(f"the read includes would ship {checkpoint_path}")
+    log(f"checkpoint blindness admitted by "
+        f"--allow-checkpoint-in-scope: {'; '.join(fired)} "
+        f"(the planner delegated oracle maintenance "
         f"deliberately; admission stamped into provenance)", force=True)
     return True
 
@@ -983,10 +1035,17 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
 
-    `scope` is the session's resolved include set (ADR-0007), recorded
+    `scope` is the session's resolved write forecast (ADR-0015,
+    re-basing ADR-0007's record), recorded
     via persist_session_scope so the disjointness gates can read it.
     Both request-building call sites pass one since v0.3.2 — pack its
-    resolved --include set, handoff its resolved reading-plan file set.
+    resolved --write set (defaulting to the resolved include set when
+    the flag is absent), handoff its resolved reading-plan file set.
+    The reinterpretation is the caller's (what is HANDED to this
+    function changed, not the record's shape or the helpers): same
+    file, same JSON form, and an open session recorded pre-separation
+    reads its include set back as an over-forecast — conservative,
+    self-clearing.
     None writes no scope.json, in which case read_session_scope reads
     the session as whole-tree, the conservative default. An empty list
     ([], v0.3.15) is distinct from None: it records the read-only
@@ -1139,12 +1198,49 @@ def _wizard_input_session_shape(args: argparse.Namespace) -> None:
     for cmd_pack's provenance-time inference (meta, logged there), so
     the inference has one home whichever surface — flag or wizard —
     declared the shape. EOF/^C aborts the whole pack, consistent with
-    the other wizard prompts."""
+    the other wizard prompts.
+
+    A typed --write (ADR-0015) declares the lands-changes shape — a
+    non-empty write forecast IS the statement that this session lands
+    changes, and cmd_pack already refused --write beside --read-only —
+    so with the flag present the read-only half of the exchange is
+    answered and only the work-class half can remain. Same per-field
+    skip rule as everywhere in the wizard."""
     from __main__ import fail  # lazy — see module docstring
     if args.read_only:
         return
 
-    if args.work_class is not None:
+    if args.work_class is not None or args.write:
+        if args.work_class is not None and args.write:
+            # Both halves answered on the CLI; nothing to ask.
+            return
+        if args.write:
+            # Shape declared by the forecast; only work class remains
+            # (when absent). Same choice set as the combined prompt
+            # below, minus the read-only answer the flag rules out.
+            if args.work_class is not None:
+                return
+            print("This session lands changes (--write given). "
+                  "What kind of work?")
+            print("  [c] code   [d] doc   [t] contract-doc   [m] meta   "
+                  "[x] mixed (default)")
+            choices = {
+                "c": "code", "code": "code",
+                "d": "doc", "doc": "doc",
+                "t": "contract-doc", "contract-doc": "contract-doc",
+                "m": "meta", "meta": "meta",
+                "x": "mixed", "mixed": "mixed", "": "mixed",
+            }
+            while True:
+                try:
+                    raw = input("> ").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    print()
+                    fail("aborted at wizard prompt")
+                if raw in choices:
+                    args.work_class = choices[raw]
+                    return
+                print("  (type c, d, t, m, or x — or Enter for mixed)")
         # Work class already declared on the CLI; only the shape half of
         # the exchange remains.
         prompt = ("Will this session land changes? [Y/n] "
@@ -1187,6 +1283,60 @@ def _wizard_input_session_shape(args: argparse.Namespace) -> None:
             args.work_class = choices[raw]
             return
         print("  (type c, d, t, m, x, or r — or Enter for mixed)")
+
+
+def _wizard_input_write_forecast(args: argparse.Namespace,
+                                 repo: Path) -> None:
+    """The where-will-changes-land follow-up (ADR-0015, design brief
+    I.1 / evidence 37) on the session-shape exchange's lands-changes
+    branch. Mutates args.write in place.
+
+    The cold-start pack is the one command with no Claude author, so
+    the prompt has to carry the separation to a user who has never
+    heard of it: bare Enter takes the forecast-defaults-to-includes
+    resolution — exactly the pre-separation pack — and the prompt
+    names its own semantics in one line (a forecast, not a wall).
+
+    Skips per the wizard's per-field rule: --read-only (or the
+    session-shape read-only answer) means the forecast is [] and there
+    is nothing to ask; a typed --write already answered. Entries are
+    validated at the prompt — each must name an existing path, the
+    ADR-0014 rule held on the forecast surface — with a re-prompt on a
+    miss, matching the slug validator's interactive posture rather
+    than failing the whole pack after the answers are in. EOF/^C
+    aborts the whole pack, consistent with the other wizard prompts.
+    """
+    from __main__ import fail  # lazy — see module docstring
+    if args.read_only or args.write:
+        return
+
+    print("Where will changes land? [Enter = same as the includes]")
+    print("  (space-separated paths; a write forecast, not a wall — "
+          "out-of-forecast work")
+    print("  surfaces at apply for per-path admission. Directory "
+          "entries cover subtrees.)")
+    while True:
+        try:
+            raw = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if not raw:
+            # Bare Enter: forecast defaults to the resolved include
+            # set — args.write stays empty and cmd_pack's resolution
+            # falls through to the includes, the load-bearing
+            # compatibility default.
+            return
+        entries = raw.split()
+        missing = [e for e in entries if not (repo / e).exists()]
+        if missing:
+            print(f"  (path(s) do not exist: {', '.join(missing)} — "
+                  f"forecast entries name existing files or "
+                  f"directories; to forecast new files, name the "
+                  f"directory they will land under)")
+            continue
+        args.write = entries
+        return
 
 
 def _resolve_supersession(args: argparse.Namespace,
@@ -1624,6 +1774,14 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     # default (bare Enter).
     _wizard_input_session_shape(args)
 
+    # The where-will-changes-land follow-up (ADR-0015) rides the
+    # lands-changes branch of the exchange above: asked immediately
+    # after the shape resolves, skipped when the shape is read-only or
+    # --write already answered it. Bare Enter keeps the
+    # forecast-defaults-to-includes resolution — the cold-start user
+    # presses Enter and gets exactly the pre-separation pack.
+    _wizard_input_write_forecast(args, repo)
+
     # Session excludes — skipped when --exclude was already provided on
     # the CLI (parallel to --constraint / --out-of-scope). The §7.3 prompt
     # order puts this between slug and constraints; if the CLI pre-filled
@@ -1920,6 +2078,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # collect answers a doomed command line would then throw away.
     # Fail-fast: a contradictory or unusable flag combination should
     # cost the user zero keystrokes.
+    #
+    # The --write/--read-only contradiction (ADR-0015, design brief
+    # I.1) sits first: --write declares a non-empty write forecast and
+    # --read-only declares the empty one, and the empty forecast has
+    # exactly one spelling. Refused at arg-parse time, before any
+    # prompt — the same fail-fast posture as the README-flag pairs
+    # below. (--write with zero paths never reaches here: argparse's
+    # nargs="+" already refuses it.)
+    if args.write and args.read_only:
+        fail(
+            "--write and --read-only are contradictory: one declares a "
+            "non-empty write forecast, the other declares the empty one "
+            "(the read-only session shape). Drop one."
+        )
     if args.edit and args.no_edit:
         fail(
             "--edit and --no-edit are contradictory: one forces the "
@@ -2092,24 +2264,24 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # path.
     superseded_sid, declined_supersession = _resolve_supersession(args, repo)
 
-    # Scope-disjointness gate (BALE.md 7.1 step 5, ADR-0007), read from
-    # the ADR-0006 session registry. This replaces the unconditional
-    # refusal that stood here: a pack is now admitted alongside open
-    # sessions exactly when its declared scope — resolved_scope of its
-    # --include set, or [] for a read-only pack (v0.3.15) — is disjoint
-    # from every open session's recorded scope. Includes are a
-    # deliberately conservative proxy for change scope (a session rarely
-    # changes everything it was shown), so the gate can false-positive;
-    # the cheap remedy is a narrower --include set or waiting for the
-    # intersecting session to close. A default include-everything pack
-    # resolves to ["."] and therefore intersects every open session —
-    # broad scope and concurrency are mutually exclusive by design; an
-    # empty (read-only) scope intersects nothing and is admitted beside
-    # anything. With no session open, behavior is unchanged.
+    # Forecast-disjointness gate (BALE.md 7.1 step 5, ADR-0015 re-basing
+    # ADR-0007's pack-time gate), read from the ADR-0006 session
+    # registry. A pack is admitted alongside open sessions exactly when
+    # its resolved write forecast — the --write set, the resolved
+    # include set when --write is absent, or [] for a read-only pack
+    # (v0.3.15) — is disjoint from every open session's recorded
+    # forecast. Read includes participate in nothing: broad *reading*
+    # and concurrency stop being mutually exclusive; broad *forecasting*
+    # and concurrency remain so. A default pack (no --write) still
+    # forecasts its include set — ["."] when --include is also absent —
+    # and therefore still intersects every open session; an open
+    # session packed pre-separation reads its old include set as an
+    # over-forecast (conservative, self-clearing). With no session
+    # open, behavior is unchanged.
     def _run_scope_gate(pack_scope: list) -> Optional[tuple]:
-        """Refuse on intersection with any open session's scope; return
-        the (scope, open_sids) journal tuple when admitted alongside
-        open sessions, None when nothing was open."""
+        """Refuse on intersection with any open session's recorded
+        forecast; return the (forecast, open_sids) journal tuple when
+        admitted alongside open sessions, None when nothing was open."""
         open_sids = open_sessions(repo)
         if not open_sids:
             return None
@@ -2134,17 +2306,22 @@ def cmd_pack(args: argparse.Namespace) -> int:
                     f"{declined_supersession}` to close it by hand."
                 )
             fail(
-                f"pack scope intersects {len(conflicts)} open "
+                f"pack write forecast intersects {len(conflicts)} open "
                 f"session(s): {detail}. Concurrent sessions require "
-                f"disjoint scope (ADR-0007). Narrow this pack with "
-                f"--include paths disjoint from the open scope(s), apply "
+                f"disjoint write forecasts (ADR-0015). Narrow this "
+                f"pack's forecast with --write paths disjoint from the "
+                f"open forecast(s), apply "
                 f"the open session's response first, run `bale unlock` "
                 f"if it was abandoned, or re-run with `--supersedes "
                 f"<sid>` if this pack splits and supersedes an open "
-                f"session (BALE.md §7.2). Note: a pack without "
-                f"--include scopes the whole tree and conflicts with "
+                f"session (BALE.md §7.2). Note: a pack without --write "
+                f"forecasts its resolved include set — the whole tree "
+                f"when --include is also absent — and conflicts with "
                 f"every open session; a read-only pack (--read-only, "
-                f"empty scope) conflicts with none." + declined_note
+                f"empty forecast) conflicts with none. An open session "
+                f"packed before the separation reads its include set "
+                f"as its forecast (conservative) until it closes."
+                + declined_note
             )
         # Journaled below, once the session log is open (sid allocation
         # happens further down; an informational line logged here would
@@ -2152,26 +2329,41 @@ def cmd_pack(args: argparse.Namespace) -> int:
         return (pack_scope, list(open_sids))
 
     # Wizard engagement is decided before the gate runs (v0.3.15): the
-    # wizard's session-shape question can turn the pack read-only, which
-    # empties its scope, so on the wizard path (without --read-only
-    # already deciding the answer) the gate defers to just after the
-    # wizard — otherwise a whole-tree provisional scope would refuse a
-    # pack the user was about to declare read-only, before the question
-    # could be asked. On every path where the scope is already final —
-    # fully specified CLI, or --read-only given — the gate fires here,
-    # in pre-flight before any prompt, exactly as before.
+    # wizard's session-shape question can turn the pack read-only, and
+    # its where-will-changes-land follow-up (ADR-0015) can narrow the
+    # forecast, so on the wizard path — without --read-only or --write
+    # already fixing the forecast — the gate defers to just after the
+    # wizard. Otherwise a whole-tree provisional forecast would refuse
+    # a pack the user was about to declare read-only (or forecast
+    # narrowly), before the question could be asked. On every path
+    # where the forecast is already final — fully specified CLI,
+    # --read-only given, or --write given — the gate fires here, in
+    # pre-flight before any prompt, exactly as before.
     wizard_engaged = args.goal is None or args.slug is None
-    gate_deferred = wizard_engaged and not args.read_only
+    gate_deferred = (wizard_engaged and not args.read_only
+                     and not args.write)
     admitted_alongside: Optional[tuple] = None
     checkpoint_scope_admitted = False
     if not gate_deferred:
-        _early_scope = [] if args.read_only else resolved_scope(
-            list(args.include))
+        # The resolved write forecast (ADR-0015): [] for a read-only
+        # pack; the --write set when the flag was typed; the resolved
+        # include set otherwise — the load-bearing compatibility
+        # default (a pack with no --write behaves byte-for-byte as
+        # before the separation).
+        _early_scope = ([] if args.read_only
+                        else resolved_scope(list(args.write))
+                        if args.write
+                        else resolved_scope(list(args.include)))
         # Checkpoint blindness gate (v0.3.28, board 6 session C; BALE.md
         # §7.1 step 4b) — before the disjointness gate, so a self-oracle
-        # scope is refused ahead of any scope-collision conversation.
+        # forecast (or a read include set that would ship the oracle's
+        # bytes, the ADR-0015 read-side half) is refused ahead of any
+        # forecast-collision conversation. The include set is final at
+        # arg-parse (the wizard never collects includes), so the read
+        # side is checked at whichever site the gate fires from.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
-            repo, _early_scope, allow=args.allow_checkpoint_in_scope)
+            repo, _early_scope, allow=args.allow_checkpoint_in_scope,
+            read_includes=resolved_scope(list(args.include)))
         admitted_alongside = _run_scope_gate(_early_scope)
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
@@ -2196,18 +2388,27 @@ def cmd_pack(args: argparse.Namespace) -> int:
             )
         _wizard_fill_args(args, repo)
 
-    # The pack's ADR-0007 scope, final now on every path: the wizard has
-    # run (its session-shape answer may have set args.read_only; it
-    # never collects includes), so nothing below changes the inputs. []
-    # is the read-only shape — recorded via persist_pack_session further
-    # down, read back by the gates as "locks nothing, may land nothing".
-    pack_scope = [] if args.read_only else resolved_scope(list(args.include))
+    # The pack's recorded write forecast (ADR-0015), final now on every
+    # path: the wizard has run (its session-shape answer may have set
+    # args.read_only; its where-will-changes-land follow-up may have
+    # filled args.write; it never collects includes), so nothing below
+    # changes the inputs. Resolution: [] is the read-only shape;
+    # otherwise the --write set (typed or wizard-collected); otherwise
+    # the resolved include set — the compatibility default, so a pack
+    # that never mentions --write records exactly what it recorded
+    # before the separation. Recorded via persist_pack_session further
+    # down, read back by the gates as the forecast — "locks nothing,
+    # may land nothing" for [].
+    pack_scope = ([] if args.read_only
+                  else resolved_scope(list(args.write)) if args.write
+                  else resolved_scope(list(args.include)))
     if gate_deferred:
         # Same order as the pre-flight path: blindness gate (v0.3.28,
-        # session C) before the disjointness gate, now that the wizard's
-        # session-shape answer has finalized the scope.
+        # session C) before the disjointness gate, now that the
+        # wizard's answers have finalized the forecast.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
-            repo, pack_scope, allow=args.allow_checkpoint_in_scope)
+            repo, pack_scope, allow=args.allow_checkpoint_in_scope,
+            read_includes=resolved_scope(list(args.include)))
         admitted_alongside = _run_scope_gate(pack_scope)
 
     # A declined supersession that survives the gate (the parent's scope
@@ -2322,6 +2523,23 @@ def cmd_pack(args: argparse.Namespace) -> int:
     for inc in args.include:
         if not (repo / inc).exists():
             fail(f"--include path does not exist: {inc}")
+    # --write entries name existing paths — the ADR-0014 rule held on
+    # the forecast surface too (ADR-0015, design brief I.1): nobody
+    # pre-names the files a response will create; a packer who knows
+    # new files land in one area forecasts the directory. Same check,
+    # same site, same wording shape as the --include rule above, so
+    # the two flag families stay one rule. Wizard-collected forecast
+    # entries were already validated at the prompt; this site catches
+    # the CLI-typed ones.
+    for wpath in args.write:
+        if not (repo / wpath).exists():
+            fail(
+                f"--write path does not exist: {wpath}. Forecast "
+                f"entries name existing files or directories "
+                f"(ADR-0014's rule, held on the forecast surface); "
+                f"to forecast new files, name the directory they "
+                f"will land under."
+            )
 
     # Pack threshold caps (BALE.md §7.4). The --max-* flags override only
     # the hard caps; the soft caps stay at PACK_MAX_*_SOFT so the prompt
@@ -2549,8 +2767,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     log(f"session id: {sid}")
     if admitted_alongside is not None:
         gate_scope, gate_open_sids = admitted_alongside
-        log(f"scope-disjointness gate passed (ADR-0007): pack scope "
-            f"({', '.join(gate_scope)}) is disjoint from "
+        log(f"forecast-disjointness gate passed (ADR-0015): pack write "
+            f"forecast ({', '.join(gate_scope)}) is disjoint from "
             f"{len(gate_open_sids)} open session(s): "
             f"{', '.join(gate_open_sids)}")
         log("note: revert/retry/unlock/handoff resolve the session the "
@@ -2605,9 +2823,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
         else:
             work_class = "mixed"
     if args.read_only:
-        log("read-only session shape (v0.3.15): recorded scope is empty — "
-            "locks nothing (siblings pack freely), may land nothing (the "
-            "own-scope drift gate refuses every changes[] path this "
+        log("read-only session shape (v0.3.15): recorded write forecast "
+            "is empty — locks nothing (siblings pack freely), may land "
+            "nothing (the own-forecast drift gate refuses every "
+            "changes[] path this "
             "session ships). Close-out (board 33): the next read-only "
             "pack offers to close this session, or run `bale unlock` now")
     provenance = build_provenance_block(
@@ -2638,7 +2857,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "superseded_session": superseded_sid,
         },
         provenance=provenance,
-        # The board-33 scope stamp (v0.3.21): the same pack_scope value
+        # The board-33 scope stamp (v0.3.21; forecast semantics per
+        # ADR-0015): the same pack_scope value
         # persist_pack_session records below — one source, never a
         # re-derivation. [] for a read-only pack.
         resolved_scope=pack_scope,

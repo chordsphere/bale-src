@@ -52,7 +52,7 @@ from harness import (
 SHAPE_QUESTION_MARKER = "Will this session land changes"
 DRIFT_REFUSAL_MARKER = "SCOPE-DRIFT-REFUSED"
 READONLY_MARKER = "read-only"
-INTERSECT_MARKER = "pack scope intersects"
+INTERSECT_MARKER = "pack write forecast intersects"
 SWEEP_PROMPT_MARKER = "Close open read-only session"
 SWEEP_DECLINE_MARKER = "declining without a prompt"
 CLOSEOUT_MARKER = "Read-only session close-out"
@@ -315,6 +315,8 @@ class ReadonlyPackTest(unittest.TestCase):
             "wizard default goal\n"
             "wizard-default\n"
             "\n"                        # session shape: Enter -> mixed
+            "\n"                        # forecast follow-up: Enter ->
+                                        #   same as the includes (ADR-0015)
             "\n" "\n" "\n"              # excludes, constraints, oos
             "n\n"                       # README prompt: no
         )
