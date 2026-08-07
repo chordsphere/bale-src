@@ -1,0 +1,160 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-35-handoff-happy-011",
+  "created_at": "2026-08-07T02:49:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T02:49:13+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-011 (5).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "tests/test_install_precheck.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "bin/bale",
+        "tests/test_handoff_happy.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.2",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Test files ship non-executable (0644) to match the sibling suites' modes in the shipped tree, despite the shebang line the suite convention carries."
+          ],
+          "judgment_calls": [
+            "New suite in its own file (tests/test_handoff_happy.py) rather than appended to test_install_precheck.py \u2014 the brief named this defensible; enumerated in notes.md as own-forecast drift for per-path admission.",
+            "--verbose threads ONLY into build_request_tarball, per the accepted proposal's verbatim text; gather_files_for_pack's verbose kwarg is NOT threaded on the handoff path \u2014 proposed in notes.md instead of silently widening the fold-in.",
+            "Handoff subparser description gained one sentence naming --verbose, keeping the flag-enumeration parity the description already had for --edit-goal/--force."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-35-handoff-happy-011.log"
+    },
+    {
+      "at": "2026-08-07T02:50:58+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-011 (5).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "full test suite (python3 -m unittest discover -s tests)": "pass",
+          "handoff --verbose surface assertions": "pass"
+        },
+        "claim_verdict": {
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "handoff --verbose surface assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "tests/test_install_precheck.py"
+      ],
+      "overridden_paths": [
+        "tests/test_handoff_happy.py"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "bin/bale",
+        "tests/test_handoff_happy.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.2",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Test files ship non-executable (0644) to match the sibling suites' modes in the shipped tree, despite the shebang line the suite convention carries."
+          ],
+          "judgment_calls": [
+            "New suite in its own file (tests/test_handoff_happy.py) rather than appended to test_install_precheck.py \u2014 the brief named this defensible; enumerated in notes.md as own-forecast drift for per-path admission.",
+            "--verbose threads ONLY into build_request_tarball, per the accepted proposal's verbatim text; gather_files_for_pack's verbose kwarg is NOT threaded on the handoff path \u2014 proposed in notes.md instead of silently widening the fold-in.",
+            "Handoff subparser description gained one sentence naming --verbose, keeping the flag-enumeration parity the description already had for --edit-goal/--force."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-35-handoff-happy-011.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T02:50:58+00:00",
+  "outcome": "applied"
+}
