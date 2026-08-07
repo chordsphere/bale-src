@@ -159,10 +159,22 @@ deleted.
   telemetry epoch and contract-doc propagation land in sessions B and
   C). Pull when touching pack scope resolution, the disjointness or
   drift gates, forecast doctrine, or any concurrency work.
+- `context/adr/0016-response-script-sandbox.md` — extend ADR-0005's
+  hermeticity doctrine to bale's execution of response scripts
+  (apply.sh, validation.sh, the blind checkpoint): sandbox required
+  for unattended execution (network off, writes confined to
+  staging), uniform across all three scripts, default-on for
+  attended applies with a per-invocation escape, planner-granted
+  per-project network hatch; mechanism deferred to board 10 (WSL
+  constraint recorded). Status: Proposed. Pull when planning the
+  board-10 sandbox build, touching the apply-time script invocation
+  paths, or ratifying at the master desk.
 
-Current status: of the fifteen ADRs (0001–0015), fourteen are
-Accepted and one — ADR-0007 — is Superseded (by ADR-0015, the
-board-13 read-vs-write separation, ratified and landed 2026-08-07).
+Current status: of the sixteen ADRs (0001–0016), fourteen are
+Accepted, one — ADR-0007 — is Superseded (by ADR-0015, the
+board-13 read-vs-write separation, ratified and landed 2026-08-07),
+and one — ADR-0016, the response-script sandbox doctrine — is
+Proposed, awaiting ratification at the master desk.
 The last Proposed set before that (0002–0004 and 0009) was ratified
 at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011).
 Each ADR file's own Status and Notes lines carry its ratification
@@ -198,12 +210,13 @@ cross-reference into an injected global doc, not an inventory entry —
 the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
-state doc), two explainers, and fifteen ADRs (0001–0005 the
+state doc), two explainers, and sixteen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012
 the agent-driven direction, 0013 the TARBALL.md rationale
-relocation, 0014 the worker-determined new-files doctrine, and 0015
-the read-vs-write separation, superseding 0007).
+relocation, 0014 the worker-determined new-files doctrine, 0015
+the read-vs-write separation, superseding 0007, and 0016 the
+response-script sandbox doctrine, extending 0005).
 Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will
