@@ -74,9 +74,12 @@ deleted.
 - `context/adr/0007-scope-disjointness.md` — disjoint session scope as a
   mechanical contract: pack-time intersection refusal (includes as a
   conservative proxy) and apply-time collision rejection (the real guard
-  against the whole-file clobber). Status: Accepted (landed in v0.3.1 —
-  BALE.md §7.1 step 5, §8.1 step 7, §11 rows 3 and 19). Pull when touching
-  pack scope projection, apply pre-flight, or any concurrency work.
+  against the whole-file clobber). Status: Superseded by ADR-0015 (the
+  board-13 read-vs-write separation overturns "scope is the resolved
+  include set"; both gates live on, re-based onto write forecasts, in
+  0015's clause 3; the original landed in v0.3.1 — BALE.md §7.1 step 5,
+  §8.1 step 7, §11 rows 3 and 19). Kept append-only as history; pull
+  ADR-0015 for the current contract.
 - `context/adr/0008-checkout-free-integration.md` — integrate via plumbing
   under the integration lock instead of consuming the user's checkout: the
   session commit is built in a temporary index and the no-ff merge is a
@@ -143,12 +146,27 @@ deleted.
   stays uninjected and the global docs describe the scope gates
   generically. Status: Accepted. Pull when touching scope doctrine,
   the own-scope drift gate, pack include guidance, or the lane rule.
+- `context/adr/0015-read-write-separation.md` — the read set separated
+  from the write forecast (board 13): `--include` returns to meaning
+  exactly what it ships (read context, gating nothing) and a new
+  `--write` flag family declares the forecast the registry records,
+  the manifest stamps as `resolved_scope`, and the gates enforce —
+  defaulting to the include set when absent, `[]` under `--read-only`,
+  ADR-0014's admission posture generalized to modified files, and the
+  checkpoint blindness gate keyed to the forecast plus a read-side
+  ships-the-oracle refusal. Supersedes ADR-0007. Status: Accepted
+  (landed in v0.4.1 by the board-13 Session A implementation; the
+  telemetry epoch and contract-doc propagation land in sessions B and
+  C). Pull when touching pack scope resolution, the disjointness or
+  drift gates, forecast doctrine, or any concurrency work.
 
-Current status: all fourteen ADRs (0001–0014) are Accepted; the
-last Proposed set (0002–0004 and 0009) was ratified at the board-10
-tidy-up sitting (2026-08-05-discuss-harness-011). Each ADR
-file's own Status and Notes lines carry its ratification and flip
-record; the flip-by-flip narrative lives in git.
+Current status: of the fifteen ADRs (0001–0015), fourteen are
+Accepted and one — ADR-0007 — is Superseded (by ADR-0015, the
+board-13 read-vs-write separation, ratified and landed 2026-08-07).
+The last Proposed set before that (0002–0004 and 0009) was ratified
+at the board-10 tidy-up sitting (2026-08-05-discuss-harness-011).
+Each ADR file's own Status and Notes lines carry its ratification
+and flip record; the flip-by-flip narrative lives in git.
 
 ## Explainers
 
@@ -180,11 +198,12 @@ cross-reference into an injected global doc, not an inventory entry —
 the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
-state doc), two explainers, and fourteen ADRs (0001–0005 the
+state doc), two explainers, and fifteen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012
 the agent-driven direction, 0013 the TARBALL.md rationale
-relocation, and 0014 the worker-determined new-files doctrine).
+relocation, 0014 the worker-determined new-files doctrine, and 0015
+the read-vs-write separation, superseding 0007).
 Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will

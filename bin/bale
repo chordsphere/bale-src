@@ -222,7 +222,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -533,28 +533,34 @@ def is_valid_slug(s: str) -> bool:
 # to). ADR-0006 explicitly leaves the file's survival as an
 # implementation choice; it survives as exactly that convenience.
 #
-# ADR-0007 (claude/context/adr/0007-scope-disjointness.md) adds the
+# ADR-0007 (claude/context/adr/0007-scope-disjointness.md) added the
 # third piece of registry state: PER-SESSION SCOPE, persisted at
-# .bale/sessions/<sid>/scope.json as the pack's resolved include set —
-# the normalized --include paths, or ["."] for a default
-# include-everything pack. Two gates read it. Pack pre-flight refuses a
-# new pack whose scope intersects any open session's scope (includes are
-# a deliberately conservative proxy for change scope); apply pre-flight
-# rejects a response whose changes[] paths collide with ANOTHER open
-# session's scope — the real guard against the whole-file clobber, since
-# bale's overlay is whole-file replacement, not a diff. Intersection is
-# over paths, with directory entries covering their subtrees and "."
-# covering everything. Both request-building paths record scope: `bale
-# pack` records its resolved include set, and (since v0.3.2) `bale
-# handoff` records the reading-plan files it pre-packed — or ["."]
-# when the plan cited none. A session with no scope.json (opened by an
-# older bale, or hand-rolled state) reads as ["."]: conservative, so
-# it refuses concurrency rather than permit a clobber. A recorded EMPTY
-# scope ([], v0.3.15 — `bale pack --read-only` or the wizard's
+# .bale/sessions/<sid>/scope.json. ADR-0015 reinterprets what pack
+# writes into it — the session's resolved WRITE FORECAST (`--write`
+# entries, defaulting to the resolved include set when the flag is
+# absent), not the include set itself — same file, same JSON shape,
+# same helpers; includes return to meaning exactly what they ship
+# (read context, gating nothing). Two gates read the record. Pack
+# pre-flight refuses a new pack whose forecast intersects any open
+# session's recorded forecast; apply pre-flight rejects a response
+# whose changes[] paths collide with ANOTHER open session's forecast —
+# the real guard against the whole-file clobber, since bale's overlay
+# is whole-file replacement, not a diff. Intersection is over paths,
+# with directory entries covering their subtrees and "." covering
+# everything. Both request-building paths record a forecast: `bale
+# pack` records its resolved --write set (or the include-set default),
+# and (since v0.3.2) `bale handoff` records the reading-plan files it
+# pre-packed — or ["."] when the plan cited none. A session with no
+# scope.json (opened by an older bale, or hand-rolled state) reads as
+# ["."]: conservative, so it refuses concurrency rather than permit a
+# clobber — and an open session packed pre-separation reads its old
+# include set as an over-forecast, the same conservative direction,
+# self-clearing at close. A recorded EMPTY
+# forecast ([], v0.3.15 — `bale pack --read-only` or the wizard's
 # read-only answer) is a distinct third state: it locks nothing (both
 # disjointness gates see no intersection, so siblings pack and apply
-# freely) and may land nothing (the own-scope drift gate refuses every
-# changes[] path such a session ships).
+# freely) and may land nothing (the own-forecast drift gate refuses
+# every changes[] path such a session ships).
 #
 # The second piece of ADR-0006 state is the repo-level INTEGRATION LOCK:
 # .bale/integration.lock, held only across the short git mutation window of
@@ -943,19 +949,25 @@ def scope_path(p: str) -> str:
 
 
 def resolved_scope(includes: list[str]) -> list[str]:
-    """The ADR-0007 scope of a pack: its resolved include set.
+    """Resolve a declared path list into the gates' canonical scope form.
 
-    Normalized, deduplicated, sorted declared includes; a pack with no
-    --include (bale's default whole-tree scope, BALE.md §7.2) resolves
-    to ["."], as does any include list that names the repo root — "."
-    covers everything, so listing siblings beside it would only blur
-    the refusal messages the gates build from these entries.
+    Normalized, deduplicated, sorted entries; an empty input resolves
+    to ["."], as does any list that names the repo root — "." covers
+    everything, so listing siblings beside it would only blur the
+    refusal messages the gates build from these entries.
 
-    Declared includes — not the walked file list — are deliberately
-    the recorded form: a directory include covers files *created*
+    Two callers, same normal form (ADR-0015): the resolved include
+    set (the read side — what ships in context/), and the resolved
+    write forecast (`--write` — what the session forecasts landing,
+    which is what the registry records and the gates read). A pack
+    with no --write forecasts its resolved include set, so the
+    empty-input → ["."] rule is exactly the pre-separation
+    default-pack behavior on both surfaces.
+
+    Declared entries — not a walked file list — are deliberately
+    the recorded form: a directory entry covers files *created*
     under it later, which a snapshot of walked files could not, and
-    the conservatism (a session rarely changes everything it was
-    shown) is the ADR's stated trade.
+    the conservatism is the ADR's stated trade.
     """
     if not includes:
         return ["."]
@@ -2930,12 +2942,19 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         else:
             included_paths = []
 
-        # The session's ADR-0007 scope, computed here — before the
-        # blindness gate below and before sid allocation — so the gate,
-        # the manifest stamp, and the registry record at persist all
-        # share one value (board 33, v0.3.21): the resolved set of
-        # reading-plan files pre-packed above; ["."] (whole tree) when
-        # the plan cited none.
+        # The session's recorded write forecast (ADR-0015), computed
+        # here — before the blindness gate below and before sid
+        # allocation — so the gate, the manifest stamp, and the
+        # registry record at persist all share one value (board 33,
+        # v0.3.21): the resolved set of reading-plan files pre-packed
+        # above; ["."] (whole tree) when the plan cited none. On the
+        # handoff path the read set and the forecast coincide by
+        # construction — the reading-plan files are exactly what ships
+        # AND the conservative forecast of where the resumed work
+        # lands (an over-forecast in the usual case, the safe
+        # direction) — so the blindness gate's read-side check below
+        # is covered by the same value and no separate include set is
+        # passed.
         handoff_scope = resolved_scope(included_paths)
 
         # Checkpoint blindness pre-flight (v0.3.33; BALE.md §11 row 30)
@@ -4243,12 +4262,18 @@ def _render_status(report: StatusReport) -> str:
         if report.session_expects_probe:
             rows.append(("expects probe", report.session_expects_probe))
         if report.session_sid is not None:
-            # Per-session scope (ADR-0007, v0.3.2) for the classified
+            # Per-session recorded forecast (ADR-0007 gates, ADR-0015
+            # semantics) for the classified
             # session — with several open, the oldest, matching the
             # session/goal rows above; the per-sid listing carries the
-            # rest. Rendering lives in bale_report (format_scope_value).
+            # rest. The row label says what the recorded set IS
+            # post-separation — the write forecast the gates enforce
+            # (an old open session's include set reads as an
+            # over-forecast, the same conservative fact). Rendering
+            # lives in bale_report (format_scope_value); the --json
+            # `scopes` key contract is unchanged, deliberately.
             rows.append(
-                ("scope",
+                ("write forecast",
                  format_scope_value(
                      report.session_scopes.get(report.session_sid, ["."]))))
             # Effective staging posture (v0.3.11, board 12) for the
@@ -4493,6 +4518,27 @@ def build_parser() -> argparse.ArgumentParser:
              "the whole repo if omitted.",
     )
     p_pack.add_argument(
+        "--write", action="extend", nargs="+", default=[], metavar="PATH",
+        help="Declare the session's write forecast (ADR-0015): the paths "
+             "this session is expected to land changes under. Same grammar "
+             "as --include — accepts multiple paths per flag, repeatable, "
+             "directory entries cover their subtrees — and entries must "
+             "name existing paths (forecasting the response's new-file "
+             "layout is the worker's job, ADR-0014; forecast the directory "
+             "instead). The forecast — not the include set — is what the "
+             "concurrency gates read: it is recorded in the registry "
+             "(sessions/<sid>/scope.json), stamped into the manifest as "
+             "resolved_scope, and enforced by the disjointness, "
+             "sibling-collision, and own-forecast drift gates. It is a "
+             "forecast, not a wall: out-of-forecast work ships enumerated "
+             "and is admitted per path at apply. Absent --write, the "
+             "forecast defaults to the resolved include set — "
+             "byte-for-byte pre-separation behavior; separation is opt-in "
+             "per pack. Requires at least one path; the empty forecast is "
+             "spelled --read-only, and combining the two flags is refused "
+             "as contradictory.",
+    )
+    p_pack.add_argument(
         "--exclude", action="extend", nargs="+", default=[], metavar="PATTERN",
         help="gitignore-style pattern to exclude from this pack. Accepts "
              "multiple patterns per flag (e.g. --exclude 'data/*' 'tmp/*') "
@@ -4618,10 +4664,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pack.add_argument(
         "--read-only", action="store_true",
-        help="Open the session with an EMPTY recorded scope (v0.3.15): "
+        help="Open the session with an EMPTY recorded write forecast "
+             "(v0.3.15; the degenerate forecast under ADR-0015): "
              "the read-only session shape for discussion, orchestration, "
              "or audit. The session opens normally in the registry — sid, "
-             "origin-branch stamp, lock — but its scope locks nothing "
+             "origin-branch stamp, lock — but its forecast locks nothing "
              "(the ADR-0007 disjointness gates admit sibling packs and "
              "applies alongside it) and may land nothing (the own-scope "
              "drift gate refuses every changes[] path a response under "

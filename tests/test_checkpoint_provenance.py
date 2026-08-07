@@ -81,7 +81,7 @@ from harness import (
 CHECKPOINT_PATH = "scripts/validation.base.sh"
 
 # Sentinels for the surfaces this file pins.
-SCOPE_REFUSAL_PHRASE = "pack scope covers the blind checkpoint"
+SCOPE_REFUSAL_PHRASE = "write forecast covers the blind checkpoint"
 PACK_DANGLING_PHRASE = "blind checkpoint missing at the pack-time tip"
 DIVERGENCE_PHRASE = "blind checkpoint changed since pack"
 STAMPLESS_PHRASE = "request carries no checkpoint provenance stamp"
@@ -239,10 +239,13 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
         self.assertIn("--allow-checkpoint-in-scope", combined,
                       msg="the refusal names its override successor")
-        # The caller-aware remedy sentence (v0.3.34): pack's refusal
-        # carries the pack-flavored narrowing remedy, never handoff's —
-        # only the one sentence differs between callers.
-        self.assertIn("narrow this pack with --include paths", combined)
+        # The caller-aware remedy sentence (v0.3.34; re-based to the
+        # forecast's own lever by ADR-0015): pack's refusal carries the
+        # pack-flavored narrowing remedy — --write, since the forecast
+        # is what covered the oracle here — never handoff's; only the
+        # one sentence differs between callers.
+        self.assertIn("narrow this pack's write forecast with --write "
+                      "paths", combined)
         self.assertNotIn("re-bail with a reading plan", combined)
         self.assertFalse(
             (self.repo / ".bale" / "sessions").exists(),

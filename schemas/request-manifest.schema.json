@@ -73,7 +73,7 @@
     "resolved_scope": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "description": "The session's declared scope exactly as the registry records it (v0.3.21, board 33): normalized, deduplicated, sorted repo-relative include entries — directory entries cover their subtrees — or [] for a read-only pack (locks nothing, may land nothing). Stamped by both request-building paths (pack, handoff) so the worker can read from inside the tarball what the ADR-0007 gates enforce repo-side; one source with the registry record, never a re-derivation. Additive per the depends_on.superseded_session precedent: not required, so previously stamped manifests stay valid; bale-built manifests always carry it."
+      "description": "The session's recorded write forecast exactly as the registry records it (v0.3.21, board 33; forecast semantics per ADR-0015): normalized, deduplicated, sorted repo-relative entries — directory entries cover their subtrees — resolved from --write, defaulting to the resolved include set when the flag is absent, or [] for a read-only pack (locks nothing, may land nothing). The key's contract to the worker is unchanged: the authoritative read of what the own-forecast drift gate and the sibling gates enforce repo-side — one source with the registry record, never a re-derivation — and the forecast is a forecast, not a wall: out-of-forecast work ships enumerated and is admitted per path at apply. What the VALUE is changed under the contract (forecast, not include set); manifests stamped pre-separation carry the include set, which the gates read as an over-forecast — the conservative direction. Stamped by both request-building paths (pack, handoff). Additive per the depends_on.superseded_session precedent: not required, so previously stamped manifests stay valid; bale-built manifests always carry it."
     },
     "provenance": {
       "type": "object",
@@ -120,7 +120,7 @@
         },
         "checkpoint_scope_admitted": {
           "type": "boolean",
-          "description": "True when the request's scope covered the configured checkpoint's path and the planner admitted it past the blindness refusal with --allow-checkpoint-in-scope — pack's resolved include set (v0.3.28, board 6 session C) or handoff's reading-plan scope (the mirroring flag, v0.3.33); false otherwise. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
+          "description": "True when the planner admitted the request past the checkpoint blindness refusal with --allow-checkpoint-in-scope — the resolved write forecast covered the configured checkpoint's path, or (ADR-0015 read side) the resolved include set would have shipped its content; pack since v0.3.28 (board 6 session C), handoff against its reading-plan forecast (the mirroring flag, v0.3.33); false otherwise. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
         }
       }
     }

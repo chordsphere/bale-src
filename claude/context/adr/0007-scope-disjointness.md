@@ -1,9 +1,9 @@
 # ADR-0007: Scope disjointness as a mechanical contract, pack-time and apply-time
 
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-07-06
 - **Supersedes:** —
-- **Superseded by:** —
+- **Superseded by:** ADR-0015
 
 ## Context
 
@@ -90,3 +90,11 @@ is a superseding or extending ADR, not a reinterpretation of the
 hard-refuse policy here.
 
 2026-07-13 — implemented in bin/bale by v0.3.6; exercised 2026-07-13 with three concurrent scope-disjoint doc sessions; recorded per the audit cleanup session (2026-07-13-multi-agent-docs-007).
+
+2026-08-07 — superseded by ADR-0015 (board-13 read-vs-write
+separation, ratified at the master desk): the decision sentence "a
+session's scope is its resolved include set" is overturned — the
+recorded scope is now the session's write forecast, includes gate
+nothing — while both gates live on, re-based, in ADR-0015's clause
+3. Flip landed by `2026-08-07-board-13a-forecast-surface-004`
+(v0.4.1), cross-referenced both ways per the append-only rule.

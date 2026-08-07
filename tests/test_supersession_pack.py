@@ -45,7 +45,7 @@ from harness import (
 
 # Sentinels for the surfaces this file pins. Kept in one place so a
 # message rewording breaks one line, not several assertions.
-INTERSECT_MARKER = "pack scope intersects"
+INTERSECT_MARKER = "pack write forecast intersects"
 DECLINED_MARKER = "declined at the prompt"
 DECLINE_DEFAULT_MARKER = "decline default applies without a prompt"
 DISJOINT_DECLINE_MARKER = "does not collide with this pack"
