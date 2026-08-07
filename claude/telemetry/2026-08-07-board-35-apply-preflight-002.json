@@ -1,0 +1,112 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-35-apply-preflight-002",
+  "created_at": "2026-08-07T00:47:15+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T00:47:15+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (36).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python syntax (py_compile) on the four changed test files": "pass",
+          "full test suite (unittest discover -s tests; ~80s)": "pass",
+          "suite count covers the new tests (269 collected)": "pass"
+        },
+        "claim_verdict": {
+          "python syntax (py_compile) on the four changed test files": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover -s tests; ~80s)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "suite count covers the new tests (269 collected)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/context/adr/0005-test-hermeticity.md",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "tests/harness.py",
+        "tests/test_apply_operations.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.0",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "'folded in' in the goal means gap 2 folds into this session, not into a single suite file; two test files shipped with the reasoning in notes.md",
+            "the reject suite's fixture session may pack --include . (whole-tree scope) so each row's own refusal is reachable past the drift gate; noted in notes.md and the suite docstring"
+          ],
+          "judgment_calls": [
+            "enumerated the reject rows from BALE.md \u00a711 per the brief, which added rows 7 and 9 and removed 'duplicate path' from the test surface (it is the lint's DUPLICATE_PATH, not a bale row); the identical-duplicate acceptance is reported, not pinned",
+            "extracted the response-tarball fixture builder to tests/harness.py at the board-11 second-consumer trigger and re-pointed test_hold_retry_e2e.py at it",
+            "added the forgotten-chmod HOLD test beyond the brief's literal gap-2 list \u2014 it is the \u00a77.7 assertion's stated purpose"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-35-apply-preflight-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T00:47:15+00:00",
+  "outcome": "applied"
+}
