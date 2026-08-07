@@ -37,8 +37,13 @@ list was verified against the doc per its own instruction):
       the identical-duplicate acceptance the rider closed, is
       superseded by the row's own test)
 
-Rows deliberately excluded: 8 (dirty-on-target — an environment-state
-refusal, not tarball malformation), 19/21/22 (sibling-scope, declared
+Row 8 (dirty-on-target) is an environment-state refusal, not tarball
+malformation, so it lives in its own class below
+(``ApplyDirtyOnTargetTest``, board 35 small pins) rather than in the
+malformed-tarball class: its narrow contract has proceed-cases as well
+as the refusal, which the reject class's charter can't carry.
+
+Rows deliberately excluded: 19/21/22 (sibling-scope, declared
 untracked inputs, own-scope drift — session-topology and config
 machinery; row 22's refusal and override are pinned in
 test_readonly_pack.py), 26–29 (required checks and checkpoints — their
@@ -532,6 +537,167 @@ class ApplyPreflightRejectTest(unittest.TestCase):
             self.assert_rejected(
                 self.apply(self.tampered_tarball(duplicate_conflicting)),
                 "duplicate changes[] path", "hello.txt")
+
+
+class ApplyDirtyOnTargetTest(unittest.TestCase):
+    """BALE.md §11 row 8 — the ADR-0008 narrow dirty-on-target rule.
+
+    The last apply pre-flight refusal with no live coverage (board 35,
+    from session 1's proposals), pinned as the three-case narrow
+    contract a regression would silently widen:
+
+    - the ONE entangled case refuses: checkout on the integration
+      target with tracked changes (moving the ref would desynchronize
+      the checkout from its own branch);
+    - untracked files NEVER block — invisible to a branch ref;
+    - a dirty checkout on any OTHER branch never blocks — integration
+      is checkout-free (ADR-0008) and only moves the target ref.
+
+    Pure git choreography in the standard sandbox; no new fixtures.
+    Subtests run in sequence: the refusal leaves its session open for
+    the untracked case, whose merge then closes it; the off-target case
+    packs its own session before switching branches.
+    """
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-dirtytgt-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.genv = git_env(self.home)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    # -- helpers ---------------------------------------------------------
+
+    def pack_session(self, slug: str) -> str:
+        """Pack a whole-tree session on the CURRENT branch (the
+        origin_branch stamp fixes the integration target at pack time)
+        and return its sid."""
+        result = run_bale(
+            self.install,
+            ["pack", "dirty-on-target fixture session",
+             "--slug", slug, "--include", ".", "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        root = self.repo / ".bale" / "sessions"
+        sids = [d.name for d in root.iterdir() if (d / "open").is_file()]
+        self.assertEqual(len(sids), 1)
+        return sids[0]
+
+    def response_tarball(self, sid: str, name: str, data: bytes) -> Path:
+        rdir = build_response_dir(
+            self.tmp / name, sid,
+            summary="dirty-on-target fixture: rewrite hello.txt",
+            entries=[{
+                "path": "hello.txt", "action": "modified",
+                "reason": "the fixture rewrite the three cases apply",
+                "data": data,
+            }])
+        return tar_response_dir(rdir)
+
+    def apply(self, tarball: Path):
+        return run_bale(self.install, ["apply", str(tarball)],
+                        cwd=self.repo, env=self.env)
+
+    # -- the three cases -------------------------------------------------
+
+    def test_row8_narrow_dirty_on_target(self) -> None:
+        with self.subTest(variant="tracked dirt on the target refuses"):
+            sid = self.pack_session("dirtytgt")
+            dirty_content = "uncommitted user edit\n"
+            (self.repo / "hello.txt").write_text(dirty_content,
+                                                 encoding="utf-8")
+            result = self.apply(self.response_tarball(
+                sid, "refused", b"on-target content\n"))
+            self.assertEqual(
+                result.returncode, 1,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            self.assertIn("tracked changes while checked out on the "
+                          "integration target", result.stderr)
+            self.assertIn("'main'", result.stderr)
+            self.assertIn("hello.txt", result.stderr,
+                          msg="the refusal lists the dirty paths")
+            # Nothing happened: dirt untouched, session open, no refs.
+            self.assertEqual(
+                (self.repo / "hello.txt").read_text(encoding="utf-8"),
+                dirty_content)
+            self.assertTrue(
+                (self.repo / ".bale" / "sessions" / sid / "open").is_file())
+            for ref in (f"refs/heads/bale/{sid}",
+                        f"refs/tags/applied/{sid}"):
+                probe = subprocess.run(
+                    ["git", "rev-parse", "--verify", "--quiet", ref],
+                    cwd=self.repo, env=self.genv,
+                    capture_output=True, text=True)
+                self.assertNotEqual(probe.returncode, 0,
+                                    msg=f"{ref} must not exist")
+            # Drop the dirt; the session is still open for the next case.
+            run_checked(["git", "checkout", "--", "hello.txt"],
+                        cwd=self.repo, env=self.genv)
+
+        with self.subTest(variant="untracked files never block"):
+            (self.repo / "stray.txt").write_text("untracked stray\n",
+                                                 encoding="utf-8")
+            merged_content = b"untracked-case content\n"
+            result = self.apply(self.response_tarball(
+                sid, "untracked-ok", merged_content))
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            run_checked(["git", "rev-parse", "--verify",
+                         f"refs/tags/applied/{sid}"],
+                        cwd=self.repo, env=self.genv)
+            # On-target and tracked-clean: the checkout fast-forwards.
+            self.assertEqual(
+                (self.repo / "hello.txt").read_text(encoding="utf-8"),
+                merged_content.decode("utf-8"))
+            self.assertEqual(
+                (self.repo / "stray.txt").read_text(encoding="utf-8"),
+                "untracked stray\n",
+                msg="the untracked file rides through untouched")
+
+        with self.subTest(variant="a dirty OTHER branch never blocks"):
+            # Pack on main (fixing main as the target), then switch to a
+            # side branch and dirty it: integration is checkout-free, so
+            # the apply proceeds and only the main ref moves.
+            sid2 = self.pack_session("dirtytgt-side")
+            run_checked(["git", "checkout", "-b", "side"],
+                        cwd=self.repo, env=self.genv)
+            side_dirty = "side-branch uncommitted edit\n"
+            (self.repo / "hello.txt").write_text(side_dirty,
+                                                 encoding="utf-8")
+            merged_content = b"off-target-case content\n"
+            result = self.apply(self.response_tarball(
+                sid2, "offtarget-ok", merged_content))
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            run_checked(["git", "rev-parse", "--verify",
+                         f"refs/tags/applied/{sid2}"],
+                        cwd=self.repo, env=self.genv)
+            # The merge landed on main's ref...
+            show = subprocess.run(
+                ["git", "show", "main:hello.txt"],
+                cwd=self.repo, env=self.genv,
+                capture_output=True, text=True)
+            self.assertEqual(show.returncode, 0)
+            self.assertEqual(show.stdout, merged_content.decode("utf-8"))
+            # ...while the checkout stayed on side, dirt intact.
+            branch = subprocess.run(
+                ["git", "branch", "--show-current"],
+                cwd=self.repo, env=self.genv,
+                capture_output=True, text=True)
+            self.assertEqual(branch.stdout.strip(), "side")
+            self.assertEqual(
+                (self.repo / "hello.txt").read_text(encoding="utf-8"),
+                side_dirty,
+                msg="integration never touches the checkout")
 
 
 if __name__ == "__main__":

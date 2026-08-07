@@ -18,6 +18,14 @@ asserts the one-file-per-sid append semantics BALE.md §8.9 promises:
 - the merge really landed: `applied/<sid>` tag, changed file content
   on the origin branch.
 
+Board 35 (small pins, gap 6) added the third TARBALL.md section 7.5
+exit code: a validation.sh that itself errors (exit 2, distinct from
+a check failure's exit 1) rides the same HOLD path — held branch,
+piped-default inspect, exit 1 — with the exit code carried faithfully
+into the walkthrough row and the telemetry record, which is where the
+"validation found a problem" vs "validation itself broke" distinction
+survives for the planner.
+
 The response tarballs are built via the shared harness fixture builder
 (computed hashes, real validation.sh scripts; extracted to
 ``tests/harness.py`` at board 35) so the failure and the fix are
@@ -196,6 +204,65 @@ class HoldRetryE2ETest(unittest.TestCase):
         self.assertEqual(
             (self.repo / "hello.txt").read_text(encoding="utf-8"),
             NEW_CONTENT)
+
+
+    # -- board 35 gap 6: validation.sh exit 2 (script errored) -----------
+
+    def test_validation_exit2_holds_and_records_exit_code(self) -> None:
+        """A validation.sh that ERRORS (exit 2, TARBALL.md section 7.5 —
+        the script broke, not a check) holds exactly like a check
+        failure: held branch, piped-default inspect, apply exit 1 — with
+        the raw exit code carried into the walkthrough's validation row
+        and the telemetry attempt, where the 1-vs-2 distinction remains
+        readable after the fact."""
+        sid = self.packed_sid()
+        rdir = build_response_dir(
+            self.tmp / "errored", sid,
+            summary="exit-2 fixture: rewrite hello.txt; validation.sh "
+                    "errors by construction before any check completes",
+            entries=[{
+                "path": "hello.txt",
+                "action": "modified",
+                "reason": "the goal's rewrite; never merges — the "
+                          "errored validation holds it",
+                "data": NEW_CONTENT.encode("utf-8"),
+            }],
+            validation_sh=(
+                "#!/usr/bin/env bash\n"
+                "echo 'validation.sh: fixture script error' >&2\n"
+                "exit 2\n"),
+        )
+        result = run_bale(self.install,
+                          ["apply", str(tar_response_dir(rdir))],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 1,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn(HOLD_HEADLINE, result.stdout)
+        self.assertIn("exit=2", result.stdout,
+                      msg="the walkthrough's validation row carries the "
+                          "raw section 7.5 exit code")
+
+        record = self.telemetry_record(sid)
+        self.assertEqual(record["outcome"], "held")
+        attempt = record["attempts"][0]
+        self.assertEqual(attempt["validation"]["state"], "HOLD")
+        self.assertEqual(attempt["validation"]["exit_code"], 2,
+                         msg="exit 2 is recorded verbatim — the record "
+                             "is where 'script errored' stays "
+                             "distinguishable from 'check failed'")
+
+        # The hold is inspectable and recoverable: session open, held
+        # commit on the bale branch, origin content untouched.
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="a HOLD leaves the session open for retry")
+        env = git_env(self.home)
+        run_checked(["git", "rev-parse", "--verify",
+                     f"refs/heads/bale/{sid}"], cwd=self.repo, env=env)
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "hello\n", msg="nothing merged")
 
 
 if __name__ == "__main__":
