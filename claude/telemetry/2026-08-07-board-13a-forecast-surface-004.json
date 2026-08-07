@@ -1,0 +1,106 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-13a-forecast-surface-004",
+  "created_at": "2026-08-07T01:23:28+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T01:23:28+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-004 (26).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -m unittest discover -s tests": "pass",
+          "session assertions (ADR-0007 reverse-transform, ADR cross-references, INDEX/VERSION agreement, BALE.md row 31)": "pass"
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md",
+        "claude/context/adr",
+        "claude/context/board-13-arc",
+        "docs",
+        "install.sh",
+        "schemas",
+        "scripts",
+        "tests",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/INDEX.md",
+        "claude/context/adr/0007-scope-disjointness.md",
+        "claude/context/adr/0015-read-write-separation.md",
+        "schemas/request-manifest.schema.json",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_readonly_pack.py",
+        "tests/test_supersession_pack.py",
+        "tests/test_write_forecast.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.0",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), worker session; self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "wizard: a typed --write skips the read-only half of the session-shape exchange entirely (a non-empty forecast is the lands-changes declaration; --write --read-only is already an arg-parse contradiction), asked only the work-class half",
+            "read-side blindness check is conservative containment on the resolved include set: an exclude pattern that would drop the checkpoint at walk time still refuses (declared-entries semantics, matching every other gate; cheap remedies)"
+          ],
+          "judgment_calls": [
+            "status renders the forecast row only, not a second include-set row: the session block answers what is enforced, and includes are enforced nowhere post-separation (Q4's minimal reading); --json keys untouched",
+            "checkpoint_scope_admitted schema description edited beyond the brief's named file list \u2014 E3's one-flag-one-stamp ruling made the old wording false for read-side admissions; description-only, enumerated in notes.md",
+            "ADR-0007 flip shipped with a reverse-transform assertion in validation.sh proving the edit is exactly the ratified flip (the evidence-35 pattern the README asked about)",
+            "pre-separation open sessions read their recorded include set as an over-forecast \u2014 conservative, self-clearing, no migration code"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' section"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-13a-forecast-surface-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T01:23:28+00:00",
+  "outcome": "applied"
+}
