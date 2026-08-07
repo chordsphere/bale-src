@@ -1,0 +1,113 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-35-small-pins-010",
+  "created_at": "2026-08-07T02:54:34+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T02:54:34+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-010 (3).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_rollback_telemetry.py": "pass",
+          "tests: test_unlock_json.py": "pass",
+          "tests: test_hold_retry_e2e.py": "pass",
+          "tests: test_apply_preflight.py": "pass"
+        },
+        "claim_verdict": {
+          "tests: test_rollback_telemetry.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_unlock_json.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_hold_retry_e2e.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_apply_preflight.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_unlock_json.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_unlock_json.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.2",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), via claude.ai chat"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The shipped test_apply_preflight.py reflects the real current tree, so the row-32 pin already exists and pin 5 needs no new test (notes.md headline; first thing to confirm at review)."
+          ],
+          "judgment_calls": [
+            "Row-8 tests live in a second class inside test_apply_preflight.py rather than a new file (no forecast drift; charter kept clean via a separate class).",
+            "make_applied_session in test_rollback_telemetry.py gained a filename parameter (test-local; harness.py untouched).",
+            "The exit-2 fixture bypasses the suite's local build_response_tarball helper, whose verdict-line logic encodes exit-1 semantics."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-35-small-pins-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T02:54:34+00:00",
+  "outcome": "applied"
+}
