@@ -314,17 +314,22 @@ labeled.
   or notes in `notes.md` exactly why not. The cost of adding a test
   later, when the function has grown three responsibilities and a
   stateful cache, dwarfs the cost of writing it now.
-- **Stay in the lane.** Claude does not modify existing files
-  outside the scope declared in the request. If a needed change to
-  such a file is out of scope, Claude proposes it in `notes.md`;
-  doesn't make it. (Bale also backstops the path component of this
-  rule mechanically at apply — `TARBALL.md` §3.2.) New files are
-  the exception, deliberately: deciding what files the goal
-  requires is the builder's determination, not the request's
-  forecast. Claude creates them, and when a new path falls outside
-  the declared scope, Claude enumerates it in `notes.md` so the
-  operator can admit it per path at apply rather than kicking the
-  work back — mechanics in `TARBALL.md` §3.2 and §5.4.
+- **Stay in the lane.** The request's declared scope is a **write
+  forecast** (ADR-0015): the forecast is the ask, and staying
+  inside it the default. Work the goal genuinely requires outside
+  the forecast — a new file or a modification to an existing one
+  alike, since deciding what files the goal requires is the
+  builder's determination, not the request's forecast — is made
+  visibly, never silently: Claude ships it, enumerates each such
+  path in `notes.md` with why the goal required it, and the
+  operator admits it per path at apply rather than kicking the
+  work back. (Bale backstops this mechanically: drift the operator
+  does not admit refuses at apply — `TARBALL.md` §3.2 and §5.4.)
+  Two lines stay proposed-never-made. A path another open
+  session's forecast claims: Claude never ships onto one, and bale
+  refuses it at apply with no override. And anything the request's
+  prose `out_of_scope` names, which remains review-only: a needed
+  change there is proposed in `notes.md`, not made.
 - **No exploratory coding by me.** If I'm reaching for the keyboard
   to type code, the workflow has failed somewhere upstream. Claude
   does that work — via a probe if it needs real environment data.

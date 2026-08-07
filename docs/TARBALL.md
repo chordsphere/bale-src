@@ -472,11 +472,12 @@ Conversational when included. Use it for:
 - Any `unknown` entry in `claims` — what Claude would need to predict
   with confidence.
 - Things the manifest's structured `reason` field couldn't carry.
-- Every `changes[]` path outside the session's declared scope —
-  typically a new file the goal required that no included directory
-  covers. List each such path explicitly, with why it had to exist,
-  so the operator can admit it at apply (§3.2). An unenumerated
-  out-of-scope path surfaces as a refusal instead of a decision.
+- Every `changes[]` path outside the session's write forecast — a
+  new file the pack could not have named, or a modification the
+  goal turned out to require, that no forecast entry covers. List
+  each such path explicitly, with why the goal required it, so the
+  operator can admit it at apply (§3.2). An unenumerated
+  out-of-forecast path surfaces as a refusal instead of a decision.
 - Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
 If a session has any of the above, write the file. If a session is
@@ -1115,49 +1116,66 @@ Field semantics:
 - **`context_included`** — declarative list of what's in `context/`.
   If Claude needs something not listed, it checks `INDEX.md`, then
   names it in the response (either in a probe request or in
-  `notes.md` if Claude proceeded with an assumption). The resolved
-  include set behind this list is also the session's declared
-  **scope**: bale records it in the session registry at pack time,
-  and three mechanical gates read it. The two are distinct surfaces:
-  the tarball ships this flat file list, while the recorded scope
-  lives repo-side in the registry — and since bale v0.3.21 the
-  manifest's `resolved_scope` field (below) stamps the recorded
-  scope into the tarball, so the worker reads it there rather than
-  inferring it from this list. The shipped list still understates
-  what a directory-shaped scope admits: a directory include covers
-  files created under it later, which no flat file list can say. A
-  request whose scope shape matters
-  to the work says so in its brief. Pack refuses a new session
-  whose scope intersects an open session's; apply rejects a
-  response whose `changes[]` paths collide with a *sibling*
-  session's scope; and apply also rejects **own-scope drift** —
-  any `changes[]` path outside this session's own recorded scope,
-  created paths rejected the same as modified
-  (mechanical since bale v0.3.10; policy-only before that, so older
-  notes and ADRs describe the older state).
-  Scope path semantics: directory entries cover their subtrees, and
-  a default whole-tree pack passes the own-scope gate vacuously.
-  The operator can admit named paths past the own-scope gate at
+  `notes.md` if Claude proceeded with an assumption). This list is
+  the session's **read set**, and only that: what shipped for
+  reading. Since bale v0.4.1 (ADR-0015) no mechanical gate reads
+  it — includes gate neither concurrency nor landing; a read set
+  is a shipping manifest, not a claim. The session's declared
+  **scope** is a separate declaration, the **write forecast**: the
+  paths the pack forecasts changes landing on (`--write`, §3.4).
+  Absent that flag, the forecast defaults to the resolved include
+  set — pre-separation behavior byte-for-byte, so the two
+  declarations coincide for any pack that never types it. Bale
+  records the forecast in the session registry at pack time, and
+  since bale v0.3.21 the manifest's `resolved_scope` field (below)
+  stamps the recorded value into the tarball, so the worker reads
+  its scope there rather than inferring it from this list. Three
+  mechanical gates read the forecast. Pack refuses a new session
+  whose forecast intersects an open session's forecast; apply
+  rejects a response whose `changes[]` paths intersect a *sibling*
+  open session's forecast — the whole-file-clobber guard, and the
+  one refusal that takes no override: admission never crosses a
+  sibling's forecast; and apply also rejects **own-forecast
+  drift** — any `changes[]` path outside this session's own
+  recorded forecast, created paths rejected the same as modified
+  (mechanical since bale v0.3.10; policy-only before that, and
+  keyed on the include set before v0.4.1, so older notes and ADRs
+  describe those older states).
+  Forecast path semantics: directory entries cover their subtrees —
+  a directory forecast covers files created or modified under it
+  later, which no flat list can say — and a default whole-tree
+  pack passes the own-forecast gate vacuously. A request whose
+  forecast shape matters to the work says so in its brief. The
+  operator can admit named paths past the own-forecast gate at
   apply time (and again at retry — the override is per invocation
   and per path, never a standing config), which is the sanctioned
-  landing path for new files the pack could not have named: the
-  worker ships them, enumerates them in `notes.md` (§5.4), and the
-  operator decides at apply (rationale: ADR-0014). Any drift the
-  operator does not admit refuses pre-staging and the session stays
-  open.
+  landing path for worker judgment past the ask: a new file the
+  pack could not have named, or a modification the goal turned out
+  to require (rationale: ADR-0014, generalized to modified paths
+  by ADR-0015). The worker ships such paths, enumerates them in
+  `notes.md` (§5.4), and the operator decides at apply. Any drift
+  the operator does not admit refuses pre-staging and the session
+  stays open.
 - **`resolved_scope`** — the session's declared scope exactly as the
-  registry records it (bale v0.3.21, board 33): normalized,
-  deduplicated, sorted repo-relative entries, directory entries
-  covering their subtrees; `[]` for a read-only pack (locks nothing,
-  may land nothing). This is the worker's authoritative read of what
-  the own-scope drift gate will enforce — a `changes[]` path outside
+  registry records it (bale v0.3.21, board 33), and since bale
+  v0.4.1 (ADR-0015) that value is the **write forecast**:
+  normalized, deduplicated, sorted repo-relative entries, directory
+  entries covering their subtrees; `[]` for a read-only pack
+  (forecasts nothing, locks nothing, may land nothing). The key's
+  name and its worker-facing contract survive the reinterpretation
+  unchanged: this is the worker's authoritative read of what the
+  own-forecast drift gate will enforce — a `changes[]` path outside
   it lands only as operator-admitted drift (§5.4) — and it is
   stamped from the same value the registry records, one source,
   never a re-derivation. Additive per the
   `depends_on.superseded_session` precedent: not required by the
   schema, so previously stamped manifests (and hand-rolled requests)
   stay valid and a worker holding one falls back to inferring scope
-  from `context_included`; every manifest bale builds carries it.
+  from `context_included` — a fallback that is conservative in the
+  over-forecast direction, the same direction sessions packed before
+  the separation resolve (a recorded include set reads as an
+  over-forecast: it over-locks, never under-locks, and self-clears
+  at close); every manifest bale builds carries it.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -1212,8 +1230,9 @@ or a packing behavior:
 |------|----------------|
 | `goal` (positional) | `manifest.goal`. One sentence — if it needs two, the scope is wrong (§3.2). Omitted on a TTY, pack enters the interactive wizard; required when piped. |
 | `--slug <kebab>` | The `<slug>` in `session_id` (`YYYY-MM-DD-<slug>-NNN`); bale assigns the date and the `NNN` counter. Omitted on a TTY, the wizard prompts for it; required when piped. |
-| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. The resolved set doubles as the session's declared scope (§3.2) — see the scope-planning note below the table. |
+| `--include PATH...` | Adds files/dirs under `context/` and lists them in `manifest.context_included`. Repeatable, or space-separated. The resolved set is the session's **read set** and participates in no gate (ADR-0015); when `--write` is absent it also defaults the write forecast — see that row and the scope-planning note below the table. |
 | `--exclude PATTERN...` | Prunes paths an `--include` would otherwise pull in (e.g. a vendored subdir). |
+| `--write PATH...` | Declares the session's **write forecast** — where the pack forecasts changes landing (v0.4.1, ADR-0015). Same grammar as `--include`: repeatable or space-separated, directory entries covering their subtrees. Requires at least one path — the empty forecast has exactly one spelling, `--read-only`, and the two flags together refuse as contradictory at arg-parse time, before any prompt. Entries name existing paths, the same rule as includes (the convention paragraph below the table states it once for both families); entries need not be a subset of the includes — a session can be shown one thing and forecast landing another. Absent the flag, the forecast defaults to the resolved include set — pre-separation behavior byte-for-byte, so separation is opt-in per pack. The resolved forecast is the value the registry records and `resolved_scope` stamps (§3.2), and it is a forecast, not a wall: out-of-forecast work surfaces at apply for per-path admission (§3.2, §5.4). |
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
 | `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
@@ -1224,26 +1243,30 @@ or a packing behavior:
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with an **empty recorded scope** (v0.3.15) — the read-only session shape for discussion, orchestration, or audit. The empty scope intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-scope drift gate refuses every `changes[]` path a response under this sid ships). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded scope `[]`, it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; semantics in BALE.md §7.2. |
+| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; semantics in BALE.md §7.2. |
 | `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in BALE.md §7.2. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
 
 **Scope planning for concurrency.** Multiple sessions may be open at
 once; integrations serialize (§3.2 carries the scope contract).
-Concurrency therefore requires scope-disjoint include sets: the
-pack-time gate admits a new session only when its resolved includes
-are disjoint from every open session's scope. A default or
-broad-scoped pack intersects everything and is concurrency-exclusive
-by design — a pack meant to run alongside others is packed with
-narrow `--include` sets along file-disjoint seams. The read-only
-shape (`--read-only`, empty scope) is the orchestrator's own pack
-form: a master session that reads, discusses, and delegates stays
-open alongside every worker precisely because its scope intersects
-nothing — and lands nothing.
+Concurrency requires **forecast-disjoint** sessions: the pack-time
+gate admits a new session only when its resolved write forecast is
+disjoint from every open session's recorded forecast. Read includes
+participate in nothing — since ADR-0015, reads no longer lock;
+forecasts do — so generous context shipping costs no concurrency.
+A pack that never types `--write` forecasts its resolved include
+set, so a default or broad-include pack still intersects everything
+and stays concurrency-exclusive by design; a pack meant to run
+alongside others carries a narrow `--write` forecast along
+file-disjoint seams, however generous its includes. The read-only
+shape (`--read-only`, the empty forecast) is the orchestrator's own
+pack form: a master session that reads, discusses, and delegates
+stays open alongside every worker precisely because its forecast
+intersects nothing — and lands nothing.
 
 **Split supersession.** When a pre-flight split (`CLAUDE.md` §11.2)
-proposes a first session whose scope intersects an open session —
+proposes a first session whose forecast intersects an open session's —
 typically the very session whose goal is being split — the rescope
 command carries `--supersedes <parent-sid>`, and that is the
 documented path: not packing around the gate, and not closing the
@@ -1256,8 +1279,8 @@ BALE.md §8.9, command `pack`), the child's manifest stamps
 clears at the pack-time disjointness gate — every other open session
 still gates as usual. On decline, nothing closes and the pack
 refuses on every path: via the gate when the still-open parent's
-scope collides, via an explicit refusal when the scopes happen to be
-disjoint (a `--supersedes` pack that closes nothing and stamps no
+forecast collides, via an explicit refusal when the forecasts happen
+to be disjoint (a `--supersedes` pack that closes nothing and stamps no
 lineage is not the pack that was asked for), and immediately at the
 decline on the wizard path, before any prompt collects throwaway
 answers. This flow retires the informal recipe of packing into the
@@ -1266,17 +1289,23 @@ unlock remains the escape hatch only for a parent that should close
 with no successor. Pipeline order, the HOLD-state refusal, and the
 idempotent re-run of an aborted supersession: BALE.md §7.2.
 
-**Includes name existing context; new files are the worker's call.**
-Never author or suggest an `--include` for a path that does not
-exist yet — an include ships file contents, and a not-yet-existing
-file has none to ship. Deciding what new files the goal requires is
-the worker's determination, made during the session, not the
-packer's forecast (rationale: ADR-0014). A new file the worker
-creates is in scope when it lands under an included directory;
-otherwise it surfaces at apply as own-scope drift the operator
-admits per path (§3.2), guided by the worker's enumeration in
-`notes.md` (§5.4). A packer who knows new files will land in one
-area can widen the seam with a directory include; nobody pre-names
+**Declarations name existing paths; new files are the worker's
+call.** One rule across both flag families, no exceptions to
+memorize: never author or suggest an `--include` or a `--write` for
+a path that does not exist yet. For an include the reason is
+mechanical — it ships file contents, and a not-yet-existing file
+has none to ship. For a forecast entry it is doctrine — deciding
+what new files the goal requires is the worker's determination,
+made during the session, not the packer's forecast (rationale:
+ADR-0014; extended to the `--write` surface by ADR-0015). A new
+file the worker creates is in-forecast when it lands under a
+forecast directory; otherwise it surfaces at apply as own-forecast
+drift the operator admits per path (§3.2), guided by the worker's
+enumeration in `notes.md` (§5.4) — and an out-of-forecast
+*modification* travels the same ship-enumerate-admit path
+(ADR-0015). A packer who knows new files will land in one area
+widens the seam with a directory entry — on the forecast for
+landing, on the includes for shipping context; nobody pre-names
 the files themselves.
 
 README precedence, first match wins: `--edit` > `--readme-file` >
@@ -1527,10 +1556,12 @@ manifest schema and field agreement, sha256 and size match against
 `files/`, a non-empty `reason` on every change, path safety, the
 generated-artifact denial (§5.1), the `files/`↔`changes[]`
 correspondence, the post-`apply.sh` reconciliation of §5.1.1, and
-the scope gates of §3.2 — sibling-scope disjointness at pack,
-sibling collision at apply, and own-scope drift at apply, the last
-carrying a per-invocation, per-path operator override for admitted
-paths (worker-created new files being the canonical case).
+the scope gates of §3.2 — sibling-forecast disjointness at pack,
+sibling collision at apply, and own-forecast drift at apply, the
+last carrying a per-invocation, per-path operator override for
+admitted paths (worker judgment past the forecast: new files the
+pack could not have named, and out-of-forecast modifications
+alike, per ADR-0015).
 The rules below are instead *policy* or *operator discipline*
 (labels per `CLAUDE.md` §6): caught at the planner's review, or held
 by the operator's own procedure with no downstream catch — not by
