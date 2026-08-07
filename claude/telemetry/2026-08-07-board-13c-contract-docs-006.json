@@ -1,0 +1,111 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-13c-contract-docs-006",
+  "created_at": "2026-08-07T01:38:51+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T01:38:51+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-006 (15).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "doc anchors stable (heading census)": "pass",
+          "stale scope-conflation wording absent": "pass",
+          "forecast doctrine wording present": "pass",
+          "project tests (pytest, staging only)": "unknown"
+        },
+        "claim_verdict": {
+          "doc anchors stable (heading census)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stale scope-conflation wording absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "forecast doctrine wording present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "project tests (pytest, staging only)": {
+            "claim": "unknown",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.1",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "contract-doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "session A's landing version is v0.4.1 (per ADR-0015 Notes and the request provenance); the new doc text cites it as the separation's version",
+            "no shipped doc cites the renamed convention paragraph by its bold-lead text (verified by grep across the shipped corpus only; the real tree may differ)",
+            "the staging copy at apply either carries a runnable pytest suite or the guarded test check SKIPs cleanly"
+          ],
+          "judgment_calls": [
+            "added an ADR-0015 citation to CLAUDE.md, which previously cited no ADRs (notes.md, first call)",
+            "paraphrased the ratified kernel in imperative voice rather than quoting it verbatim",
+            "read the sweep class slightly wider than literal includes-gate-concurrency assertions: 5.4 bullet, supersession paragraph, section 8 parenthetical",
+            "kept the word 'scope' where it names the concept or a key; only the includes-keyed sentences were rewritten"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-13c-contract-docs-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T01:38:51+00:00",
+  "outcome": "applied"
+}
