@@ -1,0 +1,123 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-13b-epoch-ledger-005",
+  "created_at": "2026-08-07T01:58:25+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T01:58:25+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-005 (22).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "schema embed equality (response_lint vs schemas/)": "pass",
+          "session assertions (VERSION, epoch key, gate rows, vocabulary)": "pass",
+          "test suite (python3 -m unittest discover -s tests)": "pass"
+        },
+        "claim_verdict": {
+          "schema embed equality (response_lint vs schemas/)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions (VERSION, epoch key, gate rows, vocabulary)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [
+        "tools/response_lint.py"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_preflight.py",
+        "tests/test_forecast_ledger.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.4.1",
+            "contract_docs": {
+              "CLAUDE.md": "fc2b6c63b8144fce8d931067342e70c7235b8f3c744034864b0c050a5980adf4",
+              "TARBALL.md": "d26aa295d8255133649a30cec0a0513c5225c67eed707d0bb2ab13efd2a714cf",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "master",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The stats admission rate is path-granular (admitted drift paths over all drift paths) rather than attempt-granular \u2014 the design brief names the rate without fixing the unit, and per-path matches how the operator actually admits; the counts beside the rate let you re-weight if you disagree.",
+            "Forecast precision counts entries per attempt (a retried session's forecast counts once per response attempt, symmetric with the drift denominators) and excludes attempts with an empty recorded change set, which measure nothing about forecast width.",
+            "The duplicate-path gate compares identical path strings \u2014 the lint's DUPLICATE_PATH basis \u2014 not normalized paths, so the two surfaces agree on what a duplicate is.",
+            "The apply-side sibling-collision refusal text is inside 'apply-side doctrine text' (the decomposition's B header) and was re-based to forecast vocabulary alongside the drift gate's; only prose changed."
+          ],
+          "judgment_calls": [
+            "scope_kind is stamped unconditionally in build_telemetry_attempt \u2014 every command's attempts carry it, not just apply's \u2014 so no call-site branching can ever desync the epoch; the schema documents the one-home rule.",
+            "The three forecast rows render in the human report's per-class extras lines (shown once a class has post-epoch attempts), not as new table columns: the table is already nine columns wide and the epoch is just beginning, so all-dash columns would cost width for no signal yet.",
+            "The forecast_departures field lives in the self_reported stream (worker-authored judgment the lint cannot verify), per the dual-stream trust split.",
+            "bale_stats gets local stdlib-pure mirrors of scope_path/scope_covers_path rather than importing bin/bale, preserving the module's importability contract; the duplication is pinned by a subprocess drift-guard test that runs both homes over the same case matrix."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-13b-epoch-ledger-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T01:58:25+00:00",
+  "outcome": "applied"
+}
