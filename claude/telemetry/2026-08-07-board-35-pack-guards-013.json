@@ -1,0 +1,95 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-board-35-pack-guards-013",
+  "created_at": "2026-08-07T03:16:20+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T03:16:20+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-013 (2).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "pack-guards suite (python3 tests/test_pack_guards.py)": "pass",
+          "full test suite (python3 -m unittest discover -s tests)": "pass"
+        },
+        "claim_verdict": {
+          "pack-guards suite (python3 tests/test_pack_guards.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "tests/test_pack_guards.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.3",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "SOFT_SIZE_CAP (100 MB) mirrored into the test file rather than imported, per the harness's subprocess-only doctrine; a drifted constant fails loudly on the missing breach marker"
+          ],
+          "judgment_calls": [
+            "no --slow gating: the ~7s addition (scaled ~+10s on the baseline clock, ~111s of the 120s target) stays under target and both heavy cases are audit-named behaviors; measurement and the gate-these-first pointer in notes.md",
+            "sparse file crosses the soft size cap instead of generating 10,001 files for the soft count cap; the prompt path doesn't branch on which soft cap filled the list",
+            "helpers stay test-local: one consumer, so the one-harness promotion trigger did not fire"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-07-board-35-pack-guards-013.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T03:16:20+00:00",
+  "outcome": "applied"
+}
