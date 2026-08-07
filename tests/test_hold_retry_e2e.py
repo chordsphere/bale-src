@@ -18,9 +18,10 @@ asserts the one-file-per-sid append semantics BALE.md §8.9 promises:
 - the merge really landed: `applied/<sid>` tag, changed file content
   on the origin branch.
 
-The response tarballs are built by hand (computed hashes, real
-validation.sh scripts) so the failure and the fix are exactly one
-exit-code apart — the ADR-0002 oracle is the documented record shape,
+The response tarballs are built via the shared harness fixture builder
+(computed hashes, real validation.sh scripts; extracted to
+``tests/harness.py`` at board 35) so the failure and the fix are
+exactly one exit-code apart — the ADR-0002 oracle is the documented record shape,
 never a golden byte comparison.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
@@ -35,21 +36,21 @@ or via ``python3 -m unittest discover -s tests``.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import tarfile
 import tempfile
 import unittest
 from pathlib import Path
 
 from harness import (
     bale_env,
+    build_response_dir,
     git_env,
     make_install,
     make_repo,
     make_sandbox_home,
     run_bale,
     run_checked,
+    tar_response_dir,
 )
 
 # Sentinels for the surfaces this file pins.
@@ -102,49 +103,27 @@ class HoldRetryE2ETest(unittest.TestCase):
                                validation_exit: int) -> Path:
         """A valid normal response modifying hello.txt (in scope), whose
         validation.sh exits `validation_exit` — 1 drives the HOLD, 0
-        the retry's PASS. Sizes and hashes computed, never transcribed."""
-        nnn = sid[-3:]
-        rdir = self.tmp / name / f"response-{nnn}"
-        (rdir / "files").mkdir(parents=True)
-        data = NEW_CONTENT.encode("utf-8")
-        (rdir / "files" / "hello.txt").write_bytes(data)
-        manifest = {
-            "session_id": sid,
-            "responds_to": sid,
-            "corrects": None,
-            "response_kind": "normal",
-            "summary": "hold-retry fixture: rewrite hello.txt; the first "
-                       "attempt's validation fails by construction",
-            "changes": [
-                {
-                    "path": "hello.txt",
-                    "action": "modified",
-                    "reason": "the goal's rewrite; identical bytes on both "
-                              "attempts so only the validation verdict "
-                              "differs",
-                    "size_bytes": len(data),
-                    "sha256": hashlib.sha256(data).hexdigest(),
-                }
-            ],
-            "deferred": [],
-            "validation_will_run": ["fixture check"],
-            "claims": {},
-        }
-        (rdir / "manifest.json").write_text(
-            json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-        (rdir / "apply.sh").write_text(
-            "#!/usr/bin/env bash\n# no-op (test fixture)\nexit 0\n",
-            encoding="utf-8")
+        the retry's PASS. Built via the shared harness builder (board
+        35 extraction), which computes sizes and hashes from the bytes
+        it writes — never transcribed."""
         verdict = "FAIL" if validation_exit else "PASS"
-        (rdir / "validation.sh").write_text(
-            "#!/usr/bin/env bash\n"
-            f"echo \"[{verdict}] fixture check\"\n"
-            f"exit {validation_exit}\n",
-            encoding="utf-8")
-        tarball = self.tmp / name / f"response-{nnn}.tar.gz"
-        with tarfile.open(tarball, "w:gz") as tf:
-            tf.add(str(rdir), arcname=f"response-{nnn}")
-        return tarball
+        rdir = build_response_dir(
+            self.tmp / name, sid,
+            summary="hold-retry fixture: rewrite hello.txt; the first "
+                    "attempt's validation fails by construction",
+            entries=[{
+                "path": "hello.txt",
+                "action": "modified",
+                "reason": "the goal's rewrite; identical bytes on both "
+                          "attempts so only the validation verdict differs",
+                "data": NEW_CONTENT.encode("utf-8"),
+            }],
+            validation_sh=(
+                "#!/usr/bin/env bash\n"
+                f"echo \"[{verdict}] fixture check\"\n"
+                f"exit {validation_exit}\n"),
+        )
+        return tar_response_dir(rdir)
 
     def telemetry_record(self, sid: str) -> dict:
         p = self.repo / "claude" / "telemetry" / f"{sid}.json"
