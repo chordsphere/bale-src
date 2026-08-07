@@ -662,7 +662,18 @@ drift-refusal rate with override incidence beside it, the
 required-check refusal and override counts beside the drift pair
 (the step-15 gate's `required-check-refused` attempts and the
 attempts carrying a non-empty `required_check_overrides` list; like
-drift's, override incidence is a count, not a rate), rejection and
+drift's, override incidence is a count, not a rate), the forecast
+rows (v0.4.2, ADR-0015 board 13 session B — computed over post-epoch
+response attempts only, `scope_kind: "write-forecast"`, so
+conflation-era near-zero drift never averages into the forecast
+era's): forecast drift rate (attempts shipping judgment past the ask
+— drift clustering reads as forecasts drawn too narrow),
+path-granular admission rate (admitted drift paths over all drift
+paths, the unit the operator decides in), and forecast precision
+(touched forecast entries over entries, across attempts that landed
+at least one change — imprecision clustering reads as forecasts
+drawn too wide; both are packer-side scoping signals, never worker
+discipline ones, per ADR-0014's doctrine), rejection and
 bailout figures, and the clarification rate over the sessions whose
 closing attempt carries the promoted stamp (key presence with
 `rounds: 0` is a known zero; key absence is pre-epoch unknown).
@@ -676,17 +687,24 @@ excluded from every rate and reported as context and hygiene counts.
 Around the table: the corpus epoch (first sid and date; pre-epoch
 sessions exist only in git and are not counted — stats does not mine
 git), the key-presence coverage rows for the `closure_reason`,
-`clarification`, and `checkpoint` sub-epochs (the last since
-v0.3.29 — the blind checkpoint stamp is present on every validated
-attempt post-session-A, so presence detection is exact there too), the closure mix over closed sessions
+`clarification`, `checkpoint`, and `scope_kind` sub-epochs (the third
+since v0.3.29 — the blind checkpoint stamp is present on every
+validated attempt post-session-A, so presence detection is exact
+there too; the fourth since v0.4.2 — the write-forecast epoch key is
+present on every attempt post-epoch, so presence detection is exact
+there as well), the closure mix over closed sessions
 (with `unlocked` broken out by reason — superseded-by-split parents
 show there), the post-close churn counts (`rolled-back` /
 `re-applied`; the applied attempt stays in every mechanical
 denominator, and v1 deliberately does not reinterpret a rollback as
-a defect signal), the in-flight count beside the mix, and the two
+a defect signal), the in-flight count beside the mix, and the three
 dual-stream cross-checks (self-reported clarification linkage vs the
 promoted stamp; the `budget_pressure` distribution vs bailout
-outcomes) reported beside the mechanical rates, never blended in.
+outcomes; and — v0.4.2 — the worker's declared `forecast_departures`
+paths vs the mechanically admitted `overridden_paths`, path-granular
+over post-epoch response attempts, where an admitted path with no
+declared departure is the ADR-0014 audit smell computed instead of
+eyeballed) reported beside the mechanical rates, never blended in.
 Corrupt records are skipped, counted, and named on stderr; records
 with `record_version > 1` are filtered and counted.
 
@@ -1501,18 +1519,25 @@ Pipeline steps:
    locked sid" comparison; with a single open session the two are
    the same check, and with several it re-checks the step-4
    resolution against the pipeline's own extraction).
-7. Cross-session scope collision (ADR-0007): verify no `changes[]`
-   path intersects **another** open session's recorded scope
+7. Cross-session forecast collision (ADR-0007, re-based onto write
+   forecasts by ADR-0015): verify no `changes[]` path intersects
+   **another** open session's recorded forecast
    (`sessions/<sid>/scope.json`; same path semantics as §7.1 step 5 —
    directory entries cover subtrees, `.` covers everything, a missing
-   scope reads as whole-tree). This is the real guard against the
-   whole-file clobber: bale's overlay is whole-file replacement, so a
-   response authored against a stale snapshot would silently
-   overwrite a sibling session's work and the `--no-ff` merge would
-   land clean. With at most one session open there are no siblings
-   and the check is a no-op. Own-scope drift — a change outside this
-   session's own scope that no sibling claims — is this check's
-   sibling gate, step 14 below (v0.3.10; policy-only before that).
+   scope reads as whole-tree, and a pre-separation session's recorded
+   include set reads as an over-forecast). This is the real guard
+   against the whole-file clobber — and the one mechanical refusal
+   the ADR-0015 model reserves, taking no override: admission never
+   crosses a sibling's forecast. Bale's overlay is whole-file
+   replacement, so a response authored against a stale snapshot would
+   silently overwrite a sibling session's work and the `--no-ff`
+   merge would land clean. Read includes participate in nothing — a
+   sibling may land inside an open session's read set, the accepted
+   read-staleness residue ADR-0015 names. With at most one session
+   open there are no siblings and the check is a no-op. Own-forecast
+   drift — a change outside this session's own forecast that no
+   sibling claims — is this check's sibling gate, step 14 below
+   (v0.3.10; policy-only before that).
 8. Verify every `changes[]` path appears in `files/` exactly when it
    should (created/modified ⇒ present in `files/`; deleted ⇒ absent
    from `files/`). Verify every file in `files/` is declared in
@@ -1544,28 +1569,37 @@ Pipeline steps:
     `--dry-run` (the plan report predicts the rejection) and passes
     vacuously for bailout and clarification manifests, whose
     `changes[]` is empty.
-14. Own-scope drift gate (v0.3.10 — the drift-to-contract conversion
-    of the stay-in-the-lane rule; runs adjacent to step 7, its
+14. Own-forecast drift gate (v0.3.10 — the drift-to-contract
+    conversion of the stay-in-the-lane rule; forecast vocabulary and
+    doctrine per ADR-0015, board 13; runs adjacent to step 7, its
     cross-session sibling, and listed here to keep steps 1–13 stable).
     Every `changes[]` path must lie inside **this** session's own
-    declared scope — the pack-time resolved include set recorded in the
-    registry (`sessions/<sid>/scope.json`; same path semantics as
+    recorded write forecast (`sessions/<sid>/scope.json` — the
+    forecast post-separation, with pre-separation sessions' recorded
+    include sets reading as over-forecasts; same path semantics as
     step 7: directory entries cover subtrees, `.` covers everything, a
     missing or unreadable scope reads as whole-tree, which also keeps
     default whole-tree packs entirely clear of this gate; a recorded
-    **empty** scope — a read-only session, §7.2/v0.3.15 — covers
+    **empty** forecast — a read-only session, §7.2/v0.3.15 — covers
     nothing, so this gate refuses every `changes[]` path such a
     session ships, and the refusal names the session as read-only:
     masters-never-self-land is mechanical contract here, not policy
     prose). Created
-    paths are rejected the same as modified paths — the audit's clobber
+    paths are refused the same as modified paths — the audit's clobber
     scenario is precisely two sessions creating or overlaying the same
-    unclaimed file, and each ADR-0007 gate checks declared scope
-    against declared scope, so unclaimed drift sails past both. The
-    refusal names every offending path and the sid's declared scope;
-    like every other refusal it is pre-staging — no git side effects —
-    and the session stays open, so the response can be regenerated or
-    the apply re-run. `--allow-out-of-scope <path>` (repeatable,
+    unclaimed file, and each declared-vs-declared gate checks forecast
+    against forecast, so unclaimed drift sails past both. Under
+    ADR-0015 the forecast is a forecast, not a wall: an
+    out-of-forecast edit — created *or modified* — is worker judgment
+    past the ask, shipped and enumerated in `notes.md` per the
+    generalized ADR-0014 flow, refused here unless the operator admits
+    it per path, and graded by the ledger (§8.9's epoch key, §5.6's
+    forecast rows); admission never crosses a sibling's forecast (step
+    7, which pipeline order runs first). The refusal names every
+    offending path and the sid's write forecast; like every other
+    refusal it is pre-staging — no git side effects — and the session
+    stays open, so the paths can be admitted, the response
+    regenerated, or the apply re-run. `--allow-out-of-scope <path>` (repeatable,
     per-invocation only — deliberately no config key) admits exactly
     the named paths past the gate while any *other* drift still
     refuses; every use is logged prominently (a FORCE: session-log
@@ -1623,8 +1657,24 @@ Pipeline steps:
     `bale retry` takes the same flag and runs the same gate: the
     override is re-stated per invocation exactly as step 14's is,
     never carried from the failed attempt.
+16. Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified
+    at the master desk 2026-08-07; appended as step 16 so steps 1–15
+    stay stable, and sited in the pipeline beside the other manifest
+    checks, after step 3's schema validation). No path string appears
+    in `changes[]` more than once. `TARBALL.md` §5.2 has called a
+    duplicated path invalid all along — it makes the `files/` ↔
+    `changes[]` mirror correspondence ambiguous — and the worker-side
+    lint's DUPLICATE_PATH row already says so; this step converts the
+    prose to apply-side contract, closing the recorded
+    prose-vs-enforcement disagreement (an *identical* duplicate
+    previously applied cleanly; a *conflicting* one limped to the
+    step-9 sha mismatch). Identical path strings, the lint's own
+    basis, so the two surfaces agree on what a duplicate is. The
+    rejection names every duplicated path. Manifest-only, so it runs
+    under `--dry-run` and passes vacuously for bailout and
+    clarification manifests, whose `changes[]` is empty.
 
-If any of 1–15 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–16 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
 staging branch, no file modifications. (The step-14 and step-15
 refusals additionally report through their structured surfaces above;
@@ -2095,9 +2145,27 @@ short-lived `.bale/sessions/<sid>/` directory:
   and the executed base-tree bytes' `{path, sha256}` (§8.5). Blind
   outcomes never merge into `claim_verdict`: the checkpoint has no
   claims by construction;
-- **includes shipped vs paths changed** — the session's recorded
-  scope (`sessions/<sid>/scope.json`) and every `changes[].path`,
-  both raw; aggregation computes the drift;
+- the **write-forecast epoch key** (v0.4.2, ADR-0015 board 13
+  session B): `attempts[].scope_kind: "write-forecast"`, stamped by
+  the attempt builder on **every** attempt of every command
+  post-epoch and absent before — the key-presence disambiguation
+  doctrine applied a fourth time, this time to what `scope` *means*.
+  Post-epoch, `scope` holds the session's write forecast and the
+  drift aggregation computes from it is judgment past the ask;
+  pre-epoch, `scope` was the conflated include set and its
+  structurally-near-zero drift rate must never average into the
+  forecast era's. `record_version` stays 1 (additive); `bale stats`
+  reads its forecast rows inside this sub-epoch only (§5.6);
+- **forecast vs paths changed** — the session's recorded
+  `sessions/<sid>/scope.json` (the write forecast post-separation;
+  the conflated include set on pre-epoch attempts, which read as
+  over-forecasts) and every `changes[].path`, both raw; aggregation
+  computes the drift. The worker's own structured account of that
+  drift rides the feedback block's optional
+  `forecast_departures` field (ADR-0015 E2,
+  `response-manifest.schema.json`), persisted verbatim with the rest
+  of the block, which is what makes the §5.6
+  departures-vs-admissions cross-check mechanical at stats time;
 - the **outcome**.
 
 **Every terminal outcome records.** `applied` (merge), `held`
@@ -2664,7 +2732,7 @@ transition path (§9.1 step 3), and read-only queries (`status`,
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–15 of section 8.1) or before commit (sections
+before staging (steps 1–16 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
@@ -2687,10 +2755,10 @@ before staging (steps 1–15 of section 8.1) or before commit (sections
 | 16 | `manifest.json`, `apply.sh`, and `validation.sh` exist in the tarball (README/notes/next-prompt are optional) | apply pre-flight |
 | 17 | `apply.sh` exits 0 | apply stage |
 | 18 | Post-`apply.sh` staging state matches the manifest — every created/deleted/modified path matches a `changes[]` entry, no undeclared writes/deletes (this is where `apply.sh` operations are constrained: no `mv`, no untracked file changes) | apply post-stage |
-| 19 | Cross-session scope collision (ADR-0007): no `changes[]` path intersects another open session's recorded scope — the apply-time guard against the whole-file clobber (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
+| 19 | Cross-session forecast collision (ADR-0007, re-based onto write forecasts by ADR-0015): no `changes[]` path intersects another open session's recorded forecast — the apply-time guard against the whole-file clobber, and the one mechanical refusal the ADR-0015 model reserves; no override, since admission never crosses a sibling's forecast (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
 | 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
 | 21 | Declared-input violations fail the stage loudly (target-base strategy): every `staging.untracked_inputs` entry must exist in the working tree and be untracked at the target tip at stage time — a missing or tracked entry stops the stage rather than being silently skipped | apply stage |
-| 22 | Own-scope drift (v0.3.10): every `changes[]` path lies inside the session's **own** recorded scope (`sessions/<sid>/scope.json`; created paths rejected the same as modified). Per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses. The refusal names every offending path and the declared scope, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
+| 22 | Own-forecast drift (v0.3.10; forecast vocabulary and doctrine per ADR-0015): every `changes[]` path lies inside the session's **own** recorded write forecast (`sessions/<sid>/scope.json`; created paths refused the same as modified). An out-of-forecast edit is worker judgment past the ask — shipped, enumerated in `notes.md`, admitted per path: per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses, and an admitted path still refuses at row 19 if a sibling's forecast claims it. The refusal names every offending path and the write forecast, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
 | 23 | Detached-HEAD refusal: `bale pack` refuses when the repo's HEAD is detached, before any prompt, tarball, or session state — the integration-target stamp requires a real branch (§7.1 step 4a; the apply-side stamp requirement is row 8's resolution step, §8.1 step 5); listed here out of phase order to keep rows 4–22 stable | pack pre-flight |
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
@@ -2700,6 +2768,7 @@ before staging (steps 1–15 of section 8.1) or before commit (sections
 | 29 | Dangling-checkpoint refusal, apply side (board 6 session A): when `bale.toml`'s `[validation] base` names a blind checkpoint with no committed file at that path in the session's base tree, apply refuses before staging — no staging tree, no `bale/<sid>` branch, session open (committed-is-ratified: a working-tree-only checkpoint is not yet the project's oracle; remedies: commit the checkpoint at the named path, or clear the key via `bale config init`). `--dry-run` predicts the refusal when a checkpoint is configured (the session-B rider; §8.5), and pack's own earlier catch is row 27's dangling half — this row is the apply-side backstop that also covers hand-rolled requests and post-pack config edits. Contract prose in §8.5; row appended after row 28 in v0.3.29 (board 6 session D, the session-C notes' proposed backfill) per the appended-row precedent, so rows 1–28 stay stable | apply pre-flight |
 | 30 | Checkpoint blindness, handoff side (v0.3.33): when `[validation] base` pins a blind checkpoint, `bale handoff` runs the same gate implementation as rows 27 and 31 — the dangling refusal and the covering refusal — against its reading-plan-derived forecast (the resolved set of files the bailout's reading plan pre-packs, which on this path is both the read set and the conservative forecast, so one value covers both halves; a plan citing no files resolves to the whole tree, which covers any configured checkpoint), pre-sid, so a refused handoff burns no NNN and leaves no session state. Per-invocation `--allow-checkpoint-in-scope` (mirroring pack's spelling; flag-only, no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the new request manifest through the shared provenance builder, so a bailed checkpoint-maintenance session's handoff renews its admission deliberately rather than inheriting pack's silently; appended after row 29 per the appended-row precedent, so rows 1–29 stay stable | handoff pre-flight |
 | 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3): when `[validation] base` pins a blind checkpoint, pack refuses a resolved include set that would ship the checkpoint's content in `context/` to the worker the oracle grades — containment on the resolved include set, same semantics as row 27, conservative by construction (an exclude that would drop the file at walk time still refuses; the remedies are cheap). Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired, since the delegation decision is one decision (§7.1 step 4b). A default pack (no `--include`) covered the checkpoint under the conflated model too, so unflagged packs refuse exactly as before; the row newly bites only a pack whose forecast excludes the oracle while its includes cover it. Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
+| 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

@@ -31,12 +31,11 @@ list was verified against the doc per its own instruction):
 - 18  post-apply.sh reconciliation (post-stage)
 - 20  generated-artifact denial
 - 25  non-normal response-kind shape
-
-Plus one behavior pin outside the §11 numbering: a duplicated
-changes[] path with *conflicting* hashes cannot pass row 12 (the
-brief's "duplicate path" row — which turned out to be the worker-side
-lint's DUPLICATE_PATH check, not a bale reject row; see the session
-notes).
+- 32  duplicate changes[] paths (v0.4.2 — the board-35 rider ratified
+      2026-08-07: TARBALL.md §5.2's prose converted to apply-side
+      contract; this suite's earlier behavior pin, which documented
+      the identical-duplicate acceptance the rider closed, is
+      superseded by the row's own test)
 
 Rows deliberately excluded: 8 (dirty-on-target — an environment-state
 refusal, not tarball malformation), 19/21/22 (sibling-scope, declared
@@ -502,27 +501,37 @@ class ApplyPreflightRejectTest(unittest.TestCase):
                 self.apply(self.tampered_tarball(normal_with_questions)),
                 "questions is only valid when response_kind=clarification")
 
-    def test_duplicate_path_with_conflicting_hashes(self) -> None:
-        """A duplicated changes[] path with disagreeing sha256s cannot pass
-        row 12: the shipped bytes can match at most one of the two hashes,
-        so the other entry's check refuses deterministically.
+    def test_row32_duplicate_changes_path(self) -> None:
+        """Row 32 (v0.4.2, the board-35 rider ratified 2026-08-07): a
+        duplicated changes[] path refuses at the manifest checks —
+        prose and enforcement now agree that TARBALL.md §5.2's
+        "a duplicated path is invalid" is contract, not lint-only.
 
-        Behavior pin, not a §11 row: "duplicate path" in the session brief
-        turned out to be the worker-side lint's DUPLICATE_PATH check
-        (TARBALL.md §10.1 step 4), not a bale reject row — a duplicate
-        with *identical* entries passes bale's pre-flight and applies.
-        That acceptance is deliberately not pinned here; see the session
-        notes for the proposal it queued.
+        Both variants land on the same gate: the *identical* duplicate
+        (which previously applied cleanly — the disagreement the rider
+        was ratified to close) and the *conflicting* one (which
+        previously limped to the row-12 sha mismatch; the duplicate
+        gate now fires first, at the manifest checks where the
+        ambiguity actually lives).
         """
-        def duplicate_conflicting(m, rdir):
-            twin = dict(m["changes"][0])
-            twin["sha256"] = "f" * 64
-            twin["reason"] = "conflicting duplicate of the same path"
-            m["changes"].append(twin)
+        with self.subTest(variant="identical duplicate"):
+            def duplicate_identical(m, rdir):
+                m["changes"].append(dict(m["changes"][0]))
 
-        self.assert_rejected(
-            self.apply(self.tampered_tarball(duplicate_conflicting)),
-            "sha256 mismatch for hello.txt")
+            self.assert_rejected(
+                self.apply(self.tampered_tarball(duplicate_identical)),
+                "duplicate changes[] path", "hello.txt")
+
+        with self.subTest(variant="conflicting duplicate"):
+            def duplicate_conflicting(m, rdir):
+                twin = dict(m["changes"][0])
+                twin["sha256"] = "f" * 64
+                twin["reason"] = "conflicting duplicate of the same path"
+                m["changes"].append(twin)
+
+            self.assert_rejected(
+                self.apply(self.tampered_tarball(duplicate_conflicting)),
+                "duplicate changes[] path", "hello.txt")
 
 
 if __name__ == "__main__":

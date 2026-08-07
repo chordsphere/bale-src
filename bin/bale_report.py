@@ -162,6 +162,19 @@ next-step hint: stats is terminal, not a lifecycle step), plus the tiny
 `bin/bale_stats.py`; `bin/bale` keeps wiring only, per the standing
 division.
 
+v0.4.2 (ADR-0015, board 13 session B — the ledger's forecast side)
+stamps the write-forecast epoch key: `build_telemetry_attempt` writes
+`scope_kind: "write-forecast"` on every attempt unconditionally, so
+key presence marks the epoch where `scope` holds the session's
+forecast rather than the conflated include set (the disambiguation
+doctrine's fourth application; record_version stays 1).
+`format_scope_drift_refusal` moves to forecast vocabulary — text
+only; the gate, flag, json `drift` key, status marker, and telemetry
+outcome are unchanged. The stats pair gains the forecast rows and the
+departures-vs-admissions cross-check under the existing key-stability
+rules; definitions live in `bin/bale_stats.py` per the standing
+division.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -655,16 +668,22 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
                                overridden: list,
                                telemetry: Optional[str],
                                dry_run: bool = False) -> str:
-    """Render the own-scope drift refusal (BALE.md §8.1 step 14, §11 row 22).
+    """Render the own-forecast drift refusal (BALE.md §8.1 step 14, §11
+    row 22; forecast vocabulary per ADR-0015, board 13 session B).
 
     The human face of the v0.3.10 drift-to-contract gate: a response's
-    changes[] landed on paths outside the session's own declared scope,
+    changes[] landed on paths outside the session's own write forecast,
     and the apply refused before any staging or git work. The block names
-    every offending path and the declared scope — the two facts the
-    operator dispatches on — plus any paths a partial --allow-out-of-scope
-    did admit, and closes with the three remedies as trailer lines. The
-    session stays open, which is why every remedy is a re-run rather than
-    a repack-from-scratch.
+    every offending path and the forecast — the two facts the operator
+    dispatches on — plus any paths a partial --allow-out-of-scope did
+    admit, and closes with the remedies as trailer lines. Under the
+    ADR-0015 doctrine an out-of-forecast edit is worker judgment past
+    the ask — shipped, enumerated in notes.md, admitted per path — so
+    the refusal reads as a decision point, not an indictment; the
+    mechanics (gate, flag, json `drift` key, SCOPE-DRIFT-REFUSED
+    status, telemetry outcome) are byte-for-byte the pre-separation
+    gate's. The session stays open, which is why every remedy is a
+    re-run rather than a repack-from-scratch.
 
     Follows the module's summary-block-last rule trivially (the block is
     the whole output) and the pure-string-assembler rule: builds a string,
@@ -673,18 +692,19 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     record was written (a dry-run has no outcome — BALE.md §8.9) and the
     headline notes the prediction.
 
-    An empty `scope` is the read-only session shape (v0.3.15): the
-    declared-scope row names the session read-only rather than printing
-    an empty string, and the remedies drop the regenerate-inside-scope
-    line — there is no inside; the operator either overrides per path,
-    knowing exactly that they are landing changes from a session packed
-    to land none, or repacks a session shaped to land the work.
+    An empty `scope` is the read-only session shape (v0.3.15) — under
+    ADR-0015 the degenerate empty forecast: the forecast row names the
+    session read-only rather than printing an empty string, and the
+    remedies drop the regenerate-inside-forecast line — there is no
+    inside; the operator either overrides per path, knowing exactly
+    that they are landing changes from a session packed to land none,
+    or repacks a session shaped to land the work.
     """
     read_only = not scope
     rows: list[tuple[str, str]] = [
-        ("out of scope", ", ".join(refused)),
-        ("declared scope",
-         "(read-only session — empty scope; lands nothing)"
+        ("past the forecast", ", ".join(refused)),
+        ("write forecast",
+         "(read-only session — empty forecast; lands nothing)"
          if read_only else ", ".join(scope)),
     ]
     if overridden:
@@ -698,26 +718,28 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
                      else "write failed — see log"))
     if read_only:
         trailer = [
-            f"Session {sid} was packed read-only: its scope lands "
-            f"nothing by design. Nothing was staged or committed, and "
-            f"the session stays open. Either:",
+            f"Session {sid} was packed read-only: its empty forecast "
+            f"lands nothing by design. Nothing was staged or committed, "
+            f"and the session stays open. Either:",
             "  - admit specific paths deliberately, knowing they land "
             "from a read-only session: `bale apply <tarball> "
             "--allow-out-of-scope <path>` (repeat per path),",
             f"  - or land the work from a session shaped to land it: "
             f"`bale unlock {sid}` and re-pack without --read-only, with "
-            f"the includes the work needs.",
+            f"a forecast covering the work.",
         ]
     else:
         trailer = [
             "The session stays open; nothing was staged or committed. "
-            "Either:",
-            "  - regenerate the response inside the declared scope and "
-            "re-run `bale apply`,",
+            "Out-of-forecast work is worker judgment past the ask "
+            "(ADR-0015): check the response's notes.md for its "
+            "enumeration, then either:",
             "  - admit specific paths deliberately: `bale apply <tarball> "
             "--allow-out-of-scope <path>` (repeat per path),",
-            f"  - or rescope: `bale unlock {sid}` and re-pack with the "
-            f"includes the work actually needs.",
+            "  - regenerate the response inside the forecast and "
+            "re-run `bale apply`,",
+            f"  - or reforecast: `bale unlock {sid}` and re-pack with a "
+            f"write forecast covering the work.",
         ]
     return format_summary_block(
         rows,
@@ -2239,12 +2261,26 @@ def build_telemetry_attempt(
 
     `manifest` (the response manifest, when available) supplies the two
     promoted verbatim pieces: the feedback block and the changes[] paths.
-    `scope` is the session's recorded include set (the caller reads it via
-    read_session_scope). `validation_*` are present only when validation.sh
+    `scope` is the session's recorded scope — post-separation
+    (ADR-0015), the write forecast — as the caller reads it via
+    read_session_scope. `validation_*` are present only when validation.sh
     ran this attempt; the §7.3 reconciliation is parsed here from
     `validation_output` so no caller re-implements the promotion. A rejected
     or reverted attempt passes validation_state=None and gets
     validation: null.
+
+    `scope_kind` (ADR-0015, board 13 session B) is the write-forecast
+    EPOCH KEY, stamped unconditionally here — the one home every call
+    site inherits, so every attempt written post-epoch carries
+    `"scope_kind": "write-forecast"` and every pre-epoch attempt lacks
+    the key. Key presence is epoch membership (the
+    reconciliation_parsed disambiguation doctrine applied a fourth
+    time): post-epoch, `scope` holds the session's forecast and the
+    drift aggregation computes is judgment past the ask; pre-epoch,
+    `scope` was the conflated include set and its near-zero drift rate
+    must never average into the forecast era's. `record_version`
+    stays 1 (additive; telemetry-record.schema.json carries the
+    field's contract, `bale stats` reads only inside the sub-epoch).
 
     `overridden_paths` (v0.3.10, board 2) stamps the out-of-scope paths a
     per-invocation `--allow-out-of-scope` admitted into the attempt's
@@ -2321,6 +2357,9 @@ def build_telemetry_attempt(
         "closure_reason": closure_reason,
         "tarball": tarball,
         "validation": validation,
+        # The ADR-0015 epoch key (docstring): unconditional, so key
+        # presence marks every post-epoch attempt of every command.
+        "scope_kind": "write-forecast",
         "scope": list(scope or []),
         "overridden_paths": list(overridden_paths or []),
         "required_check_overrides": list(required_check_overrides or []),
@@ -2610,8 +2649,11 @@ def format_stats_json(stats: dict) -> str:
                 checkpoint (v0.3.29, board 6 session D — the blind
                 checkpoint stamp's sub-epoch; the stamp is present on
                 every validated attempt post-session-A, so key-presence
-                detection is exact here too). Whole-corpus facts, like
-                epoch.
+                detection is exact here too), and scope_kind (v0.4.2,
+                ADR-0015 board 13 session B — the write-forecast epoch
+                key, stamped on every attempt post-epoch, so presence
+                detection is exact there as well). Whole-corpus facts,
+                like epoch.
       filters   echo of what was in effect: {work_class, since}, each
                 the given value or null.
       corpus    context and membership totals:
@@ -2656,6 +2698,12 @@ def format_stats_json(stats: dict) -> str:
                   checkpoint_hold_rate,
                   required_check_refused_attempts,
                   required_check_override_attempts,
+                  forecast_attempts, forecast_drift_attempts,
+                  forecast_drift_rate,
+                  forecast_drift_paths, forecast_admitted_paths,
+                  forecast_admission_rate,
+                  forecast_entries, forecast_entries_untouched,
+                  forecast_precision,
                   bailout_sessions, sessions_with_response_attempt,
                   bailout_rate,
                   clarified_sessions, clarification_epoch_sessions,
@@ -2685,7 +2733,22 @@ def format_stats_json(stats: dict) -> str:
                 a non-empty required_check_overrides list — both
                 counts beside the drift refusal/override pair, and
                 like drift's, override incidence is a count, not a
-                rate. Semantics in bin/bale_stats.py's _class_row
+                rate. The forecast keys (v0.4.2, ADR-0015 board 13
+                session B, additive) read post-epoch response attempts
+                only (scope_kind "write-forecast"; key absence is
+                pre-epoch and never enters these denominators):
+                forecast_drift_rate is drifting attempts over
+                post-epoch response attempts (judgment past the ask —
+                drift clustering means forecasts drawn too narrow),
+                forecast_admission_rate is admitted drift paths over
+                all drift paths (path-granular, the unit the operator
+                admits in; the refused complement is the difference of
+                the two counts), and forecast_precision is touched
+                forecast entries over forecast entries across attempts
+                that landed at least one change (imprecision
+                clustering means forecasts drawn too wide) — every
+                numerator and denominator beside its rate, rates null
+                on zero. Semantics in bin/bale_stats.py's _class_row
                 docstring.
       closure_mix
                 distribution over closed membership sessions: applied,
@@ -2703,6 +2766,20 @@ def format_stats_json(stats: dict) -> str:
                   budget         {pressure: {value: count, plus
                                   "unreported"},
                                   bailed_with_pressure_none}
+                  forecast_departures (v0.4.2, ADR-0015 board 13
+                                  session B, additive)
+                                 {declared_paths, admitted_paths,
+                                  both, admitted_only, declared_only}
+                                 — the worker's self-declared
+                                 feedback.self_reported
+                                 .forecast_departures paths against
+                                 the mechanically admitted
+                                 overridden_paths, path-granular over
+                                 post-epoch response attempts;
+                                 admitted_only is the ADR-0014 audit
+                                 smell (admitted with no declared
+                                 departure), computed instead of
+                                 eyeballed.
 
     Emitted as a single compact line (no indent) so the consumer
     contract stays line-oriented. Pure: builds a string, prints
@@ -2786,6 +2863,26 @@ def format_stats_report(stats: dict) -> str:
             if row["required_check_override_attempts"]:
                 details.append(f"required-check overrides "
                                f"{row['required_check_override_attempts']}")
+            if row["forecast_attempts"]:
+                # The ADR-0015 forecast rows (board 13 session B):
+                # rendered once the class has post-epoch attempts, all
+                # three together so the two scoping signals (drift =
+                # too narrow, imprecision = too wide) read side by
+                # side. Pre-epoch classes render nothing here — no
+                # fabricated zeros for an epoch that hasn't begun.
+                details.append(
+                    f"forecast drift {row['forecast_drift_attempts']}/"
+                    f"{row['forecast_attempts']} "
+                    f"({_pct(row['forecast_drift_rate'])})")
+                details.append(
+                    f"admitted paths {row['forecast_admitted_paths']}/"
+                    f"{row['forecast_drift_paths']} "
+                    f"({_pct(row['forecast_admission_rate'])})")
+                details.append(
+                    f"forecast precision "
+                    f"{row['forecast_entries'] - row['forecast_entries_untouched']}/"
+                    f"{row['forecast_entries']} "
+                    f"({_pct(row['forecast_precision'])})")
             if details:
                 extras.append(f"  {cls}: " + ", ".join(details))
         if extras:
@@ -2805,7 +2902,8 @@ def format_stats_report(stats: dict) -> str:
                      "claude/telemetry/")
     for key, label in (("closure_reason", "closure_reason"),
                        ("clarification", "clarification"),
-                       ("checkpoint", "checkpoint")):
+                       ("checkpoint", "checkpoint"),
+                       ("scope_kind", "scope_kind (write-forecast epoch)")):
         row = stats["coverage"][key]
         if row is None:
             lines.append(f"  coverage: {label} key not yet present in "
@@ -2838,6 +2936,13 @@ def format_stats_report(stats: dict) -> str:
     lines.append(f"  cross-check budget: pressure [{pressure or 'none'}]"
                  f", bailed with pressure 'none': "
                  f"{budget['bailed_with_pressure_none']}")
+    departures = stats["cross_checks"]["forecast_departures"]
+    lines.append(f"  cross-check forecast departures: declared "
+                 f"{departures['declared_paths']}, admitted "
+                 f"{departures['admitted_paths']}, both "
+                 f"{departures['both']}, admitted-only "
+                 f"{departures['admitted_only']}, declared-only "
+                 f"{departures['declared_only']}")
 
     corpus = stats["corpus"]
     filters = stats["filters"]
