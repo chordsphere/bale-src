@@ -20,6 +20,12 @@ form (ADR-0005, fully hermetic):
 - bale is always invoked by absolute path into the scratch install,
   never resolved from ``$PATH``.
 
+Besides the sandbox makers and runners, the module carries the shared
+response-tarball fixture builder (``build_response_dir`` /
+``tar_response_dir``, extracted from test_hold_retry_e2e.py at board
+35 when the apply suites became its second and third consumers) — see
+the banner section at the bottom.
+
 The suites import from here (``from harness import ...``); both direct
 execution (``python3 tests/<suite>.py``) and discovery
 (``python3 -m unittest discover -s tests``) put ``tests/`` on
@@ -193,3 +199,105 @@ def run_bale_pty(install: Path, args: list, *, cwd: Path, env: dict,
             os.close(slave)
         os.close(master)
     return exit_code, b"".join(chunks).decode(errors="replace")
+
+
+# ---------------------------------------------------------------------------
+# Response-tarball fixture builder
+# ---------------------------------------------------------------------------
+#
+# Extracted from tests/test_hold_retry_e2e.py's build_response_tarball when
+# the apply pre-flight and real-operations suites became its second and third
+# consumers (board 35) — the same one-harness doctrine that produced this
+# module and run_bale_pty (board 11). Sizes and hashes are computed from the
+# bytes written, never transcribed (TARBALL.md section 5.2.1); the manifest
+# shape mirrors TARBALL.md section 5.2. The builder produces a *valid*
+# response by construction; suites that need a malformed one build valid
+# first and tamper the result (see test_apply_preflight.py), so every
+# rejection test is exactly one mutation away from a known-good baseline.
+
+NO_OP_APPLY_SH = "#!/usr/bin/env bash\n# No additional operations (test fixture).\nexit 0\n"
+
+
+def passing_validation_sh(check: str = "fixture check") -> str:
+    """A minimal validation.sh printing one [PASS] line for `check`."""
+    return (
+        "#!/usr/bin/env bash\n"
+        f"echo \"[PASS] {check}\"\n"
+        "exit 0\n"
+    )
+
+
+def build_response_dir(dest: Path, sid: str, *, summary: str,
+                       entries: list, apply_sh: str = NO_OP_APPLY_SH,
+                       validation_sh: str = None,
+                       validation_will_run: list = None,
+                       claims: dict = None,
+                       manifest_extra: dict = None) -> Path:
+    """Write a response-NNN/ directory under `dest` and return its path.
+
+    `entries` is a list of dicts shaped like manifest changes[] entries,
+    except created/modified entries carry the file content under a `data`
+    key (bytes) instead of size_bytes/sha256 — the builder writes the
+    bytes under files/ and computes both fields from them. Deleted
+    entries carry no `data` and get the two literals (size_bytes: 0,
+    sha256: null) per TARBALL.md section 5.2.1.
+
+    `manifest_extra` entries are merged into the manifest last, so a
+    caller can add or override top-level fields (e.g. response_kind,
+    questions) without the builder growing a parameter per field.
+    """
+    import hashlib
+    import json
+
+    nnn = sid[-3:]
+    rdir = dest / f"response-{nnn}"
+    (rdir / "files").mkdir(parents=True)
+
+    changes = []
+    for entry in entries:
+        change = {k: v for k, v in entry.items() if k != "data"}
+        if entry["action"] in ("created", "modified"):
+            data = entry["data"]
+            f = rdir / "files" / entry["path"]
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(data)
+            change["size_bytes"] = len(data)
+            change["sha256"] = hashlib.sha256(data).hexdigest()
+        else:  # deleted — no file under files/, the two literals
+            change["size_bytes"] = 0
+            change["sha256"] = None
+        changes.append(change)
+
+    if validation_will_run is None:
+        validation_will_run = ["fixture check"]
+    manifest = {
+        "session_id": sid,
+        "responds_to": sid,
+        "corrects": None,
+        "response_kind": "normal",
+        "summary": summary,
+        "changes": changes,
+        "deferred": [],
+        "validation_will_run": validation_will_run,
+        "claims": claims if claims is not None else {},
+    }
+    if manifest_extra:
+        manifest.update(manifest_extra)
+
+    (rdir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (rdir / "apply.sh").write_text(apply_sh, encoding="utf-8")
+    (rdir / "validation.sh").write_text(
+        validation_sh if validation_sh is not None
+        else passing_validation_sh(), encoding="utf-8")
+    return rdir
+
+
+def tar_response_dir(rdir: Path) -> Path:
+    """Tar response-NNN/ into response-NNN.tar.gz beside it; return the path."""
+    import tarfile
+
+    tarball = rdir.parent / f"{rdir.name}.tar.gz"
+    with tarfile.open(tarball, "w:gz") as tf:
+        tf.add(str(rdir), arcname=rdir.name)
+    return tarball
