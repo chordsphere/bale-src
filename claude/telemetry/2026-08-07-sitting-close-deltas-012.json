@@ -1,0 +1,110 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-07-sitting-close-deltas-012",
+  "created_at": "2026-08-07T03:17:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-07T03:17:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-07-sitting-close-deltas-012_tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "adr-0016 flip confinement (reverse-transform)": "pass",
+          "index coherence": "pass",
+          "delta grep anchors": "pass"
+        },
+        "claim_verdict": {
+          "adr-0016 flip confinement (reverse-transform)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "index coherence": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "delta grep anchors": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/context/adr/0016-response-script-sandbox.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "claude/context/adr/0016-response-script-sandbox.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.3",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": null,
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "bin/bale VERSION 0.4.3 recorded from the sitting's ratified cargo, not read from the constant (bin/bale not shipped in this request); the \u00a77 sentence states the basis and the \u00a72 verify-at-sitting-open rule is the next check",
+            "the brief's '\u00a72 version paragraph' delta interpreted as targeting the version's one home, \u00a77's bin/bale landmark, per the shipped \u00a72 pointer (collapse ratified 2026-08-07)",
+            "the ADR Notes line's 'sitting sid 2026-08-07-sandbox-adr-009' relayed verbatim as quoted in the brief, though the sid names the authoring session"
+          ],
+          "judgment_calls": [
+            "session 1's 'Gaps 3\u20137 remain queued, ordering-free.' retained inside its dated record; the appended Remaining-queue line carries the current picture",
+            "INDEX.md's 'last Proposed set before that' sentence dropped inside the named true-up (dangling referent once no ADR is Proposed)",
+            "the two 011 fold-in quotes copied verbatim from the archived notes shipped in context/, per the \u00a75 verbatim-proposal contract"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale (VERSION constant) \u2014 would upgrade the 0.4.3 trail from relayed to verified; the MASTER.md-only deltas pack is deliberate precedent, so signal only"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-07-sitting-close-deltas-012.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-07T03:17:13+00:00",
+  "outcome": "applied"
+}
