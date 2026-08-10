@@ -194,6 +194,14 @@ and flip record; the flip-by-flip narrative lives in git.
   that closes the recursion. Pull when packing or reviewing a session
   that touches `bin/bale`, the apply or pack pipeline, the staging
   lifecycle, or the `post_apply_pass` hook.
+- `context/orchestration.md` — the working home of orchestration
+  doctrine (ADR-0009 step 2): the specification-friction principle,
+  the four controls, the doctrine skeleton elaborated with live
+  evidence, and the board-10 additions (worker refresh, cost
+  governance, escalation and the clarification queue). Section
+  anchors are stable; the escalation-record schema work cites it.
+  Pull when planning orchestration or harness work; promotes to a
+  global doc per ADR-0009 step 3 when orchestration is real.
 
 ## Notes on this index
 
@@ -211,7 +219,7 @@ cross-reference into an injected global doc, not an inventory entry —
 the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
-state doc), two explainers, and sixteen ADRs (0001–0005 the
+state doc), three explainers, and sixteen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012
 the agent-driven direction, 0013 the TARBALL.md rationale
