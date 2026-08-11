@@ -1,0 +1,32 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-10-board-10-sandbox-wrapper-002",
+  "created_at": "2026-08-11T16:06:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-11T16:06:58+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-10-board-10-sandbox-wrapper-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-11T16:06:58+00:00",
+  "outcome": "unlocked"
+}
