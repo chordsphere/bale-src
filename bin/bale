@@ -222,7 +222,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -2155,7 +2155,8 @@ def cmd_retry(args: argparse.Namespace) -> int:
                               allow_missing_required_check=(
                                   args.allow_missing_required_check),
                               accept_checkpoint_change=(
-                                  args.accept_checkpoint_change))
+                                  args.accept_checkpoint_change),
+                              no_sandbox=args.no_sandbox)
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
                                 tarball_path.name, e)
@@ -4846,6 +4847,18 @@ def build_parser() -> argparse.ArgumentParser:
              "the ratified override contract.",
     )
     p_apply.add_argument(
+        "--no-sandbox", action="store_true",
+        help="Run the response scripts (apply.sh, the blind checkpoint, "
+             "validation.sh) UNCONFINED for this invocation — no "
+             "namespace sandbox, operator privileges, inherited "
+             "environment, network on (v0.4.4, ADR-0016; BALE.md §8.5). "
+             "The sandbox is default-on for every apply; this escape "
+             "exists for debugging the sandbox itself, not for routine "
+             "convenience. Per-invocation only — deliberately no config "
+             "key, per the ratified override contract — and every use "
+             "is logged prominently (FORCE: line in the session log).",
+    )
+    p_apply.add_argument(
         "--json", action="store_true",
         help="Emit the end-of-run apply report as one line of JSON on "
              "stdout. Keys are a stable contract for downstream tooling: "
@@ -4966,6 +4979,16 @@ def build_parser() -> argparse.ArgumentParser:
              "stamp_matched: false. Per-invocation only — no config "
              "key, and the override is never carried forward from a "
              "failed apply attempt: a retry that needs it re-states it.",
+    )
+    p_retry.add_argument(
+        "--no-sandbox", action="store_true",
+        help="Run the response scripts unconfined for this invocation — "
+             "same semantics as `bale apply --no-sandbox` (retry reruns "
+             "the same pipeline). Per-invocation only — no config key, "
+             "and the bypass is never carried forward from a failed "
+             "apply attempt: a retry that needs it re-states it. Every "
+             "use is FORCE-logged in the session log. `bale revert` "
+             "executes no response scripts and takes no such flag.",
     )
     p_retry.add_argument(
         "--json", action="store_true",
