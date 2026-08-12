@@ -21,3 +21,6 @@ strategy = "target-base"
 packer = "chordsphere"
 
 [validation]
+
+[sandbox]
+network = true
