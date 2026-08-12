@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
-# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 1
-# Sessions gated: board-10-sandbox-wrapper (S1), board-10-orchestration-doc (S3)
+# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 2
+# Sessions gated: board-10-network-grant (S2), board-10-wave1-deltas
 # Sitting: 2026-08-10-continue-plan-001 (board-10 spec-intake repack)
 #
-# Planner-authored from the requests, before any implementation existed
-# (BALE.md 8.5). Single-path mechanism note: [validation] base is one
-# committed path per project, and every apply executes the bytes at its
-# own base tip - so concurrent sessions share this file. This wave ships
-# guarded blocks: each block arms only when its session's work is present
-# in the applied tree, so either session's apply passes vacuously on the
-# other's guard. Per-session checkpoints are a named S6 agenda item.
-#
-# Runs with cwd = staging (the applied tree). Exit: 0 pass, 1 check
-# failed, 2 script error.
+# Planner-authored from the requests, before implementation. Replaces
+# the wave-1 guards (both wave-1 sessions are closed). Same single-path
+# mechanism note as wave 1: guarded blocks, each arming only when its
+# session's work is present, so either apply passes vacuously on the
+# other's guard. Runs cwd = staging. Exit: 0 pass, 1 fail, 2 error.
 
 set -u
 status=0
@@ -21,92 +16,80 @@ failck() { printf '[ckpt] FAIL: %s\n' "$*"; status=1; }
 
 ran_any=0
 
-# ---------- S1 guard: sandbox confinement properties ----------
-# The brief pins the surface this block exercises: bin/bale_sandbox.py
-# exposing run_confined(argv, *, staging, log_path, ...) returning an
-# object with .returncode. The assertions are properties, not
-# implementation: writes work only inside the staging it is handed,
-# network is off, the operator environment does not leak.
-if [ -f bin/bale_sandbox.py ]; then
+# ---------- S2 guard: network grant + sandbox telemetry ----------
+# Arms on the pinned schema field. The brief pins: telemetry fields
+# named exactly sandbox_escaped and network_grant_exercised; a
+# network=True keyword on run_confined. Default-off is re-asserted so
+# the grant work cannot have widened the floor.
+if grep -q "sandbox_escaped" schemas/telemetry-record.schema.json 2>/dev/null; then
   ran_any=1
-  note "S1 guard armed: bin/bale_sandbox.py present"
+  note "S2 guard armed: sandbox_escaped present in telemetry schema"
+
+  if grep -q "network_grant_exercised" schemas/telemetry-record.schema.json; then
+    note "schema field present: network_grant_exercised"
+  else
+    failck "pinned schema field missing: network_grant_exercised"
+  fi
+
   workdir=$(mktemp -d) || { note "ERROR: mktemp failed"; exit 2; }
   trap 'rm -rf "$workdir"' EXIT
-  mkdir -p "$workdir/staging" "$workdir/outside"
+  mkdir -p "$workdir/staging"
 
-  probe() {
-    # probe <name> <shell-line> -> exits with the confined child's code
-    python3 - "$workdir" "$1" "$2" <<'PYEOF'
+  netprobe() {
+    # netprobe <network-bool> ; exit 0 iff a non-loopback interface is
+    # visible to the confined child (offline-safe visibility test)
+    python3 - "$workdir" "$1" <<'PYEOF'
 import sys, os
 sys.path.insert(0, "bin")
 import bale_sandbox
-workdir, name, cmd = sys.argv[1], sys.argv[2], sys.argv[3]
+workdir, grant = sys.argv[1], sys.argv[2] == "1"
 staging = os.path.join(workdir, "staging")
 log = os.path.join(workdir, "ckpt.log")
-res = bale_sandbox.run_confined(["bash", "-c", cmd],
-                                staging=staging, log_path=log)
+res = bale_sandbox.run_confined(
+    ["bash", "-c", "ls /sys/class/net | grep -qv '^lo$'"],
+    staging=staging, log_path=log, network=grant)
 sys.exit(res.returncode)
 PYEOF
   }
 
-  # 1. A write inside the handed staging succeeds.
-  if probe inwrite 'echo ok > inside-canary && test -f inside-canary'; then
-    note "in-staging write: ok"
+  if netprobe 0; then
+    failck "default confinement shows a non-loopback interface: floor widened"
   else
-    failck "a write inside staging did not succeed under confinement"
+    note "default: loopback-only, floor intact"
   fi
 
-  # 2. A write outside it is denied - judged by the filesystem, not the
-  #    child's exit code.
-  probe outwrite "echo leak > '$workdir/outside/canary' 2>/dev/null" || true
-  if [ -e "$workdir/outside/canary" ]; then
-    failck "an out-of-staging write landed: confinement is not holding"
+  if netprobe 1; then
+    note "network=True: host interfaces visible, grant toggle works"
   else
-    note "out-of-staging write: denied"
+    failck "network=True still shows loopback-only: grant toggle inert"
   fi
 
-  # 3. Network is off.
-  if probe net 'exec 3<>/dev/tcp/1.1.1.1/80' 2>/dev/null; then
-    failck "a network connection succeeded under confinement"
-  else
-    note "network: off"
-  fi
-
-  # 4. The operator environment is scrubbed.
-  export BALE_CKPT_CANARY=leaked
-  if probe env 'test -z "${BALE_CKPT_CANARY:-}"'; then
-    note "environment: scrubbed"
-  else
-    failck "an operator environment variable leaked into the confined child"
-  fi
-  unset BALE_CKPT_CANARY
+  # VERSION rider: the tree still reports its version after extraction.
+  v=$(python3 bin/bale --version 2>/dev/null || true)
+  case "$v" in
+    *0.4.5*) note "version reports 0.4.5 post-rider" ;;
+    *) failck "bin/bale --version did not report 0.4.5 (got: ${v:-empty})" ;;
+  esac
 fi
 
-# ---------- S3 guard: orchestration doc shape ----------
-if [ -f claude/context/orchestration.md ]; then
+# ---------- Deltas guard: MASTER.md wave-1 record ----------
+if grep -qF "wave 1 landed" claude/MASTER.md 2>/dev/null; then
   ran_any=1
-  note "S3 guard armed: claude/context/orchestration.md present"
-  if grep -qF "Ambiguity is the enemy, not capability." claude/context/orchestration.md; then
-    note "specification-friction anchor: present"
+  note "deltas guard armed: board-10 row records wave 1"
+  if grep -qF "forecast/include mismatch" claude/MASTER.md; then
+    note "fold-in present: forecast/include mismatch warning"
   else
-    failck "the specification-friction anchor sentence is missing or wrapped"
+    failck "fold-in registry missing the forecast/include mismatch entry"
   fi
-  for h in "Blind checkpoints" "Escalation" "Trust phasing" "Worker refresh" "Cost governance"; do
-    if grep -q "$h" claude/context/orchestration.md; then
-      note "section present: $h"
-    else
-      failck "required section missing: $h"
-    fi
-  done
-  if grep -q "orchestration.md" claude/INDEX.md; then
-    note "INDEX.md lists the doc"
+  if grep -qF "probe-salvage" claude/MASTER.md; then
+    note "evidence present: probe-salvage pattern"
   else
-    failck "claude/INDEX.md does not list orchestration.md"
+    failck "evidence pile missing the probe-salvage entry"
   fi
 fi
 
 if [ "$ran_any" = 0 ]; then
-  note "no wave-1 guard armed in this tree; checkpoint passes vacuously"
+  note "no wave-2 guard armed in this tree; checkpoint passes vacuously"
 fi
 
 exit "$status"
