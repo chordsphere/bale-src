@@ -1,0 +1,131 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-12-board-10-wave1-deltas-002",
+  "created_at": "2026-08-12T15:09:16+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-12T15:09:16+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (40).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "anchor phrases present, single-line (3)": "pass",
+          "evidence numbering 62-64 sequential from 61": "pass",
+          "single version home (no 0.4.3-current residue; one VERSION line)": "pass",
+          "wave-1 sids present in section 3 and board 10 row": "pass",
+          "diff confined to the brief's edit surfaces": "pass"
+        },
+        "claim_verdict": {
+          "anchor phrases present, single-line (3)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence numbering 62-64 sequential from 61": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "single version home (no 0.4.3-current residue; one VERSION line)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "wave-1 sids present in section 3 and board 10 row": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "diff confined to the brief's edit surfaces": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.4",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "c11ee0ce93bfd2004eb18bb167d26e180f7cf28004b0525129bf74e621635912"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "0.4.4 recorded in the section 7 trail as a claim per the wave-1 brief; no bin/bale shipped in this request to verify the VERSION constant",
+            "the board 10 row's status heading and the section 6/agenda block headings follow file conventions but their exact wording is mine (enumerated in notes.md)"
+          ],
+          "judgment_calls": [
+            "replaced both stale section 3 leading bullets, not just augmented them (edit-in-place discipline; content recorded elsewhere)",
+            "kept the version value out of section 3 entirely - pointer only, matching section 2's pointer style",
+            "scoped section 7's verification sentence to 0.4.3-and-earlier rather than letting it silently cover the unverified 0.4.4",
+            "left the already-stale Watches preamble enumeration untouched; proposed the true-up instead of a partial fix"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-wave1-deltas-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "c11ee0ce93bfd2004eb18bb167d26e180f7cf28004b0525129bf74e621635912"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-12T15:09:16+00:00",
+  "outcome": "applied"
+}
