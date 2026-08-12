@@ -90,6 +90,7 @@ RELEASE_FILES=(
   bin/bale_config.py
   bin/bale_validate.py
   bin/bale_staging.py
+  bin/bale_sandbox.py
   bin/bale_rollback.py
   bin/bale_report.py
   bin/bale_pack.py

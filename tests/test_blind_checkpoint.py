@@ -376,6 +376,43 @@ class BlindCheckpointE2ETest(unittest.TestCase):
             msg="no bale/<sid> branch may exist after the refusal — it "
                 "must fire before branch creation")
 
+    def test_syntax_errored_checkpoint_refuses_before_staging(self) -> None:
+        """The board-10 fail-fast rider: a committed checkpoint whose
+        base-tree bytes fail `bash -n` refuses at pre-flight — before
+        any staging or branch work — with the planner-facing remedy,
+        instead of surfacing mid-pipeline as an exit-2 HOLD."""
+        self.commit_checkpoint(
+            # A genuine parse error (`bash -n` territory): an if with no
+            # closing fi. A runtime error — e.g. `[` missing its `]` —
+            # would NOT trip the gate, exactly as with the worker-script
+            # pre-flight this riders alongside.
+            "#!/usr/bin/env bash\nif true; then\n  echo broken\n")
+        self.configure_checkpoint()
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(
+            sid, name="cp-syntax", validation_exit=0)
+        result = run_bale(
+            self.install, ["apply", str(tarball), "--no-interact"],
+            cwd=self.repo, env=self.env)
+        self.assertNotEqual(result.returncode, 0)
+        combined = result.stdout + result.stderr
+        self.assertIn("has bash syntax errors", combined)
+        self.assertIn(CHECKPOINT_PATH, combined)
+        # Fail-fast: refusal precedes staging and branch creation, so
+        # the session is still open and untouched — the same posture as
+        # the dangling refusal beside it.
+        branches = subprocess.run(
+            ["git", "branch", "--list", f"bale/{sid}"],
+            cwd=self.repo, env=self.genv, capture_output=True, text=True)
+        self.assertEqual(branches.stdout.strip(), "",
+                         msg="refusal must precede branch creation")
+        self.assertFalse(
+            (self.repo / ".bale" / "staging" / sid).exists(),
+            msg="refusal must precede staging")
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="the session stays open after a pre-flight refusal")
+
     def test_absent_config_is_known_zero(self) -> None:
         """No [validation] config: no checkpoint bands in the log
         (today's behavior), and the validated attempt's stamp is the

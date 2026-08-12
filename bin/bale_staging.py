@@ -4,6 +4,8 @@ This module owns the mechanical helpers of the apply pipeline that operate on
 the staging tree and the working tree: the apply-time `bash -n` pre-flight on
 the response's shell scripts (`check_response_shell_syntax`), the response-vs-
 manifest presence/sha256/path-safety checks (`verify_files_against_manifest`),
+its base-tree sibling for the planner's blind checkpoint
+(`check_checkpoint_shell_syntax`, the ratified board-10 fail-fast rider),
 building the staging tree and running the response's `apply.sh` over it
 (`stage_response`, which since v0.3.7 also owns the opt-in `target-base`
 staging strategy — BALE.md §8.3 step 2 — via the private helpers
@@ -57,6 +59,17 @@ time pre-flight, not a manifest/schema validator. It moves here because
 `bale_staging` is the apply-helpers home, and a `bash -n` pre-flight on the
 response's `apply.sh`/`validation.sh` belongs with the staging cluster it gates.
 
+Since board 10 S1 (ADR-0016) the three response-script executions this
+module owns — the `apply.sh` run in `stage_response`, the checkpoint run
+in `run_blind_checkpoint`, and the worker run in `run_validation_sh` —
+are confined by default through the sibling module `bale_sandbox`
+(namespace confinement: network off, writes limited to staging plus the
+session log, environment scrubbed), with a per-invocation `sandbox=False`
+escape the apply pipeline threads from `--no-sandbox` and FORCE-logs.
+The sandbox module is deliberately standalone (no `__main__`
+back-references) so the blind checkpoint and the tests can exercise it
+as a library.
+
 See claude/context/bale-internals.md for how this module sits next to `bin/bale`,
 `bale_config`, and `bale_validate`.
 """
@@ -101,6 +114,52 @@ def check_response_shell_syntax(response_dir: Path) -> None:
         if r.returncode != 0:
             msg = (r.stderr or r.stdout or "").strip() or "syntax error"
             fail(f"{name} has bash syntax errors: {msg}")
+
+
+def check_checkpoint_shell_syntax(repo: Path, base_sha: str,
+                                  checkpoint_path: str) -> None:
+    """Pre-flight `bash -n` on the blind checkpoint's base-tree bytes.
+
+    The fail-fast sibling of check_response_shell_syntax, closing the
+    gap that function's docstring left open: the worker's two scripts
+    were syntax-gated before any staging work, but a syntax-errored
+    checkpoint surfaced only mid-pipeline, after the expensive stage
+    and reconciliation, as a confusing exit-2 "checkpoint itself
+    errored" HOLD. This runs at the same pre-staging point as the
+    checkpoint's dangling and provenance checks (both already have
+    base_sha in hand), against the exact bytes run_blind_checkpoint
+    will execute — `git show <base_sha>:<path>`, never a working-tree
+    or staged copy (the board-6 blindness rule, BALE.md §8.5).
+
+    (Ratified rider from the 2026-08-07-sandbox-adr-009 sitting's
+    fold-in registry, landed with board 10 S1.)
+    """
+    from __main__ import fail
+    shown = subprocess.run(
+        ["git", "show", f"{base_sha}:{checkpoint_path}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if shown.returncode != 0:
+        # The dangling pre-check upstream already passed; a show failure
+        # here means the base tree changed mid-apply or git errored.
+        fail(f"could not read the blind checkpoint {checkpoint_path!r} "
+             f"from the base tree {base_sha[:7]} for the syntax "
+             f"pre-flight: "
+             f"{shown.stderr.decode(errors='replace').strip()}")
+    with tempfile.NamedTemporaryFile(prefix="bale-ckpt-syntax-",
+                                     suffix=".sh") as tf:
+        tf.write(shown.stdout)
+        tf.flush()
+        r = subprocess.run(
+            ["bash", "-n", tf.name],
+            capture_output=True, text=True, check=False,
+        )
+    if r.returncode != 0:
+        msg = (r.stderr or r.stdout or "").strip() or "syntax error"
+        fail(f"the blind checkpoint {checkpoint_path!r} (base-tree "
+             f"bytes at {base_sha[:7]}) has bash syntax errors: {msg}. "
+             f"The checkpoint is planner-authored — fix and commit it "
+             f"at the named path, then re-run apply.")
 
 
 def verify_files_against_manifest(
@@ -362,8 +421,19 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
                    strategy: str = "working-tree",
                    untracked_inputs: Sequence[str] = (),
                    base_sha: Optional[str] = None,
+                   sandbox: bool = True,
+                   log_path: Optional[Path] = None,
                    ) -> Optional[dict[str, str]]:
     """Build the staging tree, overlay files/, run apply.sh.
+
+    `sandbox` (default on, ADR-0016) confines the apply.sh run via
+    bale_sandbox.run_confined — writes land only in staging and the
+    handed `log_path`, network off, environment scrubbed — with the
+    response extraction dir passed through read-only (apply.sh is read
+    from it, and it lives under /tmp, which the sandbox replaces with
+    a private tmpfs). `log_path` is required when sandbox is on; the
+    caller passes the session log. `sandbox=False` is the escape
+    path — the caller (apply_pipeline) FORCE-logs the bypass.
 
     BALE.md section 8.3. The staging *base* is built per `strategy`:
 
@@ -473,13 +543,31 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
     # would surface as undeclared. Output is logged in full; on non-zero
     # exit we raise so the caller wipes staging and rejects the tarball.
     apply_sh = response_dir / "apply.sh"
-    log("running apply.sh in staging...")
-    result = subprocess.run(
-        ["bash", str(apply_sh)],
-        cwd=str(staging),
-        capture_output=True,
-        text=True,
-    )
+    if sandbox:
+        import bale_sandbox  # lazy — sibling module, standalone by design
+        if log_path is None:
+            raise RuntimeError(
+                "stage_response(sandbox=True) requires log_path — the "
+                "session log the confinement contract binds writable")
+        try:
+            bale_sandbox.ensure_verified(log_path)
+        except bale_sandbox.SandboxUnavailableError as e:
+            raise RuntimeError(str(e))
+        log("running apply.sh in staging (confined: network off, "
+            "writes limited to staging + session log)...")
+        result = bale_sandbox.run_confined(
+            ["bash", str(apply_sh)],
+            staging=staging, log_path=log_path,
+            tmp_passthrough=[response_dir],
+        )
+    else:
+        log("running apply.sh in staging (UNCONFINED — --no-sandbox)...")
+        result = subprocess.run(
+            ["bash", str(apply_sh)],
+            cwd=str(staging),
+            capture_output=True,
+            text=True,
+        )
     if result.stdout:
         log(f"apply.sh stdout:\n{result.stdout.rstrip()}")
     if result.stderr:
@@ -692,7 +780,8 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
 
 def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
                          checkpoint_path: str, sid: str, *,
-                         verbose: bool = False) -> dict:
+                         verbose: bool = False,
+                         sandbox: bool = True) -> dict:
     """Materialize and run the planner's blind checkpoint from BASE-TREE
     bytes; log a banded section; return
     {"path", "sha256", "exit_code", "output"}.
@@ -743,11 +832,25 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
     telemetry stamp records and the value session C's provenance
     verification will audit after the fact.
 
+    `sandbox` (default on, ADR-0016 position 1: uniform confinement —
+    the checkpoint's planner provenance is one merge deep, and
+    confinement costs it nothing by contract) wraps the invocation in
+    bale_sandbox: writes land only in staging and the session log,
+    network off, environment scrubbed. The materialization tempdir is
+    passed through read-only — confinement is on writes and network;
+    bale-materialized read inputs stay readable — and the deliberate
+    absence of the --verbose argv pass-through is untouched (the flag
+    below controls streaming around the script, never its argv).
+
     Raises via fail() when materialization itself breaks (a `git show`
     failure after the dangling pre-check passed means the base tree
-    changed mid-apply or git itself errored — both worth stopping for).
+    changed mid-apply or git itself errored — both worth stopping for),
+    and when the sandbox self-probe refuses (ADR-0016: loud refusal
+    naming --no-sandbox, never silent unconfined execution).
     """
     from __main__ import fail, log
+    if sandbox:
+        import bale_sandbox  # lazy — sibling module, standalone by design
 
     # Base-tree bytes, binary-exact: hashed and executed as-is, so the
     # subprocess call is direct (text=False) rather than through the
@@ -784,7 +887,9 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
         script.chmod(mode | 0o500)  # owner read+exec at minimum
 
         log(f"running blind checkpoint {checkpoint_path} "
-            f"(base-tree bytes {script_sha[:12]}, {base_sha[:7]})"
+            f"(base-tree bytes {script_sha[:12]}, {base_sha[:7]}"
+            + (", confined" if sandbox else ", UNCONFINED — --no-sandbox")
+            + ")"
             + (" (verbose: streaming live)..." if verbose else "..."))
 
         log_file = repo / ".bale" / "logs" / f"{sid}.log"
@@ -792,15 +897,32 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
         band = (f"=== blind checkpoint ({checkpoint_path}, "
                 f"{script_sha[:12]}) ===")
 
+        if sandbox:
+            try:
+                bale_sandbox.ensure_verified(log_file)
+            except bale_sandbox.SandboxUnavailableError as e:
+                fail(str(e))
+
         if verbose:
-            proc = subprocess.Popen(
-                ["bash", str(script)],
-                cwd=str(staging),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
+            if sandbox:
+                proc = bale_sandbox.popen_confined(
+                    ["bash", str(script)],
+                    staging=staging, log_path=log_file,
+                    tmp_passthrough=[Path(tmpdir)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+            else:
+                proc = subprocess.Popen(
+                    ["bash", str(script)],
+                    cwd=str(staging),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
             collected: list[str] = []
             assert proc.stdout is not None
             for line in proc.stdout:
@@ -818,12 +940,19 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
             return {"path": checkpoint_path, "sha256": script_sha,
                     "exit_code": returncode, "output": merged}
 
-        result = subprocess.run(
-            ["bash", str(script)],
-            cwd=str(staging),
-            capture_output=True,
-            text=True,
-        )
+        if sandbox:
+            result = bale_sandbox.run_confined(
+                ["bash", str(script)],
+                staging=staging, log_path=log_file,
+                tmp_passthrough=[Path(tmpdir)],
+            )
+        else:
+            result = subprocess.run(
+                ["bash", str(script)],
+                cwd=str(staging),
+                capture_output=True,
+                text=True,
+            )
         with log_file.open("a", encoding="utf-8") as f:
             f.write(f"\n{band}\n")
             f.write(result.stdout)
@@ -843,7 +972,8 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
 
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
                       manifest: dict, sid: str, *,
-                      verbose: bool = False) -> tuple[int, str]:
+                      verbose: bool = False,
+                      sandbox: bool = True) -> tuple[int, str]:
     """Copy validation.sh into staging, place .bale-manifest.json for claims
     access, run it, log output, return (exit code, captured output).
 
@@ -883,8 +1013,18 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     checkpoint (run_blind_checkpoint) deliberately does NOT receive the
     flag: it is planner-authored with no §7.4 contract on its argv, and
     its invocation stays stable.
+
+    `sandbox` (default on, ADR-0016) confines the run via
+    bale_sandbox: writes land only in staging and the session log,
+    network off, environment scrubbed. validation.sh was copied into
+    staging above, so no pass-through is needed; the --verbose argv
+    pass-through rides inside the confined argv unchanged. On a
+    sandbox self-probe refusal this raises via fail() naming
+    --no-sandbox — never silent unconfined execution.
     """
-    from __main__ import log
+    from __main__ import fail, log
+    if sandbox:
+        import bale_sandbox  # lazy — sibling module, standalone by design
     val_dst = staging / "validation.sh"
     shutil.copy2(response_dir / "validation.sh", val_dst, follow_symlinks=False)
     val_dst.chmod(0o755)
@@ -895,26 +1035,44 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     )
 
     log("running validation.sh in staging"
+        + (" (confined: network off, writes limited to staging + "
+           "session log)" if sandbox else " (UNCONFINED — --no-sandbox)")
         + (" (verbose: streaming live)..." if verbose else "..."))
 
     log_file = repo / ".bale" / "logs" / f"{sid}.log"
     log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if sandbox:
+        try:
+            bale_sandbox.ensure_verified(log_file)
+        except bale_sandbox.SandboxUnavailableError as e:
+            fail(str(e))
 
     if verbose:
         # Live stream. Merge stderr into stdout so the terminal sees the same
         # interleaving the user would at a real shell, read line by line, echo
         # immediately, and collect for the log. bufsize=1 + text mode gives
         # line-buffered reads; iterating proc.stdout blocks per line until EOF.
-        proc = subprocess.Popen(
-            # §7.4 pass-through: the operator's --verbose rides onto the
-            # script's own argv (docstring above owns the rationale).
-            ["bash", "validation.sh", "--verbose"],
-            cwd=str(staging),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
+        # §7.4 pass-through: the operator's --verbose rides onto the
+        # script's own argv (docstring above owns the rationale).
+        if sandbox:
+            proc = bale_sandbox.popen_confined(
+                ["bash", "validation.sh", "--verbose"],
+                staging=staging, log_path=log_file,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+        else:
+            proc = subprocess.Popen(
+                ["bash", "validation.sh", "--verbose"],
+                cwd=str(staging),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
         collected: list[str] = []
         # proc.stdout is non-None because stdout=PIPE; guard anyway for mypy.
         assert proc.stdout is not None
@@ -932,12 +1090,18 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
         return returncode, merged
 
     # Default: capture, log only, terminal stays quiet.
-    result = subprocess.run(
-        ["bash", "validation.sh"],
-        cwd=str(staging),
-        capture_output=True,
-        text=True,
-    )
+    if sandbox:
+        result = bale_sandbox.run_confined(
+            ["bash", "validation.sh"],
+            staging=staging, log_path=log_file,
+        )
+    else:
+        result = subprocess.run(
+            ["bash", "validation.sh"],
+            cwd=str(staging),
+            capture_output=True,
+            text=True,
+        )
 
     with log_file.open("a", encoding="utf-8") as f:
         f.write(f"\n--- validation.sh stdout ({sid}) ---\n")

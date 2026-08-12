@@ -551,6 +551,19 @@ The following flags apply across multiple commands:
   and the override is never carried forward from the failed attempt
   — the operator re-states it, exactly as with
   `--allow-out-of-scope`.
+- `--no-sandbox` — apply-scoped (v0.4.4, board 10 S1; ADR-0016):
+  run the three response scripts (apply.sh, the blind checkpoint,
+  validation.sh) unconfined for this invocation — no namespace
+  sandbox, operator privileges, inherited environment, network on.
+  The sandbox is default-on for every apply (§8.5); this escape
+  exists for debugging the sandbox itself, not for routine
+  convenience. Per-invocation only — there is deliberately no config
+  key, per the ratified override contract — and every use is logged
+  prominently (FORCE: line in the session log). `bale retry` takes
+  the same flag and re-states it per invocation, never carrying it
+  from a failed attempt; `bale revert` executes no response scripts
+  and takes no such flag. Sandbox telemetry stamps are S2's — in S1
+  the session log is the record.
 - `--json` — swap the command's end-of-run report for one line of
   JSON on stdout, under a shared stream discipline: `[bale] `
   informational lines and the human block go to stderr, stdout
@@ -1744,11 +1757,12 @@ their telemetry attempts record outcomes `scope-drift-refused` and
      target tip and diffing against a diverged working tree would
      misreport the divergence as undeclared changes.
 3. `cp -r response-NNN/files/. staging/` (overlay the changes).
-4. Run `bash apply.sh` with `cwd=staging/`. This handles deletes and
-   any non-cp operations. If `apply.sh` exits non-zero, bale captures
-   the exit code and output to the session log, wipes staging, and
-   rejects the tarball — no git side effects, no reconciliation
-   attempted.
+4. Run `bash apply.sh` with `cwd=staging/`, confined by the §8.5
+   sandbox (default-on; `--no-sandbox` escapes per invocation). This
+   handles deletes and any non-cp operations. If `apply.sh` exits
+   non-zero, bale captures the exit code and output to the session
+   log, wipes staging, and rejects the tarball — no git side effects,
+   no reconciliation attempted.
 
 **Validation-fidelity rationale (why the default stays
 `working-tree`).** The default stages the **working tree** while the
@@ -1784,6 +1798,53 @@ staging, and exits non-zero. The branch has not been created at this
 point — no git side effects.
 
 ### 8.5 Validate
+
+**Script confinement (v0.4.4, board 10 S1; ADR-0016).** Every
+response-script execution the apply pipeline performs — `apply.sh`
+(§8.3 step 4), the blind checkpoint, and `validation.sh` — runs
+inside a namespace sandbox by default: network off, filesystem
+writes confined to the staging tree plus the session log, child
+environment reduced to a minimal allowlist (`PATH`, `HOME`, locale,
+plus what bale itself deliberately passes — the ratified
+environment-scrubbing extension). Confinement is uniform across all
+three scripts (ADR-0016 position 1: the checkpoint's planner
+provenance is one merge deep, and confinement costs it nothing by
+contract) and applies to every apply, attended or not (position 2).
+The mechanism is stdlib Python driving util-linux `unshare` — user,
+mount, net, and pid namespaces around a generated prologue that
+sweeps every mount read-only (strict — no name allowlist of skippable
+mounts; stacked mounts at one path are deduplicated, and a listed
+target no path resolves to is skipped and logged, since what is
+unreachable admits no writes; every reachable mount must go
+read-only or the prologue fails loudly with the mount's full findmnt
+record), stages a private tmpfs onto
+`/tmp` with read-only pass-throughs for the bale-owned tempdirs, and
+bind-remounts staging and the session log writable — implemented in
+`bin/bale_sandbox.py`, whose module docstring owns the mechanism
+detail and the alternatives record (Landlock, bubblewrap, and their
+re-triggers). Confinement is on writes and network: bale-materialized
+read inputs (the checkpoint's tempdir, the response extraction dir)
+stay readable, the `--verbose` argv pass-through to `validation.sh`
+and its deliberate absence for the checkpoint are unchanged, and
+`cwd=staging` holds throughout. Before the first confined script of
+an apply, a self-probe verifies the mechanism actually holds (the
+namespace spins, the read-only sweep took, the network is off, the
+environment is scrubbed); on failure the apply refuses loudly, naming
+`--no-sandbox` (§5.4) as the documented bypass — never silent
+unconfined execution. TARBALL.md §7.1's write-location print and §9's
+never-outside-staging line stop being purely self-declared: the
+sandbox is their mechanical backstop. The planner-granted per-project
+network relaxation and the sandbox telemetry stamps are S2's, per the
+ratified board-10 decomposition.
+
+**Checkpoint syntax fail-fast (the ratified board-10 rider).** The
+`bash -n` pre-flight that has always gated the worker's `apply.sh`
+and `validation.sh` (§8.1) now has a planner-script sibling: when a
+blind checkpoint is configured, its base-tree bytes are `bash -n`
+checked at the same pre-staging point as the dangling and provenance
+checks below, so a syntax-errored checkpoint refuses before the
+expensive stage instead of surfacing mid-pipeline as an exit-2
+"checkpoint itself errored" HOLD.
 
 Validation runs in the staging copy. The bale branch is created at
 the target branch's tip (§8.2) and is never checked out — under

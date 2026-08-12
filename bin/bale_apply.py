@@ -805,6 +805,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     allow_out_of_scope: Optional[list[str]] = None,
                     allow_missing_required_check: Optional[list[str]] = None,
                     accept_checkpoint_change: bool = False,
+                    no_sandbox: bool = False,
                     ) -> int:
     """The apply pipeline proper: extract, validate, stage, run
     validation.sh, commit-or-hold. Shared between cmd_apply (after lock
@@ -887,6 +888,18 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     configured now; a stampless request (hand-rolled, or packed
     pre-0.3.28) verifies nothing and stamps stamp_matched: null.
 
+    `no_sandbox` (v0.4.4, board 10 S1 — ADR-0016; cmd_apply/cmd_retry
+    --no-sandbox) disables the default-on namespace confinement of the
+    three response-script executions (apply.sh, the blind checkpoint,
+    validation.sh) for this invocation only. The bypass is FORCE-logged
+    at pipeline start; the same ratified override contract as the flags
+    above applies: per-invocation only, deliberately no config key,
+    re-stated on retry, never carried from a prior attempt. It exists
+    for debugging the sandbox itself, not for routine convenience
+    (ADR-0016 position 2). No effect under dry_run, which runs no
+    scripts. Sandbox telemetry stamps are S2's; in S1 the flag is loud
+    in the session log only.
+
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
     Each terminal outcome below (merge, inspect, revert; plus the bailout
@@ -919,6 +932,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     import bale_config  # lazy — see module docstring
     from bale_staging import (  # lazy — see module docstring
         build_session_commit,
+        check_checkpoint_shell_syntax,
         check_response_shell_syntax,
         reconcile_staging_against_manifest,
         run_blind_checkpoint,
@@ -945,6 +959,16 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     # The session log path as the json reports cite it (absolute) — the
     # same file cmd_apply/cmd_retry already wired set_log_file to.
     session_log = repo / ".bale" / "logs" / f"{locked_sid}.log"
+
+    # ADR-0016 position 2: the sandbox escape is per-invocation and
+    # loud. Logged here, once, before any script could run under it —
+    # the FORCE: line is the audit trail; sandbox telemetry stamps are
+    # S2's, so in S1 the session log is the record.
+    if no_sandbox and not dry_run:
+        log("sandbox DISABLED for this invocation (--no-sandbox): "
+            "apply.sh, the blind checkpoint, and validation.sh will run "
+            "unconfined — operator privileges, inherited environment, "
+            "network on", force=True)
 
     # Extract and validate the tarball into a temp dir.
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -1625,6 +1649,16 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 log("request carries no checkpoint provenance stamp "
                     "(hand-rolled, or packed pre-0.3.28); verification "
                     "skipped — stamp_matched: null")
+            # The ratified board-10 fail-fast rider: `bash -n` the
+            # checkpoint's base-tree bytes here, at the same pre-staging
+            # point as the dangling and provenance checks, so a
+            # syntax-errored checkpoint refuses before the expensive
+            # stage instead of surfacing mid-pipeline as an exit-2
+            # "checkpoint itself errored" HOLD. check_response_shell_
+            # syntax gates the worker's two scripts above; this is the
+            # planner-script sibling.
+            check_checkpoint_shell_syntax(repo, base_sha, checkpoint_path)
+            log(f"blind checkpoint syntax check passed (base-tree bytes)")
             log(f"blind checkpoint configured: {checkpoint_path} "
                 f"(bale.toml [validation] base, project layer; "
                 f"base-tree bytes will run)")
@@ -1710,6 +1744,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 strategy=staging_strategy,
                 untracked_inputs=staging_untracked,
                 base_sha=base_sha,
+                sandbox=not no_sandbox,
+                log_path=session_log,
             )
         except Exception as e:
             shutil.rmtree(staging, ignore_errors=True)
@@ -1755,7 +1791,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         if checkpoint_path is not None:
             checkpoint_result = run_blind_checkpoint(
                 repo, staging, base_sha, checkpoint_path,
-                locked_sid, verbose=verbose)
+                locked_sid, verbose=verbose, sandbox=not no_sandbox)
             log(f"blind checkpoint exit code: "
                 f"{checkpoint_result['exit_code']} ({checkpoint_path})")
 
@@ -1763,7 +1799,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # telemetry record's §7.3 claim/verdict promotion (v0.3.9, B2).
         exit_code, val_output = run_validation_sh(
             repo, response_dir, staging, manifest,
-            locked_sid, verbose=verbose)
+            locked_sid, verbose=verbose, sandbox=not no_sandbox)
         log(f"validation.sh exit code: {exit_code}")
 
         # The D4 telemetry stamp for every validated attempt this apply
@@ -2512,6 +2548,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
             accept_checkpoint_change=args.accept_checkpoint_change,
+            no_sandbox=args.no_sandbox,
         )
 
     # 8.1 step 5 — the ADR-0008 narrow rule, replacing the blanket
@@ -2538,6 +2575,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
             accept_checkpoint_change=args.accept_checkpoint_change,
+            no_sandbox=args.no_sandbox,
         )
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "apply",
