@@ -76,6 +76,7 @@ section "install dir: $INSTALL_DIR"
 section "filesystem layout"
 [[ -f "$BALE" ]]                                && pass "bin/bale exists"        || fail "bin/bale exists"
 [[ -x "$BALE" ]]                                && pass "bin/bale executable"    || fail "bin/bale executable"
+[[ -f "$INSTALL_DIR/bin/VERSION" ]]             && pass "bin/VERSION present"    || fail "bin/VERSION present"
 [[ -f "$INSTALL_DIR/bin/bale_config.py" ]]      && pass "bin/bale_config.py present" || fail "bin/bale_config.py present"
 [[ -f "$INSTALL_DIR/bin/bale_validate.py" ]]    && pass "bin/bale_validate.py present" || fail "bin/bale_validate.py present"
 [[ -f "$INSTALL_DIR/bin/bale_staging.py" ]]     && pass "bin/bale_staging.py present" || fail "bin/bale_staging.py present"
@@ -192,21 +193,22 @@ fi
 
 section "CLI surface"
 
-# Read the canonical VERSION from bin/bale so this script doesn't
-# duplicate the version string. Matches the module-level
-#   VERSION = "X.Y.Z"
-# assignment near the top of bin/bale. Reading from the declaration
-# (rather than from `bin/bale --version` output) keeps the check
-# meaningful: if argparse's `--version` wiring ever regresses against
-# the declared constant, the substring check below will catch it.
-# `head -1` is a defensive belt in case future edits introduce a
-# second matching line; the first top-level assignment is canonical.
-EXPECTED_VERSION=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$BALE" | head -1)
+# Read the canonical VERSION from bin/VERSION, the one-line version
+# file bin/bale itself reads at startup (extracted from bin/bale's old
+# VERSION constant in v0.4.5, board 10 S2, so version bumps stop
+# colliding on bin/bale; scripts/build.sh reads the same file). Reading
+# from the file (rather than from `bin/bale --version` output) keeps
+# the check meaningful: if bin/bale's read of the file or argparse's
+# `--version` wiring ever regresses against the declared version, the
+# substring check below will catch it. `head -n 1` plus the whitespace
+# trim is a defensive belt against a hand-edited trailing line or
+# stray spacing; the first line is canonical.
+EXPECTED_VERSION=$(head -n 1 "$INSTALL_DIR/bin/VERSION" 2>/dev/null | tr -d '[:space:]')
 if [[ -n "$EXPECTED_VERSION" ]]; then
-  pass "read VERSION from bin/bale ($EXPECTED_VERSION)"
+  pass "read VERSION from bin/VERSION ($EXPECTED_VERSION)"
   check_output "--version reports $EXPECTED_VERSION" "bale $EXPECTED_VERSION" "$BALE" --version
 else
-  fail "read VERSION from bin/bale" "no top-level VERSION = \"...\" assignment found"
+  fail "read VERSION from bin/VERSION" "file missing or empty — the canonical one-line version file since v0.4.5"
 fi
 check_output "--help mentions pack"     "pack"       "$BALE" --help
 check_output "--help mentions apply"    "apply"      "$BALE" --help
@@ -304,7 +306,7 @@ if [[ -L "$SYM" && "$(readlink "$SYM")" == "$BALE" ]]; then
   if [[ -n "$EXPECTED_VERSION" ]]; then
     check_output "via symlink: --version" "bale $EXPECTED_VERSION" "$SYM" --version
   else
-    printf '  [SKIP] via symlink: --version (could not read VERSION from bin/bale)\n'
+    printf '  [SKIP] via symlink: --version (could not read VERSION from bin/VERSION)\n'
   fi
 else
   printf '  [SKIP] no symlink at %s pointing at this install\n' "$SYM"

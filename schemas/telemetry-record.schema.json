@@ -170,6 +170,14 @@
             "items": { "type": "string" },
             "description": "Required check NAMES a per-invocation `--allow-missing-required-check` admitted past the required-check superset gate on this attempt (board 6 session B, additive field; BALE.md section 8.1 step 15) — the overridden_paths mirror, with the gate's own unit: check names, not paths. Bale-computed, always a list: empty means no override was in play (including every pre-session-B attempt, where the key is absent). On a required-check-refused attempt it carries what a PARTIAL override admitted while other missing names still refused."
           },
+          "sandbox_escaped": {
+            "type": "boolean",
+            "description": "True when this attempt's response scripts (apply.sh, the blind checkpoint, validation.sh) executed UNCONFINED under a per-invocation --no-sandbox (v0.4.5, board 10 S2 — ADR-0016 position 2's loud escape, promoted from the session log's FORCE line to a durable stamp). Bale-computed and stamped unconditionally by build_telemetry_attempt on every post-S2 attempt of every command — key presence is epoch membership (the overridden_paths posture: uniform shape, absent only on pre-S2 records), and false is the known-negative form, including attempts where no script ran at all (unlock, pack, rollback, rejected-before-staging — nothing executed, so nothing escaped). The escape's use frequency is itself the telemetry signal ADR-0016 flagged worth watching. Not in required: pre-S2 records keep validating."
+          },
+          "network_grant_exercised": {
+            "type": "boolean",
+            "description": "True when at least one confined script execution on this attempt ran with the project's network grant active — bale.toml [sandbox] network (project layer only), which makes bale pass network=True so the sandbox omits its --net leg while filesystem confinement and the environment scrub stay intact (v0.4.5, board 10 S2 — ADR-0016 position 3: planner-granted, per-project, contract-only, recorded whenever exercised). Bale-computed and stamped unconditionally like sandbox_escaped above — key presence is epoch membership, false is the known-negative form. An escaped (--no-sandbox) attempt records false here even when the grant is configured: nothing confined ran, so no grant was exercised (unconfined scripts have network regardless). Write-only at S2 per the ratified deferral — the bale stats read side lands when data accrues. Not in required: pre-S2 records keep validating."
+          },
           "change_paths": {
             "type": "array",
             "items": { "type": "string" },

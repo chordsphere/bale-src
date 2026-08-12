@@ -251,6 +251,34 @@ VALIDATION_VALUES = (
     "required",
 )
 
+# Value-shaped configurables under the [sandbox] section — the ADR-0016
+# position-3 network grant (v0.4.5, board 10 S2). Same trio contract as
+# the sections above: each key has a typed accessor, a
+# walk_configurables() block, and a render_bale_toml() branch. Like
+# [validation], the section is PROJECT-LAYER ONLY: the grant is
+# planner-granted, per-project, and contract-only (ADR-0016: it lives
+# in planner-controlled project configuration, decided when the project
+# adopts the workflow shape, "never global" per the ratified decision) —
+# the wizard walks it in project mode only, and merged_config never
+# inherits it from the global layer, so a hand-edited global key cannot
+# silently grant network to every repo the install touches.
+SANDBOX_VALUES = (
+    # Bool. When true, bale passes network=True to every confined
+    # response-script execution in this repo — apply.sh, the blind
+    # checkpoint, validation.sh — so the sandbox's unshare invocation
+    # omits --net (bale_sandbox.confined_command). The confinement
+    # floor is unchanged: absent/false = network off (run_confined's
+    # own default stays --net), and the grant relaxes the network leg
+    # only — filesystem confinement and environment scrubbing are
+    # identical either way. Never worker-granted: nothing in a
+    # response tarball can request, declare, or widen it; the key
+    # lives in committed project config and is never prompted at
+    # runtime. Every apply that runs confined scripts with the grant
+    # active logs it and stamps network_grant_exercised: true into
+    # the attempt's telemetry record (BALE.md §8.9).
+    "network",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -442,6 +470,22 @@ def merged_config(repo: Path) -> dict:
             out_validation[key] = p_validation[key]
     if out_validation:
         merged["validation"] = out_validation
+
+    # [sandbox] — PROJECT LAYER ONLY (v0.4.5, board 10 S2; see
+    # SANDBOX_VALUES). Deliberately no `elif key in g_sandbox` branch:
+    # a [sandbox] table in the global file is ignored here, never
+    # inherited — the ADR-0016 network grant is planner-granted and
+    # per-project ("never global"), and a global key would silently
+    # widen network to every repo the install touches, the same
+    # every-repo hazard the [validation] project-only ruling rejected.
+    p_sandbox = (p.get("sandbox")
+                 if isinstance(p.get("sandbox"), dict) else {})
+    out_sandbox: dict = {}
+    for key in SANDBOX_VALUES:
+        if key in p_sandbox:
+            out_sandbox[key] = p_sandbox[key]
+    if out_sandbox:
+        merged["sandbox"] = out_sandbox
 
     return merged
 
@@ -857,6 +901,45 @@ def get_validation_required(cfg: dict) -> list[str]:
             fail(f"{BALE_CONFIG}: validation.required[{i}] is empty; "
                  f"remove the entry or name a check")
     return [entry.strip() for entry in raw]
+
+
+def get_sandbox_network(cfg: dict) -> bool:
+    """Return [sandbox].network from the merged config; absent → False.
+
+    The ADR-0016 position-3 network grant (v0.4.5, board 10 S2): when
+    True, the apply pipeline passes network=True to every confined
+    response-script execution — apply.sh, the blind checkpoint,
+    validation.sh — relaxing the sandbox's network leg only. False or
+    absent is the confinement floor: network off, byte-identical to
+    the pre-grant behavior. The grant gates what bale *passes*; it
+    never changes run_confined's own network=False default.
+
+    Merged-config note: [sandbox] is project-layer only (SANDBOX_VALUES
+    owns the rationale) — merged_config never carries a global value
+    into this section, so this accessor reads the project's own key or
+    nothing.
+
+    Bool-shaped like the [apply] bools, so there is no empty-suppress
+    form, and the strict non-bool fatality matches _get_apply_bool's
+    posture exactly: a typo must not silently grant (or silently
+    revoke) network to untrusted script execution — a string "true" is
+    a typo in TOML terms, not a boolean.
+    """
+    from __main__ import fail
+
+    sandbox_section = cfg.get("sandbox")
+    if sandbox_section is None:
+        return False
+    if not isinstance(sandbox_section, dict):
+        fail(f"{BALE_CONFIG}: [sandbox] must be a table, "
+             f"got {type(sandbox_section).__name__}")
+    raw = sandbox_section.get("network")
+    if raw is None:
+        return False
+    if not isinstance(raw, bool):
+        fail(f"{BALE_CONFIG}: sandbox.network must be a boolean "
+             f"(true/false), got {type(raw).__name__}")
+    return raw
 
 
 # ---------------------------------------------------------------------------
@@ -1567,6 +1650,43 @@ def walk_configurables(existing: dict, *, layer: str,
         if val_list is not None:
             new.setdefault("validation", {})["required"] = val_list
 
+        # ---- [sandbox].network (PROJECT LAYER ONLY) ----------------------
+        # The ADR-0016 position-3 network grant (v0.4.5, board 10 S2).
+        # Walked only in project mode, per the project-only ruling
+        # recorded on SANDBOX_VALUES: the grant is planner-granted and
+        # per-project ("never global"), so `bale config init --global`
+        # never gains this prompt and `inherited` is deliberately not
+        # consulted (merged_config never carries a global value into
+        # [sandbox] anyway). Bool walk per the [apply] bools' machinery.
+        existing_sandbox = (existing.get("sandbox")
+                            if isinstance(existing.get("sandbox"), dict)
+                            else {})
+        raw_cur_b = existing_sandbox.get("network")
+        current_b = raw_cur_b if isinstance(raw_cur_b, bool) else None
+
+        val_b = _prompt_bool(
+            "sandbox.network",
+            current=current_b,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip (network stays OFF — the floor).",
+                "true = grant NETWORK to this repo's confined response-",
+                "script executions (apply.sh, the blind checkpoint,",
+                "validation.sh): bale passes network=True and the sandbox",
+                "omits its --net leg. Filesystem confinement and the",
+                "environment scrub are unchanged. For projects whose",
+                "validation genuinely needs network (dependency-fetching",
+                "builds) — ADR-0016's planner-granted hatch, decided here",
+                "in committed config, never prompted at apply time, never",
+                "worker-granted. Exercised grants are logged and stamped",
+                "network_grant_exercised in telemetry (BALE.md 8.9).",
+                "Project-layer only — the global wizard does not walk",
+                "this key.",
+            ],
+        )
+        if val_b is not None:
+            new.setdefault("sandbox", {})["network"] = val_b
+
     return new
 
 
@@ -1729,6 +1849,22 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
                     parts.append(f"{key} = {rendered_array}")
                 else:
                     parts.append(f"{key} = {json.dumps(v)}")
+        parts.append("")
+
+    # [sandbox] section (v0.4.5, board 10 S2 — the ADR-0016 network
+    # grant). One bool key; json.dumps(True) == "true", a valid TOML
+    # boolean, so the same serializer covers it. Emitted in
+    # SANDBOX_VALUES order. Project-layer only by walk (the ruling on
+    # SANDBOX_VALUES): the global wizard never puts this section in
+    # its dict, so a global bale.toml never gains it through this
+    # renderer — and a hand-edited global [sandbox] is ignored by
+    # merged_config regardless.
+    sandbox_section = cfg.get("sandbox") or {}
+    if sandbox_section:
+        parts.append("[sandbox]")
+        for key in SANDBOX_VALUES:
+            if key in sandbox_section:
+                parts.append(f"{key} = {json.dumps(sandbox_section[key])}")
         parts.append("")
 
     return "\n".join(parts)

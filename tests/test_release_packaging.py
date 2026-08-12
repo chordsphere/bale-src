@@ -13,15 +13,23 @@ Covers the two packaging deliverables of the stats closeout session:
 
 - **The version-tag drift guard** — the release-time check that refuses
   when the highest v-prefixed version tag referenced across the release
-  surface exceeds ``bin/bale``'s ``VERSION`` constant (the session-005
-  drift class). Exercised E2E by driving the REAL ``scripts/build.sh``
-  over a SYNTHETIC minimal tree: every ``RELEASE_FILES`` entry is
-  synthesized with just enough content to clear the earlier pre-flights
-  (a ``VERSION`` line in the dummy ``bin/bale``, a generated
-  ``INSTALL_LAYOUT`` in the dummy ``install.sh``, parseable dummies for
-  ``.py``/``.json``/``.sh``), so each test controls exactly which
-  version tags the scrape sees. The build under test is the real
-  script; only the tree it packages is synthetic.
+  surface exceeds the canonical version in ``bin/VERSION`` (the
+  session-005 drift class; the constant moved out of ``bin/bale`` in
+  v0.4.5, board 10 S2). Exercised E2E by driving the REAL
+  ``scripts/build.sh`` over a SYNTHETIC minimal tree: every
+  ``RELEASE_FILES`` entry is synthesized with just enough content to
+  clear the earlier pre-flights (the version line in the dummy
+  ``bin/VERSION``, a generated ``INSTALL_LAYOUT`` in the dummy
+  ``install.sh``, parseable dummies for ``.py``/``.json``/``.sh``), so
+  each test controls exactly which version tags the scrape sees. The
+  build under test is the real script; only the tree it packages is
+  synthetic.
+
+- **Release-list coverage of ``bin/VERSION``** — the extracted version
+  file (v0.4.5) is release-critical the same way the eighth sibling
+  was: ``bin/bale`` reads it at startup, so a release without it is
+  dead on arrival. Pinned in both lists beside the ``bale_stats``
+  rows.
 
 Sandbox doctrine per ADR-0005: every write lands under a per-test
 ``TemporaryDirectory`` — ``TMPDIR`` is pointed into it so build.sh's
@@ -108,9 +116,16 @@ def make_release_tree(tmp: Path, *, version: str = SANDBOX_VERSION) -> Path:
     for rel in release_files:
         p = repo / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        if rel == "bin/bale":
-            # Python-parseable, carries the constant the guard reads.
-            p.write_text(f'VERSION = "{version}"\n', encoding="utf-8")
+        if rel == "bin/VERSION":
+            # The canonical one-line version file the guard reads
+            # (v0.4.5 — extracted from bin/bale's old constant).
+            p.write_text(f"{version}\n", encoding="utf-8")
+        elif rel == "bin/bale":
+            # Python-parseable stub; the real bin/bale reads
+            # bin/VERSION at startup, and the guard no longer scrapes
+            # this file — only the syntax pre-flight touches it here.
+            p.write_text("# synthetic bin/bale (packaging tests)\n",
+                         encoding="utf-8")
         elif rel == "install.sh":
             # bash -n clean, INSTALL_LAYOUT generated to match exactly.
             p.write_text(
@@ -163,6 +178,14 @@ class ReleaseListCoverageTest(unittest.TestCase):
 
     def test_install_layout_covers_bale_stats(self) -> None:
         self.assertIn("bin/bale_stats.py", extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
+    def test_release_files_covers_bin_version(self) -> None:
+        """The extracted version file (v0.4.5) ships: bin/bale reads it
+        at startup, so a release without it is dead on arrival."""
+        self.assertIn("bin/VERSION", extract_bash_array(BUILD_SH, "RELEASE_FILES"))
+
+    def test_install_layout_covers_bin_version(self) -> None:
+        self.assertIn("bin/VERSION", extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
 
     def test_lists_are_set_equal(self) -> None:
         release = extract_bash_array(BUILD_SH, "RELEASE_FILES")
@@ -221,7 +244,7 @@ class VersionTagDriftGuardTest(unittest.TestCase):
         result = run_build(self.tmp, repo, "--version", "1.2.3")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("version-tag drift", result.stderr)
-        self.assertIn(f'VERSION = "{SANDBOX_VERSION}"', result.stderr)
+        self.assertIn(f"bin/VERSION ({SANDBOX_VERSION})", result.stderr)
 
     def test_empty_scrape_is_fatal(self) -> None:
         """Zero scraped tags is a broken scrape, not a clean tree."""

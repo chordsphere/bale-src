@@ -30,7 +30,12 @@ generated fixed-shape prologue:
    EPERM (the first target-machine apply HOLDed on exactly this:
    /run/user there is an overmount pair, shadowed noatime under
    topmost relatime). A listed target that does not resolve at all
-   (shadowed by an overmount higher up) is skipped and recorded in
+   (shadowed by an overmount at the same path, or by a later mount
+   over an ancestor path — the nested-sandbox case: the level-1
+   prologue's fresh /proc shadows an inherited
+   /proc/sys/fs/binfmt_misc submount whose mountpoint directory
+   still exists, observed on WSL2 at the first sandboxed apply,
+   v0.4.5) is skipped and recorded in
    the session log — what no path reaches, the confined child cannot
    write to either; this is a capability rule, not a name allowlist.
    Every reachable target must remount ro or the prologue fails
@@ -227,25 +232,103 @@ def build_prologue(*, staging: Path, log_path: Path,
         # being made read-only and EBUSY it.
         #
         # Reachability rule (capability-based, NOT a name allowlist): a
-        # listed target that does not resolve — shadowed by an
-        # overmount higher up, so no path reaches it — is skipped and
-        # recorded: what no path resolves to, the confined child cannot
-        # write to either. Every reachable target must still remount ro
-        # or the prologue fails loudly, with the target's full findmnt
-        # record in the sentinel so environment drift self-diagnoses.
+        # listed target that does not resolve TO THAT MOUNT — shadowed
+        # by an overmount at the same path, or by a later mount over an
+        # ancestor path (its mountpoint directory may still exist in
+        # the shadowing filesystem) — is skipped and recorded: what no
+        # path resolves to, the confined child cannot write to either.
+        # Every reachable target must still remount ro or the prologue
+        # fails loudly, with the target's full findmnt record in the
+        # sentinel so environment drift self-diagnoses.
+        #
+        # Reachability is decided by the KERNEL, not the mount table
+        # (v0.4.5 fix, first sandboxed apply, WSL2): a submount
+        # shadowed by a later mount over an ancestor path is EINVAL
+        # ("not mounted") to remount, while its mountpoint directory
+        # still exists — canonically, the level-1 prologue's own fresh
+        # /proc (step 3) shadows an inherited /proc/sys/fs/binfmt_misc
+        # submount, and a level-2 sweep then faced a listed-but-
+        # phantom mount and failed loud, breaking nesting. Tool survey
+        # in the reproduced topology: findmnt -T, findmnt -M, and
+        # mountpoint(1) all answer from the table (longest-prefix
+        # entry match) and report the phantom as reachable; st_dev
+        # comparison collides across same-device mounts. The kernel's
+        # own answer is /proc/self/fdinfo/<fd> mnt_id for an O_PATH
+        # open of the target, mapped through /proc/self/mountinfo:
+        # reachable iff the mount actually containing the path is one
+        # whose mountpoint IS the target. One python3 pass annotates
+        # every findmnt line R/S (python3 is bale's own hard
+        # requirement, so the prologue may lean on it).
+        #
+        # Fail-closed plumbing, because the failure direction matters:
+        # a broken annotator must never yield an unswept (writable)
+        # tree. Output is captured with the exit status checked, an
+        # empty annotation is fatal (a real mount table is never
+        # empty), any unexpected per-target error raises inside the
+        # annotator (only a can't-open path — the old [ -e ] rule —
+        # marks S), and the raw escaped target text passes through
+        # untouched so the shell's %b stays the single decode point.
+        'BALE_REACH_PY=$(cat <<"BALE_REACH_EOF"',
+        "import os, sys",
+        "mounts = {}",
+        'with open("/proc/self/mountinfo") as fh:',
+        "    for line in fh:",
+        '        f = line.split(" ")',
+        "        mounts[f[0]] = f[4]",
+        "def unesc(s):",
+        '    return bytes(s, "utf-8").decode("unicode_escape")',
+        "out = []",
+        "for raw in sys.stdin.read().splitlines():",
+        "    if not raw:",
+        "        continue",
+        "    t = unesc(raw)",
+        '    mark = "S"',
+        "    fd = -1",
+        "    try:",
+        "        fd = os.open(t, os.O_PATH)",
+        "    except OSError:",
+        "        fd = -1",
+        "    if fd >= 0:",
+        "        try:",
+        "            mnt_id = None",
+        '            with open("/proc/self/fdinfo/%d" % fd) as fh:',
+        "                for l in fh:",
+        '                    if l.startswith("mnt_id:"):',
+        "                        mnt_id = l.split()[1]",
+        "                        break",
+        "            if mnt_id is None:",
+        "                raise RuntimeError(",
+        '                    "no mnt_id in fdinfo - cannot decide '
+        'reachability")',
+        "            mp = mounts.get(mnt_id)",
+        "            if mp is not None and unesc(mp) == t:",
+        '                mark = "R"',
+        "        finally:",
+        "            os.close(fd)",
+        '    out.append(mark + "|" + raw)',
+        'sys.stdout.write("\\n".join(out) + "\\n")',
+        "BALE_REACH_EOF",
+        ")",
+        'entries=$(findmnt -rn -o TARGET | python3 -c "$BALE_REACH_PY")'
+        ' || fail "sweep reachability annotator failed — refusing an '
+        'unswept tree"',
+        '[ -n "$entries" ] || fail "sweep reachability annotator '
+        'produced no entries — refusing an unswept tree"',
         'swept=""',
         'skipped=""',
-        "while IFS= read -r target; do",
+        "while IFS= read -r entry; do",
+        '  mark=${entry%%|*}',
+        '  target=${entry#*|}',
         "  target=$(printf '%b' \"$target\")",
         '  case ",$swept," in *",$target,"*) continue;; esac',
         '  swept="$swept,$target"',
-        '  if ! [ -e "$target" ]; then skipped="$skipped $target"; '
+        '  if [ "$mark" != "R" ]; then skipped="$skipped $target"; '
         "continue; fi",
         '  err=$(mount -n -o remount,bind,ro "$target" 2>&1) || '
         'fail "read-only remount failed for $target: $err'
         ' [findmnt: $(findmnt -rn -o TARGET,FSTYPE,VFS-OPTIONS,FS-OPTIONS,'
         'PROPAGATION "$target" 2>&1 | tr "\\n" ";")]"',
-        "done < <(findmnt -rn -o TARGET)",
+        'done <<< "$entries"',
         # 3. fresh rw proc — the swept instance is ro, and confinement
         # must stay nestable (module docstring).
         'err=$(mount -n -t proc proc /proc 2>&1) || '
@@ -314,9 +397,10 @@ def confined_command(argv: Sequence[str], *, staging: Path,
                      network: bool = False) -> list[str]:
     """The full subprocess argv: unshare + prologue + the wrapped argv.
 
-    `network=True` omits --net from the unshare flags — the hook the
-    future planner-granted network relaxation (ADR-0016 position 3,
-    S2) will drive; nothing in S1 passes it, and the filesystem
+    `network=True` omits --net from the unshare flags — the leg the
+    planner-granted network relaxation drives (ADR-0016 position 3;
+    since v0.4.5, board 10 S2, bale passes it when the project's
+    bale.toml [sandbox] network grant is set). The filesystem
     confinement is identical either way.
     """
     flags = [f for f in UNSHARE_ARGS if not (network and f == "--net")]
@@ -372,7 +456,9 @@ def run_confined(argv: Sequence[str], *, staging: Path, log_path: Path,
     The pinned S1 surface (board 10): `argv` positional; `staging` and
     `log_path` required keywords; the return value carries
     `.returncode`. Writes land only in `staging`, `log_path`, and any
-    `extra_writable` path; the network is off; the child environment
+    `extra_writable` path; the network is off unless `network=True`
+    (the ADR-0016 position-3 grant leg — filesystem confinement is
+    unchanged by it); the child environment
     is ENV_ALLOWLIST plus `env_extra`. A prologue failure surfaces as
     PROLOGUE_EXIT_CODE with a PROLOGUE_FAILURE_SENTINEL line on
     stderr — the sentinel, not the exit code, is the discriminator.

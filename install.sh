@@ -218,6 +218,7 @@ log "install dir: $INSTALL_DIR"
 # ")" at column 0.
 INSTALL_LAYOUT=(
   bin/bale
+  bin/VERSION
   bin/bale_config.py
   bin/bale_validate.py
   bin/bale_staging.py

@@ -222,7 +222,24 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
 # 1. Imports + constants
 # ---------------------------------------------------------------------------
 
-VERSION = "0.4.4"
+# The canonical version lives in bin/VERSION, a one-line sibling file
+# (extracted in v0.4.5, board 10 S2's ratified rider) so version bumps
+# stop making every bumping session collide on this file. Read once at
+# module load; scripts/build.sh and validate.sh read the same file, so
+# the three surfaces can't drift apart. A missing or empty file is a
+# broken install — fail loudly with the remedy, never limp along with
+# a placeholder version.
+_VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+try:
+    VERSION = _VERSION_FILE.read_text(encoding="utf-8").strip()
+except OSError as _e:
+    sys.exit(f"[bale] error: could not read {_VERSION_FILE}: {_e} — the "
+             f"install is missing its version file (re-run install.sh, "
+             f"or upgrade.sh over a fresh release tarball)")
+if not VERSION:
+    sys.exit(f"[bale] error: {_VERSION_FILE} is empty — the install's "
+             f"version file is broken (re-run install.sh, or upgrade.sh "
+             f"over a fresh release tarball)")
 
 # bin/bale is at <install>/bin/bale; docs are siblings at <install>/docs/.
 # Path(__file__).resolve() follows symlinks, so a symlinked bale on PATH
@@ -4856,7 +4873,9 @@ def build_parser() -> argparse.ArgumentParser:
              "exists for debugging the sandbox itself, not for routine "
              "convenience. Per-invocation only — deliberately no config "
              "key, per the ratified override contract — and every use "
-             "is logged prominently (FORCE: line in the session log).",
+             "is logged prominently (FORCE: line in the session log) "
+             "and stamped sandbox_escaped: true into the attempt's "
+             "telemetry record (v0.4.5, board 10 S2; BALE.md §8.9).",
     )
     p_apply.add_argument(
         "--json", action="store_true",
