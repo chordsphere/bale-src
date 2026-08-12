@@ -87,6 +87,7 @@ die() { printf '[build] error: %s\n' "$*" >&2; exit 1; }
 # array (${#RELEASE_FILES[@]}), so the array is the single source.
 RELEASE_FILES=(
   bin/bale
+  bin/VERSION
   bin/bale_config.py
   bin/bale_validate.py
   bin/bale_staging.py
@@ -237,22 +238,26 @@ done < <(find "$REPO_ROOT/bin" "$REPO_ROOT/docs" "$REPO_ROOT/schemas" "$REPO_ROO
   || die "tree coverage: file(s) on disk but in no release list:$uncovered — add to RELEASE_FILES (and install.sh's INSTALL_LAYOUT), or remove from the tree"
 log "  every file under bin/ docs/ schemas/ tools/ is in RELEASE_FILES"
 
-# Resolve version. The canonical source is bin/bale's top-level
-# VERSION = "X.Y.Z" assignment. The sed pattern matches the one in
-# validate.sh's "CLI surface" section so the two read the same line —
-# a regression in either is caught by the other on the next install.
-# The constant is read unconditionally (v0.3.25): the version-tag drift
-# guard below compares against it even under --version, because the
-# drift class is tree-vs-constant, not tree-vs-artifact-name — a
-# snapshot override must neither mask nor trip the guard.
-CONSTANT_VERSION=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$REPO_ROOT/bin/bale" | head -1)
-[[ -n "$CONSTANT_VERSION" ]] || die "could not read VERSION from bin/bale (no top-level VERSION = \"...\" assignment)"
+# Resolve version. The canonical source is bin/VERSION, a one-line file
+# (extracted from bin/bale's old VERSION constant in v0.4.5, board 10
+# S2, so version bumps stop making every bumping session collide on
+# bin/bale). bin/bale reads the same file at startup and validate.sh's
+# "CLI surface" section reads it too, so the three surfaces cannot
+# drift apart — a regression in any one is caught by another on the
+# next install. The constant is read unconditionally (v0.3.25): the
+# version-tag drift guard below compares against it even under
+# --version, because the drift class is tree-vs-constant, not
+# tree-vs-artifact-name — a snapshot override must neither mask nor
+# trip the guard.
+[[ -f "$REPO_ROOT/bin/VERSION" ]] || die "could not read the version: bin/VERSION is missing (the canonical one-line version file since v0.4.5)"
+CONSTANT_VERSION=$(head -n 1 "$REPO_ROOT/bin/VERSION" | tr -d '[:space:]')
+[[ -n "$CONSTANT_VERSION" ]] || die "bin/VERSION is empty — the canonical version file must carry one X.Y.Z line"
 if [[ -n "$VERSION_OVERRIDE" ]]; then
   VERSION="$VERSION_OVERRIDE"
-  log "version: $VERSION (override; VERSION constant in bin/bale: $CONSTANT_VERSION)"
+  log "version: $VERSION (override; bin/VERSION: $CONSTANT_VERSION)"
 else
   VERSION="$CONSTANT_VERSION"
-  log "version: $VERSION (from bin/bale)"
+  log "version: $VERSION (from bin/VERSION)"
 fi
 
 # Pre-flight: version-tag drift (v0.3.25). A tree that cites a version
@@ -289,9 +294,9 @@ if version_gt "$MAX_TAG" "$CONSTANT_VERSION"; then
       offenders="$offenders $f"
     fi
   done
-  die "version-tag drift: v$MAX_TAG (referenced in:$offenders) exceeds bin/bale's VERSION = \"$CONSTANT_VERSION\" — bump the constant, or fix the stray reference(s)"
+  die "version-tag drift: v$MAX_TAG (referenced in:$offenders) exceeds bin/VERSION ($CONSTANT_VERSION) — bump bin/VERSION, or fix the stray reference(s)"
 fi
-log "  highest referenced tag v$MAX_TAG <= VERSION constant $CONSTANT_VERSION"
+log "  highest referenced tag v$MAX_TAG <= bin/VERSION $CONSTANT_VERSION"
 
 # Cheap pre-flight syntax checks. We'd rather fail before tarring than
 # ship a release whose first sign of trouble is a user's install.sh.

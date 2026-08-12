@@ -562,8 +562,11 @@ The following flags apply across multiple commands:
   prominently (FORCE: line in the session log). `bale retry` takes
   the same flag and re-states it per invocation, never carrying it
   from a failed attempt; `bale revert` executes no response scripts
-  and takes no such flag. Sandbox telemetry stamps are S2's — in S1
-  the session log is the record.
+  and takes no such flag. Every use is also stamped durably: the
+  attempt's telemetry entry records `sandbox_escaped: true` (v0.4.5,
+  board 10 S2; §8.9), promoting the FORCE line's fact to the
+  aggregable record — the escape's use frequency is itself the
+  signal ADR-0016 flagged worth watching.
 - `--json` — swap the command's end-of-run report for one line of
   JSON on stdout, under a shared stream discipline: `[bale] `
   informational lines and the human block go to stderr, stdout
@@ -1833,9 +1836,30 @@ environment is scrubbed); on failure the apply refuses loudly, naming
 `--no-sandbox` (§5.4) as the documented bypass — never silent
 unconfined execution. TARBALL.md §7.1's write-location print and §9's
 never-outside-staging line stop being purely self-declared: the
-sandbox is their mechanical backstop. The planner-granted per-project
-network relaxation and the sandbox telemetry stamps are S2's, per the
-ratified board-10 decomposition.
+sandbox is their mechanical backstop.
+
+**Network grant (v0.4.5, board 10 S2; ADR-0016 position 3).** A
+project whose validation genuinely needs network (dependency-fetching
+builds) opts in via `bale.toml`'s `[sandbox] network` — a single
+boolean, wizard-walked by `bale config init` at the **project layer
+only**, never inherited from the global file (the `[validation]`
+project-only precedent: planner-granted, per-project, and "never
+global" per the ratified decision — a global key would silently widen
+network to every repo the install touches). The grant is contract,
+not prompt: declared in committed config, decided when the project
+adopts the workflow shape, never asked at apply time — and **never
+worker-granted**: nothing in a response tarball can request, declare,
+or widen it. Semantics: absent or false is the confinement floor —
+network off, byte-identical to S1, and `run_confined`'s own default
+stays off. True makes bale pass `network=True` to all three confined
+script executions, so the sandbox's `unshare` invocation omits its
+`--net` leg; the relaxation is scoped to the network leg only —
+filesystem confinement and the environment scrub are unchanged. Every
+apply that runs confined scripts with the grant active logs the fact
+and stamps `network_grant_exercised: true` into the attempt's
+telemetry entry (§8.9), the ADR's recorded-whenever-exercised
+requirement; a `--no-sandbox` apply exercises no grant (nothing
+confined ran) and stamps false.
 
 **Checkpoint syntax fail-fast (the ratified board-10 rider).** The
 `bash -n` pre-flight that has always gated the worker's `apply.sh`
@@ -2206,6 +2230,18 @@ short-lived `.bale/sessions/<sid>/` directory:
   and the executed base-tree bytes' `{path, sha256}` (§8.5). Blind
   outcomes never merge into `claim_verdict`: the checkpoint has no
   claims by construction;
+- the **sandbox stamps** (v0.4.5, board 10 S2 — ADR-0016):
+  `attempts[].sandbox_escaped` (this attempt's response scripts ran
+  unconfined under a per-invocation `--no-sandbox`) and
+  `attempts[].network_grant_exercised` (a confined invocation ran
+  with the `[sandbox] network` grant active, §8.5). Bale-computed
+  booleans, stamped unconditionally by the attempt builder on every
+  post-S2 attempt of every command — the `overridden_paths` posture:
+  uniform shape, key presence is epoch membership, and `false` is the
+  known-negative form (including attempts where no script ran at
+  all — unlock, pack, rollback — where nothing executed and so
+  nothing escaped or exercised). Write-only at S2 per the ratified
+  deferral: the `bale stats` read side lands when data accrues;
 - the **write-forecast epoch key** (v0.4.2, ADR-0015 board 13
   session B): `attempts[].scope_kind: "write-forecast"`, stamped by
   the attempt builder on **every** attempt of every command

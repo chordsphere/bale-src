@@ -2255,6 +2255,8 @@ def build_telemetry_attempt(
     diagnostics: Optional[dict] = None,
     clarification: Optional[dict] = None,
     checkpoint: Optional[dict] = None,
+    sandbox_escaped: bool = False,
+    network_grant_exercised: bool = False,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -2338,6 +2340,21 @@ def build_telemetry_attempt(
     Blind outcomes never merge into `claim_verdict`: the checkpoint has
     no claims by construction, and a merged row would fabricate a
     prediction that was never made.
+
+    `sandbox_escaped` and `network_grant_exercised` (v0.4.5, board 10
+    S2 — ADR-0016) are the sandbox stamps, written UNCONDITIONALLY
+    here like `overridden_paths`: always present as booleans on every
+    post-S2 attempt of every command, so aggregation reads a uniform
+    shape and key presence is epoch membership. False is the known-
+    negative form — on unlock/pack/rollback attempts (no scripts run)
+    and on attempts where no script executed, both honestly read
+    False. The apply/retry pipeline passes real values on its
+    validated attempts: `sandbox_escaped` true when the response
+    scripts ran unconfined under a per-invocation --no-sandbox, and
+    `network_grant_exercised` true when confined scripts ran with the
+    bale.toml [sandbox] network grant active (an escaped run
+    exercises no grant — nothing confined ran). Write-only this
+    session per the ratified deferral: no `bale stats` read side.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -2363,6 +2380,10 @@ def build_telemetry_attempt(
         "scope": list(scope or []),
         "overridden_paths": list(overridden_paths or []),
         "required_check_overrides": list(required_check_overrides or []),
+        # The v0.4.5 sandbox stamps (board 10 S2; docstring above owns
+        # the semantics) — unconditional, the overridden_paths posture.
+        "sandbox_escaped": bool(sandbox_escaped),
+        "network_grant_exercised": bool(network_grant_exercised),
         "change_paths": [c.get("path") for c in
                          (manifest or {}).get("changes", []) or []],
         "feedback": (manifest or {}).get("feedback"),

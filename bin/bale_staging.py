@@ -65,7 +65,10 @@ in `run_blind_checkpoint`, and the worker run in `run_validation_sh` —
 are confined by default through the sibling module `bale_sandbox`
 (namespace confinement: network off, writes limited to staging plus the
 session log, environment scrubbed), with a per-invocation `sandbox=False`
-escape the apply pipeline threads from `--no-sandbox` and FORCE-logs.
+escape the apply pipeline threads from `--no-sandbox` and FORCE-logs,
+and a per-project `network=True` relaxation the pipeline threads from
+bale.toml's [sandbox] network grant (v0.4.5, board 10 S2; ADR-0016
+position 3) — the network leg only, the floor staying off by default.
 The sandbox module is deliberately standalone (no `__main__`
 back-references) so the blind checkpoint and the tests can exercise it
 as a library.
@@ -423,6 +426,7 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
                    base_sha: Optional[str] = None,
                    sandbox: bool = True,
                    log_path: Optional[Path] = None,
+                   network: bool = False,
                    ) -> Optional[dict[str, str]]:
     """Build the staging tree, overlay files/, run apply.sh.
 
@@ -434,6 +438,15 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
     a private tmpfs). `log_path` is required when sandbox is on; the
     caller passes the session log. `sandbox=False` is the escape
     path — the caller (apply_pipeline) FORCE-logs the bypass.
+
+    `network` (v0.4.5, board 10 S2 — the ADR-0016 position-3 grant)
+    relaxes the confined run's network leg only: the caller resolves
+    bale.toml's [sandbox] network (project layer only) and passes it
+    here, and the value rides verbatim into run_confined's own
+    `network` keyword. Default False keeps the floor — network off —
+    byte-identical to S1; filesystem confinement and the environment
+    scrub are unchanged either way, and the flag is meaningless when
+    `sandbox` is False (an unconfined run has network regardless).
 
     BALE.md section 8.3. The staging *base* is built per `strategy`:
 
@@ -553,12 +566,15 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
             bale_sandbox.ensure_verified(log_path)
         except bale_sandbox.SandboxUnavailableError as e:
             raise RuntimeError(str(e))
-        log("running apply.sh in staging (confined: network off, "
-            "writes limited to staging + session log)...")
+        log("running apply.sh in staging (confined: network "
+            + ("GRANTED — bale.toml [sandbox] network"
+               if network else "off")
+            + ", writes limited to staging + session log)...")
         result = bale_sandbox.run_confined(
             ["bash", str(apply_sh)],
             staging=staging, log_path=log_path,
             tmp_passthrough=[response_dir],
+            network=network,
         )
     else:
         log("running apply.sh in staging (UNCONFINED — --no-sandbox)...")
@@ -781,7 +797,8 @@ def reconcile_staging_against_manifest(repo: Path, staging: Path,
 def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
                          checkpoint_path: str, sid: str, *,
                          verbose: bool = False,
-                         sandbox: bool = True) -> dict:
+                         sandbox: bool = True,
+                         network: bool = False) -> dict:
     """Materialize and run the planner's blind checkpoint from BASE-TREE
     bytes; log a banded section; return
     {"path", "sha256", "exit_code", "output"}.
@@ -842,6 +859,14 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
     absence of the --verbose argv pass-through is untouched (the flag
     below controls streaming around the script, never its argv).
 
+    `network` (v0.4.5, board 10 S2 — the ADR-0016 position-3 grant)
+    relaxes the confined run's network leg only, threaded verbatim
+    into run_confined/popen_confined's own `network` keyword. The
+    grant applies uniformly to all three scripts (position 1's one
+    wrapper, one code path), so the checkpoint receives it too — its
+    offline-safe probes must hold either way. Default False keeps the
+    floor; meaningless when `sandbox` is False.
+
     Raises via fail() when materialization itself breaks (a `git show`
     failure after the dangling pre-check passed means the base tree
     changed mid-apply or git itself errored — both worth stopping for),
@@ -888,7 +913,10 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
 
         log(f"running blind checkpoint {checkpoint_path} "
             f"(base-tree bytes {script_sha[:12]}, {base_sha[:7]}"
-            + (", confined" if sandbox else ", UNCONFINED — --no-sandbox")
+            + ((", confined"
+                + (", network GRANTED — bale.toml [sandbox] network"
+                   if network else ""))
+               if sandbox else ", UNCONFINED — --no-sandbox")
             + ")"
             + (" (verbose: streaming live)..." if verbose else "..."))
 
@@ -909,6 +937,7 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
                     ["bash", str(script)],
                     staging=staging, log_path=log_file,
                     tmp_passthrough=[Path(tmpdir)],
+                    network=network,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -945,6 +974,7 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
                 ["bash", str(script)],
                 staging=staging, log_path=log_file,
                 tmp_passthrough=[Path(tmpdir)],
+                network=network,
             )
         else:
             result = subprocess.run(
@@ -973,7 +1003,8 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
 def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
                       manifest: dict, sid: str, *,
                       verbose: bool = False,
-                      sandbox: bool = True) -> tuple[int, str]:
+                      sandbox: bool = True,
+                      network: bool = False) -> tuple[int, str]:
     """Copy validation.sh into staging, place .bale-manifest.json for claims
     access, run it, log output, return (exit code, captured output).
 
@@ -1021,6 +1052,13 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     pass-through rides inside the confined argv unchanged. On a
     sandbox self-probe refusal this raises via fail() naming
     --no-sandbox — never silent unconfined execution.
+
+    `network` (v0.4.5, board 10 S2 — the ADR-0016 position-3 grant)
+    relaxes the confined run's network leg only, threaded verbatim
+    into run_confined/popen_confined's own `network` keyword. Default
+    False keeps the floor — network off — byte-identical to S1;
+    filesystem confinement and the environment scrub are unchanged
+    either way, and the flag is meaningless when `sandbox` is False.
     """
     from __main__ import fail, log
     if sandbox:
@@ -1035,8 +1073,11 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
     )
 
     log("running validation.sh in staging"
-        + (" (confined: network off, writes limited to staging + "
-           "session log)" if sandbox else " (UNCONFINED — --no-sandbox)")
+        + ((" (confined: network "
+            + ("GRANTED — bale.toml [sandbox] network" if network
+               else "off")
+            + ", writes limited to staging + session log)")
+           if sandbox else " (UNCONFINED — --no-sandbox)")
         + (" (verbose: streaming live)..." if verbose else "..."))
 
     log_file = repo / ".bale" / "logs" / f"{sid}.log"
@@ -1059,6 +1100,7 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
             proc = bale_sandbox.popen_confined(
                 ["bash", "validation.sh", "--verbose"],
                 staging=staging, log_path=log_file,
+                network=network,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -1094,6 +1136,7 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
         result = bale_sandbox.run_confined(
             ["bash", "validation.sh"],
             staging=staging, log_path=log_file,
+            network=network,
         )
     else:
         result = subprocess.run(
