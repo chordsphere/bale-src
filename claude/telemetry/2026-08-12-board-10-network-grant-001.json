@@ -1,0 +1,737 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-12-board-10-network-grant-001",
+  "created_at": "2026-08-12T15:24:29+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-12T15:24:29+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (31).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py",
+        "tests/test_sandbox_wrapper.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The blind checkpoint's offline-safe network probe reads a netns-accurate surface (/proc/net/dev or a freshly mounted sysfs), not an inherited /sys/class/net \u2014 see notes.md: verified empirically that inherited sysfs keeps showing the mounting namespace's devices inside unshare --net, so a bare /sys/class/net listing cannot assert the loopback-only floor",
+            "The checkpoint's run_confined(..., network=True) non-loopback assertion is capability-gated or bale-src's own bale.toml will carry the grant \u2014 the checkpoint itself runs confined, and inside an ungranted outer sandbox a granted child inherits a loopback-only namespace",
+            "REQUIRED_RELEASE_MEMBERS in upgrade.sh needs no bin/VERSION entry \u2014 it is a subset check (probe confirmed upgrade.sh has no version coupling); local verification used a stub upgrade.sh since the real one was not shipped"
+          ],
+          "judgment_calls": [
+            "[sandbox] network follows the [validation] project-only pattern exactly: SANDBOX_VALUES tuple, merged_config drops a global [sandbox] entirely, accessor is strict-bool-fatal like the [apply] bools (a TOML string 'true' must not silently grant network to script execution)",
+            "The stamps are unconditional in build_telemetry_attempt (the overridden_paths posture): every post-S2 attempt of every command carries both booleans, false = known-negative \u2014 including unlock/pack/rollback attempts where no script ran; the apply pipeline threads real values on applied/held/reverted attempts only",
+            "network_grant_exercised is false on a --no-sandbox apply even with the grant configured: nothing confined ran, so no grant was exercised \u2014 pinned by an E2E test",
+            "Interface-visibility tests probe /proc/net/dev, not the brief's parenthetical /sys/class/net \u2014 the latter is not netns-accurate under an inherited sysfs mount (empirically verified; the fresh proc the prologue mounts makes /proc/net/dev accurate)",
+            "validate.sh shipped as a third out-of-forecast file: the probe confirmed its sed scrape of bin/bale's VERSION line, which the extraction removes \u2014 without the repoint every future install's validate.sh fails its version rows",
+            "S1's non-/tmp prologue fixtures (tempdirs under HOME) errored under confinement \u2014 HOME is swept read-only; fixed with a writable-non-tmp fallback to cwd (staging in a confined validation), making the suite confinement-self-hosting; loud raise, never a silent skip, when neither base is writable",
+            "bin/VERSION reads once at bin/bale load with loud missing/empty failures naming the remedy; the file is not in build.sh's EXECUTABLES"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "validate.sh (resolved via the paste-back probe: 314 lines, sha256-verified byte-exact reconstruction, shipped modified)",
+            "upgrade.sh (not needed for the change surface \u2014 probe confirmed no version coupling \u2014 but its absence forced a stub for local release-build verification)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md 'Compaction disclosure' section (also disclosed in chat at the compaction point)"
+          },
+          "forecast_departures": [
+            {
+              "path": "install.sh",
+              "why": "expected admission per the brief: INSTALL_LAYOUT gains bin/VERSION (one line) so the install/release list-agreement gate holds"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "expected admission per the brief: RELEASE_FILES gains bin/VERSION and the version resolution + drift guard read bin/VERSION instead of scraping bin/bale"
+            },
+            {
+              "path": "validate.sh",
+              "why": "probe-confirmed necessity: its CLI-surface section scrapes bin/bale's VERSION = line (line 204), which this session removes \u2014 shipped a repoint to bin/VERSION plus a layout presence row; reconstruction sha256-verified against the probe before editing"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-network-grant-001.log"
+    },
+    {
+      "at": "2026-08-12T15:27:35+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (31).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "python syntax: every shipped bin/ module parses": "pass",
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": "pass",
+          "telemetry schema: both sandbox stamps present as non-required booleans": "pass",
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": "pass",
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": "pass",
+          "full test suite: unittest discover passes": "pass",
+          "bin/bale is executable": "pass",
+          "validate.sh is executable": "pass"
+        },
+        "claim_verdict": {
+          "python syntax: every shipped bin/ module parses": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry schema: both sandbox stamps present as non-required booleans": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite: unittest discover passes": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py",
+        "tests/test_sandbox_wrapper.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The blind checkpoint's offline-safe network probe reads a netns-accurate surface (/proc/net/dev or a freshly mounted sysfs), not an inherited /sys/class/net \u2014 see notes.md: verified empirically that inherited sysfs keeps showing the mounting namespace's devices inside unshare --net, so a bare /sys/class/net listing cannot assert the loopback-only floor",
+            "The checkpoint's run_confined(..., network=True) non-loopback assertion is capability-gated or bale-src's own bale.toml will carry the grant \u2014 the checkpoint itself runs confined, and inside an ungranted outer sandbox a granted child inherits a loopback-only namespace",
+            "REQUIRED_RELEASE_MEMBERS in upgrade.sh needs no bin/VERSION entry \u2014 it is a subset check (probe confirmed upgrade.sh has no version coupling); local verification used a stub upgrade.sh since the real one was not shipped"
+          ],
+          "judgment_calls": [
+            "[sandbox] network follows the [validation] project-only pattern exactly: SANDBOX_VALUES tuple, merged_config drops a global [sandbox] entirely, accessor is strict-bool-fatal like the [apply] bools (a TOML string 'true' must not silently grant network to script execution)",
+            "The stamps are unconditional in build_telemetry_attempt (the overridden_paths posture): every post-S2 attempt of every command carries both booleans, false = known-negative \u2014 including unlock/pack/rollback attempts where no script ran; the apply pipeline threads real values on applied/held/reverted attempts only",
+            "network_grant_exercised is false on a --no-sandbox apply even with the grant configured: nothing confined ran, so no grant was exercised \u2014 pinned by an E2E test",
+            "Interface-visibility tests probe /proc/net/dev, not the brief's parenthetical /sys/class/net \u2014 the latter is not netns-accurate under an inherited sysfs mount (empirically verified; the fresh proc the prologue mounts makes /proc/net/dev accurate)",
+            "validate.sh shipped as a third out-of-forecast file: the probe confirmed its sed scrape of bin/bale's VERSION line, which the extraction removes \u2014 without the repoint every future install's validate.sh fails its version rows",
+            "S1's non-/tmp prologue fixtures (tempdirs under HOME) errored under confinement \u2014 HOME is swept read-only; fixed with a writable-non-tmp fallback to cwd (staging in a confined validation), making the suite confinement-self-hosting; loud raise, never a silent skip, when neither base is writable",
+            "bin/VERSION reads once at bin/bale load with loud missing/empty failures naming the remedy; the file is not in build.sh's EXECUTABLES"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "validate.sh (resolved via the paste-back probe: 314 lines, sha256-verified byte-exact reconstruction, shipped modified)",
+            "upgrade.sh (not needed for the change surface \u2014 probe confirmed no version coupling \u2014 but its absence forced a stub for local release-build verification)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md 'Compaction disclosure' section (also disclosed in chat at the compaction point)"
+          },
+          "forecast_departures": [
+            {
+              "path": "install.sh",
+              "why": "expected admission per the brief: INSTALL_LAYOUT gains bin/VERSION (one line) so the install/release list-agreement gate holds"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "expected admission per the brief: RELEASE_FILES gains bin/VERSION and the version resolution + drift guard read bin/VERSION instead of scraping bin/bale"
+            },
+            {
+              "path": "validate.sh",
+              "why": "probe-confirmed necessity: its CLI-surface section scrapes bin/bale's VERSION = line (line 204), which this session removes \u2014 shipped a repoint to bin/VERSION plus a layout presence row; reconstruction sha256-verified against the probe before editing"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-network-grant-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "c11ee0ce93bfd2004eb18bb167d26e180f7cf28004b0525129bf74e621635912"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-12T16:03:13+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-001-corrected.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "python syntax: every shipped bin/ module parses": "pass",
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": "pass",
+          "telemetry schema: both sandbox stamps present as non-required booleans": "pass",
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": "pass",
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": "pass",
+          "full test suite: unittest discover passes": "pass",
+          "bin/bale is executable": "pass",
+          "validate.sh is executable": "pass"
+        },
+        "claim_verdict": {
+          "python syntax: every shipped bin/ module parses": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry schema: both sandbox stamps present as non-required booleans": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite: unittest discover passes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py",
+        "tests/test_sandbox_wrapper.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The blind checkpoint's floor probe is netns-accurate (its '[ckpt] default: loopback-only, floor intact' PASSed on the target), so the sysfs caveat from the first notes does not apply to it; only its network=True non-loopback assertion is blocked, by the missing bale-src grant",
+            "bale retry re-stages from the target branch's tip at retry time, so a bale.toml grant commit made before the retry is picked up and the checkpoint's provenance stamp (which covers the checkpoint bytes only) still verifies",
+            "REQUIRED_RELEASE_MEMBERS in upgrade.sh needs no bin/VERSION entry \u2014 subset check; probe 1 confirmed no version coupling"
+          ],
+          "judgment_calls": [
+            "HOLD root cause (probe 2, reproduced deterministically): sweep reachability was existence-based; a submount shadowed by a later mount over an ANCESTOR path keeps its mountpoint directory present (binfmt_misc under a fresh procfs) while the listed mount is unreachable, so the remount died EINVAL at every nested spin",
+            "Reachability now comes from the kernel: O_PATH open + /proc/self/fdinfo mnt_id mapped through mountinfo; tool survey in the reproduced topology showed findmnt -T, findmnt -M, and mountpoint(1) all table-based (they report the phantom as reachable) and st_dev colliding across same-device mounts",
+            "Fail-closed by construction: the annotator's output is captured with exit checked, empty annotation is fatal, unexpected per-target errors raise \u2014 a broken annotator refuses rather than yielding an unswept writable tree; only a can't-open path (the old [ -e ] semantics) marks a skip",
+            "python3 inside the prologue is acceptable: it is bale's own hard requirement (stdlib-only Python 3.10+), the cost is one exec per spin (~50-90ms measured), and no shell tool gives kernel truth",
+            "The two S1 shape-pin tests were updated to pin the NEW mechanism (annotator + fail-closed capture + mnt_id), and a regression test erects the exact shadow topology and asserts success plus the by-name skip line",
+            "[sandbox] network follows the [validation] project-only pattern; stamps are unconditional in the builder (overridden_paths posture); network_grant_exercised is false on an escaped run \u2014 all unchanged from the first response",
+            "validate.sh shipped as the third out-of-forecast file (probe-1-confirmed scrape coupling); bin/VERSION reads once at load with loud failures \u2014 unchanged",
+            "Claim miss owned: the first response claimed 'full test suite passes' and the target disagreed. The dress rehearsal ran the suite confined and nested, but this container mounts no binfmt_misc, so no ancestor-shadowed submount existed to trip the sweep \u2014 an environment-class gap, now closed by the erected-topology regression test that fails on the old sweep in ANY environment"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "validate.sh (resolved via paste-back probe 1: byte-exact reconstruction, shipped modified)",
+            "upgrade.sh (probe 1 confirmed no version coupling; stub used for local release-build verification)",
+            "claude/checkpoints/current.sh is correctly out of bounds, but a statement of its probe surfaces in the brief would have let the first response predict both HOLD causes instead of one"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md 'Compaction disclosure' section (disclosed in chat at the compaction point; all hashes and claims re-derived from real files and runs after it, including this correction's)"
+          },
+          "forecast_departures": [
+            {
+              "path": "install.sh",
+              "why": "expected admission per the brief: INSTALL_LAYOUT gains bin/VERSION (one line) so the install/release list-agreement gate holds"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "expected admission per the brief: RELEASE_FILES gains bin/VERSION and the version resolution + drift guard read bin/VERSION instead of scraping bin/bale"
+            },
+            {
+              "path": "validate.sh",
+              "why": "probe-confirmed necessity: its CLI-surface section scrapes bin/bale's VERSION = line (line 204), which this session removes \u2014 shipped a repoint to bin/VERSION plus a layout presence row; reconstruction sha256-verified against the probe before editing"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-network-grant-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "c11ee0ce93bfd2004eb18bb167d26e180f7cf28004b0525129bf74e621635912"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-12T16:35:30+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-001-corrected.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "python syntax: every shipped bin/ module parses": "pass",
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": "pass",
+          "telemetry schema: both sandbox stamps present as non-required booleans": "pass",
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": "pass",
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": "pass",
+          "full test suite: unittest discover passes": "pass",
+          "bin/bale is executable": "pass",
+          "validate.sh is executable": "pass"
+        },
+        "claim_verdict": {
+          "python syntax: every shipped bin/ module parses": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry schema: both sandbox stamps present as non-required booleans": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite: unittest discover passes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py",
+        "tests/test_sandbox_wrapper.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The blind checkpoint's floor probe is netns-accurate (its '[ckpt] default: loopback-only, floor intact' PASSed on the target), so the sysfs caveat from the first notes does not apply to it; only its network=True non-loopback assertion is blocked, by the missing bale-src grant",
+            "bale retry re-stages from the target branch's tip at retry time, so a bale.toml grant commit made before the retry is picked up and the checkpoint's provenance stamp (which covers the checkpoint bytes only) still verifies",
+            "REQUIRED_RELEASE_MEMBERS in upgrade.sh needs no bin/VERSION entry \u2014 subset check; probe 1 confirmed no version coupling"
+          ],
+          "judgment_calls": [
+            "HOLD root cause (probe 2, reproduced deterministically): sweep reachability was existence-based; a submount shadowed by a later mount over an ANCESTOR path keeps its mountpoint directory present (binfmt_misc under a fresh procfs) while the listed mount is unreachable, so the remount died EINVAL at every nested spin",
+            "Reachability now comes from the kernel: O_PATH open + /proc/self/fdinfo mnt_id mapped through mountinfo; tool survey in the reproduced topology showed findmnt -T, findmnt -M, and mountpoint(1) all table-based (they report the phantom as reachable) and st_dev colliding across same-device mounts",
+            "Fail-closed by construction: the annotator's output is captured with exit checked, empty annotation is fatal, unexpected per-target errors raise \u2014 a broken annotator refuses rather than yielding an unswept writable tree; only a can't-open path (the old [ -e ] semantics) marks a skip",
+            "python3 inside the prologue is acceptable: it is bale's own hard requirement (stdlib-only Python 3.10+), the cost is one exec per spin (~50-90ms measured), and no shell tool gives kernel truth",
+            "The two S1 shape-pin tests were updated to pin the NEW mechanism (annotator + fail-closed capture + mnt_id), and a regression test erects the exact shadow topology and asserts success plus the by-name skip line",
+            "[sandbox] network follows the [validation] project-only pattern; stamps are unconditional in the builder (overridden_paths posture); network_grant_exercised is false on an escaped run \u2014 all unchanged from the first response",
+            "validate.sh shipped as the third out-of-forecast file (probe-1-confirmed scrape coupling); bin/VERSION reads once at load with loud failures \u2014 unchanged",
+            "Claim miss owned: the first response claimed 'full test suite passes' and the target disagreed. The dress rehearsal ran the suite confined and nested, but this container mounts no binfmt_misc, so no ancestor-shadowed submount existed to trip the sweep \u2014 an environment-class gap, now closed by the erected-topology regression test that fails on the old sweep in ANY environment"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "validate.sh (resolved via paste-back probe 1: byte-exact reconstruction, shipped modified)",
+            "upgrade.sh (probe 1 confirmed no version coupling; stub used for local release-build verification)",
+            "claude/checkpoints/current.sh is correctly out of bounds, but a statement of its probe surfaces in the brief would have let the first response predict both HOLD causes instead of one"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md 'Compaction disclosure' section (disclosed in chat at the compaction point; all hashes and claims re-derived from real files and runs after it, including this correction's)"
+          },
+          "forecast_departures": [
+            {
+              "path": "install.sh",
+              "why": "expected admission per the brief: INSTALL_LAYOUT gains bin/VERSION (one line) so the install/release list-agreement gate holds"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "expected admission per the brief: RELEASE_FILES gains bin/VERSION and the version resolution + drift guard read bin/VERSION instead of scraping bin/bale"
+            },
+            {
+              "path": "validate.sh",
+              "why": "probe-confirmed necessity: its CLI-surface section scrapes bin/bale's VERSION = line (line 204), which this session removes \u2014 shipped a repoint to bin/VERSION plus a layout presence row; reconstruction sha256-verified against the probe before editing"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-network-grant-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "c11ee0ce93bfd2004eb18bb167d26e180f7cf28004b0525129bf74e621635912"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-12T16:46:21+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-001-corrected.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python syntax: every shipped bin/ module parses": "pass",
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": "pass",
+          "telemetry schema: both sandbox stamps present as non-required booleans": "pass",
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": "pass",
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": "pass",
+          "full test suite: unittest discover passes": "pass",
+          "bin/bale is executable": "pass",
+          "validate.sh is executable": "pass"
+        },
+        "claim_verdict": {
+          "python syntax: every shipped bin/ module parses": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "shell syntax: validate.sh, install.sh, scripts/build.sh pass bash -n": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry schema: both sandbox stamps present as non-required booleans": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version surfaces: bin/VERSION is 0.4.5 and bale --version reports it": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "grant wiring: [sandbox] trio in bale_config, network threaded through bale_staging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite: unittest discover passes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh is executable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py",
+        "tests/test_sandbox_wrapper.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The blind checkpoint's floor probe is netns-accurate (its '[ckpt] default: loopback-only, floor intact' PASSed on the target), so the sysfs caveat from the first notes does not apply to it; only its network=True non-loopback assertion is blocked, by the missing bale-src grant",
+            "bale retry re-stages from the target branch's tip at retry time, so a bale.toml grant commit made before the retry is picked up and the checkpoint's provenance stamp (which covers the checkpoint bytes only) still verifies",
+            "REQUIRED_RELEASE_MEMBERS in upgrade.sh needs no bin/VERSION entry \u2014 subset check; probe 1 confirmed no version coupling"
+          ],
+          "judgment_calls": [
+            "HOLD root cause (probe 2, reproduced deterministically): sweep reachability was existence-based; a submount shadowed by a later mount over an ANCESTOR path keeps its mountpoint directory present (binfmt_misc under a fresh procfs) while the listed mount is unreachable, so the remount died EINVAL at every nested spin",
+            "Reachability now comes from the kernel: O_PATH open + /proc/self/fdinfo mnt_id mapped through mountinfo; tool survey in the reproduced topology showed findmnt -T, findmnt -M, and mountpoint(1) all table-based (they report the phantom as reachable) and st_dev colliding across same-device mounts",
+            "Fail-closed by construction: the annotator's output is captured with exit checked, empty annotation is fatal, unexpected per-target errors raise \u2014 a broken annotator refuses rather than yielding an unswept writable tree; only a can't-open path (the old [ -e ] semantics) marks a skip",
+            "python3 inside the prologue is acceptable: it is bale's own hard requirement (stdlib-only Python 3.10+), the cost is one exec per spin (~50-90ms measured), and no shell tool gives kernel truth",
+            "The two S1 shape-pin tests were updated to pin the NEW mechanism (annotator + fail-closed capture + mnt_id), and a regression test erects the exact shadow topology and asserts success plus the by-name skip line",
+            "[sandbox] network follows the [validation] project-only pattern; stamps are unconditional in the builder (overridden_paths posture); network_grant_exercised is false on an escaped run \u2014 all unchanged from the first response",
+            "validate.sh shipped as the third out-of-forecast file (probe-1-confirmed scrape coupling); bin/VERSION reads once at load with loud failures \u2014 unchanged",
+            "Claim miss owned: the first response claimed 'full test suite passes' and the target disagreed. The dress rehearsal ran the suite confined and nested, but this container mounts no binfmt_misc, so no ancestor-shadowed submount existed to trip the sweep \u2014 an environment-class gap, now closed by the erected-topology regression test that fails on the old sweep in ANY environment"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "validate.sh (resolved via paste-back probe 1: byte-exact reconstruction, shipped modified)",
+            "upgrade.sh (probe 1 confirmed no version coupling; stub used for local release-build verification)",
+            "claude/checkpoints/current.sh is correctly out of bounds, but a statement of its probe surfaces in the brief would have let the first response predict both HOLD causes instead of one"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md 'Compaction disclosure' section (disclosed in chat at the compaction point; all hashes and claims re-derived from real files and runs after it, including this correction's)"
+          },
+          "forecast_departures": [
+            {
+              "path": "install.sh",
+              "why": "expected admission per the brief: INSTALL_LAYOUT gains bin/VERSION (one line) so the install/release list-agreement gate holds"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "expected admission per the brief: RELEASE_FILES gains bin/VERSION and the version resolution + drift guard read bin/VERSION instead of scraping bin/bale"
+            },
+            {
+              "path": "validate.sh",
+              "why": "probe-confirmed necessity: its CLI-surface section scrapes bin/bale's VERSION = line (line 204), which this session removes \u2014 shipped a repoint to bin/VERSION plus a layout presence row; reconstruction sha256-verified against the probe before editing"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-12-board-10-network-grant-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-12T16:46:21+00:00",
+  "outcome": "applied"
+}
