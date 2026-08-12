@@ -21,4 +21,3 @@ strategy = "target-base"
 packer = "chordsphere"
 
 [validation]
-base = "claude/checkpoints/current.sh"
