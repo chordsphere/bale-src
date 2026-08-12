@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-07-ratification-microdeltas-014`.
+Last landed by: `2026-08-12-board-10-wave1-deltas-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -143,20 +143,16 @@ sitting (evidence 47).]
 
 ## 3. In flight
 
-- **The board-10 tidy-up sitting (2026-08-05/06, master
-  `2026-08-05-discuss-harness-011`) is closed.** Bucket A ratified
-  in chat: the four ADR flips (0002–0004 and 0009 — all fourteen
-  ADRs now Accepted), the cadence ruling (§5), and the
-  operator-friction-charter fold-in (state legibility onto board
-  10; the charter is closed). Bucket B landed:
-  `2026-08-06-handoff-covering-001` and
-  `2026-08-06-sweep-json-stats-002` (§6 entries 55–56; the version
-  trail is §2's). The sitting-close deltas — this landing — carried
-  the cargo.
-- **Next, in order:** the sandbox ADR is done (ADR-0016 Accepted;
-  flip landing this vehicle). The board-10 spec-intake sitting
-  moves to the head. The gap-3 pack-guards session is in flight,
-  concurrent with this one.
+- **Board-10 wave 1 is landed** (sitting
+  `2026-08-10-continue-plan-001`, the spec-intake; ratifications
+  and the remaining S2 → S5 → S4 → S6 sequence live on the board
+  10 row). Latest applied:
+  `2026-08-11-board-10-sandbox-wrapper-001` (S1) and
+  `2026-08-10-board-10-orchestration-doc-003` (S3); the version
+  position is §7's, its one home.
+- Orchestration doctrine now lives at
+  `claude/context/orchestration.md` (ADR-0009 step 2 done; step-3
+  promotion trigger unchanged).
 
 **Watches** (named re-triggers, no work; the first four carried
 verbatim from the board-5 arc's upward report, the next three from
@@ -225,6 +221,10 @@ and the last two from the board-13 arc):
   (`2026-08-07-board-35-handoff-happy-011`) — packer-side
   imprecision, master-authored pack; one accrual, no clustering,
   no action.
+- Operator-side WSL2 suite runtime unrecorded since the sandbox
+  landed (container-side 88–89s is the only post-S1 figure).
+  Re-trigger: the next apply paste — record the figure and clear
+  the watch.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -383,6 +383,13 @@ with the unverifiable ones carried verbatim and marked):
   won't have that luxury; better to introduce the convention
   deliberately (with `validate.sh` and the docs knowing about it)
   than as a side effect of whichever session first overruns."
+- Pack-time "forecast/include mismatch" warning — warn when a
+  `--write` names an existing file absent from resolved includes.
+  Rides the next session touching bin/bale_pack.py. (Source:
+  evidence 62's proposed counter.)
+- DOCS.md §9 sanctioned-parallelism registration: MASTER.md §1
+  four-controls floor ↔ orchestration.md §3 restatement (S3's
+  ratified call 3). Rides the next DOCS.md-touching session.
 
 Cleared at this landing (`2026-08-07-sitting-close-deltas-012`):
 the `bale handoff --verbose` entry — landed at
@@ -667,11 +674,22 @@ and §8, so done items keep their numbers as one-line pointers.
    cross-repo depends_on. Level 3 (two-phase commit): deferred,
    likely forever.
 
-10. **Harness scoping master-session** — spec-intake ritual
-    (decomposition + ambiguity questions + checkpoint plan ratified
-    BEFORE anything spawns), escalation contract as schema, promotion
-    of the orchestration-doctrine doc; then harness build + phased
-    trust rollout; recursion depth earned last. **Named agenda items
+10. **Harness scoping master-session — spec-intake DONE,
+    wave 1 landed** 2026-08-10/11: sitting
+    `2026-08-10-continue-plan-001` (repack of spec-intake-015)
+    ratified the S1–S6 decomposition, the three additions, and the
+    specification-friction principle; "wave 1 landed" — S1 sandbox
+    at 0.4.4 (`2026-08-11-board-10-sandbox-wrapper-001`,
+    HOLD→retry, root cause recorded in evidence), S3
+    orchestration.md (`2026-08-10-board-10-orchestration-doc-003`,
+    six judgment calls ratified per its notes). Remaining sequence:
+    S2 → S5 → S4 serialized on the VERSION home until S2's
+    extraction rider lands, then S6 (harness spec-intake, packed
+    fresh). Charter: spec-intake ritual (decomposition + ambiguity
+    questions + checkpoint plan ratified BEFORE anything spawns),
+    escalation contract as schema, promotion of the
+    orchestration-doctrine doc; then harness build + phased trust
+    rollout; recursion depth earned last. **Named agenda items
     added from the 008 audit:**
     - **Sandbox validation.sh execution** — today it is worker-
       authored code run via bare subprocess in staging with the
@@ -723,6 +741,11 @@ and §8, so done items keep their numbers as one-line pointers.
       clarification response, with the architect as transport; the
       harness-era design should carry that channel with the
       architect moving from transport to overseer.
+    **Added at the wave-1 landing (2026-08-12), for S6:**
+    - **Per-session blind checkpoints** — the single-path
+      `[validation] base` mechanism shares one committed checkpoint
+      across concurrent sessions (wave 1 finding); the harness era
+      needs per-sid checkpoint binding.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1944,6 +1967,27 @@ New from the 2026-08-07 sitting (the board-35 sessions):
     `2026-08-07-board-35-small-pins-010`,
     `2026-08-07-board-13b-epoch-ledger-005`.
 
+New from the board-10 wave-1 sittings (2026-08-10/11):
+
+62. **The packer-error class gains a forecast/manifest-mismatch
+    shape, twice in one wave:** a `--write` naming a nonexistent
+    path; a `--write` naming a file absent from includes.
+    Master-attributed; the mechanical counter is proposed in the
+    §3 fold-in registry.
+
+63. **The "probe-salvage" pattern:** an abandoned session's probe
+    answers (environment trial, mount table) compounded into the
+    repack brief as ratified salvage; S1's retry landed clean on
+    the first environment it never saw. Repack-over-rescue
+    validated for probe-heavy stalls.
+
+64. **Brief wording is a hazard surface:** revC's salvage phrase
+    "preserving each mount's existing VFS flags" was implemented
+    literally and caused the HOLD (locked-flag EPERM on overmount
+    topology; libmount already merges). Salvage descriptions are
+    design authority — word them as contracts on outcomes, not
+    mechanisms.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -1990,18 +2034,23 @@ New from the 2026-08-07 sitting (the board-35 sessions):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.3 (trail: 0.4.0 → 0.4.1 at
+  still governs. bin/bale VERSION 0.4.4 (trail: 0.4.0 → 0.4.1 at
   `2026-08-07-board-13a-forecast-surface-004` → 0.4.2 at
   `2026-08-07-board-13b-epoch-ledger-005` → 0.4.3 at
   `2026-08-07-board-35-handoff-happy-011`, the handoff --verbose
-  flag; `2026-08-07-board-13c-contract-docs-006` and
-  `2026-08-07-sandbox-adr-009` doc-only,
+  flag → 0.4.4 at `2026-08-11-board-10-sandbox-wrapper-001`, the
+  S1 sandbox wrapper; 0.4.5 pending at S2;
+  `2026-08-07-board-13c-contract-docs-006`,
+  `2026-08-07-sandbox-adr-009`, and
+  `2026-08-10-board-10-orchestration-doc-003` doc-only,
   `2026-08-07-board-35-apply-preflight-002` and
   `2026-08-07-board-35-small-pins-010` tests-only, all
-  bump-exempt per the §5 cadence rulings), verified from the
-  VERSION constant in the copy shipped read-only with
-  `2026-08-07-ratification-microdeltas-014` (the live install
-  trails one-apply-behind as ever).
+  bump-exempt per the §5 cadence rulings); 0.4.3 and earlier
+  verified from the VERSION constant in the copy shipped read-only
+  with `2026-08-07-ratification-microdeltas-014`; 0.4.4 a claim
+  per the wave-1 brief — no bin/bale shipped with
+  `2026-08-12-board-10-wave1-deltas-002` to verify against (the
+  live install trails one-apply-behind as ever).
 - The registry's scope.json records the write forecast as of 0.4.1
   (ADR-0015); pre-separation open sessions read as over-forecasts
   (conservative, self-clearing at close).
