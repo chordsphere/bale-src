@@ -1,0 +1,438 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-11-board-10-sandbox-wrapper-001",
+  "created_at": "2026-08-11T16:44:38+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-11T16:44:38+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (30).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.3",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "e27ee8e07b9ef3177c089083270303b6f03e777105728529cd8ac53baa82e681"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the operator-attested environment block in the README (kernel 6.6.87.1, util-linux 2.39.3, working unprivileged userns, full ro sweep accepted, bwrap absent) holds at apply time \u2014 the self-probe re-verifies mechanically on first use",
+            "the fold-in registry's --slow convention remains unlanded; the suite-runtime crossing is reported and deferred rather than solved by inventing the convention's spec"
+          ],
+          "judgment_calls": [
+            "escape flag spelled --no-sandbox; apply and retry take it, revert does not",
+            "self-probe outside-write target is the fixed path /usr/.bale-sandbox-probe-escape \u2014 a derived path can resolve into the sandbox's own ephemeral /tmp tmpfs and misread the design as a breach (notes.md deviation 5)",
+            "--pid --fork plus a fresh post-sweep proc mount added to the pinned unshare flags so nested confinement works \u2014 load-bearing for the blind checkpoint from next apply onward (notes.md deviation 1)",
+            "bin/bale_sandbox.py registered in install.sh INSTALL_LAYOUT and scripts/build.sh RELEASE_FILES \u2014 out-of-forecast paths enumerated in notes.md for admission",
+            "behavioral/e2e test tiers skip loudly where unprivileged userns is unavailable; unit tier and the refusal contract cover such hosts",
+            "the rider's e2e test lives in tests/test_blind_checkpoint.py beside the checkpoint fixtures it needs"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "the fold-in registry entry specifying the harness-level --slow convention (MASTER.md) \u2014 needed to act on the suite runtime crossing instead of deferring it"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-11-board-10-sandbox-wrapper-001.log"
+    },
+    {
+      "at": "2026-08-11T16:45:35+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (30).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "sandbox wrapper suite (tests/test_sandbox_wrapper.py)": "pass",
+          "blind checkpoint suite (tests/test_blind_checkpoint.py)": "pass",
+          "apply real-operations suite (tests/test_apply_operations.py)": "pass",
+          "apply pre-flight suite (tests/test_apply_preflight.py)": "pass",
+          "hold/retry e2e suite (tests/test_hold_retry_e2e.py)": "pass",
+          "release packaging suite (tests/test_release_packaging.py)": "pass",
+          "install precheck suite (tests/test_install_precheck.py)": "pass",
+          "VERSION bump assertion (bin/bale reports 0.4.4)": "pass",
+          "BALE.md --no-sandbox flag row assertion": "pass",
+          "exec bit: bin/bale": "pass",
+          "exec bit: install.sh": "pass",
+          "exec bit: scripts/build.sh": "pass"
+        },
+        "claim_verdict": {
+          "sandbox wrapper suite (tests/test_sandbox_wrapper.py)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "blind checkpoint suite (tests/test_blind_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "apply real-operations suite (tests/test_apply_operations.py)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "apply pre-flight suite (tests/test_apply_preflight.py)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "hold/retry e2e suite (tests/test_hold_retry_e2e.py)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "release packaging suite (tests/test_release_packaging.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "install precheck suite (tests/test_install_precheck.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERSION bump assertion (bin/bale reports 0.4.4)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md --no-sandbox flag row assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: install.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: scripts/build.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.3",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "e27ee8e07b9ef3177c089083270303b6f03e777105728529cd8ac53baa82e681"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the operator-attested environment block in the README (kernel 6.6.87.1, util-linux 2.39.3, working unprivileged userns, full ro sweep accepted, bwrap absent) holds at apply time \u2014 the self-probe re-verifies mechanically on first use",
+            "the fold-in registry's --slow convention remains unlanded; the suite-runtime crossing is reported and deferred rather than solved by inventing the convention's spec"
+          ],
+          "judgment_calls": [
+            "escape flag spelled --no-sandbox; apply and retry take it, revert does not",
+            "self-probe outside-write target is the fixed path /usr/.bale-sandbox-probe-escape \u2014 a derived path can resolve into the sandbox's own ephemeral /tmp tmpfs and misread the design as a breach (notes.md deviation 5)",
+            "--pid --fork plus a fresh post-sweep proc mount added to the pinned unshare flags so nested confinement works \u2014 load-bearing for the blind checkpoint from next apply onward (notes.md deviation 1)",
+            "bin/bale_sandbox.py registered in install.sh INSTALL_LAYOUT and scripts/build.sh RELEASE_FILES \u2014 out-of-forecast paths enumerated in notes.md for admission",
+            "behavioral/e2e test tiers skip loudly where unprivileged userns is unavailable; unit tier and the refusal contract cover such hosts",
+            "the rider's e2e test lives in tests/test_blind_checkpoint.py beside the checkpoint fixtures it needs"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "the fold-in registry entry specifying the harness-level --slow convention (MASTER.md) \u2014 needed to act on the suite runtime crossing instead of deferring it"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-11-board-10-sandbox-wrapper-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "e27ee8e07b9ef3177c089083270303b6f03e777105728529cd8ac53baa82e681"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-12T13:32:04+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-002 (37).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "sandbox wrapper suite (tests/test_sandbox_wrapper.py)": "pass",
+          "blind checkpoint suite (tests/test_blind_checkpoint.py)": "pass",
+          "apply real-operations suite (tests/test_apply_operations.py)": "pass",
+          "apply pre-flight suite (tests/test_apply_preflight.py)": "pass",
+          "hold/retry e2e suite (tests/test_hold_retry_e2e.py)": "pass",
+          "release packaging suite (tests/test_release_packaging.py)": "pass",
+          "install precheck suite (tests/test_install_precheck.py)": "pass",
+          "VERSION bump assertion (bin/bale reports 0.4.4)": "pass",
+          "BALE.md --no-sandbox flag row assertion": "pass",
+          "exec bit: bin/bale": "pass",
+          "exec bit: install.sh": "pass",
+          "exec bit: scripts/build.sh": "pass"
+        },
+        "claim_verdict": {
+          "sandbox wrapper suite (tests/test_sandbox_wrapper.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "blind checkpoint suite (tests/test_blind_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "apply real-operations suite (tests/test_apply_operations.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "apply pre-flight suite (tests/test_apply_preflight.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "hold/retry e2e suite (tests/test_hold_retry_e2e.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "release packaging suite (tests/test_release_packaging.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "install precheck suite (tests/test_install_precheck.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERSION bump assertion (bin/bale reports 0.4.4)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md --no-sandbox flag row assertion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: install.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit: scripts/build.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh"
+      ],
+      "required_check_overrides": [],
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.3",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "e27ee8e07b9ef3177c089083270303b6f03e777105728529cd8ac53baa82e681"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          },
+          "linkage": {
+            "kind": "probe",
+            "point": "mid-build"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the operator-pasted probe outputs (findmnt /run/user pair, strace of the successful plain remount, dmesg) are the current state of the target machine and representative of what real applies will meet",
+            "no further overmount-class surprises exist elsewhere in the target mount table \u2014 if one does, the enriched sentinel now carries its full findmnt record so the next refusal self-diagnoses"
+          ],
+          "judgment_calls": [
+            "escape flag spelled --no-sandbox; apply and retry take it, revert does not",
+            "self-probe outside-write target is the fixed path /usr/.bale-sandbox-probe-escape \u2014 a derived path can resolve into the sandbox's own ephemeral /tmp tmpfs and misread the design as a breach (notes.md deviation 5)",
+            "--pid --fork plus a fresh post-sweep proc mount added to the pinned unshare flags so nested confinement works \u2014 load-bearing for the blind checkpoint from next apply onward (notes.md deviation 1)",
+            "bin/bale_sandbox.py registered in install.sh INSTALL_LAYOUT and scripts/build.sh RELEASE_FILES \u2014 out-of-forecast paths enumerated in notes.md for admission",
+            "behavioral/e2e test tiers skip loudly where unprivileged userns is unavailable; unit tier and the refusal contract cover such hosts",
+            "the rider's e2e test lives in tests/test_blind_checkpoint.py beside the checkpoint fixtures it needs",
+            "sweep flag preservation delegated to libmount's remount merge (strace-verified both machines); plain remount,bind,ro pinned by unit test",
+            "capability-based sweep exceptions added (dedupe of stacked targets; skip-and-log of unreachable targets) while keeping the no-name-allowlist principle \u2014 flagged for ratification in notes.md",
+            "suite-runtime escalation from response-001 withdrawn: the rewritten sweep dropped the suite to 88-89s here, under the 120s target"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' section"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-11-board-10-sandbox-wrapper-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "e27ee8e07b9ef3177c089083270303b6f03e777105728529cd8ac53baa82e681"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-12T13:32:04+00:00",
+  "outcome": "applied"
+}
