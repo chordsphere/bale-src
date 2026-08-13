@@ -644,6 +644,7 @@ def build_request_manifest(
 def build_provenance_block(
     repo: Path,
     *,
+    sid: str,
     packer_flag: Optional[str] = None,
     work_class: str = "mixed",
     checkpoint_scope_admitted: bool = False,
@@ -670,15 +671,21 @@ def build_provenance_block(
       the configured `[validation] base` script's bytes at the
       pack-time target tip (HEAD — pack refuses a detached HEAD
       upstream, so HEAD is the target branch's tip), or explicit null
-      when no checkpoint is configured. Absence of the KEY therefore
+      when no checkpoint is configured. Since v0.4.8 (board 10 S7) a
+      {sid}-bearing base resolves against `sid` first
+      (bale_config.resolve_checkpoint_path) and the stamp records the
+      RESOLVED path; a literal base stamps unchanged. Absence of the
+      KEY therefore
       remains the pre-v0.3.28 / hand-rolled-request signal, which is
       what keeps apply's stamp verification (BALE.md §8.5) additive.
       Configured-but-dangling at the tip is a loud refusal — the D1
       dangling rule caught at request-build time, before apply ever
       sees the broken oracle reference — though both request-building
       paths (pack, and handoff since v0.3.33) run
-      checkpoint_blindness_preflight pre-sid and already refused it;
-      the re-check here is defense in depth for any future caller.
+      checkpoint_blindness_preflight pre-sid (and, for {sid}-bearing
+      bases, checkpoint_resolved_preflight pre-allocation) and already
+      refused it; the re-check here is defense in depth for any future
+      caller.
     - `checkpoint_scope_admitted` (v0.3.28, session C) — true when the
       caller admitted a checkpoint-covering scope past the blindness
       refusal via --allow-checkpoint-in-scope; false otherwise. Both
@@ -692,7 +699,10 @@ def build_provenance_block(
       which is how the session's record carries the admission.
 
     Reads the merged config itself so both request-building call sites
-    stay wiring-thin. Doc hashing reads the same DOCS_DIR files
+    stay wiring-thin; `sid` (required, v0.4.8) is the allocated session
+    id the checkpoint stamp resolves {sid} against — both call sites
+    run post-allocation, so the real sid is always in hand. Doc hashing
+    reads the same DOCS_DIR files
     build_request_tarball injects, so the hashes describe the bytes the
     worker actually receives.
     """
@@ -729,14 +739,36 @@ def build_provenance_block(
     # direct subprocess call (text=False), mirroring
     # run_blind_checkpoint's extraction, so stamp and execution hash
     # the same bytes.
-    checkpoint_path = bale_config.get_validation_base(merged)
+    checkpoint_base = bale_config.get_validation_base(merged)
     checkpoint_stamp: Optional[dict] = None
-    if checkpoint_path is not None:
+    if checkpoint_base is not None:
+        # Per-sid resolution (v0.4.8, board 10 S7): a {sid}-bearing base
+        # resolves against the allocated session id, and the stamp
+        # records the RESOLVED path — exactly as the pre-S7 stamp
+        # recorded the literal path — so apply's stamp verification
+        # compares resolved-to-resolved with no special casing. A
+        # literal base resolves to itself, byte-for-byte.
+        checkpoint_path = bale_config.resolve_checkpoint_path(
+            checkpoint_base, sid)
         blob = subprocess.run(
             ["git", "show", f"HEAD:{checkpoint_path}"],
             cwd=str(repo), capture_output=True,
         )
         if blob.returncode != 0:
+            if checkpoint_path != checkpoint_base:
+                # The per-sid refusal. checkpoint_resolved_preflight
+                # already refused this pre-allocation on both
+                # request-building paths; reaching it here means a
+                # future caller skipped the pre-flight or the
+                # peek/allocation pair desynced (date rollover) —
+                # defense in depth, same posture as the literal branch.
+                fail(f"per-session blind checkpoint missing at the "
+                     f"pack-time tip: bale.toml [validation] base "
+                     f"({checkpoint_base!r}) resolves to "
+                     f"{checkpoint_path!r} for session {sid}, but HEAD "
+                     f"has no committed file at that path. Remedy: "
+                     f"author and commit the session's checkpoint at "
+                     f"{checkpoint_path!r} first.")
             fail(f"blind checkpoint missing at the pack-time tip: "
                  f"bale.toml [validation] base names "
                  f"{checkpoint_path!r}, but HEAD has no committed file "
@@ -749,7 +781,9 @@ def build_provenance_block(
             "sha256": hashlib.sha256(blob.stdout).hexdigest(),
         }
         log(f"provenance: checkpoint stamped {checkpoint_path} "
-            f"(sha256 {checkpoint_stamp['sha256'][:12]}, HEAD bytes)")
+            f"(sha256 {checkpoint_stamp['sha256'][:12]}, HEAD bytes)"
+            + (f" [resolved from {checkpoint_base}]"
+               if checkpoint_path != checkpoint_base else ""))
 
     return {
         "bale_version": VERSION,
@@ -858,18 +892,42 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
     if checkpoint_path is None:
         return False
 
-    probe = subprocess.run(
-        ["git", "cat-file", "-e", f"HEAD:{checkpoint_path}"],
-        cwd=str(repo), capture_output=True,
-    )
-    if probe.returncode != 0:
-        fail(f"blind checkpoint missing at the pack-time tip: bale.toml "
-             f"[validation] base names {checkpoint_path!r}, but HEAD "
-             f"has no committed file at that path. A working-tree-only "
-             f"checkpoint is not yet the project's oracle "
-             f"(committed-is-ratified). Remedies: commit the checkpoint "
-             f"at the named path, or clear the key via "
-             f"`bale config init`.")
+    if "{sid}" in checkpoint_path:
+        # Per-sid checkpoint (v0.4.8, board 10 S7): the base carries the
+        # {sid} placeholder, and this gate runs pre-sid on both callers
+        # — the session id the path resolves against does not exist yet.
+        # The existence probe therefore defers to the pre-allocation
+        # resolved-existence pre-flight (checkpoint_resolved_preflight,
+        # called with a peeked sid just before allocation) and the stamp
+        # builder's post-allocation re-check; skipping it here is a
+        # deferral, never a silent pass, so it logs. The two coverage
+        # checks below run against the UNRESOLVED pattern: containment
+        # is per path component, so a directory entry covering the
+        # pattern's parent (claude/checkpoints, say) covers every
+        # resolution identically, and a forecast entry equal to the
+        # literal pattern string is caught too. The one shape this
+        # misses — an exact-file entry textually equal to a future
+        # resolution, typed by predicting the unallocated NNN — is
+        # accepted residue: the resolved file's committed bytes are
+        # stamp-verified at apply regardless, and the checkpoint a
+        # session executes is base-tree bytes, never the staged copy.
+        log(f"[validation] base carries {{sid}} ({checkpoint_path}); "
+            f"existence check defers to the pre-allocation resolved-"
+            f"existence pre-flight; blindness coverage checked against "
+            f"the pattern")
+    else:
+        probe = subprocess.run(
+            ["git", "cat-file", "-e", f"HEAD:{checkpoint_path}"],
+            cwd=str(repo), capture_output=True,
+        )
+        if probe.returncode != 0:
+            fail(f"blind checkpoint missing at the pack-time tip: bale.toml "
+                 f"[validation] base names {checkpoint_path!r}, but HEAD "
+                 f"has no committed file at that path. A working-tree-only "
+                 f"checkpoint is not yet the project's oracle "
+                 f"(committed-is-ratified). Remedies: commit the checkpoint "
+                 f"at the named path, or clear the key via "
+                 f"`bale config init`.")
 
     forecast_covers = scope_covers_path(pack_scope, checkpoint_path)
     reads_ship = (read_includes is not None
@@ -906,6 +964,53 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
         f"(the planner delegated oracle maintenance "
         f"deliberately; admission stamped into provenance)", force=True)
     return True
+
+
+def checkpoint_resolved_preflight(repo: Path, sid: str) -> None:
+    """The per-sid resolved-existence gate (v0.4.8, board 10 S7).
+
+    When [validation] base carries the {sid} placeholder, the blindness
+    pre-flight above cannot probe existence pre-sid, so both
+    request-building paths call this instead — immediately BEFORE
+    next_session_id, with the sid peek_session_id computed — and refuse
+    a resolved path absent from HEAD while the pack has consumed
+    nothing: no NNN burned, no session state, so the remedy loop
+    (commit the checkpoint the refusal named, re-run the same pack)
+    converges on the same sid instead of chasing the counter.
+
+    Checkpoints are deliberate: a placeholder that silently resolved to
+    nothing would be a hole in the oracle the planner thought was
+    pinned, so absence is a loud refusal naming the resolved path and
+    the remedy. A literal base is a no-op here — the blindness
+    pre-flight already probed it — and so is an unconfigured one. The
+    provenance stamp builder re-checks against the ALLOCATED sid as
+    defense in depth (its existing posture), which also covers the
+    date-rollover race where peek and allocation disagree.
+    """
+    from __main__ import fail, log  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+
+    base = bale_config.get_validation_base(bale_config.merged_config(repo))
+    if base is None or "{sid}" not in base:
+        return
+    resolved = bale_config.resolve_checkpoint_path(base, sid)
+    probe = subprocess.run(
+        ["git", "cat-file", "-e", f"HEAD:{resolved}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if probe.returncode != 0:
+        fail(f"per-session blind checkpoint missing at the pack-time "
+             f"tip: bale.toml [validation] base ({base!r}) resolves to "
+             f"{resolved!r} for this session, but HEAD has no committed "
+             f"file at that path. Checkpoints are deliberate — a "
+             f"placeholder resolving to nothing would be a hole in the "
+             f"oracle. Remedy: author and commit the session's "
+             f"checkpoint at {resolved!r} first, then re-run this pack "
+             f"(the session counter was not consumed, so the same "
+             f"session id — and the same resolved path — will be "
+             f"allocated).")
+    log(f"per-session checkpoint resolved: {base} -> {resolved} "
+        f"(committed at HEAD; sid {sid})")
 
 
 def build_request_tarball(
@@ -2039,6 +2144,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         log,
         next_session_id,
         open_sessions,
+        peek_session_id,
         read_session_scope,
         refuse_system_dir,
         register_session,
@@ -2756,6 +2862,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
         + (f" [session excludes: {len(session_excludes)}]"
            if session_excludes else ""))
 
+    # Per-sid resolved-existence pre-flight (v0.4.8, board 10 S7): when
+    # [validation] base carries {sid}, resolve it against the sid this
+    # pack is ABOUT to allocate — peeked, not consumed — and refuse a
+    # resolved path absent from HEAD while the refusal still burns
+    # nothing. Sited immediately before allocation, the last gate, so
+    # the peeked and allocated sids agree (nothing counter-touching
+    # runs between). A literal or unconfigured base is a no-op.
+    checkpoint_resolved_preflight(repo, peek_session_id(repo, args.slug))
+
     # Allocate session ID and switch logging to the per-session file. The
     # set_log_file() call drains any buffered --force lines from
     # refuse_system_dir / the threshold check above into the new log file,
@@ -2830,7 +2945,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "session ships). Close-out (board 33): the next read-only "
             "pack offers to close this session, or run `bale unlock` now")
     provenance = build_provenance_block(
-        repo, packer_flag=args.packer, work_class=work_class,
+        repo, sid=sid, packer_flag=args.packer, work_class=work_class,
         checkpoint_scope_admitted=checkpoint_scope_admitted,
     )
     log(f"provenance: packer={provenance['packer']!r} "

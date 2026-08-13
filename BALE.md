@@ -1917,6 +1917,34 @@ read-only — rev-parse and cat-file only, no session-dir stamps — and
 refuses with the same message a real apply would; unconfigured
 projects' dry-run behavior is unchanged.
 
+**Per-session checkpoints — the `{sid}` placeholder (v0.4.8, board 10
+S7).** The `[validation] base` value may contain the literal token
+`{sid}` (e.g. `claude/checkpoints/{sid}.sh`). When present, bale
+resolves it with the session id at pack time and everywhere
+downstream — the provenance stamp, the blindness gate, apply's
+dangling refusal, stamp verification, syntax check, execution, and
+the telemetry stamp all read and record the *resolved* path — so each
+session carries its own committed checkpoint instead of every open
+session sharing one oracle file. Sibling sessions with different sids
+resolve to different files: concurrent waves stop sharing an oracle,
+and an amendment to one session's checkpoint no longer trips a
+sibling's stamp verification. A value without the token behaves
+byte-for-byte as before. `{sid}` is the *only* recognized token: any
+other well-formed `{token}` (a `{date}`, a `{SID}` case slip) is
+refused loudly at config read — which fires at pack, apply, and every
+other reader — so no unrecognized placeholder can silently pass
+through as a literal path; braces that do not form a token are
+ordinary path characters, and no partial substitution is possible by
+construction. Because the resolved path embeds the session id, both
+request-building paths run a resolved-existence pre-flight
+immediately before sid allocation, against a *peeked* (not consumed)
+sid: a resolved path absent from HEAD refuses loudly at pack, naming
+the resolved path and the remedy — author and commit the session's
+checkpoint first — while the counter is untouched, so the re-run pack
+after committing allocates the same sid and the same resolved path
+(no counter chase). An absent `[validation] base` stays what it is
+today: no checkpoint, no refusal.
+
 **Provenance stamp verification** (v0.3.28, board 6 session C; §11
 row 28). Pack stamped the oracle's identity into the request
 manifest — `provenance.checkpoint = {path, sha256}` of the committed
