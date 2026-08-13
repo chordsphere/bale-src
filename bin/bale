@@ -178,6 +178,7 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
     build_request_manifest,
     build_request_tarball,
     checkpoint_blindness_preflight,
+    checkpoint_resolved_preflight,
     cmd_pack,
     format_bytes,
     gather_files_for_pack,
@@ -465,6 +466,34 @@ def next_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
     else:
         n = 1
     counter_path.write_text(f"{n}\n")
+    return f"{day}-{slug}-{n:03d}"
+
+
+def peek_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
+    """Compute the sid next_session_id WOULD allocate, without consuming
+    the counter (v0.4.8, board 10 S7).
+
+    Exists for the per-sid checkpoint pre-flight: a {sid}-bearing
+    [validation] base resolves per session, and the resolved-existence
+    refusal must fire BEFORE allocation — a post-allocation refusal
+    burns an NNN, so the planner's remedy (commit the checkpoint the
+    refusal named, repack) would chase a moving resolved path forever.
+    Both request-building paths call this immediately before their
+    next_session_id call, with nothing counter-touching in between and
+    no cross-process lock (the same single-operator TOCTOU posture the
+    scope gates already hold); a date rollover between peek and
+    allocate would desync the pair, which the provenance stamp
+    builder's post-allocation re-check catches as defense in depth.
+    """
+    today = today or date.today()
+    day = today.isoformat()
+    counter_path = repo / ".bale" / f"counter-{day}"
+    n = 1
+    if counter_path.exists():
+        try:
+            n = int(counter_path.read_text().strip()) + 1
+        except (OSError, ValueError):
+            n = 1
     return f"{day}-{slug}-{n:03d}"
 
 
@@ -2994,6 +3023,14 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             repo, handoff_scope, allow=args.allow_checkpoint_in_scope,
             caller="handoff")
 
+        # Per-sid resolved-existence pre-flight (v0.4.8, board 10 S7):
+        # same gate cmd_pack runs immediately before allocation — when
+        # [validation] base carries {sid}, resolve against the sid this
+        # handoff is about to allocate (peeked, not consumed) and
+        # refuse a resolved path absent from HEAD while nothing is
+        # burned. A literal or unconfigured base is a no-op.
+        checkpoint_resolved_preflight(repo, peek_session_id(repo, slug))
+
         # Allocate the new session id NOW (after all the validation
         # gates) so the per-day counter doesn't burn an NNN on a pack
         # that was about to fail anyway. Same staging-then-allocate
@@ -3063,6 +3100,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             # through the shared builder exactly as pack's does.
             provenance=build_provenance_block(
                 repo,
+                sid=new_sid,
                 checkpoint_scope_admitted=checkpoint_scope_admitted,
             ),
             # Board-33 scope stamp (v0.3.21): the same value persisted

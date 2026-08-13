@@ -1480,6 +1480,16 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # gate's merged-config read, reused.
             dry_checkpoint = bale_config.get_validation_base(preflight_cfg)
             if dry_checkpoint is not None:
+                # Per-sid resolution (v0.4.8, board 10 S7): the dry-run
+                # predicts the real apply, so it resolves the same way —
+                # against the locked sid — before probing and verifying.
+                dry_resolved = bale_config.resolve_checkpoint_path(
+                    dry_checkpoint, locked_sid)
+                if dry_resolved != dry_checkpoint:
+                    log(f"dry-run: per-session checkpoint resolved: "
+                        f"{dry_checkpoint} -> {dry_resolved} "
+                        f"(sid {locked_sid})")
+                dry_checkpoint = dry_resolved
                 dry_origin = resolve_target_branch(repo, locked_sid)
                 dry_base = git(["rev-parse", f"refs/heads/{dry_origin}"],
                                cwd=repo).stdout.strip()
@@ -1580,6 +1590,27 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # open with no git side effects beyond the session-dir stamps
         # every apply writes.
         checkpoint_path = bale_config.get_validation_base(staging_cfg)
+        if checkpoint_path is not None:
+            # Per-sid resolution (v0.4.8, board 10 S7): a {sid}-bearing
+            # base resolves against the LOCKED session id — the same
+            # value pack's stamp resolved against — so everything
+            # downstream (dangling refusal, stamp verification, syntax
+            # check, execution, the telemetry stamp) reads and records
+            # the resolved path. Sibling sessions with different sids
+            # resolve to different files, so concurrent waves stop
+            # sharing an oracle and an amendment to one session's
+            # checkpoint no longer trips another's stamp. A literal
+            # base resolves to itself, byte-for-byte; a config
+            # retargeted between pack and apply (literal -> pattern or
+            # vice versa) surfaces as a stamp-path mismatch below,
+            # exactly the retargeted-path refusal the §8.5
+            # verification already holds.
+            resolved_cp = bale_config.resolve_checkpoint_path(
+                checkpoint_path, locked_sid)
+            if resolved_cp != checkpoint_path:
+                log(f"per-session checkpoint resolved: {checkpoint_path} "
+                    f"-> {resolved_cp} (sid {locked_sid})")
+            checkpoint_path = resolved_cp
         # The ADR-0016 position-3 network grant (v0.4.5, board 10 S2):
         # bale.toml [sandbox] network, project layer only by
         # construction (merged_config never inherits the section from

@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -234,8 +235,13 @@ VALIDATION_VALUES = (
     # from the BASE TREE's bytes (git show <base_sha>:<path>) — never the
     # staged overlay — before the worker's validation.sh (BALE.md §8.5).
     # Absent/empty = no blind checkpoint (today's behavior). Configured
-    # but absent at the base tree = loud refusal at apply. Conventional
-    # path the wizard suggests: scripts/validation.base.sh.
+    # but absent at the base tree = loud refusal at apply. The value may
+    # contain the literal token {sid} (v0.4.8, board 10 S7), resolved
+    # with the session id at pack time and everywhere downstream via
+    # resolve_checkpoint_path — per-session checkpoints; a value without
+    # the token behaves byte-for-byte as before. Any other {token} is
+    # refused at config read (get_validation_base). Conventional path
+    # the wizard suggests: scripts/validation.base.sh.
     "base",
     # Flat list of check names (board 6 session B): the project's
     # REQUIRED validation checks. When non-empty, apply's pre-flight
@@ -855,7 +861,44 @@ def get_validation_base(cfg: dict) -> Optional[str]:
     if os.path.isabs(val) or ".." in Path(val).parts:
         fail(f"{BALE_CONFIG}: validation.base must be a repo-relative "
              f"path with no '..' components, got {val!r}")
+    # Brace-token validation (v0.4.8, board 10 S7): the one recognized
+    # placeholder is the literal {sid} (resolve_checkpoint_path below).
+    # Any other well-formed {token} is refused HERE, at config read —
+    # which fires at pack, apply, dry-run, and every other reader — so
+    # an unrecognized token (a {date} typo, a {SID} case slip) is loud
+    # everywhere rather than silently passing through as a literal path
+    # that dangles forever. Braces that do not form a {token} pass
+    # through as literal path characters, so no half-substitution is
+    # possible by construction: resolve_checkpoint_path replaces the
+    # exact literal {sid} and nothing else.
+    unknown = [t for t in re.findall(r"\{([^{}]*)\}", val) if t != "sid"]
+    if unknown:
+        rendered = ", ".join(f"{{{t}}}" for t in unknown)
+        fail(f"{BALE_CONFIG}: validation.base contains unrecognized "
+             f"placeholder token(s) {rendered} in {val!r}; the only "
+             f"recognized token is {{sid}} (per-session checkpoint "
+             f"resolution, BALE.md \u00a78.5). Fix the token or remove it.")
     return val
+
+
+def resolve_checkpoint_path(base: str, sid: str) -> str:
+    """Resolve a [validation] base value against a session id.
+
+    Pure string resolution, no filesystem access — existence checking
+    is the pack gate's job at its call site (v0.4.8, board 10 S7). A
+    literal path returns unchanged, byte-for-byte; a value containing
+    the literal token {sid} has every occurrence substituted with
+    `sid`, giving each session its own checkpoint file instead of the
+    shared oracle the pre-S7 single-path model forced. Internal
+    callers (pack's provenance stamp, apply's execution and stamp
+    verification, the dry-run prediction) route through this function
+    so "resolved path" means one thing everywhere.
+
+    Unknown brace tokens never reach here: get_validation_base refuses
+    them at config read, so this function's substitution is total —
+    no silent half-substitution is possible.
+    """
+    return base.replace("{sid}", sid)
 
 
 def get_validation_required(cfg: dict) -> list[str]:
@@ -1609,7 +1652,10 @@ def walk_configurables(existing: dict, *, layer: str,
                 "copy — before the worker's validation.sh, and PASS",
                 "requires both to exit 0. The script must be committed:",
                 "config naming a path absent at the base tree refuses",
-                "the apply loudly. Conventional path:",
+                "the apply loudly. The value may contain the literal",
+                "token {sid}, resolved with the session id at pack",
+                "time — per-session checkpoints instead of one shared",
+                "oracle (BALE.md 8.5). Conventional path:",
                 "scripts/validation.base.sh. Project-layer only — the",
                 "global wizard does not walk this key.",
             ],
