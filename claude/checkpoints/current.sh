@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 3, amended (claim_basis fixture walks attempts[].validation)
+# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 3, amended x2 (claim_basis mutates dict-shaped claims/claim_verdict, corpus-verified)
 # Session gated: board-10-telemetry-extensions (S5, solo)
 # Sitting: 2026-08-10-continue-plan-001 (board-10 spec-intake repack)
 #
@@ -46,9 +46,19 @@ def check(name, record, expect_valid):
         fails.append(name)
 
 # Base fixture: minimal-but-real shape. Built from the corpus's own
-# youngest record so the fixture tracks reality, then mutated.
-with open("claude/telemetry/2026-08-10-board-10-orchestration-doc-003.json") as f:
-    base = json.load(f)
+# youngest parseable record so the fixture tracks reality, then mutated.
+import glob
+base = None
+for _p in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
+    try:
+        with open(_p) as f:
+            base = json.load(f)
+        break
+    except Exception:
+        continue
+if base is None:
+    print("[ckpt] FAIL: no parseable record in claude/telemetry")
+    sys.exit(1)
 
 # 1. A legacy record (no cost block, no claim_basis) still validates.
 legacy = copy.deepcopy(base)
@@ -79,7 +89,6 @@ for reason, ok in (("no_response", True), ("malformed_response", True),
 #    attempts[].validation.claims and .claim_verdict, one level below
 #    the envelope. Fixture: the youngest corpus record whose attempt
 #    carries a non-null validation block with claims rows.
-import glob
 basis_base = None
 for path in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
     try:
@@ -95,30 +104,44 @@ for path in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
     if basis_base:
         break
 
-def set_basis(rec, value):
+def set_basis(rec, value, surface):
+    # Corpus wire format (verified against real records at authoring):
+    # validation.claims is a DICT of claim-name -> "pass"/"fail" (bare)
+    # or {"value": ..., "claim_basis": ...} (annotated);
+    # validation.claim_verdict is a DICT of claim-name -> row dict.
     rec2 = copy.deepcopy(rec)
     for att in rec2.get("attempts") or []:
         val = att.get("validation")
-        if val and val.get("claims"):
-            row = val["claims"][0]
+        if not val:
+            continue
+        if surface == "claims" and val.get("claims"):
+            name = next(iter(val["claims"]))
+            row = val["claims"][name]
             if isinstance(row, str):
-                val["claims"][0] = {"value": row, "claim_basis": value}
+                val["claims"][name] = {"value": row, "claim_basis": value}
             else:
                 row["claim_basis"] = value
             return rec2
+        if surface == "verdict" and val.get("claim_verdict"):
+            name = next(iter(val["claim_verdict"]))
+            row = val["claim_verdict"][name]
+            if isinstance(row, dict):
+                row["claim_basis"] = value
+                return rec2
     return None
 
 if basis_base is None:
     print("[ckpt] FAIL: no corpus record with attempts[].validation.claims found")
     fails.append("claim_basis fixture source")
 else:
-    for value, ok in (("predicted", True), ("observed", True), ("vibes", False)):
-        r = set_basis(basis_base, value)
-        if r is None:
-            print("[ckpt] FAIL: claims row vanished during mutation")
-            fails.append("claim_basis mutation")
-            break
-        check(f"claim_basis {value}", r, ok)
+    for surface in ("claims", "verdict"):
+        for value, ok in (("predicted", True), ("observed", True), ("vibes", False)):
+            r = set_basis(basis_base, value, surface)
+            if r is None:
+                print(f"[ckpt] FAIL: no {surface} rows found to carry claim_basis")
+                fails.append(f"claim_basis {surface} mutation")
+                break
+            check(f"claim_basis {value} on {surface}", r, ok)
 
 sys.exit(1 if fails else 0)
 PYEOF
