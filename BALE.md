@@ -839,6 +839,29 @@ concept: Claude returns a script in chat, the user runs it, the user
 pastes output back. Bale does not have a `probe-apply` or
 `probe-output/` directory anywhere.
 
+### 6.6 Escalation record (schema only, v0.4.7)
+
+`schemas/escalation-record.schema.json` (board 10 S4) is the wire
+shape of one master-distilled escalation question — the question as
+the architect will see it, with its options, recommendation,
+priority class (`blocking` | `batched`), dedup lineage (`subsumes`),
+and the path its answer accretes into (`amendment_target`). The
+doctrine has one home — `claude/context/orchestration.md` §8, in
+bale-src — and the schema points at it rather than restating it.
+
+No bale command produces or consumes these records: the harness era
+writes them, and the schema is the contract landing first — the
+same schema-ahead-of-producer posture as the v0.4.6 harness-era
+closure reasons. The validation surface exists now, though:
+`validate_escalation_record` (`bin/bale_validate.py`), a library
+entry point in the `validate_telemetry_record` posture (empty list
+= valid, strings = errors, no bale process required), with its
+sibling `validate_clarification_questions` covering the extended
+question rows of the clarification response (TARBALL.md §5.9.2) the
+escalation contract distills from. Both enforce the closed priority
+vocabulary record-wide, at any depth, not only at the schemas'
+named spots.
+
 ---
 
 ## 7. Pack pipeline
@@ -2270,7 +2293,16 @@ short-lived `.bale/sessions/<sid>/` directory:
   ad-hoc corpus sweep imports and calls it directly): an invented
   basis rejects wherever it rides, because the ledger's
   predicted-vs-observed calibration split is only meaningful over a
-  fixed vocabulary;
+  fixed vocabulary. Since v0.4.7 (board 10 S4) the **manifest
+  carrier** closes the ship-time gap: the response manifest's own
+  `claims` values admit the same annotated
+  `{"value": ..., "claim_basis": ...}` form
+  (`response-manifest.schema.json`; TARBALL.md §5.3), so a worker
+  declares the basis when it ships and the verbatim promotion above
+  carries the object into the record unchanged — bare-string claims
+  keep validating, and the bare-string vocabulary check moved from
+  the schema's enum into `validate_response_manifest` (the schema
+  validator subset has no `oneOf`);
 - the **write-forecast epoch key** (v0.4.2, ADR-0015 board 13
   session B): `attempts[].scope_kind: "write-forecast"`, stamped by
   the attempt builder on **every** attempt of every command

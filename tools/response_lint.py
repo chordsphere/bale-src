@@ -162,10 +162,23 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
     },
     "claims": {
       "type": "object",
-      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). Values are constrained to the enum.",
+      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). A value is the bare claim string ('pass', 'fail', 'untested', 'unknown'), or — from v0.4.7 (board 10 S4), the manifest carrier for S5's record-side shape — the annotated object form {\"value\": ..., \"claim_basis\": ...}, declaring at ship time whether the claim was predicted from structural grounds or observed from a real run; apply's verbatim promotion into the telemetry record's attempts[].validation.claims carries the object through unchanged. Bare-string values keep validating (everything additive). The bare-string enum is enforced in Python (validate_response_manifest) — bale's schema-validator subset has no oneOf, so the schema pins only the object form's shape here and the type alternatives.",
       "additionalProperties": {
-        "type": "string",
-        "enum": ["pass", "fail", "untested", "unknown"]
+        "type": ["string", "object"],
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "enum": ["pass", "fail", "untested", "unknown"],
+            "description": "The claim itself — same vocabulary as the bare-string form."
+          },
+          "claim_basis": {
+            "type": "string",
+            "enum": ["predicted", "observed"],
+            "description": "Optional, mirroring telemetry-record.schema.json's annotated claims form exactly: predicted from structural grounds, or observed from a real run before shipping. Omit the key when the basis is unknown — null is not a basis."
+          }
+        }
       }
     },
     "questions": {
@@ -195,6 +208,22 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             "type": "string",
             "minLength": 1,
             "description": "Why the worker declined to proceed on that assumption."
+          },
+          "options": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Optional (v0.4.7, board 10 S4): candidate answers, at least one when present — the asker's read of the choices, so the question arrives answerable. Doctrine: claude/context/orchestration.md section 8. Legacy four-field rows without this key keep validating."
+          },
+          "recommendation": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional (v0.4.7, board 10 S4): the worker's pick among the choices, extending default_assumption's cheapest-possible-answer role. Doctrine: orchestration.md section 8."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["blocking", "batched"],
+            "description": "Optional (v0.4.7, board 10 S4): orchestration.md section 8's two classes — only critical-path blockers interrupt; everything else batches. The vocabulary is CLOSED; validate_clarification_questions (bin/bale_validate.py) additionally enforces it row-wide at any depth."
           }
         }
       }
