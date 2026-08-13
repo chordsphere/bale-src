@@ -2242,6 +2242,35 @@ short-lived `.bale/sessions/<sid>/` directory:
   all — unlock, pack, rollback — where nothing executed and so
   nothing escaped or exercised). Write-only at S2 per the ratified
   deferral: the `bale stats` read side lands when data accrues;
+- the **cost block** (v0.4.6, board 10 S5 — Addition B's day-one
+  piece; orchestration.md §10's cost-governance doctrine):
+  `attempts[].cost` with `tokens_in`, `tokens_out`, `usd`, and
+  `model_tier`, every field nullable. Mechanical stream only — the
+  harness writes these, humans never do; spend is never a worker
+  self-estimate. Stamped unconditionally by the attempt builder as
+  the all-null block on every post-S5 attempt of every command (the
+  sandbox-stamps posture: uniform shape, key presence is epoch
+  membership, all-null is the expected steady state until the
+  harness era), so records born from S5 forward carry the shape with
+  no second backfill era, and cost coverage spans every session
+  exit — the apply-only corpus lesson applied in advance. Write-only
+  at S5 per the ratified deferral: the `bale stats` read side lands
+  when data accrues;
+- the **claim-basis rows** (v0.4.6, board 10 S5 — the claim-basis
+  precedent's measurement gap, closed at the vocabulary level): a
+  claim-bearing row anywhere in the record — a `claim_verdict` row,
+  or a `claims` value taken in its annotated object form — admits an
+  optional self-reported `claim_basis` field, enum exactly
+  `predicted` | `observed`: did the worker predict the claim's
+  outcome from structural grounds, or observe it from a real run
+  before shipping. Optional everywhere, no backfill, no read side at
+  S5. The enum is closed and enforced record-wide by
+  `validate_telemetry_record` (`bin/bale_validate.py`, the per-record
+  library entry point added with it — a blind checkpoint or an
+  ad-hoc corpus sweep imports and calls it directly): an invented
+  basis rejects wherever it rides, because the ledger's
+  predicted-vs-observed calibration split is only meaningful over a
+  fixed vocabulary;
 - the **write-forecast epoch key** (v0.4.2, ADR-0015 board 13
   session B): `attempts[].scope_kind: "write-forecast"`, stamped by
   the attempt builder on **every** attempt of every command
@@ -2288,7 +2317,22 @@ writes nothing: no outcome occurred.
 **closure_reason: why a session closed.** Unlock and revert events
 carry a nullable `closure_reason` (v0.3.16, additive):
 `abandoned`, `superseded-by-split`, `reframed-after-clarification`,
-`master-closeout`, `crash-debris`, or `closed-read-only`. Unlock
+`master-closeout`, `crash-debris`, `closed-read-only`, and — since
+v0.4.6 (board 10 S5, additive enum values) — `no_response` and
+`malformed_response`, the harness-anticipating pair from
+orchestration.md §9's worker-refresh doctrine: `no_response` — a
+request went out and nothing came back (the worker-silence case,
+closed on timeout); `malformed_response` — a response arrived that
+could not be applied as a response (distinct from a well-formed
+response that HOLDs). Both are accepted by `--reason` wherever the
+existing reasons are (unlock and revert alike, one shared choices
+tuple) and expected to stay empty until a harness produces the
+events; the respawn mechanics they anticipate are S6 design. The
+vocabulary is closed and `validate_telemetry_record`
+(`bin/bale_validate.py`) enforces it record-wide alongside the
+schema's named spot — a closure_reason key riding at any depth gets
+the same verdict, so an invented reason rejects wherever a consumer
+put it. Unlock
 stamps it always — the operator's `--reason` when given; else
 `closed-read-only` when the recorded scope is exactly `[]` (the
 §7.2 read-only session shape; the inference keys on `[]`, never on
