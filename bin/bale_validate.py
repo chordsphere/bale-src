@@ -65,6 +65,7 @@ REQUEST_MANIFEST_SCHEMA = "request-manifest.schema.json"
 RESPONSE_MANIFEST_SCHEMA = "response-manifest.schema.json"
 DIAGNOSTICS_SCHEMA = "diagnostics.schema.json"
 TELEMETRY_RECORD_SCHEMA = "telemetry-record.schema.json"
+ESCALATION_RECORD_SCHEMA = "escalation-record.schema.json"
 
 
 # --- JSON Schema validation (BALE.md §11 rows 6) ----------------------------
@@ -302,6 +303,22 @@ def validate_request_manifest(manifest: dict) -> None:
 # schema's two claim_basis enum spots; a third spelling anywhere is drift.
 CLAIM_BASES = ("predicted", "observed")
 
+# The claim vocabulary (TARBALL.md section 5.3): what a manifest's claims
+# value may predict per check. Historically enforced by the response-manifest
+# schema's enum alone; since the v0.4.7 annotated carrier a claims value is
+# a string OR an object, and bale's schema-validator subset has no oneOf, so
+# the bare-string enum moved here (validate_response_manifest) while the
+# schema keeps the object form's `value` enum at its named spot. One home
+# for the Python side; the schema's two enum spots mirror it.
+CLAIM_VALUES = ("pass", "fail", "untested", "unknown")
+
+# The escalation priority vocabulary (v0.4.7, board 10 S4): orchestration.md
+# section 8's two classes — only critical-path blockers interrupt the
+# architect; everything else batches. One home, mirrored into the two
+# priority enum spots (escalation-record.schema.json and the response
+# manifest's questions rows); a third spelling anywhere is drift.
+ESCALATION_PRIORITIES = ("blocking", "batched")
+
 
 def _load_schema_lib(name: str) -> dict:
     """Load and cache a schema WITHOUT the __main__.fail dependency.
@@ -331,53 +348,89 @@ def _load_schema_lib(name: str) -> dict:
     return schema
 
 
-def _walk_closed_vocabularies(value, path: str, closure_vocab: frozenset,
+def _claim_basis_check(v) -> str | None:
+    """Closed-vocabulary checker for a claim_basis key (v0.4.6, S5)."""
+    if v not in CLAIM_BASES:
+        return (f"{v!r} is not one of {list(CLAIM_BASES)} — "
+                f"claim_basis, wherever it appears, is exactly "
+                f"'predicted' or 'observed' (omit the key when the "
+                f"basis is unknown)")
+    return None
+
+
+def _closure_reason_check(closure_vocab: frozenset):
+    """Closed-vocabulary checker factory for a closure_reason key.
+
+    The allowed set is derived from the schema's own
+    attempts[].closure_reason enum so the vocabulary keeps its one home —
+    bin/bale_report's CLOSURE_REASONS mirrors the same enum and the
+    parity test pins all the homes together.
+    """
+    def check(v) -> str | None:
+        if v not in closure_vocab:
+            allowed = sorted(x for x in closure_vocab if x is not None)
+            return (f"{v!r} is not one of {allowed} (or null) — "
+                    f"the closure vocabulary is closed, wherever the key "
+                    f"rides in the record")
+        return None
+    return check
+
+
+def _priority_check(v) -> str | None:
+    """Closed-vocabulary checker for a priority key (v0.4.7, board 10 S4)."""
+    if v not in ESCALATION_PRIORITIES:
+        return (f"{v!r} is not one of {list(ESCALATION_PRIORITIES)} — "
+                f"the escalation priority vocabulary "
+                f"(orchestration.md section 8's two classes) is closed, "
+                f"wherever the key appears")
+    return None
+
+
+def _walk_closed_vocabularies(value, path: str,
+                              checks: dict,
                               errors: list[str]) -> None:
-    """Recursively enforce the two closed S5 vocabularies anywhere their
-    keys appear.
+    """Recursively enforce closed vocabularies anywhere their keys appear.
 
-    The v0.4.6 contract is 'optional everywhere' for claim_basis and
-    'unknown values must reject' for both new vocabularies. The schema's
-    enums catch the spots it can name (attempts[].closure_reason, the two
-    claim_basis homes); this walk is the record-wide backstop, so an
-    invented value rejects at ANY depth rather than slipping through
-    additionalProperties:true at a spot the schema didn't enumerate — a
-    blind consumer mutating the record at its own choice of placement
-    gets the same verdict the schema-named spots give.
+    `checks` maps a key name to a checker callable; the checker returns
+    an error message for a bad value or None for a good one. Each record
+    family passes the vocabulary table it owns: the telemetry record
+    checks claim_basis and closure_reason (v0.4.6, S5); the escalation
+    record and the clarification question rows check priority (v0.4.7,
+    S4). Generalized from S5's two-hardcoded-keys form when the third
+    vocabulary arrived — the walk is the shared pattern, the table is
+    the per-family part.
 
-    Two keys, two vocabularies, one asymmetry:
+    Why a walk and not the schema's named spots alone: the contract for
+    these vocabularies is 'optional everywhere' for the key and 'unknown
+    values must reject'. A schema's enums catch the spots it can name;
+    this walk is the record-wide backstop, so an invented value rejects
+    at ANY depth rather than slipping through additionalProperties:true
+    at a spot the schema didn't enumerate — a blind consumer mutating
+    the record at its own choice of placement gets the same verdict the
+    schema-named spots give. S5's HOLD history (a worker defect from a
+    single-spot enum) is the precedent this discipline encodes; trusting
+    single schema spots is exactly the defect it prevents.
 
-    - **claim_basis** must be exactly 'predicted' or 'observed'
-      (CLAIM_BASES). Null is NOT a basis — an unknowable basis is
-      spelled by OMITTING the key, never by inventing a third value.
-    - **closure_reason** must be a known reason or null. The allowed
-      set is derived from the schema's own attempts[].closure_reason
-      enum (`closure_vocab`, passed in by the caller) so the vocabulary
-      keeps its one home — bin/bale_report's CLOSURE_REASONS mirrors
-      the same enum and the parity test pins all the homes together.
-      Null IS legitimate here: apply/retry attempts record an honest
-      null, so a null closure_reason key at any depth passes.
+    The vocabularies keep their asymmetries in their own checkers:
+    claim_basis rejects null (an unknowable basis is spelled by OMITTING
+    the key, never by inventing a third value); closure_reason accepts
+    null (apply/retry attempts record an honest null); priority follows
+    claim_basis (both classes are real classifications — omit the key on
+    a row that predates the vocabulary, never null it).
     """
     if isinstance(value, dict):
         for k, v in value.items():
             child = _child_path(path, k)
-            if k == "claim_basis" and v not in CLAIM_BASES:
-                errors.append(
-                    f"{child}: {v!r} is not one of {list(CLAIM_BASES)} — "
-                    f"claim_basis, wherever it appears, is exactly "
-                    f"'predicted' or 'observed' (omit the key when the "
-                    f"basis is unknown)")
-            if k == "closure_reason" and v not in closure_vocab:
-                allowed = sorted(x for x in closure_vocab if x is not None)
-                errors.append(
-                    f"{child}: {v!r} is not one of {allowed} (or null) — "
-                    f"the closure vocabulary is closed, wherever the key "
-                    f"rides in the record")
-            _walk_closed_vocabularies(v, child, closure_vocab, errors)
+            check = checks.get(k)
+            if check is not None:
+                message = check(v)
+                if message is not None:
+                    errors.append(f"{child}: {message}")
+            _walk_closed_vocabularies(v, child, checks, errors)
     elif isinstance(value, list):
         for i, item in enumerate(value):
             _walk_closed_vocabularies(item, _child_path(path, i),
-                                      closure_vocab, errors)
+                                      checks, errors)
 
 
 def validate_telemetry_record(record: dict) -> list:
@@ -432,7 +485,101 @@ def validate_telemetry_record(record: dict) -> list:
     closure_vocab = frozenset(
         schema["properties"]["attempts"]["items"]
               ["properties"]["closure_reason"]["enum"])
-    _walk_closed_vocabularies(record, "", closure_vocab, errors)
+    _walk_closed_vocabularies(record, "", {
+        "claim_basis": _claim_basis_check,
+        "closure_reason": _closure_reason_check(closure_vocab),
+    }, errors)
+    return errors
+
+
+# --- Escalation-contract validation (v0.4.7, board 10 S4) -------------------
+#
+# Two more LIBRARY entry points in the validate_telemetry_record posture:
+# empty list = valid, strings = errors, no __main__ dependency, importable
+# by a planner-authored blind checkpoint, a test, or an ad-hoc sweep. They
+# are the validation surface for the escalation contract's two wire shapes
+# (doctrine home: claude/context/orchestration.md section 8): the
+# escalation record (schemas/escalation-record.schema.json — no producer
+# yet; the schema is the contract landing first) and the clarification
+# response's extended question rows (response-manifest.schema.json's
+# questions items, the same rows validate_response_manifest checks inside
+# a full manifest, exposed here row-wise for callers holding rows alone).
+
+
+def validate_escalation_record(record: dict) -> list:
+    """Validate one escalation record; [] = valid, else human-readable errors.
+
+    The per-record entry point over escalation-record.schema.json,
+    importable as a library from bin/bale_validate.py, no bale process
+    required — the validate_telemetry_record posture exactly:
+
+        errors = validate_escalation_record(json.loads(path.read_text()))
+        if errors: ...
+
+    Two layers, mirroring validate_telemetry_record's split:
+
+    1. **Shape** — the schema pass. The schema is intentionally loose
+       (additionalProperties: true at the envelope, matching the
+       telemetry record), so future additive fields keep old records
+       validating; what it does pin, it pins: the six-field required
+       core (question, options, recommendation, priority, subsumes,
+       amendment_target), options non-empty, subsumes an array, and
+       the enums at their named spots.
+    2. **The closed-vocabulary invariant** — the record-wide walk
+       (_walk_closed_vocabularies, its docstring for why): a priority
+       key at ANY depth must be exactly 'blocking' or 'batched'
+       (ESCALATION_PRIORITIES), so an invented class rejects wherever
+       a consumer put it, not only at the schema-named spot.
+
+    A non-dict argument is reported as an error, not raised — the
+    caller handed us data, and data problems are return values here. A
+    missing or corrupt schema file raises RuntimeError: an install
+    problem, not a record problem (_load_schema_lib).
+    """
+    if not isinstance(record, dict):
+        return [f"escalation record is not a JSON object "
+                f"(got {_describe_json_value(record)})"]
+    schema = _load_schema_lib(ESCALATION_RECORD_SCHEMA)
+    errors = validate_against_schema(record, schema)
+    _walk_closed_vocabularies(record, "", {"priority": _priority_check},
+                              errors)
+    return errors
+
+
+def validate_clarification_questions(rows: list) -> list:
+    """Validate clarification question rows; [] = valid, else errors.
+
+    The row-wise entry point over the response manifest's questions[]
+    item shape — the schema of record stays
+    response-manifest.schema.json's questions items (one home; this
+    function derives the sub-schema from it rather than duplicating
+    it), so a row that validates here validates inside a full
+    clarification manifest and vice versa. Library posture per
+    validate_telemetry_record: no bale process, no __main__.
+
+    Rows are the legacy four-field shape (question, context,
+    default_assumption, why_blocked) or the v0.4.7 extended shape
+    adding any of options (non-empty when present), recommendation,
+    and priority (enum exactly 'blocking' | 'batched') — everything
+    additive, so every legacy row keeps validating. The priority
+    vocabulary is additionally enforced row-wide by the closed-
+    vocabulary walk (its docstring for why), matching
+    validate_escalation_record's discipline so the two surfaces give
+    one verdict for an invented class.
+
+    A non-list argument is reported as an error, not raised; error
+    strings carry questions[i]-prefixed paths. A missing or corrupt
+    schema file raises RuntimeError (_load_schema_lib).
+    """
+    if not isinstance(rows, list):
+        return [f"clarification questions are not a JSON array "
+                f"(got {_describe_json_value(rows)})"]
+    schema = _load_schema_lib(RESPONSE_MANIFEST_SCHEMA)
+    questions_schema = schema["properties"]["questions"]
+    errors: list[str] = []
+    _validate_against_schema(rows, questions_schema, "questions", errors)
+    _walk_closed_vocabularies(rows, "questions",
+                              {"priority": _priority_check}, errors)
     return errors
 
 
@@ -534,6 +681,17 @@ def validate_response_manifest(manifest: dict) -> None:
         fail(f"manifest.claims has keys not in validation_will_run: "
              f"{sorted(extra_claims)}")
 
+    # Bare-string claim values must be in the claim vocabulary. Until the
+    # v0.4.7 annotated carrier the schema's enum enforced this; a claims
+    # value is now a string OR an object and the schema-validator subset
+    # has no oneOf, so the schema pins the object form's shape (value
+    # enum, claim_basis enum, no unknown keys) and the bare-string enum
+    # moved here. Same vocabulary either way (CLAIM_VALUES).
+    for key, value in manifest["claims"].items():
+        if isinstance(value, str) and value not in CLAIM_VALUES:
+            fail(f"manifest.claims[{key!r}]: {value!r} is not one of "
+                 f"{list(CLAIM_VALUES)}")
+
     # Bailout-shape rules (TARBALL.md §5.6.2). The bailout's apply path
     # skips staging/validation entirely, so an out-of-shape bailout —
     # claiming changes, deferrals, or check predictions — is a contract
@@ -593,6 +751,16 @@ def validate_response_manifest(manifest: dict) -> None:
                 if not q[k].strip():
                     fail(f"manifest.questions[{i}].{k} must be non-empty after "
                          f"stripping")
+            # The v0.4.7 optional fields get the same stronger-than-
+            # minLength rule when present (priority is enum-checked by
+            # the schema and needs no stripping).
+            if "recommendation" in q and not q["recommendation"].strip():
+                fail(f"manifest.questions[{i}].recommendation must be "
+                     f"non-empty after stripping when present")
+            for j, option in enumerate(q.get("options", [])):
+                if not option.strip():
+                    fail(f"manifest.questions[{i}].options[{j}] must be "
+                         f"non-empty after stripping")
     else:
         # questions[] is the clarification's payload and nothing else's. A
         # normal or bailout manifest carrying questions is out of shape —

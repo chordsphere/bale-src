@@ -262,6 +262,12 @@ if not claims:
     raise SystemExit(0)
 width = max(len(c) for c in claims) + 1
 for check, claim in claims.items():
+    if isinstance(claim, dict):
+        # The v0.4.7 annotated carrier: {"value": ..., "claim_basis": ...}.
+        # Reconcile against the value; the basis rides the manifest's
+        # verbatim promotion into telemetry, not this block, so the
+        # printed line keeps the exact shape the parser expects.
+        claim = claim.get("value", "?")
     verdict = verdicts.get(check, "missing")
     if claim in ("untested", "unknown") or verdict in ("skip", "missing"):
         tag = "[n/a]"

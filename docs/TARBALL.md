@@ -422,6 +422,20 @@ separate fields so disagreement is itself diagnostic.
 | `untested` | The check will be skipped in my environment |
 | `unknown` | Claude genuinely can't tell |
 
+A claim value takes one of two forms (v0.4.7). The bare string from
+the table above remains the default and every earlier manifest keeps
+validating. The **annotated object form** —
+`{"value": "pass", "claim_basis": "predicted"}` — lets the worker
+additionally declare, at ship time, the claim's basis: `predicted`
+from structural grounds, or `observed` from a real run before
+shipping. `value` carries the same vocabulary as the bare string;
+`claim_basis` is optional and its enum is closed (omit the key when
+the basis is unknown — null is not a basis). Apply's verbatim
+promotion of the claims map into the session's telemetry record
+(`attempts[].validation.claims`, BALE.md §8.9) carries the object
+through unchanged, which is what makes the record-side calibration
+split measurable from ship-time declarations.
+
 One rule scopes the block: `claims` covers the project-level checks
 (lint, typecheck, build, tests), and when the project has none — no
 lint, typecheck, build, or test surface yet — it covers the
@@ -785,6 +799,17 @@ what the session was asked to do and that it is blocked on the
 questions below; and the `default_assumption` field is load-bearing
 — it lets the planner answer with a single *"your assumption is
 correct"* and surfaces the worker's reasoning for audit.
+
+A question row may additionally carry three optional fields
+(v0.4.7); legacy four-field rows keep validating. **`options`** —
+candidate answers, at least one when present. **`recommendation`**
+— the worker's pick among them. **`priority`** — enum exactly
+`blocking` | `batched`: only critical-path blockers interrupt;
+everything else batches. The doctrine behind all three — why
+questions arrive answerable, and what the two priority classes mean
+for the asker — has one home, `claude/context/orchestration.md` §8
+(in bale's source repo); this section names the fields and stops
+there.
 
 #### 5.9.3 Apply-time UX (moved)
 

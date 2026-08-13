@@ -237,6 +237,7 @@ INSTALL_LAYOUT=(
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json
   schemas/telemetry-record.schema.json
+  schemas/escalation-record.schema.json
   tools/response_lint.py
   tools/craft_response.py
   install.sh
