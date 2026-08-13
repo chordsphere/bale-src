@@ -2172,7 +2172,15 @@ RECORD_VERSION = 1
 # `bale pack --read-only` offering to close an open []-scope session at
 # its accept-default prompt — writes it with command "pack". Neither
 # path needs the value typed by hand, though an operator may still pass
-# it explicitly.
+# it explicitly. "no_response" and "malformed_response" (v0.4.6, board 10
+# S5) are the harness-anticipating pair from orchestration.md §9's
+# worker-refresh doctrine: no_response = a request went out and nothing
+# came back (the worker-silence case, closed on timeout);
+# malformed_response = a response arrived that could not be applied as a
+# response (distinct from a well-formed response that HOLDs). Both are
+# CLI-accepted from day one and expected to stay empty until a harness
+# produces the events — the vocabulary lands ahead of the mechanics, the
+# closure-vocabulary pattern the cost block follows too (BALE.md §8.9).
 CLOSURE_REASONS = (
     "abandoned",
     "superseded-by-split",
@@ -2180,6 +2188,8 @@ CLOSURE_REASONS = (
     "master-closeout",
     "crash-debris",
     "closed-read-only",
+    "no_response",
+    "malformed_response",
 )
 
 # The §7.3 reconciliation line as validation.sh conventionally prints it:
@@ -2257,6 +2267,7 @@ def build_telemetry_attempt(
     checkpoint: Optional[dict] = None,
     sandbox_escaped: bool = False,
     network_grant_exercised: bool = False,
+    cost: Optional[dict] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -2355,6 +2366,23 @@ def build_telemetry_attempt(
     bale.toml [sandbox] network grant active (an escaped run
     exercises no grant — nothing confined ran). Write-only this
     session per the ratified deferral: no `bale stats` read side.
+
+    `cost` (v0.4.6, board 10 S5 — Addition B's day-one piece;
+    orchestration.md §10) is the spend block: tokens_in, tokens_out,
+    usd, model_tier, every field nullable. Stamped UNCONDITIONALLY
+    here like the sandbox stamps — every post-S5 attempt of every
+    command carries the block, so key presence is epoch membership
+    and records born from S5 forward carry the shape with no second
+    backfill era. The default (and today's only) form is the all-null
+    block: cost is MECHANICAL-STREAM data the harness will write —
+    never a worker self-estimate, never typed by a human — so until
+    the harness era every field is an honest null. A caller passing a
+    real block (the harness, eventually) is recorded verbatim. The
+    all-null steady state deliberately covers every session exit
+    (unlock, pack, rollback included): the apply-only corpus lesson
+    applied in advance — cost coverage must span every exit or the
+    aggregate computes rates over a numerator-only dataset. Write-only
+    at S5 per the ratified deferral: no `bale stats` read side.
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -2384,6 +2412,16 @@ def build_telemetry_attempt(
         # the semantics) — unconditional, the overridden_paths posture.
         "sandbox_escaped": bool(sandbox_escaped),
         "network_grant_exercised": bool(network_grant_exercised),
+        # The v0.4.6 cost block (board 10 S5; docstring above owns the
+        # semantics) — unconditional, the sandbox-stamps posture: all-null
+        # until a harness passes real values, key presence = epoch
+        # membership.
+        "cost": (cost if cost is not None else {
+            "tokens_in": None,
+            "tokens_out": None,
+            "usd": None,
+            "model_tier": None,
+        }),
         "change_paths": [c.get("path") for c in
                          (manifest or {}).get("changes", []) or []],
         "feedback": (manifest or {}).get("feedback"),

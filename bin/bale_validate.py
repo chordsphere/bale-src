@@ -64,6 +64,7 @@ SCHEMAS_DIR = INSTALL_ROOT / "schemas"
 REQUEST_MANIFEST_SCHEMA = "request-manifest.schema.json"
 RESPONSE_MANIFEST_SCHEMA = "response-manifest.schema.json"
 DIAGNOSTICS_SCHEMA = "diagnostics.schema.json"
+TELEMETRY_RECORD_SCHEMA = "telemetry-record.schema.json"
 
 
 # --- JSON Schema validation (BALE.md §11 rows 6) ----------------------------
@@ -282,6 +283,157 @@ def validate_request_manifest(manifest: dict) -> None:
     if not isinstance(manifest, dict):
         fail("request manifest is not a JSON object")
     validate_manifest_shape(manifest, REQUEST_MANIFEST_SCHEMA, "request manifest")
+
+
+# --- Telemetry record validation (v0.4.6, board 10 S5) ----------------------
+#
+# Unlike the three fail()-driven manifest validators above, the telemetry
+# validator is a LIBRARY entry point: it returns error strings instead of
+# exiting, and it never touches __main__. The blind-checkpoint use case is
+# the reason — a planner-authored checkpoint imports this module directly
+# (`import bale_validate`) and calls validate_telemetry_record per record,
+# where `from __main__ import fail` would ImportError because bin/bale is
+# not the running program. The same property makes it usable from tests,
+# notebooks, and jq-adjacent one-off scripts over the corpus.
+
+# The claim-basis vocabulary (telemetry-record.schema.json, v0.4.6): the
+# self-reported basis of a claim — predicted from structural grounds, or
+# observed from a real run before shipping. One home, mirrored into the
+# schema's two claim_basis enum spots; a third spelling anywhere is drift.
+CLAIM_BASES = ("predicted", "observed")
+
+
+def _load_schema_lib(name: str) -> dict:
+    """Load and cache a schema WITHOUT the __main__.fail dependency.
+
+    load_schema() above is the CLI-context loader: it imports `fail` from
+    __main__ unconditionally, which is correct when bin/bale is the
+    program but breaks under library import (checkpoints, tests). This
+    loader shares the cache and raises RuntimeError on a missing or
+    corrupt schema instead — a broken install is loud either way, but a
+    library caller gets an exception it can handle rather than a
+    sys.exit it can't. A schema-load failure is an install problem, never
+    a record problem, so it must not masquerade as a validation error
+    string.
+    """
+    if name in _SCHEMA_CACHE:
+        return _SCHEMA_CACHE[name]
+    path = SCHEMAS_DIR / name
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as e:
+        raise RuntimeError(
+            f"could not read schema {name} at {path}: {e}") from e
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"schema {name} at {path} is not valid JSON: {e}") from e
+    _SCHEMA_CACHE[name] = schema
+    return schema
+
+
+def _walk_closed_vocabularies(value, path: str, closure_vocab: frozenset,
+                              errors: list[str]) -> None:
+    """Recursively enforce the two closed S5 vocabularies anywhere their
+    keys appear.
+
+    The v0.4.6 contract is 'optional everywhere' for claim_basis and
+    'unknown values must reject' for both new vocabularies. The schema's
+    enums catch the spots it can name (attempts[].closure_reason, the two
+    claim_basis homes); this walk is the record-wide backstop, so an
+    invented value rejects at ANY depth rather than slipping through
+    additionalProperties:true at a spot the schema didn't enumerate — a
+    blind consumer mutating the record at its own choice of placement
+    gets the same verdict the schema-named spots give.
+
+    Two keys, two vocabularies, one asymmetry:
+
+    - **claim_basis** must be exactly 'predicted' or 'observed'
+      (CLAIM_BASES). Null is NOT a basis — an unknowable basis is
+      spelled by OMITTING the key, never by inventing a third value.
+    - **closure_reason** must be a known reason or null. The allowed
+      set is derived from the schema's own attempts[].closure_reason
+      enum (`closure_vocab`, passed in by the caller) so the vocabulary
+      keeps its one home — bin/bale_report's CLOSURE_REASONS mirrors
+      the same enum and the parity test pins all the homes together.
+      Null IS legitimate here: apply/retry attempts record an honest
+      null, so a null closure_reason key at any depth passes.
+    """
+    if isinstance(value, dict):
+        for k, v in value.items():
+            child = _child_path(path, k)
+            if k == "claim_basis" and v not in CLAIM_BASES:
+                errors.append(
+                    f"{child}: {v!r} is not one of {list(CLAIM_BASES)} — "
+                    f"claim_basis, wherever it appears, is exactly "
+                    f"'predicted' or 'observed' (omit the key when the "
+                    f"basis is unknown)")
+            if k == "closure_reason" and v not in closure_vocab:
+                allowed = sorted(x for x in closure_vocab if x is not None)
+                errors.append(
+                    f"{child}: {v!r} is not one of {allowed} (or null) — "
+                    f"the closure vocabulary is closed, wherever the key "
+                    f"rides in the record")
+            _walk_closed_vocabularies(v, child, closure_vocab, errors)
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            _walk_closed_vocabularies(item, _child_path(path, i),
+                                      closure_vocab, errors)
+
+
+def validate_telemetry_record(record: dict) -> list:
+    """Validate one telemetry record; [] = valid, else human-readable errors.
+
+    The per-record entry point (v0.4.6, board 10 S5) over
+    telemetry-record.schema.json — importable as a library from
+    bin/bale_validate.py, no bale process required. Previously the shape
+    was exercised only corpus-wise through consumers (`bale stats`, the
+    suite's per-fixture schema reads); this is the one-record surface a
+    blind checkpoint, a test, or an ad-hoc corpus sweep calls directly:
+
+        errors = validate_telemetry_record(json.loads(path.read_text()))
+        if errors: ...
+
+    Two layers, mirroring validate_response_manifest's split:
+
+    1. **Shape** — the schema pass (validate_against_schema against
+       telemetry-record.schema.json). The schema is intentionally loose
+       (additionalProperties: true at the envelope and inside attempts),
+       so legacy records without the v0.4.6 fields — or without any
+       later additive field — keep validating; what it does pin, it
+       pins: the outcome / command / closure_reason enums (including
+       no_response and malformed_response, v0.4.6), the required
+       envelope, and the typed sub-objects.
+    2. **The closed-vocabulary invariants** — the record-wide walk
+       (_walk_closed_vocabularies): any claim_basis key at any depth
+       must be exactly 'predicted' or 'observed', and any closure_reason
+       key at any depth must be a schema-vocabulary reason or null. This
+       is the strictness the brief demands ('unknown closure reasons and
+       unknown claim_basis values must reject') made placement-robust:
+       the loose schema constrains the spots it names, and the walk
+       gives every other spot the same verdict, so a consumer mutating
+       the record at its own choice of placement — a blind checkpoint
+       included — cannot land an invented value anywhere.
+
+    Returns a list of error strings with dotted/bracketed paths
+    (e.g. 'attempts[0].closure_reason: ...'); empty list means valid.
+    A non-dict argument is reported as an error, not raised — the caller
+    handed us data, and data problems are return values here. A missing
+    or corrupt schema file raises RuntimeError: that is an install
+    problem, not a record problem (_load_schema_lib).
+    """
+    if not isinstance(record, dict):
+        return [f"telemetry record is not a JSON object "
+                f"(got {_describe_json_value(record)})"]
+    schema = _load_schema_lib(TELEMETRY_RECORD_SCHEMA)
+    errors = validate_against_schema(record, schema)
+    # The closure vocabulary's one home is the schema's own enum at its
+    # named spot; derive the walk's allowed set from it so the two layers
+    # cannot drift (CLOSURE_REASONS parity is pinned separately by test).
+    closure_vocab = frozenset(
+        schema["properties"]["attempts"]["items"]
+              ["properties"]["closure_reason"]["enum"])
+    _walk_closed_vocabularies(record, "", closure_vocab, errors)
+    return errors
 
 
 def validate_diagnostics(diagnostics: dict) -> None:
