@@ -1,0 +1,264 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-13-board-10-escalation-schemas-002",
+  "created_at": "2026-08-13T13:06:48+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-13T13:06:48+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (41).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs/TARBALL.md",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_validate.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "schemas/escalation-record.schema.json",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "tests/test_escalation_schemas.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.6",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "36a8e03b1fa4740e19b2768063a4c6a3dbe4f4ac38f48ed9be97ecd10464825f"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validate.sh's three-schema presence loop is a deliberate S5-era precedent rather than an oversight, so the new schema was not added there (proposed in notes.md instead)",
+            "subsumes[] entries are pinned only as non-empty strings; the sid-vs-sid#index notation is the S6 producer's decision"
+          ],
+          "judgment_calls": [
+            "generalized _walk_closed_vocabularies to a table-driven walk (key -> checker) instead of hardcoding a third key, so each record family enforces only its own vocabularies",
+            "moved the bare-string claim enum from the schema to validate_response_manifest (the validator subset has no oneOf); the schema pins the annotated object's shape",
+            "claim_basis optional on the object form, mirroring the S5 record-side shape exactly rather than requiring the annotation",
+            "escalation record craft fields (record_version, escalation_id, session_id, timestamps, status, answer) all optional so the pinned six-field minimal record validates",
+            "recommendation-in-options left as documented convention, not schema contract, per the S5 HOLD lesson against invented strictness"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tools/response_lint.py",
+              "why": "the embedded response-manifest schema must stay JSON-equal to schemas/ (test_schema_embeds + validate.sh pin it); the schema edit forces the embed refresh"
+            },
+            {
+              "path": "tools/craft_response.py",
+              "why": "the crafted 7.3 reconciliation epilogue must unwrap the annotated claims object to its value, or every annotated claim false-DISAGREEs and prints a dict"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "build's tree-coverage pre-flight fails for any schemas/ file missing from RELEASE_FILES; the new schema must be listed"
+            },
+            {
+              "path": "install.sh",
+              "why": "INSTALL_LAYOUT is pinned set-equal to RELEASE_FILES by test_release_packaging; the two lists move together"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-13-board-10-escalation-schemas-002.log"
+    },
+    {
+      "at": "2026-08-13T13:08:48+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (41).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "lint embed parity (embedded response-manifest schema == schemas/)": "pass",
+          "escalation contract assertions (pinned fixtures via library import)": "pass",
+          "test suite (python3 -m unittest discover -s tests)": "pass"
+        },
+        "claim_verdict": {
+          "lint embed parity (embedded response-manifest schema == schemas/)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "escalation contract assertions (pinned fixtures via library import)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs/TARBALL.md",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_validate.py",
+        "docs/TARBALL.md",
+        "install.sh",
+        "schemas/escalation-record.schema.json",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "tests/test_escalation_schemas.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.6",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "bc8f881456d2c9835458bb2c9dd357f513aa8954d3b7c33011cd8b95273afc2b",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/current.sh",
+              "sha256": "36a8e03b1fa4740e19b2768063a4c6a3dbe4f4ac38f48ed9be97ecd10464825f"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validate.sh's three-schema presence loop is a deliberate S5-era precedent rather than an oversight, so the new schema was not added there (proposed in notes.md instead)",
+            "subsumes[] entries are pinned only as non-empty strings; the sid-vs-sid#index notation is the S6 producer's decision"
+          ],
+          "judgment_calls": [
+            "generalized _walk_closed_vocabularies to a table-driven walk (key -> checker) instead of hardcoding a third key, so each record family enforces only its own vocabularies",
+            "moved the bare-string claim enum from the schema to validate_response_manifest (the validator subset has no oneOf); the schema pins the annotated object's shape",
+            "claim_basis optional on the object form, mirroring the S5 record-side shape exactly rather than requiring the annotation",
+            "escalation record craft fields (record_version, escalation_id, session_id, timestamps, status, answer) all optional so the pinned six-field minimal record validates",
+            "recommendation-in-options left as documented convention, not schema contract, per the S5 HOLD lesson against invented strictness"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tools/response_lint.py",
+              "why": "the embedded response-manifest schema must stay JSON-equal to schemas/ (test_schema_embeds + validate.sh pin it); the schema edit forces the embed refresh"
+            },
+            {
+              "path": "tools/craft_response.py",
+              "why": "the crafted 7.3 reconciliation epilogue must unwrap the annotated claims object to its value, or every annotated claim false-DISAGREEs and prints a dict"
+            },
+            {
+              "path": "scripts/build.sh",
+              "why": "build's tree-coverage pre-flight fails for any schemas/ file missing from RELEASE_FILES; the new schema must be listed"
+            },
+            {
+              "path": "install.sh",
+              "why": "INSTALL_LAYOUT is pinned set-equal to RELEASE_FILES by test_release_packaging; the two lists move together"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-13-board-10-escalation-schemas-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/current.sh",
+          "sha256": "36a8e03b1fa4740e19b2768063a4c6a3dbe4f4ac38f48ed9be97ecd10464825f"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-13T13:08:48+00:00",
+  "outcome": "applied"
+}
