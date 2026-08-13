@@ -1,111 +1,74 @@
 #!/usr/bin/env bash
-# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 4
-# Session gated: board-10-escalation-schemas (S4, solo)
+# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 6
+# Sessions gated: board-10-closeout-deltas, board-10-per-sid-checkpoints (S7)
 # Sitting: 2026-08-10-continue-plan-001 (board-10 spec-intake repack)
 #
-# Planner-authored from the request before implementation; fixture
-# construction dry-run against stubs at authoring per the wave-3
-# standing practice. Runs cwd = staging. Exit: 0 pass, 1 fail, 2 error.
+# Planner-authored from the requests before implementation; fixture
+# paths dry-run at authoring. This is the last shared-path checkpoint:
+# the S7 session it gates retires the pattern. Guarded blocks as in
+# every prior wave. Runs cwd = staging. Exit: 0 pass, 1 fail, 2 error.
 
 set -u
 status=0
 note() { printf '[ckpt] %s\n' "$*"; }
 failck() { printf '[ckpt] FAIL: %s\n' "$*"; status=1; }
 
-if [ ! -f schemas/escalation-record.schema.json ]; then
-  note "S4 guard not armed in this tree; checkpoint passes vacuously"
-  exit 0
-fi
-note "S4 guard armed: schemas/escalation-record.schema.json present"
+ran_any=0
 
-for tok in subsumes amendment_target recommendation priority; do
-  if grep -q "$tok" schemas/escalation-record.schema.json; then
-    note "escalation schema token present: $tok"
+# ---------- Close-out deltas guard ----------
+if grep -qF "arc build complete" claude/MASTER.md 2>/dev/null; then
+  ran_any=1
+  note "close-out guard armed: board-10 row records the arc build complete"
+  for phrase in "dry-run" "stats read sides deferred" "packaging-list coupling" "per-sid checkpoint"; do
+    if grep -qF "$phrase" claude/MASTER.md; then
+      note "anchor present: $phrase"
+    else
+      failck "anchor phrase missing: $phrase"
+    fi
+  done
+  if grep -qF "60.8" claude/MASTER.md; then
+    note "operator suite-runtime figure recorded"
   else
-    failck "pinned escalation schema token missing: $tok"
+    failck "the measured operator suite runtime is not recorded"
   fi
-done
-for tok in options recommendation priority; do
-  if grep -q "$tok" schemas/response-manifest.schema.json; then
-    note "manifest schema token present: $tok"
+  if grep -qE '4 \+ 3 \+ 1 \+ 2' claude/MASTER.md; then
+    failck "the stale watches-preamble enumeration survived the true-up"
   else
-    failck "pinned manifest schema token missing: $tok"
+    note "watches preamble trued up"
   fi
-done
-if grep -q "claim_basis" schemas/response-manifest.schema.json; then
-  note "manifest schema admits the annotated claim form"
-else
-  failck "manifest schema missing the claim_basis carrier"
 fi
 
-python3 - <<'PYEOF'
-import sys, copy
+# ---------- S7 guard: per-sid checkpoint resolution ----------
+if grep -qF '{sid}' BALE.md 2>/dev/null; then
+  ran_any=1
+  note "S7 guard armed: BALE.md documents the {sid} placeholder"
+  python3 - <<'PYEOF'
+import sys
 sys.path.insert(0, "bin")
-import bale_validate
+import bale_config
 
 fails = []
-
-def check(fn, name, fixture, expect_valid):
-    errs = fn(fixture)
-    ok = (errs == []) if expect_valid else (errs != [])
-    print(f"[ckpt] {'ok' if ok else 'FAIL'}: {name}"
-          + ("" if ok else f" :: {errs[:2] if errs else 'accepted but should reject'}"))
+def check(name, got, want):
+    ok = got == want
+    print(f"[ckpt] {'ok' if ok else 'FAIL'}: {name}" + ("" if ok else f" :: got {got!r}"))
     if not ok:
         fails.append(name)
 
-# --- escalation records (new schema; fixtures authored from the pin) ---
-er = bale_validate.validate_escalation_record
-base = {
-    "question": "Should the retry counter live in the registry or the record?",
-    "options": ["registry", "record"],
-    "recommendation": "record",
-    "priority": "batched",
-    "subsumes": [],
-    "amendment_target": "claude/MASTER.md",
-}
-check(er, "minimal escalation record", base, True)
-
-full = copy.deepcopy(base)
-full["priority"] = "blocking"
-full["subsumes"] = ["sid-a:q1", "sid-b:q3"]
-check(er, "blocking record with lineage", full, True)
-
-for name, mut, ok in (
-    ("priority outside the enum", {"priority": "urgent"}, False),
-    ("missing recommendation", {"recommendation": None}, False),
-    ("subsumes not an array", {"subsumes": "sid-a:q1"}, False),
-    ("empty options", {"options": []}, False),
-):
-    r = copy.deepcopy(base)
-    for k, v in mut.items():
-        if v is None:
-            r.pop(k, None)
-        else:
-            r[k] = v
-    check(er, name, r, ok)
-
-# --- clarification question rows (extended surface) ---
-cq = bale_validate.validate_clarification_questions
-row = {
-    "question": "Which config layer owns the cap?",
-    "context": "The cap could be global or project.",
-    "default_assumption": "project layer",
-    "why_blocked": "the key's home decides the merge branch",
-    "options": ["global", "project"],
-    "recommendation": "project",
-    "priority": "batched",
-}
-check(cq, "extended question row", [row], True)
-
-legacy = {k: row[k] for k in ("question", "context", "default_assumption", "why_blocked")}
-check(cq, "legacy row without the extension", [legacy], True)
-
-bad = copy.deepcopy(row)
-bad["priority"] = "whenever"
-check(cq, "question priority outside the enum", [bad], False)
+r = bale_config.resolve_checkpoint_path
+check("literal path unchanged (compat)",
+      r("claude/checkpoints/current.sh", "2026-01-01-example-001"),
+      "claude/checkpoints/current.sh")
+check("placeholder substituted",
+      r("claude/checkpoints/{sid}.sh", "2026-01-01-example-001"),
+      "claude/checkpoints/2026-01-01-example-001.sh")
 
 sys.exit(1 if fails else 0)
 PYEOF
-[ $? -eq 0 ] || status=1
+  [ $? -eq 0 ] || status=1
+fi
+
+if [ "$ran_any" = 0 ]; then
+  note "no wave-6 guard armed in this tree; checkpoint passes vacuously"
+fi
 
 exit "$status"
