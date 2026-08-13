@@ -1,147 +1,108 @@
 #!/usr/bin/env bash
-# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 3, amended x2 (claim_basis mutates dict-shaped claims/claim_verdict, corpus-verified)
-# Session gated: board-10-telemetry-extensions (S5, solo)
+# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 4
+# Session gated: board-10-escalation-schemas (S4, solo)
 # Sitting: 2026-08-10-continue-plan-001 (board-10 spec-intake repack)
 #
-# Planner-authored from the request, before implementation. Replaces
-# the wave-2 guards (both wave-2 sessions closed). Probe-surface note
-# per the wave-2 finding: nothing here reads /sys/class/net.
-# Runs cwd = staging. Exit: 0 pass, 1 fail, 2 error.
+# Planner-authored from the request before implementation; fixture
+# construction dry-run against stubs at authoring per the wave-3
+# standing practice. Runs cwd = staging. Exit: 0 pass, 1 fail, 2 error.
 
 set -u
 status=0
 note() { printf '[ckpt] %s\n' "$*"; }
 failck() { printf '[ckpt] FAIL: %s\n' "$*"; status=1; }
 
-if ! grep -q "no_response" schemas/telemetry-record.schema.json 2>/dev/null; then
-  note "S5 guard not armed in this tree; checkpoint passes vacuously"
+if [ ! -f schemas/escalation-record.schema.json ]; then
+  note "S4 guard not armed in this tree; checkpoint passes vacuously"
   exit 0
 fi
-note "S5 guard armed: no_response present in telemetry schema"
+note "S4 guard armed: schemas/escalation-record.schema.json present"
 
-for tok in malformed_response claim_basis tokens_in tokens_out model_tier; do
-  if grep -q "$tok" schemas/telemetry-record.schema.json; then
-    note "schema token present: $tok"
+for tok in subsumes amendment_target recommendation priority; do
+  if grep -q "$tok" schemas/escalation-record.schema.json; then
+    note "escalation schema token present: $tok"
   else
-    failck "pinned schema token missing: $tok"
+    failck "pinned escalation schema token missing: $tok"
   fi
 done
+for tok in options recommendation priority; do
+  if grep -q "$tok" schemas/response-manifest.schema.json; then
+    note "manifest schema token present: $tok"
+  else
+    failck "pinned manifest schema token missing: $tok"
+  fi
+done
+if grep -q "claim_basis" schemas/response-manifest.schema.json; then
+  note "manifest schema admits the annotated claim form"
+else
+  failck "manifest schema missing the claim_basis carrier"
+fi
 
-# Functional probes through the pinned surface:
-# validate_telemetry_record(record: dict) -> list of error strings
-# (empty list = valid), importable from bin/bale_validate.py.
 python3 - <<'PYEOF'
-import sys, json, copy
+import sys, copy
 sys.path.insert(0, "bin")
 import bale_validate
 
 fails = []
 
-def check(name, record, expect_valid):
-    errs = bale_validate.validate_telemetry_record(record)
+def check(fn, name, fixture, expect_valid):
+    errs = fn(fixture)
     ok = (errs == []) if expect_valid else (errs != [])
-    tag = "ok" if ok else "FAIL"
-    print(f"[ckpt] {tag}: {name}" + ("" if ok else f" :: {errs[:2] if errs else 'accepted but should reject'}"))
+    print(f"[ckpt] {'ok' if ok else 'FAIL'}: {name}"
+          + ("" if ok else f" :: {errs[:2] if errs else 'accepted but should reject'}"))
     if not ok:
         fails.append(name)
 
-# Base fixture: minimal-but-real shape. Built from the corpus's own
-# youngest parseable record so the fixture tracks reality, then mutated.
-import glob
-base = None
-for _p in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
-    try:
-        with open(_p) as f:
-            base = json.load(f)
-        break
-    except Exception:
-        continue
-if base is None:
-    print("[ckpt] FAIL: no parseable record in claude/telemetry")
-    sys.exit(1)
+# --- escalation records (new schema; fixtures authored from the pin) ---
+er = bale_validate.validate_escalation_record
+base = {
+    "question": "Should the retry counter live in the registry or the record?",
+    "options": ["registry", "record"],
+    "recommendation": "record",
+    "priority": "batched",
+    "subsumes": [],
+    "amendment_target": "claude/MASTER.md",
+}
+check(er, "minimal escalation record", base, True)
 
-# 1. A legacy record (no cost block, no claim_basis) still validates.
-legacy = copy.deepcopy(base)
-legacy.pop("cost", None)
-check("legacy record without new fields", legacy, True)
+full = copy.deepcopy(base)
+full["priority"] = "blocking"
+full["subsumes"] = ["sid-a:q1", "sid-b:q3"]
+check(er, "blocking record with lineage", full, True)
 
-# 2. Null cost fields validate (the empty-until-harness posture).
-nullcost = copy.deepcopy(base)
-nullcost["cost"] = {"tokens_in": None, "tokens_out": None,
-                    "usd": None, "model_tier": None}
-check("cost block with all-null fields", nullcost, True)
-
-# 3. Populated cost fields validate.
-fullcost = copy.deepcopy(base)
-fullcost["cost"] = {"tokens_in": 12345, "tokens_out": 678,
-                    "usd": 0.42, "model_tier": "large"}
-check("cost block populated", fullcost, True)
-
-# 4. New closure reasons validate; an invented one does not.
-for reason, ok in (("no_response", True), ("malformed_response", True),
-                   ("definitely_not_a_reason", False)):
+for name, mut, ok in (
+    ("priority outside the enum", {"priority": "urgent"}, False),
+    ("missing recommendation", {"recommendation": None}, False),
+    ("subsumes not an array", {"subsumes": "sid-a:q1"}, False),
+    ("empty options", {"options": []}, False),
+):
     r = copy.deepcopy(base)
-    r["closure_reason"] = reason
-    check(f"closure_reason {reason}", r, ok)
+    for k, v in mut.items():
+        if v is None:
+            r.pop(k, None)
+        else:
+            r[k] = v
+    check(er, name, r, ok)
 
-# 5. claim_basis accepts the two ratified values and rejects others.
-#    Real shape (per the record contract): claim rows live at
-#    attempts[].validation.claims and .claim_verdict, one level below
-#    the envelope. Fixture: the youngest corpus record whose attempt
-#    carries a non-null validation block with claims rows.
-basis_base = None
-for path in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
-    try:
-        with open(path) as f:
-            rec = json.load(f)
-    except Exception:
-        continue
-    for att in rec.get("attempts") or []:
-        val = att.get("validation")
-        if val and val.get("claims"):
-            basis_base = rec
-            break
-    if basis_base:
-        break
+# --- clarification question rows (extended surface) ---
+cq = bale_validate.validate_clarification_questions
+row = {
+    "question": "Which config layer owns the cap?",
+    "context": "The cap could be global or project.",
+    "default_assumption": "project layer",
+    "why_blocked": "the key's home decides the merge branch",
+    "options": ["global", "project"],
+    "recommendation": "project",
+    "priority": "batched",
+}
+check(cq, "extended question row", [row], True)
 
-def set_basis(rec, value, surface):
-    # Corpus wire format (verified against real records at authoring):
-    # validation.claims is a DICT of claim-name -> "pass"/"fail" (bare)
-    # or {"value": ..., "claim_basis": ...} (annotated);
-    # validation.claim_verdict is a DICT of claim-name -> row dict.
-    rec2 = copy.deepcopy(rec)
-    for att in rec2.get("attempts") or []:
-        val = att.get("validation")
-        if not val:
-            continue
-        if surface == "claims" and val.get("claims"):
-            name = next(iter(val["claims"]))
-            row = val["claims"][name]
-            if isinstance(row, str):
-                val["claims"][name] = {"value": row, "claim_basis": value}
-            else:
-                row["claim_basis"] = value
-            return rec2
-        if surface == "verdict" and val.get("claim_verdict"):
-            name = next(iter(val["claim_verdict"]))
-            row = val["claim_verdict"][name]
-            if isinstance(row, dict):
-                row["claim_basis"] = value
-                return rec2
-    return None
+legacy = {k: row[k] for k in ("question", "context", "default_assumption", "why_blocked")}
+check(cq, "legacy row without the extension", [legacy], True)
 
-if basis_base is None:
-    print("[ckpt] FAIL: no corpus record with attempts[].validation.claims found")
-    fails.append("claim_basis fixture source")
-else:
-    for surface in ("claims", "verdict"):
-        for value, ok in (("predicted", True), ("observed", True), ("vibes", False)):
-            r = set_basis(basis_base, value, surface)
-            if r is None:
-                print(f"[ckpt] FAIL: no {surface} rows found to carry claim_basis")
-                fails.append(f"claim_basis {surface} mutation")
-                break
-            check(f"claim_basis {value} on {surface}", r, ok)
+bad = copy.deepcopy(row)
+bad["priority"] = "whenever"
+check(cq, "question priority outside the enum", [bad], False)
 
 sys.exit(1 if fails else 0)
 PYEOF
