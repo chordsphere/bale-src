@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 3
+# claude/checkpoints/current.sh - blind checkpoint, board-10 wave 3, amended (claim_basis fixture walks attempts[].validation)
 # Session gated: board-10-telemetry-extensions (S5, solo)
 # Sitting: 2026-08-10-continue-plan-001 (board-10 spec-intake repack)
 #
@@ -75,23 +75,50 @@ for reason, ok in (("no_response", True), ("malformed_response", True),
     check(f"closure_reason {reason}", r, ok)
 
 # 5. claim_basis accepts the two ratified values and rejects others.
-#    The record's own claims/validation rows carry it; find one row
-#    the schema admits claim_basis on, via mutation of the base.
+#    Real shape (per the record contract): claim rows live at
+#    attempts[].validation.claims and .claim_verdict, one level below
+#    the envelope. Fixture: the youngest corpus record whose attempt
+#    carries a non-null validation block with claims rows.
+import glob
+basis_base = None
+for path in sorted(glob.glob("claude/telemetry/*.json"), reverse=True):
+    try:
+        with open(path) as f:
+            rec = json.load(f)
+    except Exception:
+        continue
+    for att in rec.get("attempts") or []:
+        val = att.get("validation")
+        if val and val.get("claims"):
+            basis_base = rec
+            break
+    if basis_base:
+        break
+
 def set_basis(rec, value):
     rec2 = copy.deepcopy(rec)
-    rows = rec2.get("validation_will_run") or rec2.get("claims") or []
-    if not rows:
-        return None
-    rows[0]["claim_basis"] = value
-    return rec2
+    for att in rec2.get("attempts") or []:
+        val = att.get("validation")
+        if val and val.get("claims"):
+            row = val["claims"][0]
+            if isinstance(row, str):
+                val["claims"][0] = {"value": row, "claim_basis": value}
+            else:
+                row["claim_basis"] = value
+            return rec2
+    return None
 
-for value, ok in (("predicted", True), ("observed", True), ("vibes", False)):
-    r = set_basis(base, value)
-    if r is None:
-        print("[ckpt] FAIL: no claims/validation rows in fixture to carry claim_basis")
-        fails.append("claim_basis row location")
-        break
-    check(f"claim_basis {value}", r, ok)
+if basis_base is None:
+    print("[ckpt] FAIL: no corpus record with attempts[].validation.claims found")
+    fails.append("claim_basis fixture source")
+else:
+    for value, ok in (("predicted", True), ("observed", True), ("vibes", False)):
+        r = set_basis(basis_base, value)
+        if r is None:
+            print("[ckpt] FAIL: claims row vanished during mutation")
+            fails.append("claim_basis mutation")
+            break
+        check(f"claim_basis {value}", r, ok)
 
 sys.exit(1 if fails else 0)
 PYEOF
