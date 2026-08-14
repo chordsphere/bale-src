@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Blind checkpoint — bare-pack-oneshot session (2026-08-13 sitting).
-# v3: the original three-anchor oracle; anchors 1-2 and E2Es 3a-3b are
+# v4 (amendment): per-scenario fixture repos — v3 shared one repo, so
+# scenario 2's open whole-tree-forecast session tripped the ADR-0015
+# disjointness gate on scenario 3's pack (oracle defect, tree exonerated).
+# v3 was: the original three-anchor oracle; anchors 1-2 and E2Es 3a-3b are
 # regression pins against the landed 0.4.9 tree, anchor 3 and E2E 3c
 # are this session's payload, plus a loose identity-echo assertion.
 # Planner-authored from the request per the board-6 doctrine; authored
@@ -36,8 +39,8 @@ note "all three anchors present and unwrapped"
 # --- 3. E2E fixture: install + repo with a {sid} base -----------------------
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-INSTALL="$TMP/install"; HOME_DIR="$TMP/home"; REPO="$TMP/repo"
-mkdir -p "$INSTALL" "$HOME_DIR" "$REPO"
+INSTALL="$TMP/install"; HOME_DIR="$TMP/home"
+mkdir -p "$INSTALL" "$HOME_DIR"
 for tree in bin docs schemas tools; do
   cp -r "$SRC/$tree" "$INSTALL/$tree" || fail "install tree $tree missing"
 done
@@ -45,14 +48,18 @@ printf '[user]\n\tname = Checkpoint Fixture\n\temail = ckpt@example.invalid\n' \
   > "$HOME_DIR/.gitconfig"
 run_bale() { HOME="$HOME_DIR" python3 "$INSTALL/bin/bale" "$@"; }
 
-git -C "$REPO" init -q
-printf 'fixture\n' > "$REPO/README.md"
-printf '[validation]\nbase = "claude/checkpoints/{sid}.sh"\n' > "$REPO/bale.toml"
-HOME="$HOME_DIR" git -C "$REPO" add -A
-HOME="$HOME_DIR" git -C "$REPO" commit -qm "fixture: sid-pattern base, no checkpoints"
+make_repo() {
+  local dir="$1"
+  mkdir -p "$dir"
+  git -C "$dir" init -q
+  printf 'fixture\n' > "$dir/README.md"
+  printf '[validation]\nbase = "claude/checkpoints/{sid}.sh"\n' > "$dir/bale.toml"
+  HOME="$HOME_DIR" git -C "$dir" add -A
+  HOME="$HOME_DIR" git -C "$dir" commit -qm "fixture: sid-pattern base, no checkpoints"
+}
 
 # --- 3a. Read-only bare pack succeeds with NO committed checkpoint ----------
-cd "$REPO"
+make_repo "$TMP/repo-a"; cd "$TMP/repo-a"
 out="$(printf '' | run_bale pack "read-only fixture session" --slug ck-ro \
         --read-only --no-readme --json 2>"$TMP/ro.err")" \
   || fail "read-only pack refused; stderr: $(cat "$TMP/ro.err")"
@@ -70,6 +77,7 @@ note "read-only pack packed with checkpoint waived"
 
 # --- 3b. Default scoped pack: refusal names the resolved path, commit,
 #         identical re-run succeeds (no counter chase), checkpoint excluded --
+make_repo "$TMP/repo-b"; cd "$TMP/repo-b"
 set +e
 printf '' | run_bale pack "scoped fixture session" --slug ck-scoped \
   --no-readme --json >"$TMP/s1.out" 2>"$TMP/s1.err"
@@ -98,6 +106,7 @@ PY
 note "scoped pack converged on the named path and auto-excluded the checkpoint"
 
 # --- 3c. --checkpoint-file: one invocation, no refusal ----------------------
+make_repo "$TMP/repo-c"; cd "$TMP/repo-c"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP/planner-ckpt.sh"
 out3="$(printf '' | run_bale pack "one-shot fixture session" --slug ck-oneshot \
          --no-readme --json --checkpoint-file "$TMP/planner-ckpt.sh" \
