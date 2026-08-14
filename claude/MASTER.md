@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-13-board-10-closeout-deltas-003`.
+Last landed by: `2026-08-14-sitting-close-deltas-004`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -145,13 +145,14 @@ sitting (evidence 47).]
 
 - **Board-10 arc build is complete** (sitting
   `2026-08-10-continue-plan-001`, the spec-intake; the wave record
-  and the remaining S7 → S6 sequence live on the board 10 row).
+  and the remaining S6-only close live on the board 10 row).
   Latest applied: `2026-08-11-board-10-sandbox-wrapper-001` (S1),
   `2026-08-10-board-10-orchestration-doc-003` (S3),
   `2026-08-12-board-10-network-grant-001` (S2),
   `2026-08-12-board-10-wave1-deltas-002` (the wave-1 deltas),
-  `2026-08-13-board-10-telemetry-extensions-001` (S5), and
-  `2026-08-13-board-10-escalation-schemas-002` (S4); the version
+  `2026-08-13-board-10-telemetry-extensions-001` (S5),
+  `2026-08-13-board-10-escalation-schemas-002` (S4), and
+  `2026-08-13-board-10-per-sid-checkpoints-004` (S7); the version
   position is §7's, its one home. The escalation contract is wire
   format now (schemas + validators live; the producer is S6's).
 - Orchestration doctrine now lives at
@@ -231,6 +232,27 @@ source):
   (`2026-08-07-board-35-handoff-happy-011`) — packer-side
   imprecision, master-authored pack; one accrual, no clustering,
   no action.
+- Drift-gate residue on default-forecast checkpoint edits: a
+  default pack's recorded forecast is `["."]`, so the apply-side
+  drift gate would not catch a response landing an edit under the
+  checkpoint directory in such a session — accepted and named at
+  ratification (2026-08-13/14), not hardened; the per-sid stamp
+  verification still gates a changed oracle for the session's own
+  sid, and the executing checkpoint is base-tree bytes regardless.
+  Re-trigger: the first observed landed checkpoint edit riding a
+  default-forecast session; the remedy then is drift-gate
+  hardening as its own session, never a quiet extension. (From
+  `2026-08-14-bare-pack-excl-waiver-002`'s notes, §1.)
+- Checkpoint-thinness HOLD clustering (the §5 reaffirmation's
+  named watch): thinness — outcome-only oracles — is the pinned
+  authoring lever. Re-trigger: HOLDs clustering on planner-fixture
+  defects rather than worker misunderstanding; that clustering
+  means authoring practice is the defect, and the fix is at the
+  planner's desk, not the workers'.
+- Dead ceremony checkpoint files (`current.sh`,
+  `continue-plan-005.sh`, `restoration-006.sh`, `core-001.sh`
+  under `claude/checkpoints/`) are inert clutter. Cleanup may ride
+  any future sweep session; no urgency, no dedicated session.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -339,18 +361,11 @@ with the unverifiable ones carried verbatim and marked):
   **Scope hints:** `bin/bale` cmd_handoff (one kwarg), plus one
   assertion in `tests/test_handoff_happy.py`. Trivial rider for
   the next session touching that surface."
-- build_request_tarball docstring stale sentence — rides the next
-  session with bin/bale_pack.py in forecast. Text verbatim from
-  `2026-08-07-board-35-handoff-happy-011`'s Proposals: "**What:**
-  `bin/bale_pack.py`'s `build_request_tarball` docstring ends
-  "`bale handoff` (the other caller) passes nothing and stays
-  byte-identical — the flag is pack-scoped for now." This session
-  makes that false. **Why:** `bale_pack.py` was a hard constraint
-  this session (sibling sessions open), so the sentence ships
-  stale. One-line prose fix, no behavior. **Scope hints:**
-  `bin/bale_pack.py`, docstring only; rides any next session with
-  that file in forecast." The same carrier gains a second rider —
-  "Name the pattern's source in the negation refusal", What/Why
+- Negation-refusal wording split — "Name the pattern's source in
+  the negation refusal", rides the next bin/bale_pack.py touch
+  (carrier restated 2026-08-14; its former co-rider, the
+  build_request_tarball docstring stale sentence, was consumed at
+  `2026-08-14-bare-pack-oneshot-003`, 0.4.10). What/Why
   verbatim from `2026-08-07-board-35-pack-guards-013`'s Proposals:
   "**What:** When `build_pack_matcher`'s combined parse trips the
   negation guard, the failure message says "invalid session
@@ -399,6 +414,50 @@ with the unverifiable ones carried verbatim and marked):
 - validate.sh's schema presence loop trued up to cover every
   shipped schema. Rides the next validate.sh touch. (Source: the
   S4 notes' proposal, `2026-08-13-board-10-escalation-schemas-002`.)
+- Supersession writes its closure record BEFORE the sweep (or
+  inside the sweep's commit set), plus one test pinning
+  tree-clean-after-supersession. Evidence: in both of the
+  2026-08-13/14 sitting's supersessions the sweep-commit line
+  precedes the closure-record line in the session log, so bale
+  created the very dirt its own dirty-target guard then punished —
+  surfacing at the next apply's pre-flight, twice at once
+  (transcript-ordered proof in the sitting log; §6 entry 74).
+  Rides the next session touching the supersession close/sweep
+  path.
+- ADR-0015 disjointness remedy text: "narrow this pack" is the
+  wrong remedy against a whole-tree open session — proven live
+  this sitting, where a disjoint `--write` still refused (the open
+  session's default forecast is `["."]` and intersects
+  everything); the honest remedy is close/apply/unlock the open
+  session, or narrow ITS forecast. Rides the next gate/report
+  touch.
+- Wizard checkpoint prompt candidate picker: list search-path
+  candidates newest-first with path, mtime, and sha prefix; a
+  free-typed path stays accepted. Rides the next pack-UX session.
+- Handoff read-side parity — back on the registry after riding as
+  the oneshot session's dropped stretch item (its §11.2 pre-flight:
+  the core plus wizard and echo fit, the stretch did not earn the
+  margin). Proposal text verbatim from
+  `2026-08-14-bare-pack-excl-waiver-002`'s Proposals: "**What**:
+  extend the read-side explicit-naming key (or a variant of
+  auto-exclusion) to `bale handoff`, whose reading-plan forecast
+  currently refuses on plain containment — a bailed bare-pack
+  session's handoff with a whole-tree fallback plan still requires
+  the flag. **Why**: this session restored the bare *pack*; the
+  handoff path keeps the pre-v0.4.9 posture (deliberately
+  untouched — it is both read set and forecast there, and changing
+  it was not in the goal). If bare-shaped sessions start bailing,
+  their handoffs will hit the same friction the master's own
+  request did. **Scope hints**: `bin/bale` (cmd_handoff), the
+  shared gate; only after A+B land, and probably alongside Change
+  C's session since the refusal-text surface overlaps." [The
+  "alongside C" window passed with the drop — C landed at 0.4.10
+  without it.] Rides the next handoff-gate touch.
+
+Cleared at this landing (`2026-08-14-sitting-close-deltas-004`):
+the build_request_tarball docstring stale-sentence rider —
+consumed at `2026-08-14-bare-pack-oneshot-003` (0.4.10); its
+co-carrier negation-refusal rider stays queued above.
 
 Cleared at this landing (`2026-08-07-sitting-close-deltas-012`):
 the `bale handoff --verbose` entry — landed at
@@ -576,6 +635,58 @@ master desk (012 = `2026-08-07-sitting-close-deltas-012`, 013 =
 - The negation-refusal wording deliberately unpinned ahead of its
   own proposed fix (013).
 
+Landed 2026-08-13/14, non-board (the friction-removal sitting,
+master `2026-08-13-continue-plan-005`): the sitting's goal was
+commandeered from "continue the plan" to friction removal, on
+explicit architect authority — the §3-override rule exercised as
+designed (ratification 1 of the sitting). Two landings:
+`2026-08-14-bare-pack-excl-waiver-002` (0.4.9 — Changes A+B:
+checkpoint auto-exclusion with the explicit-naming read-side key;
+the read-only checkpoint waiver stamping `checkpoint: null` +
+`checkpoint_waived`) and `2026-08-14-bare-pack-oneshot-003`
+(0.4.10 — Change C: `--checkpoint-file` commit-and-pack, the
+wizard checkpoint prompt, the checkpoint identity echo, drop-log
+summarization, the refusal-text updates, and the
+`build_request_tarball` docstring rider consumed). Supersession
+chain, recorded with its rationale: revC's session
+`2026-08-13-bare-pack-restoration-006` was superseded by
+`2026-08-14-bare-pack-core-001` (worker split: wizard + echo out),
+itself superseded by `2026-08-14-bare-pack-excl-waiver-002`
+(worker §11.2 pre-flight split: Change C out). Cost accounting:
+the split cost two extra two-run-loop walks, accepted against the
+mid-build-bail risk on Change C's edge matrix. Contract-level
+ratifications: §5's 2026-08-13/14 block.
+
+Ratified judgment calls, one line each, dated 2026-08-14 at the
+master desk (002 = `2026-08-14-bare-pack-excl-waiver-002`, 003 =
+`2026-08-14-bare-pack-oneshot-003`):
+
+- The `bin/bale_report.py` out-of-forecast admission,
+  planner-attributed: the every-refusal-names-its-real-remedy
+  constraint forced it; the forecast missed it (002).
+- Literal-base read-only packs keep stamping `{path, sha256}`; the
+  waiver is `{sid}`-bearing bases only (002).
+- The degenerate root-level `{sid}` base keeps the containment
+  refusal — no root-file wildcard (002).
+- The `locate_inbound_path` split: one non-failing resolution
+  core, `resolve_inbound_path` a thin failing wrapper; every
+  existing caller byte-identical in behavior (003).
+- Never-silently-replace extended one rung earlier to uncommitted
+  files at the resolved path: identical bytes proceed, differing
+  bytes refuse loudly naming both sides (003).
+- The post-wizard `[r]` contradiction refuses with the arg-parse
+  message plus a remedy naming the wizard answer (003).
+- The wizard checkpoint prompt always asks — no already-committed
+  special case, so idempotent re-runs see one question sequence
+  (003).
+- The identity echo's path is the resolved SOURCE path; the
+  in-repo resolved path already rides the provenance stamp line
+  (003).
+- Drop-log summarization threshold strictly >1 — a single drop
+  keeps the 0.4.9 per-file line verbatim, sentinels intact (003).
+- Commit subject `bale:`-prefixed and pathspec-limited — a dirty
+  tree's other staged work untouched (003).
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -704,11 +815,15 @@ and §8, so done items keep their numbers as one-line pointers.
     schemas at 0.4.7
     (`2026-08-13-board-10-escalation-schemas-002`, four
     packaging-coupling admissions). Judgment calls for all four:
-    ratified per their notes. Remaining: the ratified
-    "per-sid checkpoint" session (S7, close-out addendum:
-    [validation] base gains a {sid} placeholder so sessions stop
-    sharing one oracle file), then S6 (harness spec-intake, packed
-    fresh). Charter: spec-intake ritual (decomposition + ambiguity
+    ratified per their notes. Wave 5 — per-sid checkpoints at
+    0.4.8 (`2026-08-13-board-10-per-sid-checkpoints-004`, S7:
+    `[validation] base` gains the `{sid}` placeholder so sessions
+    stop sharing one oracle file; the pattern-aware pre-sid
+    blindness gate, `peek_session_id`, and the pre-allocation
+    resolved-existence refusal per its archived notes; its
+    handoff-under-pattern E2E proposal queued onto board 35).
+    Remaining: S6 only (harness spec-intake, packed fresh).
+    Charter: spec-intake ritual (decomposition + ambiguity
     questions + checkpoint plan ratified BEFORE anything spawns),
     escalation contract as schema, promotion of the
     orchestration-doctrine doc; then harness build + phased trust
@@ -775,6 +890,18 @@ and §8, so done items keep their numbers as one-line pointers.
     - **"stats read sides deferred" pending accrued data** (sandbox
       stamps, cost fields, claim_basis). Re-trigger: harness
       telemetry accruing.
+    **Added at the 2026-08-13/14 friction-removal sitting, feeds
+    S6:**
+    - **Planner-doctrine extraction — queued session, not yet
+      packed** (working name `docs/PLANNER.md`): a planner-facing
+      global migrating project-agnostic authoring doctrine out of
+      MASTER.md's evidence pile — derive-don't-rewrite;
+      checkpoint-tracks-scope; per-scenario fixture isolation;
+      outcome-contracts-not-mechanisms; checkpoint thinness;
+      one-master-per-sitting; post-HOLD reveal-spec-not-script;
+      the imagined-surfaces planner failure class. Ledger entries
+      stay in MASTER.md with pointers. Queue entry only; the doc
+      is deliberately undrafted.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1096,10 +1223,16 @@ and §8, so done items keep their numbers as one-line pointers.
     suite 323 tests, ~111s scaled against the §7.6 target.
 
     Remaining queue: the ranked gap list 1–7 is complete. The row
-    stays open owning two queued residuals with named carriers:
+    stays open owning three queued residuals with named carriers:
     the row-21 declared-untracked-inputs pin (needs target-base
-    choreography), and the post-epoch stats-corpus fixtures (rides
-    the next test_stats_aggregation.py touch).
+    choreography), the post-epoch stats-corpus fixtures (rides
+    the next test_stats_aggregation.py touch), and the
+    handoff-under-pattern E2E (queued 2026-08-14 from
+    `2026-08-13-board-10-per-sid-checkpoints-004`'s Proposals:
+    bailout → `bale handoff` on a `{sid}`-base project, asserting
+    the pre-allocation refusal for the new sid and the stamped
+    resolved path; cheap once test_handoff_happy.py's bailout
+    fixture lifts into harness.py per the one-harness doctrine).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1357,6 +1490,47 @@ New, ratified 2026-08-07 (this sitting, master
 - **Duplicate-path pre-flight:** prose and enforcement agree —
   TARBALL.md §5.2's invalidity is now mechanical at §11 row 32
   (string-identity basis, matching the lint).
+
+New, ratified 2026-08-13/14 (the friction-removal sitting, master
+`2026-08-13-continue-plan-005`):
+
+- **The bare-pack restoration mechanism.** Grounded in the
+  architect-typed-surface contract (ratified 2026-07-27: the bare
+  cold-start `bale pack "goal"` is the one command the human
+  composes from scratch), the bare default pack works again in a
+  checkpoint-configured project. Mechanism, ratified 2026-08-13/14:
+  walk-time checkpoint auto-exclusion with an explicit-naming
+  read-side key (a checkpoint ships only when an include names it
+  explicitly; a typed `--write` covering it still refuses without
+  the flag); the read-only checkpoint waiver (`checkpoint: null` +
+  `checkpoint_waived`, `{sid}`-bearing bases only); and
+  `--checkpoint-file` commit-and-pack as the oneshot authoring
+  path. Forecast-declared reconciliation, ratified with it: the
+  forecast half's containment refusal applies to **declared**
+  forecasts — a typed `--write` set, or handoff's reading-plan
+  forecast — never to the include-set default, which the read-side
+  explicit-naming rule already governs; the drift-gate residue
+  this leaves on default-forecast checkpoint edits is an accepted,
+  named §3 watch, not hardened.
+- **The mechanism-authority principle — engraved; one home:
+  `docs/CLAUDE.md` §4.** Ratified 2026-08-14 and landed verbatim,
+  one physical line, in the global doc's division-of-labor
+  section, framed there as the complement of the blindness
+  doctrine — detail authority to the worker (it has the code),
+  intent authority to the planner (it has the ask), the
+  flagged-deviation-plus-ratification loop the joint. This entry
+  is the ratification record and the pointer, deliberately not a
+  second copy; the principle is identified by its opening clause,
+  "Mechanism authority sits with the session that has the code in
+  context". It is globally injected doctrine for every project,
+  which is why it does not live in this project-local doc.
+- **The blindness doctrine reaffirmed, with checkpoint thinness
+  pinned as the lever.** After full discussion: checkpoints bound
+  evaluation, not the builder — reaffirmed unchanged. Thinness is
+  the pinned authoring lever: outcome-only oracles, never
+  mechanism assertions. Named watch (§3): HOLDs clustering on
+  planner-fixture defects rather than worker misunderstanding
+  means authoring practice is the defect.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -2038,6 +2212,67 @@ New from the board-10 wave 2–4 sittings (2026-08-12/13):
     includes that coupling set up front for code sessions on those
     surfaces.
 
+New from the 2026-08-13/14 sitting (the friction-removal sitting):
+
+68. **The first-live-exercise class: mechanical validation cannot
+    see operator flow.** S7 shipped mechanically green — suite,
+    checkpoint, apply all clean — and the first operator sitting on
+    top of it surfaced every seam: three frictions in one day. A
+    feature's mechanical greenness says nothing about its operator
+    ergonomics; the first live sitting is part of the validation
+    surface.
+
+69. **Misrouted authorship.** The resolved-existence refusal's
+    "author and commit" wording sent the architect — not the
+    master — to hand-write an oracle, and a sibling session
+    compounded the miss. Two correctives, both standing: refusals
+    name their real actor (wording fixed in 0.4.10), and one
+    master per sitting authors commands, briefs, and checkpoints.
+
+70. **Checkpoint tracks scope.** A split invalidated the authored
+    oracle — anchor 3 and the flag E2E fell out of the narrowed
+    scope — so the checkpoint HOLDs a good session unless
+    re-derived. Standing rule: re-derive the checkpoint whenever
+    scope changes.
+
+71. **Derive-don't-rewrite.** Briefs revA–revE, each derived
+    mechanically from its predecessor, preserved the anchors
+    section five revisions running; revF, rewritten fresh, dropped
+    it and caused the anchor HOLD. The worker's corrective added a
+    `grep -Fx` self-assertion on the landed line — the
+    countermeasure generalizes: verbatim-marked content gets a
+    byte-exact assertion wherever it lands.
+
+72. **Per-scenario fixture isolation is mandatory for blind
+    checkpoints.** The v3 oracle shared one sandbox repo across
+    scenarios; an open whole-tree session left behind by one
+    scenario tripped the ADR-0015 gate on the next. Blind
+    checkpoints exercising future features cannot be dry-run, so
+    fixture hygiene is conservative by construction: one fresh
+    repo per scenario.
+
+73. **The amendment valve confirmed at the names-its-successor
+    bar.** The board-6 stamp-pin REJECT names
+    `--accept-checkpoint-change`, FORCE-logs, runs the latest
+    committed oracle, and records `stamp_matched: false`; the
+    architect recovered from a mid-session oracle amendment purely
+    from tool output — no doc lookup, no master round-trip.
+
+74. **Supersession sweep-order defect: bale created dirt its own
+    dirty-target guard then punished.** In both of this sitting's
+    supersessions the sweep commit preceded the closure-record
+    write, leaving the record as tree dirt that surfaced at the
+    next apply's pre-flight — twice at once; transcript-ordered
+    proof in the sitting log. The mechanical counter is a §3
+    fold-in rider (closure record before the sweep, or inside its
+    commit set, plus a tree-clean-after-supersession test).
+
+75. **The post-HOLD reveal precedent: reveal the SPEC, never the
+    oracle.** When a HOLD traces to content the worker never
+    received, the retry gets the missing brief contract prose —
+    never the checkpoint's mechanics. The retry must not be taught
+    to the test.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -2088,7 +2323,7 @@ New from the board-10 wave 2–4 sittings (2026-08-12/13):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.7 (trail: 0.4.0 → 0.4.1 at
+  still governs. bin/bale VERSION 0.4.10 (trail: 0.4.0 → 0.4.1 at
   `2026-08-07-board-13a-forecast-surface-004` → 0.4.2 at
   `2026-08-07-board-13b-epoch-ledger-005` → 0.4.3 at
   `2026-08-07-board-35-handoff-happy-011`, the handoff --verbose
@@ -2098,7 +2333,12 @@ New from the board-10 wave 2–4 sittings (2026-08-12/13):
   0.4.6 at `2026-08-13-board-10-telemetry-extensions-001`, the S5
   telemetry extensions → 0.4.7 at
   `2026-08-13-board-10-escalation-schemas-002`, the S4 escalation
-  schemas;
+  schemas → 0.4.8 at `2026-08-13-board-10-per-sid-checkpoints-004`,
+  the S7 per-sid checkpoints → 0.4.9 at
+  `2026-08-14-bare-pack-excl-waiver-002`, checkpoint auto-exclusion
+  plus the read-only waiver → 0.4.10 at
+  `2026-08-14-bare-pack-oneshot-003`, the `--checkpoint-file`
+  oneshot;
   `2026-08-07-board-13c-contract-docs-006`,
   `2026-08-07-sandbox-adr-009`, and
   `2026-08-10-board-10-orchestration-doc-003` doc-only,
@@ -2106,7 +2346,7 @@ New from the board-10 wave 2–4 sittings (2026-08-12/13):
   `2026-08-07-board-35-small-pins-010` tests-only, all
   bump-exempt per the §5 cadence rulings); 0.4.3 and earlier
   verified from the VERSION constant in the copy shipped read-only
-  with `2026-08-07-ratification-microdeltas-014`; 0.4.4 → 0.4.7
+  with `2026-08-07-ratification-microdeltas-014`; 0.4.4 → 0.4.10
   claims per their briefs — no bin/bale ships with the deltas
   sessions to verify against; the standing sitting-open
   verification (`bale --version`, the §2 landmark rule) trues them
