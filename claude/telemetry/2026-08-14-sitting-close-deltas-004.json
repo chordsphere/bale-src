@@ -1,0 +1,235 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-14-sitting-close-deltas-004",
+  "created_at": "2026-08-14T15:05:34+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-14T15:05:34+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-004 (29).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "file syntax (md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sitting-record assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "file syntax (md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting-record assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "docs/CLAUDE.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md",
+        "docs/CLAUDE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-sitting-close-deltas-004.sh",
+              "sha256": "900c95abc141dacafe5d3f7c2b3a722330d1a60e6bec8902c3ec29e68e4d161b"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief locates the handoff read-side parity proposal's scope hints 'in the oneshot notes'; the shipped proposal text (What/Why/Scope hints) actually lives in 2026-08-14-bare-pack-excl-waiver-002's Proposals, so the registry entry carries that text verbatim and attributes it there, recording the drop at the oneshot session. Flagged in notes.md for correction if the master intended a different artifact."
+          ],
+          "judgment_calls": [
+            "Engraved-principle placement: end of docs/CLAUDE.md \u00a74 (Division of Labor), framing paragraph before the verbatim line, blindness-doctrine complement cited via TARBALL.md \u00a77 (INDEX.md forbids BALE.md citations in globals).",
+            "The queued planner-doctrine extraction recorded as a board-10 agenda item (feeds S6) rather than a new board row.",
+            "The sitting's non-board landings and judgment calls recorded per the \u00a73 'Landed ..., non-board' + 'Ratified judgment calls' precedent blocks; contract-level items in a dated \u00a75 block.",
+            "Carrier for the supersession sweep-order rider phrased generically ('the next session touching the supersession close/sweep path') - the brief named no carrier.",
+            "claude/INDEX.md forecast but landed nothing: MASTER.md's section map did not shift, so the brief's conditional did not fire."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-sitting-close-deltas-004.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-sitting-close-deltas-004.sh",
+          "sha256": "900c95abc141dacafe5d3f7c2b3a722330d1a60e6bec8902c3ec29e68e4d161b"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-14T15:25:29+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-004 (29).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "file syntax (md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sitting-record assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "file syntax (md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sitting-record assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md",
+        "docs/CLAUDE.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md",
+        "docs/CLAUDE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-sitting-close-deltas-004.sh",
+              "sha256": "900c95abc141dacafe5d3f7c2b3a722330d1a60e6bec8902c3ec29e68e4d161b"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief locates the handoff read-side parity proposal's scope hints 'in the oneshot notes'; the shipped proposal text (What/Why/Scope hints) actually lives in 2026-08-14-bare-pack-excl-waiver-002's Proposals, so the registry entry carries that text verbatim and attributes it there, recording the drop at the oneshot session. Flagged in notes.md for correction if the master intended a different artifact."
+          ],
+          "judgment_calls": [
+            "Engraved-principle placement: end of docs/CLAUDE.md \u00a74 (Division of Labor), framing paragraph before the verbatim line, blindness-doctrine complement cited via TARBALL.md \u00a77 (INDEX.md forbids BALE.md citations in globals).",
+            "The queued planner-doctrine extraction recorded as a board-10 agenda item (feeds S6) rather than a new board row.",
+            "The sitting's non-board landings and judgment calls recorded per the \u00a73 'Landed ..., non-board' + 'Ratified judgment calls' precedent blocks; contract-level items in a dated \u00a75 block.",
+            "Carrier for the supersession sweep-order rider phrased generically ('the next session touching the supersession close/sweep path') - the brief named no carrier.",
+            "claude/INDEX.md forecast but landed nothing: MASTER.md's section map did not shift, so the brief's conditional did not fire."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-sitting-close-deltas-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-sitting-close-deltas-004.sh",
+          "sha256": "735781f0c948a2739f01782795d2464fbfd6b9e57c220eb8ddab12670319cb80"
+        },
+        "stamp_matched": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-14T15:25:29+00:00",
+  "outcome": "applied"
+}
