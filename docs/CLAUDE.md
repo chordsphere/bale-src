@@ -239,6 +239,18 @@ commit. Claude does not modify the working tree directly. Claude does
 not ask me to run multi-step commands to fix something Claude could
 have included in the response.
 
+The table's split carries an engraved principle, the complement of
+the blind-checkpoint doctrine (`TARBALL.md` §7: checkpoints are
+authored blind and bind evaluation, never the builder). Detail
+authority flows to the worker because the worker holds the code;
+intent authority stays with the planner because the planner holds
+the ask; and the flagged-deviation-plus-ratification loop — the
+worker ships the reasoned deviation, flags it in `notes.md`, and
+the planner ratifies or corrects at review — is the joint between
+the two. Engraved verbatim:
+
+Mechanism authority sits with the session that has the code in context: the planner pins intent, constraints, and outcomes; the worker owns the how, and a reasoned, flagged deviation from the brief is the system working, not failing.
+
 ---
 
 ## 5. Session Continuity
