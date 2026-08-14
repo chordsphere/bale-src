@@ -929,8 +929,12 @@ named spots.
    or broad include no longer refuses — since v0.4.9 the walk
    auto-excludes the configured checkpoint from shipped context
    instead (§7.5 step 5), the same structural species as the
-   secret-pattern excludes, with a loud per-file drop line naming
-   its successors, which is what restores the bare cold-start
+   secret-pattern excludes, with a loud drop log naming its
+   successors — one per-file line when a single file drops, one
+   summary line per pack (the count, the subtree, the same remedy)
+   when more than one does (v0.4.10: a `{sid}` basis accretes a past
+   checkpoint per landed session, and a per-file wall stops being
+   read) — which is what restores the bare cold-start
    `bale pack "goal"` in a checkpoint-configured project (the §5
    typed-surface contract).
 
@@ -1058,6 +1062,31 @@ The inputs:
   forces the editor step on a fully specified command. A relative
   `--readme-file` path resolves through the configured inbound
   directories exactly like apply's tarball argument (§7.3).
+- **checkpoint file** (v0.4.10) — `--checkpoint-file <path>`, the
+  one-command per-session checkpoint install that retires the two-run
+  commit-and-re-pack loop as the default flow on scoped packs. The
+  path resolves exactly like `--readme-file` (cwd, then each
+  configured `apply.search_paths` directory; absolute bypasses), and
+  a missing, unreadable, or empty file fails loudly, same posture.
+  Requires a `{sid}`-bearing `[validation] base`: bale peeks the sid
+  (§8.5's pre-allocation peek), resolves the base against it, commits
+  the file's bytes at the resolved path as their own pathspec-limited
+  commit on the current branch (subject naming the sid), and proceeds
+  with the pack in the same invocation — the provenance stamp reads
+  HEAD as always, so committed-is-ratified and worker blindness are
+  unchanged; the file is planner-supplied, and the worker never sees
+  the flag or the flow. Idempotent: a resolved path already committed
+  with identical bytes proceeds (the re-run of an aborted pack);
+  differing bytes refuse loudly — the flag never silently replaces a
+  ratified oracle (a checkpoint committed by a pack that later
+  refuses downstream is deliberately left in place — harmless; the
+  re-run reuses it via the idempotent branch). v1 scope refusals: a
+  literal base refuses (the planner commits the literal path
+  directly), an unconfigured base refuses rather than ignoring the
+  flag, and `--read-only` contradicts it at arg-parse, before any
+  prompt — the §8.5 read-only waiver means there is nothing to
+  install. On the wizard path the checkpoint prompt (§7.3) is the
+  flag's interactive surface; a typed flag skips the prompt.
 - **provenance identity** (v0.3.8) — two stamps for the manifest's
   `provenance` block, alongside the ones bale computes itself
   (`bale_version`; the sha256 of each injected global doc, hashed
@@ -1278,6 +1307,25 @@ could be asked. On every
 fully specified path the gate fires in pre-flight, before any
 prompt, exactly as before.
 
+**The checkpoint prompt** (v0.4.10, revG) rides the scoped branch
+one step further: when the merged config's `[validation] base`
+carries `{sid}` and the session shape resolved scoped, the wizard
+prompts for the planner's checkpoint file — resolved through the
+same search-path chain as `--checkpoint-file` / `--readme-file` — so
+the bare wizard walk in a `{sid}`-based project completes without a
+refusal on its happy path (the ratified goal of this session's
+split). Per-field skips as everywhere: a read-only shape (flag or
+the `[r]` answer — the §8.5 waiver means there is nothing to
+install), a typed `--checkpoint-file` (the typed `--write`
+precedent), and a non-`{sid}` base (the prompt is the flag's wizard
+surface, and the flag is `{sid}`-only at v1). An **empty answer**
+deliberately falls through to the named resolved-existence refusal —
+the operator declined, and the refusal is loud with the
+`--checkpoint-file` remedy — unless the resolved checkpoint is
+already committed, in which case the pre-flight passes as it always
+did. A non-resolving, unreadable, or empty file re-prompts,
+matching the forecast prompt's interactive posture.
+
 `README.md` is optional (per `TARBALL.md` 3.1). The wizard defaults
 to skipping it — the manifest's `goal`, `constraints`, and
 `out_of_scope` fields already capture the structured intent. Choose
@@ -1444,7 +1492,9 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    user-supplied for this session, and — v0.4.9 — the configured
    blind checkpoint: the literal path for a literal base, the static
    directory prefix's subtree for a `{sid}`-bearing base, dropped
-   with a loud per-file log naming its successors unless an include
+   with a loud log naming its successors — per-file for a single
+   drop, one count-and-subtree summary line per pack for several
+   (v0.4.10) — unless an include
    names it explicitly or `--allow-checkpoint-in-scope` admitted it,
    §7.1 step 4b); copy matching files into
    `context/`.
@@ -1520,6 +1570,21 @@ at the moment of paste, on two surfaces:
   keys `branch` and `applied_latest`. The json key contract's one
   home is `format_pack_json`'s docstring in `bale_report.py`
   (DOCS.md's one-home rule), as for every other pack-report key.
+
+**The checkpoint identity echo** (v0.4.10, revG). When a pack
+installs (or idempotently reuses) a planner-supplied checkpoint via
+`--checkpoint-file` or the wizard prompt, the end-of-run report
+echoes the resolved checkpoint file's identity — the resolved source
+path and the sha256 of the read bytes — exactly as the README echo
+does: summary rows (`checkpoint file`, `checkpoint file sha256`)
+and, under `--json`, the additive keys `checkpoint_file_path` and
+`checkpoint_file_sha256`, null together on a pack that installed
+none. The motivation is evidence 45's class verbatim:
+near-duplicate downloaded files resolve first-match and silently,
+and where a stale README ships wrong prose, a stale oracle HOLDs a
+good session — the checkpoint file's exposure is strictly worse. The
+json key contract's one home is `format_pack_json`'s docstring in
+`bale_report.py`, as for every other pack-report key.
 
 The latest-applied fact is the same one the status applied row
 renders, read from the same source (`applied_tags` in `bin/bale`;
@@ -1969,10 +2034,32 @@ construction. Because the resolved path embeds the session id, both
 request-building paths run a resolved-existence pre-flight
 immediately before sid allocation, against a *peeked* (not consumed)
 sid: a resolved path absent from HEAD refuses loudly at pack, naming
-the resolved path and the remedy — author and commit the session's
-checkpoint first — while the counter is untouched, so the re-run pack
-after committing allocates the same sid and the same resolved path
-(no counter chase). Since v0.4.9 the resolved-existence pre-flight
+the resolved path and the remedies — `--checkpoint-file` with the
+planner's file first (the one-command install below), the manual
+commit-and-re-run loop second, authorship attributed to the planner
+in both (v0.4.10: the earlier "author and commit the session's
+checkpoint" wording misrouted a human architect into believing the
+operator was to hand-write the oracle; refusals name their real
+remedy and their real actor) — while the counter is untouched, so
+the re-run pack after committing allocates the same sid and the same
+resolved path (no counter chase). Since v0.4.10 the refusal loop is
+no longer the default flow: **`bale pack --checkpoint-file <path>`**
+commits the planner-supplied file's bytes at the peeked sid's
+resolved path (its own pathspec-limited commit on the current
+branch, subject naming the sid) and proceeds with the pack in the
+same invocation — idempotent on identical committed bytes (the
+aborted-pack re-run), loudly refusing on differing ones
+(committed-is-ratified: the flag never silently replaces a ratified
+oracle), `{sid}` bases only at v1 (a literal base refuses toward the
+direct commit; an unconfigured base refuses rather than ignoring the
+flag), contradictory with `--read-only` at arg-parse (the waiver
+below means there is nothing to install). The wizard's checkpoint
+prompt (§7.3) is the flag's interactive surface, and the pack report
+echoes the installed file's identity (§7.7).
+
+The --checkpoint-file flag commits the planner's checkpoint at the resolved per-session path and packs in one invocation; the manual commit-and-re-run loop remains only as the flag-less fallback.
+
+Since v0.4.9 the resolved-existence pre-flight
 is scoped to sessions that can land: a pack whose resolved write
 forecast is empty (`--read-only`, whichever command builds the
 request) waives it — the checkpoint is the misunderstanding control
