@@ -410,9 +410,14 @@ def walk_for_pack(
     checkpoint configured, --allow-checkpoint-in-scope disabling the
     exclusion, or the degenerate prefixless `{sid}` shape the basis
     helper documents) skips the check. Unlike every other filter, the
-    drop is logged LOUDLY per file, verbose or not — silent skips are
-    bugs, and a planner watching a bare pack should see exactly which
-    oracle bytes were withheld and how to ship them deliberately.
+    drop is logged LOUDLY, verbose or not — silent skips are bugs, and
+    a planner watching a bare pack should see that oracle bytes were
+    withheld and how to ship them deliberately. Grain (v0.4.10, revG):
+    one per-file line when a single file drops; one summary line per
+    pack — count, subtree, unchanged remedy — when more than one does,
+    because a {sid} basis accretes a past checkpoint per landed
+    session and a per-file wall stops being read. --verbose still
+    names every dropped path in its trail.
 
     `matcher` is the combined `.baleignore`-plus-session-excludes matcher
     built by `build_pack_matcher`. None (the common case for repos without
@@ -460,6 +465,7 @@ def walk_for_pack(
     dir_bytes: dict[str, int] = {}
     dir_counts: dict[str, int] = {}
     hard_breach: Optional[str] = None
+    checkpoint_drops: list[str] = []
 
     for rel in list_git_files(repo):
         # Filter chain — matches gather_files_for_pack's body so the
@@ -475,14 +481,15 @@ def walk_for_pack(
             continue
         if checkpoint_exclude is not None and checkpoint_auto_excluded(
                 rel, checkpoint_exclude):
-            # Loud, unconditional per-file drop (v0.4.9) — the message
-            # names its successors per the every-command contract.
-            from __main__ import log as _log  # lazy — see module docstring
-            _log(f"auto-excluded {rel} from shipped context: the "
-                 f"configured blind checkpoint ({checkpoint_exclude}) "
-                 f"never ships incidentally. To ship it deliberately, "
-                 f"name it explicitly with --include, or pass "
-                 f"--allow-checkpoint-in-scope (BALE.md \u00a77.1 step 4b).")
+            # Collected here, logged loudly after the walk (v0.4.10):
+            # one line per file when a single file drops, one summary
+            # line for the pack when several do — the revC per-file pin
+            # was the wrong grain (the wall grows by one line per
+            # landed session forever under a {sid} basis). Never
+            # silent remains the floor; the emission site is below the
+            # walk loop. The verbose trail still names every path.
+            _drop(rel, "checkpoint auto-exclusion")
+            checkpoint_drops.append(rel)
             continue
         if matcher is not None and matcher.matches(rel):
             _drop(rel, ".baleignore / session exclude")
@@ -537,6 +544,31 @@ def walk_for_pack(
                     f"(at {rel})"
                 )
                 break
+
+    # Checkpoint auto-exclusion log (v0.4.9; summarized v0.4.10). Loud
+    # and unconditional — silent skips are bugs, and a planner watching
+    # a bare pack should see that oracle bytes were withheld and how to
+    # ship them deliberately. The grain (revG): a single dropped file
+    # keeps the per-file line naming it; more than one drop under the
+    # basis collapses to one summary line per pack — the count, the
+    # subtree, and the unchanged remedy sentence — because a {sid}
+    # basis accretes one dead checkpoint per landed session forever and
+    # a per-file wall stops being read. One loud line is loud. Emitted
+    # even on a short-circuited (hard-breach) walk: whatever dropped
+    # before the break still gets named.
+    if checkpoint_drops:
+        from __main__ import log as _log  # lazy — see module docstring
+        remedy = (f"never ships incidentally. To ship it deliberately, "
+                  f"name it explicitly with --include, or pass "
+                  f"--allow-checkpoint-in-scope (BALE.md \u00a77.1 step 4b).")
+        if len(checkpoint_drops) == 1:
+            _log(f"auto-excluded {checkpoint_drops[0]} from shipped "
+                 f"context: the configured blind checkpoint "
+                 f"({checkpoint_exclude}) {remedy}")
+        else:
+            _log(f"auto-excluded {len(checkpoint_drops)} files under "
+                 f"{checkpoint_exclude}/ from shipped context: the "
+                 f"configured blind checkpoint {remedy}")
 
     # Largest-directories report. Only meaningful when there's something to
     # report — root-only walks just have ('(root)', ...) which is still useful.
@@ -899,8 +931,10 @@ def build_provenance_block(
                      f"pack-time tip: bale.toml [validation] base "
                      f"({checkpoint_base!r}) resolves to "
                      f"{checkpoint_path!r} for session {sid}, but HEAD "
-                     f"has no committed file at that path. Remedy: "
-                     f"author and commit the session's checkpoint at "
+                     f"has no committed file at that path. Remedies: "
+                     f"re-run with --checkpoint-file <file> pointing at "
+                     f"the planner's checkpoint, or commit the "
+                     f"planner-authored checkpoint at "
                      f"{checkpoint_path!r} first.")
             fail(f"blind checkpoint missing at the pack-time tip: "
                  f"bale.toml [validation] base names "
@@ -1228,18 +1262,206 @@ def checkpoint_resolved_preflight(repo: Path, sid: str,
         cwd=str(repo), capture_output=True,
     )
     if probe.returncode != 0:
+        # Remedy wording (v0.4.10, revG): the one-command flag first,
+        # the manual loop second — and authorship attributed to the
+        # planner, never the operator. Evidence: the pre-v0.4.10 text
+        # ("author and commit the session's checkpoint") misrouted a
+        # human architect into believing they were to hand-write the
+        # oracle. Refusals name their real remedy and their real actor.
         fail(f"per-session blind checkpoint missing at the pack-time "
              f"tip: bale.toml [validation] base ({base!r}) resolves to "
              f"{resolved!r} for this session, but HEAD has no committed "
              f"file at that path. Checkpoints are deliberate — a "
              f"placeholder resolving to nothing would be a hole in the "
-             f"oracle. Remedy: author and commit the session's "
-             f"checkpoint at {resolved!r} first, then re-run this pack "
-             f"(the session counter was not consumed, so the same "
-             f"session id — and the same resolved path — will be "
-             f"allocated).")
+             f"oracle. Remedies: re-run this pack with --checkpoint-file "
+             f"<file> pointing at the planner's checkpoint (bale commits "
+             f"it at {resolved!r} and packs in the same run), or commit "
+             f"the planner-authored checkpoint at {resolved!r} by hand "
+             f"and re-run the same pack. Either way the session counter "
+             f"was not consumed, so the same session id — and the same "
+             f"resolved path — will be allocated.")
     log(f"per-session checkpoint resolved: {base} -> {resolved} "
         f"(committed at HEAD; sid {sid})")
+
+
+def locate_and_read_checkpoint_file(
+    arg: str, repo: Optional[Path], cwd: Path,
+) -> tuple[Optional[Path], Optional[bytes], Optional[str]]:
+    """Resolve a --checkpoint-file argument and read its bytes (v0.4.10).
+
+    Resolution mirrors --readme-file exactly (TARBALL.md §3.4's
+    contract for the flag): locate_inbound_path over the configured
+    apply.search_paths — cwd first, then each directory in order,
+    absolute paths bypass — so a planner-downloaded checkpoint packs by
+    bare name. Bytes are read binary-exact, no text decoding or
+    newline normalization: the committed oracle is hashed and executed
+    byte-for-byte everywhere downstream (the provenance stamp, apply's
+    stamp verification), unlike the README, which is prose.
+
+    Returns (path, data, None) on success and (None, None, error) on a
+    search miss, an unreadable file, or an empty one — errors mirror
+    --readme-file's refusal posture (an empty file is an upstream
+    failure, never a silent omit; deliberate omission is spelled
+    "don't pass the flag"). The error is returned rather than failed
+    here so the two collection surfaces share one resolution while
+    keeping their own postures: the CLI site fails loudly, the wizard
+    prompt re-prompts (its interactive posture, matching the forecast
+    prompt).
+    """
+    from __main__ import locate_inbound_path  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+
+    if repo is not None:
+        cfg = bale_config.merged_config(repo)
+    else:
+        cfg = bale_config.load_global_config()
+    search = bale_config.get_apply_search_paths(cfg)
+    path = locate_inbound_path(arg, cwd, search)
+    if path is None:
+        lines = [f"--checkpoint-file {arg!r} not found; searched:",
+                 f"  {cwd}  (cwd)"]
+        lines += [f"  {sp}" for sp in search]
+        return None, None, "\n".join(lines)
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        return None, None, f"could not read --checkpoint-file {arg!r}: {e}"
+    if not data.strip():
+        return None, None, (
+            f"--checkpoint-file {arg!r} is empty. The flag asks bale to "
+            f"commit the planner's checkpoint as this session's oracle; "
+            f"an empty oracle would grade nothing. Omit the flag to pack "
+            f"without one."
+        )
+    return path, data, None
+
+
+def checkpoint_file_base_or_refuse(repo: Optional[Path]) -> str:
+    """The v1 scope gate for --checkpoint-file: the merged config must
+    pin a {sid}-bearing [validation] base, or the flag refuses — never
+    a silent ignore (silent skips are bugs). Returns the base.
+
+    Two refusals, each naming its remedy and its real actor:
+
+    - **Unconfigured** (no [validation] base — including the
+      pre-git-init case, where no project config can exist): the flag
+      would install an oracle nothing reads.
+    - **Literal base**: v1 scope is {sid} bases only. A literal base's
+      oracle is project-wide, not per-session — the planner commits it
+      at the literal path directly, no pack flag involved.
+    """
+    from __main__ import fail  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+
+    base = None
+    if repo is not None:
+        base = bale_config.get_validation_base(
+            bale_config.merged_config(repo))
+    if base is None:
+        fail("--checkpoint-file requires a configured per-session blind "
+             "checkpoint, but bale.toml pins no [validation] base — the "
+             "flag would commit an oracle nothing reads. Configure a "
+             "{sid}-bearing base via `bale config init` ([validation] "
+             "base, e.g. claude/checkpoints/{sid}.sh), or drop the flag.")
+    if "{sid}" not in base:
+        fail(f"--checkpoint-file is per-session ({{sid}} bases) only at "
+             f"v1, but [validation] base is the literal path {base!r}. "
+             f"A literal base's oracle is project-wide: the planner "
+             f"commits it at {base!r} directly (edit, commit — no pack "
+             f"flag involved), or moves the base to a {{sid}} pattern "
+             f"via `bale config init`.")
+    return base
+
+
+def install_checkpoint_file(repo: Path, sid: str, base: str,
+                            src_path: Path, data: bytes) -> str:
+    """Commit the planner-supplied checkpoint at the {sid} base's
+    resolved path (v0.4.10) — the one-command install that retires the
+    two-run refusal loop as the default flow. Returns the resolved
+    repo-relative path.
+
+    Runs against the PEEKED sid, immediately before the
+    resolved-existence pre-flight and sid allocation, so the committed
+    path and the session about to allocate agree (nothing
+    counter-touching runs between). The provenance stamp downstream
+    reads HEAD exactly as before — committed-is-ratified and worker
+    blindness unchanged; the file is planner-supplied, and the worker
+    never sees the flag or the flow. Branches, probed binary-exact
+    against HEAD (the same subprocess idiom as the stamp builder):
+
+    - **Committed with identical bytes** → proceed with no new commit:
+      the idempotent re-run of a pack that aborted downstream (a cap
+      refusal, an editor abort, a gate refusal). A checkpoint
+      committed by a pack that later refuses is deliberately left in
+      place — harmless — and this branch is what reuses it.
+    - **Committed with differing bytes** → loud refusal: the flag
+      never silently replaces a ratified oracle. Replacing one is the
+      planner's deliberate act — commit the change directly, outside
+      any pack.
+    - **Absent from HEAD** → write the bytes at the resolved path
+      (refusing rather than clobbering a differing working-tree file —
+      same never-silently-replace posture, one rung earlier), stage
+      exactly that path, and commit it as its own commit on the
+      current branch, subject naming the sid. Other staged work is
+      untouched: the commit is pathspec-limited.
+    """
+    from __main__ import fail, log  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+
+    resolved = bale_config.resolve_checkpoint_path(base, sid)
+    blob = subprocess.run(
+        ["git", "show", f"HEAD:{resolved}"],
+        cwd=str(repo), capture_output=True,
+    )
+    if blob.returncode == 0:
+        if blob.stdout == data:
+            log(f"--checkpoint-file: {resolved} is already committed "
+                f"with identical bytes — proceeding without a new "
+                f"commit (the idempotent re-run branch)")
+            return resolved
+        fail(f"--checkpoint-file refuses to replace the committed "
+             f"oracle: {resolved} exists at HEAD with different bytes "
+             f"(committed sha256 "
+             f"{hashlib.sha256(blob.stdout).hexdigest()[:12]}, file "
+             f"{hashlib.sha256(data).hexdigest()[:12]}). "
+             f"Committed-is-ratified — the flag never silently replaces "
+             f"a ratified oracle. If the replacement is deliberate, the "
+             f"planner commits the new bytes at {resolved!r} directly, "
+             f"then re-runs this pack without the flag (or with it: "
+             f"identical bytes proceed).")
+
+    target = repo / resolved
+    if target.exists():
+        try:
+            existing = target.read_bytes()
+        except OSError as e:
+            fail(f"--checkpoint-file: could not read the existing "
+                 f"working-tree file at {resolved}: {e}")
+        if existing != data:
+            fail(f"--checkpoint-file refuses to overwrite the "
+                 f"working-tree file at {resolved}: its bytes differ "
+                 f"from {src_path}. Resolve the difference — remove or "
+                 f"update the working-tree file, or point the flag at "
+                 f"it — then re-run this pack.")
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+    for cmd, what in ((["git", "add", "--", resolved], "stage"),
+                      (["git", "commit", "-m",
+                        f"bale: per-session checkpoint for {sid}",
+                        "--", resolved], "commit")):
+        r = subprocess.run(cmd, cwd=str(repo), capture_output=True,
+                           text=True)
+        if r.returncode != 0:
+            fail(f"--checkpoint-file: could not {what} {resolved} "
+                 f"(exit {r.returncode}): "
+                 f"{(r.stderr or r.stdout).strip()}")
+    log(f"--checkpoint-file: committed {resolved} on the current "
+        f"branch (sha256 {hashlib.sha256(data).hexdigest()[:12]}, "
+        f"from {src_path}); the resolved-existence pre-flight and the "
+        f"provenance stamp read it from HEAD as always")
+    return resolved
 
 
 def build_request_tarball(
@@ -1279,8 +1501,9 @@ def build_request_tarball(
     exactly the stretch an operator stares at. Lines go through the
     __main__ log() path: pack's call site runs post-sid, so they land on
     the terminal AND in the session log; `bale handoff` (the other
-    caller) passes nothing and stays byte-identical — the flag is
-    pack-scoped for now.
+    caller) threads its own --verbose through the same kwarg since
+    v0.4.3, from a post-sid site with the same terminal-and-journal
+    behavior.
     """
     from __main__ import (  # lazy — see module docstring
         DOCS_DIR,
@@ -1670,6 +1893,70 @@ def _wizard_input_write_forecast(args: argparse.Namespace,
                   f"directory they will land under)")
             continue
         args.write = entries
+        return
+
+
+def _wizard_input_checkpoint_file(args: argparse.Namespace,
+                                  repo: Path) -> None:
+    """The per-session checkpoint prompt (v0.4.10, revG; ratified
+    2026-08-13 sitting): on the wizard path, when the merged config's
+    [validation] base carries {sid} and the session shape resolved
+    scoped, prompt for the planner's checkpoint file so the bare
+    `bale pack` walk completes without a refusal on its happy path.
+    Mutates args in place (checkpoint_file plus the private stash the
+    CLI read uses).
+
+    Per-field skips, same rule as everywhere in the wizard:
+
+    - a read-only shape (flag or the session-shape [r] answer) — the
+      v0.4.9 waiver means there is nothing to install;
+    - a typed --checkpoint-file — matching the typed --write precedent
+      (board-13a ratified call);
+    - an unconfigured or literal base — the prompt is the flag's
+      wizard surface, and the flag is {sid}-only at v1.
+
+    An EMPTY answer deliberately falls through to the named
+    resolved-existence refusal (checkpoint_resolved_preflight): the
+    operator declined, and the refusal is loud with the remedy —
+    unless the resolved checkpoint is already committed, in which case
+    the pre-flight passes exactly as it always did. A non-resolving,
+    unreadable, or empty file re-prompts, matching the forecast
+    prompt's interactive posture rather than failing the whole pack
+    after the answers are in.
+    """
+    from __main__ import fail  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+
+    if args.read_only or args.checkpoint_file is not None:
+        return
+    base = bale_config.get_validation_base(bale_config.merged_config(repo))
+    if base is None or "{sid}" not in base:
+        return
+
+    print(f"This project pins a per-session blind checkpoint "
+          f"([validation] base = {base}).")
+    print("Checkpoint file to commit for this session? [Enter = none]")
+    print("  (the planner's file; resolves like --readme-file — cwd, "
+          "then apply.search_paths.")
+    print("  An empty answer packs without one, refusing unless the "
+          "resolved checkpoint")
+    print("  is already committed.)")
+    while True:
+        try:
+            raw = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if not raw:
+            return
+        path, data, err = locate_and_read_checkpoint_file(
+            raw, repo, Path.cwd().resolve())
+        if err is not None:
+            print(f"  ({err})")
+            continue
+        args.checkpoint_file = raw
+        args._checkpoint_file_path = path
+        args._checkpoint_file_bytes = data
         return
 
 
@@ -2116,6 +2403,14 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     # presses Enter and gets exactly the pre-separation pack.
     _wizard_input_write_forecast(args, repo)
 
+    # The per-session checkpoint prompt (v0.4.10, revG) rides the
+    # scoped branch, once the shape and forecast are final: a
+    # {sid}-based project's bare wizard pack collects the planner's
+    # checkpoint file here so the walk's happy path needs no refusal
+    # loop. The helper itself skips read-only shapes, a typed
+    # --checkpoint-file, and non-{sid} bases.
+    _wizard_input_checkpoint_file(args, repo)
+
     # Session excludes — skipped when --exclude was already provided on
     # the CLI (parallel to --constraint / --out-of-scope). The §7.3 prompt
     # order puts this between slug and constraints; if the CLI pre-filled
@@ -2427,6 +2722,18 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "non-empty write forecast, the other declares the empty one "
             "(the read-only session shape). Drop one."
         )
+    # --checkpoint-file vs --read-only (v0.4.10): contradictory at
+    # arg-parse time, before any prompt — the v0.4.9 read-only waiver
+    # means a read-only pack requires no per-session checkpoint, so
+    # there is nothing to install. Same fail-fast posture as the pairs
+    # around it; the wizard's [r] answer re-runs this check post-wizard.
+    if args.checkpoint_file is not None and args.read_only:
+        fail(
+            "--checkpoint-file and --read-only are contradictory: the "
+            "read-only shape waives the per-session checkpoint (an "
+            "empty forecast lands nothing, so no oracle is required — "
+            "v0.4.9), leaving nothing to install. Drop one."
+        )
     if args.edit and args.no_edit:
         fail(
             "--edit and --no-edit are contradictory: one forces the "
@@ -2530,6 +2837,28 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # shipped body's first heading and sha256, computed at the
         # report site) is how the operator confirms which brief shipped.
         args._readme_file_path = readme_path
+
+    # Read --checkpoint-file up front (v0.4.10), same fail-fast
+    # rationale as --readme-file above: a bad path, unreadable or
+    # empty file, or an out-of-v1-scope base ({sid} bases only;
+    # unconfigured refuses rather than ignoring the flag) should cost
+    # zero keystrokes. The commit itself happens much later — against
+    # the peeked sid, immediately before the resolved-existence
+    # pre-flight — because the resolved path does not exist until the
+    # sid is known; only the read and the shape gate are front-loaded.
+    # The private-attr stash is the same idiom as _readme_file_body,
+    # and the wizard's checkpoint prompt fills the same attrs on its
+    # path.
+    args._checkpoint_file_bytes = None
+    args._checkpoint_file_path = None
+    if args.checkpoint_file is not None:
+        checkpoint_file_base_or_refuse(repo)
+        cf_path, cf_data, cf_err = locate_and_read_checkpoint_file(
+            args.checkpoint_file, repo, cwd)
+        if cf_err is not None:
+            fail(cf_err)
+        args._checkpoint_file_path = cf_path
+        args._checkpoint_file_bytes = cf_data
 
     if repo is None:
         # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
@@ -2727,6 +3056,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"on the command line and re-run."
             )
         _wizard_fill_args(args, repo)
+        # The [r] answer beside a typed --checkpoint-file (v0.4.10):
+        # the same contradiction the fail-fast site refuses, only
+        # discoverable once the wizard's session-shape answer is in.
+        # Same message, same posture — the two surfaces must not read
+        # differently.
+        if args.checkpoint_file is not None and args.read_only:
+            fail(
+                "--checkpoint-file and --read-only are contradictory: "
+                "the read-only shape waives the per-session checkpoint "
+                "(an empty forecast lands nothing, so no oracle is "
+                "required — v0.4.9), leaving nothing to install. "
+                "Re-run without the flag, or answer the session-shape "
+                "question with a scoped kind."
+            )
 
     # The pack's recorded write forecast (ADR-0015), final now on every
     # path: the wizard has run (its session-shape answer may have set
@@ -3121,8 +3464,40 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # nothing. Sited immediately before allocation, the last gate, so
     # the peeked and allocated sids agree (nothing counter-touching
     # runs between). A literal or unconfigured base is a no-op.
-    checkpoint_resolved_preflight(repo, peek_session_id(repo, args.slug),
-                                  forecast=pack_scope)
+    #
+    # The one-command checkpoint install (v0.4.10) runs first, against
+    # the SAME peeked sid: with a planner-supplied file in hand (typed
+    # --checkpoint-file, or the wizard's checkpoint prompt), commit its
+    # bytes at the resolved path — idempotent on identical bytes,
+    # refusing on differing ones — so the pre-flight below then passes
+    # and the two-run refusal loop is no longer the default flow. A
+    # checkpoint committed here by a pack that a later gate refuses is
+    # deliberately left in place: harmless, and the idempotent branch
+    # is what the re-run reuses. Committing touches no counter, so the
+    # peek stays good.
+    peeked_sid = peek_session_id(repo, args.slug)
+    checkpoint_echo_path: Optional[str] = None
+    checkpoint_echo_sha256: Optional[str] = None
+    if args._checkpoint_file_bytes is not None:
+        # Base-shape gate re-run for the wizard path (the CLI path
+        # already refused up front; the prompt only engages on {sid}
+        # bases, so this is a no-op safety net there — one gate, both
+        # collection surfaces).
+        _cf_base = checkpoint_file_base_or_refuse(repo)
+        install_checkpoint_file(
+            repo, peeked_sid, _cf_base,
+            args._checkpoint_file_path, args._checkpoint_file_bytes)
+        # The checkpoint identity echo (v0.4.10, revG; evidence 45's
+        # class verbatim): near-duplicate downloaded files resolve
+        # first-match and silently, and where a stale README ships
+        # wrong prose, a stale oracle HOLDs a good session — strictly
+        # worse. Echo the resolved SOURCE path and the sha256 of the
+        # read bytes, exactly as the README echo does; rendered in the
+        # summary rows and the --json keys below.
+        checkpoint_echo_path = str(args._checkpoint_file_path)
+        checkpoint_echo_sha256 = hashlib.sha256(
+            args._checkpoint_file_bytes).hexdigest()
+    checkpoint_resolved_preflight(repo, peeked_sid, forecast=pack_scope)
 
     # Allocate session ID and switch logging to the per-session file. The
     # set_log_file() call drains any buffered --force lines from
@@ -3303,6 +3678,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
             readme_path=readme_echo_path,
             readme_heading=readme_echo_heading,
             readme_sha256=readme_echo_sha256,
+            checkpoint_file_path=checkpoint_echo_path,
+            checkpoint_file_sha256=checkpoint_echo_sha256,
             branch=pack_branch,
             applied_latest=applied_latest,
         ))
@@ -3319,6 +3696,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 ("readme", readme_echo_path),
                 ("readme heading", readme_echo_heading),
                 ("readme sha256", readme_echo_sha256),
+            ]
+        if checkpoint_echo_sha256 is not None:
+            # The checkpoint identity echo (v0.4.10, revG): the
+            # resolved source path and the sha256 of the read bytes —
+            # the README echo's rule applied to the strictly-worse
+            # exposure (a stale oracle HOLDs a good session).
+            rows += [
+                ("checkpoint file", checkpoint_echo_path),
+                ("checkpoint file sha256", checkpoint_echo_sha256),
             ]
         # The tree-position echo's report half (v0.3.31; BALE.md §7.7):
         # the same facts the pre-flight banner line named, restated in

@@ -1334,6 +1334,37 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     cli-supplied `arg` itself is NOT expanded — the shell already does
     that, and a quoted `~/foo` arg almost certainly means the user
     explicitly didn't want expansion.
+
+    The resolution itself lives in locate_inbound_path (v0.4.10, split
+    out for `bale pack --checkpoint-file`'s wizard surface, which must
+    re-prompt on a miss rather than exit); this wrapper adds only the
+    fail() on the search-miss case, so every surface keeps one
+    resolution implementation.
+    """
+    resolved = locate_inbound_path(arg, cwd, search_paths)
+    if resolved is not None:
+        return resolved
+
+    # Nothing matched. The error names every directory that was searched —
+    # per the explicit constraint, the user should never be left guessing
+    # which paths bale consulted.
+    lines = [f"{kind} not found: {arg}", "  searched:"]
+    lines.append(f"    {cwd}  (cwd)")
+    for sp in search_paths:
+        lines.append(f"    {sp}")
+    fail("\n".join(lines))
+
+
+def locate_inbound_path(arg: str, cwd: Path,
+                        search_paths: list[str]) -> Optional[Path]:
+    """The non-failing core of resolve_inbound_path (v0.4.10): same
+    layered semantics — absolute bypass, cwd-only when no search paths
+    are configured, cwd-then-each-configured-directory otherwise — but
+    a search miss returns None instead of exiting, so an interactive
+    caller (the pack wizard's checkpoint prompt) can re-prompt. The
+    absolute and no-search-path branches return the candidate without
+    an existence check, exactly as before the split; the caller's read
+    is the existence check there.
     """
     p = Path(arg)
     if p.is_absolute():
@@ -1349,15 +1380,7 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
         candidate = Path(sp) / arg
         if candidate.is_file():
             return candidate.resolve()
-
-    # Nothing matched. The error names every directory that was searched —
-    # per the explicit constraint, the user should never be left guessing
-    # which paths bale consulted.
-    lines = [f"{kind} not found: {arg}", "  searched:"]
-    lines.append(f"    {cwd}  (cwd)")
-    for sp in search_paths:
-        lines.append(f"    {sp}")
-    fail("\n".join(lines))
+    return None
     # fail() does sys.exit; this return is unreachable but keeps mypy happy.
     return cwd_candidate  # pragma: no cover
 
@@ -4640,6 +4663,33 @@ def build_parser() -> argparse.ArgumentParser:
              "Fails loudly on a missing, unreadable, or empty file (omit "
              "the flag to pack without a README). Combines with --edit "
              "to review the file in $EDITOR before packing.",
+    )
+    p_pack.add_argument(
+        "--checkpoint-file", default=None, metavar="PATH",
+        dest="checkpoint_file",
+        help="Commit PATH's bytes as this session's per-sid blind "
+             "checkpoint and pack in the same invocation (v0.4.10) — the "
+             "one-command install retiring the two-run commit-and-re-pack "
+             "loop. A relative PATH resolves exactly like --readme-file "
+             "(cwd first, then each configured apply.search_paths "
+             "directory; absolute paths bypass search); a missing, "
+             "unreadable, or empty file fails loudly. Requires a "
+             "{sid}-bearing [validation] base: bale peeks the sid, "
+             "resolves the base against it, commits the file's bytes at "
+             "the resolved path as its own commit on the current branch "
+             "(subject naming the sid), and proceeds. Idempotent: a "
+             "resolved path already committed with identical bytes "
+             "proceeds (the re-run of an aborted pack); differing bytes "
+             "refuse — the flag never silently replaces a ratified "
+             "oracle. A literal base refuses (commit the literal path "
+             "directly), an unconfigured base refuses rather than "
+             "ignoring the flag, and --read-only contradicts it at "
+             "arg-parse (the 0.4.9 waiver means there is nothing to "
+             "install). The checkpoint stays planner-authored: the flag "
+             "moves the planner's file into place; it does not author "
+             "one. On the wizard path a {sid}-based scoped pack prompts "
+             "for this path when the flag is absent (typed flag skips "
+             "the prompt).",
     )
     p_pack.add_argument(
         "--edit", action="store_true",

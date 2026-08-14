@@ -80,7 +80,15 @@ CP_PATTERN = "claude/checkpoints/{sid}.sh"
 # Sentinels for the surfaces this file pins.
 UNKNOWN_TOKEN_PHRASE = "unrecognized placeholder token"
 MISSING_RESOLVED_PHRASE = "per-session blind checkpoint missing"
-REMEDY_PHRASE = "author and commit the session's checkpoint"
+# The revG remedy wording (v0.4.10): the one-command flag first, the
+# manual loop second, authorship attributed to the planner — never the
+# operator (the pre-v0.4.10 "author and commit the session's
+# checkpoint" misrouted a human architect into hand-writing the
+# oracle).
+REMEDY_PHRASE = "the planner's checkpoint"
+FLAG_REMEDY_PHRASE = "--checkpoint-file"
+MANUAL_REMEDY_PHRASE = "planner-authored checkpoint"
+RETIRED_REMEDY_PHRASE = "author and commit the session's checkpoint"
 STAMP_DIVERGED_PHRASE = "blind checkpoint changed since pack"
 AUTO_EXCLUDE_PHRASE = "never ships incidentally"
 READ_NAME_PHRASE = "pack includes name the blind checkpoint explicitly"
@@ -277,6 +285,18 @@ class PerSidCheckpointE2ETest(PerSidFixture):
                       msg="the refusal names the resolved path the "
                           "planner must commit")
         self.assertIn(REMEDY_PHRASE, combined)
+        # revG wording contract: --checkpoint-file is the PRIMARY
+        # remedy (named before the manual loop), authorship is the
+        # planner's, and the operator-directed pre-v0.4.10 phrase is
+        # gone.
+        self.assertIn(FLAG_REMEDY_PHRASE, combined)
+        self.assertIn(MANUAL_REMEDY_PHRASE, combined)
+        self.assertLess(combined.index(FLAG_REMEDY_PHRASE),
+                        combined.index(MANUAL_REMEDY_PHRASE),
+                        msg="the flag remedy is named first, the "
+                            "manual commit-and-re-run loop second")
+        self.assertNotIn(RETIRED_REMEDY_PHRASE, combined,
+                         msg="the operator-directed wording is retired")
         self.assertEqual(self.open_sids(), [],
                          msg="the refusal is pre-allocation: no session")
         self.assertFalse(
@@ -463,12 +483,24 @@ class BarePackRestorationTest(PerSidFixture):
             msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
         combined = packed.stdout + packed.stderr
         self.assertIn("checkpoint blindness gate passed", combined)
-        for dropped in (own, past):
-            self.assertIn(dropped, combined,
-                          msg="the walk logs each drop, naming the file")
+        # Drop-log grain (v0.4.10, revG): more than one file dropping
+        # under the basis collapses to ONE summary line per pack — the
+        # count, the subtree, and the unchanged remedy — because a
+        # {sid} basis accretes a past checkpoint per landed session
+        # and a per-file wall stops being read. Never silent remains
+        # the floor: the summary is loud and names its successors.
+        self.assertIn("auto-excluded 2 files under claude/checkpoints/",
+                      combined,
+                      msg="the summary names the count and the subtree")
         self.assertIn(AUTO_EXCLUDE_PHRASE, combined)
         self.assertIn("--allow-checkpoint-in-scope", combined,
-                      msg="the drop line names its successor")
+                      msg="the summary line names its successor")
+        self.assertNotIn(past, combined,
+                         msg="no per-file line for the past session's "
+                             "checkpoint — the summary is the log "
+                             "(the session's own file still appears "
+                             "in the stamp lines, so only the past "
+                             "file proves the per-file wall is gone)")
         manifest = self.persisted_manifest(sid)
         self.assertEqual(
             [p for p in manifest["context_included"]

@@ -1053,6 +1053,8 @@ def format_pack_json(
     readme_path: Optional[str] = None,
     readme_heading: Optional[str] = None,
     readme_sha256: Optional[str] = None,
+    checkpoint_file_path: Optional[str] = None,
+    checkpoint_file_sha256: Optional[str] = None,
     branch: Optional[str] = None,
     applied_latest: Optional[str] = None,
 ) -> str:
@@ -1094,6 +1096,21 @@ def format_pack_json(
                      tarball — the identity proper, since path + heading
                      alone proved insufficient — or null with no README.
                      All three are null together or set together.
+      checkpoint_file_path
+                     the --checkpoint-file identity echo (v0.4.10;
+                     additive keys, per the stable-contract rule above):
+                     the resolved source path of the planner's checkpoint
+                     file this pack committed (or reused idempotently), or
+                     null when the pack installed none — the README echo's
+                     rule applied to the strictly-worse exposure (a stale
+                     oracle HOLDs a good session where a stale README only
+                     ships wrong prose).
+      checkpoint_file_sha256
+                     sha256 (hex) of the checkpoint file's read bytes —
+                     identical to the committed blob's hash and to the
+                     provenance stamp's, by the install's idempotence
+                     contract — or null with no checkpoint file. Both
+                     keys are null together or set together.
       branch         the tree-position echo (v0.3.31; additive keys, per
                      the stable-contract rule above; BALE.md §7.7): the
                      branch checked out at pack time. Always a real
@@ -1131,6 +1148,8 @@ def format_pack_json(
         "readme_path": readme_path,
         "readme_heading": readme_heading,
         "readme_sha256": readme_sha256,
+        "checkpoint_file_path": checkpoint_file_path,
+        "checkpoint_file_sha256": checkpoint_file_sha256,
         "branch": branch,
         "applied_latest": applied_latest,
     }
