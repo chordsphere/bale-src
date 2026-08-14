@@ -1,0 +1,660 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-14-bare-pack-oneshot-003",
+  "created_at": "2026-08-14T13:50:46+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-14T13:50:46+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (35).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_checkpoint_file_flag.py",
+        "tests/test_per_sid_checkpoint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.9",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+              "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported and unverifiable per TARBALL.md 5.2.2"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "checkpoint file bytes are read and committed binary-exact (no UTF-8 decode or newline normalization) \u2014 'mirroring --readme-file's posture' read as the refusal posture, not the text decoding, since the oracle is hashed and executed byte-for-byte downstream"
+          ],
+          "judgment_calls": [
+            "split locate_inbound_path (non-failing core) out of resolve_inbound_path in bin/bale so the wizard prompt re-prompts on a miss without duplicating the search chain",
+            "differing *working-tree* file at the resolved path refuses rather than being clobbered (never-silently-replace, one rung earlier than the brief specified)",
+            "the wizard [r] answer beside a typed --checkpoint-file refuses post-wizard with the same contradiction message",
+            "the wizard prompt still asks when the resolved checkpoint is already committed; an empty answer then passes the pre-flight as before",
+            "the identity echo carries the resolved SOURCE path (the evidence-45 ambiguity), not the in-repo path the stamp line already shows",
+            "drop-log summarization threshold is strictly >1; a single drop keeps the 0.4.9 per-file line verbatim"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "docs/ (the install tree the test harness copies; synthesized in-session from the four injected globals so the hermetic suite could run)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-oneshot-003.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+          "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-14T14:04:27+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-003 (36).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_checkpoint_file_flag.py",
+        "tests/test_per_sid_checkpoint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.9",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+              "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported and unverifiable per TARBALL.md 5.2.2"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "checkpoint file bytes are read and committed binary-exact (no UTF-8 decode or newline normalization) \u2014 'mirroring --readme-file's posture' read as the refusal posture, not the text decoding, since the oracle is hashed and executed byte-for-byte downstream"
+          ],
+          "judgment_calls": [
+            "split locate_inbound_path (non-failing core) out of resolve_inbound_path in bin/bale so the wizard prompt re-prompts on a miss without duplicating the search chain",
+            "differing *working-tree* file at the resolved path refuses rather than being clobbered (never-silently-replace, one rung earlier than the brief specified)",
+            "the wizard [r] answer beside a typed --checkpoint-file refuses post-wizard with the same contradiction message",
+            "the wizard prompt still asks when the resolved checkpoint is already committed; an empty answer then passes the pre-flight as before",
+            "the identity echo carries the resolved SOURCE path (the evidence-45 ambiguity), not the in-repo path the stamp line already shows",
+            "drop-log summarization threshold is strictly >1; a single drop keeps the 0.4.9 per-file line verbatim"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "docs/ (the install tree the test harness copies; synthesized in-session from the four injected globals so the hermetic suite could run)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-oneshot-003.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+          "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-14T14:12:48+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-003 (36).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_checkpoint_file_flag.py",
+        "tests/test_per_sid_checkpoint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.9",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+              "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported and unverifiable per TARBALL.md 5.2.2"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "checkpoint file bytes are read and committed binary-exact (no UTF-8 decode or newline normalization) \u2014 'mirroring --readme-file's posture' read as the refusal posture, not the text decoding, since the oracle is hashed and executed byte-for-byte downstream"
+          ],
+          "judgment_calls": [
+            "split locate_inbound_path (non-failing core) out of resolve_inbound_path in bin/bale so the wizard prompt re-prompts on a miss without duplicating the search chain",
+            "differing *working-tree* file at the resolved path refuses rather than being clobbered (never-silently-replace, one rung earlier than the brief specified)",
+            "the wizard [r] answer beside a typed --checkpoint-file refuses post-wizard with the same contradiction message",
+            "the wizard prompt still asks when the resolved checkpoint is already committed; an empty answer then passes the pre-flight as before",
+            "the identity echo carries the resolved SOURCE path (the evidence-45 ambiguity), not the in-repo path the stamp line already shows",
+            "drop-log summarization threshold is strictly >1; a single drop keeps the 0.4.9 per-file line verbatim"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "docs/ (the install tree the test harness copies; synthesized in-session from the four injected globals so the hermetic suite could run)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-oneshot-003.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+          "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-14T14:12:51+00:00",
+      "outcome": "rejected",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-003 (36).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-14-bare-pack-oneshot-003.log"
+    },
+    {
+      "at": "2026-08-14T14:15:30+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-003 (36).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "checkpoint-file flag suite (tests/test_checkpoint_file_flag.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "per-sid checkpoint suite (tests/test_per_sid_checkpoint.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "checkpoint provenance suite (tests/test_checkpoint_provenance.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "write forecast suite (tests/test_write_forecast.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "readme identity suite (tests/test_readme_identity.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_checkpoint_file_flag.py",
+        "tests/test_per_sid_checkpoint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.9",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+              "sha256": "3c480a862d828c9168c8cd84ae9e28f4acdbd1ef73bfb19fc96f195299061447"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported and unverifiable per TARBALL.md 5.2.2"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "checkpoint file bytes are read and committed binary-exact (no UTF-8 decode or newline normalization) \u2014 'mirroring --readme-file's posture' read as the refusal posture, not the text decoding, since the oracle is hashed and executed byte-for-byte downstream"
+          ],
+          "judgment_calls": [
+            "split locate_inbound_path (non-failing core) out of resolve_inbound_path in bin/bale so the wizard prompt re-prompts on a miss without duplicating the search chain",
+            "differing *working-tree* file at the resolved path refuses rather than being clobbered (never-silently-replace, one rung earlier than the brief specified)",
+            "the wizard [r] answer beside a typed --checkpoint-file refuses post-wizard with the same contradiction message",
+            "the wizard prompt still asks when the resolved checkpoint is already committed; an empty answer then passes the pre-flight as before",
+            "the identity echo carries the resolved SOURCE path (the evidence-45 ambiguity), not the in-repo path the stamp line already shows",
+            "drop-log summarization threshold is strictly >1; a single drop keeps the 0.4.9 per-file line verbatim"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [
+            "docs/ (the install tree the test harness copies; synthesized in-session from the four injected globals so the hermetic suite could run)"
+          ],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md \u2014 'Compaction disclosure' (first section)"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-oneshot-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-bare-pack-oneshot-003.sh",
+          "sha256": "3d90ca5b77352f96c4138acdd220aa923e165f8e056313a5d5633103d266a3b0"
+        },
+        "stamp_matched": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-14T14:15:30+00:00",
+  "outcome": "applied"
+}
