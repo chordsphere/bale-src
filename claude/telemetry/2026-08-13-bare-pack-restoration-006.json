@@ -36,7 +36,8 @@
       "clarification": {
         "rounds": 0,
         "records": []
-      }
+      },
+      "superseded_by": "2026-08-14-bare-pack-core-001"
     }
   ],
   "updated_at": "2026-08-14T00:05:22+00:00",
