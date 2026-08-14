@@ -76,7 +76,8 @@ DRIFT_REFUSAL_MARKER = "SCOPE-DRIFT-REFUSED"
 FORECAST_QUESTION_MARKER = "Where will changes land?"
 SHAPE_QUESTION_MARKER = "Will this session land changes"
 FORECAST_COVER_PHRASE = "write forecast covers the blind checkpoint"
-READ_SHIP_PHRASE = "pack includes ship the blind checkpoint"
+READ_NAME_PHRASE = "pack includes name the blind checkpoint explicitly"
+AUTO_EXCLUDE_PHRASE = "never ships incidentally"
 STATUS_ROW_LABEL = "write forecast"
 
 CHECKPOINT_PATH = "scripts/check.sh"
@@ -403,9 +404,11 @@ class ForecastWizardTest(WriteForecastBase):
 
 
 class ForecastBlindnessTest(WriteForecastBase):
-    """Checkpoint blindness under separation (board 13 E3 as ratified):
-    forecast-keyed covering refusal + the read-side ships-the-oracle
-    refusal, one override flag, one stamp."""
+    """Checkpoint blindness under separation (board 13 E3 as ratified;
+    read side re-keyed at v0.4.9): forecast-keyed covering refusal on a
+    TYPED --write + the read-side explicit-naming refusal, with
+    incidental include coverage auto-excluding at the walk instead of
+    refusing — one override flag, one stamp."""
 
     def configure_checkpoint(self) -> None:
         (self.repo / "bale.toml").write_text(
@@ -429,20 +432,43 @@ class ForecastBlindnessTest(WriteForecastBase):
         self.assertIn("--write", combined,
                       msg="the forecast-side remedy names --write")
 
-    def test_reads_shipping_checkpoint_refuses(self) -> None:
-        """The E3 read side: forecast excludes the oracle, includes
-        would ship its bytes — mechanically clean at every
-        forecast-keyed gate, refused here."""
+    def test_reads_naming_checkpoint_refuses(self) -> None:
+        """The E3 read side, re-keyed at v0.4.9: forecast excludes the
+        oracle, and an include entry NAMES it explicitly — an explicit
+        ask to ship the oracle's bytes, refused pre-sid."""
         self.configure_checkpoint()
-        result = self.pack("--include", "scripts", "--write", "src")
+        result = self.pack("--include", CHECKPOINT_PATH, "--write", "src")
         self.assertEqual(result.returncode, 1, msg=result.stdout)
         combined = result.stdout + result.stderr
-        self.assertIn(READ_SHIP_PHRASE, combined)
-        self.assertIn("--include", combined,
-                      msg="the read-side remedy names --include, the "
-                          "shipping surface's own lever")
+        self.assertIn(READ_NAME_PHRASE, combined)
+        self.assertIn("drop the --include entry", combined,
+                      msg="the read-side remedy names the include "
+                          "entry as the lever")
         self.assertEqual(self.open_sids(), [],
                          msg="refusal is pre-sid: no session state")
+
+    def test_broad_include_auto_excludes_instead_of_refusing(self) -> None:
+        """The v0.4.9 restoration: forecast excludes the oracle, a
+        BROAD include merely covers it — the pack succeeds, the walk
+        drops the checkpoint loudly, and the shipped read set carries
+        no checkpoint path."""
+        self.configure_checkpoint()
+        result = self.pack("--include", "scripts", "--write", "src")
+        sid = self.assert_pack_ok(result)
+        combined = result.stdout + result.stderr
+        self.assertIn(AUTO_EXCLUDE_PHRASE, combined,
+                      msg="the walk logs the drop loudly, naming the "
+                          "checkpoint exclusion")
+        self.assertIn(CHECKPOINT_PATH, combined,
+                      msg="the drop line names the dropped file")
+        stamped = self.stamped_manifest(sid)
+        self.assertNotIn(
+            f"context/{CHECKPOINT_PATH}", stamped["context_included"],
+            msg="the shipped read set carries no checkpoint path")
+        self.assertFalse(
+            stamped["provenance"]["checkpoint_scope_admitted"],
+            msg="nothing was admitted — the bytes were withheld, not "
+                "delegated")
 
     def test_one_flag_admits_read_side_and_stamps(self) -> None:
         self.configure_checkpoint()

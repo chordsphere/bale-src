@@ -908,41 +908,62 @@ named spots.
    deferred gate): **dangling at the tip** — the checkpoint path has
    no committed file at HEAD (the §8.5 committed-is-ratified rule,
    caught at request-build time so a broken oracle reference never
-   produces a session doomed to refuse at apply); **the write
-   forecast covers
-   the checkpoint** (re-based per ADR-0015) — the pack's resolved
-   write forecast (`--write`, or its include-set default) covers the
-   checkpoint's path, by the same containment semantics as the
-   own-forecast drift gate (directory entries cover subtrees, `.`
-   covers everything; a read-only pack's empty forecast covers
-   nothing
-   and passes vacuously); and **the read includes would ship the
-   checkpoint** (the ADR-0015 read-side half, board-13 E3, §11 row
-   31) — the resolved include set covers the checkpoint's path, so
-   its bytes would ship in `context/` to the very worker the oracle
-   grades. The covering refusal is the board-6
+   produces a session doomed to refuse at apply); **the declared
+   write forecast covers the checkpoint** (re-based per ADR-0015;
+   scoped to the *declared* forecast at v0.4.9) — a typed `--write`
+   set covers the checkpoint's path, by the same containment
+   semantics as the own-forecast drift gate (directory entries cover
+   subtrees, `.` covers everything; a read-only pack's empty
+   forecast covers nothing and passes vacuously; the include-set
+   *default* forecast is not a declaration and is governed by the
+   read side below — evaluating the same include set twice, once
+   under each key, would re-create the containment refusal
+   auto-exclusion retires); and **the read includes name the
+   checkpoint explicitly** (the ADR-0015 read-side half, board-13
+   E3, §11 row 31; re-keyed at v0.4.9) — an include entry equal to
+   the checkpoint path, equal to its static prefix (for a
+   `{sid}`-bearing base, the pattern's static directory prefix,
+   e.g. `claude/checkpoints`), or strictly under that prefix: an
+   explicit ask to ship the oracle's bytes in `context/` to the
+   very worker the oracle grades. Incidental coverage by a default
+   or broad include no longer refuses — since v0.4.9 the walk
+   auto-excludes the configured checkpoint from shipped context
+   instead (§7.5 step 5), the same structural species as the
+   secret-pattern excludes, with a loud per-file drop line naming
+   its successors, which is what restores the bare cold-start
+   `bale pack "goal"` in a checkpoint-configured project (the §5
+   typed-surface contract).
+
+The configured checkpoint is auto-excluded from the shipped context of every pack; only an include that names it explicitly, or the admission flag, ships it.
+
+   The covering refusal is the board-6
    blindness contract's pack-time layer: the checkpoint is the
    planner's oracle, authored blind, and keeping it out of the
    forecast
    here is what lets the §8.1 step-14 drift gate do the rest at
    apply time; the read-side refusal closes the other face of the
    self-oracle shape, which separation newly exposes — under the
-   conflated model shown-and-forecast were one set, so a shipped
-   oracle was always also a refused forecast; once reads stop
+   conflated model shown-and-forecast were one set; once reads stop
    gating, the graded entity could otherwise be handed its oracle
-   with every forecast-keyed gate passing clean. (A default pack —
-   neither `--write` nor `--include` — covered the checkpoint under
-   the conflated model too, so unflagged packs refuse exactly as
-   before; the read side newly bites only the pack whose forecast
-   excludes the oracle while its includes cover it.) The refusal
-   names its successors: narrow the offending declaration (`--write`
-   for the forecast half, `--include` for the read half);
+   with every forecast-keyed gate passing clean. (The one shape
+   that keeps the pre-v0.4.9 conservative containment key on the
+   read side is a `{sid}`-bearing base with no static directory
+   prefix — no auto-exclusion basis is computable there, so
+   coverage still refuses rather than shipping the oracle
+   silently.) The refusal
+   names its successors: drop the offending declaration (`--write`
+   for the forecast half; the naming `--include` entry for the read
+   half — a broader include is fine, it auto-excludes);
    update the checkpoint directly (planner action — edit,
    commit, no session needed, the sanctioned ordinary path); or,
    planner authority, `--allow-checkpoint-in-scope` (per-invocation,
    flag-only — no config key, per the ratified override contract),
-   which admits whichever half fired — one flag, one delegation
-   decision — logs a FORCE: line, and stamps
+   which disables the auto-exclusion so the delegated
+   maintenance session actually receives the bytes, admits
+   whichever half fired — one flag, one delegation
+   decision, with the read-half admission keyed on containment,
+   since under the flag any covering include set ships the bytes —
+   logs a FORCE: line, and stamps
    `checkpoint_scope_admitted: true` into the manifest's provenance
    (§7.2) so the session's telemetry carries the admission via the
    response's provenance echo. bale.toml itself is deliberately not
@@ -1048,7 +1069,11 @@ The inputs:
   bytes at the pack-time tip, or explicit null when no checkpoint is
   configured, so absence of the KEY remains the pre-v0.3.28 /
   hand-rolled-request signal; apply verifies the base-tree bytes
-  about to run against this stamp, §8.5 — plus
+  about to run against this stamp, §8.5; since v0.4.9 a read-only
+  pack under a `{sid}`-bearing base stamps explicit null here plus
+  the additive key `checkpoint_waived: "read-only"` — the §8.5
+  read-only waiver's durable record, distinguishing waived from
+  unconfigured — plus
   `provenance.checkpoint_scope_admitted`, the boolean record of a
   covering-scope admission past the blindness gate on either
   request-building path (pack: §7.1 step 4b; handoff: §11 row 30,
@@ -1416,7 +1441,12 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    install's `tools/` with mode preserved so each arrives executable.
 4. Write `manifest.json` with the gathered fields.
 5. Walk the include paths; apply exclusions (baked-in, `.baleignore`,
-   user-supplied for this session); copy matching files into
+   user-supplied for this session, and — v0.4.9 — the configured
+   blind checkpoint: the literal path for a literal base, the static
+   directory prefix's subtree for a `{sid}`-bearing base, dropped
+   with a loud per-file log naming its successors unless an include
+   names it explicitly or `--allow-checkpoint-in-scope` admitted it,
+   §7.1 step 4b); copy matching files into
    `context/`.
 6. If README prose was resolved — from `--readme-file`, from
    `$EDITOR` (the wizard's y-path or `--edit`), or the combination —
@@ -1942,7 +1972,33 @@ sid: a resolved path absent from HEAD refuses loudly at pack, naming
 the resolved path and the remedy — author and commit the session's
 checkpoint first — while the counter is untouched, so the re-run pack
 after committing allocates the same sid and the same resolved path
-(no counter chase). An absent `[validation] base` stays what it is
+(no counter chase). Since v0.4.9 the resolved-existence pre-flight
+is scoped to sessions that can land: a pack whose resolved write
+forecast is empty (`--read-only`, whichever command builds the
+request) waives it — the checkpoint is the misunderstanding control
+for landed work, and a `[]`-forecast session mechanically cannot
+land anything (the own-forecast drift gate refuses every `changes[]`
+path it ships), so there is nothing for an oracle to grade, and a
+read-only master pack in a `{sid}`-based project needs no committed
+per-session checkpoint and burns no authoring ceremony.
+A read-only pack waives the per-session checkpoint: an empty forecast lands nothing, so no committed oracle is required and the waiver is stamped into provenance.
+The waiver is loud on both surfaces: the pack log names it, and the
+provenance stamp records `checkpoint: null` plus the additive key
+`checkpoint_waived: "read-only"` (§7.2), so the ledger can
+distinguish *waived* (a checkpoint is configured; the empty forecast
+deliberately required none) from *unconfigured* (null with no key).
+The blindness coverage checks still run for read-only packs with the
+v0.4.9 semantics — an include naming the checkpoint explicitly
+refuses, and a dangling *literal* base still refuses everywhere (a
+config pointing at nothing is an error whatever the session shape).
+A literal base ignores the waiver at the stamp too: its committed
+project-wide oracle exists (the dangling refusal guarantees it) and
+a read-only pack under it stamps `{path, sha256}` exactly as since
+v0.3.28 — the waiver removes the per-session authoring ceremony
+`{sid}` bases would otherwise impose on packs that can land
+nothing. `bale handoff` never waives: its reading-plan forecast is
+never empty by construction (a plan citing no files resolves to the
+whole tree). An absent `[validation] base` stays what it is
 today: no checkpoint, no refusal.
 
 **Provenance stamp verification** (v0.3.28, board 6 session C; §11
@@ -2964,11 +3020,11 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |
 | 26 | Required-check superset (board 6 session B): when the project's `[validation] required` set is non-empty and `changes[]` is non-empty, every required name appears verbatim in the manifest's `validation_will_run`. Per-invocation `--allow-missing-required-check NAME` (repeatable; no config key, per the ratified override contract) admits exactly the named names — any other missing name still refuses. The refusal renders both sets, keeps the session open with no git side effects, records telemetry outcome `required-check-refused`, and in `--json` mode is the one-line report with that outcome and a `required_checks` detail object (§8.1 step 15); appended after row 25 per the appended-row precedent, so rows 1–25 stay stable | apply pre-flight |
-| 27 | Checkpoint blindness, write side (v0.3.28, board 6 session C; re-based onto the forecast by ADR-0015): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a resolved write forecast that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty forecast covers nothing — its read side is row 31's business). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering forecast — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
+| 27 | Checkpoint blindness, write side (v0.3.28, board 6 session C; re-based onto the forecast by ADR-0015; scoped to the declared forecast at v0.4.9): when `[validation] base` pins a blind checkpoint, pack refuses a configured-but-dangling checkpoint at the pack-time tip (committed-is-ratified, caught at request-build time) and refuses a *declared* write forecast — a typed `--write` set — that covers the checkpoint's path (drift-gate containment semantics; a read-only pack's empty forecast covers nothing, and the include-set default forecast is governed by row 31's read-side key rather than evaluated twice — its read side is row 31's business). Per-invocation `--allow-checkpoint-in-scope` (flag-only; no config key, per the ratified override contract) admits the covering forecast — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the request manifest (§7.1 step 4b); appended after row 26 per the appended-row precedent, so rows 1–26 stay stable | pack pre-flight |
 | 28 | Checkpoint provenance stamp verification (v0.3.28, board 6 session C): when the request manifest carries `provenance.checkpoint` (stamped by pack: the oracle's `{path, sha256}` at the pack-time tip, or explicit null) and a checkpoint is configured at apply, the base-tree bytes about to run must match the stamp; divergence refuses pre-staging with the session open and no git side effects. Per-invocation `--accept-checkpoint-change` (apply and retry, re-stated each invocation) admits the change — the CURRENT base-tree version runs, FORCE-logged, `stamp_matched: false` recorded in the attempt's telemetry stamp; a verified match records true, a stampless request verifies nothing and records null. `--dry-run` predicts the refusal (§8.5); appended after row 27 per the appended-row precedent, so rows 1–27 stay stable | apply pre-flight |
 | 29 | Dangling-checkpoint refusal, apply side (board 6 session A): when `bale.toml`'s `[validation] base` names a blind checkpoint with no committed file at that path in the session's base tree, apply refuses before staging — no staging tree, no `bale/<sid>` branch, session open (committed-is-ratified: a working-tree-only checkpoint is not yet the project's oracle; remedies: commit the checkpoint at the named path, or clear the key via `bale config init`). `--dry-run` predicts the refusal when a checkpoint is configured (the session-B rider; §8.5), and pack's own earlier catch is row 27's dangling half — this row is the apply-side backstop that also covers hand-rolled requests and post-pack config edits. Contract prose in §8.5; row appended after row 28 in v0.3.29 (board 6 session D, the session-C notes' proposed backfill) per the appended-row precedent, so rows 1–28 stay stable | apply pre-flight |
 | 30 | Checkpoint blindness, handoff side (v0.3.33): when `[validation] base` pins a blind checkpoint, `bale handoff` runs the same gate implementation as rows 27 and 31 — the dangling refusal and the covering refusal — against its reading-plan-derived forecast (the resolved set of files the bailout's reading plan pre-packs, which on this path is both the read set and the conservative forecast, so one value covers both halves; a plan citing no files resolves to the whole tree, which covers any configured checkpoint), pre-sid, so a refused handoff burns no NNN and leaves no session state. Per-invocation `--allow-checkpoint-in-scope` (mirroring pack's spelling; flag-only, no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the new request manifest through the shared provenance builder, so a bailed checkpoint-maintenance session's handoff renews its admission deliberately rather than inheriting pack's silently; appended after row 29 per the appended-row precedent, so rows 1–29 stay stable | handoff pre-flight |
-| 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3): when `[validation] base` pins a blind checkpoint, pack refuses a resolved include set that would ship the checkpoint's content in `context/` to the worker the oracle grades — containment on the resolved include set, same semantics as row 27, conservative by construction (an exclude that would drop the file at walk time still refuses; the remedies are cheap). Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired, since the delegation decision is one decision (§7.1 step 4b). A default pack (no `--include`) covered the checkpoint under the conflated model too, so unflagged packs refuse exactly as before; the row newly bites only a pack whose forecast excludes the oracle while its includes cover it. Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
+| 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3; re-keyed to explicit naming at v0.4.9): when `[validation] base` pins a blind checkpoint, pack refuses an include entry that names it explicitly — an entry equal to the checkpoint path, equal to its static prefix (the `{sid}` pattern's static directory prefix), or strictly under that prefix — an explicit ask to ship the oracle's bytes in `context/` to the worker the oracle grades. Incidental coverage by a default or broad include does not refuse: the walk auto-excludes the checkpoint from shipped context with a loud per-file drop line (§7.1 step 4b, §7.5 step 5), which is what restores the bare default pack in a checkpoint-configured project; the one containment holdover is a `{sid}` base with no static directory prefix, where no auto-exclusion basis is computable and coverage still refuses. Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired (the read-half admission keyed on containment, since the flag disables auto-exclusion and any covering include set then ships the bytes), because the delegation decision is one decision (§7.1 step 4b). Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
 | 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory

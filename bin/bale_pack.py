@@ -189,6 +189,88 @@ def is_under_include(rel: str, includes: list[str]) -> bool:
     return False
 
 
+def checkpoint_exclusion_basis(base: Optional[str]) -> Optional[str]:
+    """The repo-relative basis auto-excluded from shipped context (v0.4.9).
+
+    The configured blind checkpoint is a structural exclusion at pack's
+    walk — the same species as the secret-pattern excludes — so a
+    default or broad include no longer ships the planner's oracle to
+    the worker it grades (BALE.md §7.1 step 4b, §7.5 step 5). This
+    function computes the exclusion's basis from the `[validation]
+    base` value; the walk and the read-side blindness check both key
+    on it, so "what counts as the checkpoint" has one home.
+
+    - `None` (no checkpoint configured) → `None`: nothing to exclude.
+    - A literal base → the literal path itself.
+    - A `{sid}`-bearing base → the pattern's **static directory
+      prefix**: the components before the first `{sid}`-bearing one
+      (for `claude/checkpoints/{sid}.sh`, the `claude/checkpoints`
+      subtree). The subtree — not just the one resolution — is the
+      basis deliberately: past sessions' checkpoints are dead weight
+      to a worker, and the prefix is computable pre-sid, where the
+      resolved path is not.
+    - A `{sid}`-bearing base with NO static directory prefix (a
+      root-level pattern like `{sid}.sh`) → `None`. There is no
+      subtree short of the whole repo to exclude, and a wildcard over
+      root files would over-drop; the blindness gate keeps the
+      pre-v0.4.9 conservative containment refusal for exactly this
+      degenerate shape (checkpoint_blindness_preflight), so the
+      oracle still cannot ship silently.
+    """
+    if base is None:
+        return None
+    if "{sid}" not in base:
+        return base
+    prefix_parts: list[str] = []
+    for part in Path(base).parts:
+        if "{sid}" in part:
+            break
+        prefix_parts.append(part)
+    if not prefix_parts:
+        return None
+    return str(Path(*prefix_parts))
+
+
+def checkpoint_auto_excluded(rel: str, basis: str) -> bool:
+    """True when `rel` is the exclusion basis or lies under it.
+
+    `rel` is a git-ls-files repo-relative path; `basis` comes from
+    checkpoint_exclusion_basis (a literal file path, or a `{sid}`
+    pattern's static directory prefix covering its subtree).
+    """
+    return rel == basis or rel.startswith(basis + "/")
+
+
+def include_names_checkpoint(includes: list[str], checkpoint_path: str,
+                             basis: str) -> bool:
+    """True when an include entry names the checkpoint **explicitly**.
+
+    The read-side blindness key since v0.4.9: an explicit ask to ship
+    the oracle refuses; incidental coverage by a broad include
+    auto-excludes at the walk instead (checkpoint_exclusion_basis).
+    Explicit naming is an entry that is:
+
+    - equal to the checkpoint path (the literal path, or the
+      `{sid}`-bearing pattern string typed verbatim),
+    - equal to the exclusion basis (for a `{sid}` base, the static
+      directory prefix — asking for the checkpoints subtree by name),
+      or
+    - strictly under the basis (e.g. a past session's resolved
+      checkpoint file named directly).
+
+    A broader ancestor (`.`, `claude`) is NOT explicit naming — that
+    is exactly the incidental coverage auto-exclusion exists for.
+    Entries arrive resolved (resolved_scope), but each side is
+    re-normalized here so hand-fed callers compare in the same form.
+    """
+    from __main__ import scope_path  # lazy — see module docstring
+    target = scope_path(checkpoint_path)
+    b = scope_path(basis)
+    for entry in includes:
+        e = scope_path(entry)
+        if e == target or e == b or e.startswith(b + "/"):
+            return True
+    return False
 
 
 def build_pack_matcher(
@@ -307,17 +389,30 @@ def walk_for_pack(
     force: bool,
     matcher: Optional[BaleignoreMatcher] = None,
     verbose: bool = False,
+    checkpoint_exclude: Optional[str] = None,
 ) -> PackProjection:
     """Enumerate files for pack, applying the filter chain, while accumulating
     file count, total size, max depth, and per-top-level-dir totals.
 
     Filter chain (BALE.md sections 6.4, 7.5 step 5): git ls-files → drop
-    non-files → drop baked-in excluded dirs → drop secrets → drop paths
+    non-files → drop baked-in excluded dirs → drop secrets → drop the
+    configured checkpoint (checkpoint_exclude, below) → drop paths
     matched by the .baleignore-plus-session matcher (if any) → keep only
     paths under --include. Order matches the v0.0.9 function's filter chain
     with the matcher slotted before --include — same reasoning as the
     other exclude filters: cheaper to drop matched paths early than to
     run them through the --include pruner.
+
+    `checkpoint_exclude` (v0.4.9) is the configured blind checkpoint's
+    exclusion basis (checkpoint_exclusion_basis) — a structural
+    exclusion of the same species as the secret patterns, so a default
+    or broad include no longer ships the planner's oracle. None (no
+    checkpoint configured, --allow-checkpoint-in-scope disabling the
+    exclusion, or the degenerate prefixless `{sid}` shape the basis
+    helper documents) skips the check. Unlike every other filter, the
+    drop is logged LOUDLY per file, verbose or not — silent skips are
+    bugs, and a planner watching a bare pack should see exactly which
+    oracle bytes were withheld and how to ship them deliberately.
 
     `matcher` is the combined `.baleignore`-plus-session-excludes matcher
     built by `build_pack_matcher`. None (the common case for repos without
@@ -377,6 +472,17 @@ def walk_for_pack(
             continue
         if is_secret_excluded(rel, repo):
             _drop(rel, "secret pattern")
+            continue
+        if checkpoint_exclude is not None and checkpoint_auto_excluded(
+                rel, checkpoint_exclude):
+            # Loud, unconditional per-file drop (v0.4.9) — the message
+            # names its successors per the every-command contract.
+            from __main__ import log as _log  # lazy — see module docstring
+            _log(f"auto-excluded {rel} from shipped context: the "
+                 f"configured blind checkpoint ({checkpoint_exclude}) "
+                 f"never ships incidentally. To ship it deliberately, "
+                 f"name it explicitly with --include, or pass "
+                 f"--allow-checkpoint-in-scope (BALE.md \u00a77.1 step 4b).")
             continue
         if matcher is not None and matcher.matches(rel):
             _drop(rel, ".baleignore / session exclude")
@@ -648,6 +754,7 @@ def build_provenance_block(
     packer_flag: Optional[str] = None,
     work_class: str = "mixed",
     checkpoint_scope_admitted: bool = False,
+    checkpoint_waived: bool = False,
 ) -> dict:
     """Assemble the request manifest's provenance block (v0.3.8, B1).
 
@@ -697,6 +804,23 @@ def build_provenance_block(
       shape (the superseded_session precedent), and echoed into
       telemetry via the response's feedback.mechanical.provenance —
       which is how the session's record carries the admission.
+    - `checkpoint_waived` (v0.4.9) — the read-only checkpoint waiver's
+      stamp. When the caller passes True AND the configured base
+      carries {sid}, the checkpoint stamp is explicit null and the
+      block gains the additive key `checkpoint_waived: "read-only"`,
+      so the ledger can distinguish waived (a checkpoint IS
+      configured; the empty forecast lands nothing, so no committed
+      per-session oracle was required — checkpoint_resolved_preflight
+      is the gate the waiver no-ops) from unconfigured (checkpoint
+      null with no waiver key). A literal base ignores the flag and
+      stamps as always: its committed oracle exists project-wide
+      (the dangling refusal guarantees it), stamping costs nothing,
+      and a read-only pack under a literal base has stamped since
+      v0.3.28 — the waiver exists to remove the per-session
+      authoring ceremony {sid} bases would otherwise impose on packs
+      that can land nothing. Absent (the schema-additive posture):
+      every non-waived block, so pre-v0.4.9 manifests and every
+      non-read-only pack keep their exact shape.
 
     Reads the merged config itself so both request-building call sites
     stay wiring-thin; `sid` (required, v0.4.8) is the allocated session
@@ -741,7 +865,16 @@ def build_provenance_block(
     # the same bytes.
     checkpoint_base = bale_config.get_validation_base(merged)
     checkpoint_stamp: Optional[dict] = None
-    if checkpoint_base is not None:
+    # The read-only checkpoint waiver (v0.4.9): meaningful only for a
+    # {sid}-bearing base — the shape whose per-session resolution the
+    # waived gate (checkpoint_resolved_preflight) would otherwise
+    # demand a committed file for. Resolving {sid} here for a waived
+    # pack would re-run the very git probe the waiver removed (and
+    # fail on the uncommitted resolution), so the stamp short-circuits
+    # to explicit null plus the additive key instead.
+    waived = (checkpoint_waived and checkpoint_base is not None
+              and "{sid}" in checkpoint_base)
+    if checkpoint_base is not None and not waived:
         # Per-sid resolution (v0.4.8, board 10 S7): a {sid}-bearing base
         # resolves against the allocated session id, and the stamp
         # records the RESOLVED path — exactly as the pre-S7 stamp
@@ -785,7 +918,7 @@ def build_provenance_block(
             + (f" [resolved from {checkpoint_base}]"
                if checkpoint_path != checkpoint_base else ""))
 
-    return {
+    block = {
         "bale_version": VERSION,
         "contract_docs": contract_docs,
         "packer": packer,
@@ -793,12 +926,21 @@ def build_provenance_block(
         "checkpoint": checkpoint_stamp,
         "checkpoint_scope_admitted": bool(checkpoint_scope_admitted),
     }
+    if waived:
+        block["checkpoint_waived"] = "read-only"
+        log(f"provenance: checkpoint waived (read-only pack; "
+            f"[validation] base {checkpoint_base!r} not resolved — the "
+            f"empty forecast lands nothing, so no committed oracle is "
+            f"required; stamped checkpoint: null, "
+            f"checkpoint_waived: \"read-only\")")
+    return block
 
 
 def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
                                    *, allow: bool,
                                    caller: str = "pack",
                                    read_includes: Optional[list] = None,
+                                   forecast_declared: bool = True,
                                    ) -> bool:
     """The pack-time blindness gate (v0.3.28, board 6 session C; BALE.md
     §7.1 step 4b; re-based and extended by ADR-0015, board 13 E3):
@@ -834,24 +976,46 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
       on what "in forecast" means; keeping the path out of the
       forecast here is what lets the existing step-14 drift gate do
       the rest at apply time.
-    - **Read includes ship the checkpoint** (the ADR-0015 read-side
-      half, board 13 E3 as ratified): once reads stop gating, a
-      generous include set can ship the oracle's bytes to the very
-      worker the oracle grades while every forecast-keyed gate passes
-      clean — the graded entity reading its oracle, the other face of
-      the self-oracle shape. Checked with the same containment
-      semantics against `read_includes` (pack passes its resolved
-      include set; handoff passes nothing, because its reading-plan
-      forecast IS its read set and the forecast half above already
-      covered it). Conservative by construction: containment on the
-      resolved include set, so an exclude pattern that would drop the
-      file at walk time still refuses here — the cheap remedies
-      (narrow the includes, or the same override) resolve it. Note
-      that a default pack (no --include → ["."]) covered the
-      checkpoint under the conflated model too, so the pre-separation
-      refusal behavior of unflagged packs is unchanged; the read side
-      only newly bites the pack whose --write excludes the oracle
-      while its includes would ship it.
+    - **Read includes name the checkpoint explicitly** (the ADR-0015
+      read-side half, board 13 E3; re-keyed at v0.4.9 alongside walk
+      auto-exclusion): once reads stop gating, a generous include set
+      can ship the oracle's bytes to the very worker the oracle
+      grades while every forecast-keyed gate passes clean — the
+      graded entity reading its oracle, the other face of the
+      self-oracle shape. Since v0.4.9 the walk auto-excludes the
+      configured checkpoint from shipped context
+      (checkpoint_exclusion_basis / walk_for_pack), so incidental
+      coverage by a default or broad include no longer ships the
+      bytes and no longer refuses — under auto-exclusion, the
+      pre-v0.4.9 containment-coverage rule would refuse packs that
+      ship nothing. The refusal now fires only when an include entry
+      **names the checkpoint explicitly** (include_names_checkpoint):
+      an entry equal to the checkpoint path, equal to the static
+      prefix, or strictly under it — an explicit ask to ship the
+      oracle. Checked against `read_includes` (pack passes its
+      resolved include set; handoff passes nothing, because its
+      reading-plan forecast IS its read set and the forecast half
+      above already covered it). Under `allow`, admission keys on
+      containment — would the bytes actually ship with auto-exclusion
+      disabled? — so a broad-include maintenance pack stamps its
+      admission exactly as before. The one shape that keeps the old
+      conservative containment key for the refusal is the degenerate
+      prefixless `{sid}` base the basis helper documents — no
+      computable exclusion basis exists there, so coverage still
+      refuses rather than shipping the oracle silently.
+
+    `forecast_declared` (v0.4.9) scopes the forecast half to a
+    forecast someone actually declared: pack passes True only when
+    `--write` was typed (or wizard-collected); handoff's reading-plan
+    forecast is a declaration and keeps the default True. When False
+    — the include-set compatibility default — the forecast half is
+    skipped, because that defaulted forecast IS the include set and
+    the read-side explicit-naming rule above already governs it;
+    evaluating the same value a second time under containment would
+    re-create exactly the refusal auto-exclusion retires and make the
+    bare default pack impossible in a checkpoint-configured project
+    (the ratified goal of the v0.4.9 session). A read-only pack's
+    empty forecast covers nothing on either key.
 
     The sanctioned ordinary update path needs no session at all: the
     checkpoint is planner-authored by the §1 floor's own wording, so
@@ -901,16 +1065,15 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
         # called with a peeked sid just before allocation) and the stamp
         # builder's post-allocation re-check; skipping it here is a
         # deferral, never a silent pass, so it logs. The two coverage
-        # checks below run against the UNRESOLVED pattern: containment
-        # is per path component, so a directory entry covering the
-        # pattern's parent (claude/checkpoints, say) covers every
-        # resolution identically, and a forecast entry equal to the
-        # literal pattern string is caught too. The one shape this
-        # misses — an exact-file entry textually equal to a future
-        # resolution, typed by predicting the unallocated NNN — is
-        # accepted residue: the resolved file's committed bytes are
-        # stamp-verified at apply regardless, and the checkpoint a
-        # session executes is base-tree bytes, never the staged copy.
+        # checks below run against the UNRESOLVED pattern: forecast
+        # containment is per path component, so a directory entry
+        # covering the pattern's parent (claude/checkpoints, say)
+        # covers every resolution identically, and a forecast entry
+        # equal to the literal pattern string is caught too; the
+        # read-side explicit-naming key (v0.4.9) compares include
+        # entries against the pattern string and its static prefix,
+        # so a past resolution named directly (an entry strictly
+        # under the prefix) is caught pre-sid as well.
         log(f"[validation] base carries {{sid}} ({checkpoint_path}); "
             f"existence check defers to the pre-allocation resolved-"
             f"existence pre-flight; blindness coverage checked against "
@@ -929,13 +1092,38 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
                  f"at the named path, or clear the key via "
                  f"`bale config init`.")
 
-    forecast_covers = scope_covers_path(pack_scope, checkpoint_path)
-    reads_ship = (read_includes is not None
-                  and scope_covers_path(read_includes, checkpoint_path))
+    # The forecast half: containment, applied to a DECLARED forecast
+    # only (v0.4.9 — see the forecast_declared paragraph above). The
+    # include-set compatibility default is governed by the read-side
+    # explicit-naming key below, since the two values are one value.
+    forecast_covers = (forecast_declared
+                       and scope_covers_path(pack_scope, checkpoint_path))
 
-    if not forecast_covers and not reads_ship:
-        log(f"checkpoint blindness gate passed: neither the write "
-            f"forecast nor the read includes cover {checkpoint_path}")
+    # The read half (v0.4.9): explicit naming refuses; incidental
+    # coverage auto-excludes at the walk (checkpoint_exclusion_basis).
+    # The degenerate prefixless {sid} base has no computable exclusion
+    # basis, so it keeps the pre-v0.4.9 conservative containment key —
+    # a shape with no auto-exclusion must not ship the oracle silently.
+    basis = checkpoint_exclusion_basis(checkpoint_path)
+    if read_includes is None:
+        reads_hit = False
+    elif basis is None:
+        # {sid} base with no static directory prefix (basis helper's
+        # documented degenerate case; checkpoint_path is non-None here).
+        log(f"[validation] base {checkpoint_path!r} has no static "
+            f"directory prefix; no auto-exclusion basis is computable, "
+            f"so the read-side blindness check keeps containment "
+            f"semantics for this shape")
+        reads_hit = scope_covers_path(read_includes, checkpoint_path)
+    else:
+        reads_hit = include_names_checkpoint(
+            read_includes, checkpoint_path, basis)
+
+    if not allow and not forecast_covers and not reads_hit:
+        log(f"checkpoint blindness gate passed: the declared write "
+            f"forecast does not cover {checkpoint_path} and no include "
+            f"entry names it explicitly (incidental coverage "
+            f"auto-excludes at the walk)")
         return False
 
     if not allow:
@@ -947,6 +1135,22 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
             scope=pack_scope if forecast_covers else read_includes,
             caller=caller,
             side="forecast" if forecast_covers else "read"))
+
+    # allow=True. Admission keys on what the flag actually changes:
+    # the declared-forecast coverage above, and — for the read half —
+    # CONTAINMENT, not explicit naming, because the flag disables walk
+    # auto-exclusion (cmd_pack passes checkpoint_exclude=None under
+    # it), so any include set that covers the oracle now ships its
+    # bytes and must stamp the admission, exactly as pre-v0.4.9. One
+    # flag, one stamp, both halves.
+    reads_ship = (read_includes is not None
+                  and scope_covers_path(read_includes, checkpoint_path))
+    if not forecast_covers and not reads_ship:
+        log(f"checkpoint blindness gate passed: "
+            f"--allow-checkpoint-in-scope given, but the declared "
+            f"write forecast does not cover {checkpoint_path} and the "
+            f"includes would not ship it — nothing to admit")
+        return False
 
     # force=True: an admitted checkpoint-covering forecast (or
     # oracle-shipping include set) is an override event of the same
@@ -966,7 +1170,9 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
     return True
 
 
-def checkpoint_resolved_preflight(repo: Path, sid: str) -> None:
+def checkpoint_resolved_preflight(repo: Path, sid: str,
+                                  *, forecast: Optional[list] = None,
+                                  ) -> None:
     """The per-sid resolved-existence gate (v0.4.8, board 10 S7).
 
     When [validation] base carries the {sid} placeholder, the blindness
@@ -986,12 +1192,35 @@ def checkpoint_resolved_preflight(repo: Path, sid: str) -> None:
     provenance stamp builder re-checks against the ALLOCATED sid as
     defense in depth (its existing posture), which also covers the
     date-rollover race where peek and allocation disagree.
+
+    `forecast` (v0.4.9) is the session's resolved write forecast, and
+    the EMPTY forecast waives the gate: the checkpoint is the
+    misunderstanding control for landed work, and a `[]`-forecast
+    session mechanically cannot land anything (the own-forecast drift
+    gate refuses every `changes[]` path it ships), so there is nothing
+    for an oracle to grade — a read-only pack in a {sid}-based project
+    needs no committed per-session checkpoint and burns no ceremony.
+    The waiver is loud (logged here, and stamped as
+    `provenance.checkpoint_waived` by build_provenance_block, so the
+    ledger can distinguish waived from unconfigured). None — the
+    default, kept for callers whose forecast is always a declaration
+    (handoff's reading-plan forecast is never empty by construction:
+    a plan citing no files resolves to the whole tree) — means "no
+    waiver": the gate probes exactly as at v0.4.8.
     """
     from __main__ import fail, log  # lazy — see module docstring
     import bale_config  # lazy — see module docstring
 
     base = bale_config.get_validation_base(bale_config.merged_config(repo))
     if base is None or "{sid}" not in base:
+        return
+    if forecast is not None and not forecast:
+        log(f"read-only checkpoint waiver: the resolved write forecast "
+            f"is empty, so this session can land nothing and no "
+            f"committed per-session checkpoint is required "
+            f"([validation] base {base!r} is not resolved for this "
+            f"pack; the waiver is stamped into provenance as "
+            f"checkpoint_waived)")
         return
     resolved = bale_config.resolve_checkpoint_path(base, sid)
     probe = subprocess.run(
@@ -2469,7 +2698,12 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # side is checked at whichever site the gate fires from.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
             repo, _early_scope, allow=args.allow_checkpoint_in_scope,
-            read_includes=resolved_scope(list(args.include)))
+            read_includes=resolved_scope(list(args.include)),
+            # v0.4.9: the forecast half keys on a DECLARED forecast —
+            # a typed --write, or the read-only shape (whose empty
+            # forecast covers nothing anyway). The include-set default
+            # is governed by the read-side explicit-naming rule.
+            forecast_declared=bool(args.write) or args.read_only)
         admitted_alongside = _run_scope_gate(_early_scope)
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
@@ -2514,7 +2748,11 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # wizard's answers have finalized the forecast.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
             repo, pack_scope, allow=args.allow_checkpoint_in_scope,
-            read_includes=resolved_scope(list(args.include)))
+            read_includes=resolved_scope(list(args.include)),
+            # Same v0.4.9 keying as the pre-flight site, evaluated
+            # post-wizard (the wizard can fill args.write or set
+            # args.read_only; it never collects includes).
+            forecast_declared=bool(args.write) or args.read_only)
         admitted_alongside = _run_scope_gate(pack_scope)
 
     # A declined supersession that survives the gate (the parent's scope
@@ -2697,6 +2935,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
     session_excludes: list[str] = list(args.exclude)
     matcher = build_pack_matcher(repo, session_excludes)
 
+    # Checkpoint auto-exclusion basis (v0.4.9): the configured blind
+    # checkpoint is a structural exclusion at the walk — a default or
+    # broad include no longer ships the oracle, and each drop logs
+    # loudly (walk_for_pack). --allow-checkpoint-in-scope disables the
+    # exclusion: the delegated maintenance session needs the bytes,
+    # and the blindness gate above already stamped the admission for
+    # any include set that covers them. None also for the degenerate
+    # prefixless {sid} shape (the basis helper's contract), where the
+    # gate kept the containment refusal instead.
+    _cp_base = bale_config.get_validation_base(
+        bale_config.merged_config(repo))
+    checkpoint_exclude = (None if args.allow_checkpoint_in_scope
+                          else checkpoint_exclusion_basis(_cp_base))
+
     # Walk + project, with the soft-breach edit-excludes loop wrapped
     # around it. The loop's body is:
     #   1. walk_for_pack with the current matcher.
@@ -2716,7 +2968,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     while True:
         projection = walk_for_pack(
             repo, args.include, caps=caps, force=args.force, matcher=matcher,
-            verbose=args.verbose,
+            verbose=args.verbose, checkpoint_exclude=checkpoint_exclude,
         )
         files = projection.files
         if not files:
@@ -2869,7 +3121,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # nothing. Sited immediately before allocation, the last gate, so
     # the peeked and allocated sids agree (nothing counter-touching
     # runs between). A literal or unconfigured base is a no-op.
-    checkpoint_resolved_preflight(repo, peek_session_id(repo, args.slug))
+    checkpoint_resolved_preflight(repo, peek_session_id(repo, args.slug),
+                                  forecast=pack_scope)
 
     # Allocate session ID and switch logging to the per-session file. The
     # set_log_file() call drains any buffered --force lines from
@@ -2947,6 +3200,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     provenance = build_provenance_block(
         repo, sid=sid, packer_flag=args.packer, work_class=work_class,
         checkpoint_scope_admitted=checkpoint_scope_admitted,
+        # v0.4.9: an empty forecast waives the per-session checkpoint;
+        # the builder scopes the stamp to {sid} bases itself.
+        checkpoint_waived=not pack_scope,
     )
     log(f"provenance: packer={provenance['packer']!r} "
         f"work_class={provenance['work_class']!r} "
