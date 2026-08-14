@@ -1,0 +1,288 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-14-bare-pack-excl-waiver-002",
+  "created_at": "2026-08-14T13:06:34+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-14T13:06:34+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-14-bare-pack-excl-waiver-002.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "schemas",
+        "tests",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_per_sid_checkpoint.py",
+        "tests/test_write_forecast.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.8",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-excl-waiver-002.sh",
+              "sha256": "cdbe00d57be93b205dbc4e3e5bb03d8c73e35a73e6ba0ba8e01e7bb7bdf85fe2"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief's 'forecast half is untouched' is read as scoping the containment refusal to a DECLARED forecast (a typed --write, or handoff's reading-plan forecast); the include-set default forecast is governed by the read-side explicit-naming key instead. Rationale: a bare pack's defaulted forecast is ['.'], which covers any checkpoint by containment \u2014 evaluating that same include set under both keys would refuse every bare pack and defeat the session's ratified goal. Flagged first in notes.md for ratification.",
+            "The waiver stamp (checkpoint: null + checkpoint_waived) is scoped to {sid}-bearing bases; a read-only pack under a LITERAL base keeps stamping {path, sha256} as it has since v0.3.28 (the existing test pins it, the committed oracle exists, and 'the per-session checkpoint' is the brief's own wording).",
+            "A {sid} base with no static directory prefix (e.g. '{sid}.sh' at repo root) has no computable auto-exclusion basis; that degenerate shape keeps the pre-v0.4.9 containment refusal on the read side rather than gaining a wildcard exclusion, so the oracle cannot ship silently."
+          ],
+          "judgment_calls": [
+            "bin/bale_report.py shipped as out-of-forecast drift: the read-side refusal's diagnosis/remedy text lives there, and the old text ('narrow this pack with --include paths that do not cover the checkpoint') became wrong under explicit-naming semantics \u2014 every refusal must name its real remedy.",
+            "Under --allow-checkpoint-in-scope, the read-half ADMISSION keys on containment (would the bytes ship with auto-exclusion off?) while the flag-less REFUSAL keys on explicit naming \u2014 this is what keeps 'the admission stamps exactly as today' true for the broad-include maintenance pack.",
+            "New per-sid tests live in a PerSidFixture base class split out of PerSidCheckpointE2ETest so the new classes don't re-run the S7 tests through inheritance.",
+            "The full 423-test suite is gated behind validation.sh --slow (TARBALL.md 7.6): the default run is ~40s, the slow leg ~105s; both were observed green."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-excl-waiver-002.log"
+    },
+    {
+      "at": "2026-08-14T13:08:22+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-14-bare-pack-excl-waiver-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "anchor sentences present verbatim (BALE.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "VERSION is 0.4.9": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "request schema admits checkpoint_waived additively": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_per_sid_checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_checkpoint_provenance": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_write_forecast": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full suite (behind --slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec bit: tools/response_lint.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "anchor sentences present verbatim (BALE.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERSION is 0.4.9": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "request schema admits checkpoint_waived additively": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_per_sid_checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_checkpoint_provenance": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_write_forecast": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full suite (behind --slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "exec bit: tools/response_lint.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "schemas",
+        "tests",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [
+        "bin/bale_report.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_per_sid_checkpoint.py",
+        "tests/test_write_forecast.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.8",
+            "contract_docs": {
+              "CLAUDE.md": "0322c1d354af27adb2b5f43be85d06ddcd8d5a2efaaf5e8d2744b62b78eb54b2",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-14-bare-pack-excl-waiver-002.sh",
+              "sha256": "cdbe00d57be93b205dbc4e3e5bb03d8c73e35a73e6ba0ba8e01e7bb7bdf85fe2"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief's 'forecast half is untouched' is read as scoping the containment refusal to a DECLARED forecast (a typed --write, or handoff's reading-plan forecast); the include-set default forecast is governed by the read-side explicit-naming key instead. Rationale: a bare pack's defaulted forecast is ['.'], which covers any checkpoint by containment \u2014 evaluating that same include set under both keys would refuse every bare pack and defeat the session's ratified goal. Flagged first in notes.md for ratification.",
+            "The waiver stamp (checkpoint: null + checkpoint_waived) is scoped to {sid}-bearing bases; a read-only pack under a LITERAL base keeps stamping {path, sha256} as it has since v0.3.28 (the existing test pins it, the committed oracle exists, and 'the per-session checkpoint' is the brief's own wording).",
+            "A {sid} base with no static directory prefix (e.g. '{sid}.sh' at repo root) has no computable auto-exclusion basis; that degenerate shape keeps the pre-v0.4.9 containment refusal on the read side rather than gaining a wildcard exclusion, so the oracle cannot ship silently."
+          ],
+          "judgment_calls": [
+            "bin/bale_report.py shipped as out-of-forecast drift: the read-side refusal's diagnosis/remedy text lives there, and the old text ('narrow this pack with --include paths that do not cover the checkpoint') became wrong under explicit-naming semantics \u2014 every refusal must name its real remedy.",
+            "Under --allow-checkpoint-in-scope, the read-half ADMISSION keys on containment (would the bytes ship with auto-exclusion off?) while the flag-less REFUSAL keys on explicit naming \u2014 this is what keeps 'the admission stamps exactly as today' true for the broad-include maintenance pack.",
+            "New per-sid tests live in a PerSidFixture base class split out of PerSidCheckpointE2ETest so the new classes don't re-run the S7 tests through inheritance.",
+            "The full 423-test suite is gated behind validation.sh --slow (TARBALL.md 7.6): the default run is ~40s, the slow leg ~105s; both were observed green."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-14-bare-pack-excl-waiver-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-14-bare-pack-excl-waiver-002.sh",
+          "sha256": "cdbe00d57be93b205dbc4e3e5bb03d8c73e35a73e6ba0ba8e01e7bb7bdf85fe2"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-14T13:08:22+00:00",
+  "outcome": "applied"
+}
