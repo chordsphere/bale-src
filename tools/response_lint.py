@@ -328,6 +328,11 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   "type": "boolean",
                   "description": "Echo of the request's provenance.checkpoint_scope_admitted stamp (v0.3.28, board 6 session C): whether the planner admitted a checkpoint-covering pack scope with --allow-checkpoint-in-scope. Optional so echoes of pre-v0.3.28 requests stay valid."
                 },
+                "checkpoint_waived": {
+                  "type": "string",
+                  "enum": ["read-only"],
+                  "description": "Echo of the request's provenance.checkpoint_waived stamp (v0.4.9): present when the request waived the per-session checkpoint for the empty-forecast (read-only) shape. Optional — the block is echoed verbatim, so the key rides through exactly when the request carried it; the echo shape must admit it because additionalProperties is false here."
+                },
                 "model_identity": {
                   "type": "string",
                   "minLength": 1,

@@ -82,6 +82,8 @@ CHECKPOINT_PATH = "scripts/validation.base.sh"
 
 # Sentinels for the surfaces this file pins.
 SCOPE_REFUSAL_PHRASE = "write forecast covers the blind checkpoint"
+READ_NAME_PHRASE = "pack includes name the blind checkpoint explicitly"
+AUTO_EXCLUDE_PHRASE = "never ships incidentally"
 PACK_DANGLING_PHRASE = "blind checkpoint missing at the pack-time tip"
 DIVERGENCE_PHRASE = "blind checkpoint changed since pack"
 STAMPLESS_PHRASE = "request carries no checkpoint provenance stamp"
@@ -228,39 +230,57 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
     # -- pack side: the blindness gate (D5 layer 1) ----------------------
 
     def test_pack_refuses_direct_include_of_checkpoint(self) -> None:
-        """A resolved include set naming the checkpoint path directly is
-        refused, pre-sid: remedy text present, no session opened, no
-        session directory created."""
+        """An include entry naming the checkpoint path directly is an
+        explicit ask to ship the oracle: refused pre-sid (the v0.4.9
+        read-side key — the pack types no --write, so the defaulted
+        forecast no longer fires the forecast half), remedy text
+        present, no session opened, no session directory created."""
         self.commit_checkpoint(checkpoint_script(V1_MARKER))
         self.configure_checkpoint()
         refused = self.pack("--include", CHECKPOINT_PATH)
         self.assertNotEqual(refused.returncode, 0)
         combined = refused.stdout + refused.stderr
-        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertIn(READ_NAME_PHRASE, combined)
         self.assertIn("--allow-checkpoint-in-scope", combined,
                       msg="the refusal names its override successor")
-        # The caller-aware remedy sentence (v0.3.34; re-based to the
-        # forecast's own lever by ADR-0015): pack's refusal carries the
-        # pack-flavored narrowing remedy — --write, since the forecast
-        # is what covered the oracle here — never handoff's; only the
-        # one sentence differs between callers.
-        self.assertIn("narrow this pack's write forecast with --write "
-                      "paths", combined)
+        # The caller-aware remedy sentence (v0.3.34; the read side's
+        # own lever since v0.4.9): pack's refusal names the include
+        # entry as the thing to drop — never handoff's sentence; only
+        # the one sentence differs between callers.
+        self.assertIn("drop the --include entry", combined)
         self.assertNotIn("re-bail with a reading plan", combined)
         self.assertFalse(
             (self.repo / ".bale" / "sessions").exists(),
             msg="the refusal is pre-sid — no session state may exist")
 
-    def test_pack_refuses_directory_include_covering_checkpoint(self) -> None:
-        """Coverage uses the drift gate's containment semantics: a
-        directory include covering the checkpoint's parent refuses the
-        same way a direct include does."""
-        self.commit_checkpoint(checkpoint_script(V1_MARKER))
+    def test_directory_include_auto_excludes_checkpoint(self) -> None:
+        """Literal-base parity for the v0.4.9 restoration: a directory
+        include covering the checkpoint's parent is incidental
+        coverage, not explicit naming — the pack succeeds, the walk
+        drops the checkpoint loudly, the shipped read set carries no
+        checkpoint path, and the stamp still records the oracle's
+        committed identity."""
+        sha = self.commit_checkpoint(checkpoint_script(V1_MARKER))
         self.configure_checkpoint()
-        refused = self.pack("--include", "scripts")
-        self.assertNotEqual(refused.returncode, 0)
-        self.assertIn(SCOPE_REFUSAL_PHRASE,
-                      refused.stdout + refused.stderr)
+        packed = self.pack("--include", "scripts")
+        self.assertEqual(
+            packed.returncode, 0,
+            msg=f"stdout:\n{packed.stdout}\nstderr:\n{packed.stderr}")
+        combined = packed.stdout + packed.stderr
+        self.assertIn(AUTO_EXCLUDE_PHRASE, combined,
+                      msg="the walk logs the drop loudly")
+        self.assertIn(CHECKPOINT_PATH, combined,
+                      msg="the drop line names the dropped file")
+        manifest = self.session_request_manifest(self.only_open_sid())
+        self.assertNotIn(f"context/{CHECKPOINT_PATH}",
+                         manifest["context_included"],
+                         msg="the shipped read set carries no "
+                             "checkpoint path")
+        self.assertIs(
+            manifest["provenance"]["checkpoint_scope_admitted"], False,
+            msg="nothing was admitted — the bytes were withheld")
+        self.assertEqual(manifest["provenance"]["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
 
     def test_override_admits_and_stamps_the_admission(self) -> None:
         """--allow-checkpoint-in-scope admits the covering scope: the
@@ -277,11 +297,16 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         combined = admitted.stdout + admitted.stderr
         self.assertIn("FORCE:", combined)
         self.assertIn("--allow-checkpoint-in-scope", combined)
-        provenance = self.session_request_manifest(
-            self.only_open_sid())["provenance"]
+        manifest = self.session_request_manifest(self.only_open_sid())
+        provenance = manifest["provenance"]
         self.assertIs(provenance["checkpoint_scope_admitted"], True)
         self.assertEqual(provenance["checkpoint"],
                          {"path": CHECKPOINT_PATH, "sha256": sha})
+        # v0.4.9: the flag disables walk auto-exclusion — a delegated
+        # maintenance session actually receives the oracle's bytes.
+        self.assertIn(f"context/{CHECKPOINT_PATH}",
+                      manifest["context_included"],
+                      msg="the admitted pack ships the checkpoint")
 
     def test_pack_refuses_dangling_checkpoint(self) -> None:
         """Config naming a checkpoint absent at the pack-time tip is a

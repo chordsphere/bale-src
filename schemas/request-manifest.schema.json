@@ -121,6 +121,11 @@
         "checkpoint_scope_admitted": {
           "type": "boolean",
           "description": "True when the planner admitted the request past the checkpoint blindness refusal with --allow-checkpoint-in-scope — the resolved write forecast covered the configured checkpoint's path, or (ADR-0015 read side) the resolved include set would have shipped its content; pack since v0.3.28 (board 6 session C), handoff against its reading-plan forecast (the mirroring flag, v0.3.33); false otherwise. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
+        },
+        "checkpoint_waived": {
+          "type": "string",
+          "enum": ["read-only"],
+          "description": "The read-only checkpoint waiver's stamp (v0.4.9): present — with provenance.checkpoint explicit null — when a checkpoint IS configured with a {sid}-bearing base but the pack's resolved write forecast is empty, so the per-session resolved-existence gate was waived (an empty forecast lands nothing; there is nothing for an oracle to grade). Lets the ledger distinguish waived (configured, deliberately not required) from unconfigured (checkpoint null, no key). Closed enum — extend by schema edit, not free text. Additive per the checkpoint precedent: not required, so every pre-v0.4.9 manifest stays valid; absent on every non-waived pack."
         }
       }
     }

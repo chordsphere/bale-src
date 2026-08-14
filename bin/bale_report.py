@@ -826,11 +826,16 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
     - **"forecast"** (default): the session's resolved write forecast
       covers the configured blind checkpoint's path — the worker under
       evaluation could land edits to its own oracle.
-    - **"read"**: the resolved read include set would ship the
-      checkpoint's bytes in context/ — the graded entity reading its
-      oracle, the hazard the separation newly exposes once reads stop
-      gating (a pack whose --write excludes the oracle while its
-      includes cover it).
+    - **"read"**: an include entry names the configured checkpoint
+      explicitly — an explicit ask to ship the oracle's bytes in
+      context/ to the graded entity that must not read them. Since
+      v0.4.9 incidental coverage by a default or broad include
+      auto-excludes at the walk instead of refusing (the bare-pack
+      restoration), so this side fires only on explicit naming — an
+      entry equal to the checkpoint path, equal to its static prefix,
+      or strictly under it — plus the one containment holdover the
+      gate documents (the prefixless {sid} base, which has no
+      computable auto-exclusion basis).
 
     Unlike the apply-side gates above, this refusal rides `fail()` on
     the pack path — pre-sid, there is no session to keep open and no
@@ -862,10 +867,11 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
         narrowing_remedy = ("re-bail with a reading plan that does not "
                             "cite the checkpoint")
     elif side == "read":
-        narrowing_remedy = ("narrow this pack with --include paths that "
-                            "do not cover the checkpoint (the read set "
-                            "is the shipping surface, so --include is "
-                            "its lever)")
+        narrowing_remedy = ("drop the --include entry that names the "
+                            "checkpoint (a broader include is fine — "
+                            "incidental coverage auto-excludes the "
+                            "checkpoint from shipped context instead "
+                            "of refusing)")
     else:
         narrowing_remedy = ("narrow this pack's write forecast with "
                             "--write paths that do not cover the "
@@ -873,16 +879,16 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
                             "forecasts its resolved include set)")
     if side == "read":
         diagnosis = (
-            f"pack includes ship the blind checkpoint (board 6 blindness "
-            f"contract, ADR-0015 read side): the resolved include set "
-            f"({rendered_scope}) covers {checkpoint_path!r}, the "
-            f"planner-authored oracle this project's bale.toml "
-            f"[validation] base pins, so the oracle's bytes would ship "
-            f"in context/ to the very worker it grades. A session shown "
-            f"its own oracle is the self-oracle shape this refusal "
-            f"closes — checkpoints are authored blind, by the planner "
-            f"from the request, never read by the worker building "
-            f"against them. "
+            f"pack includes name the blind checkpoint explicitly "
+            f"(board 6 blindness contract, ADR-0015 read side): the "
+            f"resolved include set ({rendered_scope}) asks to ship "
+            f"{checkpoint_path!r}, the planner-authored oracle this "
+            f"project's bale.toml [validation] base pins, so the "
+            f"oracle's bytes would ship in context/ to the very worker "
+            f"it grades. A session shown its own oracle is the "
+            f"self-oracle shape this refusal closes — checkpoints are "
+            f"authored blind, by the planner from the request, never "
+            f"read by the worker building against them. "
         )
     else:
         diagnosis = (
