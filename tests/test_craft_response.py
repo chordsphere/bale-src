@@ -42,6 +42,19 @@ stays worker judgment), and that the assertions come from the same
 gains a skipUnless(bin/) rider so tools-only sandboxes run
 clean-green; this repo ships bin/, so the class still runs here.
 
+Session 2026-08-15-002 adds two surfaces. CraftEpilogueFragments
+covers the fold-in riders: --fragment {definitions,assertions,call}
+emits each epilogue part separably (pasting the definitions can never
+fire reconcile_claims early; the parts concatenate byte-identically
+to the combined emission), and the reconciliation label column is
+capped so one pathological label can't drag every row's alignment.
+CraftDocAssertions covers --doc-assertions, the parameterized
+emissions for the DOCS.md 9 / CODE.md 10 contract rows (INDEX
+coherence, ADR append-only + sanctioned flips by reverse transform +
+sequential numbering, prune declarations, index-header coherence) —
+each proven by executing the emitted block against synthetic staging
+trees, pass and fail sides both.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -909,6 +922,428 @@ class CraftValidationEpilogue(unittest.TestCase):
         # No --sid needed (stdout fragment, no manifest).
         cp3 = run_craft(str(rdir), "--validation-epilogue")
         self.assertEqual(cp3.returncode, 0, cp3.stderr)
+
+
+class CraftEpilogueFragments(unittest.TestCase):
+    """--fragment: the separable epilogue parts (fold-in riders). The
+    contract: `definitions` never fires reconcile_claims when pasted
+    alone (the hazard the rider retires), the three parts concatenate
+    byte-identically to the combined emission, and the combined shape
+    is unchanged for callers that never type the flag. The label cap
+    rider rides here too: one long claims key must not widen every
+    reconciliation row."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = make_response_dir(self.tmp,
+                                      {"scripts/run.sh": b"#!/bin/sh\n"})
+
+    def emit(self, *argv: str) -> str:
+        cp = run_craft(str(self.rdir), "--validation-epilogue", *argv)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout
+
+    def test_parts_concatenate_to_the_combined_emission(self):
+        for argv in ([], ["--executable", "scripts/run.sh"]):
+            with self.subTest(argv=argv or ["no-executables"]):
+                combined = self.emit(*argv)
+                parts = [self.emit(*argv, "--fragment", "definitions")]
+                if argv:
+                    parts.append(self.emit(*argv, "--fragment",
+                                           "assertions"))
+                parts.append(self.emit(*argv, "--fragment", "call"))
+                self.assertEqual(combined, "\n".join(parts))
+
+    def test_definitions_alone_fires_nothing(self):
+        """The rider's exact hazard: paste the definitions block at
+        the top of a strict-mode script and nothing runs — no early
+        reconciliation, no output, exit 0."""
+        out = self.emit("--fragment", "definitions")
+        self.assertIn("record_verdict() {", out)
+        self.assertIn("reconcile_claims() {", out)
+        script = self.tmp / "defs.sh"
+        script.write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
+                          + out)
+        run = subprocess.run(["bash", str(script)], cwd=self.tmp,
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout, "",
+                         "sourcing the definitions fragment must not "
+                         "fire reconcile_claims")
+
+    def test_call_fragment_is_the_call_site(self):
+        out = self.emit("--fragment", "call")
+        lines = [ln for ln in out.splitlines()
+                 if ln.strip() and not ln.startswith("#")]
+        self.assertEqual(lines, ["reconcile_claims"])
+
+    def test_assertions_fragment_is_the_exec_block(self):
+        out = self.emit("--executable", "scripts/run.sh",
+                        "--fragment", "assertions")
+        self.assertIn("if [ -x scripts/run.sh ]; then", out)
+        self.assertNotIn("record_verdict() {", out)
+        self.assertNotIn("reconcile_claims", out)
+
+    def test_fragment_hygiene(self):
+        cp = run_craft(str(self.rdir), "--fragment", "call")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("--validation-epilogue", cp.stderr)
+        cp2 = run_craft(str(self.rdir), "--validation-epilogue",
+                        "--fragment", "assertions")
+        self.assertEqual(cp2.returncode, 2)
+        self.assertIn("--executable", cp2.stderr)
+
+    def test_label_column_is_capped(self):
+        """Fold-in (008's accepted proposal): the label column tops
+        out, so one pathological label can't drag every row; the long
+        label itself still prints in full — identifiers are verbatim,
+        never truncated."""
+        out = self.emit()
+        long_label = "an implausibly long project-level check label " \
+                     "that would widen every row"
+        stage = self.tmp / "cap-stage"
+        stage.mkdir()
+        (stage / ".bale-manifest.json").write_text(json.dumps({
+            "claims": {"short check": "pass", long_label: "pass"}
+        }))
+        script = stage / "validation.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\nset -euo pipefail\nexit_code=0\n"
+            + out
+            + '\nrecord_verdict "short check" pass\n'
+            + f'record_verdict "{long_label}" pass\n'
+            "reconcile_claims\n"
+            'exit "$exit_code"\n')
+        run = subprocess.run(["bash", str(script)], cwd=stage,
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        short_line = next(ln for ln in run.stdout.splitlines()
+                          if ln.strip().startswith("short check:"))
+        self.assertLess(
+            short_line.index("claim="), 45,
+            "the short row's claim column moved past the cap — the "
+            "long label widened every row instead of only its own")
+        self.assertIn(long_label + ":", run.stdout,
+                      "long labels print in full, never truncated")
+
+
+class CraftDocAssertions(unittest.TestCase):
+    """--doc-assertions: the parameterized emissions for the DOCS.md 9
+    / CODE.md 10 contract rows. Each block is proven by executing the
+    emission against a synthetic staging tree — the pass side and the
+    fail side — mirroring how CraftValidationEpilogue proves 7.3
+    semantics by running them."""
+
+    SID_DIR = "response-042"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = self.tmp / self.SID_DIR
+        self.rdir.mkdir()
+        self.stage = self.tmp / "stage"
+        self.stage.mkdir()
+
+    def emit(self, *argv: str) -> str:
+        cp = run_craft(str(self.rdir), "--doc-assertions", *argv)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout
+
+    def run_blocks(self, emission: str) -> subprocess.CompletedProcess:
+        """Execute the emitted blocks the way validation.sh would:
+        strict mode, exit_code tracked by the enclosing script."""
+        script = self.stage / "validation.sh"
+        script.write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
+                          "exit_code=0\n" + emission
+                          + '\nexit "$exit_code"\n')
+        return subprocess.run(["bash", str(script)], cwd=self.stage,
+                              capture_output=True, text=True)
+
+    def write_manifest(self, changes: list) -> None:
+        (self.stage / ".bale-manifest.json").write_text(
+            json.dumps({"claims": {}, "changes": changes}))
+
+    def stage_file(self, rel: str, body: str) -> None:
+        dst = self.stage / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(body, encoding="utf-8")
+
+    # -- shape -------------------------------------------------------
+
+    def test_emission_is_valid_bash_and_opt_in(self):
+        out = self.emit("--index", "claude/INDEX.md",
+                        "--adr-dir", "claude/context/adr",
+                        "--prune-reasons",
+                        "--index-header", "bin/tool.py")
+        script = self.tmp / "blocks.sh"
+        script.write_text(out)
+        chk = subprocess.run(["bash", "-n", str(script)],
+                             capture_output=True, text=True)
+        self.assertEqual(chk.returncode, 0, chk.stderr)
+        # Only the selected blocks emit.
+        only_prune = self.emit("--prune-reasons")
+        self.assertIn("prune declarations", only_prune)
+        self.assertNotIn("INDEX coherence", only_prune)
+        self.assertNotIn("ADR guards", only_prune)
+        self.assertNotIn("index-header coherence", only_prune)
+
+    def test_flag_hygiene(self):
+        cp = run_craft(str(self.rdir), "--doc-assertions")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("at least one block", cp.stderr)
+        cp2 = run_craft(str(self.rdir), "--index", "claude/INDEX.md")
+        self.assertEqual(cp2.returncode, 2)
+        self.assertIn("--doc-assertions", cp2.stderr)
+        cp3 = run_craft(str(self.rdir), "--sid", "s", "--kind", "bailout",
+                        "--doc-assertions", "--prune-reasons")
+        self.assertEqual(cp3.returncode, 2)
+        self.assertIn("--doc-assertions", cp3.stderr)
+        cp4 = run_craft(str(self.rdir), "--doc-assertions",
+                        "--prune-reasons", "--deleted", "x.md")
+        self.assertEqual(cp4.returncode, 2)
+        self.assertIn("--deleted/--executable", cp4.stderr)
+        cp5 = run_craft(str(self.rdir), "--doc-assertions",
+                        "--adr-baseline", str(self.tmp))
+        self.assertEqual(cp5.returncode, 2)
+        self.assertIn("--adr-dir", cp5.stderr)
+
+    # -- INDEX coherence ---------------------------------------------
+
+    def index_fixture(self):
+        self.stage_file("claude/INDEX.md",
+                        "# INDEX.md\n\n"
+                        "- `context/new-doc.md` — a new explainer.\n")
+        self.stage_file("claude/context/new-doc.md", "hello\n")
+        self.write_manifest([
+            {"path": "claude/context/new-doc.md", "action": "created",
+             "reason": "explainer"},
+            {"path": "claude/INDEX.md", "action": "modified",
+             "reason": "index update"},
+        ])
+
+    def test_index_coherence_passes_both_directions(self):
+        self.index_fixture()
+        run = self.run_blocks(self.emit("--index", "claude/INDEX.md"))
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("[PASS] INDEX entries resolve", run.stdout)
+        self.assertIn("[PASS] shipped docs indexed", run.stdout)
+
+    def test_index_coherence_fails_on_dangling_entry(self):
+        self.index_fixture()
+        with (self.stage / "claude/INDEX.md").open("a") as fh:
+            fh.write("- `context/ghost.md` — gone.\n")
+        run = self.run_blocks(self.emit("--index", "claude/INDEX.md"))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("not resolving to a file: context/ghost.md",
+                      run.stdout)
+
+    def test_index_coherence_fails_on_unindexed_shipped_doc(self):
+        self.index_fixture()
+        self.stage_file("claude/context/stray.md", "stray\n")
+        manifest = json.loads(
+            (self.stage / ".bale-manifest.json").read_text())
+        manifest["changes"].append(
+            {"path": "claude/context/stray.md", "action": "created",
+             "reason": "stray"})
+        self.write_manifest(manifest["changes"])
+        run = self.run_blocks(self.emit("--index", "claude/INDEX.md"))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("no INDEX entry: claude/context/stray.md",
+                      run.stdout)
+
+    def test_index_coverage_skips_loudly_without_manifest(self):
+        self.index_fixture()
+        (self.stage / ".bale-manifest.json").unlink()
+        run = self.run_blocks(self.emit("--index", "claude/INDEX.md"))
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("[SKIP] INDEX coverage", run.stdout)
+        self.assertIn("[PASS] INDEX entries resolve", run.stdout)
+
+    # -- ADR guards --------------------------------------------------
+
+    ADR_PRE = ("# ADR-0003: Example\n\n"
+               "- **Status:** Proposed\n"
+               "- **Date:** 2026-08-01\n"
+               "- **Supersedes:** —\n"
+               "- **Superseded by:** —\n\n"
+               "## Context\n\nWords.\n\n## Notes\n\nNone.\n")
+
+    def adr_fixture(self, post: str, action: str = "modified",
+                    baseline: bool = True) -> list[str]:
+        """Ship ADR 0003 in the mirror and staging; return the argv
+        for an --adr-dir emission (with the pre-change baseline dir
+        wired in when `baseline`)."""
+        mirror = self.rdir / "files" / "claude/context/adr"
+        mirror.mkdir(parents=True, exist_ok=True)
+        (mirror / "0003-example.md").write_text(post, encoding="utf-8")
+        self.stage_file("claude/context/adr/0003-example.md", post)
+        self.write_manifest([
+            {"path": "claude/context/adr/0003-example.md",
+             "action": action, "reason": "adr change"},
+        ])
+        argv = ["--adr-dir", "claude/context/adr"]
+        if baseline:
+            bdir = self.tmp / "baseline"
+            bdir.mkdir(exist_ok=True)
+            (bdir / "0003-example.md").write_text(self.ADR_PRE,
+                                                  encoding="utf-8")
+            argv += ["--adr-baseline", str(bdir)]
+        return argv
+
+    def test_ratification_flip_passes(self):
+        post = self.ADR_PRE.replace("- **Status:** Proposed",
+                                    "- **Status:** Accepted")
+        run = self.run_blocks(self.emit(*self.adr_fixture(post)))
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("confined to a sanctioned flip", run.stdout)
+
+    def test_ratification_flip_with_landing_note_passes(self):
+        post = self.ADR_PRE.replace(
+            "- **Status:** Proposed", "- **Status:** Accepted"
+        ) + "- 2026-08-15: landed in session 002.\n"
+        run = self.run_blocks(self.emit(*self.adr_fixture(post)))
+        self.assertEqual(run.returncode, 0, run.stdout)
+
+    def test_supersession_flip_passes(self):
+        pre = self.ADR_PRE.replace("- **Status:** Proposed",
+                                   "- **Status:** Accepted")
+        post = pre.replace(
+            "- **Status:** Accepted", "- **Status:** Superseded"
+        ).replace("- **Superseded by:** —",
+                  "- **Superseded by:** ADR-0007")
+        argv = self.adr_fixture(post)
+        # The baseline for this case is the Accepted pre-image.
+        (self.tmp / "baseline" / "0003-example.md").write_text(
+            pre, encoding="utf-8")
+        run = self.run_blocks(self.emit(*argv))
+        self.assertEqual(run.returncode, 0, run.stdout)
+
+    def test_unsanctioned_edit_fails(self):
+        post = self.ADR_PRE.replace(
+            "- **Status:** Proposed", "- **Status:** Accepted"
+        ).replace("Words.", "Rewritten context.")
+        run = self.run_blocks(self.emit(*self.adr_fixture(post)))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("not a sanctioned flip", run.stdout)
+
+    def test_modified_without_baseline_fails_at_validation(self):
+        post = self.ADR_PRE.replace("- **Status:** Proposed",
+                                    "- **Status:** Accepted")
+        argv = self.adr_fixture(post, baseline=False)
+        run = self.run_blocks(self.emit(*argv))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("no embedded baseline hash", run.stdout)
+
+    def test_deleted_adr_fails(self):
+        self.write_manifest([
+            {"path": "claude/context/adr/0002-old.md",
+             "action": "deleted", "reason": "delete: obsolete"},
+        ])
+        run = self.run_blocks(
+            self.emit("--adr-dir", "claude/context/adr"))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("append-only", run.stdout)
+
+    def test_new_adr_numbering(self):
+        for name, ok in (("0004-next.md", True),
+                         ("0006-gap.md", False)):
+            with self.subTest(name=name):
+                self.stage_file("claude/context/adr/0003-example.md",
+                                self.ADR_PRE)
+                self.stage_file(f"claude/context/adr/{name}", "# ADR\n")
+                self.write_manifest([
+                    {"path": f"claude/context/adr/{name}",
+                     "action": "created", "reason": "new decision"},
+                ])
+                run = self.run_blocks(
+                    self.emit("--adr-dir", "claude/context/adr"))
+                if ok:
+                    self.assertEqual(run.returncode, 0, run.stdout)
+                    self.assertIn("numbering sequential", run.stdout)
+                else:
+                    self.assertEqual(run.returncode, 1, run.stdout)
+                    self.assertIn("!= expected", run.stdout)
+                (self.stage / "claude/context/adr" / name).unlink()
+
+    def test_adr_baseline_must_be_a_directory(self):
+        cp = run_craft(str(self.rdir), "--doc-assertions",
+                       "--adr-dir", "claude/context/adr",
+                       "--adr-baseline", str(self.tmp / "nope"))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("not a directory", cp.stderr)
+
+    # -- prune declarations ------------------------------------------
+
+    def test_prune_declarations(self):
+        cases = (
+            ([], 0, "no deleted entries"),
+            ([{"path": "old/a.md", "action": "deleted",
+               "reason": "archived to claude/archive/ — stale"}],
+             0, "distinguish archive from delete"),
+            ([{"path": "old/b.md", "action": "deleted",
+               "reason": "no longer needed"}],
+             1, "naming neither archive nor delete: old/b.md"),
+        )
+        for changes, want_exit, needle in cases:
+            with self.subTest(needle=needle):
+                self.write_manifest(changes)
+                run = self.run_blocks(self.emit("--prune-reasons"))
+                self.assertEqual(run.returncode, want_exit, run.stdout)
+                self.assertIn(needle, run.stdout)
+
+    # -- index-header coherence --------------------------------------
+
+    HEADED = ('"""tool.py — demo.\n\nSections:\n'
+              "  1. Imports          (~line 10)\n"
+              "  2. Helpers          (~line 20)\n"
+              '"""\n'
+              "# " + "-" * 75 + "\n"
+              "# 1. Imports\n"
+              "# " + "-" * 75 + "\n"
+              "import os\n"
+              "# " + "-" * 75 + "\n"
+              "# 2. Helpers\n"
+              "# " + "-" * 75 + "\n"
+              "def f(): pass\n")
+
+    def test_index_header_coherent_passes(self):
+        self.stage_file("bin/tool.py", self.HEADED)
+        run = self.run_blocks(self.emit("--index-header", "bin/tool.py"))
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("[PASS] index header coherent: bin/tool.py "
+                      "(2 section(s))", run.stdout)
+
+    def test_index_header_drift_fails_both_directions(self):
+        # A header entry with no banner…
+        self.stage_file("bin/extra-entry.py", self.HEADED.replace(
+            "  2. Helpers          (~line 20)\n",
+            "  2. Helpers          (~line 20)\n"
+            "  3. Missing          (~line 99)\n"))
+        # …and a banner missing from the header.
+        self.stage_file("bin/extra-banner.py", self.HEADED.replace(
+            "def f(): pass\n",
+            "def f(): pass\n"
+            "# " + "-" * 75 + "\n"
+            "# 3. Unlisted\n"
+            "# " + "-" * 75 + "\n"))
+        run = self.run_blocks(self.emit(
+            "--index-header", "bin/extra-entry.py",
+            "--index-header", "bin/extra-banner.py"))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("header entry '3. Missing' has no banner",
+                      run.stdout)
+        self.assertIn("banner '3. Unlisted' missing from the header",
+                      run.stdout)
+
+    def test_index_header_absent_fails(self):
+        self.stage_file("bin/bare.py", "print('no header here')\n")
+        run = self.run_blocks(self.emit("--index-header", "bin/bare.py"))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("no numbered banners and no index-header listing",
+                      run.stdout)
 
 
 @unittest.skipUnless((REPO / "bin").is_dir(),

@@ -510,13 +510,18 @@ section 8, which owns their enumeration.
 
 | Rule | Type | Enforcement |
 |------|------|-------------|
-| Index header lists every section — a section isn't navigable until listed | contract | response's `validation.sh`: every banner in the file has a header entry; every header entry resolves to a banner |
+| Index header lists every section — a section isn't navigable until listed | contract | response's `validation.sh`: the crafter's `--doc-assertions --index-header` emission |
 | Splits and extractions are declared — restructuring shows in the manifest and `notes.md` | policy | review |
 | In code Claude didn't author, structural changes are visible in `manifest.changes[].reason` | policy | review |
 | Cross-file restructuring waits for an ADR or dedicated session — never opportunistic | policy | review |
 | Meta-code sessions include change-specific assertions in `validation.sh` | policy | review |
 | Pruning is always declared — every removal has a reason naming its criterion | contract | response's `validation.sh`: deletes have non-empty reasons |
 | Don't invent code-unit categories silently — function/section/file/package is the vocabulary | policy | review |
+
+The header-coherence assertion is mechanized:
+`tools/craft_response.py --doc-assertions` emits it parameterized
+and paste-ready, and the enforcement recipe lives in the emission,
+where it cannot drift from what runs.
 
 Rule labels follow `CLAUDE.md` section 6 — contract rules are
 caught mechanically; policy rules are caught at the architect's

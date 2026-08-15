@@ -524,13 +524,13 @@ section 8, which owns their enumeration.
 
 | Rule | Type | Enforcement |
 |------|------|-------------|
-| INDEX.md lists every doc — a doc isn't real until INDEX lists it | contract | response's `validation.sh`: every doc in `files/` has an INDEX entry; every INDEX entry resolves to a file |
+| INDEX.md lists every doc — a doc isn't real until INDEX lists it | contract | response's `validation.sh`: the crafter's `--doc-assertions --index` emission |
 | STATE.md is edited, not appended — no dated sections | policy | review |
-| ADRs are append-only — old ADRs are superseded, never rewritten | contract | response's `validation.sh`: modifications to existing ADR files are rejected unless the diff is confined to one of two shapes — the ratification flip (`Status` `Proposed` → `Accepted`, optionally plus a single appended dated landing-note line in Notes) or the supersession flip (`Status` to `Superseded` plus populating `Superseded by`) |
+| ADRs are append-only — old ADRs are superseded, never rewritten | contract | response's `validation.sh`: the crafter's `--doc-assertions --adr-dir` emission — the two sanctioned diff shapes (§5's status flow) live in its reverse-transform |
 | Cross-reference, don't duplicate — every rule has one home | policy | review |
-| Pruning is always declared — every removal distinguishes archive from delete in its `reason` | contract | response's `validation.sh`: deletes have non-empty reasons matching one of the two patterns |
+| Pruning is always declared — every removal distinguishes archive from delete in its `reason` | contract | response's `validation.sh`: the crafter's `--doc-assertions --prune-reasons` emission |
 | Don't invent doc categories silently — surface in `notes.md` first | policy | review |
-| New ADR numbers are sequential and never reused | contract | response's `validation.sh`: ADR filename N is the max existing number + 1 |
+| New ADR numbers are sequential and never reused | contract | response's `validation.sh`: the crafter's `--doc-assertions --adr-dir` emission |
 
 The one-home rule has a sanctioned exception: deliberate cross-doc
 parallelism, where two docs state the same shape for their own
@@ -543,10 +543,10 @@ and closing with `CODE.md` §10's; §8's framing with `CODE.md` §9's;
 rescope-offer prose with `TARBALL.md` §3.4's pack-flag surface (the
 same `bale pack` command described from both ends).
 
-When auditing prose for an existing sentence before adding it,
-normalize first — join wrapped lines — before fingerprint-matching,
-and keep `validation.sh` grep anchors deliberately single-line so
-they survive markdown rewrapping.
+The contract rows' assertions are mechanized:
+`tools/craft_response.py --doc-assertions` emits each row's block
+parameterized and paste-ready, and the enforcement recipe lives in
+the emission, where it cannot drift from what runs.
 
 Rule labels follow `CLAUDE.md` section 6. A project that wants these
 rules enforced asks Claude to include the corresponding assertions
