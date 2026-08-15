@@ -678,8 +678,10 @@ and where the two disagree the manifest wins.
 
 Structured longitudinal data, aggregated across sessions to
 calibrate where budget actually goes. The shape is mechanized: the
-schema of record is `schemas/diagnostics.schema.json` (in bale's
-repo), the crafter (§5.6.1) emits the skeleton carrying its
+schema of record is `schemas/diagnostics.schema.json` (in the bale
+installation — the schemas tree ships with the install, reachable
+from any project the same way the `tools/` pair is), the crafter
+(§5.6.1) emits the skeleton carrying its
 required keys — `session_id` filled, everything else empty — and
 the lint validates the filled file against it. Structural detail
 (required keys, enum values, entry shapes) lives in the schema,
@@ -789,7 +791,8 @@ clarification that violates these), no `files/` (absent or empty),
 and `questions[]` seeded with four-field entry stubs (`--questions
 N` for more than one) — plus, under `--write`, the no-op `apply.sh`
 and `validation.sh` the kind fixes. The entry fields' schema of
-record is `response-manifest.schema.json`; the lint judges the
+record is `response-manifest.schema.json` (in the bale
+installation, beside §5.8's); the lint judges the
 finished response, and an unfilled skeleton is deliberately
 lint-invalid.
 
@@ -925,7 +928,11 @@ mandatory:
    returns what the goal called for, that a removed feature really
    is gone, that an INDEX entry exists for a new doc, etc. These
    are inline in `validation.sh` rather than invocations of
-   external tooling.
+   external tooling. When the session enforces a project's
+   doc-contract rows, `tools/craft_response.py --doc-assertions`
+   (shipped in every request per §3.1) emits those blocks
+   paste-ready; the rows' full homes remain `DOCS.md` §9 and
+   `CODE.md` §10.
 
 If a check's tool isn't installed, it prints `[SKIP] <check>: <tool>
 not found`. Never silently passes. Never installs anything.
@@ -1265,7 +1272,7 @@ or a packing behavior:
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones. |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by. On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; full semantics in the bale tool's own documentation. |
+| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; full semantics in the bale tool's own documentation. |
 | `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in the bale tool's own documentation. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
