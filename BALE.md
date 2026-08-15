@@ -293,6 +293,20 @@ tarball (or, during development, just keep using the working tree
 directly — the layout bale reads from is the layout bale ships).
 Every project sees the new docs on its next pack.
 
+The four injected docs are self-contained: they cite only each other.
+`BALE.md` and `MASTER.md` are bale-src's own project documentation —
+peers in structure to the globals but project-local, never injected,
+and never cited from the globals, because the injected docs travel to
+every project and a pointer at a bale-src doc dangles everywhere
+except this repo. Where a global doc must defer to bale-side behavior
+— apply-time UX, the telemetry record shape, pack-pipeline semantics
+— it defers generically ("the bale tool's own documentation"), never
+by project-local name and section. The pin is mechanical:
+`tests/test_global_doc_selfcontainment.py` fails on any occurrence of
+a bale-src doc reference (`BALE.md`, `MASTER.md`, `orchestration.md`,
+or a citation-shaped `claude/INDEX.md`) in the four files under
+`docs/`.
+
 ### 3.4 Per-project state lives in `.bale/` at repo root
 
 ```
