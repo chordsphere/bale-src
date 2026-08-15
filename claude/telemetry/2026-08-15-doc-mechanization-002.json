@@ -1,0 +1,329 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-15-doc-mechanization-002",
+  "created_at": "2026-08-15T05:00:49+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-15T05:00:49+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (47).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "unittest: tests.test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions (docs compressed, crafter surface present)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec-bit assertions (crafted, TARBALL.md 7.7)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: tests.test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions (docs compressed, crafter surface present)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertions (crafted, TARBALL.md 7.7)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "tests",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "tests/test_craft_response.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "7301e4b0c528527b98da061b271ce5b25481beeed046bf66ccd0a6903b64dc6f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-doc-mechanization-002.sh",
+              "sha256": "3a1f8fafdfa454622a812a86ad4506cd03cc8367955c28809f89b9ac4a791b13"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-08-15"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "label-column cap = 40 with overflow-not-truncate (008's registry entry not shipped; notes.md item 1)",
+            "the four shipped .py files are meant to be executable (shebangs present; notes.md item 2)",
+            "prune-declaration pattern = archiv-/delet- word stems (DOCS.md 9 left the literals open; notes.md item 3)",
+            "dated landing-note shape and supersession pre-status candidates in the ADR reverse-transform (notes.md item 4)"
+          ],
+          "judgment_calls": [
+            "--doc-assertions CLI shape: one mode flag plus per-block selectors; at least one selector required",
+            "ADR pre-change hashes embedded at craft time from --adr-baseline, since staging has only post-overlay bytes",
+            "--fragment added without changing the combined --validation-epilogue emission (byte-compat pinned by test)",
+            "CODE.md 10 given the parallel mechanization note to keep the sanctioned pair in step; both sides pinned in the new drift test",
+            "CODE.md 10's prune row left prose-enforced (outside the brief's five-row enumeration; deferred in the manifest)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the MASTER.md 3 fold-in registry entries this brief rides on (verbatim context for the label-cap and separable-fragments riders)",
+            "claude/INDEX.md (would have let me dogfood the INDEX-coherence emission against the real inventory)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-15-doc-mechanization-002.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-doc-mechanization-002.sh",
+          "sha256": "3a1f8fafdfa454622a812a86ad4506cd03cc8367955c28809f89b9ac4a791b13"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-15T05:04:48+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-002-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: tests.test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: tests.test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions (docs compressed, crafter surface present)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec-bit assertions (crafted, TARBALL.md 7.7)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: tests.test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: tests.test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions (docs compressed, crafter surface present)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec-bit assertions (crafted, TARBALL.md 7.7)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "tests",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "tests/test_craft_response.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "7301e4b0c528527b98da061b271ce5b25481beeed046bf66ccd0a6903b64dc6f",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-doc-mechanization-002.sh",
+              "sha256": "3a1f8fafdfa454622a812a86ad4506cd03cc8367955c28809f89b9ac4a791b13"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-08-15"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "label-column cap = 40 with overflow-not-truncate (008's registry entry not shipped; notes.md item 1)",
+            "the four shipped .py files are meant to be executable (shebangs present; notes.md item 2)",
+            "prune-declaration pattern = archiv-/delet- word stems (DOCS.md 9 left the literals open; notes.md item 3)",
+            "dated landing-note shape and supersession pre-status candidates in the ADR reverse-transform (notes.md item 4)"
+          ],
+          "judgment_calls": [
+            "--doc-assertions CLI shape: one mode flag plus per-block selectors; at least one selector required",
+            "ADR pre-change hashes embedded at craft time from --adr-baseline, since staging has only post-overlay bytes",
+            "--fragment added without changing the combined --validation-epilogue emission (byte-compat pinned by test)",
+            "CODE.md 10 given the parallel mechanization note to keep the sanctioned pair in step; both sides pinned in the new drift test",
+            "CODE.md 10's prune row left prose-enforced (outside the brief's five-row enumeration; deferred in the manifest)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the MASTER.md 3 fold-in registry entries this brief rides on (verbatim context for the label-cap and separable-fragments riders)",
+            "claude/INDEX.md (would have let me dogfood the INDEX-coherence emission against the real inventory)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-15-doc-mechanization-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-doc-mechanization-002.sh",
+          "sha256": "3a1f8fafdfa454622a812a86ad4506cd03cc8367955c28809f89b9ac4a791b13"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-15T05:04:48+00:00",
+  "outcome": "applied"
+}
