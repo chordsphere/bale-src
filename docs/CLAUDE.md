@@ -16,7 +16,9 @@ Every session, in this order:
    seconds whether this is conversational or tarball mode, what's
    in scope, what context files are present, what to ignore. Read
    first so the triggers below fire correctly.
-2. **This file (`CLAUDE.md`)** in full.
+2. **This file (`CLAUDE.md`)** — the core in full: META through
+   §11.2. §11.3–§11.6 are triggered reference, read only when a
+   trigger in the INDEX read-paths table below fires.
 3. **The session prompt and any project docs** the manifest's
    `context_included` names.
 4. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
@@ -39,6 +41,10 @@ file wins.**
 bale injects all four into every request from its own installation.
 Claude does not modify these in response tarballs; they evolve only
 via bale sessions targeting the bale tool's own repository.
+The four injected docs are self-contained and cite only one another
+— never a project-local doc — because they travel to every project,
+and a pointer into any one project's local docs would dangle
+everywhere else.
 `INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs, and schemas are
 project-specific. Bale includes whatever the user names; nothing
 is auto-detected. Drill further into project docs only when the
@@ -58,7 +64,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `manifest.json` first (sets scope); then `CLAUDE.md` in full; then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
+| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `adr/NNNN-*.md` |
@@ -70,6 +76,7 @@ The minimum context for the task. Default at every threshold:
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | A blocking intent gap in the request | Return a clarification response rather than guess at the intent — see `TARBALL.md` §5.9 |
+| Budget running thin mid-session, or a bailout is on the table | §11.3–§11.5 — bail triggers, the bailout response, and the bailout-discipline rule |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
@@ -515,6 +522,22 @@ If the goal *comfortably* fits, Claude proceeds normally — reads
 what the INDEX table prescribes and builds. The check is a gate, not
 a ceremony; a goal that obviously fits clears it in a sentence of
 silent judgment, not a paragraph of analysis.
+
+---
+
+> Sections 11.3–11.6 (bail triggers, the bailout response, the
+> laziness rule, compaction recovery) are triggered reference —
+> relocated past the core banner below (core-first order; numbering
+> unchanged per `DOCS.md` §6.4).
+
+---
+
+> **PAST THE CORE.** Everything above this banner — META through
+> §11.2 — is the every-read core. Everything below — §11.3–§11.6 —
+> is triggered reference: read a subsection only when its trigger
+> in the INDEX read-paths table fires.
+
+---
 
 ### 11.3 Bail triggers
 
