@@ -1,0 +1,589 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-15-claude-core-first-001",
+  "created_at": "2026-08-15T04:06:50+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-15T04:06:50+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-15-claude-core-first-001.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "banner line present exactly once": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tombstone pointer present at the old position": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "self-containment sentence present in META": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "banner line present exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tombstone pointer present at the old position": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "self-containment sentence present in META": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "4d86a039e8d4177217197a21878af2955b1d7c8a3fc852a9f22a716a623b2fd9",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+              "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai, computer-use container)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the 'in full' sentence about TARBALL.md in 11.6 is a deliberate post-compaction prescription and stays; flagged in notes.md",
+            "the bale-src repo keeps the global docs at docs/*.md, matching context/docs/ mirroring and resolved_scope"
+          ],
+          "judgment_calls": [
+            "compaction INDEX row gained '(past the core banner)' as trigger wiring",
+            "banner names the core as 'META through 11.2' since this file's core is contiguous",
+            "one combined tombstone note for 11.3-11.6 (one relocation site), mirroring TARBALL.md's combined notes"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-15-claude-core-first-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+          "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-15T04:27:44+00:00",
+      "outcome": "held",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-08-15-claude-core-first-001-r2.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "banner line present exactly once": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tombstone pointer present at the old position": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "self-containment sentence present in META": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "banner anchor phrase unique file-wide": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "headings 11.1 and 11.2 sit before the banner": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no banner-locating phrase before section 11": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "banner line present exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tombstone pointer present at the old position": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "self-containment sentence present in META": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "banner anchor phrase unique file-wide": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "headings 11.1 and 11.2 sit before the banner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no banner-locating phrase before section 11": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "4d86a039e8d4177217197a21878af2955b1d7c8a3fc852a9f22a716a623b2fd9",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+              "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai, computer-use container)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the checkpoint locates the banner by a loose first-match on the banner phrase (inferred from the PASS/FAIL split; the fix is robust under strict and loose locators alike)",
+            "the 'in full' sentence about TARBALL.md in 11.6 is a deliberate post-compaction prescription and stays; flagged in notes.md",
+            "the bale-src repo keeps the global docs at docs/*.md, matching context/docs/ mirroring and resolved_scope"
+          ],
+          "judgment_calls": [
+            "correction diagnosis: checkpoint's banner locator first-matched my pre-section-11 prose mentions of the banner phrase; fixed content-side, checkpoint untouched",
+            "pre-11 prose names the core boundary by section numbers (META through 11.2) instead of naming the banner, matching TARBALL.md's own convention",
+            "compaction INDEX row reverted to shipped verbatim; new trigger row kept without the banner phrase",
+            "banner names the core as 'META through 11.2' since this file's core is contiguous",
+            "one combined tombstone note for 11.3-11.6 (one relocation site)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-15-claude-core-first-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+          "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-15T04:34:27+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-08-15-claude-core-first-001-r3.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "banner line present exactly once": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tombstone pointer present at the old position": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "self-containment sentence present in META": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "banner anchor phrase unique file-wide": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "headings 11.1 and 11.2 sit before the banner": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no banner-locating phrase before section 11": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "banner line present exactly once": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "relocated headings 11.3-11.6 each once and past the banner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tombstone pointer present at the old position": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reactive block 11.3-11.6 byte-identical to pre-restructure": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: 11.2 prose byte-identical (CLAUDE side)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sanctioned pair: TARBALL.md 3.4 partner fingerprint unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "self-containment sentence present in META": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX trigger row for 11.3-11.5 present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no stale CLAUDE.md-in-full phrasing remains": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "banner anchor phrase unique file-wide": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "headings 11.1 and 11.2 sit before the banner": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no banner-locating phrase before section 11": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "4d86a039e8d4177217197a21878af2955b1d7c8a3fc852a9f22a716a623b2fd9",
+              "TARBALL.md": "6b038b5430b72076d87739ebd55974a6a1b8c27e6ba9096701aa3a93073b50f5",
+              "DOCS.md": "cec5409c46fcc7bc7216a8c429e826f076e1403f606dd4b6bcba7639c9b045fd",
+              "CODE.md": "c5332a9647a5b6b3abb1a670c51c0be7e27863251bb868ba4611b95dec7fd966"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+              "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai, computer-use container)"
+          },
+          "linkage": {
+            "kind": "probe",
+            "point": "mid-build",
+            "depends_on": null
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the one remaining open sibling (2026-08-14-improve-bale-005) does not land on docs/TARBALL.md before this retry; if it does, check 6 fails again by design and needs one more re-baseline round",
+            "the 'in full' sentence about TARBALL.md in 11.6 is a deliberate post-compaction prescription and stays; flagged in notes.md"
+          ],
+          "judgment_calls": [
+            "pair coherence after the sibling's 3.4 rewrite judged intact without propagation: 11.2 defers by reference and every referenced element (flag surface, --supersedes flow) survives; the new checkpoint paragraph keeps the worker-facing half in section 7, so rescope commands still never name a checkpoint",
+            "check 6 re-baselined from the probe-run awk against main 13d3740, not transcribed from the validation log's got-value alone; the two independently agree",
+            "probe run under explicit architect override of expects_probe: no, given in chat",
+            "correction r2 (unchanged here): pre-11 prose names the core boundary by section numbers; banner literal unique file-wide; compaction INDEX row reverted to shipped verbatim"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-15-claude-core-first-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-claude-core-first-001.sh",
+          "sha256": "a8df72ea7d52dabaa9c95b2483ef4fdc275de6d96f4694dc63061acfd8cce587"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-15T04:34:27+00:00",
+  "outcome": "applied"
+}
