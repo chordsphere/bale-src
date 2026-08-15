@@ -1,0 +1,117 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-15-tarball-riders-003",
+  "created_at": "2026-08-15T05:40:10+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-15T05:40:10+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-15-tarball-riders-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "doc guard tests (selfcontainment, crossrefs, sanctioned pairs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider assertions (three TARBALL.md edits present)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "doc guard tests (selfcontainment, crossrefs, sanctioned pairs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider assertions (three TARBALL.md edits present)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "7301e4b0c528527b98da061b271ce5b25481beeed046bf66ccd0a6903b64dc6f",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-15-tarball-riders-003.sh",
+              "sha256": "f2418c4040ec43121f391efefb335b09b757cc80ef91110863eb0c6fa0efad13"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "rider 3's site is 3.4's --read-only row despite the brief citing 3.2 \u2014 'structurally sweep-safe' appears only there; flagged in notes.md for ratification"
+          ],
+          "judgment_calls": [
+            "rider 2 placed in 7.2 item 6 rather than the 3.1 tools note, matching the goal's 'beside the session-assertion prose'",
+            "5.9.2's new location parenthetical points at 5.8's rather than repeating the install-artifact class argument"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-15-tarball-riders-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-15-tarball-riders-003.sh",
+          "sha256": "f2418c4040ec43121f391efefb335b09b757cc80ef91110863eb0c6fa0efad13"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-15T05:40:10+00:00",
+  "outcome": "applied"
+}
