@@ -45,6 +45,19 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   shape only, which is the ratified carve-out to the no-scaffold pin
   below — a fragment the worker pastes, never an emitted
   `validation.sh`;
+- (normal) `--doc-assertions` prints paste-ready `validation.sh`
+  blocks for the per-project doc-contract rows of `DOCS.md` §9 and
+  `CODE.md` §10 — the rows those tables label `contract` with
+  enforcement "response's validation.sh". Parameterized and opt-in
+  (bale stays project-agnostic; nothing runs unconditionally):
+  `--index PATH` emits INDEX coherence both directions, `--adr-dir
+  PATH` emits the ADR guards (append-only, the two sanctioned flips
+  proven by reverse transform against pre-change sha256s embedded
+  from `--adr-baseline DIR`, sequential numbering), `--prune-reasons`
+  emits the archive-vs-delete reason check, and `--index-header PATH`
+  (repeatable) emits banner-vs-header coherence per named file. The
+  enforcement recipes those tables used to carry in prose live in
+  these emissions now, where they cannot drift from what runs;
 - (probe, §4.2) `--probe SLUG` emits the canonical paste-back probe
   skeleton to stdout — the shape (shebang, three-line purpose header
   with the read-only declaration verbatim, the probe() wrapper, the
@@ -87,6 +100,16 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     print the paste-ready validation.sh fragments
                     (normal kind only): the reconciliation epilogue,
                     plus exec-bit assertions for --executable paths.
+                    --fragment {definitions,assertions,call} emits one
+                    separable part instead of the combined block, so
+                    pasting the definitions can never fire the
+                    reconcile_claims call early.
+    --doc-assertions
+                    print paste-ready validation.sh blocks for the
+                    DOCS.md §9 / CODE.md §10 contract rows (normal
+                    kind only); select blocks with --index, --adr-dir
+                    (+ --adr-baseline), --prune-reasons,
+                    --index-header.
     --probe SLUG    print the TARBALL.md §4.2 probe skeleton to stdout.
                     Takes no response dir and combines with none of the
                     response-directory flags — a probe is a chat
@@ -260,7 +283,11 @@ print("claims vs verdict:")
 if not claims:
     print("  (no claims in the manifest)")
     raise SystemExit(0)
-width = max(len(c) for c in claims) + 1
+# Label column is capped (fold-in: 008's accepted proposal): one
+# pathological label must not drag every row's alignment out. A label
+# past the cap still prints in full — identifiers are verbatim, never
+# truncated — and only its own row overflows the column.
+width = min(max(len(c) for c in claims) + 1, 40)
 for check, claim in claims.items():
     if isinstance(claim, dict):
         # The v0.4.7 annotated carrier: {"value": ..., "claim_basis": ...}.
@@ -519,15 +546,364 @@ def build_exec_assertions(executables: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_validation_epilogue(executables: list[str]) -> str:
-    """The full --validation-epilogue emission: reconciliation
+def build_validation_epilogue(executables: list[str],
+                              fragment: str | None = None) -> str:
+    """The --validation-epilogue emission.
+
+    Combined (fragment=None, the historical shape): reconciliation
     definitions, exec-bit assertions (when any), and the call site —
-    each part carrying its own paste-placement instruction."""
+    each part carrying its own paste-placement instruction, the worker
+    cutting at the banners.
+
+    Separable (fold-in: board-13c via the registry): `--fragment`
+    emits exactly one part, so each can be pasted straight where its
+    instruction says — `definitions` before the checks, `assertions`
+    with the session-specific assertions, `call` last — and pasting
+    the definitions block can never fire `reconcile_claims` early.
+    """
+    if fragment == "definitions":
+        return RECONCILE_EPILOGUE
+    if fragment == "assertions":
+        return build_exec_assertions(executables)
+    if fragment == "call":
+        return RECONCILE_CALL
     parts = [RECONCILE_EPILOGUE]
     assertions = build_exec_assertions(executables)
     if assertions:
         parts.append(assertions)
     parts.append(RECONCILE_CALL)
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Doc-contract assertions (--doc-assertions)
+# ---------------------------------------------------------------------------
+#
+# Parameterized, opt-in emissions for the per-project doc-contract rows
+# of DOCS.md §9 and CODE.md §10 — the rows those tables label `contract`
+# with enforcement "response's validation.sh". Bale stays
+# project-agnostic: nothing here runs unconditionally; the worker pastes
+# the emitted blocks into validation.sh beside the session-specific
+# assertions (TARBALL.md §7.2 item 6), exactly like the §7.3 epilogue.
+# The enforcement recipe those tables used to spell out in prose lives
+# here now, where it cannot drift from what runs. Every block follows
+# the same conventions as the exec-bit assertions: it prints
+# [PASS]/[FAIL]/[SKIP] lines, assumes the enclosing script tracks
+# failures in exit_code, and reads the manifest bale places at
+# staging/.bale-manifest.json when it needs the change set — skipping
+# loudly outside bale staging, never silently.
+
+DOC_ASSERT_PREAMBLE = """\
+# --- doc-contract assertions (crafted; DOCS.md 9 / CODE.md 10) ---
+# Paste with your session-specific assertions (TARBALL.md 7.2 item 6).
+# Assumes the enclosing script tracks failures in exit_code and exits
+# with it. Blocks needing the change set read .bale-manifest.json and
+# [SKIP] loudly when it is absent (not in bale staging).
+"""
+
+# DOCS.md §9: "INDEX.md lists every doc — a doc isn't real until INDEX
+# lists it." Both directions: every doc this response ships under the
+# INDEX's tree has an entry; every entry resolves to a file. Entries
+# are the backticked paths of DOCS.md §2.3, resolved relative to the
+# INDEX's own directory; the response's docs are the manifest's
+# created/modified .md paths under that directory, excluding the INDEX
+# itself and the responses/ and archive/ subtrees (session artifacts
+# and archived docs are not main-body inventory — DOCS.md §1, §7.3).
+DOC_ASSERT_INDEX_PY = """\
+import json, re, sys
+from pathlib import Path, PurePosixPath
+
+index_rel = PurePosixPath(sys.argv[1]).as_posix()
+index_path = Path(index_rel)
+fails = []
+if not index_path.is_file():
+    print(f"[FAIL] INDEX coherence: {index_rel} not found in staging")
+    raise SystemExit(1)
+index_dir = PurePosixPath(index_rel).parent
+text = index_path.read_bytes().decode("utf-8")
+entries = re.findall(r"^\\s*-\\s*`([^`]+)`", text, flags=re.M)
+resolved = {PurePosixPath(index_dir, e).as_posix() for e in entries}
+dangling = sorted(e for e in entries
+                  if not Path(PurePosixPath(index_dir, e)).exists())
+if dangling:
+    fails.append("INDEX entries not resolving to a file: "
+                 + ", ".join(dangling))
+else:
+    print(f"[PASS] INDEX entries resolve ({len(entries)} entries)")
+mpath = Path(".bale-manifest.json")
+if not mpath.is_file():
+    print("[SKIP] INDEX coverage of shipped docs: .bale-manifest.json "
+          "not found (not in bale staging)")
+else:
+    changes = json.loads(mpath.read_bytes()).get("changes") or []
+    tree = index_dir.as_posix()
+    prefix = "" if tree == "." else tree + "/"
+    exempt = tuple(prefix + sub + "/" for sub in ("responses", "archive"))
+    shipped = sorted(
+        c["path"] for c in changes
+        if c.get("action") in ("created", "modified")
+        and c["path"].endswith(".md")
+        and c["path"].startswith(prefix)
+        and c["path"] != index_rel
+        and not c["path"].startswith(exempt))
+    unindexed = [p for p in shipped if p not in resolved]
+    if unindexed:
+        fails.append("shipped docs with no INDEX entry: "
+                     + ", ".join(unindexed))
+    else:
+        print(f"[PASS] shipped docs indexed ({len(shipped)} doc(s) "
+              "under the INDEX tree)")
+for msg in fails:
+    print(f"[FAIL] INDEX coherence: {msg}")
+raise SystemExit(1 if fails else 0)
+"""
+
+# DOCS.md §9's two ADR contract rows, one block: "ADRs are append-only
+# — old ADRs are superseded, never rewritten" and "New ADR numbers are
+# sequential and never reused". Mechanics:
+# - a deleted entry under the ADR directory is a straight FAIL
+#   (append-only; DOCS.md §7.2: ADRs are never prunable);
+# - new ADR filenames match NNNN-lowercase-hyphenated.md and their
+#   numbers continue max(existing)+1, consecutively;
+# - a modified ADR must be confined to one of the two sanctioned diff
+#   shapes (DOCS.md §5's status flow): the ratification flip (Status
+#   Proposed -> Accepted, optionally plus a single appended dated
+#   landing-note line) or the supersession flip (Status -> Superseded
+#   plus populating Superseded by). Proven by reverse transform: undo
+#   each sanctioned shape on the post-change bytes and require sha256
+#   equality with the pre-change copy the request shipped — the hash
+#   embedded at craft time from --adr-baseline. Any other diff fails:
+#   no reconstruction reaches the pre-image.
+DOC_ASSERT_ADR_PY = """\
+import hashlib, json, re, sys
+from pathlib import Path
+
+adr_dir = sys.argv[1].rstrip("/")
+baselines = dict(p.split("=", 1) for p in sys.argv[2:])
+mpath = Path(".bale-manifest.json")
+if not mpath.is_file():
+    print("[SKIP] ADR guards: .bale-manifest.json not found "
+          "(not in bale staging)")
+    raise SystemExit(0)
+changes = json.loads(mpath.read_bytes()).get("changes") or []
+def under(p):
+    return p.startswith(adr_dir + "/")
+created = sorted(c["path"] for c in changes
+                 if under(c["path"]) and c.get("action") == "created")
+modified = sorted(c["path"] for c in changes
+                  if under(c["path"]) and c.get("action") == "modified")
+deleted = sorted(c["path"] for c in changes
+                 if under(c["path"]) and c.get("action") == "deleted")
+fails = []
+if deleted:
+    fails.append("ADRs are append-only; deleted: " + ", ".join(deleted))
+name_re = re.compile(r"^(\\d{4})-[a-z0-9][a-z0-9-]*\\.md$")
+created_names = {Path(p).name for p in created}
+existing = []
+d = Path(adr_dir)
+if d.is_dir():
+    for f in sorted(d.glob("*.md")):
+        if f.name in created_names:
+            continue
+        m = name_re.match(f.name)
+        if m:
+            existing.append(int(m.group(1)))
+new_nums = []
+for p in created:
+    m = name_re.match(Path(p).name)
+    if not m:
+        fails.append(f"new ADR {p} does not match "
+                     "NNNN-lowercase-hyphenated.md")
+    else:
+        new_nums.append(int(m.group(1)))
+if new_nums:
+    base = max(existing, default=0)
+    expect = list(range(base + 1, base + 1 + len(new_nums)))
+    if sorted(new_nums) != expect:
+        fails.append(f"new ADR numbers {sorted(new_nums)} != expected "
+                     f"{expect} (max existing {base:04d})")
+    else:
+        print(f"[PASS] new ADR numbering sequential ({len(new_nums)} "
+              f"new after {base:04d})")
+else:
+    print("[PASS] ADR numbering (no new ADRs)")
+DATED = re.compile(r"^(?:[-*]\\s*)?\\d{4}-\\d{2}-\\d{2}[:\\s]")
+def candidates(text):
+    out = []
+    if "- **Status:** Accepted" in text:
+        rat = text.replace("- **Status:** Accepted",
+                           "- **Status:** Proposed", 1)
+        out.append(rat)
+        lines = rat.splitlines(keepends=True)
+        for i, ln in enumerate(lines):
+            if DATED.match(ln.strip()):
+                out.append("".join(lines[:i] + lines[i + 1:]))
+    if "- **Status:** Superseded" in text:
+        for pre in ("Accepted", "Proposed"):
+            t = text.replace("- **Status:** Superseded",
+                             f"- **Status:** {pre}", 1)
+            t = re.sub(r"(?m)^- \\*\\*Superseded by:\\*\\* .+$",
+                       "- **Superseded by:** \\u2014", t, count=1)
+            out.append(t)
+    return out
+for p in modified:
+    want = baselines.get(Path(p).name)
+    if want is None:
+        fails.append(f"modified ADR {p} has no embedded baseline hash "
+                     "— re-emit --doc-assertions with --adr-baseline "
+                     "pointing at the pre-change copies")
+        continue
+    f = Path(p)
+    if not f.is_file():
+        fails.append(f"modified ADR {p} missing from staging")
+        continue
+    post = f.read_bytes().decode("utf-8")
+    got = {hashlib.sha256(c.encode("utf-8")).hexdigest()
+           for c in candidates(post)}
+    if want in got:
+        print(f"[PASS] ADR modification confined to a sanctioned flip: {p}")
+    else:
+        fails.append(f"ADR modification is not a sanctioned flip "
+                     f"(ratification or supersession): {p}")
+if not modified and not deleted:
+    print("[PASS] ADR append-only (no modified or deleted ADRs)")
+for msg in fails:
+    print(f"[FAIL] ADR guards: {msg}")
+raise SystemExit(1 if fails else 0)
+"""
+
+# DOCS.md §9: "Pruning is always declared — every removal distinguishes
+# archive from delete in its reason." Mechanics: every deleted entry's
+# reason names one of the two §7.3 dispositions — a word on the
+# archiv-/delet- stem. Non-empty reasons are already bale's contract
+# (TARBALL.md §5.2); the pattern match is the doc-inventory residue.
+DOC_ASSERT_PRUNE_PY = """\
+import json, re, sys
+from pathlib import Path
+
+mpath = Path(".bale-manifest.json")
+if not mpath.is_file():
+    print("[SKIP] prune declarations: .bale-manifest.json not found "
+          "(not in bale staging)")
+    raise SystemExit(0)
+changes = json.loads(mpath.read_bytes()).get("changes") or []
+deleted = [c for c in changes if c.get("action") == "deleted"]
+pat = re.compile(r"archiv|delet", re.I)
+bad = sorted(c["path"] for c in deleted
+             if not pat.search(c.get("reason") or ""))
+if not deleted:
+    print("[PASS] prune declarations (no deleted entries)")
+elif bad:
+    print("[FAIL] prune declarations: reasons naming neither archive "
+          "nor delete: " + ", ".join(bad))
+    raise SystemExit(1)
+else:
+    print(f"[PASS] prune declarations ({len(deleted)} delete(s) "
+          "distinguish archive from delete)")
+"""
+
+# CODE.md §2.3/§10: "Index header lists every section — a section isn't
+# navigable until listed." Both directions, per named file: every
+# numbered banner (the §2.2 dash/name/dash comment shape) has a header
+# entry (the `N. Name (~line M)` listing above the first banner), every
+# header entry resolves to a banner, and names agree per number
+# (whitespace-normalized; the approximate line numbers are §2.2's
+# tolerated drift and are not checked).
+DOC_ASSERT_HEADER_PY = """\
+import re, sys
+from pathlib import Path
+
+DASH = re.compile(r"^\\s*#\\s*-{10,}\\s*$")
+BANNER = re.compile(r"^\\s*#\\s*(\\d+)\\.\\s+(.+?)\\s*$")
+ENTRY = re.compile(r"^\\s*#?\\s*(\\d+)\\.\\s+(.+?)\\s+\\(~?line\\s+\\d+\\)\\s*$")
+def norm(s):
+    return " ".join(s.split())
+fails = []
+for rel in sys.argv[1:]:
+    f = Path(rel)
+    if not f.is_file():
+        fails.append(f"{rel}: not found in staging")
+        continue
+    lines = f.read_bytes().decode("utf-8").splitlines()
+    banners = {}
+    first_banner = None
+    for i in range(len(lines) - 2):
+        if DASH.match(lines[i]) and DASH.match(lines[i + 2]):
+            m = BANNER.match(lines[i + 1])
+            if m:
+                if first_banner is None:
+                    first_banner = i
+                banners[int(m.group(1))] = norm(m.group(2))
+    head = lines[:first_banner] if first_banner is not None else lines
+    header = {}
+    for ln in head:
+        m = ENTRY.match(ln)
+        if m:
+            header[int(m.group(1))] = norm(m.group(2))
+    if not banners and not header:
+        fails.append(f"{rel}: no numbered banners and no index-header "
+                     "listing found")
+        continue
+    problems = []
+    for n in sorted(set(banners) - set(header)):
+        problems.append(f"banner '{n}. {banners[n]}' missing from the "
+                        "header")
+    for n in sorted(set(header) - set(banners)):
+        problems.append(f"header entry '{n}. {header[n]}' has no banner")
+    for n in sorted(set(header) & set(banners)):
+        if header[n] != banners[n]:
+            problems.append(f"section {n} is {banners[n]!r} in the body "
+                            f"but {header[n]!r} in the header")
+    if problems:
+        fails.append(f"{rel}: " + "; ".join(problems))
+    else:
+        print(f"[PASS] index header coherent: {rel} "
+              f"({len(banners)} section(s))")
+for msg in fails:
+    print(f"[FAIL] index header: {msg}")
+raise SystemExit(1 if fails else 0)
+"""
+
+
+def _doc_assert_block(banner: str, py_body: str, delim: str,
+                      argv: list[str]) -> str:
+    """One pasted block: banner comment, guarded python3 heredoc."""
+    args = "".join(" " + shell_quote(a) for a in argv)
+    return (f"{banner}"
+            f"if ! python3 -{args} <<'{delim}'\n"
+            f"{py_body}"
+            f"{delim}\n"
+            "then\n"
+            "  exit_code=1\n"
+            "fi\n")
+
+
+def build_doc_assertions(index: str | None, adr_dir: str | None,
+                         adr_baselines: dict[str, str], prune: bool,
+                         index_headers: list[str]) -> str:
+    """The full --doc-assertions emission, in table order: INDEX
+    coherence, ADR guards, prune declarations, index-header coherence.
+    Only the requested blocks emit; parameters ride as heredoc argv."""
+    parts = [DOC_ASSERT_PREAMBLE]
+    if index:
+        parts.append(_doc_assert_block(
+            "# --- INDEX coherence (crafted; DOCS.md 9, 2.3) ---\n",
+            DOC_ASSERT_INDEX_PY, "BALE_DOC_INDEX", [index]))
+    if adr_dir:
+        pairs = [f"{name}={sha}"
+                 for name, sha in sorted(adr_baselines.items())]
+        parts.append(_doc_assert_block(
+            "# --- ADR guards: append-only, sanctioned flips, sequential "
+            "numbering (crafted; DOCS.md 5, 9) ---\n",
+            DOC_ASSERT_ADR_PY, "BALE_DOC_ADR", [adr_dir, *pairs]))
+    if prune:
+        parts.append(_doc_assert_block(
+            "# --- prune declarations (crafted; DOCS.md 7.3, 9) ---\n",
+            DOC_ASSERT_PRUNE_PY, "BALE_DOC_PRUNE", []))
+    if index_headers:
+        parts.append(_doc_assert_block(
+            "# --- index-header coherence (crafted; CODE.md 2.3, 10) ---\n",
+            DOC_ASSERT_HEADER_PY, "BALE_DOC_HEADER", index_headers))
     return "\n".join(parts)
 
 
@@ -586,6 +962,42 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                       help="print the paste-ready validation.sh fragments: "
                            "the TARBALL.md 7.3 reconciliation epilogue plus "
                            "a 7.7 exec-bit assertion per --executable path")
+    mode.add_argument("--doc-assertions", action="store_true",
+                      help="print paste-ready validation.sh blocks for the "
+                           "per-project doc-contract rows of DOCS.md 9 / "
+                           "CODE.md 10; select blocks with --index, "
+                           "--adr-dir, --prune-reasons, --index-header")
+    ap.add_argument("--fragment", choices=("definitions", "assertions",
+                                           "call"), default=None,
+                    help="with --validation-epilogue: emit exactly one "
+                         "separable part instead of the combined block — "
+                         "definitions (paste before the checks), assertions "
+                         "(paste with the session-specific assertions; "
+                         "needs --executable), or call (paste last)")
+    ap.add_argument("--index", default=None, metavar="PATH",
+                    help="with --doc-assertions: repo-relative path of the "
+                         "project's INDEX.md; emits the DOCS.md 9 "
+                         "INDEX-coherence block")
+    ap.add_argument("--adr-dir", default=None, metavar="PATH",
+                    help="with --doc-assertions: repo-relative ADR "
+                         "directory; emits the DOCS.md 9 ADR guards "
+                         "(append-only, sanctioned flips, sequential "
+                         "numbering)")
+    ap.add_argument("--adr-baseline", default=None, metavar="DIR",
+                    help="with --doc-assertions --adr-dir: local directory "
+                         "holding the pre-change ADR copies (typically the "
+                         "request's context/ copy); pre-change sha256s for "
+                         "the reverse-transform are computed from it at "
+                         "craft time")
+    ap.add_argument("--prune-reasons", action="store_true",
+                    help="with --doc-assertions: emit the DOCS.md 9 "
+                         "prune-declaration block (deleted entries' reasons "
+                         "distinguish archive from delete)")
+    ap.add_argument("--index-header", action="append", default=[],
+                    metavar="PATH",
+                    help="with --doc-assertions: repo-relative file carrying "
+                         "a CODE.md 2.2 index header; emits the CODE.md 10 "
+                         "header-coherence block (repeatable)")
     ap.add_argument("--force", action="store_true",
                     help="with --write: overwrite existing manifest.json / "
                          "apply.sh")
@@ -606,6 +1018,13 @@ def main(argv: list[str] | None = None) -> int:
             ("--apply-only", args.apply_only),
             ("--write", args.write),
             ("--validation-epilogue", args.validation_epilogue),
+            ("--doc-assertions", args.doc_assertions),
+            ("--fragment", args.fragment is not None),
+            ("--index", args.index is not None),
+            ("--adr-dir", args.adr_dir is not None),
+            ("--adr-baseline", args.adr_baseline is not None),
+            ("--prune-reasons", args.prune_reasons),
+            ("--index-header", bool(args.index_header)),
             ("--sid", args.sid is not None),
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
@@ -660,6 +1079,10 @@ def main(argv: list[str] | None = None) -> int:
             return die(f"--validation-epilogue is meaningless with --kind "
                        f"{kind} — a {kind} response's validation.sh is the "
                        "contract-fixed no-op (TARBALL.md 5.6.1 / 5.9.2)")
+        if args.doc_assertions:
+            return die(f"--doc-assertions is meaningless with --kind "
+                       f"{kind} — a {kind} response's validation.sh is the "
+                       "contract-fixed no-op (TARBALL.md 5.6.1 / 5.9.2)")
     if args.questions is not None:
         if kind != "clarification":
             return die("--questions only means something with "
@@ -670,8 +1093,53 @@ def main(argv: list[str] | None = None) -> int:
                        "(TARBALL.md 5.9.2)")
     n_questions = args.questions if args.questions is not None else 1
 
+    if args.fragment is not None and not args.validation_epilogue:
+        return die("--fragment only means something with "
+                   "--validation-epilogue")
+    if args.fragment == "assertions" and not args.executable:
+        return die("--fragment assertions has nothing to emit without "
+                   "--executable paths — the exec-bit assertions are "
+                   "generated from that list (TARBALL.md 7.7)")
+
+    doc_selectors = (("--index", args.index is not None),
+                     ("--adr-dir", args.adr_dir is not None),
+                     ("--prune-reasons", args.prune_reasons),
+                     ("--index-header", bool(args.index_header)))
+    if not args.doc_assertions:
+        stray = [flag for flag, given in
+                 (*doc_selectors, ("--adr-baseline",
+                                   args.adr_baseline is not None)) if given]
+        if stray:
+            return die(f"{', '.join(stray)}: only meaningful with "
+                       "--doc-assertions")
+    else:
+        if not any(given for _, given in doc_selectors):
+            return die("--doc-assertions needs at least one block selected "
+                       "— --index, --adr-dir, --prune-reasons, or "
+                       "--index-header")
+        if args.deleted or args.executable:
+            return die("--deleted/--executable are meaningless with "
+                       "--doc-assertions — the emission is a validation.sh "
+                       "fragment, not a change-set scaffold")
+        if args.adr_baseline is not None and args.adr_dir is None:
+            return die("--adr-baseline only means something with --adr-dir")
+        for label, value in (("--index", args.index),
+                             ("--adr-dir", args.adr_dir)):
+            if value is not None:
+                problem = rel_path_problem(value)
+                if problem:
+                    return die(f"{label}: {problem}")
+        seen: set[str] = set()
+        for v in args.index_header:
+            problem = rel_path_problem(v)
+            if problem:
+                return die(f"--index-header: {problem}")
+            if v in seen:
+                return die(f"--index-header: duplicate path {v!r}")
+            seen.add(v)
+
     needs_sid = not (args.changes_only or args.apply_only
-                     or args.validation_epilogue)
+                     or args.validation_epilogue or args.doc_assertions)
     sid = (args.sid or "").strip()
     if needs_sid and not sid:
         return die("--sid is required when emitting a manifest (only "
@@ -728,13 +1196,55 @@ def main(argv: list[str] | None = None) -> int:
         log(f"scaffolding a {kind} response — empty change surfaces, "
             "no-op apply.sh and validation.sh")
 
+    if args.doc_assertions:
+        adr_baselines: dict[str, str] = {}
+        if args.adr_dir is not None:
+            adr_prefix = args.adr_dir.rstrip("/") + "/"
+            adr_mirror = sorted(p for p in mirror
+                                if p.startswith(adr_prefix))
+            if args.adr_baseline is not None:
+                bdir = Path(args.adr_baseline)
+                if not bdir.is_dir():
+                    return die(f"--adr-baseline: not a directory: {bdir}")
+                for rel in adr_mirror:
+                    src = bdir / Path(rel).name
+                    if src.is_file():
+                        adr_baselines[Path(rel).name] = sha256_of(src)
+                log(f"ADR baselines: {len(adr_baselines)} pre-change "
+                    f"hash(es) embedded from {bdir} ({len(adr_mirror)} "
+                    "ADR file(s) in the mirror)")
+            elif adr_mirror:
+                log(f"warning: {len(adr_mirror)} file(s) under "
+                    f"files/{adr_prefix} and no --adr-baseline — all "
+                    "treated as created; a modified ADR will FAIL at "
+                    "validation without its embedded pre-change hash")
+        sys.stdout.write(build_doc_assertions(
+            args.index, args.adr_dir, adr_baselines, args.prune_reasons,
+            args.index_header))
+        log("doc-contract assertion blocks emitted — paste with your "
+            "session-specific assertions (TARBALL.md 7.2 item 6); the "
+            "blocks assume the enclosing script tracks failures in "
+            "exit_code")
+        return EXIT_OK
+
     if args.validation_epilogue:
-        sys.stdout.write(build_validation_epilogue(args.executable))
-        log("validation.sh fragments emitted — paste the definitions "
-            "before your checks, the exec-bit assertions (if any) with "
-            "your session-specific assertions, and the reconcile_claims "
-            "call last; which checks run stays your judgment "
-            "(TARBALL.md 7.2)")
+        sys.stdout.write(build_validation_epilogue(args.executable,
+                                                   args.fragment))
+        if args.fragment is None:
+            log("validation.sh fragments emitted — paste the definitions "
+                "before your checks, the exec-bit assertions (if any) with "
+                "your session-specific assertions, and the reconcile_claims "
+                "call last; which checks run stays your judgment "
+                "(TARBALL.md 7.2)")
+        else:
+            placement = {
+                "definitions": "before your checks",
+                "assertions": "with your session-specific assertions",
+                "call": "last, after every check has recorded its verdict",
+            }[args.fragment]
+            log(f"validation.sh fragment emitted ({args.fragment}) — "
+                f"paste it {placement}; which checks run stays your "
+                "judgment (TARBALL.md 7.2)")
         return EXIT_OK
 
     if args.changes_only:
