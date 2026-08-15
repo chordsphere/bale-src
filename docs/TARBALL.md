@@ -322,8 +322,8 @@ Field semantics:
 - **`feedback`** — optional dual-stream session feedback (v0.3.8+).
   The two streams, the trust split behind them, and the
   fill-by-running-the-lint workflow are §5.2.2. Apply persists the
-  block verbatim into the session's telemetry record (BALE.md §8.9),
-  which is what makes filling it honestly worth the two minutes.
+  block verbatim into the session's telemetry record, which is what
+  makes filling it honestly worth the two minutes.
 
 The skeleton itself is mechanized: `tools/craft_response.py`, shipped
 in every request per §3.1, emits the manifest skeleton for any
@@ -361,7 +361,7 @@ exist to catch.
 An optional top-level `feedback` object (v0.3.8; shape in
 `response-manifest.schema.json`) carries the session's own account of
 itself. Bale's apply persists it verbatim into the session's
-telemetry record (BALE.md §8.9), where it aggregates across sessions.
+telemetry record, where it aggregates across sessions.
 Pre-v0.3.8 manifests omit it and still validate; new responses
 include it.
 
@@ -432,9 +432,8 @@ shipping. `value` carries the same vocabulary as the bare string;
 `claim_basis` is optional and its enum is closed (omit the key when
 the basis is unknown — null is not a basis). Apply's verbatim
 promotion of the claims map into the session's telemetry record
-(`attempts[].validation.claims`, BALE.md §8.9) carries the object
-through unchanged, which is what makes the record-side calibration
-split measurable from ship-time declarations.
+carries the object through unchanged, which is what makes the
+record-side calibration split measurable from ship-time declarations.
 
 One rule scopes the block: `claims` covers the project-level checks
 (lint, typecheck, build, tests), and when the project has none — no
@@ -595,11 +594,11 @@ have its own fresh `session_id` (same slug, new date+NNN), and its
 
 #### 5.6.3 Apply-time UX (moved)
 
-Moved to the bale design doc: `BALE.md` §8.10.1, in bale's source
-repo. The apply-time behavior is a contract on the bale
-implementation, not on the worker — nothing that binds response
-authoring left this file. This section number is kept so older
-cross-references stay resolvable.
+Moved to the bale tool's own design documentation — the apply-time
+behavior is a contract on the bale implementation, not on the
+worker, and nothing that binds response authoring left this file.
+This section number is kept so older cross-references stay
+resolvable.
 
 ### 5.7 handoff.md (required in bailout responses)
 
@@ -807,20 +806,17 @@ candidate answers, at least one when present. **`recommendation`**
 `blocking` | `batched`: only critical-path blockers interrupt;
 everything else batches. The doctrine behind all three — why
 questions arrive answerable, and what the two priority classes mean
-for the asker — has one home, `claude/context/orchestration.md` §8
-(in bale's source repo); this section names the fields and stops
-there.
+for the asker — has one home in the bale tool's own orchestration
+documentation; this section names the fields and stops there.
 
 #### 5.9.3 Apply-time UX (moved)
 
-Moved to the bale design doc: `BALE.md` §8.10.2, in bale's source
-repo. The apply-time behavior — including the
-`.bale/clarifications/` preservation path and the lock retention
-that keeps the session open — is a contract on the bale
-implementation, not on the worker; the worker-facing consequence
-(the session suspends and continues to a normal response) stays in
-§5.9's own prose and §5.9.4. This section number is kept so older
-cross-references stay resolvable.
+Moved to the bale tool's own design documentation — the apply-time
+behavior is a contract on the bale implementation, not on the
+worker; the worker-facing consequence (the session suspends and
+continues to a normal response) stays in §5.9's own prose and
+§5.9.4. This section number is kept so older cross-references stay
+resolvable.
 
 #### 5.9.4 Posture and the answer path
 
@@ -1262,14 +1258,15 @@ or a packing behavior:
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
 | `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
 | `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Also fails loudly when the resolved brief still contains an **unfilled placeholder**: any line containing the sentinel `TODO(brief)` (v0.3.21) — the convention a worker-authored brief uses to scaffold slots it hasn't filled, so a half-generated brief never ships; a worker authoring a brief writes exactly that form for anything left for the planner to complete, and fills or removes every such line before delivering a brief meant to pack. The pack report echoes the resolved README's identity — path, first heading line, and sha256 of the shipped bytes (v0.3.21; path + heading alone proved insufficient identity). Combines with `--edit` to review the file before packing. |
+| `--checkpoint-file PATH` | Delivers the planner-authored blind checkpoint (§7) for a project that pins one: bale commits the file's bytes at the project's configured per-session checkpoint path and proceeds with the pack in the same invocation. A relative PATH resolves exactly like `--readme-file` (cwd first, then each configured search directory in order; an absolute path bypasses the search), and a missing, unreadable, or empty file fails loudly, same posture. Idempotent when the resolved path is already committed with identical bytes (the re-run of an aborted pack); differing bytes refuse loudly — the flag never silently replaces a committed checkpoint. Contradicts `--read-only` at arg-parse time: a read-only pack's empty write forecast waives the checkpoint requirement — the session can land nothing, so there is nothing for a checkpoint to grade and nothing to install. |
 | `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
 | `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
-| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is documented in BALE.md §7. |
+| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is covered in the bale tool's own documentation. |
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
-| `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones (semantics: BALE.md §7). |
-| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by (semantics: BALE.md §7). On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; semantics in BALE.md §7.2. |
-| `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in BALE.md §7.2. |
+| `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones. |
+| `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by. On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
+| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 (board 33) a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; full semantics in the bale tool's own documentation. |
+| `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in the bale tool's own documentation. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
 
@@ -1298,13 +1295,13 @@ documented path: not packing around the gate, and not closing the
 parent by hand first. On paste, pack runs the flag's y/N exchange
 with a **decline default**; piped stdin takes the decline without a
 prompt, so a non-interactive supersession never closes anything. On
-accept, the parent closes as superseded-by-split (closure record per
-BALE.md §8.9, command `pack`), the child's manifest stamps
-`depends_on.superseded_session`, and exactly that one collision
-clears at the pack-time disjointness gate — every other open session
-still gates as usual. On decline, nothing closes and the pack
-refuses on every path: via the gate when the still-open parent's
-forecast collides, via an explicit refusal when the forecasts happen
+accept, the parent closes as superseded-by-split, the child's
+manifest stamps `depends_on.superseded_session`, and exactly that
+one collision clears at the pack-time disjointness gate — every
+other open session still gates as usual. On decline, nothing closes
+and the pack refuses on every path: via the gate when the
+still-open parent's forecast collides, via an explicit refusal when
+the forecasts happen
 to be disjoint (a `--supersedes` pack that closes nothing and stamps no
 lineage is not the pack that was asked for), and immediately at the
 decline on the wizard path, before any prompt collects throwaway
@@ -1312,7 +1309,17 @@ answers. This flow retires the informal recipe of packing into the
 gate's refusal and following its text to a hand-run `bale unlock`;
 unlock remains the escape hatch only for a parent that should close
 with no successor. Pipeline order, the HOLD-state refusal, and the
-idempotent re-run of an aborted supersession: BALE.md §7.2.
+idempotent re-run of an aborted supersession are the bale tool's
+own behavior, covered in its documentation.
+
+**Checkpoint-configured projects.** In a project that pins a blind
+checkpoint (§7), a scoped pack requires the planner's checkpoint
+committed at the per-session path — or delivered at pack time via
+`--checkpoint-file` — before the pack proceeds; a scoped command
+authored without either refuses in such a project. The checkpoint is
+authored blind, by the planner from the request, never by the worker
+who will build against it — §7 carries the worker-facing half of
+that contract, and this section does not restate it.
 
 **Declarations name existing paths; new files are the worker's
 call.** One rule across both flag families, no exceptions to
