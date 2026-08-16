@@ -281,7 +281,8 @@ The release-tarball form has two virtues over a single-file build
 
 ### 3.3 Global docs live in the bale installation
 
-`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` live as regular
+`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
+live as regular
 files at `<install>/docs/` alongside the script. `bale pack` reads
 them from that location and injects them into the request tarball.
 They are never read from the project being snapped.
@@ -293,7 +294,7 @@ tarball (or, during development, just keep using the working tree
 directly — the layout bale reads from is the layout bale ships).
 Every project sees the new docs on its next pack.
 
-The four injected docs are self-contained: they cite only each other.
+The five injected docs are self-contained: they cite only each other.
 `BALE.md` and `MASTER.md` are bale-src's own project documentation —
 peers in structure to the globals but project-local, never injected,
 and never cited from the globals, because the injected docs travel to
@@ -304,7 +305,7 @@ except this repo. Where a global doc must defer to bale-side behavior
 by project-local name and section. The pin is mechanical:
 `tests/test_global_doc_selfcontainment.py` fails on any occurrence of
 a bale-src doc reference (`BALE.md`, `MASTER.md`, `orchestration.md`,
-or a citation-shaped `claude/INDEX.md`) in the four files under
+or a citation-shaped `claude/INDEX.md`) in the five files under
 `docs/`.
 
 ### 3.4 Per-project state lives in `.bale/` at repo root

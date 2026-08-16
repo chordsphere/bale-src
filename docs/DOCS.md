@@ -64,7 +64,7 @@ behaves once present.
 
 | Category | Examples | Lifecycle | Location | Naming |
 |----------|----------|-----------|----------|--------|
-| **Workflow** | `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md` | Rarely changed; project-agnostic; always injected by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
+| **Workflow** | `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` | Rarely changed; project-agnostic; always injected by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
 | **Project map** | `INDEX.md` | Edited whenever the inventory changes | `claude/` | `ALL_CAPS.md` |
 | **Project snapshot** | `STATE.md` | Edited after sessions that move state; never appended | `claude/` | `ALL_CAPS.md` |
 | **Charter / product** | `charter.md`, `charter-brief.md` | Edited rarely, when product direction shifts | `claude/context/` | `lowercase-hyphenated.md` |
@@ -134,7 +134,8 @@ does not enforce this.
 ```
 
 INDEX.md does not list the global docs (`CLAUDE.md`, `TARBALL.md`,
-`DOCS.md`, `CODE.md`) — those are injected by bale from its own
+`DOCS.md`, `CODE.md`, `PLANNER.md`) — those are injected by bale
+from its own
 installation and are not part of the project's inventory.
 
 ### 2.3 Entry format
@@ -496,8 +497,8 @@ Strict enough to be predictable; loose enough not to be a tax.
 
 - **Project-state files** — `ALL_CAPS.md`. Limited set:
   `INDEX.md`, `STATE.md`. (Global docs `CLAUDE.md`, `TARBALL.md`,
-  `DOCS.md`, `CODE.md` follow the same convention but live in the
-  bale tool, not in the project.)
+  `DOCS.md`, `CODE.md`, `PLANNER.md` follow the same convention but
+  live in the bale tool, not in the project.)
 - **Content files** — `lowercase-hyphenated.md`. Everything in
   `context/` that isn't an ADR or a schema.
 - **ADRs** — `NNNN-lowercase-hyphenated.md`, numbered sequentially

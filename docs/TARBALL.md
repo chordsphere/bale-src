@@ -1037,6 +1037,7 @@ request-NNN/
   TARBALL.md           # injected by bale
   DOCS.md              # injected by bale
   CODE.md              # injected by bale
+  PLANNER.md           # injected by bale
   tools/
     response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
     craft_response.py  # injected by bale (v0.3.19): the response-skeleton crafter (§5.2)
@@ -1045,7 +1046,7 @@ request-NNN/
   README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
 ```
 
-The first five slots are reserved for bale-injected global docs and
+The first six slots are reserved for bale-injected global docs and
 the manifest; the `tools/` pair rides beside them (also
 bale-injected, from the install — `INJECTED_TOOLS` in `bin/bale` is
 the one source for the list): the lint, so the worker can run the
@@ -1644,7 +1645,8 @@ mechanical checks won't catch them.
 ### 10.1 Building a response tarball
 
 1. Confirm the bale-injected globals are present: `CLAUDE.md`,
-   `TARBALL.md`, `DOCS.md`, `CODE.md`. The first two are the minimum
+   `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md`. The first two
+   are the minimum
    for building a response — pause and ask if either is missing.
 2. Plan: list every file that will change, decide deferrals up front,
    decide what to claim for each project-level check.

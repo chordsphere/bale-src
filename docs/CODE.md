@@ -638,8 +638,8 @@ section first; its own file waits until it has been read a few times.*
 Promotion is a documentation **split** (DOCS.md §6.2), and because
 `TESTS.md` would be a global workflow doc, it carries one extra cost the
 ordinary split doesn't: bale injects the global docs from its own
-installation, so adding a fifth one means updating bale's `GLOBAL_DOCS`
-set and the pack-time injection — a `bin/bale` change, hence its own
+installation, so growing the set means updating bale's `GLOBAL_DOCS`
+list and the pack-time injection — a `bin/bale` change, hence its own
 session. The split session does both: lifts §13 into `TESTS.md` (this
 section becomes a one-line trigger pointing there, mirroring how the
 INDEX read-paths table points at the heavier doc) and lands the

@@ -195,18 +195,18 @@ and flip record; the flip-by-flip narrative lives in git.
   that closes the recursion. Pull when packing or reviewing a session
   that touches `bin/bale`, the apply or pack pipeline, the staging
   lifecycle, or the `post_apply_pass` hook.
-- `context/orchestration.md` — the working home of orchestration
-  doctrine (ADR-0009 step 2): the specification-friction principle,
-  the four controls, the doctrine skeleton elaborated with live
-  evidence, and the board-10 additions (worker refresh, cost
-  governance, escalation and the clarification queue). Section
-  anchors are stable; the escalation-record schema work cites it.
-  Pull when planning orchestration or harness work; promotes to a
-  global doc per ADR-0009 step 3 when orchestration is real.
+- `context/orchestration.md` — tombstone. The orchestration
+  doctrine relocated to the global `PLANNER.md` (past its core
+  banner) at `2026-08-16-planner-birth-003`; the tombstone carries
+  the old→new section map, so prior anchors still resolve. Pull
+  the tombstone only to resolve an old citation; for the doctrine
+  itself, `PLANNER.md` ships in every request like the other
+  globals and is not listed in this inventory.
 
 ## Notes on this index
 
-The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`) ship from
+The global docs (`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`,
+`PLANNER.md`) ship from
 the bale installation and are injected into every request; they are not
 listed here. `BALE.md` is listed because it lives in this repo and is the
 canonical design reference for the bale tool — it is project
@@ -220,7 +220,8 @@ cross-reference into an injected global doc, not an inventory entry —
 the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
-state doc), three explainers, and sixteen ADRs (0001–0005 the
+state doc), two explainers plus one tombstone (orchestration.md,
+relocated into the global PLANNER.md), and sixteen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012
 the agent-driven direction, 0013 the TARBALL.md rationale
