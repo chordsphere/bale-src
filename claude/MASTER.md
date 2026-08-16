@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-14-sitting-close-deltas-004`.
+Last landed by: `2026-08-16-sitting-close-deltas-001`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -253,6 +253,21 @@ source):
   `continue-plan-005.sh`, `restoration-006.sh`, `core-001.sh`
   under `claude/checkpoints/`) are inert clutter. Cleanup may ride
   any future sweep session; no urgency, no dedicated session.
+- Amendment-accept stamps in HOLD-clustering reads: the two
+  deliberate `stamp_matched: false` amendment accepts (board 10
+  wave 3, `2026-08-13-board-10-telemetry-extensions-001`) must not
+  read as oracle overrides in HOLD-clustering stats. Re-trigger:
+  any HOLD-clustering read over the amendment stamps. (Routed from
+  the improvement sitting's opening README, item 3.)
+- `claude/INDEX.md` substring-pin false positives: the guard test's
+  deny-list entry was accepted 2026-08-14/15 with its
+  self-announcing false-positive profile — if
+  `tests/test_global_doc_selfcontainment.py` fails on legitimate
+  generic prose producing the substring, reword the prose or drop
+  the entry; the failure announces itself, never silent.
+  Re-trigger: the guard failing on prose that isn't a project-local
+  citation. (From `2026-08-14-global-doc-selfcontainment-006`'s
+  notes, ratified at the improvement sitting.)
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -264,6 +279,13 @@ with the unverifiable ones carried verbatim and marked):
 - The reconciliation label-column cap (008's proposal, accepted) —
   rides the next session touching tools/craft_response.py. [Carried
   unchanged; unverified this sitting — same MASTER.md-only limit.]
+  [2026-08-16: discharged — the constant fixed DE NOVO at
+  `2026-08-15-doc-mechanization-002` (cap 40,
+  overflow-not-truncate); the accepted 008 proposal's content
+  exists nowhere in the durable record — the "unverified" bracket
+  above was accurate — so the implementation plus
+  `test_label_column_is_capped` are the constant's first durable
+  home. See the sitting record below.]
 - `claude/context/bale-internals.md` §2.5 schema-snippet true-up —
   whether the snippet-not-extended precedent ([staging] v0.3.7,
   [identity] v0.3.8, followed consistently by board-6 sessions A–C,
@@ -304,7 +326,9 @@ with the unverifiable ones carried verbatim and marked):
   and kept the end-of-script one. Possibly worth a crafter tweak
   (emit the definitions and the call as separable fragments);
   flagging rather than proposing formally since it may be
-  deliberate."
+  deliberate." [2026-08-16: discharged — landed per this verbatim
+  at `2026-08-15-doc-mechanization-002` (`--fragment`); the
+  bare-epilogue byte-identity is pinned by test.]
 - BALE.md §7/§7.2 includes-as-scope true-up — rides the next
   BALE.md-touching session. Text verbatim from
   `2026-08-07-board-13c-contract-docs-006`'s Proposals: "**What:**
@@ -453,6 +477,23 @@ with the unverifiable ones carried verbatim and marked):
   C's session since the refusal-text surface overlaps." [The
   "alongside C" window passed with the drop — C landed at 0.4.10
   without it.] Rides the next handoff-gate touch.
+- CLAUDE.md §11.2 rescope-offer prose: decide/land the
+  checkpoint-precondition sentence — whether §11.2 should set the
+  expectation that checkpoint-configured projects put a checkpoint
+  precondition in front of any scoped pack a pasted rescope command
+  creates (source: `2026-08-15-claude-core-first-001`'s Proposals,
+  second entry). Carrier: the next docs/CLAUDE.md touch; rider: the
+  §11.2 ↔ §3.4 pair pin moves in the same session.
+
+Cleared at this landing (`2026-08-16-sitting-close-deltas-001`),
+all at the improvement sitting: the label-column-cap and
+crafter-separable-fragments entries, discharged in place with dated
+brackets above (both at `2026-08-15-doc-mechanization-002`); and
+the three TARBALL.md riders queued at the sitting — the schema
+install-local phrasing, the `--doc-assertions` signpost, and the
+`[]`-forecast race-safety line — discharged against
+`2026-08-15-tarball-riders-003` (applied before this session
+packed; the riders never carried on this list).
 
 Cleared at this landing (`2026-08-14-sitting-close-deltas-004`):
 the build_request_tarball docstring stale-sentence rider —
@@ -687,6 +728,56 @@ master desk (002 = `2026-08-14-bare-pack-excl-waiver-002`, 003 =
 - Commit subject `bale:`-prefixed and pathspec-limited — a dirty
   tree's other staged work untouched (003).
 
+Landed 2026-08-14/15, non-board (the improvement sitting, read-only
+master pack `2026-08-14-improve-bale-005` — the bare read-only
+waiver's live debut, worked as designed: forecast `[]`, nothing
+landed under its sid). Produced: the doc-efficiency audit, the
+self-containment ruling, four sessions, all applied —
+`2026-08-14-global-doc-selfcontainment-006`,
+`2026-08-15-claude-core-first-001` (r3 after the first live
+cross-session race — §6 entry 76),
+`2026-08-15-doc-mechanization-002` (r2 after a size-floor
+checkpoint HOLD), and the tarball-riders micro-session
+`2026-08-15-tarball-riders-003` — and the grown PLANNER.md brief
+(board 10's queue entry; inputs grown at this landing, charter
+resolved — see the entry). Carry-forward item 5 from the
+sitting-opening README: the registry-attribution correction
+ratified — record only, no registry change.
+
+Ratified judgment calls, one line each, dated 2026-08-14/15 at the
+master desk (006 = `2026-08-14-global-doc-selfcontainment-006`,
+001 = `2026-08-15-claude-core-first-001`, 002 =
+`2026-08-15-doc-mechanization-002`):
+
+- The thirteenth citation site (the §5.9.2 orchestration.md
+  deferral) genericized — goal-over-enumeration precedence
+  affirmed (006).
+- orchestration.md added to the guard test's deny list (006).
+- The `claude/INDEX.md` substring pin accepted with its
+  self-announcing false-positive profile; the §3 watch above is
+  its record (006).
+- The §5.3 telemetry-record path dropped as
+  implementation-contract (006).
+- Tombstone content-loss verification accepted (006).
+- The no-propagation pair judgment ratified — §11.2's side of the
+  sanctioned pair is by-reference, and every referent survived the
+  sibling's rewrite (001).
+- The §11.6 re-read prescription deliberately kept (001).
+- The label-column cap ratified DE NOVO at 40,
+  overflow-not-truncate — the registry entry's own "unverified"
+  bracket was accurate; the implementation plus
+  `test_label_column_is_capped` are the constant's first durable
+  home (002).
+- Exec bits on the four shipped .py files ratified (002).
+- Prune stems ratified as weakest-honest; the `archive:`/`delete:`
+  tag convention noted, unqueued (002).
+- ADR reverse-transform generosity ratified — the quotable
+  reasoning on record: candidate-set looseness is free because
+  pre-image sha256 equality either reproduces the shipped bytes or
+  fails, so a looser recognizer cannot sanction a third diff
+  shape (002).
+- CODE.md §10 prune-row deferral ratified (002).
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -856,7 +947,13 @@ and §8, so done items keep their numbers as one-line pointers.
       board-14 shape included, is decided only after this choice is
       made here; evidence 32 carries the rationale. The 2026-07-21
       packaging reference map lives in v3 of this doc, in git, if a
-      physical split is ever revived.
+      physical split is ever revived. [2026-08-14/15:
+      considered-and-parked — work-class-keyed gating of
+      DOCS.md/CODE.md was proposed and rejected at the improvement
+      sitting on the audience principle (doc-rides-code makes the
+      straddle rate structurally high; a stranded worker has no
+      fetch path); re-decidable only after the transport decision
+      this item exists to make.]
     - **Orchestrated accept spelling for --supersedes** (parked
       2026-07-29) — piped packs can never complete a supersession;
       correct until the authorship contract for worker-emitted
@@ -889,7 +986,11 @@ and §8, so done items keep their numbers as one-line pointers.
       deliberately unpinned today.
     - **"stats read sides deferred" pending accrued data** (sandbox
       stamps, cost fields, claim_basis). Re-trigger: harness
-      telemetry accruing.
+      telemetry accruing. [2026-08-15: add the claim_basis cut —
+      split claim/verdict agreement rates by `claim_basis`
+      (observed vs predicted); `2026-08-15-doc-mechanization-002`
+      filled five of six claims observed, the calibration stream
+      arriving (the cut proposal is in its Proposals).]
     **Added at the 2026-08-13/14 friction-removal sitting, feeds
     S6:**
     - **Planner-doctrine extraction — queued session, not yet
@@ -901,7 +1002,80 @@ and §8, so done items keep their numbers as one-line pointers.
       one-master-per-sitting; post-HOLD reveal-spec-not-script;
       the imagined-surfaces planner failure class. Ledger entries
       stay in MASTER.md with pointers. Queue entry only; the doc
-      is deliberately undrafted.
+      is deliberately undrafted. [Inputs grown 2026-08-14/15, the
+      improvement sitting: Evidence-45 practices —
+      version-suffixed checkpoint filenames, publish the sha256
+      with delivery, compare the echo; checkpoint authoring is
+      part of pack authoring, not a gate-reminded afterthought;
+      thin outcome-only oracles; strict line anchors for
+      checkpoint locators (adopted at the planner desk this
+      sitting, from claude-core-first's proposal); brief practice
+      — inline registry verbatim or state its absence; ship
+      registry context when a brief cites registry items; master
+      packs prefer a stats digest plus deltas-relevant notes over
+      wholesale telemetry (mechanize-then-delete: board 38);
+      briefs re-verify section cites against the applied tree at
+      authoring time, or cite by phrase when the desk's copy is
+      known-stale (a sibling's rewrite supersedes the desk's
+      shipped bytes); on a cite/phrase conflict the worker's
+      default is unambiguous-phrase-match over section number,
+      flagged in notes.md, never silent (ratified from
+      tarball-riders); space-tolerant one-liners; the search-path
+      resolution assumption (sitting-opening README carry-forward
+      items 1 and 4); the TARBALL.md §3.4 planner-detail migration
+      question (charter-widening, recommended this sitting).]
+      [CHARTER RESOLVED in chat (2026-08-15, final form —
+      supersedes the earlier conditional-injection framing in the
+      same chat): PLANNER.md is the FIFTH GLOBAL DOC — same class
+      as the four in every mechanical property: shipped in every
+      request (the drill-down premise; §6 entry 32),
+      self-containment-bound, cites the set and is cited by it,
+      guard-scanned, crossref-parsed, pair-pin-eligible, subject
+      to all doc conventions. The global set becomes five. Its
+      read-path row is parallel to DOCS.md's and CODE.md's, not a
+      new kind: it triggers when AUTHORING is the work — a pack,
+      brief, oracle, rescope offer, or sitting — so a worker's
+      mandatory read is zero and the §11.2 pre-flight split is
+      simply a work type arriving mid-session (the case that
+      killed conditional injection). Explicitly discarded as
+      category residue: any special authority clause (per-doc
+      scoping already covers it, as with CODE.md vs TARBALL.md)
+      and any deny-list entry. Consequences, all ratified: the
+      worker→planner transition grants command and brief
+      authorship, never oracle authorship (blind-checkpoint
+      doctrine unchanged); injection differentiation, if a
+      byte-costed transport ever wants it, is harness-external
+      and parks with this board's injection-model item; the birth
+      session inherits two four→five true-ups — CLAUDE.md's META
+      self-containment sentence and BALE.md's doctrine section,
+      both landed this sitting saying "four." One-doc shape and
+      the orchestration.md merge: the S6 agenda block below.
+      Sitting recommendation, NOT yet ratified: the extraction
+      moves AHEAD of S6 in the queue; ratify at the next sitting
+      open.]
+    **Added at the 2026-08-14/15 improvement sitting, feeds S6:**
+    - **HOLD-triage / ruling-request artifact exchange** — ranked
+      high on the S6 agenda. (Routed from the sitting-opening
+      README, item 2.)
+    - **Orchestration.md promotion — DISCHARGED EARLY** by chat
+      ratification (2026-08-15, third round), deliberate: the
+      planner doc is ONE doc, PLANNER.md, core-first — authoring
+      doctrine as core, orchestration doctrine past the banner
+      with harness-era sections marked provisional-until-S6
+      inline; orchestration.md merges in at the extraction session
+      (relocation + tombstone per standing conventions; its six
+      ratified judgment calls keep their status). Rationale,
+      quotable: planner-vs-orchestrator is a topic boundary inside
+      one injection audience, and the gate-by-audience principle
+      plus the one-doctrine-one-home rule (ratified at
+      tarball-riders, sentence scale) forbid splitting one
+      conditional layer across two files. ADR-0009's ladder
+      corrects to: explainer → section of the conditional-layer
+      doc; any physical re-split defers to this board's
+      injection-model decision like every other split, with the
+      banner as the pre-marked seam. S6 inherits "ratify and
+      churn the orchestration half of PLANNER.md" in place of
+      the promotion item.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1233,6 +1407,45 @@ and §8, so done items keep their numbers as one-line pointers.
     the pre-allocation refusal for the new sid and the stamped
     resolved path; cheap once test_handoff_happy.py's bailout
     fixture lifts into harness.py per the one-harness doctrine).
+
+36. **`--checkpoint-file` expected-sha argument** — queued
+    2026-08-14/15 (small, timing open): an optional expected-sha
+    argument so delivery verifies the checkpoint bytes against the
+    planner's published hash — the mechanical half of the
+    Evidence-45-class practices (version-suffixed checkpoint
+    filenames, publish the sha256 with delivery, compare the echo)
+    now in board 10's PLANNER.md inputs. (Routed from the
+    improvement sitting's opening README, item 1.)
+
+37. **Bail-mechanism recalibration** — queued 2026-08-14/15,
+    ratified direction: the CLAUDE.md §11.3–§11.5 bail mechanism
+    has zero live firings against observed compaction events —
+    recalibrate rather than prune. Three parts: (1) re-ground
+    §11.3's triggers in observable signals (cleared tool results
+    in context, compaction markers, request-size-vs-remaining-work
+    arithmetic at pre-flight) instead of introspective budget
+    perception; (2) crafter `--bailout` emission so the crisis
+    procedure is a command, not a reading assignment (carrier: the
+    next tools/craft_response.py touch, or this entry's own
+    session); (3) a bail marker in notes/telemetry so bail
+    frequency is measurable — silence indistinguishable from
+    refusal is not evidence of health. Mitigating fact for the
+    record: the §11.2 pre-flight catches unfittable scope at
+    session open (the improvement sitting's opener included), so
+    some upstream silence is by design. Motivating datum: §6
+    entry 79.
+
+38. **Stats-digest auto-include for planner-shaped packs** — queued
+    2026-08-14/15 (small, timing open): mechanizes and then deletes
+    the "master packs prefer a digest" practice line from board
+    10's PLANNER.md inputs, per the mechanize-first rule.
+
+39. **Open-forecasts snapshot in pack provenance** — queued
+    2026-08-14/15 (small, timing open): open sids plus their
+    forecasts stamped at pack time; motivated by the core-first
+    race, where the worker priced risk against a sibling whose
+    `[]` forecast made it structurally zero (§6 entry 76);
+    candidate scope is all scoped requests.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -2272,6 +2485,46 @@ New from the 2026-08-13/14 sitting (the friction-removal sitting):
     received, the retry gets the missing brief contract prose —
     never the checkpoint's mechanics. The retry must not be taught
     to the test.
+
+New from the 2026-08-14/15 sitting (the improvement sitting):
+
+76. **First live cross-session race; every mechanism in the chain
+    held under real contention** (claude-core-first r1→r3): the
+    forecast gates held (docs/CLAUDE.md diff 0 across bases), the
+    blind checkpoint HOLDed correctly on the sibling's rewrite of
+    the co-read file, the claims split flagged exactly the one
+    unobservable claim (the r2 `[DISAGREE]` was the predicted
+    row), the probe ran under explicit chat override of
+    `expects_probe: no`, and the remedy was a one-line
+    re-baseline. Corollary recorded: the feared open sibling had
+    forecast `[]` and could not land — the priced risk was
+    structurally zero; the race-safety doctrine line landed via
+    `2026-08-15-tarball-riders-003`.
+
+77. **Mechanization byte-accounting: the payoff is drift-immunity,
+    not bytes.** Net doc delta ~−0.2KB against a −2..4KB estimate;
+    every recipe relocated to executable homes; evidence 33
+    numerically confirmed. Self-demonstrating incident: the
+    single-line-grep hazard bit the very session deleting its
+    warning paragraph, and the knowledge now lives only in code
+    that executes it.
+
+78. **Planner practice keeps living in ephemeral chats until a
+    gate refuses** (second data point after Evidence-45): the
+    checkpoint precondition was absent from the §3.4 authoring
+    read-path and surfaced only via pack refusal; fixed durably by
+    the §3.4 row (`--checkpoint-file` plus the
+    checkpoint-configured-projects paragraph, landed at
+    `2026-08-14-global-doc-selfcontainment-006`).
+
+79. **First live §11.6 compaction recoveries, this sitting's
+    master session:** disk-as-ground-truth surfaced a complete
+    brief authored in a compacted stretch (adopted after
+    verification rather than overwritten), and a compacted board
+    read was re-pulled from the shipped MASTER.md before
+    answering. Recovery doctrine held; the bail evaluation never
+    ran because its triggers are introspective — the motivating
+    datum for board 37.
 
 ## 7. Standing environment facts
 

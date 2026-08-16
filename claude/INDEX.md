@@ -29,11 +29,12 @@ will stay that way for a while.
   bale-enforced contract. `bin/bale` references BALE.md directly
   (section references in comments and docstrings) — legitimate,
   since both live in this repo. The global docs deliberately do
-  **not**: a `BALE.md` pointer inside an injected doc dangles in
-  every other project, so the global docs describe bale's behavior
-  generically and cross-reference only their own sections. Don't
-  reintroduce a `BALE.md` citation into `CLAUDE.md`, `TARBALL.md`,
-  `DOCS.md`, or `CODE.md`. Not injected into requests for other
+  **not**: that self-containment rule now has durable homes —
+  BALE.md's doctrine section, CLAUDE.md's META self-containment
+  sentence, and the guard test
+  `tests/test_global_doc_selfcontainment.py`, which enforces it
+  mechanically — so this note points at those rather than carrying
+  the rule. Not injected into requests for other
   projects — it is bale-src's project documentation, peer in
   structure to the global workflow docs but project-local.
 
