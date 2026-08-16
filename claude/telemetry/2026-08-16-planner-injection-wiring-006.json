@@ -1,0 +1,151 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-16-planner-injection-wiring-006",
+  "created_at": "2026-08-16T03:04:21+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-16T03:04:21+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-16-planner-injection-wiring-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "scripts/build.sh end-to-end (staging tree, tmp output)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "scripts/build.sh end-to-end (staging tree, tmp output)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests",
+        "tools/response_lint.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "install.sh",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "scripts/build.sh",
+        "tests/test_handoff_happy.py",
+        "tests/test_install_precheck.py",
+        "tests/test_planner_admission.py",
+        "tests/test_release_packaging.py",
+        "tools/response_lint.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-planner-injection-wiring-006.sh",
+              "sha256": "718c6bfc1b0e9fbf77b644586b42ae5c2b289d3fee7bbd5ce57d6fe74744c169"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5 (claude.ai chat)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The real repo's docs/PLANNER.md carries no v-prefixed version tag above 0.4.11 \u2014 the version-tag drift guard newly scans it once it joins RELEASE_FILES; the doc's content was out of scope and unshipped, so this could not be verified here. The staged build.sh run in validation.sh is the check."
+          ],
+          "judgment_calls": [
+            "bin/bale_pack.py got a comment-only edit ('beside the four globals' -> 'beside the global docs') \u2014 count-free phrasing so the next doc-set change doesn't strand it; same treatment in bin/bale's INJECTED_TOOLS comment.",
+            "The intact-pack E2E asserts exactly-the-set (top-level .md set == GLOBAL_DOCS, provenance keys == GLOBAL_DOCS), not membership \u2014 a dropped doc or a stray extra both fail.",
+            "The schema descriptions carry the one-apply-behind rationale inline, so a future reader of the schema alone sees why PLANNER.md is admitted but not required."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "docs/ (the five global docs as repo files) \u2014 the E2E suites' make_install copies it; ran locally against the request's injected four plus a PLANNER.md stub",
+            "upgrade.sh \u2014 build.sh's full run needs it; the check runs for real only in staging, hence the predicted claim basis"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-planner-injection-wiring-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-planner-injection-wiring-006.sh",
+          "sha256": "718c6bfc1b0e9fbf77b644586b42ae5c2b289d3fee7bbd5ce57d6fe74744c169"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-16T03:04:21+00:00",
+  "outcome": "applied"
+}
