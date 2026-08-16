@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-16-sitting-close-deltas-001`.
+Last landed by: `2026-08-16-sitting-close-deltas-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -484,6 +484,11 @@ with the unverifiable ones carried verbatim and marked):
   creates (source: `2026-08-15-claude-core-first-001`'s Proposals,
   second entry). Carrier: the next docs/CLAUDE.md touch; rider: the
   §11.2 ↔ §3.4 pair pin moves in the same session.
+- Wiring-session brief riders (accepted from the birth session's
+  Proposals): When the injection wiring lands: sweep BALE.md's two
+  remaining "four" sites in the same response (§3.1 editable-docs
+  note, §7 pipeline step 3), and true up any four-key
+  `contract_docs` provenance example BALE.md shows.
 
 Cleared at this landing (`2026-08-16-sitting-close-deltas-001`),
 all at the improvement sitting: the label-column-cap and
@@ -778,6 +783,45 @@ master desk (006 = `2026-08-14-global-doc-selfcontainment-006`,
   shape (002).
 - CODE.md §10 prune-row deferral ratified (002).
 
+Ratified 2026-08-16 at the master desk, by exercise: the desk
+pasted and applied `2026-08-16-planner-birth-003` ahead of S6,
+discharging the sitting-close-001 "ratify at next sitting open"
+carry in the act. The injection-wiring follow-up rides ahead of S6
+with it. No renumbering; board 10's bracket annotation below is
+the record.
+
+Judgment calls, dated 2026-08-16 at the master desk:
+
+- Master-desk oracle authorship affirmed: the charter's
+  never-oracle-authorship clause binds the worker→planner
+  mid-session transition, not the sitting desk; checkpoint
+  authoring is part of pack authoring, and punting one to the
+  architect is a §1 friction violation, not blindness discipline.
+- Paste-surface hazard observed (live specimen): chat prose
+  framing a paste-ready command carried backticks that left the
+  shell in an open command substitution after the pack ran; the
+  pack itself was unaffected (identity echoes byte-matched).
+  Practice: framing prose around command blocks stays
+  backtick-light; the block ends the message section. Evidence-pile
+  entry; eventual home PLANNER.md's brief-practice section at S6
+  churn.
+- Checkpoint-runner lesson (checkpoint desk's miss): the
+  planner-birth checkpoint invoked pytest; the guard suites are
+  stdlib-unittest and the probes SKIPped blind on the target box.
+  Future checkpoints on this repo invoke python3 -m unittest.
+- Birth-session flagged calls, all nine ratified as shipped:
+  read-path row merged not stacked; selfcontainment deny-list
+  entry kept (tombstone is still project-local); evidence-N
+  markers kept (numeric-ADR-pointer precedent); tombstone carries
+  the 12-row section map (DOCS.md §6.4 applied to whole-doc
+  relocation); four→five true-ups beyond the brief's list accepted
+  (self-consistent doc set beats one-apply-behind description;
+  inertness pre-ratified); BALE.md's two current-behavior "four"
+  sites deliberately deferred to the wiring session (rider
+  accepted); provisional-until-S6 placement as shipped, ratified
+  pieces unmarked; PLANNER.md §7 Hard Rules table kept; the §3.4
+  migration question noted-not-engraved.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -1053,6 +1097,16 @@ and §8, so done items keep their numbers as one-line pointers.
       Sitting recommendation, NOT yet ratified: the extraction
       moves AHEAD of S6 in the queue; ratify at the next sitting
       open.]
+      [2026-08-16: ratified at the sitting open — extraction ahead
+      of S6, wiring follow-up with it; both charter rulings lifted
+      to §5 (the one home for their contract force); birth pack
+      authored at the same sitting, brief shipped via
+      --readme-file.]
+      [2026-08-16: EXECUTED at `2026-08-16-planner-birth-003` —
+      docs/PLANNER.md born, orchestration.md merged past the
+      banner with a tombstone section map, four→five true-ups
+      landed; S6 inherits ratify-and-churn of the orchestration
+      half; injection wiring is the queued follow-up.]
     **Added at the 2026-08-14/15 improvement sitting, feeds S6:**
     - **HOLD-triage / ruling-request artifact exchange** — ranked
       high on the S6 agenda. (Routed from the sitting-opening
@@ -1076,6 +1130,7 @@ and §8, so done items keep their numbers as one-line pointers.
       banner as the pre-marked seam. S6 inherits "ratify and
       churn the orchestration half of PLANNER.md" in place of
       the promotion item.
+      [2026-08-16: lifted to §5.]
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1745,8 +1800,58 @@ New, ratified 2026-08-13/14 (the friction-removal sitting, master
   planner-fixture defects rather than worker misunderstanding
   means authoring practice is the defect.
 
+New, ratified 2026-08-16 (this sitting, master
+`2026-08-16-master-sitting-002`; both rulings resolved in chat
+2026-08-15 at the improvement sitting — lifted here for
+re-litigation protection, the one home for their contract force;
+board 10's queue entry keeps the working copies, bracket-annotated
+as lifted):
+
+- **PLANNER.md is the fifth global doc.** Same class as the four in
+  every mechanical property: shipped in every request (the
+  drill-down premise; §6 entry 32), self-containment-bound, cites
+  the global set and is cited by it, guard-scanned, crossref-parsed,
+  pair-pin-eligible, subject to all doc conventions — the global
+  set becomes five. Its read-path row is parallel to DOCS.md's and
+  CODE.md's, not a new kind: it triggers when authoring is the work
+  (a pack, brief, oracle, rescope offer, or sitting), so a worker's
+  mandatory read is zero and a mid-session authoring arrival is an
+  ordinary §11.2 pre-flight event — the case that killed the same
+  chat's earlier conditional-injection framing, which this final
+  form supersedes. Discarded as category residue: any special
+  authority clause (per-doc scoping already covers it) and any
+  deny-list entry. Consequences, all ratified: the worker→planner
+  transition grants command and brief authorship, never oracle
+  authorship (blind-checkpoint doctrine unchanged); injection
+  differentiation, if a byte-costed transport ever wants it, is
+  harness-external and parks with board 10's injection-model item;
+  the birth session inherits the two four→five true-ups (CLAUDE.md's
+  META self-containment sentence, BALE.md's doctrine section).
+- **One doc: orchestration.md merges into PLANNER.md, core-first.**
+  Ratified 2026-08-15 (third chat round), discharging the
+  orchestration.md-promotion item early, deliberately. Authoring
+  doctrine is the core; orchestration doctrine rides past the
+  banner with harness-era sections marked provisional-until-S6
+  inline; the merge happens at the extraction session by relocation
+  plus tombstone, and orchestration.md's six ratified judgment
+  calls keep their status. Rationale, quotable: planner-vs-
+  orchestrator is a topic boundary inside one injection audience,
+  and the gate-by-audience principle plus the one-doctrine-one-home
+  rule (ratified at tarball-riders, sentence scale) forbid
+  splitting one conditional layer across two files. ADR-0009's
+  ladder corrects to explainer → section of the conditional-layer
+  doc (recorded by dated Notes append at the birth session); any
+  physical re-split defers to board 10's injection-model decision,
+  with the banner as the pre-marked seam. S6 inherits "ratify and
+  churn the orchestration half of PLANNER.md" in place of the
+  promotion item.
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
+
+planner-facing doctrine derived from entries 15, 45, 49, 65,
+69–72, 75, 78 now lives in docs/PLANNER.md §§1–7; ledger entries
+unchanged
 
 1–9 carried forward verbatim from the v1 doc: (1) ship decision
 context INTO the request; (2) flagged judgment calls halt for
