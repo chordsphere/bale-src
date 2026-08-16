@@ -22,8 +22,8 @@ Every session, in this order:
 3. **The session prompt and any project docs** the manifest's
    `context_included` names.
 4. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
-   `CODE.md` — never pre-emptively. Most sessions don't touch most
-   of them. The INDEX table below says when each one engages.
+   `CODE.md`, `PLANNER.md` — never pre-emptively. Most sessions
+   don't touch most of them. The INDEX table below says when each one engages.
 
 Reading the manifest first is the single most important budget
 discipline: it prevents drilling into a doc the session doesn't
@@ -37,11 +37,12 @@ file wins.**
 
 ### Global vs project docs
 
-`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` are global —
-bale injects all four into every request from its own installation.
-Claude does not modify these in response tarballs; they evolve only
-via bale sessions targeting the bale tool's own repository.
-The four injected docs are self-contained and cite only one another
+`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
+are global — bale injects all five into every request from its own
+installation. Claude does not modify these in response tarballs;
+they evolve only via bale sessions targeting the bale tool's own
+repository.
+The five injected docs are self-contained and cite only one another
 — never a project-local doc — because they travel to every project,
 and a pointer into any one project's local docs would dangle
 everywhere else.
@@ -50,7 +51,7 @@ project-specific. Bale includes whatever the user names; nothing
 is auto-detected. Drill further into project docs only when the
 read-paths table says to. A casual project (one script, a data
 folder) may have none of the project-specific docs and ship just
-the four global docs + the session prompt + the relevant source
+the five global docs + the session prompt + the relevant source
 files.
 
 ---
@@ -64,14 +65,14 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
+| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `adr/NNNN-*.md` |
 | Task touches a schema or API | + relevant schema sections (not the whole file) |
 | Task modifies source files | + those files (named in the request) |
 | Code is meant to land in the project | Re-read `TARBALL.md` per its INDEX read-paths before producing |
-| Authoring a `bale pack` command (on request, or unsolicited only as a §11.2 rescope offer) | Re-read `TARBALL.md` §3.4 before authoring |
+| Authoring is the work — a pack command, a request brief, a checkpoint oracle, a rescope offer, or a sitting | Re-read `PLANNER.md` before producing; a pack command (on request, or unsolicited only as a §11.2 rescope offer) additionally re-reads `TARBALL.md` §3.4, the flag surface |
 | Documentation is the work — adding, splitting, pruning, updating, or auditing docs | Re-read `DOCS.md` before producing |
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
@@ -140,7 +141,9 @@ The INDEX read-paths table is the source. The principles below say
 - **Triggered drill-downs happen *before* the work, not during.**
   Entering tarball mode → read `TARBALL.md` first. Touching the doc
   inventory → read `DOCS.md` first. Touching code layout
-  (extraction, splitting, indexing) → read `CODE.md` first. This
+  (extraction, splitting, indexing) → read `CODE.md` first.
+  Authoring — a pack, a brief, a checkpoint, a rescope offer, a
+  sitting → read `PLANNER.md` first. This
   file says *when*; the specialized file says *how*.
 
 ---
@@ -362,7 +365,7 @@ These are all **policy** — caught at my review, since the rules
 they encode are about taste and judgment that mechanical checks
 can't see. Contract rules are enforced by bale and described in
 `TARBALL.md` §8's prose; the policy tables live in `TARBALL.md` §8,
-`DOCS.md` §9, and `CODE.md` §10.
+`DOCS.md` §9, `CODE.md` §10, and `PLANNER.md` §7.
 
 ---
 
@@ -422,8 +425,9 @@ the conversation doesn't have to.
 - **The protocol itself feels wrong** — if a session feels like the
   protocol is the work, the protocol is broken. Fix it here (or in
   `TARBALL.md` if the mechanics are the problem, in `DOCS.md` if
-  it's a documentation-maintenance gap, or in `CODE.md` if it's a
-  code-layout gap), and propagate to every project.
+  it's a documentation-maintenance gap, in `CODE.md` if it's a
+  code-layout gap, or in `PLANNER.md` if it's an authoring-doctrine
+  gap), and propagate to every project.
 
 ---
 
@@ -653,7 +657,8 @@ summary is the lossy part. Claude rebuilds from the durable side:
 - **The mode's contract doc.** Tarball mode → re-read `TARBALL.md`
   in full; its contract shape (manifest fields, the `files/` mirror,
   validation) is exactly the structured detail a summary flattens.
-  Documentation work → re-read `DOCS.md`; code layout → `CODE.md`.
+  Documentation work → re-read `DOCS.md`; code layout → `CODE.md`;
+  authoring work → `PLANNER.md`.
 - **Any partial response already on disk.** If Claude had begun
   producing `files/`, a manifest, or a `validation.sh` before the
   compaction, that partial output is durable and authoritative over

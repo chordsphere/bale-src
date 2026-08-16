@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Global-doc self-containment guard (session 2026-08-14-006).
+"""Global-doc self-containment guard (session 2026-08-14-006;
+PLANNER.md joined the scanned set at 2026-08-16-planner-birth-003).
 
-The four docs bale injects into every request — docs/CLAUDE.md,
-docs/TARBALL.md, docs/DOCS.md, docs/CODE.md — are self-contained:
+The five docs bale injects into every request — docs/CLAUDE.md,
+docs/TARBALL.md, docs/DOCS.md, docs/CODE.md, docs/PLANNER.md — are
+self-contained:
 they cite only each other (BALE.md §3.3 carries the doctrine).
 BALE.md, MASTER.md, and the rest of bale-src's claude/ inventory are
 project-local; a pointer at any of them inside an injected doc
@@ -19,7 +21,10 @@ list):
   ``TARBALL.md`` ends in ``BALL.md``, not ``BALE.md``.
 - ``MASTER.md`` — never legal in a global.
 - ``orchestration.md`` — bale-src's claude/context/orchestration.md;
-  never legal in a global.
+  never legal in a global. Since 2026-08-16 that file is a tombstone
+  (its doctrine relocated into docs/PLANNER.md), which changes
+  nothing here: the tombstone is still project-local, and the
+  relocated content must stand without naming its old home.
 - ``claude/INDEX.md`` — the citation-shaped reference to bale-src's
   own doc map. A bare ``INDEX.md`` stays legal everywhere: the
   globals use it as the generic project-map concept (DOCS.md §2,
@@ -40,7 +45,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO / "docs"
 
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+               "PLANNER.md")
 
 # Literal substrings that must never appear in an injected doc. Keep
 # this a short deny list of exact strings; do not generalize it into
@@ -67,7 +73,7 @@ class GlobalDocSelfContainment(unittest.TestCase):
     """No injected doc references a bale-src project doc."""
 
     def test_all_global_docs_present(self):
-        """The guard is only meaningful if it actually reads all four
+        """The guard is only meaningful if it actually reads all five
         docs — a moved or renamed doc must fail here, not silently
         drop out of the scan."""
         for name in GLOBAL_DOCS:
