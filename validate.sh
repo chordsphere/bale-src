@@ -91,7 +91,7 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
 [[ -x "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh executable"  || fail "upgrade.sh executable"
 [[ -f "$INSTALL_DIR/README.md"   ]]             && pass "README.md present"      || fail "README.md present"
-for d in CLAUDE TARBALL DOCS CODE; do
+for d in CLAUDE TARBALL DOCS CODE PLANNER; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
 for s in request-manifest response-manifest diagnostics; do

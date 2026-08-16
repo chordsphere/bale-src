@@ -90,12 +90,13 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
-          "description": "sha256 (hex) of each injected global doc, hashed from the packing install at pack time — pins exactly which contract text the session was run under.",
+          "description": "sha256 (hex) of each injected global doc, hashed from the packing install at pack time — pins exactly which contract text the session was run under. PLANNER.md joined the injected set in v0.4.11; it is admitted here but deliberately not required (one-apply-behind: the response to the wiring session itself echoes a four-key block, and pre-v0.4.11 manifests and telemetry history stay valid).",
           "properties": {
             "CLAUDE.md":  { "type": "string", "minLength": 1 },
             "TARBALL.md": { "type": "string", "minLength": 1 },
             "DOCS.md":    { "type": "string", "minLength": 1 },
-            "CODE.md":    { "type": "string", "minLength": 1 }
+            "CODE.md":    { "type": "string", "minLength": 1 },
+            "PLANNER.md": { "type": "string", "minLength": 1 }
           }
         },
         "packer": {

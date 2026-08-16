@@ -187,6 +187,18 @@ class ReleaseListCoverageTest(unittest.TestCase):
     def test_install_layout_covers_bin_version(self) -> None:
         self.assertIn("bin/VERSION", extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
 
+    def test_release_files_covers_planner_doc(self) -> None:
+        """docs/PLANNER.md joined the injected set in v0.4.11: a release
+        without it fails main()'s missing-docs pre-check on every pack
+        and handoff, and the tree-coverage guard dies at build time —
+        so its row in the list is load-bearing, not decorative."""
+        self.assertIn("docs/PLANNER.md",
+                      extract_bash_array(BUILD_SH, "RELEASE_FILES"))
+
+    def test_install_layout_covers_planner_doc(self) -> None:
+        self.assertIn("docs/PLANNER.md",
+                      extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
     def test_lists_are_set_equal(self) -> None:
         release = extract_bash_array(BUILD_SH, "RELEASE_FILES")
         layout = extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT")

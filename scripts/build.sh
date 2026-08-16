@@ -102,6 +102,7 @@ RELEASE_FILES=(
   docs/TARBALL.md
   docs/DOCS.md
   docs/CODE.md
+  docs/PLANNER.md
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
   schemas/diagnostics.schema.json

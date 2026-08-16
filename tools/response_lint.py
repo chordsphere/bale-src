@@ -302,11 +302,13 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   "type": "object",
                   "additionalProperties": false,
                   "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the injected set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid).",
                   "properties": {
                     "CLAUDE.md":  { "type": "string", "minLength": 1 },
                     "TARBALL.md": { "type": "string", "minLength": 1 },
                     "DOCS.md":    { "type": "string", "minLength": 1 },
-                    "CODE.md":    { "type": "string", "minLength": 1 }
+                    "CODE.md":    { "type": "string", "minLength": 1 },
+                    "PLANNER.md": { "type": "string", "minLength": 1 }
                   }
                 },
                 "packer": { "type": "string", "minLength": 1 },

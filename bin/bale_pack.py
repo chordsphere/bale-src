@@ -1536,7 +1536,7 @@ def build_request_tarball(
             _trail(f"inject global doc {doc}")
             shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
 
-        # Inject the worker-side tools beside the four globals, per
+        # Inject the worker-side tools beside the global docs, per
         # TARBALL.md §3.1: request-NNN/tools/<each INJECTED_TOOLS member>
         # — the lint (v0.3.8, session B1) and the crafter (session 007;
         # consolidated into the list in v0.3.19, retiring the guarded

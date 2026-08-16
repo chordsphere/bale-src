@@ -67,7 +67,9 @@ VERBOSE_MARKER = "verbose:"
 # The bale-injected top-level members every request tarball ships
 # (TARBALL.md §3.1) — asserted on the handoff-built tarball so the
 # repackaging path provably goes through the same builder as pack.
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
+# PLANNER.md joined the injected set in v0.4.11.
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+               "PLANNER.md")
 INJECTED_TOOLS = ("response_lint.py", "craft_response.py")
 
 
