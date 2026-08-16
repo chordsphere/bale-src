@@ -1,0 +1,266 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-16-planner-birth-003",
+  "created_at": "2026-08-16T01:46:21+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-16T01:46:21+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-16-planner-birth-003.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "global-doc guard suites (unittest: test_global_doc_selfcontainment + test_doc_crossrefs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session-specific assertions (PLANNER.md shape and banner, tombstone section map, INDEX retirement, ADR-0009 append-only tail)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "global-doc guard suites (unittest: test_global_doc_selfcontainment + test_doc_crossrefs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (PLANNER.md shape and banner, tombstone section map, INDEX retirement, ADR-0009 append-only tail)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr/0009-orchestration-doc-plan.md",
+        "claude/context/orchestration.md",
+        "docs",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr/0009-orchestration-doc-plan.md",
+        "claude/context/orchestration.md",
+        "docs/CLAUDE.md",
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-planner-birth-003.sh",
+              "sha256": "6ad133045f908b66c5330177bcdc013cd13b21b19064b1c793637be1b31c655e"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-08-16"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The 'docs' entry in resolved_scope covers docs/TARBALL.md, docs/DOCS.md, and docs/CODE.md true-ups the brief did not enumerate (directory forecasts cover their subtrees); each such edit is flagged in notes.md.",
+            "S6 as a label is acceptable inside a global doc (opaque elsewhere, like numeric ADR pointers), since the charter mandates 'provisional-until-S6 inline' markers.",
+            "'(evidence N)' markers may remain in PLANNER.md with a self-contained explanation of what they point at, per the numeric-ADR-pointer precedent in TARBALL.md."
+          ],
+          "judgment_calls": [
+            "Merged CLAUDE.md's pack-command read-path row into the new authoring row rather than keeping two rows.",
+            "Kept the orchestration.md deny-list entry (tombstone is still project-local); updated its docstring.",
+            "Gave the tombstone a 12-row old-to-new section map to keep orchestration.md's stable anchors resolvable.",
+            "Added a Hard Rules table as PLANNER.md section 7 for parity with DOCS.md section 9 / CODE.md section 10, and pointed CLAUDE.md section 6's policy-tables sentence at it.",
+            "Left BALE.md sections 3.1 and 7's 'four' language for the wiring session (they describe current bin/bale behavior); recorded in deferred and Proposals."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-planner-birth-003.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-planner-birth-003.sh",
+          "sha256": "6ad133045f908b66c5330177bcdc013cd13b21b19064b1c793637be1b31c655e"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-16T01:50:18+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-08-16-planner-birth-003-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "global-doc guard suites (unittest: test_global_doc_selfcontainment + test_doc_crossrefs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session-specific assertions (PLANNER.md shape and banner, tombstone section map, INDEX retirement, ADR-0009 append-only tail)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "global-doc guard suites (unittest: test_global_doc_selfcontainment + test_doc_crossrefs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (PLANNER.md shape and banner, tombstone section map, INDEX retirement, ADR-0009 append-only tail)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr/0009-orchestration-doc-plan.md",
+        "claude/context/orchestration.md",
+        "docs",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr/0009-orchestration-doc-plan.md",
+        "claude/context/orchestration.md",
+        "docs/CLAUDE.md",
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-planner-birth-003.sh",
+              "sha256": "6ad133045f908b66c5330177bcdc013cd13b21b19064b1c793637be1b31c655e"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session, 2026-08-16"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The 'docs' entry in resolved_scope covers docs/TARBALL.md, docs/DOCS.md, and docs/CODE.md true-ups the brief did not enumerate (directory forecasts cover their subtrees); each such edit is flagged in notes.md.",
+            "S6 as a label is acceptable inside a global doc (opaque elsewhere, like numeric ADR pointers), since the charter mandates 'provisional-until-S6 inline' markers.",
+            "'(evidence N)' markers may remain in PLANNER.md with a self-contained explanation of what they point at, per the numeric-ADR-pointer precedent in TARBALL.md."
+          ],
+          "judgment_calls": [
+            "Merged CLAUDE.md's pack-command read-path row into the new authoring row rather than keeping two rows.",
+            "Kept the orchestration.md deny-list entry (tombstone is still project-local); updated its docstring.",
+            "Gave the tombstone a 12-row old-to-new section map to keep orchestration.md's stable anchors resolvable.",
+            "Added a Hard Rules table as PLANNER.md section 7 for parity with DOCS.md section 9 / CODE.md section 10, and pointed CLAUDE.md section 6's policy-tables sentence at it.",
+            "Left BALE.md sections 3.1 and 7's 'four' language for the wiring session (they describe current bin/bale behavior); recorded in deferred and Proposals.",
+            "r2 (post-HOLD): adopted the charter's literal 'provisional-until-S6' token at all five marker sites after the blind checkpoint held on my space-separated paraphrase; added a validation probe for the token; flagged the checkpoint's pytest-not-found SKIP as a fixture observation."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-planner-birth-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-planner-birth-003.sh",
+          "sha256": "6ad133045f908b66c5330177bcdc013cd13b21b19064b1c793637be1b31c655e"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-16T01:50:18+00:00",
+  "outcome": "applied"
+}
