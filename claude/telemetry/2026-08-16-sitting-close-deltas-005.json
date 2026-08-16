@@ -1,0 +1,284 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-16-sitting-close-deltas-005",
+  "created_at": "2026-08-16T02:42:24+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-16T02:42:24+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "2026-08-16-sitting-close-deltas-005-response.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "utf-8 decode (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "2026-08-16 sitting-record assertions (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "append-only preservation vs HEAD (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "utf-8 decode (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "2026-08-16 sitting-record assertions (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "append-only preservation vs HEAD (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-005.sh",
+              "sha256": "909a09cdb8d6e4e0b65581ccc60eb50e2a85d3a00fa2058206a00e4d2852d91b"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai worker session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "relay sections 4-5 are byte-verbatim from the authored brief (sha256 published in the relay; only the relay copy was verifiable from here)",
+            "staging HEAD's claude/MASTER.md equals the shipped context copy (basis of the append-only check's pass prediction)"
+          ],
+          "judgment_calls": [
+            "4a+4b placed at section 3's end after the 2026-08-14/15 judgment-calls block (brief named no anchor)",
+            "4c placed as second bracket after the charter bracket, chronological order",
+            "4e landed as the fold-in registry's last entry, relay heading text as entry name",
+            "relay heading scaffolding converted: 4b title became the block lead-in line with a colon; 4a/4e headings dropped/absorbed",
+            "all blocks re-wrapped to the file's ~72-column convention and site indentation; wording verbatim under whitespace normalization"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-sitting-close-deltas-005.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-005.sh",
+          "sha256": "909a09cdb8d6e4e0b65581ccc60eb50e2a85d3a00fa2058206a00e4d2852d91b"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-16T02:50:54+00:00",
+      "outcome": "rejected",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "2026-08-16-sitting-close-deltas-005-response.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-16-sitting-close-deltas-005.log"
+    },
+    {
+      "at": "2026-08-16T02:51:39+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "2026-08-16-sitting-close-deltas-005-response.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "utf-8 decode (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "2026-08-16 sitting-record assertions (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "append-only preservation vs HEAD (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "utf-8 decode (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "2026-08-16 sitting-record assertions (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "append-only preservation vs HEAD (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-005.sh",
+              "sha256": "909a09cdb8d6e4e0b65581ccc60eb50e2a85d3a00fa2058206a00e4d2852d91b"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai worker session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "relay sections 4-5 are byte-verbatim from the authored brief (sha256 published in the relay; only the relay copy was verifiable from here)",
+            "staging HEAD's claude/MASTER.md equals the shipped context copy (basis of the append-only check's pass prediction)"
+          ],
+          "judgment_calls": [
+            "4a+4b placed at section 3's end after the 2026-08-14/15 judgment-calls block (brief named no anchor)",
+            "4c placed as second bracket after the charter bracket, chronological order",
+            "4e landed as the fold-in registry's last entry, relay heading text as entry name",
+            "relay heading scaffolding converted: 4b title became the block lead-in line with a colon; 4a/4e headings dropped/absorbed",
+            "all blocks re-wrapped to the file's ~72-column convention and site indentation; wording verbatim under whitespace normalization"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-sitting-close-deltas-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-005.sh",
+          "sha256": "38764c02660705fafd36c76c96f47c60238991e22903fec7fde20a81089a992d"
+        },
+        "stamp_matched": false
+      }
+    }
+  ],
+  "updated_at": "2026-08-16T02:51:39+00:00",
+  "outcome": "applied"
+}
