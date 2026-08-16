@@ -1,0 +1,124 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-16-sitting-close-deltas-001",
+  "created_at": "2026-08-16T00:54:03+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-16T00:54:03+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (43).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions: MASTER.md sitting-close deltas (append-and-annotate)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions: INDEX.md tool-design note true-up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions: MASTER.md sitting-close deltas (append-and-annotate)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: INDEX.md tool-design note true-up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.10",
+            "contract_docs": {
+              "CLAUDE.md": "a722e5203fc5e0bbdec6c0fe7769f2cf6c7a4907df8fc4822cf96f66eba5543e",
+              "TARBALL.md": "b4227e8970fbaf1ee9004297ca4bab5c4d4a59e54a775274e6df45215c45dea2",
+              "DOCS.md": "100a4326c6d2a759f1d3d1fdc0e7a0dc17bdacaf7125667986e1871663f496c7",
+              "CODE.md": "a3d48b58b49830e1ec0a94d18ea7064d7eb8c8e5019add578b0de0be2db83a30"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-001.sh",
+              "sha256": "a5280b1e6387819bea208e9c47622b5e2a250d56c26a19fb45ed9cf8387cd76d"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the 'Discharge with dated brackets' instruction means annotate-in-place, keeping discharged registry entries on the list (see notes.md, first bullet)",
+            "'new board-queue entry/entries' means minting numbered board rows 36-39 (see notes.md, third bullet)",
+            "the judgment-calls block may carry the date range 2026-08-14/15 rather than a single date (see notes.md, fourth bullet)"
+          ],
+          "judgment_calls": [
+            "fifth-global-doc charter resolution recorded inside board 10's PLANNER.md queue-entry bracket, not as a section-5 contract; lift-ready if the desk wants re-litigation protection",
+            "one-doc / orchestration.md-merge ruling recorded in the new S6 agenda block with its quotable rationale",
+            "the three TARBALL.md riders recorded in the cleared paragraph with a never-carried-on-this-list note, since they were never registry entries",
+            "evidence 79 and board row 37 cross-cite each other within this landing"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-sitting-close-deltas-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-sitting-close-deltas-001.sh",
+          "sha256": "a5280b1e6387819bea208e9c47622b5e2a250d56c26a19fb45ed9cf8387cd76d"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-16T00:54:03+00:00",
+  "outcome": "applied"
+}
