@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-16-sitting-close-deltas-005`.
+Last landed by: `2026-08-16-ratification-microdeltas-007`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -822,6 +822,70 @@ Judgment calls, dated 2026-08-16 at the master desk:
   pieces unmarked; PLANNER.md §7 Hard Rules table kept; the §3.4
   migration question noted-not-engraved.
 
+Landed 2026-08-16, the sitting-close-deltas-005 response, with one
+HOLD→correction. Ratified at the desk, recorded here:
+
+- Close-005's placement and formatting calls, all ratified as shipped:
+  §3-end accretion for the relayed sections, chronological bracket
+  ordering (ratified, then EXECUTED), scaffolding headings dropped with
+  body text byte-verbatim after whitespace normalization, re-wrap to
+  file conventions.
+- The brief-transport chain closed end to end: shipped brief was stale
+  (search path resolved an old download); sections supplied by desk
+  relay; worker verified landed-vs-relay mechanically; desk attests
+  relay-vs-authored (mechanically extracted from the file hashing
+  ffa09e5298e2, byte-verbatim by construction).
+- The close checkpoint HOLDed on a fixture defect — a wrap-blind grep:
+  the engraved clause hard-wraps in this file, so the probe counted zero
+  at base and would have held any response. Second checkpoint-desk miss
+  of the sitting (the pytest runner was the first). New desk rules,
+  ratified: probe phrases are matched wrap-tolerant (this file's column
+  convention guarantees long phrases split), and every checkpoint is
+  dry-run against real bytes before delivery — the amendment that fixed
+  this HOLD ate both rules first.
+- The correction ran under the board-6 provenance gate as designed:
+  retry refused on the stamp mismatch, the desk accepted deliberately
+  per the wave-3 precedent, and stamp_matched false is the truthful
+  mechanical record of a planner amendment landing after pack.
+- Closure-kind blemish, recorded so the ledger stays honest: the first
+  wiring session closed by hand-run unlock where superseded-by-split was
+  the intent (the informal recipe the supersession flow retired), so the
+  day's telemetry undercounts supersessions by one and overcounts
+  abandonments by one. Record only; the trust ledger aggregates on
+  closure kinds, and a silent miscount is the failure shape this system
+  exists to prevent.
+
+Landed 2026-08-16, `2026-08-16-planner-injection-wiring-006` at 0.4.11 —
+the five-doc era: GLOBAL_DOCS, the provenance stamp, both schema pins
+(allowed-not-required, rationale carried in the schema descriptions),
+both release lists, the lint embed, and BALE.md's two deferred sites, in
+one response. The post-apply hook ran the merged reinstall and the
+install caught up, closing the stale-install window the birth apply
+opened. Full 481-test sweep green; the response's own four-key echo was
+the admission posture's first live case, by design. Probe-verified
+negatives are recorded in the session's notes (telemetry schema
+unpinned, reinstall list runtime-derived at run time, no four-key JSON
+example in BALE.md); the notes are the record.
+
+Ratified judgment calls, one line each, dated 2026-08-16 at the master
+desk (006 = `2026-08-16-planner-injection-wiring-006`):
+
+- Exactly-the-set assertions ratified — the pack E2E's doc set and the
+  provenance keys equal GLOBAL_DOCS, not membership; a stray sixth doc
+  fails loudly (006).
+- Count-free internal comments ("beside the global docs") with explicit
+  "five" at BALE.md's user-facing sites — internals count-immune, user
+  docs current (006).
+- New tests/test_planner_admission.py over extending existing suites —
+  the posture spans both schemas; WaiverSchemaUnitTest precedent
+  followed (006).
+- Schema descriptions carry the allowed-not-required rationale inline —
+  the schema alone answers the why (006).
+- validation.sh gates the full sweep behind a slow flag; the default run
+  stays under the section 7.6 target (006).
+- Predicted-basis claims accepted as declared (build.sh end-to-end,
+  upgrade.sh unshipped); the staged run was the proof (006).
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -1107,6 +1171,10 @@ and §8, so done items keep their numbers as one-line pointers.
       banner with a tombstone section map, four→five true-ups
       landed; S6 inherits ratify-and-churn of the orchestration
       half; injection wiring is the queued follow-up.]
+      [2026-08-16: wiring executed at
+      `2026-08-16-planner-injection-wiring-006` — five-doc era live at
+      0.4.11; both halves of the ratified reorder (extraction, wiring)
+      landed ahead of S6.]
     **Added at the 2026-08-14/15 improvement sitting, feeds S6:**
     - **HOLD-triage / ruling-request artifact exchange** — ranked
       high on the S6 agenda. (Routed from the sitting-opening
@@ -1131,6 +1199,17 @@ and §8, so done items keep their numbers as one-line pointers.
       churn the orchestration half of PLANNER.md" in place of
       the promotion item.
       [2026-08-16: lifted to §5.]
+    **Added 2026-08-16, from the architect, at the master sitting:**
+    - **Session-interaction mechanization mandate** — ratified
+      direction: the relay surfaces exercised this sitting all route
+      through the architect as transport (probe paste-backs,
+      clarification relays, HOLD reveal and correction relays, brief and
+      checkpoint transport, stale-copy detection by eye), and the
+      direction is to mechanize worker↔planner artifact exchange well
+      beyond the current state; this sitting's transcript is the
+      evidence corpus. Feeds S6's harness spec-intake and the
+      escalation-contract item; the readme-hash row below is the first
+      mechanization queued under it.
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1502,6 +1581,19 @@ and §8, so done items keep their numbers as one-line pointers.
     `[]` forecast made it structurally zero (§6 entry 76);
     candidate scope is all scoped requests.
 
+40. **readme/brief transport integrity** — mechanize the
+    publish-the-sha/compare-the-echo practice for briefs: a
+    --readme-sha256 companion to --readme-file that refuses the pack
+    when the resolved file's hash disagrees, and/or fold README
+    candidates into the queued candidate-picker rider's newest-first
+    listing (path, mtime, sha prefix). Motivating specimen: the
+    close-005 stale-brief transport failure — the echoed sha256 was
+    available and nothing compared it; the miss cost a clarification
+    round. Proposal source: close-005's notes, accepted at the desk
+    2026-08-16. Scope hints from the proposer: the readme-file
+    resolution in the pack path, the pack report echo; adjacent to the
+    wizard checkpoint candidate-picker rider, possibly the same carrier.
+
 ## 5. Contracts established (do not re-litigate casually)
 
 Carried forward: JSON vocabulary (outcome, sid, tarball, log,
@@ -1845,6 +1937,35 @@ as lifted):
   with the banner as the pre-marked seam. S6 inherits "ratify and
   churn the orchestration half of PLANNER.md" in place of the
   promotion item.
+
+New, ratified 2026-08-16 (the master sitting, recorded at this
+microdeltas landing):
+
+- **The bad-oracle correction protocol.** When a blind checkpoint HOLDs
+  and the worker's evidence points at the fixture, the flow exercised
+  and ratified this sitting is the contract: (1) the worker diagnoses
+  from the reveal label alone, verifies the intended invariant
+  mechanically on its own side, and requests the spec —
+  reveal-spec-not-script: target, scope, expected value, never the
+  script. (2) The desk re-verifies mechanically against real bytes
+  before ruling — never from memory. (3) The ruling forks: fixture
+  defect means an amendment at the desk, HOLD→correction, no retry
+  tarball from the worker; a real violation means the worker fixes and
+  ships a retry tarball; and a fix that would override the request's own
+  brief needs an explicit desk ruling either way. (4) Amendment
+  discipline: minimal — only the failing probe changes, passing probes
+  are empirically validated anchors and stay byte-identical; the
+  amendment is version-suffixed, dry-run against real bytes before
+  delivery, its sha256 published, and the operator compares the echo.
+  (5) The operator commits the amended bytes at the per-sid checkpoint
+  path and retries the same response tarball; the board-6 provenance
+  gate refuses on the stamp mismatch, the operator accepts deliberately
+  with the per-invocation flag, and stamp_matched false plus a prose
+  mention at the next deltas landing is the truthful double record. (6)
+  Every fixture defect is a ledger specimen feeding the §5 blindness
+  watch and PLANNER.md's checkpoint-authoring practice. Doctrinal prose
+  home: PLANNER.md at its next churn; this entry is the contract of
+  record until then.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
