@@ -31,6 +31,7 @@ or via ``python3 -m unittest discover -s tests``.
 
 from __future__ import annotations
 
+import json
 import tarfile
 import tempfile
 import unittest
@@ -48,6 +49,14 @@ from harness import (
 # so a message rewording breaks one line, not six assertions.
 MISSING_MARKER = "missing injected files"
 REINSTALL_MARKER = "Reinstall bale."
+
+# The full injected global-doc set (bin/bale's GLOBAL_DOCS; PLANNER.md
+# joined in v0.4.11 — the planner-injection wiring session). The intact
+# pack E2E below asserts a real pack ships every member and stamps a
+# provenance contract_docs key for each, so a constant edit that misses
+# a consumer fails here, end to end.
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+               "PLANNER.md")
 
 
 def error_line(stderr: str) -> str:
@@ -168,7 +177,9 @@ class InstallPrecheckTest(unittest.TestCase):
 
     def test_intact_install_pack_end_to_end(self) -> None:
         """A full piped pack succeeds — the widened gate broke nothing —
-        and the request tarball ships BOTH injected tools, executable.
+        the request tarball ships BOTH injected tools, executable, plus
+        every GLOBAL_DOCS member at the top level, and the stamped
+        provenance carries a contract_docs key per member.
 
         The tarball half takes session 007's deferred pack-E2E proposal
         (v0.3.19): with the guarded interim copy in bale_pack retired,
@@ -176,6 +187,12 @@ class InstallPrecheckTest(unittest.TestCase):
         tools, and this is the end-to-end pin that a real pack ships
         every member — the lint and the crafter — with the exec bits
         copy2 preserves from the install.
+
+        The doc half is the v0.4.11 planner-injection wiring's pin:
+        GLOBAL_DOCS grew to five, and injection and the provenance
+        stamp both read the tuple — so the assertion here is
+        exactly-the-set, not membership, in both places: a doc dropped
+        from either surface, or a stray extra, fails loudly.
         """
         result = self.run_pack(self.install)
         self.assertEqual(
@@ -191,10 +208,14 @@ class InstallPrecheckTest(unittest.TestCase):
         )
         with tarfile.open(tarballs[0]) as tf:
             members = {m.name: m for m in tf.getmembers()}
-        # The inner directory is request-NNN (TARBALL.md §1) — the sid's
-        # three-digit counter, not the tarball's full filename stem.
-        nnn = tarballs[0].name[: -len(".tar.gz")][-3:]
-        request_dir = f"request-{nnn}"
+            # The inner directory is request-NNN (TARBALL.md §1) — the
+            # sid's three-digit counter, not the tarball's filename stem.
+            nnn = tarballs[0].name[: -len(".tar.gz")][-3:]
+            request_dir = f"request-{nnn}"
+            manifest_member = tf.extractfile(f"{request_dir}/manifest.json")
+            self.assertIsNotNone(manifest_member,
+                                 msg="manifest.json missing from tarball")
+            manifest = json.loads(manifest_member.read().decode("utf-8"))
         for tool in ("response_lint.py", "craft_response.py"):
             name = f"{request_dir}/tools/{tool}"
             self.assertIn(
@@ -206,6 +227,28 @@ class InstallPrecheckTest(unittest.TestCase):
                 members[name].mode & 0o111,
                 msg=f"{name} arrived without an exec bit "
                     f"(mode {oct(members[name].mode)})",
+            )
+        # Every global doc ships at the tarball's top level — and only
+        # those: the top-level .md set IS the GLOBAL_DOCS set (README.md
+        # would join it on packs that ship one; this pack is --no-readme).
+        shipped_docs = {
+            Path(name).name for name in members
+            if "/" not in name[len(request_dir) + 1:]
+            and name.endswith(".md")
+        }
+        self.assertEqual(
+            shipped_docs, set(GLOBAL_DOCS),
+            msg=f"top-level doc set mismatch; members:\n"
+                + "\n".join(sorted(members)),
+        )
+        # The provenance stamp keys exactly the same set: one sha256
+        # per injected doc, hashed from the install at pack time.
+        contract_docs = manifest["provenance"]["contract_docs"]
+        self.assertEqual(set(contract_docs), set(GLOBAL_DOCS))
+        for doc, digest in contract_docs.items():
+            self.assertRegex(
+                digest, r"^[0-9a-f]{64}$",
+                msg=f"contract_docs[{doc}] is not a sha256 hex digest",
             )
 
 

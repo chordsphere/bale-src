@@ -247,10 +247,18 @@ if not VERSION:
 # still finds the real docs directory next to the real bin/.
 INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
+GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+               "PLANNER.md")  # PLANNER.md joined the set in v0.4.11
+                              # (planner-injection wiring; the doc
+                              # itself was born in the 2026-08-16
+                              # planner-birth session). This tuple is
+                              # the single source for injection, the
+                              # pack-time provenance stamp, the handoff
+                              # reading-plan filter, and main()'s
+                              # missing-docs pre-check.
 
 # The worker-side tools injected into every request tarball beside the
-# four globals, so the worker can craft and self-check its response
+# global docs, so the worker can craft and self-check its response
 # pre-pack without bale installed: the lint (TARBALL.md §10.1 step 10,
 # mechanized — v0.3.8, session B1) and the crafter (TARBALL.md §5.2's
 # skeleton emitter — v1 in session 007, folded into this list in

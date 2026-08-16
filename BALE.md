@@ -258,7 +258,7 @@ The release-tarball form has two virtues over a single-file build
 (e.g. PEP 441 zipapp):
 
 1. **Editable docs.** When you run a bale session against the bale
-   repo itself, the four global docs are real files you can edit
+   repo itself, the five global docs are real files you can edit
    directly. Closing the loop doesn't require rebuilding a bundle —
    change a doc, save, the next `bale pack` injects the new version.
 2. **Consistent with bale's own output.** Bale moves tarballs;
@@ -1496,8 +1496,9 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 
 1. Generate session ID. Reserve next NNN for the slug + date.
 2. Build `request-NNN/` skeleton.
-3. **Inject all four global docs** (`CLAUDE.md`, `TARBALL.md`,
-   `DOCS.md`, `CODE.md`) from bale's installation `docs/` directory,
+3. **Inject all five global docs** (`CLAUDE.md`, `TARBALL.md`,
+   `DOCS.md`, `CODE.md`, `PLANNER.md`) from bale's installation
+   `docs/` directory,
    **and the worker-side tools** under `tools/` — each member of
    `bin/bale`'s `INJECTED_TOOLS` tuple (the one source for the list:
    the lint and, since v0.3.19, the crafter), copied from the
