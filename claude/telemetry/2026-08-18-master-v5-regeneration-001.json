@@ -1,0 +1,292 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-18-master-v5-regeneration-001",
+  "created_at": "2026-08-18T00:57:32+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T00:57:32+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (44).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "v5 header + supersession + last-landed markers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "live-region preservation vs base-derived normalized hashes": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "kept-item normalized substring assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pruned/condensed absence checks": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX.md v5 true-up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "v5 header + supersession + last-landed markers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "live-region preservation vs base-derived normalized hashes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "kept-item normalized substring assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pruned/condensed absence checks": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX.md v5 true-up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "master-009",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-18-master-v5-regeneration-001.sh",
+              "sha256": "f3cbf9b31c89ef2d5ed093876b27f80249633765e3068c87e49ed0c4657aa743"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (claude.ai chat session)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The R5 cutline (2026-08-13) read cleanly against the bytes; no straddling block, so no flag was needed",
+            "Row 14's condensed pointer keeps 'evidence 32; home: git' in place of a sid, since the row was chat-ratified and never carried one"
+          ],
+          "judgment_calls": [
+            "Fold-in prunes held to exactly the two entries the brief names; the sweep-object entry's dated bracket is a partial discharge with a live deferral, so it stays whole",
+            "Row 33's hazard bracket rides verbatim per the brief, flagged in notes.md as premise-stale post-condensation (the sentinel literal now appears nowhere in MASTER.md)",
+            "Row 5's presumed-landed inference note condensed to git with the rest of the row; flagged in notes.md in case the desk reads it as live residue",
+            "The dropped '4,111 lines' figure took its whole parenthetical (the arc attribution is meaningless without the figure); enumerated in notes.md",
+            "Section-5's now-stale 'board 10's queue entry keeps the working copies' sentence left untouched (out of scope) and proposed as a follow-up true-up"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-18-master-v5-regeneration-001.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-08-18-master-v5-regeneration-001.sh",
+          "sha256": "f3cbf9b31c89ef2d5ed093876b27f80249633765e3068c87e49ed0c4657aa743"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-18T01:03:54+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-001-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "v5 header + supersession + last-landed markers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "live-region preservation vs base-derived normalized hashes": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "kept-item normalized substring assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pruned/condensed absence checks": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX.md v5 true-up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "v5 header + supersession + last-landed markers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "live-region preservation vs base-derived normalized hashes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "kept-item normalized substring assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pruned/condensed absence checks": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX.md v5 true-up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/INDEX.md",
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "master-009",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-18-master-v5-regeneration-001.sh",
+              "sha256": "f3cbf9b31c89ef2d5ed093876b27f80249633765e3068c87e49ed0c4657aa743"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (claude.ai chat session)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The R5 cutline (2026-08-13) read cleanly against the bytes; no straddling block, so no flag was needed",
+            "Row 14's condensed pointer keeps 'evidence 32; home: git' in place of a sid, since the row was chat-ratified and never carried one"
+          ],
+          "judgment_calls": [
+            "Fold-in prunes held to exactly the two entries the brief names; the sweep-object entry's dated bracket is a partial discharge with a live deferral, so it stays whole",
+            "Row 33's hazard bracket rides verbatim per the brief, flagged in notes.md as premise-stale post-condensation (the sentinel literal now appears nowhere in MASTER.md)",
+            "Row 5's presumed-landed inference note condensed to git with the rest of the row; flagged in notes.md in case the desk reads it as live residue",
+            "The dropped '4,111 lines' figure took its whole parenthetical (the arc attribution is meaningless without the figure); enumerated in notes.md",
+            "Section-5's now-stale 'board 10's queue entry keeps the working copies' sentence left untouched (out of scope) and proposed as a follow-up true-up",
+            "Retry-only change: the landmark sentence's phrase shape now matches the brief's own parenthetical ('0.4.11 at <sid>') rather than my first response's paraphrase; no content differs, and the disclosed checkpoint was replicated and run against the retry bytes before packing (exit 0)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-18-master-v5-regeneration-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-18-master-v5-regeneration-001.sh",
+          "sha256": "f3cbf9b31c89ef2d5ed093876b27f80249633765e3068c87e49ed0c4657aa743"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T01:03:54+00:00",
+  "outcome": "applied"
+}
