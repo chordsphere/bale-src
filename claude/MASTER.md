@@ -116,8 +116,9 @@ the first exercised autonomy grant (§5's ladder contract, wording
 unchanged there).
 
 **Current version:** one home — §7's bin/bale landmark (collapse
-ratified 2026-08-07; the standing rule stands: verify with
-`bale --version` at each sitting's open).
+ratified 2026-08-07; the sitting-open version check is satisfied by
+the request's provenance stamp — the paste-form rule retired
+2026-08-18, evidence 80).
 
 **Regeneration record (v4 + v5, condensed).** v4, 2026-07-31: the
 read-only orchestrator session `2026-07-31-doc-compress-011`
@@ -464,6 +465,22 @@ with the unverifiable ones carried verbatim and marked):
   Rides the next row-33 touch or sweep; a one-bracket edit. (From the
   v5 session's Proposal 3, accepted 2026-08-18.)
 
+- Probe clipboard epilogue, configurable-never-core (ratified
+  2026-08-18): an opt-in config key names the environment's
+  clipboard command; the worker-toolkit probe scaffold emits a
+  tee-to-clipboard epilogue only when the key is set, and always
+  emits begin/end sentinel banners (the dependency-free selection
+  aid); the unset or misconfigured path walks the operator through
+  setup in remedy text — never fails, never silently skips.
+  Carriers: the config key rides the next bin/bale_config.py
+  touch; the scaffold epilogue plus a TARBALL.md §4.3 sentence
+  ride the next tools/craft_response.py touch.
+- Board 10 escalation-charge annotation: the probe paste-back
+  transport hop — pure wire both directions, judgment in neither —
+  is the first flow the harness transport replaces; the manual
+  hop's residual aid is the clipboard configurable above. Rides
+  the S6 spec-intake (annotate the escalation-contract item when
+  that row is next touched).
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -734,6 +751,31 @@ Ratified at the 2026-08-16/18 cleanup-master sitting (master
   actor who cannot adjudicate them and triage routes to the wrong desk
   first. Board 47 is the card-side counter; the ruling-request
   artifact exchange remains the S6 item.
+
+Landed 2026-08-18, the smoothing sitting (master
+`2026-08-18-continue-plan-003`, read-only): the sitting's goal was
+commandeered from continue-the-plan to friction smoothing on
+explicit architect authority — the §3-override rule's second
+exercise. The board-46 wave authored at the open (brief revA and
+checkpoint v1 delivered, never packed) stands down intact; revB
+derives per row 46's bracket. Dispositions, all at the desk:
+
+- Ratified: board 49 (the planner bundle + `bale open`, with the
+  36/40/48 absorptions, and the open line desk-emitted rather
+  than operator-typed); board 39's world-state growth; rows 50,
+  51, and 52; board 47's addressed relay blocks and happy-path
+  desk block; the probe clipboard configurable; the §2
+  version-rule sweep; evidence entries 80 and 81; board 46's two
+  grown cargo entries; the paste-block-surface contract (§5, this
+  date).
+- Rejected, reasons of record: the notes-relay retirement (the
+  relayed-notes conversations are load-bearing ratification
+  output, not reporting overhead); the probe clipboard epilogue as
+  core behavior (an environment dependency — accepted as
+  configurable only); the outbox retention policy (rejected at the
+  desk).
+- The probe paste-back transport hop routed to S6's
+  escalation-contract charge (fold-in annotation).
 
 ## 4. The board
 
@@ -1134,14 +1176,10 @@ and §8, so done items keep their numbers as one-line pointers.
     resolved path; cheap once test_handoff_happy.py's bailout
     fixture lifts into harness.py per the one-harness doctrine).
 
-36. **`--checkpoint-file` expected-sha argument** — queued
-    2026-08-14/15 (small, timing open): an optional expected-sha
-    argument so delivery verifies the checkpoint bytes against the
-    planner's published hash — the mechanical half of the
-    Evidence-45-class practices (version-suffixed checkpoint
-    filenames, publish the sha256 with delivery, compare the echo)
-    now in board 10's PLANNER.md inputs. (Routed from the
-    improvement sitting's opening README, item 1.)
+36. **`--checkpoint-file` expected-sha argument — ABSORBED**
+    2026-08-18 into board 49 (the planner bundle carries
+    delivery-time hash verification); pointer only, recorded at the
+    smoothing sitting. Queued text in git (v5).
 
 37. **Bail-mechanism recalibration** — queued 2026-08-14/15,
     ratified direction: the CLAUDE.md §11.3–§11.5 bail mechanism
@@ -1180,19 +1218,19 @@ and §8, so done items keep their numbers as one-line pointers.
     race, where the worker priced risk against a sibling whose
     `[]` forecast made it structurally zero (§6 entry 76);
     candidate scope is all scoped requests.
+    [2026-08-18: grown at the smoothing sitting — the snapshot widens
+    to a sitting world-state digest stamped at pack: open sids +
+    forecasts, tree state, latest-applied. With bale_version already
+    stamped, a master sitting opens zero-paste — the request answers
+    what the desk would have asked. Landing this owes the evidence-80
+    sweep: retire or re-point every doctrine line that routes a
+    sitting-open status paste through the operator (board 10's
+    operator-state-legibility item is the known citer).]
 
-40. **readme/brief transport integrity** — mechanize the
-    publish-the-sha/compare-the-echo practice for briefs: a
-    --readme-sha256 companion to --readme-file that refuses the pack
-    when the resolved file's hash disagrees, and/or fold README
-    candidates into the queued candidate-picker rider's newest-first
-    listing (path, mtime, sha prefix). Motivating specimen: the
-    close-005 stale-brief transport failure — the echoed sha256 was
-    available and nothing compared it; the miss cost a clarification
-    round. Proposal source: close-005's notes, accepted at the desk
-    2026-08-16. Scope hints from the proposer: the readme-file
-    resolution in the pack path, the pack report echo; adjacent to the
-    wizard checkpoint candidate-picker rider, possibly the same carrier.
+40. **readme/brief transport integrity — ABSORBED** 2026-08-18 into
+    board 49 (bundle-manifest hash verification at `bale open`
+    covers the brief side); pointer only, recorded at the smoothing
+    sitting. Queued text in git (v5).
 
 41. **base-drift stamp + gate** — queued 2026-08-16 (small, well-shaped;
     adjacent to board 39, plausibly the same carrier): per-file base
@@ -1310,6 +1348,16 @@ and §8, so done items keep their numbers as one-line pointers.
     probe, never a connective-phrase grep. Source: the v5 session's
     accepted Proposal 1; the motivating HOLD is attributed in the
     sitting's §3 block.]
+    [2026-08-18, smoothing sitting: cargo grows two entries —
+    PLANNER.md gains the hooks rule (hooks never carry load-bearing
+    protocol behavior; they are for environment-local conveniences —
+    verification, telemetry, and refusal surfaces integrate into the
+    tool or they don't exist), and the calibration-sitting doctrine
+    paragraph gains a pruning duty line (a calibration sitting also
+    sweeps fired, stale, and superseded §3 watches and fold-in riders
+    — trigger-fired pruning, no new ceremony). The revA brief authored
+    2026-08-18 is stale against this cargo; revB derives from it,
+    never rewritten.]
 
 47. **HOLD-card triage surface** — queued 2026-08-18 (small; bale code
     + docs): the HOLD card gains a judge line naming which judgment
@@ -1326,17 +1374,79 @@ and §8, so done items keep their numbers as one-line pointers.
     sitting — the card names only the worker-retry successor, and the
     operator's card-plus-log paste delivers the labels to the actor
     who cannot rule on them. (Sitting close, 2026-08-18.)
+    [2026-08-18: grown at the smoothing sitting — the card emits
+    addressed relay blocks: a desk-facing block (judge line, failed
+    probe labels, exit codes, stamp state, with the relevant
+    session-log bands inlined — the checkpoint band and the worker
+    band, replacing the operator's card-plus-cat-log paste) and a
+    worker-facing block carrying spec-safe failure context that
+    structurally cannot leak oracle mechanics — the addressing
+    decision moves from the operator under triage pressure to the
+    tool. The happy path gains a desk-facing block too: notes.md +
+    verdict + admissions, pre-assembled for the ratification relay.
+    Ratified 2026-08-18.]
 
-48. **Pack-time checkpoint dry-run echo** — queued 2026-08-18 (small;
-    bale code): at checkpoint-file delivery, pack runs the delivered
-    checkpoint read-only against the current base and echoes the
-    result — an expected-HOLD with named probes proves the probes
-    execute against real bytes; an exit-2 catches a defective oracle
-    before it can false-HOLD a session. Mechanizes the 2026-08-16
-    dry-run-before-delivery desk rule the way the identity echo
-    mechanized the brief glance, and gives the desk a real-bytes
-    dry-run without holding the tree — the gap this sitting bridged by
-    probe. (Sitting close, 2026-08-18.)
+48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
+    into board 49 (the `bale open` dry-run leg); whether the
+    non-bundle pack path keeps a standalone echo is a decision
+    recorded inside row 49 for its session. Queued text in git
+    (v5).
+
+49. **The planner bundle + `bale open`** — queued 2026-08-18 at the
+    smoothing sitting (ratified direction; absorbs boards 36 and
+    40, subsumes board 48's dry-run leg). One planner-emitted
+    artifact — brief, blind checkpoint, full pack argv, and
+    published sha256s in one file with its own manifest — consumed
+    by one bare verb: `bale open <bundle>` normalizes line endings,
+    verifies both hashes against the bundle's manifest, dry-runs
+    the checkpoint read-only against the live base and echoes the
+    expected-HOLD proof (named probes executing against real bytes;
+    exit 2 refuses as a defective oracle), then packs — the
+    operator surface is save one file, paste one emitted line: the
+    `bale open` invocation ships beside the bundle, fully composed
+    by the authoring desk, never typed from memory (the
+    paste-block-surface contract, §5 2026-08-18). The emission
+    half rides with it: crafter-side bundle assembly, so the desk
+    never hand-composes argv or hash blocks (the paste-surface
+    hazards close at both ends). Design constraints engraved at
+    ratification: (1) the bundle is oracle-bearing — it contains
+    the checkpoint — so it is structurally invisible to workers,
+    auto-excluded from packs the way checkpoints are (deny-list
+    class, never convention); (2) `bale open` internalizes flows
+    that carry deliberate decline-default prompts (supersession's
+    y/N), so the bundle carries pre-answered intents explicitly —
+    the verb never bypasses a decline-default silently; (3) the
+    standalone non-bundle echo question per row 48's pointer. Verb
+    ratified `open`; `spawn` noted as the harness-era rename
+    candidate. Sequencing: early — every close after it stops
+    traveling the old ceremony.
+
+50. **CRLF tolerance at every text-file read** — queued 2026-08-18
+    (small): bale tolerates CRLF wherever it reads text files
+    (briefs, checkpoints, probe files, config), so the Downloads
+    sed ritual stops existing as a concept rather than becoming a
+    step something automates. Kills the §7 environment wart at the
+    source; sweep §7's CRLF line when this lands (evidence 80's
+    rule).
+
+51. **Bare `bale apply` resolution — RATIFIED 2026-08-18, queued**
+    (small): apply with no argument resolves the newest response
+    tarball matching an open session across the search paths,
+    echoes its identity, and takes a y/N; ambiguity — two
+    candidates, or two open sessions — refuses loudly, never
+    guesses. Save one file, one emitted paste: the apply-side
+    floor.
+
+52. **Pack output emits the chat-opening preamble** — queued
+    2026-08-18 (small): the pack report ends with the
+    session-opening chat paragraph as a copy block — bale owns,
+    versions, and emits the paragraph the architect today
+    maintains by hand, and it carries the session's identity (sid,
+    goal) so the opener names what was just packed. The
+    cross-surface form of every-command-names-its-successor:
+    pack's successor is a chat message, so pack emits it. Sweep
+    any doctrine describing the hand-carried preamble when this
+    lands (evidence 80's rule).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1771,6 +1881,22 @@ recorded here for re-litigation protection):
   forecast-refusal counter — a pack refused at the forecast gate never
   receives a sid, so the counts have no durable home today; the §3 watch
   is its record.
+
+New, ratified 2026-08-18 (the smoothing sitting):
+
+- **The paste-block surface.** Refines the 2026-07-27 typed-surface
+  contract: the architect composes no commands — every command
+  arrives as a paste-ready block emitted by the surface that knows
+  it (bale's banners emit terminal successors; the authoring desk
+  emits pack and open lines beside their artifacts), and the
+  chat-side opener arrives the same way (row 52: pack output emits
+  the session preamble as a copy block). Bare verbs survive as the
+  content of emitted blocks, never as a memorization surface. The
+  cold-start pack — the one command with no author but the human —
+  dissolves into the same shape once row 49 lands: the desk
+  authors the bundle, the human pastes the emitted line. Residual
+  composed surface after rows 49/51/52 land: the first-ever chat
+  opener of a brand-new install, and nothing else.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -2556,6 +2682,30 @@ New from the 2026-08-14/15 sitting (the improvement sitting):
     answering. Recovery doctrine held; the bail evaluation never
     ran because its triggers are introspective — the motivating
     datum for board 37.
+
+New from the 2026-08-18 smoothing sitting:
+
+80. **Mechanization landings must sweep the doctrine lines that
+    made the human the mechanism, in the same motion.** The
+    bale_version provenance stamp landed long ago, and the §2
+    standing rule directing a sitting-open --version paste
+    survived it; the 2026-08-18 sitting opened with the desk
+    requesting a paste the request already answered. General form:
+    a mechanization is not landed until the doctrine that routed
+    the task through the operator is retired or re-pointed —
+    otherwise the friction survives its own fix. Swept this
+    sitting for the version rule; boards 39 and 50 owe the same
+    sweep at their landings.
+
+81. **Master-desk packs are the worst digest-over-dump offenders —
+    first measured read-precision datum.** This sitting's request
+    shipped roughly 1.2MB; the desk's actual read set was roughly
+    15% of shipped bytes (manifest, CLAUDE.md, MASTER.md,
+    PLANNER.md, two TARBALL.md sections, INDEX.md's head, two
+    response notes, bale.toml, targeted bin/ slices) and zero of
+    the ~200 shipped telemetry records. Self-reported — exactly
+    the stream board 42's docs_read field mechanizes — and a
+    priority signal for board 38's stats-digest auto-include.
 
 ## 7. Standing environment facts
 
