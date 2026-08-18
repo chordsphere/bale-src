@@ -1,0 +1,36 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-18-continue-plan-005",
+  "created_at": "2026-08-18T04:12:16+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T04:12:16+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-18-continue-plan-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T04:12:16+00:00",
+  "outcome": "unlocked"
+}
