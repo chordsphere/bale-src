@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-18-master-v5-regeneration-001`.
+Last landed by: `2026-08-18-sitting-close-deltas-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -459,6 +459,10 @@ with the unverifiable ones carried verbatim and marked):
   remaining "four" sites in the same response (§3.1 editable-docs
   note, §7 pipeline step 3), and true up any four-key
   `contract_docs` provenance example BALE.md shows.
+- Row 33 hazard-bracket retirement decision — the bracket's premise is
+  stale post-v5 (the sentinel literal no longer appears in this doc).
+  Rides the next row-33 touch or sweep; a one-bracket edit. (From the
+  v5 session's Proposal 3, accepted 2026-08-18.)
 
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
@@ -695,6 +699,42 @@ desk (006 = `2026-08-16-planner-injection-wiring-006`):
 - Predicted-basis claims accepted as declared (build.sh end-to-end,
   upgrade.sh unshipped); the staged run was the proof (006).
 
+Ratified at the 2026-08-16/18 cleanup-master sitting (master
+`2026-08-16-cleanup-master-009`; recorded at this close):
+
+- `2026-08-16-rider-foldin-deltas-010` ratified as shipped — all
+  latitude and placement calls. Its includes_missing is
+  packer-attributed: the brief claimed a VERSION file the include set
+  never shipped, and the base hash rode the chat instead of the brief
+  — both the evidence-21 class, at this desk. The in-brief base pin is
+  the standing countermeasure until boards 40 and 41 land.
+- The v5 regeneration ratified as landed via the corrected retry
+  (`2026-08-18-master-v5-regeneration-001`); its latitude calls
+  accepted as shipped — the R5 cutline; the row-33 bracket kept with
+  its staleness flagged (the fold-in entry below is the decision's
+  carrier); the row-5 inference note traveling to git with its caveat
+  attached, not live residue.
+- The v5 HOLD attributed as a planner-fixture defect: a connective
+  phrase pinned on authored-not-preserved text — the sitting horizon's
+  third checkpoint-desk miss (the pytest runner, the wrap-blind grep,
+  the phrase-pinned authored text), a specimen for the §5 blindness
+  watch's clustering read. Correctives queued: the provenance-split
+  probe rule (board 46's grown cargo) and the pack-time dry-run echo
+  (board 48).
+- Protocol deviation, recorded so the ledger stays honest: the v5 HOLD
+  was triaged by disclosing the checkpoint whole to the worker instead
+  of the bad-oracle protocol's desk-amendment fork. Harm bounded — the
+  sid closed with the retry, so the spent blindness expired with it —
+  but HOLD-clustering reads must not score this HOLD against the
+  worker.
+- Relay specimens recorded for the S6 session-interaction
+  mechanization mandate: this sitting's probe rounds, and the
+  operator's current HOLD practice — the HOLD card plus the session
+  log pasted to the worker, so the failed probe labels reach the one
+  actor who cannot adjudicate them and triage routes to the wrong desk
+  first. Board 47 is the card-side counter; the ruling-request
+  artifact exchange remains the S6 item.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -869,6 +909,10 @@ and §8, so done items keep their numbers as one-line pointers.
     - **HOLD-triage / ruling-request artifact exchange** — ranked
       high on the S6 agenda. (Routed from the sitting-opening
       README, item 2.)
+      [2026-08-18: two live specimens accrued at the cleanup-master
+      sitting — the v5 fixture-defect relay and the sitting's probe
+      rounds; board 47 is the card-side counter; the artifact exchange
+      remains this item's charge.]
     - **Orchestration.md promotion — DISCHARGED EARLY** by chat
       ratification (2026-08-15, third round), deliberate: the
       planner doc is ONE doc, PLANNER.md, core-first — authoring
@@ -1258,6 +1302,41 @@ and §8, so done items keep their numbers as one-line pointers.
     the telemetry disposal policy rows land at the home the worker
     determines — DOCS.md's policy surface or the schema conventions are
     scope hints, not pins. (Rider items 5 and 8; rider §§2.1–2.2.)
+    [2026-08-18: cargo grown at the sitting close — PLANNER.md's
+    checkpoint-authoring guidance also gains the provenance-split
+    probe rule: preserved text may be pinned as fixed strings (the
+    worker must carry it byte-verbatim anyway); authored text gets a
+    verbatim-required marker in the brief or an invariant-shaped
+    probe, never a connective-phrase grep. Source: the v5 session's
+    accepted Proposal 1; the motivating HOLD is attributed in the
+    sitting's §3 block.]
+
+47. **HOLD-card triage surface** — queued 2026-08-18 (small; bale code
+    + docs): the HOLD card gains a judge line naming which judgment
+    held (blind checkpoint, worker validation, or both) and the failed
+    probe labels the checkpoint already writes to the session log; and
+    the retry line forks by ruling per the bad-oracle protocol —
+    fixture defect: amend the checkpoint at the desk and retry the
+    same tarball through the provenance gate; work defect: bale retry
+    with a new tarball — every successor named on the card. The failed
+    probe labels also ride telemetry as an additive field, so the §5
+    blindness watch's HOLD-clustering read can split fixture-defect
+    HOLDs from worker misunderstanding mechanically. Motivating
+    specimens: the two label-blind HOLD relays at the 2026-08-16/18
+    sitting — the card names only the worker-retry successor, and the
+    operator's card-plus-log paste delivers the labels to the actor
+    who cannot rule on them. (Sitting close, 2026-08-18.)
+
+48. **Pack-time checkpoint dry-run echo** — queued 2026-08-18 (small;
+    bale code): at checkpoint-file delivery, pack runs the delivered
+    checkpoint read-only against the current base and echoes the
+    result — an expected-HOLD with named probes proves the probes
+    execute against real bytes; an exit-2 catches a defective oracle
+    before it can false-HOLD a session. Mechanizes the 2026-08-16
+    dry-run-before-delivery desk rule the way the identity echo
+    mechanized the brief glance, and gives the desk a real-bytes
+    dry-run without holding the tree — the gap this sitting bridged by
+    probe. (Sitting close, 2026-08-18.)
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1563,8 +1642,9 @@ New, ratified 2026-08-16 (this sitting, master
 `2026-08-16-master-sitting-002`; both rulings resolved in chat
 2026-08-15 at the improvement sitting — lifted here for
 re-litigation protection, the one home for their contract force;
-board 10's queue entry keeps the working copies, bracket-annotated
-as lifted):
+board 10's queue entry has since condensed to a pointer (the v5
+regeneration, `2026-08-18-master-v5-regeneration-001`); the working
+copies live in v4, in git):
 
 - **PLANNER.md is the fifth global doc.** Same class as the four in
   every mechanical property: shipped in every request (the
