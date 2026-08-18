@@ -1,0 +1,119 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-18-smoothing-close-deltas-004",
+  "created_at": "2026-08-18T03:04:15+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T03:04:15+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-18-smoothing-close-deltas-004.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "block containment (13 blocks, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "negative phrases absent (\u00a72 sweep + replaced rows)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "line-count sanity (2805 landed)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "negative probe against unedited base (git HEAD)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-18-smoothing-close-deltas-004.sh",
+              "sha256": "8b839239b69df1bed24b052579025484bf48ba15c45db45890a4bafe63811448"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The staging copy bale hands validation.sh includes .git with HEAD's claude/MASTER.md equal to the brief's base pin (tree clean at sitting-open, per the brief); the negative probe hash-verifies before relying on it and SKIPs loudly otherwise."
+          ],
+          "judgment_calls": [
+            "Blocks C, E, G and the \u00a72 Current-version paragraph re-wrapped to the board's 4-space ~70-column convention; all other blocks land byte-verbatim as the brief wrapped them.",
+            "Rows 50-52 (Block D) placed as one run after row 49, single blank lines between rows, per the board's row-list convention.",
+            "Block F's two bullets inserted after the Row-33 bullet, immediately before the registry's 'Landed 2026-08-05, non-board' closing paragraph.",
+            "Block I lands with its 'New from the 2026-08-18 smoothing sitting:' header after entry 79, matching \u00a76's dated-header convention.",
+            "Blocks J and K appended blank-line-separated before the '## 4' and '## 6' headings respectively."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-18-smoothing-close-deltas-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-18-smoothing-close-deltas-004.sh",
+          "sha256": "8b839239b69df1bed24b052579025484bf48ba15c45db45890a4bafe63811448"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T03:04:15+00:00",
+  "outcome": "applied"
+}
