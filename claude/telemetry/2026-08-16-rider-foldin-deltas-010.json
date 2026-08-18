@@ -1,0 +1,149 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-16-rider-foldin-deltas-010",
+  "created_at": "2026-08-18T00:28:01+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T00:28:01+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-16-rider-foldin-deltas-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "verbatim block equality (A-E, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "enumerated true-ups (F1 five-doc, F2 version landmark)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "header last-landed-by line": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board rows 41-46 unique within section 4": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "four-vs-five global docs sweep": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "verbatim block equality (A-E, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "enumerated true-ups (F1 five-doc, F2 version landmark)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header last-landed-by line": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board rows 41-46 unique within section 4": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "four-vs-five global docs sweep": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "master-009",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-16-rider-foldin-deltas-010.sh",
+              "sha256": "4982fe20eb93e2590b7a909e0d4894e178824e6793b3afc1584b2c80cbecbefb"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the shipped claude/MASTER.md is the intended edit base \u2014 the brief's pack-chat sha256 comparison could not run (the hash never arrived in this chat); the shipped copy's hash is stated in chat and notes.md for the architect to compare before apply",
+            "bale VERSION is 0.4.11 \u2014 verified from the request manifest's provenance.bale_version stamp and MASTER.md's own section-2/3 wiring records, in place of the VERSION file the brief cites but the request does not ship"
+          ],
+          "judgment_calls": [
+            "row-37 bracket starts on its own line at the row's continuation indent (own-line dated-annotation style) rather than flowing mid-paragraph",
+            "F1's dated note appended as a new wrapped line inside the execution-context entry, after its closing parenthesis",
+            "row-10 Added block inserted with no blank line after the preceding bullet, matching the row's existing Added blocks"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "VERSION (cited by the brief's F2 verification instruction; verified from the manifest provenance stamp instead)"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-16-rider-foldin-deltas-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-16-rider-foldin-deltas-010.sh",
+          "sha256": "4982fe20eb93e2590b7a909e0d4894e178824e6793b3afc1584b2c80cbecbefb"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T00:28:01+00:00",
+  "outcome": "applied"
+}
