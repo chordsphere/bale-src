@@ -1,0 +1,142 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-18-sitting-close-deltas-002",
+  "created_at": "2026-08-18T01:30:42+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T01:30:42+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "2026-08-18-sitting-close-deltas-002_response-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "landed-vs-brief block equality (whitespace-normalized; A, C, D, E, F, B-new)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block B old clause absent (whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "header last-landed-by line updated to this sid": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "landed file line count (2655)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "landed-vs-brief block equality (whitespace-normalized; A, C, D, E, F, B-new)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block B old clause absent (whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header last-landed-by line updated to this sid": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "landed file line count (2655)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "master-009",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-18-sitting-close-deltas-002.sh",
+              "sha256": "6700eafc4fd8d4b8978708f2b5c4dec26949a49784f6f9b1e3d56a113543a2cd"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Block B executed as a minimal two-line replacement (the clause starts at a line boundary; the paragraph's preceding lines ride byte-identical)",
+            "Block D placed at end of row 46's body, before rows 47/48, at the row's 4-space continuation indent",
+            "Block E at the bullet's 6-space continuation indent, following the sibling '[2026-08-16: lifted to section 5.]' bracket precedent",
+            "re-wrap at the file's ~70-column convention; no new over-72 lines introduced"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-18-sitting-close-deltas-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-18-sitting-close-deltas-002.sh",
+          "sha256": "6700eafc4fd8d4b8978708f2b5c4dec26949a49784f6f9b1e3d56a113543a2cd"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T01:30:42+00:00",
+  "outcome": "applied"
+}
