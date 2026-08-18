@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-16-ratification-microdeltas-007`.
+Last landed by: `2026-08-16-rider-foldin-deltas-010`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -268,6 +268,11 @@ source):
   Re-trigger: the guard failing on prose that isn't a project-local
   citation. (From `2026-08-14-global-doc-selfcontainment-006`'s
   notes, ratified at the improvement sitting.)
+- Forecast-refusal per-path counter (deferred at the 008 desk,
+  2026-08-16): a pack refused at the forecast gate never receives a sid,
+  so per-path refusal counts have no durable home today. Re-trigger: the
+  harness observing refusals as control flow, or a pack-side refusal log
+  wanted as new surface. (Rider item 5's deferral.)
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -1210,6 +1215,14 @@ and §8, so done items keep their numbers as one-line pointers.
       evidence corpus. Feeds S6's harness spec-intake and the
       escalation-contract item; the readme-hash row below is the first
       mechanization queued under it.
+    **Added 2026-08-16, from the 008 rider, for S6:**
+    - **Who audits thin checkpoints at scale** — once
+      checkpoint-authoring is the bottleneck, checkpoint quality needs
+      an audit surface; PLANNER.md §4's standing watch covers false-HOLD
+      clustering (quality-in-the-negative), and the positive half is an
+      open S6 question. (Rider item 6.)
+    - **The hostile-foreign-repo arc's findings feed the harness spec**
+      (board 45). (Rider item 4.)
 
 11. **Deferred/when-ready:** v0.4 selftest harness pins the
     merge/HOLD banner strings (now load-bearing — BALE.md cites
@@ -1568,6 +1581,14 @@ and §8, so done items keep their numbers as one-line pointers.
     session open (the improvement sitting's opener included), so
     some upstream silence is by design. Motivating datum: §6
     entry 79.
+    [2026-08-16: gains the single-window-premise paragraph as a rider —
+    one paragraph in PLANNER.md's orchestration half naming the
+    everything-fits-one-window premise a revisitable bet with softening
+    conditions (window growth, caching economics, session persistence);
+    carrier ratified at the 008 desk — the bail machinery is the
+    premise's machinery, so the conditions-to-soften paragraph rides
+    naturally here. ADR appends kept as the fallback, not the plan.
+    (Rider item 9.)]
 
 38. **Stats-digest auto-include for planner-shaped packs** — queued
     2026-08-14/15 (small, timing open): mechanizes and then deletes
@@ -1593,6 +1614,115 @@ and §8, so done items keep their numbers as one-line pointers.
     2026-08-16. Scope hints from the proposer: the readme-file
     resolution in the pack path, the pack report echo; adjacent to the
     wizard checkpoint candidate-picker rider, possibly the same carrier.
+
+41. **base-drift stamp + gate** — queued 2026-08-16 (small, well-shaped;
+    adjacent to board 39, plausibly the same carrier): per-file base
+    sha256s of resolved forecast paths stamped into request provenance
+    at pack; apply compares for the intersection of changes[] with the
+    stamp; refuse by default with a per-path override flag (the
+    allow-out-of-scope admission pattern); refusal is a distinct,
+    dispatchable outcome with a telemetry row (the scope-drift-refused
+    precedent); retry needs nothing special — a repack restamps against
+    the current base by construction. Ratified defaults (008 desk):
+    per-file granularity, not whole-tree (a tree hash would
+    false-positive on every sibling landing anywhere); refuse-not-warn
+    (warn-and-proceed is the silent-skip bug CLAUDE.md §6 names). Hazard
+    on record, sharper than the originating critique stated: files/ is a
+    whole-file mirror, so applying against a moved base silently reverts
+    intervening edits to the same file — a lost-update that validation
+    can pass right over. The fix's exact pattern already ships: the
+    checkpoint provenance stamp (pack-time sha256, apply-time
+    comparison, refuse with a named override). (Rider item 3.)
+
+42. **telemetry field additions, wave 1** — queued 2026-08-16 (small;
+    documentation + schema): a self-reported docs_read field in the
+    feedback block's self-reported stream — the list of docs and
+    sections the session actually read, weighted as self-report like
+    everything else there; and an optional origin enum on the
+    clarification question row, values intent-gap or
+    probe-forbidden-environment, following the v0.4.7
+    additive/legacy-tolerant pattern (legacy rows keep validating).
+    Consumers named at birth per the disposal doctrine (§5, 2026-08-16).
+    Doctrine carried with the origin tag: both origins still indict
+    packing — a probe-forbidden environment gap is an
+    include-completeness failure under a probe ban — so the tag does not
+    de-noise the packing signal; it splits it into two different fixes
+    (brief/decomposition vs include completeness), which is the value.
+    Sequencing: before or with board 43. (Rider items 1 and 7.)
+
+43. **TARBALL.md section-5 compression pilot** — queued 2026-08-16 (one
+    session; gated on or riding alongside board 42's docs_read so the
+    before/after comparison is honest): mechanize-relocate per the
+    ratified keep-list — the four claim values and the subset rule,
+    deferred-vs-Proposals, what earns a notes.md, out-of-forecast drift
+    enumeration, probe-vs-clarification-vs-bailout selection stays as
+    judgment prose; one-home reconciliation with the schema description
+    strings, which already duplicate TARBALL.md prose in places (schemas
+    live in the installation, never in the every-session read path, so
+    relocation wins under both transport models); version-history
+    clauses split — live tolerance rules stay, rephrased without version
+    numbers, pure archaeology relocates to the ADR/changelog layer;
+    tombstone one-liner compliance per DOCS.md §6.4 (compliance, not a
+    change needing ratification); §5.9 and §5.9.1 collapse to a pointer
+    with §3.3 as the one home; ADR-0013 citations gain their section key
+    so drill-down lands instead of scanning; plainer style as a rider
+    only, never a standalone yield source. Compare the rewritten section
+    5 with the architect before touching anything else. The two-thirds
+    reduction target is explicitly not adopted (evidence 26); 008 sizing
+    estimate for the record: mechanization-relocation plausibly takes a
+    third to half of section 5. Standing caution: DOCS.md §9 sanctioned
+    pairs collapse only by explicit desk decision, never as cleanup in
+    passing. Named for the pilot's notes: the crafter-to-lint loop
+    becomes more load-bearing once shape prose leaves — acceptable,
+    since lint findings cite section, expected, and got. (Rider item 2.)
+
+44. **stats drill-down read sides** — queued 2026-08-16 (one or two
+    sessions; the worker may split at a §11.2 seam): level 1, bucket sid
+    membership — anomalous rates name the sids composing them (the sets
+    are computed internally already, just not emitted); level 2, the
+    session dossier — one sid rendered whole: record, claim/verdict
+    pairs, checkpoint outcome, clarification records, and the corrects
+    lineage chain so a HOLD-to-retry arc reads end to end, replacing
+    hand-jq across three directories with one command. Plus the queued
+    no-new-fields cuts: claim-coverage aggregates
+    (claims-per-validated-attempt ratio;
+    empty-claims-with-nonempty-validation_will_run counts, cut per work
+    class and per packer — gaming shows in aggregate trends, which is
+    where the trust ledger already looks); checkpoint catch rates per
+    work class; the claim_basis observed-vs-predicted split (already
+    queued on board 10); and outcome rates per contract-doc-hash epoch —
+    the read side that makes doc changes A/B-able, worth a docs
+    paragraph naming it as an intended use. Binding constraints: the
+    renderer never owns the numbers (PLANNER.md §17 — every drill
+    surface stays a read side over the records, exercisable by jq); and
+    nominate, never curate (§5, 2026-08-16). (Rider item 6 and rider
+    §2.3.)
+
+45. **hostile-foreign-repo arc** — queued 2026-08-16 (multi-session arc;
+    feeds S6; sequenced before any harness autonomy): deliberately run
+    arcs on an ugly foreign codebase — flaky tests, generated code, a
+    hot package.json, no doc discipline — to find where the contract
+    chafes before autonomous spawning. Watch: hot-file forecast
+    serialization, validation runtime budgets, the ceremony floor on
+    tiny changes, whether misunderstanding-dominates holds outside
+    doc-shaped work, and (008 addition) probe round-trip economics on a
+    project where the architect cannot answer environment questions from
+    memory. This is §18's proven-by-hand commitment applied to project
+    diversity, not just trust rungs. (Rider item 4.)
+
+46. **small doc deltas, one carrier** — queued 2026-08-16 (one doc
+    session): PLANNER.md §11 gains the hot-file sentence —
+    file-granularity forecasts serialize hot files; decompositions route
+    around them or serialize through them deliberately (rider item 5);
+    TARBALL.md §3.2 gains the scopeless-sitting goal exemption line,
+    ratified phrasing direction: the goal is one sentence per unit of
+    forecasted work; a scopeless sitting's goal names its agenda (rider
+    item 8; 008's own multi-sentence goal is the live specimen);
+    PLANNER.md gains the calibration-sitting doctrine paragraph (§5's
+    2026-08-16 block is the contract of record until this lands); and
+    the telemetry disposal policy rows land at the home the worker
+    determines — DOCS.md's policy surface or the schema conventions are
+    scope hints, not pins. (Rider items 5 and 8; rider §§2.1–2.2.)
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -1683,7 +1813,7 @@ New, ratified 2026-07-21:
   (4a) are the sanctioned insertion shape.
 - **Execution-context manifest:** any session whose fixtures execute
   bin/bale end to end includes, verbatim: all of bin/, all of
-  schemas/, the four global docs under docs/, every tools/ member
+  schemas/, the five global docs under docs/, every tools/ member
   named in bin/bale's INJECTED_TOOLS, and the scripts the test suite
   executes — today scripts/build.sh and install.sh (equivalently:
   all of tools/, scripts/build.sh, install.sh). The set tracks the
@@ -1692,6 +1822,8 @@ New, ratified 2026-07-21:
   needed. Copied, never re-derived. (Countermeasure for evidence
   30's class; amended 2026-08-05 from the enumerated form after the
   board-6 arc's two include-gap instances — sessions A and B.)
+  (trued up 2026-08-16 to the five-doc era — PLANNER.md joined the
+  global set at 0.4.11.)
 - **ADR-0013 flips to Accepted:** ratified; the flip lands with
   board 14's session (see the fold-in registry). [2026-07-25: board
   14 retired; the flip rides board 22a per the registry.]
@@ -1966,6 +2098,64 @@ microdeltas landing):
   watch and PLANNER.md's checkpoint-authoring practice. Doctrinal prose
   home: PLANNER.md at its next churn; this entry is the contract of
   record until then.
+
+New, ratified 2026-08-16 (the 008 desk, dispositions ratified wholesale;
+the rider `2026-08-16-multi-discussion-008` is the authored record —
+recorded here for re-litigation protection):
+
+- **Telemetry disposal doctrine — telemetry earns its place.** No field
+  without a named consumer: a field isn't real until a consumer queries
+  it, and every new field names its query at birth (the policy row lands
+  via board 46; the schema descriptions already name consumers de
+  facto). Field retirement: a field that stays null across N sessions
+  with no consumer stops being stamped and keeps tolerating on read —
+  the legacy-tolerance pattern. Completeness over breadth reaffirmed
+  (evidence 38): a narrow field stamped on every exit beats a rich one
+  stamped only on applies. The pile risk is attention, not disk; the fix
+  is making reading the default at moments the architect is already
+  sitting, not collecting less.
+- **Calibration sittings are trigger-fired, never calendar-fired.**
+  Session kind named: the calibration sitting — the existing sitting
+  machinery (sitting-close deltas, ratification microdeltas,
+  evidence-ledger curation, the trust grant as a stats-reading judgment
+  point), no new ceremony; a calendar cadence is rejected as the
+  over-formalization CLAUDE.md §7 warns against. Triggers: clarification
+  clustering against one packer crossing threshold; DISAGREE clusters on
+  one check class; HOLD clustering per work class; a pending trust
+  grant; N sessions since the ledger was last read. Default threshold,
+  deliberately crude and ratified as a starting point: three same-class
+  events inside a rolling window; the first calibration sitting
+  recalibrates its own trigger. Input side: the stats digest at
+  sitting-open (board 38 is the queued machinery). Output constraint,
+  the teaching half: workers are stateless, so the only teaching channel
+  is the injected docs and the request — a calibration sitting's outputs
+  are constrained by construction to durable artifacts: a doc delta, a
+  mechanical gate, a board item, an evidence entry, or a grant (evidence
+  40; PLANNER.md §6). The loop closes measurably: every record pins
+  contract_docs hashes, so the next calibration sitting can check
+  whether the previous one's doc delta moved the rates (board 44's epoch
+  read side). Doctrinal prose home: PLANNER.md via board 46; this entry
+  is the contract of record until then.
+- **Nominate, never curate.** Stats may flag mechanical-stream
+  nominations — "these sessions form a DISAGREE cluster, candidate
+  evidence entry" — but deciding it means something and writing the
+  ledger entry stays at the master desk; stats writing its own
+  conclusions into the ledger would be a soft self-oracle grading the
+  workflow that produced it. (Renderer-never-owns is PLANNER.md §17's;
+  pointer, not a second copy.)
+- **Rejected at the 008 desk, reasons of record:** the redirect-table
+  tombstone replacement (a DOCS.md §6.4 amendment for modest bytes); the
+  ADR-0013 split (a junk drawer by design — the keyed
+  displaced-rationale appendix the relocation ADR itself created;
+  section-key citations instead); the lint-side per-session
+  claim-coverage check (confounded — validation_will_run deliberately
+  mixes claimable and mechanical entries, run-but-unclaimed is correct
+  per TARBALL.md §5.3, and check names are freeform); calendar-cadence
+  calibration sessions (trigger-fired only); the two-thirds compression
+  target (evidence 26). Deferred with its reason: the per-path
+  forecast-refusal counter — a pack refused at the forecast gate never
+  receives a sid, so the counts have no durable home today; the §3 watch
+  is its record.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -2802,7 +2992,7 @@ New from the 2026-08-14/15 sitting (the improvement sitting):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.10 (trail: 0.4.0 → 0.4.1 at
+  still governs. bin/bale VERSION 0.4.11 (trail: 0.4.0 → 0.4.1 at
   `2026-08-07-board-13a-forecast-surface-004` → 0.4.2 at
   `2026-08-07-board-13b-epoch-ledger-005` → 0.4.3 at
   `2026-08-07-board-35-handoff-happy-011`, the handoff --verbose
@@ -2817,7 +3007,8 @@ New from the 2026-08-14/15 sitting (the improvement sitting):
   `2026-08-14-bare-pack-excl-waiver-002`, checkpoint auto-exclusion
   plus the read-only waiver → 0.4.10 at
   `2026-08-14-bare-pack-oneshot-003`, the `--checkpoint-file`
-  oneshot;
+  oneshot → 0.4.11 at `2026-08-16-planner-injection-wiring-006`,
+  the five-doc injection wiring;
   `2026-08-07-board-13c-contract-docs-006`,
   `2026-08-07-sandbox-adr-009`, and
   `2026-08-10-board-10-orchestration-doc-003` doc-only,
@@ -2825,7 +3016,7 @@ New from the 2026-08-14/15 sitting (the improvement sitting):
   `2026-08-07-board-35-small-pins-010` tests-only, all
   bump-exempt per the §5 cadence rulings); 0.4.3 and earlier
   verified from the VERSION constant in the copy shipped read-only
-  with `2026-08-07-ratification-microdeltas-014`; 0.4.4 → 0.4.10
+  with `2026-08-07-ratification-microdeltas-014`; 0.4.4 → 0.4.11
   claims per their briefs — no bin/bale ships with the deltas
   sessions to verify against; the standing sitting-open
   verification (`bale --version`, the §2 landmark rule) trues them
