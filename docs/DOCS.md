@@ -542,7 +542,13 @@ has become drift. Sanctioned pairs today: this section's preamble
 and closing with `CODE.md` §10's; §8's framing with `CODE.md` §9's;
 §7's pruning sentences with `CODE.md` §6's; and `CLAUDE.md` §11.2's
 rescope-offer prose with `TARBALL.md` §3.4's pack-flag surface (the
-same `bale pack` command described from both ends).
+same `bale pack` command described from both ends). A fifth pair is
+registered with its project-side member stated generically:
+`PLANNER.md` §10's four-controls floor with the project-side
+planning record that ratified it — the global docs are
+self-contained, so the project doc stands unnamed here, and its
+side of the pair is pinned project-side rather than by the
+global-doc pins.
 
 The contract rows' assertions are mechanized:
 `tools/craft_response.py --doc-assertions` emits each row's block
@@ -555,6 +561,20 @@ in each response's `validation.sh`; a project that doesn't adopt
 the DOCS.md inventory simply omits them. Claude should surface
 policy concerns in `notes.md` precisely because mechanical checks
 won't catch them.
+
+This policy surface extends to telemetry — the disposal doctrine
+for the session-record fields the workflow accumulates. Telemetry
+earns its place the way a doc does:
+
+| Rule | Type | Enforcement |
+|------|------|-------------|
+| No field without a named consumer — a field isn't real until a consumer queries it, and every new field names its query at birth | policy | review |
+| Field retirement is legacy tolerance — a field that stays null across N sessions with no consumer stops being stamped and keeps tolerating on read | policy | review |
+| Completeness over breadth — a narrow field stamped on every exit beats a rich one stamped only on applies | policy | review |
+
+The pile risk is attention, not disk: the fix is making reading the
+default at moments the architect is already sitting, not collecting
+less.
 
 ---
 

@@ -393,6 +393,15 @@ ADR-0013):
   lives when true). Honest empties are meaningful: `[]` asserts
   *none arose*, and the lint checks shape only, never content.
 
+One member has been documented by its schema description alone
+until now: `forecast_departures` — the block's structured record of
+`changes[]` paths landing outside the request's stamped write
+forecast, the machine-readable twin of the `notes.md` enumeration
+(§5.4). Its stream placement, shape, and fill semantics follow
+`response-manifest.schema.json`'s description, which remains the
+field's full contract; this walk-through names the field so the
+schema is no longer its only documentation.
+
 **Fill the mechanical stream by running the lint, not by hand.** The
 workflow: build the response through §10.1 steps 1–9, run
 `python3 tools/response_lint.py <response-dir>
@@ -1126,7 +1135,9 @@ Tar with: `tar -czf request-NNN.tar.gz request-NNN/`
 Field semantics:
 
 - **`goal`** — one sentence. If it doesn't fit in one sentence, the
-  scope is wrong.
+  scope is wrong. The rule's own measure carries the exemption: the
+  goal is one sentence per unit of forecasted work, so a scopeless
+  sitting's goal — forecasting nothing — names its agenda.
 - **`depends_on`** — links this request to prior session artifacts;
   both fields default `null`. `previous_response` names the response
   session this request builds on — a session packed after a bailout

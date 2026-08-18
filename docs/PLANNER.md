@@ -135,6 +135,12 @@ practice of exercising the planner's half well.
   its text verbatim, never a paraphrase — a paraphrase once
   flattened a conditional into an unconditional and shipped a
   different decision than the one made (evidence 49).
+- **Hooks never carry load-bearing protocol behavior.** They are
+  for environment-local conveniences. Verification, telemetry, and
+  refusal surfaces integrate into the tool or they don't exist — an
+  authored artifact that relies on a hook firing has delegated part
+  of its contract to a surface no gate reads and no other
+  environment runs.
 - **Open question, noted rather than engraved:** how much of
   `TARBALL.md` §3.4's planner-facing detail should migrate here — a
   charter-widening question deliberately left open for a future
@@ -228,6 +234,14 @@ of it, the authoring craft:
   content does it by exact, byte-stable anchors, never by fuzzy
   match — a fuzzy locator that drifts passes the wrong content or
   HOLDs the right one.
+- **Split probes by the text's provenance.** Preserved text may be
+  pinned as fixed strings — the worker must carry it byte-verbatim
+  anyway — but authored text gets a verbatim-required marker in the
+  brief or an invariant-shaped probe,
+  never a connective-phrase grep.
+  Earned from a live fixture-defect HOLD: a connective phrase
+  pinned on authored-not-preserved text HOLDs correct work for
+  phrasing the worker was free to choose.
 - **Version-suffixed filenames; publish the hash; compare the
   echo.** Checkpoint files carry a version suffix in the filename so
   revisions never collide under first-match resolution (§2);
@@ -246,6 +260,38 @@ reveal the spec, never the oracle (evidence 75). The retry must not
 be taught to the test. A retry that passes because it saw the
 oracle's assertions has learned the grader, not the goal, and the
 blindness contract is spent for every session after it.
+
+The inverse failure has its own protocol: **the bad-oracle
+correction**, for the HOLD whose cause is the fixture, not the
+work. When a blind checkpoint HOLDs and the worker's evidence
+points at the fixture, the flow — exercised and ratified from live
+traffic — is the contract:
+
+1. The worker diagnoses from the reveal label alone, verifies the
+   intended invariant mechanically on its own side, and requests
+   the spec — reveal the spec, never the script: target, scope,
+   expected value, and nothing of the oracle's mechanics.
+2. The desk re-verifies mechanically against real bytes before
+   ruling — never from memory.
+3. The ruling forks. A fixture defect means an amendment at the
+   desk and a HOLD→correction, no retry tarball from the worker; a
+   real violation means the worker fixes and ships a retry
+   tarball; and a fix that would override the request's own brief
+   needs an explicit desk ruling either way.
+4. Amendment discipline is minimal: only the failing probe changes
+   — passing probes are empirically validated anchors and stay
+   byte-identical — and the amendment is version-suffixed, dry-run
+   against real bytes before delivery, its sha256 published, and
+   the echoed hash compared by the operator (§4's delivery
+   practice).
+5. The operator commits the amended bytes at the session's
+   checkpoint path and retries the same response tarball; the
+   provenance gate refuses on the stamp mismatch, the operator
+   accepts deliberately with the per-invocation flag, and the
+   recorded stamp mismatch plus a prose mention at the next doc
+   landing is the truthful double record.
+6. Every fixture defect is a ledger specimen, feeding the standing
+   fixture-defect watch and the checkpoint-authoring practice (§4).
 
 The rest of the retry follows the wire format: the failure context
 ships into the new request, and the response's `corrects` pointer
@@ -271,6 +317,32 @@ is orchestration doctrine, §14.
   refuses (evidence 78). When a sitting resolves an authoring
   question, the answer lands somewhere durable — this doc, a
   decision record, a brief convention — in the same sitting.
+- **Calibration sittings are trigger-fired, never calendar-fired.**
+  The calibration sitting is a named sitting kind assembled from
+  the existing machinery — sitting-close deltas, ratification
+  microdeltas, evidence-ledger curation, the trust grant as a
+  stats-reading judgment point — with no new ceremony; a calendar
+  cadence is rejected as the over-formalization `CLAUDE.md` §7
+  warns against. The triggers: clarification clustering against
+  one packer crossing threshold; DISAGREE clusters on one check
+  class; HOLD clustering per work class; a pending trust grant; N
+  sessions since the evidence ledger was last read. The default
+  threshold, deliberately crude and ratified as a starting point:
+  three same-class events inside a rolling window — and the first
+  calibration sitting recalibrates its own trigger. The input side
+  is the stats digest at sitting-open (queued tool-side machinery).
+  The output constraint is the teaching half: workers are
+  stateless, so the only teaching channel is the injected docs and
+  the request — a calibration sitting's outputs are constrained by
+  construction to durable artifacts: a doc delta, a mechanical
+  gate, a queued work item, an evidence entry, or a trust grant
+  (evidence 40). The loop closes measurably: every session record
+  pins the injected docs' hashes (`contract_docs`), so the next
+  calibration sitting can check whether the previous one's doc
+  delta moved the rates — the epoch read the records were built to
+  carry. A calibration sitting also sweeps fired, stale, and
+  superseded watch lists and queued fold-in riders — trigger-fired
+  pruning, no new ceremony.
 
 ---
 
@@ -404,7 +476,11 @@ the orchestrator, not the worker, weighs split economics plan-wide
 (evidence 3). The decomposition is also the disjointness proof that
 the mechanical gates (§13) then make load-bearing: forecasts are
 declared per session at pack time, and a decomposition whose
-forecasts collide is wrong before anything spawns.
+forecasts collide is wrong before anything spawns. The proof's flip
+side is the hot file: file-granularity forecasts serialize hot
+files — every session that forecasts one waits on every other — so
+a decomposition routes around them or serializes through them
+deliberately, never by accident.
 
 What live traffic has earned about the craft of packing, all of it
 binding on an orchestrator because every instance was committed by a
@@ -510,7 +586,10 @@ this*. The orchestrator will triage a HOLD into one of two paths:
 into the new request, `corrects:` pointer preserving the lineage
 (and the retry authored per the core's §5: spec, never oracle) —
 versus **escalate** to the architect, when the wrongness traces to
-the spec rather than the work.
+the spec rather than the work. The correctable path itself forks on
+the worker's evidence: evidence pointing at the fixture rather than
+the work routes into the core §5's bad-oracle correction — an
+amendment at the desk, no retry tarball from the worker.
 
 The triage judgment is itself graded input: packer errors are a
 grading signal on the planner, not (only) on the worker (evidence
