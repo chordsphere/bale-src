@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-18-sitting-close-deltas-002`.
+Last landed by: `2026-08-18-sitting-close-deltas-007`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -311,14 +311,6 @@ with the unverifiable ones carried verbatim and marked):
   TARBALL.md §3.4 rows that point into it. **Scope hints:** BALE.md
   §7.2 (`--read-only`, `--supersedes` semantics); only after B
   lands, to avoid restating what it already fixed."
-- TARBALL.md §5.2.2 gains a `forecast_departures` sentence — rides
-  the next TARBALL.md-touching session. Source:
-  `2026-08-07-board-13b-epoch-ledger-005`'s notes, the
-  "Coordination with session C" paragraph — TARBALL.md was session
-  C's forecast (mechanically refused at B's apply) and C's E1
-  charge did not cover §5.2.2, so the feedback-block walk-through
-  does not yet mention the field; the schema description carries
-  the full contract meanwhile.
 - Post-epoch stats-corpus fixtures — rides board 35 (the next
   test_stats_aggregation.py touch). Text verbatim from
   `2026-08-07-board-13b-epoch-ledger-005`'s Proposals: "**What:**
@@ -403,9 +395,6 @@ with the unverifiable ones carried verbatim and marked):
   `--write` names an existing file absent from resolved includes.
   Rides the next session touching bin/bale_pack.py. (Source:
   evidence 62's proposed counter.)
-- DOCS.md §9 sanctioned-parallelism registration: MASTER.md §1
-  four-controls floor ↔ orchestration.md §3 restatement (S3's
-  ratified call 3). Rides the next DOCS.md-touching session.
 - validate.sh's schema presence loop trued up to cover every
   shipped schema. Rides the next validate.sh touch. (Source: the
   S4 notes' proposal, `2026-08-13-board-10-escalation-schemas-002`.)
@@ -481,6 +470,20 @@ with the unverifiable ones carried verbatim and marked):
   hop's residual aid is the clipboard configurable above. Rides
   the S6 spec-intake (annotate the escalation-contract item when
   that row is next touched).
+- test_sanctioned_pairs fifth-pair pin bump — rides board 49's
+  session (tests/ is its expected forecast; accepted from
+  `2026-08-18-board-46-doc-deltas-006`'s Proposals, text
+  verbatim): "**What:** Update `tests/test_sanctioned_pairs.py`
+  for the fifth pair: bump the enumeration-count pin to 5 and add
+  a PLANNER.md §10-side extract (e.g. "The ratified floor,
+  restated here so this half stands alone for its citers"); the
+  project-side twin cannot be pinned by that suite (it reads
+  `docs/` only), so the pin is one-sided by construction and the
+  comment should say so. **Why:** The suite's count pin and
+  DOCS.md §9's enumeration are now deliberately out of step; the
+  suite's own docstring says the table must not silently cover
+  fewer pairs than the doc. **Scope hints:**
+  `tests/test_sanctioned_pairs.py`."
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -776,6 +779,53 @@ derives per row 46's bracket. Dispositions, all at the desk:
   desk).
 - The probe paste-back transport hop routed to S6's
   escalation-contract charge (fold-in annotation).
+
+Landed 2026-08-18, the continue-plan-005 sitting (master
+`2026-08-18-continue-plan-005`, read-only): the plan resumed as
+packed — no goal commandeering. One landing:
+`2026-08-18-board-46-doc-deltas-006` (doc-only, no bump) — the
+board-46 cargo, its revB brief derived mechanically from the
+never-packed smoothing revA per row 46's bracket, its checkpoint
+v2 derived from v1 with two grown-cargo probes, both dry-run at
+the desk against real base bytes (all eight probes FAIL at base)
+before delivery. Ratified at the desk, recorded here:
+
+- All of 006's latitude calls ratified as shipped: the hooks rule
+  at PLANNER.md §2, artifact-voiced; the calibration doctrine kept
+  whole in §6 (the brief's offered banner split declined by the
+  worker — the better call); the bad-oracle protocol as a §5
+  numbered list with one §14 routing sentence; the scopeless-goal
+  exemption on §3.2 only, the §3.4 non-touch recorded in deferred;
+  the hot-file sentence as §11's closing sentence; every
+  genericization, including the stamp_matched concept-landing (a
+  schema fact the worker declined to guess, recorded in
+  includes_missing — the named-assumption path working);
+  forecast_departures landed as mention-not-contract, the schema
+  description staying the one home; the fifth-pair registration in
+  generic form with the pairs-table desync flagged and left under
+  forecast discipline; the verbatim clause on its own unbroken
+  line (the unbroken-sid exception class).
+- Coverage gap, recorded: item 4's within-DOCS.md placement went
+  unflagged in notes — the one latitude call outside the
+  flag-everything rule this session. The diff passed review at
+  apply; record only.
+- Proposal dispositions: the test_sanctioned_pairs pin bump
+  accepted, riding board 49's session (registry entry above); the
+  bare board-number self-containment sweep rejected, reason of
+  record — cited-not-carried is the numeric-pointer precedent's
+  ratified cost, and the conceptual dangle in other projects is
+  that decision's accepted price.
+- Desk miscount corrected for the ledger: the ratification relay
+  said three consumed registry strikes; the true count is two (the
+  forecast_departures rider and the §9 pair registration), struck
+  this landing.
+- The stale last-landed-by header (unedited by the 004 landing,
+  whose brief's thirteen blocks omitted the header edit) is fixed
+  by this landing's own header update; convention unchanged,
+  record only.
+- Sitting closed at the milestone; board 49 heads the next
+  sitting's agenda, carrying the pairs-pin rider and the
+  crafter-emission pre-named seam.
 
 ## 4. The board
 
@@ -1327,37 +1377,16 @@ and §8, so done items keep their numbers as one-line pointers.
     memory. This is §18's proven-by-hand commitment applied to project
     diversity, not just trust rungs. (Rider item 4.)
 
-46. **small doc deltas, one carrier** — queued 2026-08-16 (one doc
-    session): PLANNER.md §11 gains the hot-file sentence —
-    file-granularity forecasts serialize hot files; decompositions route
-    around them or serialize through them deliberately (rider item 5);
-    TARBALL.md §3.2 gains the scopeless-sitting goal exemption line,
-    ratified phrasing direction: the goal is one sentence per unit of
-    forecasted work; a scopeless sitting's goal names its agenda (rider
-    item 8; 008's own multi-sentence goal is the live specimen);
-    PLANNER.md gains the calibration-sitting doctrine paragraph (§5's
-    2026-08-16 block is the contract of record until this lands); and
-    the telemetry disposal policy rows land at the home the worker
-    determines — DOCS.md's policy surface or the schema conventions are
-    scope hints, not pins. (Rider items 5 and 8; rider §§2.1–2.2.)
-    [2026-08-18: cargo grown at the sitting close — PLANNER.md's
-    checkpoint-authoring guidance also gains the provenance-split
-    probe rule: preserved text may be pinned as fixed strings (the
-    worker must carry it byte-verbatim anyway); authored text gets a
-    verbatim-required marker in the brief or an invariant-shaped
-    probe, never a connective-phrase grep. Source: the v5 session's
-    accepted Proposal 1; the motivating HOLD is attributed in the
-    sitting's §3 block.]
-    [2026-08-18, smoothing sitting: cargo grows two entries —
-    PLANNER.md gains the hooks rule (hooks never carry load-bearing
-    protocol behavior; they are for environment-local conveniences —
-    verification, telemetry, and refusal surfaces integrate into the
-    tool or they don't exist), and the calibration-sitting doctrine
-    paragraph gains a pruning duty line (a calibration sitting also
-    sweeps fired, stale, and superseded §3 watches and fold-in riders
-    — trigger-fired pruning, no new ceremony). The revA brief authored
-    2026-08-18 is stale against this cargo; revB derives from it,
-    never rewritten.]
+46. **small doc deltas, one carrier — DONE** 2026-08-18 (sid
+    `2026-08-18-board-46-doc-deltas-006`; telemetry; doc-only, no
+    bump). All ten cargo items landed: PLANNER.md is now the
+    doctrinal home for the calibration-sitting doctrine, the
+    bad-oracle correction protocol, the hooks rule, the pruning
+    duty, the provenance-split probe rule, and the hot-file
+    sentence; TARBALL.md §3.2 carries the scopeless-goal exemption
+    and §5.2.2 the forecast_departures mention; DOCS.md carries
+    the telemetry disposal policy and the fifth sanctioned pair.
+    Queued text and the grown-cargo brackets in git (v5).
 
 47. **HOLD-card triage surface** — queued 2026-08-18 (small; bale code
     + docs): the HOLD card gains a judge line naming which judgment
@@ -1821,8 +1850,8 @@ microdeltas landing):
   mention at the next deltas landing is the truthful double record. (6)
   Every fixture defect is a ledger specimen feeding the §5 blindness
   watch and PLANNER.md's checkpoint-authoring practice. Doctrinal prose
-  home: PLANNER.md at its next churn; this entry is the contract of
-  record until then.
+  home: PLANNER.md §5 (landed at `2026-08-18-board-46-doc-deltas-006`);
+  this entry is the ratification record and pointer.
 
 New, ratified 2026-08-16 (the 008 desk, dispositions ratified wholesale;
 the rider `2026-08-16-multi-discussion-008` is the authored record —
@@ -1830,15 +1859,16 @@ recorded here for re-litigation protection):
 
 - **Telemetry disposal doctrine — telemetry earns its place.** No field
   without a named consumer: a field isn't real until a consumer queries
-  it, and every new field names its query at birth (the policy row lands
-  via board 46; the schema descriptions already name consumers de
-  facto). Field retirement: a field that stays null across N sessions
-  with no consumer stops being stamped and keeps tolerating on read —
-  the legacy-tolerance pattern. Completeness over breadth reaffirmed
-  (evidence 38): a narrow field stamped on every exit beats a rich one
-  stamped only on applies. The pile risk is attention, not disk; the fix
-  is making reading the default at moments the architect is already
-  sitting, not collecting less.
+  it, and every new field names its query at birth (the policy rows
+  landed at DOCS.md, `2026-08-18-board-46-doc-deltas-006`; the schema
+  descriptions already name consumers de facto). Field retirement: a
+  field that stays null across N sessions with no consumer stops being
+  stamped and keeps tolerating on read — the legacy-tolerance pattern.
+  Completeness over breadth reaffirmed (evidence 38): a narrow field
+  stamped on every exit beats a rich one stamped only on applies. The
+  pile risk is attention, not disk; the fix is making reading the
+  default at moments the architect is already sitting, not collecting
+  less.
 - **Calibration sittings are trigger-fired, never calendar-fired.**
   Session kind named: the calibration sitting — the existing sitting
   machinery (sitting-close deltas, ratification microdeltas,
@@ -1859,8 +1889,9 @@ recorded here for re-litigation protection):
   40; PLANNER.md §6). The loop closes measurably: every record pins
   contract_docs hashes, so the next calibration sitting can check
   whether the previous one's doc delta moved the rates (board 44's epoch
-  read side). Doctrinal prose home: PLANNER.md via board 46; this entry
-  is the contract of record until then.
+  read side). Doctrinal prose home: PLANNER.md §6 (landed at
+  `2026-08-18-board-46-doc-deltas-006`); this entry is the ratification
+  record and pointer.
 - **Nominate, never curate.** Stats may flag mechanical-stream
   nominations — "these sessions form a DISAGREE cluster, candidate
   evidence entry" — but deciding it means something and writing the
