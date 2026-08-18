@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# checkpoint-2026-08-18-continue-plan-005-close-v1.sh
+# checkpoint-2026-08-18-continue-plan-005-close-v2.sh
+# v2 amendment (desk, HOLD->correction): the pairs-rider probe's
+# expected string was a token from the notes' discussion, not from
+# Block F's verbatim Proposal text, so it failed every correct
+# landing. Only that probe's expected string changes; every other
+# probe is byte-identical to v1. Fixture defect, desk-attributed.
 # Blind checkpoint for the 2026-08-18 continue-plan-005
 # sitting-close deltas session. Authored at the master desk from
 # the request, before any implementation exists. Outcome-only
@@ -50,7 +55,7 @@ probe_absent "consumed forecast_departures rider struck from the registry" \
 probe_absent "consumed pair-registration rider struck from the registry" \
   "sanctioned-parallelism registration"
 probe_present "pairs-pin rider queued onto board 49" \
-  "len(PAIRS)"
+  "fifth-pair pin bump"
 
 # Header probe: the last-landed-by line names a continue-plan-005
 # sitting successor, not the two-landings-stale 002 sid.
