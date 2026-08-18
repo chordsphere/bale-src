@@ -1,0 +1,137 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-18-board-46-doc-deltas-006",
+  "created_at": "2026-08-18T03:27:54+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-18T03:27:54+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-006 (17).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "doc guard suites (unittest: selfcontainment, crossrefs, sanctioned pairs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim clause byte-exact assertion (session-specific)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "cargo landing assertions (session-specific)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "doc guard suites (unittest: selfcontainment, crossrefs, sanctioned pairs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim clause byte-exact assertion (session-specific)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "cargo landing assertions (session-specific)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/DOCS.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/DOCS.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "d719cb15512bd993d1849efb87676346ab36090f953dc6acb12f019e22ee3d5d",
+              "TARBALL.md": "69e97dbbdb3b65a6af98a6789fe0e8c868cb89b005b75d838dc940291fb07242",
+              "DOCS.md": "d50117bb85e7f1e6e576330449cb114e42f1750d3711e04b759c29b5993215c8",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1d989e521cf80c6221920e964f497ec31d5e6dca1d97a5a50e545b0d40d73185"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-18-board-46-doc-deltas-006.sh",
+              "sha256": "3f26024b7509a036d223a2f2a6f03797bac1a17e9351fad1201c41cd554fb171"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "forecast_departures (item 6): landed as a mention deferring stream placement, shape, and fill semantics to response-manifest.schema.json rather than asserting them \u2014 the schema was not in the include set and the rider's own text names it the field's full contract meanwhile",
+            "item 8's 'stamp_matched false' landed as 'the recorded stamp mismatch' \u2014 the telemetry field name was not confirmable from the include set, so the concept landed instead of the identifier"
+          ],
+          "judgment_calls": [
+            "hooks rule (item 9) placed in the core, PLANNER.md \u00a72, read as authoring-surface doctrine rather than harness tool-design doctrine",
+            "calibration-sitting doctrine (item 3) kept whole as one \u00a76 bullet; nothing split past the banner",
+            "bad-oracle protocol (item 8) landed as a numbered six-step list in \u00a75 plus one routing sentence at \u00a714",
+            "scopeless-goal exemption (item 5): \u00a73.4's goal row untouched \u2014 its existing (\u00a73.2) pointer satisfies the one-home rule",
+            "fifth sanctioned pair (item 7) registered with the project-side member generic and unnamed, holding the self-containment guard; the PAIRS-table true-up is proposed, not shipped (out of forecast)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "schemas/response-manifest.schema.json \u2014 needed to state forecast_departures' stream placement and fill semantics in the \u00a75.2.2 sentence"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-18-board-46-doc-deltas-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-18-board-46-doc-deltas-006.sh",
+          "sha256": "3f26024b7509a036d223a2f2a6f03797bac1a17e9351fad1201c41cd554fb171"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-18T03:27:54+00:00",
+  "outcome": "applied"
+}
