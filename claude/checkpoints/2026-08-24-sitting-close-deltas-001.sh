@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Blind checkpoint — sitting-close deltas (sub-master sitting)
 # Authored at the 2026-08-18-continue-plan-008 desk, from the request,
-# before implementation. v1.
+# before implementation. v2 — D9 sid pattern date-agnostic; v1 pinned
+# the authoring date into it (fifth desk-miss specimen).
 #
 # All probes pin desk-authored block text (preserved class), split
 # around the one worker-filled sid token; wrap-tolerant (whitespace-
@@ -83,7 +84,7 @@ fi
 hdr=$(grep "Last landed by:" "$M" | head -1)
 if printf '%s' "$hdr" | grep -q "2026-08-18-sitting-close-deltas-007"; then
   fail "D9 header-updated: stale -007 sid still present"
-elif printf '%s' "$hdr" | grep -qE "2026-08-18-[a-z-]+-[0-9]{3}"; then
+elif printf '%s' "$hdr" | grep -qE "[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z-]+-[0-9]{3}"; then
   pass "D9 header-updated"
 else
   fail "D9 header-updated: no conforming sid on the header line: $hdr"
