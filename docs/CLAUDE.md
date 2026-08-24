@@ -510,6 +510,13 @@ in chat:
    split-supersession flow. Framing goes in the prose around the
    command, never inside the fenced block.
 
+In a checkpoint-configured project the split is also a role
+transition: the offering session, as sub-master for its subtree,
+authors the split sessions' materials — commands, briefs, and
+re-derived checkpoints for children it will not build against —
+per PLANNER.md; the operator carries artifacts, never authors
+them.
+
 This is **not** a bailout (§11.4): the check precedes the reading
 and spends almost nothing, so its output is an ordinary chat reply,
 not an artifact to apply.
