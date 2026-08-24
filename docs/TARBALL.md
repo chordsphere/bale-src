@@ -1338,7 +1338,11 @@ committed at the per-session path — or delivered at pack time via
 authored without either refuses in such a project. The checkpoint is
 authored blind, by the planner from the request, never by the worker
 who will build against it — §7 carries the worker-facing half of
-that contract, and this section does not restate it.
+that contract, and this section does not restate it. A split's
+child sessions each need their own checkpoint, re-derived for the
+narrowed scope; the offering session authors them as
+sub-master (PLANNER.md carries the doctrine), and the operator
+delivers, never authors.
 
 **Declarations name existing paths; new files are the worker's
 call.** One rule across both flag families, no exceptions to

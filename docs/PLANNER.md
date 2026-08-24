@@ -19,9 +19,10 @@ the wire format those artifacts ride. This doc covers the *craft*:
 the practices, earned from live traffic, that keep authored
 artifacts honest.
 
-The doc is one file with two halves. The **core** (sections 1–7) is
-authoring doctrine — project-agnostic planner practice, binding
-wherever a planner authors. Past the core banner sits
+The doc is one file with two halves. The **core** (sections 1–7,
+and §20 — later-numbered, core-placed; the core banner carries the
+note) is authoring doctrine — project-agnostic planner practice,
+binding wherever a planner authors. Past the core banner sits
 **orchestration doctrine** (sections 8–19): the working doctrine for
 the harness era, relocated here as the conditional layer it always
 was. The banner between them is a deliberate, pre-marked seam — see
@@ -38,12 +39,16 @@ ordinary `CLAUDE.md` §11.2 pre-flight event: estimate whether the
 authoring fits the remaining budget, and read this doc before
 producing if it does.
 
-The worker→planner transition this doc serves grants **command and
-brief authorship, never oracle authorship**. The blind-checkpoint
-contract in `TARBALL.md` §7 is unchanged by anything here: the
-entity that builds against a checkpoint never authors it, and a
-worker asked to author a pack or a brief is still never asked to
-author the oracle that will grade the session the pack creates.
+The worker→planner transition this doc serves is a role transition
+(§20), and one line bounds it. The transition grants full
+spawn-material authorship — commands, briefs, and, for a session's
+own children, checkpoints; what it never grants is authorship of
+an oracle the authoring session builds against. The
+blind-checkpoint contract in `TARBALL.md` §7 is unchanged by
+anything here: the entity that builds against a checkpoint never
+authors it, and a worker asked to author a pack or a brief is
+still never asked to author the oracle that grades its own
+session.
 
 ### Conflict resolution
 
@@ -65,6 +70,7 @@ wins; this file wins on authoring practice.
 | Authoring a blind checkpoint | Sections 1, 4 |
 | A HOLD landed; deciding what the retry session sees | Section 5 |
 | Running a master sitting | Section 6 |
+| A split fired (`CLAUDE.md` §11.2): authoring a subtree's spawn materials as sub-master | Sections 1, 20; §4 per child checkpoint |
 | Hard rules / what counts as an authoring violation | Section 7 |
 | Planning orchestration or harness work | Sections 8–19 (past the core banner) |
 
@@ -90,6 +96,9 @@ practice section here:
   carries.
 - **Sittings** (§6) — the master-session practice inside which the
   other four get authored.
+
+A split fired mid-session authors all of the above at once, for a
+subtree — the sub-master transition, §20.
 
 The authority boundary under all five is `CLAUDE.md` §4's engraved
 principle: intent authority is the planner's, mechanism authority is
@@ -135,6 +144,11 @@ practice of exercising the planner's half well.
   its text verbatim, never a paraphrase — a paraphrase once
   flattened a conditional into an unconditional and shipped a
   different decision than the one made (evidence 49).
+- **The desk default is smaller sessions.** Default toward smaller,
+  pre-split sessions: a split costs one extra paste; an oversized
+  session costs a round-trip. Ratified at the desk, 2026-08-18; the
+  split the default produces is a role transition, and §20 carries
+  what the offering session then authors.
 - **Hooks never carry load-bearing protocol behavior.** They are
   for environment-local conveniences. Verification, telemetry, and
   refusal surfaces integrate into the tool or they don't exist — an
@@ -219,6 +233,12 @@ of it, the authoring craft:
   checkpoints exercising not-yet-built features cannot be dry-run
   end to end — which is why the fixture hygiene below is
   conservative by construction, not optional.
+- **Rehearse against the brief's bytes, never a stub.** A checkpoint
+  dress rehearsal derives its rehearsal landing from the brief's
+  extracted block bytes, mechanically — never from a hand-written
+  stub; a stub is the desk's paraphrase, and an oracle dry-run
+  against a paraphrase is the oracle grading itself. Earned at a
+  live rehearsal-stub correction.
 - **Per-scenario fixture isolation.** One fresh fixture (repo,
   sandbox, dataset) per scenario, always. A shared fixture leaks one
   scenario's residue into the next — a leftover open session from
@@ -346,6 +366,72 @@ is orchestration doctrine, §14.
 
 ---
 
+## 20. The Sub-Master Transition
+
+A split is a role transition: the session that proposes it becomes
+a master for its own subtree — a tighter-scoped master with a
+parent to answer to, holding the same doctrine at narrower scope.
+Roles are hats, not identities: the session that was a worker the
+moment before the split gate fired is, from the split onward, the
+planner of the sessions the split creates.
+
+In practice: a session that hits the split gate (`CLAUDE.md` §11.2)
+in a checkpoint-configured project does not emit an offer and hand
+authoring back to the operator. It authors its children's spawn
+materials in full — commands, briefs, and checkpoints — under
+META's grant, because it never builds against its children's
+oracles; its children do. `TARBALL.md` §7's blindness contract is
+met in its own terms: each child's checkpoint is authored blind,
+from that child's request, before the child's implementation
+exists, by a session that will not build against it — and
+re-derived for the narrowed scope, per §4's standing rule. The
+operator carries the authored artifacts between sessions; the
+operator does not author them.
+
+### 20.1 The upward contract
+
+The parent authors the arc oracle — blind, from the arc request,
+before the decomposition exists — grading the summed outcome of
+the subtree; the sub-master ships its own validation of the sum.
+Neither replaces the other, at any altitude.
+This is the session-level dual stream (§12) repeated one level up,
+unchanged: the blind stream is the misunderstanding control, the
+self-validation is the calibration stream, and the trust ledger
+consumes both.
+
+A sub-master's children's checkpoints collectively grade its own
+decomposition — the self-oracle shape at one remove; the parent's
+ratification of the decomposition, before anything spawns, is the
+control.
+The ratification is one of the four controls (§10), already there —
+the transition adds no new ceremony.
+
+Two boundary facts, one sentence each. The read-only-waiver
+collision: a sub-master's own session packs read-only while its
+subtree lands plenty, so the arc oracle cannot live in the
+per-response checkpoint slot — the mechanical home for arc-level
+grading is queued tool-side (board row 54). And
+one-master-per-sitting (§6) is preserved by recursion: each
+subtree's sitting has exactly one desk.
+
+### 20.2 The upward report
+
+A sub-master closes its arc with a structured upward report — the
+shape §15 records as prototyped (evidence 50), restated here as
+the required sections:
+
+- **The partition** — every item of the arc's work sorted landed /
+  ratified / escalated / on-watch.
+- **An arc claims block** — the summed validation of the subtree
+  stated as claims, so reconciliation has something to pair with
+  the arc oracle's verdict.
+- **Consumed vs deferred scope** — what of the arc's forecast was
+  spent, and what remains.
+- **Proposals** — follow-on work the subtree's vantage revealed, as
+  prose with rationale (`TARBALL.md` §5.4.1's shape).
+
+---
+
 ## 7. Hard Rules
 
 All rows are **policy** (labels per `CLAUDE.md` §6): no mechanical
@@ -357,7 +443,7 @@ worker — plus review.
 | Rule | Type | Enforcement |
 |------|------|-------------|
 | Revisions derive from the predecessor artifact, never rewritten fresh | policy | review; HOLD clustering on dropped content |
-| The worker never authors the oracle it is graded by — authoring delegation stops at commands and briefs | policy | review; `TARBALL.md` §7's mechanical half backs it |
+| No session authors an oracle it builds against — spawn-material authorship (§20) reaches children's checkpoints, never the authoring session's own | policy | review; `TARBALL.md` §7's mechanical half backs it |
 | Checkpoints assert outcomes, never mechanisms | policy | review; the fixture-defect HOLD watch (§4) |
 | Re-derive the checkpoint whenever scope changes | policy | review; a stale oracle surfaces as a false HOLD |
 | Post-HOLD retries receive spec, never oracle mechanics | policy | review — nothing downstream can un-teach a taught test |
@@ -366,8 +452,11 @@ worker — plus review.
 
 ---
 
-> **PAST THE CORE.** Sections above this banner — 1 through 7 — are
-> the authoring core: read when authoring is the work. Everything
+> **PAST THE CORE.** Sections above this banner — 1 through 7, and
+> 20 — are the authoring core: read when authoring is the work.
+> (§20 is numbered past the orchestration half but placed in the
+> core: numbers are stable per `DOCS.md` §6.4, and placement
+> follows readers.) Everything
 > below — sections 8 through 19 — is orchestration doctrine: read
 > when planning orchestration or harness work. The banner is a
 > deliberate, pre-marked seam: if a physical re-split of this doc is

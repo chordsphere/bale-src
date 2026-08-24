@@ -113,6 +113,27 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "<parent-sid>`, and that is the documented "
                        "path: not packing around the gate, and not "
                        "closing the parent by hand first."),
+        # The sub-master rider on the same pair (session
+        # 2026-08-18-010): the split-as-role-transition sentence,
+        # stated from both ends of the same command.
+        ("CLAUDE.md", "the offering session, as sub-master for its "
+                      "subtree, authors the split sessions' "
+                      "materials — commands, briefs, and re-derived "
+                      "checkpoints for children it will not build "
+                      "against"),
+        ("TARBALL.md", "the offering session authors them as "
+                       "sub-master (PLANNER.md carries the "
+                       "doctrine), and the operator delivers, never "
+                       "authors."),
+    ],
+    # DOCS.md §9's fifth pair: PLANNER.md §10's four-controls floor
+    # with the project-side planning record that ratified it. The pin
+    # is one-sided by construction: this suite reads docs/ only, so
+    # the project-side twin cannot be pinned here — its half is
+    # pinned project-side. Only the global-doc half is asserted.
+    "four-controls floor (PLANNER.md 10 / project-side record)": [
+        ("PLANNER.md", "The ratified floor, restated here so this "
+                       "half stands alone for its citers"),
     ],
 }
 
@@ -147,8 +168,8 @@ class SanctionedPairPins(unittest.TestCase):
         sentence, and a parser for it would be more fragile than the
         pin."""
         self.assertEqual(
-            len(PAIRS), 4,
-            "the PAIRS table no longer covers DOCS.md 9's four "
+            len(PAIRS), 5,
+            "the PAIRS table no longer covers DOCS.md 9's five "
             "sanctioned pairs — re-read the enumeration there and "
             "bring the table back in step with it")
 
