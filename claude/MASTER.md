@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-18-sitting-close-deltas-007`.
+Last landed by: `2026-08-24-sitting-close-deltas-001`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -444,6 +444,9 @@ with the unverifiable ones carried verbatim and marked):
   creates (source: `2026-08-15-claude-core-first-001`'s Proposals,
   second entry). Carrier: the next docs/CLAUDE.md touch; rider: the
   §11.2 ↔ §3.4 pair pin moves in the same session.
+  [2026-08-18: struck — subsumed, with its §3.4 pair rider, by the
+  sub-master landing at the contract-doc session; the landed form is the
+  role-transition sentence, K7/K8 of its brief.]
 - Wiring-session brief riders (accepted from the birth session's
   Proposals): When the injection wiring lands: sweep BALE.md's two
   remaining "four" sites in the same response (§3.1 editable-docs
@@ -484,6 +487,9 @@ with the unverifiable ones carried verbatim and marked):
   suite's own docstring says the table must not silently cover
   fewer pairs than the doc. **Scope hints:**
   `tests/test_sanctioned_pairs.py`."
+  [2026-08-18: struck — re-routed at the desk from board 49 to the
+  sub-master contract-doc session (tests/ in its forecast first) and
+  consumed there.]
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -826,6 +832,55 @@ before delivery. Ratified at the desk, recorded here:
 - Sitting closed at the milestone; board 49 heads the next
   sitting's agenda, carrying the pairs-pin rider and the
   crafter-emission pre-named seam.
+
+Landed 2026-08-18, the sub-master sitting (master
+`2026-08-18-continue-plan-008`, read-only): opened on board 49 as
+packed; the spawned session `2026-08-18-board-49a-bundle-open-009`
+returned a §11.2 rescope offer, and the sitting's goal was then
+commandeered from continue-the-plan to friction smoothing on
+explicit architect authority — the §3-override rule's third
+exercise. Dispositions, all at the desk:
+
+- Ratified: the sub-master doctrine — a split is a role transition; full
+  spawn-material authorship for a session's own children; blindness
+  restated in TARBALL.md §7's builds-against form; the upward contract
+  (required report sections and the arc-level dual-stream); parent
+  ratification of the decomposition as the one-remove self-oracle
+  control — landed at the sitting's contract-doc session
+  `2026-08-18-submaster-doctrine-010`. Also ratified: row 49's three-way
+  seam bracket; row 54's intake; the splits-are-cheap desk default; the
+  pairs-pin rider's re-route to the contract-doc landing.
+- Proposed and withdrawn at the desk, reason of record: a
+  pack-time throughput-forecast gate — include mass is not
+  consumed budget; the worker decides what it reads, and the
+  drill-down doctrine is load-bearing, so mechanizing the fit
+  estimate against shipped bytes would grade the wrong quantity.
+  The write-out term it aimed at was correctly priced by the
+  worker's own §11.2 judgment — the gate that already works.
+- HOLD attribution, for the record and any clustering read
+  (carry-forward from the continue-plan-005 desk): the
+  close-deltas HOLD was a planner-fixture defect, desk-scored,
+  never the worker's — the probe's expected string (a token from
+  the notes' discussion) was absent by construction from the
+  Block-F Proposal text the brief landed. Fourth checkpoint-desk
+  miss specimen: the pytest runner, the wrap-blind grep, the
+  phrase-pinned authored text, and the notes-region-sourced probe
+  token. The correction ran the bad-oracle protocol end to end,
+  and stamp_matched false at the accepted retry is the truthful
+  double record — this mention completes it.
+- The rehearsal rule (the sharpened desk rule from that
+  correction) landed as doctrine at the contract-doc session,
+  PLANNER.md §4.
+- Registry strikes this landing: the CLAUDE.md §11.2
+  checkpoint-precondition item with its §3.4 pair rider (subsumed
+  by the sub-master landing), and the pairs-pin rider (re-routed;
+  consumed at the contract-doc session).
+- Ops record: `2026-08-18-board-49a-bundle-open-009` unlocked
+  with no successor; its delivered brief revA (sha256 26c894…)
+  and checkpoint v1 (sha256 56d578…) retained as derivation
+  sources for the resumed arc.
+- Sitting closed at the milestone; the resumed 49 arc (49a-i
+  first) heads the next sitting's agenda.
 
 ## 4. The board
 
@@ -1449,6 +1504,16 @@ and §8, so done items keep their numbers as one-line pointers.
     ratified `open`; `spawn` noted as the harness-era rename
     candidate. Sequencing: early — every close after it stops
     traveling the old ceremony.
+    [2026-08-18: bracketed at the sub-master sitting — the spawned
+    session returned a §11.2 rescope offer; its three-way seam ratified
+    at the desk: 49a-i (bundle format + pack-side deny-list + the
+    pre-answered-intents API through the decline-default exchange) →
+    49a-ii (the open verb, bin/bale wiring, both hash verifications, the
+    dry-run leg, the row-48 standalone-echo decision) → 49b (crafter
+    emission). Session 009 unlocked with no successor; the delivered
+    revA brief and v1 checkpoint are derivation sources for the resumed
+    arc, never rewrites. The pairs-pin rider re-routed to the sub-master
+    contract-doc landing.]
 
 50. **CRLF tolerance at every text-file read** — queued 2026-08-18
     (small): bale tolerates CRLF wherever it reads text files
@@ -1476,6 +1541,43 @@ and §8, so done items keep their numbers as one-line pointers.
     pack's successor is a chat message, so pack emits it. Sweep
     any doctrine describing the hand-carried preamble when this
     lands (evidence 80's rule).
+
+53. **Checkpoint amendment as a first-class verb** — queued
+    2026-08-18 (small-to-medium; bale code + docs): the
+    bad-oracle correction flow's operator half is today a
+    hand-composed chain — copy from Downloads, CRLF strip,
+    hash compare, commit at the per-sid path, retry, accept
+    flag at the stamp refusal — the exact paste-surface hazard
+    class rows 49/51/52 retire elsewhere. A formal surface
+    (name open; amend-checkpoint the working spelling)
+    resolves the open session, normalizes line endings,
+    verifies the delivered file against a desk-published
+    sha256, commits at the per-sid checkpoint path
+    (bale-prefixed subject, pathspec-limited), and emits the
+    retry line as its named successor. The verb mechanizes
+    the transport, never the deliberateness: the provenance
+    gate still refuses at retry, the accept stays
+    per-invocation, and stamp_matched false remains the
+    truthful record. Motivating specimen: the
+    continue-plan-005 close correction (carry-forward 1).
+    Plausible board-49 adjacency — the bundle owns
+    checkpoint delivery; amendment is its revision path —
+    the sequencing call is the next desk's.
+
+54. **Arc-level dual-stream mechanics** — queued 2026-08-18
+    (medium; bale code + schemas + docs): the sub-master
+    doctrine's mechanical half. An arc-oracle home distinct from
+    the per-response checkpoint slot — the read-only waiver
+    collision on record: a sub-master's own session is read-only
+    while its subtree lands plenty — executed read-only against
+    the live tree at arc close (board 49's dry-run execution
+    shape, expecting PASS); the required upward-report sections
+    given a wire home (landed/ratified/escalated/on-watch, the
+    arc claims block, consumed-vs-deferred scope, proposals); arc
+    claim/verdict telemetry so reconciliation pairs the
+    sub-master's summed validation with the arc verdict. Manual
+    path first, proven by hand; harness transport rides S6.
+    Motivating record: the 2026-08-18 sub-master sitting (§3).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -2737,6 +2839,19 @@ New from the 2026-08-18 smoothing sitting:
     the ~200 shipped telemetry records. Self-reported — exactly
     the stream board 42's docs_read field mechanizes — and a
     priority signal for board 38's stats-digest auto-include.
+
+82. **A flat authorship line routed oracle authoring to the
+    operator — the sub-master gap's live specimen.** Session
+    009's rescope offer honored derive-don't-rewrite and
+    checkpoint-tracks-scope, then addressed the re-derived
+    checkpoint to the operator ("append --checkpoint-file with
+    your file") — the only actor its read path allowed:
+    PLANNER.md META granted "command and brief authorship, never
+    oracle authorship," a flat-world line that stops a splitting
+    session from authoring oracles for children it never builds
+    against. Doctrine-scored, not a worker miss; the correction
+    is the sub-master doctrine (this sitting), whose
+    builds-against form matches TARBALL.md §7's actual contract.
 
 ## 7. Standing environment facts
 
