@@ -108,6 +108,7 @@ RELEASE_FILES=(
   schemas/diagnostics.schema.json
   schemas/telemetry-record.schema.json
   schemas/escalation-record.schema.json
+  schemas/bundle-manifest.schema.json
   tools/response_lint.py
   tools/craft_response.py
   install.sh
