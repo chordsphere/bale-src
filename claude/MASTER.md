@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-24-sitting-close-deltas-001`.
+Last landed by: `2026-08-24-sitting-close-deltas-004`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -262,6 +262,13 @@ source):
   so per-path refusal counts have no durable home today. Re-trigger: the
   harness observing refusals as control flow, or a pack-side refusal log
   wanted as new surface. (Rider item 5's deferral.)
+- Unconsumed pre-answered intents (ratified 2026-08-24): an intent
+  answering a prompt the flow never raised proceeds with a FORCE-line
+  report, never a refusal — brief-conformant, ratified with a routing
+  note: bundle/argv coherence is enforced upstream, at 49a-ii's
+  validate-bundle gate and 49b's emitter, where the incoherence would
+  originate. Re-trigger: a genuinely unconsumed intent observed after
+  49a-ii lands; revisit refuse-vs-proceed on the live specimen.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -398,6 +405,15 @@ with the unverifiable ones carried verbatim and marked):
 - validate.sh's schema presence loop trued up to cover every
   shipped schema. Rides the next validate.sh touch. (Source: the
   S4 notes' proposal, `2026-08-13-board-10-escalation-schemas-002`.)
+  [2026-08-24: consumed — the 49a-i session's validate.sh true-up landed
+  it (`2026-08-24-board-49a-i-bundle-format-003`); the loop now covers
+  every shipped schema, the new bundle-manifest included.]
+- Apply-side bundle backstop (accepted 2026-08-24 from the 49a-i
+  session's Proposals): apply's pre-flight rejects any changes[] path
+  ending in .bale-bundle — a worker landing a bundle is the self-oracle
+  shape from the landing direction. Rides the next bin/bale_apply.py
+  touch; independent of 49a-ii. (Source:
+  `2026-08-24-board-49a-i-bundle-format-003`'s Proposals.)
 - Supersession writes its closure record BEFORE the sweep (or
   inside the sweep's commit set), plus one test pinning
   tree-clean-after-supersession. Evidence: in both of the
@@ -881,6 +897,48 @@ exercise. Dispositions, all at the desk:
   sources for the resumed arc.
 - Sitting closed at the milestone; the resumed 49 arc (49a-i
   first) heads the next sitting's agenda.
+
+Landed 2026-08-24 (the resumed-49 sitting, master
+`2026-08-24-continue-plan-002`, read-only):
+
+- 49a-i landed first-try PASS on a desk-authored blind oracle — after
+  five miss specimens, the first clean one —
+  `2026-08-24-board-49a-i-bundle-format-003`, all ten changes[] paths
+  in-forecast. Spawn materials derived, never rewritten, from the 009
+  revA brief (sha256 26c894…) and checkpoint v1 (56d578…); the
+  re-derived brief published as b4037d…, the re-derived three-probe
+  checkpoint as 221e83….
+- Ratified, all seven of the worker's flagged decisions, one line each
+  in its archived notes' Decisions block: the .bale-bundle suffix as the
+  whole recognizer; no bundle admission flag, need-gated; the
+  in-process-only intents API; unconsumed intents proceed loudly
+  (routing note carried on the §3 watch above); LF-normalization scoped
+  to the bundle's own reads; no record-wide prompt-vocabulary walk;
+  delivery flags never stored in pack_argv — member presence is the
+  single source.
+- Fifth checkpoint-desk miss specimen, joining the four the 2026-08-18
+  block catalogs: the date-pinned sid pattern — a conforming-sid probe
+  regex hardcoded its authoring date and HOLDed the session's own
+  correct landing when it packed six days later. Desk-scored per the
+  standing attribution rule; the worker's adjudication was the
+  protocol's happy path. Standing rule from it: sid patterns in oracles
+  are date-agnostic from now on.
+- Relay-pattern specimen, second live instance: the HOLD card and the
+  probe's failure text pasted to the worker — the one actor that cannot
+  adjudicate its own oracle's probe labels — before routing to the desk.
+  Grist for board 47 and the S6 escalation contract.
+- Release-list follow-on, planner-direct edit (the bale.toml lane):
+  schemas/bundle-manifest.schema.json registered in scripts/build.sh
+  RELEASE_FILES and install.sh INSTALL_LAYOUT after the tree-coverage
+  guard refused the post-apply reinstall — the worker's Look-here-first
+  item firing as predicted.
+- Transported decisions accepted for the queued sessions, verbatim in
+  the 49a-i notes' Proposals: the two 49a-ii format-consumer notes (the
+  BALE.md delivery-flag injection contract; the pre_answered namespace
+  channel, gated by validate_bundle_manifest before anything else is
+  trusted) and the 49b constant-duplication drift guard. 49a-ii packs
+  fresh against the applied tree.
+- Sitting closed at the milestone; 49a-ii heads the next desk's agenda.
 
 ## 4. The board
 
@@ -1514,6 +1572,12 @@ and §8, so done items keep their numbers as one-line pointers.
     revA brief and v1 checkpoint are derivation sources for the resumed
     arc, never rewrites. The pairs-pin rider re-routed to the sub-master
     contract-doc landing.]
+    [2026-08-24: 49a-i DONE —
+    `2026-08-24-board-49a-i-bundle-format-003`, first-try PASS. The
+    .bale-bundle deny-list and the in-process pre-answered-intents API
+    are landed; the format spec's home and the two consumer contracts
+    are recorded in its archived notes; seven judgment calls ratified.
+    Next: 49a-ii, packed fresh against the applied tree.]
 
 50. **CRLF tolerance at every text-file read** — queued 2026-08-18
     (small): bale tolerates CRLF wherever it reads text files
