@@ -114,6 +114,30 @@ PACK_LARGEST_DIRS_TOPN = 5
 # directly, and that tuple is the single source for the injected-tool
 # list — see its comment for the consolidation history.
 
+# Planner bundle (v0.4.12, board 49a-i; BALE.md §6.7). The reserved
+# filename suffix IS the bundle recognizer: a file carries the planner
+# bundle format if and only if its name ends with this suffix, which is
+# what lets the pack walk auto-exclude bundles structurally — deny-list
+# class, never convention — with no config key to dangle. The bundle is
+# oracle-bearing (it carries the planner's blind checkpoint), so it is
+# the same exclusion species as the configured checkpoint; unlike the
+# checkpoint there is no admission flag — no session legitimately ships
+# a real bundle to the worker it grades, and a session working on
+# bundle handling uses synthetic fixtures outside the suffix.
+BUNDLE_SUFFIX = ".bale-bundle"
+
+# The closed pre-answered-intent vocabulary (v0.4.12, board 49a-i;
+# BALE.md §6.7): the named decline-default prompts a planner bundle may
+# pre-answer. An intent names exactly one prompt and one subject —
+# never a blanket yes — and the vocabulary is CLOSED: an unknown prompt
+# name refuses at parse (parse_pre_answered_intents), so no spelling
+# exists that pre-answers "everything". The one entry today is the
+# split-supersession exchange (`supersede`, subject = the parent sid);
+# schemas/bundle-manifest.schema.json pins the same vocabulary at the
+# wire, and tests/test_bundle_manifest.py pins the parity so the two
+# homes cannot drift.
+INTENT_PROMPTS = ("supersede",)
+
 
 # ---------------------------------------------------------------------------
 # 2. File enumeration and filtering
@@ -271,6 +295,38 @@ def include_names_checkpoint(includes: list[str], checkpoint_path: str,
         if e == target or e == b or e.startswith(b + "/"):
             return True
     return False
+
+
+def is_bundle_file(rel: str) -> bool:
+    """True when `rel` names a planner bundle (v0.4.12, board 49a-i).
+
+    The recognizer is the reserved BUNDLE_SUFFIX and nothing else —
+    structural by construction (BALE.md §6.7 reserves the name), so
+    the walk's auto-exclusion and the explicit-naming refusal key on
+    one test with no config to consult and no path to dangle. The
+    match is on the basename's tail, case-sensitive: `x.bale-bundle`
+    is a bundle wherever it sits in the tree; `x.bale-bundle.md` (a
+    note *about* a bundle) is not, and neither is any synthetic test
+    fixture named outside the suffix.
+    """
+    return rel.endswith(BUNDLE_SUFFIX)
+
+
+def bundle_named_entries(entries: list[str]) -> list[str]:
+    """Return the entries that explicitly name a planner bundle file.
+
+    The read-and-forecast blindness key for bundles (v0.4.12, board
+    49a-i), the analog of include_names_checkpoint: an `--include` or
+    `--write` entry that IS a bundle file is an explicit ask to ship
+    (or land changes on) an oracle-bearing artifact, and cmd_pack
+    refuses it. A directory entry that merely *covers* bundles is
+    incidental coverage — the walk auto-excludes those files loudly
+    instead (walk_for_pack), the same split as the checkpoint's
+    explicit-vs-incidental rule. Entries are compared as given;
+    normalization is unnecessary because the test is a suffix on the
+    entry string itself, not a path comparison.
+    """
+    return [e for e in entries if is_bundle_file(e.rstrip("/"))]
 
 
 def build_pack_matcher(
@@ -466,6 +522,7 @@ def walk_for_pack(
     dir_counts: dict[str, int] = {}
     hard_breach: Optional[str] = None
     checkpoint_drops: list[str] = []
+    bundle_drops: list[str] = []
 
     for rel in list_git_files(repo):
         # Filter chain — matches gather_files_for_pack's body so the
@@ -490,6 +547,18 @@ def walk_for_pack(
             # walk loop. The verbose trail still names every path.
             _drop(rel, "checkpoint auto-exclusion")
             checkpoint_drops.append(rel)
+            continue
+        if is_bundle_file(rel):
+            # Planner-bundle auto-exclusion (v0.4.12, board 49a-i;
+            # BALE.md §6.7): same species as the checkpoint drop above
+            # — the bundle carries the oracle — but keyed on the
+            # reserved suffix, so it is unconditional: no config, no
+            # admission flag, no degenerate shape. Collected here,
+            # logged loudly after the walk at the v0.4.10 grain
+            # (per-file for one, one summary line for several); the
+            # verbose trail still names every path via _drop.
+            _drop(rel, "planner-bundle auto-exclusion")
+            bundle_drops.append(rel)
             continue
         if matcher is not None and matcher.matches(rel):
             _drop(rel, ".baleignore / session exclude")
@@ -569,6 +638,27 @@ def walk_for_pack(
             _log(f"auto-excluded {len(checkpoint_drops)} files under "
                  f"{checkpoint_exclude}/ from shipped context: the "
                  f"configured blind checkpoint {remedy}")
+
+    # Planner-bundle auto-exclusion log (v0.4.12, board 49a-i). Same
+    # loud-and-unconditional posture and the same v0.4.10 grain as the
+    # checkpoint log above, with a different remedy: there is no
+    # deliberate-shipping path for a bundle — it carries the oracle —
+    # so the line names the artifact class and the no-ship rule rather
+    # than a flag. Emitted even on a short-circuited walk, matching
+    # the checkpoint emission's contract.
+    if bundle_drops:
+        from __main__ import log as _blog  # lazy — see module docstring
+        if len(bundle_drops) == 1:
+            _blog(f"auto-excluded {bundle_drops[0]} from shipped "
+                  f"context: planner bundles ({BUNDLE_SUFFIX} files) "
+                  f"are oracle-bearing and never ship to a worker "
+                  f"(BALE.md \u00a76.7); there is no admission flag")
+        else:
+            _blog(f"auto-excluded {len(bundle_drops)} planner-bundle "
+                  f"files ({BUNDLE_SUFFIX}) from shipped context: "
+                  f"bundles are oracle-bearing and never ship to a "
+                  f"worker (BALE.md \u00a76.7); there is no admission "
+                  f"flag")
 
     # Largest-directories report. Only meaningful when there's something to
     # report — root-only walks just have ('(root)', ...) which is still useful.
@@ -1960,8 +2050,111 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
         return
 
 
+@dataclass
+class PreAnsweredIntent:
+    """One pre-answered intent from a planner bundle (v0.4.12, 49a-i).
+
+    An intent is an ACCEPT of one named decline-default prompt about
+    one named subject — presence is the accept; declining needs no
+    spelling because the decline is every prompt's default already.
+    `prompt` is drawn from the closed INTENT_PROMPTS vocabulary;
+    `subject` names what the prompt is about (for `supersede`, the
+    parent sid). `consumed` is set by the exchange that takes the
+    answer, so cmd_pack can loudly report any intent no prompt ever
+    raised — an unconsumed intent changes nothing (the decline default
+    governs, exactly as if the intent were absent), but it never
+    passes silently.
+    """
+    prompt: str
+    subject: str
+    consumed: bool = False
+
+
+def parse_pre_answered_intents(raw) -> list[PreAnsweredIntent]:
+    """Parse and validate a pre-answered-intents block; ValueError on
+    any defect (the parse_size_arg posture — the caller decides how to
+    fail).
+
+    `raw` is the bundle manifest's `pre_answered` array as loaded JSON
+    (a list of {"prompt": ..., "subject": ...} objects), or None —
+    None and [] both mean *no intents*, the honest-empty form. The
+    validation is strict and closed:
+
+    - a non-list `raw`, a non-object entry, or a missing/blank
+      `prompt` or `subject` refuses;
+    - a `prompt` outside INTENT_PROMPTS refuses — the closed
+      vocabulary is what makes a blanket-yes spelling impossible;
+    - a duplicated (prompt, subject) pair refuses — one prompt, one
+      answer, and a duplicate is the tell of a hand-assembled block.
+
+    Entries may carry additive keys beyond the two named ones; they
+    are preserved-by-ignoring here (the wire schema is loose the same
+    way, schemas/bundle-manifest.schema.json).
+    """
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(
+            f"pre-answered intents must be an array of objects, "
+            f"got {type(raw).__name__}")
+    intents: list[PreAnsweredIntent] = []
+    seen: set[tuple[str, str]] = set()
+    for i, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"pre_answered[{i}] must be an object, "
+                f"got {type(entry).__name__}")
+        prompt = entry.get("prompt")
+        subject = entry.get("subject")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError(
+                f"pre_answered[{i}].prompt must be a non-empty string")
+        if not isinstance(subject, str) or not subject.strip():
+            raise ValueError(
+                f"pre_answered[{i}].subject must be a non-empty string")
+        prompt = prompt.strip()
+        subject = subject.strip()
+        if prompt not in INTENT_PROMPTS:
+            raise ValueError(
+                f"pre_answered[{i}].prompt {prompt!r} is not a "
+                f"recognized prompt name; the closed vocabulary is "
+                f"{', '.join(INTENT_PROMPTS)} (BALE.md \u00a76.7) — "
+                f"there is deliberately no spelling that pre-answers "
+                f"every prompt")
+        key = (prompt, subject)
+        if key in seen:
+            raise ValueError(
+                f"pre_answered[{i}] duplicates ({prompt}, {subject}); "
+                f"one prompt takes one answer")
+        seen.add(key)
+        intents.append(PreAnsweredIntent(prompt=prompt, subject=subject))
+    return intents
+
+
+def consume_supersession_intent(
+        intents: list[PreAnsweredIntent],
+        sid: str) -> Optional[PreAnsweredIntent]:
+    """Return the unconsumed intent answering the supersession
+    exchange for exactly `sid`, or None.
+
+    Pure selection, no side effects — the caller (the exchange site
+    in _resolve_supersession) marks the returned intent consumed and
+    logs loudly. The match is exact on both axes: prompt `supersede`
+    and subject equal to the sid the exchange is about, so an intent
+    authored for one parent can never answer a prompt about another.
+    """
+    for intent in intents:
+        if (not intent.consumed and intent.prompt == "supersede"
+                and intent.subject == sid):
+            return intent
+    return None
+
+
 def _resolve_supersession(args: argparse.Namespace,
-                          repo: Path) -> tuple[Optional[str], Optional[str]]:
+                          repo: Path,
+                          pre_answered: Optional[
+                              list[PreAnsweredIntent]] = None,
+                          ) -> tuple[Optional[str], Optional[str]]:
     """Resolve `--supersedes` and run the exchange (v0.3.17, board 26).
 
     Returns (stamp_sid, declined_sid) — at most one is non-None:
@@ -1988,6 +2181,24 @@ def _resolve_supersession(args: argparse.Namespace,
     rather than walking the user through prompts toward a guaranteed
     refusal (with the parent still open, either the gate refuses or
     the declined-supersession check does).
+
+    `pre_answered` (v0.4.12, board 49a-i; BALE.md §6.7) routes a
+    planner bundle's pre-answered intents THROUGH this exchange,
+    never around it: every guard above the exchange (the sid
+    resolution, the HOLD-branch refusal, the idempotent-re-run path)
+    runs unchanged, and only at the exchange point itself is the
+    intent consulted — an unconsumed intent whose prompt is
+    `supersede` and whose subject is exactly this sid supplies the
+    accept, marked consumed and logged with a FORCE line. Every
+    other path keeps its decline default byte-for-byte: no intents
+    (None or []), a wrong-subject intent, or a wrong-prompt intent
+    all fall through to the existing TTY-prompt / piped-decline
+    split, exactly as if the intent were absent — the caller
+    (cmd_pack) reports unconsumed intents loudly afterward. There is
+    deliberately no CLI flag feeding this parameter: intents ride a
+    bundle's manifest and reach here in-process (the caller sets
+    `pre_answered` on the parsed namespace), so no typed command
+    line can spell a blanket accept.
 
     Resolution of the named sid:
 
@@ -2062,7 +2273,22 @@ def _resolve_supersession(args: argparse.Namespace,
         )
 
     # The exchange (§5.2 wizard idiom): decline default, cost named.
-    if sys.stdin.isatty():
+    # A pre-answered intent (v0.4.12) is consulted FIRST — it answers
+    # this specific prompt about this specific sid, so neither the TTY
+    # prompt nor the piped decline default runs when it matches; when
+    # it doesn't, both paths below are byte-for-byte the pre-intent
+    # behavior, decline default intact.
+    intent = consume_supersession_intent(pre_answered or [], sid)
+    if intent is not None:
+        intent.consumed = True
+        accepted = True
+        log(f"--supersedes {sid}: pre-answered intent "
+            f"(supersede {sid}) accepted the exchange — the answer "
+            f"was authored into the invocation (a planner bundle's "
+            f"pre_answered block, BALE.md \u00a76.7), not prompted "
+            f"here; the parent will close as superseded-by-split",
+            force=True)
+    elif sys.stdin.isatty():
         accepted = confirm_yn(
             f"Close open session {sid} as superseded-by-split? Its "
             f"registry entry and .bale/sessions/ state are removed and "
@@ -2926,7 +3152,36 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # accepted (the parent was being abandoned by declared intent), and
     # the idempotent re-run in _resolve_supersession is its repair
     # path.
-    superseded_sid, declined_supersession = _resolve_supersession(args, repo)
+    # Pre-answered intents (v0.4.12, board 49a-i; BALE.md §6.7): the
+    # in-process channel is a `pre_answered` attribute on the parsed
+    # namespace — set by a caller composing a pack from a planner
+    # bundle's manifest, never by a CLI flag (no typed spelling of a
+    # pre-answered accept exists; getattr keeps every existing caller,
+    # whose namespaces lack the attribute, on the no-intents path).
+    # Parsed here, at the reject-early site just before the one
+    # consumer, so a malformed block refuses before any exchange runs.
+    try:
+        pre_answered_intents = parse_pre_answered_intents(
+            getattr(args, "pre_answered", None))
+    except ValueError as e:
+        fail(f"pre-answered intents rejected: {e}")
+    superseded_sid, declined_supersession = _resolve_supersession(
+        args, repo, pre_answered=pre_answered_intents)
+    # An intent no prompt consumed changes nothing — the decline
+    # default governed wherever a prompt actually ran, exactly as if
+    # the intent were absent — but it never passes silently: the
+    # planner authored an answer the invocation had no question for,
+    # which is a bundle/argv coherence defect worth a loud line. The
+    # supersession exchange above is the vocabulary's only consumer
+    # today; if a future prompt joins INTENT_PROMPTS, this report
+    # moves below the last consumer.
+    for _intent in pre_answered_intents:
+        if not _intent.consumed:
+            log(f"pre-answered intent ({_intent.prompt} "
+                f"{_intent.subject}) was not consumed: this invocation "
+                f"raised no matching prompt, so the intent changed "
+                f"nothing and every decline default governed as if it "
+                f"were absent", force=True)
 
     # Forecast-disjointness gate (BALE.md 7.1 step 5, ADR-0015 re-basing
     # ADR-0007's pack-time gate), read from the ADR-0006 session
@@ -3227,6 +3482,36 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"to forecast new files, name the directory they "
                 f"will land under."
             )
+
+    # Planner-bundle blindness (v0.4.12, board 49a-i; BALE.md §6.7).
+    # Sited post-wizard (the wizard can fill args.write) and pre-walk,
+    # beside the existence checks above so both flag families are
+    # final. The split mirrors the checkpoint's explicit-vs-incidental
+    # rule: an entry that IS a bundle file — on either family — is an
+    # explicit ask to ship, or land changes on, an oracle-bearing
+    # artifact and refuses here; a directory entry that merely covers
+    # bundles is incidental, and the walk auto-excludes those files
+    # loudly instead (is_bundle_file in walk_for_pack). No admission
+    # flag on either half: bundles carry the blind checkpoint, and no
+    # session legitimately receives or lands a real one.
+    bundle_offenders = (
+        [("--include", e) for e in bundle_named_entries(list(args.include))]
+        + [("--write", e) for e in bundle_named_entries(list(args.write))])
+    if bundle_offenders:
+        rendered = "; ".join(f"{flag} {entry}"
+                             for flag, entry in bundle_offenders)
+        fail(
+            f"planner-bundle blindness: {rendered} explicitly names a "
+            f"planner bundle ({BUNDLE_SUFFIX} is the reserved bundle "
+            f"suffix, BALE.md \u00a76.7). Bundles carry the planner's "
+            f"blind checkpoint and never ship to — or take landed "
+            f"changes from — the worker they grade; there is no "
+            f"admission flag. Drop the naming entry (a broader "
+            f"directory entry is fine: covered bundle files "
+            f"auto-exclude at the walk with a loud drop line), or "
+            f"rename a non-bundle file that merely collides with the "
+            f"suffix."
+        )
 
     # Pack threshold caps (BALE.md §7.4). The --max-* flags override only
     # the hard caps; the soft caps stay at PACK_MAX_*_SOFT so the prompt

@@ -94,7 +94,13 @@ section "filesystem layout"
 for d in CLAUDE TARBALL DOCS CODE PLANNER; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
-for s in request-manifest response-manifest diagnostics; do
+# Every shipped schema, presence- and parse-checked. Trued up in
+# v0.4.12 (the S4 notes' proposal, ridden on this validate.sh touch):
+# the loop previously named three of five shipped schemas, so a
+# missing escalation-record or telemetry-record file passed silently.
+# The list below is the full schemas/ inventory; a session adding a
+# schema extends it in the same change.
+for s in request-manifest response-manifest diagnostics escalation-record telemetry-record bundle-manifest; do
   schema="$INSTALL_DIR/schemas/$s.schema.json"
   if [[ -f "$schema" ]]; then
     pass "schemas/$s.schema.json present"

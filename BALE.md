@@ -877,6 +877,109 @@ escalation contract distills from. Both enforce the closed priority
 vocabulary record-wide, at any depth, not only at the schemas'
 named spots.
 
+### 6.7 Planner bundle (format and pack-side half, v0.4.12)
+
+The planner bundle (board 49, ratified 2026-08-18; landed by the
+49a-i seam) is **one planner-emitted file** carrying everything a
+session's pack needs: the brief, the planner's blind checkpoint, and
+the full pack invocation — so the operator surface is *save one
+file, paste one emitted line*, with the emitted `bale open`
+invocation shipping **beside** the bundle, never inside it. This
+section is the format's one home. What lands with it is the
+pack-side half: the deny-list (bundles never ship to workers), the
+pre-answered-intents API through the supersession decline-default
+exchange, the manifest schema
+(`schemas/bundle-manifest.schema.json`), and the validation surface
+(`validate_bundle_manifest`, `bin/bale_validate.py`) — the §6.6
+schema-ahead-of-consumer posture. The `bale open` verb that
+consumes bundles (hash verification, the read-only checkpoint
+dry-run with its expected-HOLD proof, argv replay, and the row-48
+standalone-echo decision) is 49a-ii; the crafter-side emission, so
+the desk never hand-composes argv or hash blocks, is 49b. Neither
+exists yet; the format below is what they consume and produce.
+
+**Container and recognizer.** A bundle is a gzipped tar whose
+filename ends with the reserved suffix `.bale-bundle` — the suffix
+IS the recognizer (`is_bundle_file`, `bin/bale_pack.py`), reserved
+by this section, so bundle handling everywhere keys on one
+structural test with no config key to dangle. The recommended stem
+is `<date>-<slug>` (the sid does not exist until pack mints it).
+Members sit **flat at the archive root**: `bundle.json` (required),
+plus the payload members `bundle.json` names. Unknown members are
+grounds for a consumer to refuse — a bundle is a sealed artifact,
+not a container format.
+
+**bundle.json.** The bundle's own manifest; schema of record is
+`schemas/bundle-manifest.schema.json` (intentionally loose at the
+envelope, pinned where it pins — the schema's description carries
+the split). The four required keys:
+
+- **`bundle_format`** — exactly `1`. A consumer refuses an
+  unrecognized version rather than guessing member semantics.
+- **`pack_argv`** — the pack invocation's argument vector **after**
+  the `pack` subcommand, replayed verbatim by the consumer. The two
+  delivery flags are **never stored**: the consumer appends
+  `--readme-file` pointing at the extracted brief member when
+  `members.brief` is present (`--no-readme` when it is null) and
+  `--checkpoint-file` pointing at the extracted checkpoint member
+  when `members.checkpoint` is present. Member presence is the
+  single source for flag injection, so the stored argv can never
+  disagree with the shipped bytes.
+- **`members`** — the two named slots, `brief` and `checkpoint`,
+  each an object (`path`, `sha256`) or an explicit `null` — the
+  uniform-shape precedent. Each `sha256` is the digest of the
+  member's **LF-normalized** bytes (below); these are the published
+  hashes of boards 36 and 40 — the fields land here, the
+  verification lands with the verb.
+- **`pre_answered`** — the explicit pre-answered intents (below);
+  `[]` is the honest-empty form.
+
+**Line-ending normalization (the bundle's own reads).** Every
+member hash is computed over, and verified against, the member's
+bytes with each CRLF read as LF. A bundle that traveled a
+line-ending-mangling transport (mail, chat, a Windows checkout)
+still verifies; the consumer normalizes extracted text members
+before hashing. This rule is scoped to bundle reads — repo-wide
+CRLF tolerance is board 50's, not absorbed here.
+
+**Pre-answered intents.** `bale open` internalizes flows that carry
+deliberate decline-default prompts (design constraint 2 of the
+ratifying row; supersession's y/N is the known instance), so the
+bundle carries the answers **explicitly**: each intent names one
+prompt from the CLOSED vocabulary (`INTENT_PROMPTS` in
+`bin/bale_pack.py`, mirrored by the schema's enum, parity pinned by
+test — today exactly `supersede`) and one subject (for `supersede`,
+the parent sid). Consumption requires an exact match on both axes.
+The routing is *through* the exchange, never around it: every guard
+in `_resolve_supersession` (sid resolution, the HOLD-branch
+refusal, the idempotent re-run) runs unchanged, and only at the
+exchange point is a matching intent consulted — it supplies the
+accept, marked consumed and FORCE-logged. Every other path keeps
+its decline default byte-for-byte: an absent intent, a
+wrong-subject intent, or a wrong-prompt intent all behave exactly
+as today's decline default does, and pack reports any unconsumed
+intent loudly (a bundle/argv coherence defect, surfaced, never
+fatal). The pack-side API is deliberately **in-process only**: a
+caller composing a pack from a bundle sets `pre_answered` on the
+parsed pack namespace (the bundle manifest's array, validated by
+`parse_pre_answered_intents`); **no CLI flag exists**, so no typed
+command line can spell a pre-answered accept, blanket or otherwise.
+
+**Bundles never ship to workers (the deny-list half).** The bundle
+is oracle-bearing — it carries the blind checkpoint — so it is
+structurally invisible to workers, the same species as the §7.1
+step 4b checkpoint exclusion but keyed on the suffix and therefore
+unconditional (design constraint 1: deny-list class, never
+convention). Two mechanisms, mirroring the checkpoint's
+explicit-vs-incidental split, with **no admission flag** on either:
+incidental coverage by a directory include auto-excludes every
+`.bale-bundle` file at the walk with a loud drop line (per-file for
+one, one summary line for several — the v0.4.10 grain); an
+`--include` or `--write` entry that *names* a bundle file refuses
+at pack pre-flight (§7.1 step 4c, contract row 33). A session that
+works on bundle handling uses synthetic fixtures named outside the
+suffix.
+
 ---
 
 ## 7. Pack pipeline
@@ -992,6 +1095,19 @@ The configured checkpoint is auto-excluded from the shipped context of every pac
    merged bale.toml edit is a one-line, review-visible diff; the
    accepted residue's re-trigger is the first observed worker edit
    to `[validation]` keys in a merged session.
+4c. **Planner-bundle blindness pre-flight** (v0.4.12, board 49a-i;
+   §11 row 33; format home §6.7). Refuse any `--include` or
+   `--write` entry that explicitly names a planner bundle — a file
+   with the reserved `.bale-bundle` suffix. Bundles carry the
+   planner's blind checkpoint, so this is the same
+   explicit-vs-incidental split as step 4b with the suffix as the
+   key and **no admission flag** on either half: a directory entry
+   that merely covers bundle files is incidental, and the walk
+   auto-excludes those files loudly instead (§7.5 step 5). The
+   check runs post-wizard on every path (the wizard can fill
+   `--write`), before the walk. (Labeled 4c per the 4a/4b
+   interstitial precedent — steps 5 onward are cross-referenced and
+   never renumber, DOCS.md §6.4.)
 5. Forecast-disjointness gate (ADR-0015, re-basing ADR-0007's
    pack-time gate), read from the session
    registry (ADR-0006). With no session open, proceed — unchanged
@@ -1512,7 +1628,9 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    drop, one count-and-subtree summary line per pack for several
    (v0.4.10) — unless an include
    names it explicitly or `--allow-checkpoint-in-scope` admitted it,
-   §7.1 step 4b); copy matching files into
+   §7.1 step 4b — and, v0.4.12, every planner bundle: any file with
+   the reserved `.bale-bundle` suffix drops unconditionally, same
+   loud grain, no admission flag, §6.7); copy matching files into
    `context/`.
 6. If README prose was resolved — from `--readme-file`, from
    `$EDITOR` (the wizard's y-path or `--edit`), or the combination —
@@ -3129,6 +3247,7 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 30 | Checkpoint blindness, handoff side (v0.3.33): when `[validation] base` pins a blind checkpoint, `bale handoff` runs the same gate implementation as rows 27 and 31 — the dangling refusal and the covering refusal — against its reading-plan-derived forecast (the resolved set of files the bailout's reading plan pre-packs, which on this path is both the read set and the conservative forecast, so one value covers both halves; a plan citing no files resolves to the whole tree, which covers any configured checkpoint), pre-sid, so a refused handoff burns no NNN and leaves no session state. Per-invocation `--allow-checkpoint-in-scope` (mirroring pack's spelling; flag-only, no config key, per the ratified override contract) admits the covering scope — FORCE-logged, and the admission stamped as `provenance.checkpoint_scope_admitted` in the new request manifest through the shared provenance builder, so a bailed checkpoint-maintenance session's handoff renews its admission deliberately rather than inheriting pack's silently; appended after row 29 per the appended-row precedent, so rows 1–29 stay stable | handoff pre-flight |
 | 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3; re-keyed to explicit naming at v0.4.9): when `[validation] base` pins a blind checkpoint, pack refuses an include entry that names it explicitly — an entry equal to the checkpoint path, equal to its static prefix (the `{sid}` pattern's static directory prefix), or strictly under that prefix — an explicit ask to ship the oracle's bytes in `context/` to the worker the oracle grades. Incidental coverage by a default or broad include does not refuse: the walk auto-excludes the checkpoint from shipped context with a loud per-file drop line (§7.1 step 4b, §7.5 step 5), which is what restores the bare default pack in a checkpoint-configured project; the one containment holdover is a `{sid}` base with no static directory prefix, where no auto-exclusion basis is computable and coverage still refuses. Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired (the read-half admission keyed on containment, since the flag disables auto-exclusion and any covering include set then ships the bytes), because the delegation decision is one decision (§7.1 step 4b). Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
 | 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
+| 33 | Planner-bundle blindness (v0.4.12, board 49a-i; format home §6.7): pack refuses any `--include` or `--write` entry that explicitly names a planner bundle — a file with the reserved `.bale-bundle` suffix — and the walk unconditionally auto-excludes every bundle file that incidental coverage would otherwise ship, with a loud drop line (per-file for one, one count summary for several, the v0.4.10 grain). Bundles carry the planner's blind checkpoint, so this is the checkpoint exclusion's species keyed structurally on the suffix, with **no admission flag on either half** — no session legitimately ships or lands a real bundle; synthetic fixtures for bundle-handling work are named outside the suffix (§7.1 step 4c, §7.5 step 5); appended after row 32 per the appended-row precedent, so rows 1–32 stay stable | pack pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them
