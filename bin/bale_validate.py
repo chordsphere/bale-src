@@ -66,6 +66,7 @@ RESPONSE_MANIFEST_SCHEMA = "response-manifest.schema.json"
 DIAGNOSTICS_SCHEMA = "diagnostics.schema.json"
 TELEMETRY_RECORD_SCHEMA = "telemetry-record.schema.json"
 ESCALATION_RECORD_SCHEMA = "escalation-record.schema.json"
+BUNDLE_MANIFEST_SCHEMA = "bundle-manifest.schema.json"
 
 
 # --- JSON Schema validation (BALE.md §11 rows 6) ----------------------------
@@ -543,6 +544,113 @@ def validate_escalation_record(record: dict) -> list:
     errors = validate_against_schema(record, schema)
     _walk_closed_vocabularies(record, "", {"priority": _priority_check},
                               errors)
+    return errors
+
+
+def validate_bundle_manifest(record: dict) -> list:
+    """Validate one planner-bundle manifest; [] = valid, else errors.
+
+    The per-record entry point over bundle-manifest.schema.json
+    (v0.4.12, board 49a-i; format home BALE.md §6.7), importable as a
+    library from bin/bale_validate.py, no bale process required — the
+    validate_telemetry_record posture exactly. This is the validation
+    surface landing with the format, ahead of its consumers (the
+    §6.6 schema-first precedent): the open verb (49a-ii) calls it on
+    the extracted, line-ending-normalized bundle.json before trusting
+    anything else in the bundle, and the crafter's emission (49b)
+    self-checks against it.
+
+    Two layers, mirroring validate_escalation_record's split:
+
+    1. **Shape** — the schema pass. The schema is intentionally loose
+       (additionalProperties: true at the envelope and inside
+       entries), so future additive fields keep old bundles
+       validating; what it does pin, it pins: the four-key required
+       envelope (bundle_format, pack_argv, members, pre_answered),
+       bundle_format exactly 1, the two named member slots (each an
+       object or an explicit null — uniform shape, the depends_on
+       precedent), and the closed intent-prompt vocabulary at its
+       named spot.
+    2. **Cross-field invariants** the schema subset can't express:
+
+       - each present member's `sha256` is exactly 64 lowercase hex
+         characters (the published hash of the member's
+         LF-normalized bytes — the normalization rule is the
+         format's, §6.7; this function sees only the manifest);
+       - each present member's `path` is a flat archive-member name:
+         no path separators, not `.` or `..` — the bundle's members
+         sit beside bundle.json at the archive root;
+       - the two member paths are distinct when both are present;
+       - `pack_argv` carries neither delivery flag
+         (`--readme-file` / `--checkpoint-file`, bare or `=`-glued):
+         the open verb injects those pointing at the extracted
+         members, so a stored one could only disagree with the
+         shipped bytes — the member's presence is the single source
+         for the flag's injection;
+       - `pack_argv` does not name the pack subcommand itself as its
+         first token: the array is the argument vector AFTER `pack`.
+
+    Duplicate (prompt, subject) intent pairs are NOT re-checked here;
+    parse_pre_answered_intents (bin/bale_pack.py) owns that refusal
+    at the consumption site, and this validator stays a shape-and-
+    invariant surface over one JSON document.
+
+    A non-dict argument is reported as an error, not raised — the
+    caller handed us data, and data problems are return values here.
+    A missing or corrupt schema file raises RuntimeError: an install
+    problem, not a record problem (_load_schema_lib).
+    """
+    if not isinstance(record, dict):
+        return [f"bundle manifest is not a JSON object "
+                f"(got {_describe_json_value(record)})"]
+    schema = _load_schema_lib(BUNDLE_MANIFEST_SCHEMA)
+    errors = validate_against_schema(record, schema)
+
+    hex_digits = set("0123456789abcdef")
+    members = record.get("members")
+    member_paths: list[str] = []
+    if isinstance(members, dict):
+        for slot in ("brief", "checkpoint"):
+            member = members.get(slot)
+            if not isinstance(member, dict):
+                continue  # null slot, or shape errors already reported
+            sha = member.get("sha256")
+            if isinstance(sha, str) and not (
+                    len(sha) == 64 and set(sha) <= hex_digits):
+                errors.append(
+                    f"members.{slot}.sha256: must be exactly 64 "
+                    f"lowercase hex characters")
+            path = member.get("path")
+            if isinstance(path, str):
+                if ("/" in path or "\\" in path
+                        or path in (".", "..") or not path.strip()):
+                    errors.append(
+                        f"members.{slot}.path: must be a flat archive-"
+                        f"member name beside bundle.json (no path "
+                        f"separators, not '.' or '..'), got {path!r}")
+                else:
+                    member_paths.append(path)
+    if len(member_paths) == 2 and member_paths[0] == member_paths[1]:
+        errors.append(
+            f"members: brief and checkpoint name the same archive "
+            f"member {member_paths[0]!r}; the two must be distinct")
+
+    argv = record.get("pack_argv")
+    if isinstance(argv, list):
+        for i, arg in enumerate(argv):
+            if not isinstance(arg, str):
+                continue  # schema pass already reported the type
+            for banned in ("--readme-file", "--checkpoint-file"):
+                if arg == banned or arg.startswith(banned + "="):
+                    errors.append(
+                        f"pack_argv[{i}]: {banned} is injected by the "
+                        f"consumer from the bundle's own members and "
+                        f"must not be stored in the argv — the "
+                        f"member's presence is the single source")
+        if argv and isinstance(argv[0], str) and argv[0] == "pack":
+            errors.append(
+                "pack_argv[0]: the array is the argument vector AFTER "
+                "the pack subcommand; do not store the verb itself")
     return errors
 
 

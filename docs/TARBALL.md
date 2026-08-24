@@ -1344,6 +1344,30 @@ narrowed scope; the offering session authors them as
 sub-master (PLANNER.md carries the doctrine), and the operator
 delivers, never authors.
 
+**Planner bundles are oracle-bearing and never ship.** A planner
+bundle is a single planner-emitted file — reserved filename suffix
+`.bale-bundle` — packaging a session's brief, its blind checkpoint
+(§7), and its full pack invocation, so the operator saves one file
+and pastes one emitted line; the format and its pack-side mechanics
+live in the bale tool's own documentation. Two worker-facing rules
+follow. First, because the bundle carries the checkpoint, it is
+structurally invisible to workers: bale auto-excludes every
+`.bale-bundle` file from shipped context with a loud drop line, an
+`--include` or `--write` entry naming one refuses at pack, there is
+no admission flag, and the worker never authors, requests, or names
+a bundle file — work on bundle handling uses synthetic fixtures
+named outside the suffix. Second, a bundle carries **pre-answered
+intents**: explicit, per-prompt accepts of named decline-default
+exchanges (the `--supersedes` y/N is the one instance today),
+routed through the exchange rather than around it — an intent
+answers exactly one named prompt about exactly one subject, never a
+blanket yes; an absent or non-matching intent leaves every decline
+default exactly as this section describes it, and no CLI flag can
+spell a pre-answered accept. For the worker, the decline-default
+semantics documented here are therefore unchanged on every typed
+path; the intents channel exists only inside bundle-composed
+invocations.
+
 **Declarations name existing paths; new files are the worker's
 call.** One rule across both flag families, no exceptions to
 memorize: never author or suggest an `--include` or a `--write` for
