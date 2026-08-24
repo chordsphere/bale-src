@@ -1,0 +1,114 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-24-sitting-close-deltas-007",
+  "created_at": "2026-08-24T15:49:03+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-24T15:49:03+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-24-sitting-close-deltas-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "block token-stream assertions (A-E)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block placement assertions (B, C)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "block token-stream assertions (A-E)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block placement assertions (B, C)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.13",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "00da2ba40b29cae75c8bff175e00cce25aa3a172550241771e29fa681b0c8c42",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-005",
+            "work_class": "doc",
+            "model_identity": "Claude (Anthropic), via claude.ai chat interface"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Block E honored the trailing-clause byte-identity instruction over full-entry greedy re-wrap; local re-wrap only, seam flagged in notes.md",
+            "Block C bracket appended stacked (no blank line), matching row 49's existing bracket convention",
+            "Block B's header/items blank line carried as part of the block, matching the resumed-49 sibling's shape",
+            "wrap seams re-derived strictly greedy at 72 rather than preserving the brief payload's own line breaks; token streams identical"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-24-sitting-close-deltas-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-24-sitting-close-deltas-007.sh",
+          "sha256": "d9b2e9e477a2e91c3b7335365b5f28f11a2ec3141d740e90d2946545b7c25036"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-24T15:49:03+00:00",
+  "outcome": "applied"
+}
