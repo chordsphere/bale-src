@@ -1,0 +1,153 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-24-board-49a-i-bundle-format-003",
+  "created_at": "2026-08-24T13:46:39+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-24T13:46:39+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (38).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python unittest (scoped: bundle, supersession, pack gates, doc guards)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions (schema loop, BALE spec, TARBALL surface, version)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "executable bit: validate.sh": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "python unittest (scoped: bundle, supersession, pack gates, doc guards)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions (schema loop, BALE spec, TARBALL surface, version)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "executable bit: validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs/TARBALL.md",
+        "schemas",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_validate.py",
+        "docs/TARBALL.md",
+        "schemas/bundle-manifest.schema.json",
+        "tests/test_bundle_denylist.py",
+        "tests/test_bundle_manifest.py",
+        "tests/test_pre_answered_intents.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build"
+          },
+          "provenance": {
+            "bale_version": "0.4.11",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "e2408ba6e1e1a953e170acc6cbdcb23ceae54bddcfca118a06a12b7cdbb96ddd",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-24-board-49a-i-bundle-format-003.sh",
+              "sha256": "221e837309737ede760fff11c960e035cb8dba081de7af9ae7bee099611c9f75"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "escalation-record and telemetry-record schemas are already registered in scripts/build.sh RELEASE_FILES / install.sh INSTALL_LAYOUT \u2014 unverifiable from the shipped context; the trued-up validate.sh loop and notes.md flag it for review",
+            "the harness sandbox repos are not checkpoint-configured, so the new e2e packs need no --checkpoint-file (matched the shipped supersession suite's behavior, and held in runs)"
+          ],
+          "judgment_calls": [
+            "intents API is in-process only \u2014 no CLI flag exists, so no typed spelling of a pre-answered accept (notes.md)",
+            "no admission flag on either bundle deny-list half, unlike the checkpoint's --allow-checkpoint-in-scope (notes.md)",
+            "unconsumed intents proceed loudly rather than refuse, per the brief's pin; the tension with the disjoint-decline rule is flagged for ratification (notes.md)",
+            "no record-wide closed-vocabulary walk for the intent prompt key \u2014 'prompt' is too generic to claim record-wide (notes.md)",
+            "release-list registration of the new schema deferred to planner direct edit: outside the forecast, no shipped base bytes (notes.md, deferred[])"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "scripts/build.sh and install.sh (only to verify/extend the release lists beside the new schema; not needed for the forecasted work itself)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-24-board-49a-i-bundle-format-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-24-board-49a-i-bundle-format-003.sh",
+          "sha256": "221e837309737ede760fff11c960e035cb8dba081de7af9ae7bee099611c9f75"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-24T13:46:39+00:00",
+  "outcome": "applied"
+}
