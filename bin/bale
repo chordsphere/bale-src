@@ -3,8 +3,10 @@
 
 The CLI for the Claude tarball workflow: `bale pack` builds request
 tarballs, `bale apply` validates and integrates the response tarballs a
-worker Claude returns, and the ancillary commands (revert, rollback,
-retry, unlock, handoff, config init, status, stats) manage the session
+worker Claude returns, `bale open` consumes a planner bundle into a
+packed session (verify, dry-run, replay — bin/bale_open.py, board
+49a-ii), and the ancillary commands (revert, rollback, retry, unlock,
+handoff, config init, status, stats) manage the session
 lifecycle around them. BALE.md at the repo root is the canonical design
 document — comments below cite its sections. Stdlib-only, Python 3.10+
 (3.11+ uses stdlib `tomllib`; 3.10 the vendored parser in
@@ -217,6 +219,14 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
     resolve_no_interact,
     resolve_target_branch,
 )
+
+# The open verb — planner-bundle consumption (board 49a-ii, v0.4.13) —
+# lives in the sibling bale_open module, same sys.path-insert mechanism
+# and same lazy-__main__ convention as the siblings above. Dependency
+# direction stays one-way: this file imports bale_open; bale_open
+# reaches into bale_pack (recognizer, intents) and bale_validate (the
+# manifest gate) and never into bale_apply.
+from bale_open import cmd_open  # noqa: E402 — sys.path tweak is load-bearing
 
 
 # ---------------------------------------------------------------------------
@@ -5283,6 +5293,53 @@ def build_parser() -> argparse.ArgumentParser:
     p_unlock.set_defaults(func=cmd_unlock)
 
     # handoff — repackage a bailout response into a fresh request tarball.
+    # open — planner-bundle consumption (board 49a-ii; BALE.md §6.7).
+    # Verifies both member hashes, dry-runs the checkpoint read-only
+    # against the live base (expected-HOLD proof; exit 2 refuses as a
+    # defective oracle), then replays the stored pack argv with the
+    # delivery flags injected from member presence and the bundle's
+    # pre-answered intents on the in-process channel.
+    p_open = sub.add_parser(
+        "open",
+        help="Consume a planner bundle: verify, dry-run the checkpoint, "
+             "pack.",
+        description=(
+            "Consume a planner bundle (.bale-bundle; BALE.md §6.7): gate "
+            "bundle.json through validate_bundle_manifest before trusting "
+            "anything else, verify each member's published sha256 against "
+            "its LF-normalized bytes, dry-run the checkpoint member "
+            "read-only against a scratch copy of the live base and echo "
+            "the expected-HOLD proof (exit 1 expected; exit 2 refuses the "
+            "whole open as a defective oracle; exit 0 proceeds with a "
+            "vacuous-oracle warning), then replay the stored pack argv "
+            "with --readme-file/--no-readme and --checkpoint-file "
+            "injected from member presence and the bundle's pre_answered "
+            "intents riding the in-process channel — routed through every "
+            "decline-default exchange, never around it."
+        ),
+    )
+    p_open.add_argument(
+        "bundle",
+        help="Path to the planner bundle (.bale-bundle). A relative path "
+             "resolves like apply's tarball argument: cwd first, then "
+             "each configured apply.search_paths directory in order; an "
+             "absolute path bypasses the search.",
+    )
+    p_open.add_argument(
+        "--verbose", action="store_true",
+        help="Stream the checkpoint dry-run's output live instead of "
+             "capturing it and echoing the probe-verdict lines.",
+    )
+    p_open.add_argument(
+        "--no-sandbox", action="store_true",
+        help="Run the checkpoint dry-run UNCONFINED for this invocation "
+             "(ADR-0016 escape; same semantics as `bale apply "
+             "--no-sandbox`, scoped here to the dry-run — the replayed "
+             "pack executes no scripts). Per-invocation only — "
+             "deliberately no config key — and every use is FORCE-logged.",
+    )
+    p_open.set_defaults(func=cmd_open)
+
     # TARBALL.md §5.6.3: when `bale apply` encounters response_kind=bailout
     # it prints the handoff banner and stops; `bale handoff <tarball>`
     # then takes that bailout's handoff.md and ships it as the sole
@@ -5548,7 +5605,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     # would otherwise surface as a mid-build copy failure — on handoff,
     # after sid allocation and session state already exist. Fail loud
     # up front instead, with the same message on both commands.
-    if args.command in ("pack", "handoff"):
+    if args.command in ("pack", "handoff", "open"):
+        # open is in the tuple because it replays pack in-process
+        # (board 49a-ii): the missing-file failure would otherwise
+        # surface mid-replay, after the dry-run already spent its cost.
         missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
         missing += [f"tools/{t}" for t in INJECTED_TOOLS
                     if not (TOOLS_DIR / t).exists()]

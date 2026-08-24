@@ -471,6 +471,7 @@ forward-looking entry.
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. Since v0.3.33 it also runs the checkpoint blindness gate pack runs (§7.1 step 4b, §11 row 30) against its reading-plan scope — pre-sid, one gate implementation shared with pack — refusing a handoff whose scope covers the configured blind checkpoint; `--allow-checkpoint-in-scope` (per-invocation, flag-only, mirroring pack's spelling) admits it, FORCE-logged, with `checkpoint_scope_admitted: true` stamped into the new request's provenance through the shared builder. | v0.0.6 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
@@ -892,11 +893,25 @@ exchange, the manifest schema
 (`schemas/bundle-manifest.schema.json`), and the validation surface
 (`validate_bundle_manifest`, `bin/bale_validate.py`) — the §6.6
 schema-ahead-of-consumer posture. The `bale open` verb that
-consumes bundles (hash verification, the read-only checkpoint
-dry-run with its expected-HOLD proof, argv replay, and the row-48
-standalone-echo decision) is 49a-ii; the crafter-side emission, so
-the desk never hand-composes argv or hash blocks, is 49b. Neither
-exists yet; the format below is what they consume and produce.
+consumes bundles is 49a-ii, landed in v0.4.13 (`bin/bale_open.py`;
+the §5 command row carries its surface): it gates the extracted,
+LF-normalized `bundle.json` through `validate_bundle_manifest`
+before trusting anything else, refuses undeclared or missing
+archive members (a bundle is sealed), verifies both member hashes,
+dry-runs the checkpoint member read-only against a scratch copy of
+the live base and echoes the expected-HOLD proof (exit 1 expected;
+exit 2 refuses the whole open as a defective oracle; exit 0
+proceeds with a loud vacuous-oracle warning), then replays the
+stored `pack_argv` through the real CLI parser with the delivery
+flags injected from member presence and `pre_answered` riding the
+in-process channel. The dry-run leg is bundle-only by ratified
+disposition: the typed, non-bundle pack path keeps no standalone
+dry-run echo — the paste-surface hazard the proof guards exists
+only where the operator pastes a desk-emitted line over members
+they never inspected, and pack itself stays a no-script-execution
+command. The crafter-side emission, so the desk never hand-composes
+argv or hash blocks, is 49b and does not exist yet; the format
+below is what it will produce and `bale open` consumes.
 
 **Container and recognizer.** A bundle is a gzipped tar whose
 filename ends with the reserved suffix `.bale-bundle` — the suffix
