@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-24-sitting-close-deltas-004`.
+Last landed by: `2026-08-24-sitting-close-deltas-007`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -940,6 +940,58 @@ Landed 2026-08-24 (the resumed-49 sitting, master
   fresh against the applied tree.
 - Sitting closed at the milestone; 49a-ii heads the next desk's agenda.
 
+Landed 2026-08-24 (the 49a-ii sitting, master
+`2026-08-24-continue-plan-005`, read-only):
+
+- 49a-ii landed first-try PASS on a desk-authored blind oracle — the
+  second clean one running — `2026-08-24-board-49a-ii-open-verb-006` at
+  0.4.13, all five changes[] paths in-forecast. Spawn materials derived
+  from the 009 sources (revA 26c894…, checkpoint v1 56d578…); the
+  derived brief published as d4f524…, the re-derived five-probe
+  checkpoint as 4970ef…. Re-derivation record: P3 retired (the rider
+  consumed at the contract-doc landing), P2 re-suffixed to the landed
+  recognizer, P4 re-derived and P5/P6 new after v1's BALE.md probe
+  stopped discriminating post-§6.7 — two stale-probe catches at the
+  desk's own dry-run, the rehearsal rule working.
+- Ratified, the worker's flagged decisions as shipped, one line each in
+  its archived notes: the row-48 decision — bundle-only, no standalone
+  dry-run echo on the typed pack path (row 48's pointer resolves as
+  declined; disposition recorded in BALE.md §6.7, the caller-agnostic
+  seam noted); the dry-run exit-code space — 1 the expected-HOLD proof,
+  0 loud-vacuous-proceed (revisit only on vacuous-warning clustering),
+  all else refused as defective; the flag surface with --json deferred;
+  structural read-only via a scratch copy of the working tree as the
+  live base; the open- log prefix; repo-required; the
+  unconfigured-project pre-check; the sealed-archive hard refusals; the
+  0.4.13 bump (a new user-facing verb — owed, neither exemption
+  applies).
+- Proposals dispositions: the two 49b consumer facts accepted,
+  transporting verbatim into 49b's brief; the open --json report
+  deferred until after 49b, its sequencing reason of record; the
+  unconsumed-intents watch note recorded — the loud-report path is
+  implemented and tested, and the refuse-vs-proceed revisit stays
+  desk-side on the live specimen.
+- Packer-attributed tallies, both this desk's: the write forecast
+  omitted scripts/build.sh and install.sh against evidence 67's standing
+  packaging-coupling practice — the tree-coverage guard refused the
+  post-apply reinstall, second consecutive firing, remedied in the
+  planner-direct lane again (bin/bale_open.py registered in both release
+  lists, commit cff7455); and the include set omitted upgrade.sh and the
+  root README.md, so the shipped-context validate.sh read 76/5 — the
+  evidence-13 class, handled worker-side with the identical-counts
+  control.
+- Paste-surface specimen for the pile: a pasted fix command carried one
+  stray trailing quote, stalled the shell in quote-continuation, and ^C
+  aborted cleanly — nothing ran, verified by porcelain before the
+  re-paste. Grist for the 49b/52 paste-block surfaces.
+- Ratified at the sitting open, close-004's three flagged mechanical
+  decisions as shipped: Block B seated contiguously inside the watch
+  list; Block E's blank handling; greedy re-wrap at 72 under
+  token-stream-identity assertions.
+- Sitting closed at the milestone; 49b heads the next desk's agenda,
+  carrying the two consumer facts and the 49a-i constant-duplication
+  drift guard.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -1578,6 +1630,14 @@ and §8, so done items keep their numbers as one-line pointers.
     are landed; the format spec's home and the two consumer contracts
     are recorded in its archived notes; seven judgment calls ratified.
     Next: 49a-ii, packed fresh against the applied tree.]
+    [2026-08-24, second sitting: 49a-ii DONE —
+    `2026-08-24-board-49a-ii-open-verb-006`, first-try PASS at 0.4.13.
+    The open verb ships end to end: the validate-bundle gate first, both
+    member-hash verifications, the read-only dry-run with the
+    expected-HOLD proof, argv replay with delivery-flag injection, the
+    intents channel exercised under piped stdin. The row-48 decision
+    resolved bundle-only; ratifications and tallies in §3. Next: 49b
+    (crafter emission), packed fresh against the applied tree.]
 
 50. **CRLF tolerance at every text-file read** — queued 2026-08-18
     (small): bale tolerates CRLF wherever it reads text files
@@ -2962,14 +3022,15 @@ New from the 2026-08-18 smoothing sitting:
   bale_config, bale_validate, bale_staging, bale_report,
   bale_rollback, bale_stats (the eighth sibling — a claim; landed
   at `2026-08-01-board-5-bale-stats-006` per the arc's upward
-  report), _bale_toml. Load-time
+  report), bale_open (the ninth — landed at
+  `2026-08-24-board-49a-ii-open-verb-006`), _bale_toml. Load-time
   import set: pre-extraction it was bale_config, bale_validate,
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.11 at
-  `2026-08-16-planner-injection-wiring-006` (the five-doc
-  injection wiring, the current landmark); the per-bump trail —
+  still governs. bin/bale VERSION 0.4.13 at
+  `2026-08-24-board-49a-ii-open-verb-006` (the open verb, the current
+  landmark); the per-bump trail —
   every bump's sid and the doc-only / tests-only bump exemptions —
   lives in git (prior versions of this doc) and in the sessions'
   telemetry records.
