@@ -1,0 +1,155 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-24-sitting-close-deltas-004",
+  "created_at": "2026-08-24T14:06:41+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-24T14:06:41+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-24-sitting-close-deltas-004_tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "header A replaced (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block B watch entry placed (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block C strike note placed (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block D registry entry placed (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block E dated record placed (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block F row-49 bracket placed (anchored, whitespace-normalized)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "header A replaced (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block B watch entry placed (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block C strike note placed (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block D registry entry placed (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block E dated record placed (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block F row-49 bracket placed (anchored, whitespace-normalized)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.12",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "00da2ba40b29cae75c8bff175e00cce25aa3a172550241771e29fa681b0c8c42",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-24-sitting-close-deltas-004.sh",
+              "sha256": "68bf17bfc2278d776489b03be18771213c6247b1b2703c313f0b7c461df6db75"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Block B inserted inside the watch list, directly after its pre-anchor bullet, keeping the existing blank line as the separator before the Fold-in registry paragraph",
+            "Block E lands with its internal paragraph/bullet blank preserved and one new trailing blank before the section-4 heading",
+            "re-wrap is greedy at width 72, so line breaks may differ from the brief's own wrapping; token-stream identity (whitespace-normalized) asserted per block at build time"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-24-sitting-close-deltas-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-24-sitting-close-deltas-004.sh",
+          "sha256": "68bf17bfc2278d776489b03be18771213c6247b1b2703c313f0b7c461df6db75"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-24T14:06:41+00:00",
+  "outcome": "applied"
+}
