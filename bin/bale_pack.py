@@ -1374,19 +1374,50 @@ def checkpoint_resolved_preflight(repo: Path, sid: str,
         f"(committed at HEAD; sid {sid})")
 
 
+def normalize_crlf(data: bytes) -> bytes:
+    """Return `data` with every CRLF replaced by LF — bare CR is never
+    touched (board 50's one-line rule, uniform and minimal).
+
+    This mirrors bale_open.normalize_bundle_member rather than
+    importing it: the two sites share the rule text by contract, not a
+    call graph — bundle reads and the --checkpoint-file ingest each
+    own their normalization at their own edge, and bale_pack keeps its
+    no-cross-module-import discipline (module docstring).
+    """
+    return data.replace(b"\r\n", b"\n")
+
+
 def locate_and_read_checkpoint_file(
     arg: str, repo: Optional[Path], cwd: Path,
 ) -> tuple[Optional[Path], Optional[bytes], Optional[str]]:
-    """Resolve a --checkpoint-file argument and read its bytes (v0.4.10).
+    """Resolve a --checkpoint-file argument and read its bytes,
+    CRLF-normalized (v0.4.10; normalization board 50, v0.4.15).
 
     Resolution mirrors --readme-file exactly (TARBALL.md §3.4's
     contract for the flag): locate_inbound_path over the configured
     apply.search_paths — cwd first, then each directory in order,
     absolute paths bypass — so a planner-downloaded checkpoint packs by
-    bare name. Bytes are read binary-exact, no text decoding or
-    newline normalization: the committed oracle is hashed and executed
-    byte-for-byte everywhere downstream (the provenance stamp, apply's
-    stamp verification), unlike the README, which is prose.
+    bare name. The read bytes are normalized before anything else sees
+    them — every CRLF replaced by LF, bare CR never touched
+    (normalize_crlf, board 50) — so a checkpoint that traveled a
+    line-ending-mangling transport (mail, chat, a Windows checkout)
+    commits as the LF oracle the planner published: the pack echo and
+    the provenance stamp carry the LF-bytes hash the desk's published
+    hash compares against, install's identical-bytes idempotency sees
+    LF and CRLF twins of one oracle as the same delivery, and a CRLF
+    `exit 1` line can no longer surface as exit 2 — a defective oracle
+    — at bale open's dry-run leg.
+
+    This revises the v0.4.10 binary-exact read. Its rationale — the
+    committed oracle is hashed and executed byte-for-byte everywhere
+    downstream (the provenance stamp, apply's stamp verification,
+    run_blind_checkpoint's base-tree extraction), unlike the README,
+    which is prose — survives intact one step later: everything
+    downstream of the checkpoint COMMIT stays byte-exact, unchanged.
+    Only this ingest edge normalizes, because the ingest edge is
+    exactly where transport mangling enters; committed bytes are
+    always the normalized bytes, so byte-exact-from-HEAD and
+    LF-normalized-at-ingest never disagree.
 
     Returns (path, data, None) on success and (None, None, error) on a
     search miss, an unreadable file, or an empty one — errors mirror
@@ -1416,6 +1447,7 @@ def locate_and_read_checkpoint_file(
         data = path.read_bytes()
     except OSError as e:
         return None, None, f"could not read --checkpoint-file {arg!r}: {e}"
+    data = normalize_crlf(data)
     if not data.strip():
         return None, None, (
             f"--checkpoint-file {arg!r} is empty. The flag asks bale to "
