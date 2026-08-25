@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-25-sitting-close-deltas-002`.
+Last landed by: `2026-08-25-sitting-close-deltas-010`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -220,7 +220,11 @@ source):
   tests/test_install_precheck.py forecast entry
   (`2026-08-07-board-35-handoff-happy-011`) — packer-side
   imprecision, master-authored pack; one accrual, no clustering,
-  no action.
+  no action. Second datum accrued 2026-08-25: board 52's unused
+  tests/test_tree_position_echo.py forecast entry
+  (`2026-08-25-board-52-pack-preamble-006`) — packer-side
+  imprecision again, master-authored pack; two accruals, still no
+  clustering, watch stands.
 - Drift-gate residue on default-forecast checkpoint edits: a
   default pack's recorded forecast is `["."]`, so the apply-side
   drift gate would not catch a response landing an edit under the
@@ -398,6 +402,11 @@ with the unverifiable ones carried verbatim and marked):
   won't have that luxury; better to introduce the convention
   deliberately (with `validate.sh` and the docs knowing about it)
   than as a side effect of whichever session first overruns."
+  [2026-08-25: consumed — the convention landed harness-level at
+  `2026-08-25-pair-close-rider-008` (`BALE_TEST_SLOW`, gate + criterion
+  in tests/harness.py, `validate.sh`'s `[INFO]` surface). Criterion
+  recorded: cases ≥0.7s gate, fastest-per-class representative stays
+  default. §5 contract, §7 fact.]
 - Pack-time "forecast/include mismatch" warning — warn when a
   `--write` names an existing file absent from resolved includes.
   Rides the next session touching bin/bale_pack.py. (Source:
@@ -540,6 +549,13 @@ with the unverifiable ones carried verbatim and marked):
   [2026-08-18: struck — re-routed at the desk from board 49 to the
   sub-master contract-doc session (tests/ in its forecast first) and
   consumed there.]
+- Successor-surface parity (deliberately unscheduled) — the opener
+  as a structured key in `format_pack_json` (not just the stderr
+  copy block); opener emission on handoff's report; bare forms for
+  retry and handoff. Three proposals from boards 51/52 cohering as
+  one session; a future desk sequences it. (Accepted 2026-08-25 from
+  boards 51/52's Proposals; the stderr/one-line-stdout ruling that
+  scoped the JSON out of the pair is §5's session-opener contract.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1073,6 +1089,80 @@ operator's machine with the expected-HOLD proof clean.
   --json report, its only-after-49b deferral discharged, then boards 50
   and 53; the apply-side bundle backstop still rides the next
   bin/bale_apply.py touch.
+
+Landed 2026-08-25 (the continue-plan-003 sitting, master
+`2026-08-25-continue-plan-003`, read-only): four board sessions
+recorded DONE, all first-try PASS on desk-authored blind oracles; a
+concurrent pair with a desk-side bump rider, the first post-epoch
+concurrency to run scope-disjoint end to end.
+
+- Board 50 landed first-try PASS — `2026-08-25-board-50-crlf-tolerance-004`
+  at 0.4.15. One real code change: `--checkpoint-file` ingest
+  normalizes CRLF→LF before the empty-check, commit, echo, and stamp.
+  Tolerance pins for the already-tolerant surfaces (briefs via
+  text-mode reads, config via the TOML spec, baleignore via
+  splitlines); read-site survey with per-site dispositions; docs
+  trued. Ratified latitude: the working-tree CRLF-twin refusal; the
+  legacy CRLF-oracle refusal (committed-is-ratified); installed-doc
+  provenance hashes left byte-exact deliberately. Sitting finding,
+  recorded with the tally: the desk's pre-pack rehearsal falsified
+  half the row's premise — briefs and config were already tolerant —
+  and the session was scoped to the truth, not the row.
+- Board 52 landed first-try PASS — `2026-08-25-board-52-pack-preamble-006`,
+  bumpless per the hot-file ruling (the pair's bump rode the rider).
+  `session_opener_block` in `bale_pack.py`; the report ends with the
+  sid+goal copy block framed by scissor lines on all three pack
+  shapes; `--json` keeps the one-line stdout and the opener rides
+  stderr. Ratified: the stderr decision (refusing to smuggle a JSON
+  key past the `bale_report.py` hot-file ruling), both BALE.md
+  re-points, and wording ownership (the scissor lines are test
+  literals).
+- Board 51 landed first-try PASS — `2026-08-25-board-51-bare-apply-007`,
+  bumpless per the hot-file ruling. Resolution: newest by
+  `st_mtime_ns`, no secondary tie-break (an exact tie refuses,
+  naming every tied path); content-based candidacy (a
+  `response-NNN/manifest.json` member with a non-empty `responds_to`
+  — request tarballs are structurally never candidates); identity
+  echo (path, sid, sha256, mtime) before a decline-default y/N;
+  interactive decline exits 1; `--no-interact` contradicts the bare
+  form up front; inspection flags refuse, `--dry-run` composes. All
+  ratified, including the flagged ambiguity interpretation — the
+  board-row bracket carries it verbatim.
+- Board 51/52 pair close (the rider) landed first-try PASS —
+  `2026-08-25-pair-close-rider-008`: the shared bump to 0.4.16, board
+  51's BALE.md apply paragraph, board 52's §7.7 version tag, the
+  `docs/CLAUDE.md` bale-emitted-opener pointer, and the harness-level
+  `BALE_TEST_SLOW` convention. Ratified: the gate criterion, the
+  `[INFO]` marker class in `validate.sh` (status lines that are not
+  checks move no counters), release hygiene, and the predicted-basis
+  claim (reconciliation agreed at apply). Board-51 conditional
+  resolved moot and folded here rather than the registry: the pair
+  landed as 0.4.16, so the shipped description string was already
+  correct — there was never a fold-in entry to strike.
+- Registry dispositions (texts verbatim in the §3 fold-in registry):
+  the `--slow` convention consumed (landed at the rider with the
+  criterion recorded); successor-surface parity added as a
+  deliberately-unscheduled rider (the opener as a `format_pack_json`
+  key, opener emission on handoff, bare retry/handoff forms).
+- Desk miss, owned and remedied same day: the `--slow` registry entry
+  was not transported in board 50's brief (workers never see
+  MASTER.md), so the worker coined a local `--slow` spelling — the
+  right call with what it had — and the rider landed the one home. A
+  desk-side transport tally, not a worker miss.
+- The close's own bundle-stem collision, caught and closed clean:
+  this close's first pack collided with the prior desk's close bundle
+  on the shared stem `2026-08-25-sitting-close-deltas`; the stale twin
+  resolved first and re-packed an already-landed brief as session
+  `-009`. The worker's landed-state verification caught it, refused to
+  fabricate or duplicate, and closed via unlock — the discipline
+  holding where the mechanical gate did not. Specimen at §6 entry 85;
+  guard seeded as board 55; NNN not recycled, so this landing is
+  `-010`.
+- Sitting closed at the milestone. Next desk's agenda, unchanged
+  guidance: smalls first (38, 39, 41, 47, 53, 37 remain — board 53
+  the next-up candidate), the compression sitting (42→43) before
+  harness scoping, board 45 before any harness autonomy, S6 last;
+  board 55 joins the smalls.
 
 ## 4. The board
 
@@ -1733,6 +1823,12 @@ and §8, so done items keep their numbers as one-line pointers.
     step something automates. Kills the §7 environment wart at the
     source; sweep §7's CRLF line when this lands (evidence 80's
     rule).
+    [2026-08-25: DONE — `2026-08-25-board-50-crlf-tolerance-004` at
+    0.4.15. Premise correction: the row's read-site list was half
+    stale — briefs and config were already tolerant; the desk's
+    pre-pack rehearsal caught it and scoped the session to the truth,
+    not the row. §7 CRLF sweep satisfied — the sed line is retired,
+    and evidence 80's owe-note is discharged for this board.]
 
 51. **Bare `bale apply` resolution — RATIFIED 2026-08-18, queued**
     (small): apply with no argument resolves the newest response
@@ -1741,6 +1837,9 @@ and §8, so done items keep their numbers as one-line pointers.
     candidates, or two open sessions — refuses loudly, never
     guesses. Save one file, one emitted paste: the apply-side
     floor.
+    [2026-08-25: DONE — `2026-08-25-board-51-bare-apply-007`, bumpless
+    per the hot-file ruling. Flagged ambiguity interpretation, ratified:
+    ambiguity means two candidates the newest-rule **cannot separate**, not any two candidates — the stricter reading would make "resolves the newest" dead text.]
 
 52. **Pack output emits the chat-opening preamble** — queued
     2026-08-18 (small): the pack report ends with the
@@ -1752,6 +1851,12 @@ and §8, so done items keep their numbers as one-line pointers.
     pack's successor is a chat message, so pack emits it. Sweep
     any doctrine describing the hand-carried preamble when this
     lands (evidence 80's rule).
+    [2026-08-25: DONE — `2026-08-25-board-52-pack-preamble-006`,
+    bumpless per the hot-file ruling (the pair's bump rode the
+    rider). Preamble-doctrine sweep discharged at the rider in
+    `docs/CLAUDE.md` (bale-emitted since 0.4.16), outside this doc's
+    forecast; no in-doc target remained — §5's 2026-08-18 paste-block
+    contract already stated the post-52 residual.]
 
 53. **Checkpoint amendment as a first-class verb** — queued
     2026-08-18 (small-to-medium; bale code + docs): the
@@ -1774,6 +1879,10 @@ and §8, so done items keep their numbers as one-line pointers.
     Plausible board-49 adjacency — the bundle owns
     checkpoint delivery; amendment is its revision path —
     the sequencing call is the next desk's.
+    [2026-08-25: sequencing ruling — rides after the pair (now
+    landed), with board 50's ingest normalization now sitting
+    underneath the amendment verb for free (CRLF strip is no longer
+    the operator's hand step). Next-up candidate among the smalls.]
 
 54. **Arc-level dual-stream mechanics** — queued 2026-08-18
     (medium; bale code + schemas + docs): the sub-master
@@ -1789,6 +1898,17 @@ and §8, so done items keep their numbers as one-line pointers.
     sub-master's summed validation with the arc verdict. Manual
     path first, proven by hand; harness transport rides S6.
     Motivating record: the 2026-08-18 sub-master sitting (§3).
+
+55. **Bundle-stem collision guard** — queued 2026-08-25 (small;
+    investigation-first): the open verb's expected-HOLD gate exists
+    to refuse a bundle whose oracle passes against the live base, and
+    the `-009` open packed a stale twin anyway. Establish why first —
+    an oracle-less legacy bundle, or probes that still fail against
+    today's tree — before choosing the mechanism: stem-uniqueness
+    refusal, a prominent desk/created-at provenance echo, or a
+    hardened dry-run gate. Small, evidence-fed by §6 entry 85;
+    sequenced by the next desk among the smalls. Interim rule until
+    it lands: desk-unique bundle stems (§6 entry 85).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -2241,6 +2361,38 @@ New, ratified 2026-08-18 (the smoothing sitting):
   authors the bundle, the human pastes the emitted line. Residual
   composed surface after rows 49/51/52 land: the first-ever chat
   opener of a brand-new install, and nothing else.
+
+New, ratified 2026-08-25 (the continue-plan-003 sitting):
+
+- **CRLF ingest normalization.** At every transport-facing text
+  ingest, replace CRLF with LF and nothing else; published and echoed
+  hashes are computed over the normalized bytes; the committed oracle
+  is LF, and everything downstream of a commit stays byte-exact. The
+  normalization sits before the empty-check, commit, echo, and stamp
+  at `--checkpoint-file`; already-tolerant surfaces (text-mode brief
+  reads, the TOML config spec, splitlines on baleignore) are pinned,
+  not re-plumbed. (Board 50.)
+- **The session opener.** Pack's report ends with the sid+goal copy
+  block, framed by scissor lines on all three pack shapes; bale owns
+  and versions the paragraph. `--json` keeps exactly one JSON line on
+  stdout with the opener on stderr — the JSON key was refused past
+  the `bale_report.py` hot-file ruling, not smuggled through it. The
+  scissor lines are test literals. (Board 52.)
+- **Bare `bale apply` resolution.** The full contract as recorded in
+  the §3 entry and the board-51 row bracket: newest by `st_mtime_ns`
+  with no secondary tie-break (exact ties refuse, naming every tied
+  path); content-based candidacy (a `response-NNN/manifest.json`
+  member with non-empty `responds_to`; request tarballs never
+  candidates); identity echo before a decline-default y/N;
+  interactive decline exits 1; `--no-interact` contradicts the bare
+  form up front; inspection flags refuse and `--dry-run` composes.
+  (Board 51.)
+- **`BALE_TEST_SLOW`.** The slow-test gate is harness-level, homed in
+  `tests/harness.py`; only the literal `1` opens it. `validate.sh`
+  surfaces gated status through an `[INFO]` marker class — status
+  lines that are not checks, moving no counters. Gate criterion:
+  cases ≥0.7s gate, with the fastest-per-class representative kept in
+  the default run. (Board 52's rider.)
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -3039,7 +3191,9 @@ New from the 2026-08-18 smoothing sitting:
     the task through the operator is retired or re-pointed —
     otherwise the friction survives its own fix. Swept this
     sitting for the version rule; boards 39 and 50 owe the same
-    sweep at their landings.
+    sweep at their landings. [2026-08-25: board 50 discharged — its
+    landing this close swept §7's CRLF/sed line (the sed-ritual
+    remedy retired); board 39 still owes at its landing.]
 
 81. **Master-desk packs are the worst digest-over-dump offenders —
     first measured read-precision datum.** This sitting's request
@@ -3064,11 +3218,39 @@ New from the 2026-08-18 smoothing sitting:
     is the sub-master doctrine (this sitting), whose
     builds-against form matches TARBALL.md §7's actual contract.
 
+New from the 2026-08-25 sitting (continue-plan-003):
+
+83. **First post-epoch concurrent pair; hot-file rulings worked as
+    pre-assigned lanes.** Boards 51 and 52 ran scope-disjoint with
+    the hot files (VERSION, `bale_report.py`, BALE.md) partitioned as
+    pre-assigned lanes: the sibling forecasts traveled verbatim in
+    both briefs, there were zero lane violations, integration order
+    was free, and the shared 0.4.16 bump landed desk-side via a rider
+    rather than in either session. Board 45's hot-file forecast watch
+    has its first live specimen and its resolution pattern —
+    pre-assigned lanes plus a close-side bump rider.
+84. **The sitting probe collapsed three status asks into one.** A
+    single paste-back probe replaced three separate status asks and
+    grounded the rider's oracle on real bytes before the desk
+    authored it. Board 39's zero-paste case gains its third specimen
+    and is strengthened: the request answers what the desk would
+    otherwise have asked, and the one probe that remained was
+    read-only and bounded.
+85. **Bundle-stem first-match collision — the discipline held where
+    the gate did not** (specimen; this close's own first attempt).
+    Two consecutive desks' close bundles shared the stem
+    `2026-08-25-sitting-close-deltas`; the stale twin resolved first
+    and re-packed the prior sitting's already-landed brief as session
+    `-009`. The worker's landed-state verification caught it, refused
+    to fabricate or duplicate, and closed clean via unlock — the
+    discipline holding where the mechanical gate did not. Guard
+    seeded as board 55, fed by this entry; the remedy interim rule is
+    **desk-unique bundle stems**.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
-  /mnt/c/Users/chord/Downloads/. Files saved via browser may carry
-  CRLF: sed -i 's/\r$//' <file> if bale or a worker complains.
+  /mnt/c/Users/chord/Downloads/.
 - A post_pack hook copies request tarballs to Downloads.
 - Response archival is opted in at the global config layer:
   `archive_dir claude/responses` (the `archive_dir` candidate
@@ -3082,6 +3264,18 @@ New from the 2026-08-18 smoothing sitting:
   apply paste: 60.8–63.1s across three runs (376 tests at
   measurement — a dated figure, not a standing count; container-side
   88–89s remains the sandbox-side figure). Clears the §3 watch.
+- Slow-test gating (`BALE_TEST_SLOW`, landed at
+  `2026-08-25-pair-close-rider-008`): generation-heavy cases are
+  gated behind the env var, established harness-level — the gate and
+  criterion live in tests/harness.py (only the literal `1` opens it),
+  and `validate.sh` surfaces gated status through an `[INFO]` marker
+  class (status lines that are not checks; they move no counters).
+  Criterion: cases ≥0.7s gate, the fastest-per-class representative
+  stays in the default run; the default wall runs ~72% of the full
+  run. Dated basis figure, not a standing count: 582 cases at that
+  landing, 40 gated across 15 suites (10 representatives) — enumerate
+  from the tree, never from this figure. Recency watch:
+  if a regression traces to a gated fresh-feature case, **un-decorating is the named first-line remedy**.
 - Tests: tests/ at repo root, stdlib unittest, no runner config —
   run python3 -m unittest discover -s tests. Enumerate suites from
   the tree (`ls tests/`), never from this doc; counts stated in
@@ -3115,12 +3309,13 @@ New from the 2026-08-18 smoothing sitting:
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.14 at
-  `2026-08-25-board-49b-crafter-emission-001` (the crafter bundle
-  emission, the current landmark); the per-bump trail —
-  every bump's sid and the doc-only / tests-only bump exemptions —
-  lives in git (prior versions of this doc) and in the sessions'
-  telemetry records.
+  still governs. bin/bale VERSION 0.4.16 at
+  `2026-08-25-pair-close-rider-008` (the pair-close rider's shared
+  bump for boards 50/51/52, the current landmark; board 50 took
+  0.4.15, boards 51/52 landed bumpless per the hot-file ruling); the
+  per-bump trail — every bump's sid and the doc-only / tests-only /
+  hot-file bump exemptions — lives in git (prior versions of this
+  doc) and in the sessions' telemetry records.
 - The registry's scope.json records the write forecast as of 0.4.1
   (ADR-0015); pre-separation open sessions read as over-forecasts
   (conservative, self-clearing at close).
