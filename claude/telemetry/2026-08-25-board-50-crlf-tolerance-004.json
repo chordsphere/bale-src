@@ -1,0 +1,166 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-board-50-crlf-tolerance-004",
+  "created_at": "2026-08-25T14:46:04+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T14:46:04+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "2026-08-25-board-50-crlf-tolerance-004-response.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: board-50 suite (tests/test_crlf_tolerance.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: touched-surface regression (checkpoint_file_flag, per_sid_checkpoint, readme_identity, pack_guards, open_verb, blind_checkpoint, doc_crossrefs, global_doc_selfcontainment, release_packaging)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full suite (unittest discover, --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: normalize_crlf rule (CRLF->LF, bare CR untouched)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: VERSION is 0.4.15": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: doc true-ups present (BALE.md paragraph, TARBALL.md 3.4 rows)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: board-50 suite (tests/test_crlf_tolerance.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: touched-surface regression (checkpoint_file_flag, per_sid_checkpoint, readme_identity, pack_guards, open_verb, blind_checkpoint, doc_crossrefs, global_doc_selfcontainment, release_packaging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full suite (unittest discover, --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "assert: normalize_crlf rule (CRLF->LF, bare CR untouched)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: VERSION is 0.4.15": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: doc true-ups present (BALE.md paragraph, TARBALL.md 3.4 rows)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "docs/TARBALL.md",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "docs/TARBALL.md",
+        "tests/test_crlf_tolerance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.14",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "be6ec0a5351c2480228bd560c297146cb64f451b31696d113acfd93bb6ccc4c0",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-board-50-crlf-tolerance-004.sh",
+              "sha256": "2254c922b65bbd9ee69010d4c9be1cb01f854bfeab94d867634d358c3b3840c9"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "install_checkpoint_file's working-tree comparison stays raw (a CRLF working-tree twin at the resolved path refuses rather than committing CRLF bytes) \u2014 reasoned in notes.md, flagged for ratification",
+            "the legacy CRLF-committed-oracle re-delivery now refuses instead of idempotent-passing \u2014 reasoned in notes.md as loud-and-correct, flagged for ratification"
+          ],
+          "judgment_calls": [
+            "mirrored normalize_bundle_member as bale_pack.normalize_crlf rather than importing across modules (the brief offered either; the mirror keeps bale_pack's no-cross-module-import discipline and bale_open's bundle-only scoping intact)",
+            "all board-50 tests live in one new file (tests/test_crlf_tolerance.py) importing the existing test-less fixtures, so the repo-wide contract has one home instead of riders scattered across four suites",
+            "full-suite validation gated behind --slow per TARBALL.md 7.6; the default run covers the board-50 suite plus nine touched-surface suites"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-25-board-50-crlf-tolerance-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-board-50-crlf-tolerance-004.sh",
+          "sha256": "2254c922b65bbd9ee69010d4c9be1cb01f854bfeab94d867634d358c3b3840c9"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T14:46:04+00:00",
+  "outcome": "applied"
+}
