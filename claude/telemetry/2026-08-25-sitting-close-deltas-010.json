@@ -1,0 +1,181 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-sitting-close-deltas-010",
+  "created_at": "2026-08-25T18:19:26+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T18:19:26+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-010 (7).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "verbatim-required phrases land byte-exact (wrap-tolerant)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "sed-ritual remedy retired \u2014 no 'sed -i' in the document": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "version position updated to 0.4.16 at the pair-close rider": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "header last-landed-by updated to this session": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board row 55 added; \u00a74 numbering contiguous 1..55": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "evidence entries 83-85 added; \u00a76 list numbering contiguous 10..85": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "\u00a75 2026-08-25 contract group and \u00a73 landed-block present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "eight top-level sections present and ordered 1..8": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "verbatim-required phrases land byte-exact (wrap-tolerant)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "sed-ritual remedy retired \u2014 no 'sed -i' in the document": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version position updated to 0.4.16 at the pair-close rider": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header last-landed-by updated to this session": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board row 55 added; \u00a74 numbering contiguous 1..55": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "evidence entries 83-85 added; \u00a76 list numbering contiguous 10..85": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "\u00a75 2026-08-25 contract group and \u00a73 landed-block present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "eight top-level sections present and ordered 1..8": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.16",
+            "contract_docs": {
+              "CLAUDE.md": "e66b45162d26fe4c972df005ae425fe9864cbd50f494c21ed68c4fa40564f8bb",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-sitting-close-deltas-010.sh",
+              "sha256": "9ad27f88459928b70d16e7d437757cfcaf3cc4bd3ffa926bdf3eb2beb077f0f8"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude-opus-4-8"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Header last-landed-by edited to -010 per the doc's 'edited in place at each landing' convention (the -009 collision landed nothing; NNNs don't recycle on unlock).",
+            "Board 52's DONE bracket records the preamble-doctrine sweep (evidence 80's rule) as discharged out-of-forecast at the rider in docs/CLAUDE.md; no stale in-doc target remained.",
+            "Verbatim-required phrases are self-checked wrap-tolerant per the document's own probe-phrase convention; the bundle-stem phrase was restructured so it lands lowercase-verbatim as marked.",
+            "Suite counts landed only as a dated basis figure, not a standing count (A2 + the \u00a77 376-tests precedent); the durable BALE_TEST_SLOW facts and the recency watch land plainly.",
+            "Evidence 80's owe-note updated in place, discharging board 50 (A3).",
+            "successor-surface parity recorded as a deliberately-unscheduled fold-in registry entry (desk disposition), not a notes.md Proposal.",
+            "Re-delivery hardening (flagged deviation): unwrapped the two blind-checkpoint-pinned verbatim phrases onto single contiguous lines and hardened validation.sh to assert single-line contiguity for them (raw grep -F) beside the wrap-tolerant presence check, so a re-wrap of a line-pinned span fails the worker's own hypothesis test \u2014 the wrap-trap class evidence 28 anticipated."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-25-sitting-close-deltas-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-sitting-close-deltas-010.sh",
+          "sha256": "9ad27f88459928b70d16e7d437757cfcaf3cc4bd3ffa926bdf3eb2beb077f0f8"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T18:19:26+00:00",
+  "outcome": "applied"
+}
