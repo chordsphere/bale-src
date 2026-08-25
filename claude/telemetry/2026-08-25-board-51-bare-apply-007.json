@@ -1,0 +1,136 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-board-51-bare-apply-007",
+  "created_at": "2026-08-25T15:25:14+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T15:25:14+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (14).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "apply pre-flight suite": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bare-apply CLI surface assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (staging only, --slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "apply pre-flight suite": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bare-apply CLI surface assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (staging only, --slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_apply_preflight.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_apply_preflight.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.15",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-board-51-bare-apply-007.sh",
+              "sha256": "9c31e07fdf77d7a02d651205086956ce965dce0535816c68ecb20d4e7762e4c4"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai chat surface, 2026-08-25 session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the ratified contract's 'two candidates' ambiguity means candidates the newest-rule cannot separate (an exact st_mtime_ns tie), not any second candidate \u2014 stated with the re-delivery rationale and a re-delivery offer in notes.md",
+            "an interactive decline at the bare-apply y/N exits 1 via fail(), matching the declined-supersession posture \u2014 flagged for ratification in notes.md"
+          ],
+          "judgment_calls": [
+            "--no-interact (flag or config) contradicts the bare form and refuses before any scanning",
+            "--show-validator / --show-apply-script refuse the bare form; --dry-run composes with it through the same echo and prompt",
+            "request/response discrimination is content-based (the response-NNN/manifest.json member), never filename-based",
+            "skips during the candidate scan are reported in aggregate always (folded into the no-candidate refusal) and per-file under --verbose",
+            "extended the forecast test file with a new class rather than shipping a new suite"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-25-board-51-bare-apply-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-board-51-bare-apply-007.sh",
+          "sha256": "9c31e07fdf77d7a02d651205086956ce965dce0535816c68ecb20d4e7762e4c4"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T15:25:14+00:00",
+  "outcome": "applied"
+}
