@@ -1,0 +1,38 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-sitting-close-deltas-009",
+  "created_at": "2026-08-25T17:32:31+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T17:32:31+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-25-sitting-close-deltas-009.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T17:32:31+00:00",
+  "outcome": "unlocked"
+}
