@@ -970,8 +970,15 @@ member hash is computed over, and verified against, the member's
 bytes with each CRLF read as LF. A bundle that traveled a
 line-ending-mangling transport (mail, chat, a Windows checkout)
 still verifies; the consumer normalizes extracted text members
-before hashing. This rule is scoped to bundle reads — repo-wide
-CRLF tolerance is board 50's, not absorbed here.
+before hashing. The rule is no longer bundle-only: board 50
+(v0.4.15) applies the same one-line replacement at every
+transport-facing text ingest — `--checkpoint-file` normalizes at
+read, before the commit and the echoed hash, and the
+already-tolerant text-mode reads (`--readme-file`, `bale.toml`,
+`.baleignore`) are pinned as contract by tests
+(tests/test_crlf_tolerance.py). Response-tarball members remain
+byte-exact by design: they are hash-pinned worker bytes, not
+transport-mangled prose, and normalization never touches them.
 
 **Pre-answered intents.** `bale open` internalizes flows that carry
 deliberate decline-default prompts (design constraint 2 of the

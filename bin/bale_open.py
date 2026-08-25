@@ -79,9 +79,12 @@ def normalize_bundle_member(data: bytes) -> bytes:
     The bundle format's own normalization rule: member hashes are
     computed over, and verified against, LF-normalized bytes, so a
     bundle that traveled a line-ending-mangling transport (mail, chat,
-    a Windows checkout) still verifies. Scoped to bundle reads — this
-    is not board 50's repo-wide CRLF tolerance, and nothing outside
-    this module should call it for non-bundle bytes.
+    a Windows checkout) still verifies. Scoped to bundle reads: board
+    50 (v0.4.15) applied the same one-line rule at the
+    --checkpoint-file ingest via its own mirror
+    (bale_pack.normalize_crlf) rather than a call into this module,
+    and nothing outside this module calls this function for
+    non-bundle bytes.
     """
     return data.replace(b"\r\n", b"\n")
 
