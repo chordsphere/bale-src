@@ -1,0 +1,242 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-board-52-pack-preamble-006",
+  "created_at": "2026-08-25T15:17:45+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T15:17:45+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-25-board-52-pack-preamble-006.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale_pack.py",
+        "tests/test_tree_position_echo.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/bale_pack.py",
+        "tests/test_pack_opener.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.15",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-board-52-pack-preamble-006.sh",
+              "sha256": "f1064c4c0b79594f192588a2419bfce735361a4d95461c0db195c255eb7248b8"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The pinned blind checkpoint asserts identity carriage and end-position as outcomes, not my wording (per the brief's checkpoint note) \u2014 wording chosen freely on that basis.",
+            "The existing 'Send the tarball to Claude' trailer lines are a next-step hint distinct from the hand-carried opener, so they stay (they also serve as other suites' stable locator); only the delivery-doctrine lines in BALE.md were swept."
+          ],
+          "judgment_calls": [
+            "--json: opener rides stderr after the JSON line; no JSON key (format_pack_json is a hot file this sitting) \u2014 proposed instead.",
+            "New suite tests/test_pack_opener.py instead of extending test_tree_position_echo.py, whose pins needed no change and stay byte-untouched.",
+            "Read-only opener splits its identity over two lines to keep the sid line short; goal always rides one unwrapped line for verbatim substring carriage."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_pack_opener.py",
+              "why": "the goal's pinned behaviors (end-position, identity carriage, per-shape, --json streams) warrant their own hermetic suite per the tests/ one-feature-per-suite pattern; the brief sanctions the new-file path explicitly"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-25-board-52-pack-preamble-006.log"
+    },
+    {
+      "at": "2026-08-25T15:24:54+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-25-board-52-pack-preamble-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 tests/test_pack_opener.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "python3 tests/test_tree_position_echo.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "python3 tests/test_readonly_pack.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "BALE.md doctrine sweep assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "python3 tests/test_pack_opener.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 tests/test_tree_position_echo.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 tests/test_readonly_pack.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md doctrine sweep assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (unittest discover; --slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale_pack.py",
+        "tests/test_tree_position_echo.py"
+      ],
+      "overridden_paths": [
+        "tests/test_pack_opener.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/bale_pack.py",
+        "tests/test_pack_opener.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.15",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-board-52-pack-preamble-006.sh",
+              "sha256": "f1064c4c0b79594f192588a2419bfce735361a4d95461c0db195c255eb7248b8"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The pinned blind checkpoint asserts identity carriage and end-position as outcomes, not my wording (per the brief's checkpoint note) \u2014 wording chosen freely on that basis.",
+            "The existing 'Send the tarball to Claude' trailer lines are a next-step hint distinct from the hand-carried opener, so they stay (they also serve as other suites' stable locator); only the delivery-doctrine lines in BALE.md were swept."
+          ],
+          "judgment_calls": [
+            "--json: opener rides stderr after the JSON line; no JSON key (format_pack_json is a hot file this sitting) \u2014 proposed instead.",
+            "New suite tests/test_pack_opener.py instead of extending test_tree_position_echo.py, whose pins needed no change and stay byte-untouched.",
+            "Read-only opener splits its identity over two lines to keep the sid line short; goal always rides one unwrapped line for verbatim substring carriage."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_pack_opener.py",
+              "why": "the goal's pinned behaviors (end-position, identity carriage, per-shape, --json streams) warrant their own hermetic suite per the tests/ one-feature-per-suite pattern; the brief sanctions the new-file path explicitly"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-25-board-52-pack-preamble-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-board-52-pack-preamble-006.sh",
+          "sha256": "f1064c4c0b79594f192588a2419bfce735361a4d95461c0db195c255eb7248b8"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T15:24:54+00:00",
+  "outcome": "applied"
+}
