@@ -203,11 +203,14 @@ If the chat preamble and the manifest goal conflict on mode or scope,
 **the manifest goal wins.** The manifest is the durable artifact bale
 records; preamble framing that diverges from it is conversational
 drift, often because the request was inherited from an earlier
-session and the architect retyped intent without repacking. If the
-architect wants the manifest's framing overridden mid-conversation,
-the right move is a fresh `bale pack` (or a brief paused question in
-chat) — not riding a stale manifest forward with new instructions in
-the preamble. Until that fresh request exists, Claude works to what
+session and the architect retyped intent without repacking.
+(Since 0.4.16 the opening preamble is bale-emitted — pack's report
+ends with a paste-ready opener carrying the sid and goal from the
+manifest — so preamble/manifest drift shrinks to the stale-paste
+case.) If the architect wants the manifest's framing overridden
+mid-conversation, the right move is a fresh `bale pack` (or a brief
+paused question in chat) — not riding a stale manifest forward with
+new instructions in the preamble. Until that fresh request exists, Claude works to what
 the manifest says.
 
 The architect can override this rule by saying so explicitly ("accept

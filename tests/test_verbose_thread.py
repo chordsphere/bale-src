@@ -61,6 +61,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
 )
 
 VERBOSE_MARKER = "verbose:"
@@ -275,6 +276,7 @@ class VerboseThreadTest(unittest.TestCase):
 
     # -- pinned behavior 3: the §7.4 argv pass-through -------------------
 
+    @slow
     def test_apply_verbose_forwards_flag_onto_validation_argv(self) -> None:
         sid = self.packed_sid()
         tarball = self.build_response_tarball(sid, name="verbose-run")
@@ -290,6 +292,7 @@ class VerboseThreadTest(unittest.TestCase):
         self.assertIn(f"{ARGV_SENTINEL}--verbose]",
                       result.stdout + result.stderr)
 
+    @slow
     def test_apply_default_invokes_validation_with_no_args(self) -> None:
         sid = self.packed_sid()
         tarball = self.build_response_tarball(sid, name="default-run")
@@ -304,6 +307,7 @@ class VerboseThreadTest(unittest.TestCase):
 
     # -- pinned behavior 5: the discard-path threading (v0.4.0 rider) ----
 
+    @slow
     def test_retry_verbose_streams_discard_git_output(self) -> None:
         """`bale retry --verbose` threads the flag into
         _discard_hold_state: the prior attempt's branch -D result
@@ -318,6 +322,7 @@ class VerboseThreadTest(unittest.TestCase):
         self.assertIn(f"verbose: git branch -D bale/{sid}", combined)
         self.assertIn("Deleted branch", combined)
 
+    @slow
     def test_retry_default_emits_no_verbose_lines(self) -> None:
         sid = self.make_held_session()
         tarball = self.build_response_tarball(sid, name="retry-default")
@@ -329,6 +334,7 @@ class VerboseThreadTest(unittest.TestCase):
                          msg="the default retry surface must stay "
                              "byte-parity with the pre-rider behavior")
 
+    @slow
     def test_walkthrough_revert_verbose_streams_discard_git_output(
             self) -> None:
         """The apply walkthrough's revert action threads the pipeline's

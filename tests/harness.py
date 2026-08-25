@@ -38,6 +38,7 @@ import os
 import shutil
 import subprocess
 import sys
+import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +49,52 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 INSTALL_TREES = ("bin", "docs", "schemas", "tools")
 
 SUBPROCESS_TIMEOUT = 120  # seconds; generous — each bale run is sub-second.
+
+
+# ---------------------------------------------------------------------------
+# The slow-test gate (board-50 fold-in, landed at 0.4.16)
+# ---------------------------------------------------------------------------
+#
+# Generation-heavy cases -- the ones whose cost is dominated by building
+# sandbox installs and driving full pack/apply cycles -- gate behind an
+# opt-in env var so the default ``unittest discover`` run stays under
+# the two-minute validation target (TARBALL.md section 7.6). The gate is
+# harness-level by design: one home, every suite imports it; a per-suite
+# copy is exactly the drift this helper exists to prevent. The board-50
+# session's response-side validation used a ``--slow`` spelling locally;
+# that was per-response, not the convention -- this is the one home.
+#
+# The env var is spelled BALE_TEST_SLOW, exactly. Only the literal
+# value ``"1"`` opens the gate: any other value (``yes``, ``true``, a
+# typo) leaves it closed, and the skip reason names the exact spelling,
+# so a half-set gate fails loud in the skip line instead of silently
+# half-opening.
+#
+# Usage, per case or per class::
+#
+#     from harness import slow
+#
+#     @slow
+#     def test_expensive_e2e(self): ...
+
+SLOW_ENV_VAR = "BALE_TEST_SLOW"
+
+
+def slow_gate():
+    """Build the skip decorator from the environment as it stands now.
+
+    Exposed as a factory (rather than only the module-level ``slow``
+    baked at import) so tests/test_slow_gate.py can exercise both gate
+    states without re-importing this module.
+    """
+    return unittest.skipUnless(
+        os.environ.get(SLOW_ENV_VAR) == "1",
+        f"generation-heavy; set {SLOW_ENV_VAR}=1 to run the full suite",
+    )
+
+
+slow = slow_gate()
+
 
 
 def make_sandbox_home(tmp: Path) -> Path:

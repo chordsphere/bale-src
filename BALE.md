@@ -1729,7 +1729,7 @@ user uploads the tarball from there, opening the fresh chat with the
 session opener the report ends on (below) — the opening paragraph is
 bale-emitted, not hand-carried.
 
-**The session opener** (board 52 — the cross-surface form of
+**The session opener** (v0.4.16, board 52 — the cross-surface form of
 every-command-names-its-successor: pack's successor is a chat
 message, so pack emits it). The end-of-run report **ends** with the
 session-opening chat paragraph as a paste-ready copy block, framed by
@@ -1796,6 +1796,20 @@ echo deliberately does not duplicate).
 `bale apply <response-tarball>` is the workhorse. It validates,
 stages, runs the response's `apply.sh` and `validation.sh`, commits
 or holds, and walks the user through the result.
+
+**The bare form** (board 51, v0.4.16).
+A bare `bale apply` resolves the newest response tarball answering the single open session
+— the candidate scan walks cwd plus every configured
+`apply.search_paths` directory, discriminates candidates by content
+(a request tarball is never a candidate, whatever its name), and
+echoes the resolved pick — path, sid, sha256, mtime — behind a
+decline-default y/N before the pipeline engages. Every non-resolving
+outcome refuses with a remedy rather than guessing: no candidate, an
+mtime tie, no open session, multiple open sessions, and
+non-interactive stdin (the decline default, taken without a prompt)
+each name what to do instead — typically the explicit
+`bale apply <response-tarball>` form, which the bare sugar leaves
+untouched.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never
@@ -3528,6 +3542,11 @@ that clause stays retired.
 End-to-end harness. Spin up a temp git repo. Pack, apply, validate,
 rollback through every code path. Held states. Conflicts. Stale
 locks. Reverts. Re-apply.
+Generation-heavy cases gate behind `BALE_TEST_SLOW=1` — an opt-in,
+harness-level `skipUnless` helper in tests/harness.py (0.4.16) — so
+the default discover run stays under the two-minute validation
+target; the full suite is one env var away, and `validate.sh` reports
+the gate's state when a tests/ tree is present.
 
 ### v0.5+ — extensions to `bale.toml`
 

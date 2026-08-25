@@ -63,6 +63,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
 )
 
 # Sentinels for the surfaces this file pins.
@@ -284,6 +285,7 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
 
     # -- vacuous passes --------------------------------------------------
 
+    @slow
     def test_unconfigured_project_is_unaffected(self) -> None:
         """No [validation] required set: the gate is entirely outside
         the apply's blast radius and the fixture merges."""
@@ -373,6 +375,7 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(attempt["outcome"], "required-check-refused")
         self.assertEqual(attempt["required_check_overrides"], ["tests"])
 
+    @slow
     def test_full_override_proceeds_forces_and_stamps(self) -> None:
         """Admitting every missing name proceeds to the merge: a FORCE:
         line lands in the session log and the applied attempt carries
@@ -400,6 +403,7 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(attempt["outcome"], "applied")
         self.assertEqual(attempt["required_check_overrides"], ["tests"])
 
+    @slow
     def test_retry_restates_the_override(self) -> None:
         """The override is per-invocation on retry exactly as on apply:
         a retry that omits it refuses like an un-overridden apply, and

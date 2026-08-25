@@ -70,6 +70,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -316,6 +317,7 @@ class PerSidCheckpointE2ETest(PerSidFixture):
                              "refusal's resolved path embedded — no "
                              "counter chase")
 
+    @slow
     def test_resolved_path_threads_pack_apply_and_telemetry(self) -> None:
         """The happy path: pack stamps the RESOLVED path and committed
         bytes' hash; apply executes the per-sid script (asserted on
@@ -365,6 +367,7 @@ class PerSidCheckpointE2ETest(PerSidFixture):
                              "bytes of the per-sid file")
         self.assertIs(cp["stamp_matched"], True)
 
+    @slow
     def test_sibling_amendment_does_not_trip_other_sessions_stamp(
             self) -> None:
         """The goal sentence: two open sessions resolve to different

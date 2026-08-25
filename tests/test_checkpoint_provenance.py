@@ -76,6 +76,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_checked,
+    slow,
 )
 
 CHECKPOINT_PATH = "scripts/validation.base.sh"
@@ -432,6 +433,7 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         self.assertIn(DIVERGENCE_PHRASE, combined)
         self.assertIn("a real apply would refuse the same way", combined)
 
+    @slow
     def test_accept_change_runs_current_bytes_and_records_false(self) -> None:
         """--accept-checkpoint-change executes the CURRENT base-tree
         version — asserted on EXECUTED output: the post-pack oracle's
@@ -464,6 +466,7 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
                 checkpoint_script(V2_MARKER).encode("utf-8")).hexdigest(),
             msg="the telemetry stamp hashes the executed current bytes")
 
+    @slow
     def test_retry_refuses_divergence_and_restates_the_flag(self) -> None:
         """The lifecycle-wide re-state contract, pinned on the retry
         wiring (v0.3.29, board 6 session D — the session-C notes'
@@ -564,6 +567,7 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
             msg="the retry's telemetry stamp hashes the executed "
                 "current bytes")
 
+    @slow
     def test_stampless_request_verifies_nothing(self) -> None:
         """A request without the provenance.checkpoint key — a
         hand-rolled request, or one packed pre-v0.3.28, simulated by

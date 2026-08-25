@@ -187,6 +187,31 @@ else
   fail "tools/craft_response.py present" "pack injects it into every request"
 fi
 
+section "test-suite slow gate (bale-src checkout only)"
+# The suite gates generation-heavy cases behind BALE_TEST_SLOW=1 — a
+# harness-level skipUnless helper in tests/harness.py (0.4.16, the
+# board-50 fold-in) — so the default discover run stays under the
+# two-minute validation target. tests/ is a bale-src extra, not part
+# of the release layout, so on an installed release
+# this section reports the absence and moves on; in a checkout it
+# asserts the helper exists and reports the gate's current state so
+# an operator about to run the suite knows which run they'll get.
+if [[ -d "$INSTALL_DIR/tests" ]]; then
+  if grep -q 'BALE_TEST_SLOW' "$INSTALL_DIR/tests/harness.py" 2>/dev/null; then
+    pass "tests/harness.py carries the BALE_TEST_SLOW gate"
+  else
+    fail "tests/harness.py carries the BALE_TEST_SLOW gate" \
+         "the harness-level slow-gate helper went missing"
+  fi
+  if [[ "${BALE_TEST_SLOW:-}" == "1" ]]; then
+    printf '  [INFO] BALE_TEST_SLOW=1 — the discover run includes generation-heavy cases\n'
+  else
+    printf '  [INFO] BALE_TEST_SLOW unset — generation-heavy cases will skip; set BALE_TEST_SLOW=1 for the full suite\n'
+  fi
+else
+  printf '  [SKIP] no tests/ (release install; the suite lives in bale-src)\n'
+fi
+
 section "user-owned layer (global config)"
 # user/ is optional on a fresh install — absence is reported, not failed.
 # Presence is reported; if a global bale.toml exists, syntax-check it.
