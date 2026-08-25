@@ -1,0 +1,171 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-pair-close-rider-008",
+  "created_at": "2026-08-25T17:24:09+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T17:24:09+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-008 (13).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions: version bump and verbatim doc text": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "repo validate.sh end-to-end": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "unit suite: default discover run (gated)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unit suite: full run, BALE_TEST_SLOW=1 (--slow only)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec bit: validate.sh": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session assertions: version bump and verbatim doc text": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "repo validate.sh end-to-end": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit suite: default discover run (gated)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit suite: full run, BALE_TEST_SLOW=1 (--slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "exec bit: validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "docs/CLAUDE.md",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "docs/CLAUDE.md",
+        "tests/harness.py",
+        "tests/test_apply_operations.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_archive_dir.py",
+        "tests/test_auto_sweep.py",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_checkpoint_provenance.py",
+        "tests/test_escalation_schemas.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_pack_guards.py",
+        "tests/test_per_sid_checkpoint.py",
+        "tests/test_release_packaging.py",
+        "tests/test_required_check_gate.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_slow_gate.py",
+        "tests/test_verbose_thread.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.15",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "master-003",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-pair-close-rider-008.sh",
+              "sha256": "cfbda440b42da4aac9ba4a46bb0fdb55c0b84d7ad7932a8e2a48d1c5ac89b870"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), via claude.ai chat"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the [INFO] marker in validate.sh's slow-gate section is new vocabulary there (existing markers: PASS/FAIL/SKIP); used for the two state-hint lines because they are not checks and must not move the counters",
+            "BALE.md placement calls: the bare-apply paragraph opens section 8 right after the workhorse paragraph; the gate's docs line rides section 13's v0.4 selftest paragraph (the harness's own section)"
+          ],
+          "judgment_calls": [
+            "gating criterion: cases measured >=0.7s on the build machine, except each test class keeps its fastest such case ungated as a default-run representative \u2014 40 gated across 15 suites, 10 representatives kept; full inventory in notes.md",
+            "validation.sh gates its own full-suite run behind --slow (TARBALL.md 7.6) so the default validation stays near the target"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-25-pair-close-rider-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-pair-close-rider-008.sh",
+          "sha256": "cfbda440b42da4aac9ba4a46bb0fdb55c0b84d7ad7932a8e2a48d1c5ac89b870"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T17:24:09+00:00",
+  "outcome": "applied"
+}
