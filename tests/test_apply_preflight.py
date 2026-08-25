@@ -71,6 +71,8 @@ or via ``python3 -m unittest discover -s tests``.
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -85,6 +87,7 @@ from harness import (
     make_repo,
     make_sandbox_home,
     run_bale,
+    run_bale_pty,
     run_checked,
     tar_response_dir,
 )
@@ -698,6 +701,271 @@ class ApplyDirtyOnTargetTest(unittest.TestCase):
                 (self.repo / "hello.txt").read_text(encoding="utf-8"),
                 side_dirty,
                 msg="integration never touches the checkout")
+
+
+class BareApplyResolutionTest(unittest.TestCase):
+    """Bare `bale apply` (board 51): argument-less resolution.
+
+    The ratified contract: apply with no argument resolves the newest
+    response tarball matching an open session across the search paths,
+    echoes its identity, and takes a y/N; ambiguity — a candidate tie, or
+    two open sessions — refuses loudly, never guesses. Refusals exit
+    through the bale refusal convention (exit 1, remedy-naming stderr),
+    never an argparse usage error. Piped stdin takes the confirmation's
+    decline default without a prompt (the --supersedes precedent), so the
+    piped runner exercises the refusal surface and the pty runner
+    exercises the resolution happy path and the interactive decline.
+    """
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-bareapply-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.genv = git_env(self.home)
+        # A second committed file so a disjoint --write pair of sessions
+        # can be open at once (the two-open-sessions ambiguity case).
+        (self.repo / "other.txt").write_text("other\n", encoding="utf-8")
+        run_checked(["git", "add", "other.txt"], cwd=self.repo,
+                    env=self.genv)
+        run_checked(["git", "commit", "-m", "add other.txt"],
+                    cwd=self.repo, env=self.genv)
+        # The inbound directory bare resolution scans, configured as an
+        # apply search path in the repo's bale.toml (untracked; untracked
+        # files never block per the ADR-0008 narrow rule).
+        self.downloads = self.tmp / "downloads"
+        self.downloads.mkdir()
+        (self.repo / "bale.toml").write_text(
+            "[apply]\n"
+            f"search_paths = [\"{self.downloads}\"]\n",
+            encoding="utf-8")
+        self._fixture_counter = 0
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    # -- helpers ---------------------------------------------------------
+
+    def pack_session(self, slug: str, extra: list = ()) -> str:
+        result = run_bale(
+            self.install,
+            ["pack", "bare-apply fixture session", "--slug", slug,
+             "--include", ".", "--no-readme", *extra],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        root = self.repo / ".bale" / "sessions"
+        sids = sorted(d.name for d in root.iterdir()
+                      if (d / "open").is_file())
+        return sids[-1]
+
+    def deliver_response(self, sid: str, name: str, data: bytes,
+                         mtime_ns: int = None) -> Path:
+        """Build a valid response tarball answering `sid`, drop it into
+        the downloads dir under an arbitrary filename (discrimination is
+        content-based, so browser-mangled names must not matter), and
+        optionally pin its mtime."""
+        self._fixture_counter += 1
+        rdir = build_response_dir(
+            self.tmp / f"bare-fixture-{self._fixture_counter}", sid,
+            summary=f"bare-apply fixture: {name}",
+            entries=[{
+                "path": "hello.txt", "action": "modified",
+                "reason": "the fixture rewrite the bare form applies",
+                "data": data,
+            }])
+        tarball = tar_response_dir(rdir)
+        dest = self.downloads / f"{name}.tar.gz"
+        shutil.move(str(tarball), str(dest))
+        if mtime_ns is not None:
+            os.utime(dest, ns=(mtime_ns, mtime_ns))
+        return dest
+
+    def deliver_request_shaped(self, name: str, mtime_ns: int = None) -> Path:
+        """A request-shaped tarball (top-level request-NNN/) in downloads:
+        must never be a candidate, however new it is."""
+        rdir = self.tmp / f"reqshape-{name}" / "request-999"
+        rdir.mkdir(parents=True)
+        (rdir / "manifest.json").write_text(
+            json.dumps({"session_id": "2026-01-01-reqshape-999",
+                        "goal": "not a response"}) + "\n",
+            encoding="utf-8")
+        dest = self.downloads / f"{name}.tar.gz"
+        with tarfile.open(dest, "w:gz") as tf:
+            tf.add(str(rdir), arcname=rdir.name)
+        if mtime_ns is not None:
+            os.utime(dest, ns=(mtime_ns, mtime_ns))
+        return dest
+
+    def bare_apply_piped(self, *flags: str):
+        return run_bale(self.install, ["apply", *flags],
+                        cwd=self.repo, env=self.env)
+
+    def assert_refused(self, result, *needles: str) -> None:
+        """Exit 1 (the bale refusal convention — never argparse's 2) and
+        a stderr message naming the condition and its remedy."""
+        self.assertEqual(
+            result.returncode, 1,
+            msg=f"expected a bale refusal (exit 1); "
+                f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        for needle in needles:
+            self.assertIn(
+                needle, result.stderr,
+                msg=f"refusal is not loud: {needle!r} missing from "
+                    f"stderr:\n{result.stderr}")
+
+    def assert_nothing_applied(self, sid: str) -> None:
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "hello\n", msg="a refused/declined bare apply must not "
+                           "touch the tree")
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
+            msg="a refused/declined bare apply must leave the session open")
+
+    # -- the happy path (pty: the y/N must actually be answered) ---------
+
+    def test_bare_resolves_newest_echoes_and_applies(self) -> None:
+        sid = self.pack_session("bare")
+        base = 1_700_000_000_000_000_000  # arbitrary fixed epoch ns
+        self.deliver_response(sid, "older-delivery", b"older content\n",
+                              mtime_ns=base)
+        newest = self.deliver_response(sid, "newer-delivery",
+                                       b"newer content\n",
+                                       mtime_ns=base + 10 * 10**9)
+        # A request-shaped tarball newer than both: never a candidate.
+        self.deliver_request_shaped("request-newest",
+                                    mtime_ns=base + 20 * 10**9)
+        exit_code, output = run_bale_pty(
+            self.install, ["apply"], cwd=self.repo, env=self.env,
+            answers="y\n\n")
+        self.assertEqual(exit_code, 0,
+                         msg=f"bare apply should resolve and merge; "
+                             f"output:\n{output}")
+        # The identity echo precedes the prompt: path, sid, a content
+        # identity, and the newest-won note.
+        self.assertIn(str(newest), output)
+        self.assertIn(sid, output)
+        self.assertIn("sha256", output)
+        self.assertIn("newest modification time won", output)
+        # The newer delivery is what landed.
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "newer content\n")
+        run_checked(["git", "rev-parse", "--verify",
+                     f"refs/tags/applied/{sid}"],
+                    cwd=self.repo, env=self.genv)
+
+    def test_bare_interactive_decline_applies_nothing(self) -> None:
+        sid = self.pack_session("bare-decline")
+        self.deliver_response(sid, "sole-delivery", b"declined content\n")
+        exit_code, output = run_bale_pty(
+            self.install, ["apply"], cwd=self.repo, env=self.env,
+            answers="n\n")
+        self.assertEqual(exit_code, 1,
+                         msg=f"decline must refuse; output:\n{output}")
+        self.assertIn("declined", output)
+        self.assert_nothing_applied(sid)
+
+    # -- the refusal surface (piped: decline default, no prompt) ---------
+
+    def test_bare_no_open_session(self) -> None:
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "no session is open", "bale pack",
+                            "name the tarball explicitly")
+
+    def test_bare_two_open_sessions(self) -> None:
+        sid_a = self.pack_session("bare-two-a",
+                                  ["--write", "hello.txt"])
+        sid_b = self.pack_session("bare-two-b",
+                                  ["--write", "other.txt"])
+        self.deliver_response(sid_a, "for-a", b"for session a\n")
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "more than one session open",
+                            "never guesses", sid_a, sid_b,
+                            "responds_to")
+        self.assert_nothing_applied(sid_a)
+
+    def test_bare_no_candidates_and_request_never_a_candidate(self) -> None:
+        sid = self.pack_session("bare-nocand")
+        # Everything present is a non-candidate: a request-shaped tarball,
+        # a response answering a session that is not open, and raw junk.
+        self.deliver_request_shaped("request-only")
+        self.deliver_response("2020-01-01-stale-001", "stale-response",
+                              b"stale\n")
+        junk = self.downloads / "junk.tar.gz"
+        junk.write_bytes(b"not a gzip stream")
+        result = self.bare_apply_piped()
+        self.assert_refused(
+            result,
+            f"no response tarball answering open session {sid}",
+            str(self.downloads),
+            "(cwd)",
+            "name the path explicitly")
+        # The skips were reported in aggregate, inside the refusal.
+        self.assertIn("3 tarball(s) were scanned and are not candidates",
+                      result.stderr)
+        self.assert_nothing_applied(sid)
+
+    def test_bare_mtime_tie_refuses(self) -> None:
+        sid = self.pack_session("bare-tie")
+        base = 1_700_000_000_000_000_000
+        first = self.deliver_response(sid, "tie-one", b"tie one\n",
+                                      mtime_ns=base)
+        second = self.deliver_response(sid, "tie-two", b"tie two\n",
+                                       mtime_ns=base)
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "share the newest modification time",
+                            "never guesses", str(first), str(second))
+        self.assert_nothing_applied(sid)
+
+    def test_bare_piped_stdin_declines_without_prompt(self) -> None:
+        sid = self.pack_session("bare-piped")
+        sole = self.deliver_response(sid, "sole", b"piped content\n")
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "not a TTY", "decline default",
+                            str(sole))
+        # The identity echo still ran before the decline (stdout is where
+        # log() writes in human mode; run_bale captures it separately).
+        self.assertIn(str(sole), result.stdout)
+        self.assertIn("sha256", result.stdout)
+        self.assert_nothing_applied(sid)
+
+    def test_bare_with_inspection_flag_refuses(self) -> None:
+        sid = self.pack_session("bare-inspect")
+        self.deliver_response(sid, "inspectable", b"inspect\n")
+        for flag in ("--show-validator", "--show-apply-script"):
+            with self.subTest(flag=flag):
+                result = self.bare_apply_piped(flag)
+                self.assert_refused(result, "need the tarball named",
+                                    "Name the tarball explicitly")
+                self.assert_nothing_applied(sid)
+
+    def test_bare_with_no_interact_refuses(self) -> None:
+        sid = self.pack_session("bare-nointeract")
+        self.deliver_response(sid, "auto", b"auto\n")
+        result = self.bare_apply_piped("--no-interact")
+        self.assert_refused(result, "contradictory",
+                            "Name the tarball explicitly")
+        self.assert_nothing_applied(sid)
+
+    def test_argumented_form_untouched_by_bare_landing(self) -> None:
+        """The boundary pin: naming the tarball still applies with no
+        echo-prompt round and no bare-resolution scan."""
+        sid = self.pack_session("bare-argform")
+        tarball = self.deliver_response(sid, "named", b"named content\n")
+        result = run_bale(self.install, ["apply", str(tarball)],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertNotIn("bare apply", result.stdout + result.stderr)
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "named content\n")
 
 
 if __name__ == "__main__":
