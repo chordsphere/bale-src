@@ -2912,6 +2912,69 @@ def git_init_walkthrough(cwd: Path, *, force: bool) -> Path:
     return cwd
 
 
+# --- session opener ----------------------------------------------------------
+#
+# Board 52: pack's successor is a chat message, so pack emits it — the
+# cross-surface form of the every-command-names-its-successor contract.
+# The paragraph the architect used to maintain by hand is owned and
+# versioned by bale from here on: it evolves only via bale sessions
+# against this file, like every other operator-facing wording.
+
+# The scissor lines framing the paste. Everything between them is the
+# session-opening paragraph, copied whole and pasted unedited. Stable
+# sentinels: tests and the operator's eye both key on them.
+OPENER_BEGIN = "--8<-- session opener (copy everything between the scissor lines) --8<--"
+OPENER_END = "--8<-- end session opener --8<--"
+
+
+def session_opener_block(sid: str, goal: str, *, read_only: bool) -> list:
+    """The session-opening chat paragraph, as report lines (board 52).
+
+    Pack's end-of-run report ends with this block on every pack shape —
+    fully-specified, wizard, and read-only alike: the human summary
+    appends it as the final trailer lines (format_summary_block emits
+    trailer lines verbatim and never wraps them), and the --json path
+    prints it after the one-line JSON report, where json-mode stream
+    discipline routes it to stderr.
+
+    Identity carriage is the contract: the paragraph carries the sid and
+    the goal verbatim, so the opener names what was just packed and the
+    fresh session's manifest can be checked against the very message
+    that opened it. Two layout rules serve that contract:
+
+    - The goal rides on a single line, never wrapped or truncated — a
+      hard wrap inserted into the goal would break verbatim carriage
+      (and any substring check keyed on it).
+    - The read-only shape's opener names the session read-only, so the
+      fresh session knows from its first line that nothing lands.
+
+    Pure: builds the lines, prints nothing. The caller decides the
+    surface (trailer vs post-JSON print).
+    """
+    if read_only:
+        identity = [
+            f"This message opens read-only bale session {sid}",
+            "(empty write forecast: an orchestration/discussion session"
+            " — no changes land from it).",
+        ]
+    else:
+        identity = [f"This message opens bale session {sid}."]
+    return [
+        "",
+        "Open the session: paste the block below into a fresh Claude chat,",
+        "unedited, with the request tarball attached.",
+        "",
+        OPENER_BEGIN,
+        "I'm using \"bale\", a CLI that packaged the attached request tarball.",
+        *identity,
+        f"Goal, verbatim from the request manifest: {goal}",
+        "Please examine the tarball contents, starting with CLAUDE.md and",
+        "manifest.json, and go from there. Ask me if anything is unclear",
+        "before you build.",
+        OPENER_END,
+    ]
+
+
 # --- cmd_pack ----------------------------------------------------------------
 
 def cmd_pack(args: argparse.Namespace) -> int:
@@ -4000,6 +4063,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
             branch=pack_branch,
             applied_latest=applied_latest,
         ))
+        # Board 52 --json interplay: stdout keeps its one-JSON-line
+        # contract untouched; the opener block prints here, after the
+        # report line, and rides stderr — enable_json_mode() rebound
+        # sys.stdout to stderr, the same route as every other
+        # human-facing line under json mode. It still ends the run:
+        # nothing prints after it. (A structured `opener` key in the
+        # JSON report needs a format_pack_json change in
+        # bale_report.py — proposed, not made; see notes.md.)
+        print("\n".join(
+            session_opener_block(sid, goal, read_only=args.read_only)))
     else:
         rows = [
             ("session id", sid),
@@ -4045,6 +4118,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"offers to close {sid},",
                 f"or run: bale unlock {sid}",
             ]
+        # Board 52: the session opener ends the report — appended last,
+        # after every other trailer line (including the read-only
+        # close-out above), so the final thing the operator reads is
+        # the paragraph they paste next. format_summary_block emits
+        # trailer lines verbatim and never wraps them, which is what
+        # keeps the sid and the goal line intact.
+        trailer += session_opener_block(
+            sid, goal, read_only=args.read_only)
         print(format_summary_block(
             rows,
             trailer=trailer,

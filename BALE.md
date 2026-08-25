@@ -97,7 +97,8 @@ A session is:
 
 1. **Pack** — bundle the global docs from bale's installation plus a
    slice of the project into a request tarball. Hand the tarball to
-   Claude (via copy-paste, upload, whatever).
+   Claude, opening the chat with the session opener pack's report
+   ends on (§7.7) — the opening paragraph is emitted, not typed.
 2. **Receive** — Claude returns a response tarball.
 3. **Apply** — validate the response mechanically, run the response's
    `apply.sh` and `validation.sh` in a staging copy, commit the result
@@ -1724,7 +1725,28 @@ open and the user can just retry — no `bale unlock` required.
 ### 7.7 Output
 
 Print the absolute path to `request-NNN.tar.gz` and the sid. The
-user copy-pastes or uploads from there.
+user uploads the tarball from there, opening the fresh chat with the
+session opener the report ends on (below) — the opening paragraph is
+bale-emitted, not hand-carried.
+
+**The session opener** (board 52 — the cross-surface form of
+every-command-names-its-successor: pack's successor is a chat
+message, so pack emits it). The end-of-run report **ends** with the
+session-opening chat paragraph as a paste-ready copy block, framed by
+scissor lines, on every pack shape — fully-specified, wizard, and
+read-only (whose opener names the session read-only, so the fresh
+session knows from its first line that nothing lands). The paragraph
+carries the session's identity — the sid and the goal, verbatim, the
+goal on a single never-wrapped line — so the opener names what was
+just packed and the fresh session can check the request manifest
+against the very message that opened it. Bale owns and versions the
+wording (`session_opener_block` in `bin/bale_pack.py`); the
+hand-maintained paragraph it replaces is retired. Under `--json` the
+stdout contract is untouched — stdout stays exactly the one JSON
+line — and the opener block prints after the report line on stderr,
+per json-mode stream discipline; a structured `opener` key in the
+JSON report is deliberately not part of this contract yet (it would
+live in `format_pack_json`, whose docstring owns the key set).
 
 **The tree-position echo** (v0.3.31, board-6 upward report — operator
 state legibility at the pack surface). Pack names where the tree is
