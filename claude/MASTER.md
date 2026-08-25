@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-24-sitting-close-deltas-007`.
+Last landed by: `2026-08-25-sitting-close-deltas-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -483,6 +483,40 @@ with the unverifiable ones carried verbatim and marked):
   Carriers: the config key rides the next bin/bale_config.py
   touch; the scaffold epilogue plus a TARBALL.md §4.3 sentence
   ride the next tools/craft_response.py touch.
+  [2026-08-25: crafter half consumed —
+  `2026-08-25-board-49b-crafter-emission-001` landed the scaffold
+  epilogue and the TARBALL.md §4.3 sentence; the key is [probe]
+  clipboard_command, and the config-side carrier entry below holds the
+  remaining half.]
+- validate_bundle_manifest docstring true-up — rides the next
+  bin/bale_validate.py touch. Text verbatim from
+  `2026-08-25-board-49b-crafter-emission-001`'s Proposals: "What: its
+  line "the crafter's emission (49b) self-checks against it" predates
+  this design; reality is desk-side input hygiene + construction, with
+  the agreement pinned by `BundlePackParity` and the open-verb round
+  trip, not a runtime import. Why: the file is outside this session's
+  forecast, and one sentence of drift admission wasn't worth widening
+  the change set; the sentence is now the only place describing a
+  self-check that doesn't exist. Scope hints: `bin/bale_validate.py`,
+  docstring only."
+- bale_open and bale_sandbox presence rows in validate.sh — rides the
+  next validate.sh touch. Text verbatim from the same Proposals: "What:
+  the filesystem-layout section predates both modules, so a missing one
+  passes silently — the same stale inventory the v0.4.12 schema-loop
+  true-up fixed. Why: noticed while landing the drift guard in the same
+  file; left out as off-goal scope this session. Scope hints:
+  `validate.sh`, two rows."
+- The rider's config-side carrier — rides the next bin/bale_config.py
+  touch. Text verbatim from the same Proposals: "What: the `[probe]`
+  `clipboard_command` accessor plus the `bale config init` wizard walk,
+  on the next `bin/bale_config.py` touch, spelling exactly as above.
+  Why: the registry entry's remaining half; the crafter-side landing is
+  complete without it, but discoverability lives in the wizard. Scope
+  hints: `bin/bale_config.py` (walk_configurables + render_bale_toml + a
+  typed accessor, per its §2.5 contract)."
+- bale open FORCE-prefix doubling — the --no-sandbox line logs "FORCE:
+  FORCE:", observed at the first live open (this sitting's rehearsal and
+  spawn); a one-line fix. Rides the next bin/bale_open.py touch.
 - Board 10 escalation-charge annotation: the probe paste-back
   transport hop — pure wire both directions, judgment in neither —
   is the first flow the harness transport replaces; the manual
@@ -991,6 +1025,54 @@ Landed 2026-08-24 (the 49a-ii sitting, master
 - Sitting closed at the milestone; 49b heads the next desk's agenda,
   carrying the two consumer facts and the 49a-i constant-duplication
   drift guard.
+
+Landed 2026-08-25 (the 49b sitting, master
+`2026-08-24-continue-plan-008`, read-only): board 49b landed and applied
+— `2026-08-25-board-49b-crafter-emission-001` at 0.4.14, the crafter's
+emission half; every changes[] path in-forecast; the clipboard rider's
+crafter half landed rather than deferred. The board-49 arc is complete:
+the paste-block surface is closed at both ends, and this sitting's own
+spawn traveled as the first live bundle — desk-assembled mechanically
+(computed hashes, deterministic tar, schema-validated, rehearsed end to
+end through a real bale open before delivery), consumed on the
+operator's machine with the expected-HOLD proof clean.
+
+- Ratified, the worker's flagged decisions as shipped, one line each in
+  its archived notes: the --bundle flag surface with the =-glued
+  --pack-arg spelling; checkpoint absence as a loud oracle-less log, no
+  acknowledgment flag — the offered symmetric acknowledgment declined,
+  reason of record: pack's checkpoint requirement is config-driven and
+  read-only shapes legitimately carry none; fixed internal member names;
+  stem hygiene as slug hygiene; LF-normalization at write; deterministic
+  emission with the differing-bytes --force posture; self-validation by
+  construction with the parity and round-trip pins, the stored
+  --no-readme refusal kept (member presence is the single source); the
+  [probe] clipboard_command spelling with the minimal single-key scan
+  and its remedy-text path; the _OpenVerbBase refactor; the 0.4.14 bump.
+- Proposals dispositions: all three accepted onto the §3 fold-in
+  registry, texts verbatim there — the validate_bundle_manifest
+  docstring true-up, the bale_open/bale_sandbox presence rows, and the
+  rider's config-side carrier with the exact key spelling.
+- Sitting-open record: close-007's four latitude calls ratified as
+  shipped, its Block E seam resolved as shipped. One paste-back probe
+  round established the derivation sources byte-identical to the
+  published hashes (revA 26c894…, checkpoint v1 56d578…), HEAD 61dbf52
+  clean at 0.4.13, one open session (this read-only master). Spawn
+  materials derived, never rewritten, from the 009 sources; the derived
+  brief published as 23f434c9…, the three-probe checkpoint as 9dabb869…,
+  both dry-run at the desk in both directions — all-FAIL at base,
+  all-PASS at a simulated landing — before delivery.
+- Desk judgment calls, recorded: the spawn bundle hand-assembled this
+  once, computed never typed, the last before the emitter; the drift
+  guard's validate.sh home stated in the brief as constraint per the
+  accepted proposal text; bin/VERSION and docs/TARBALL.md carried in the
+  forecast, both consumed.
+- Specimen, cosmetic: the first live bale open printed a doubled FORCE:
+  FORCE: prefix on the --no-sandbox line (registry entry below).
+- Sitting closed at the milestone; next desk's agenda: the bale open
+  --json report, its only-after-49b deferral discharged, then boards 50
+  and 53; the apply-side bundle backstop still rides the next
+  bin/bale_apply.py touch.
 
 ## 4. The board
 
@@ -1638,6 +1720,11 @@ and §8, so done items keep their numbers as one-line pointers.
     intents channel exercised under piped stdin. The row-48 decision
     resolved bundle-only; ratifications and tallies in §3. Next: 49b
     (crafter emission), packed fresh against the applied tree.]
+    [2026-08-25: 49b DONE — `2026-08-25-board-49b-crafter-emission-001`
+    at 0.4.14, the crafter emits and bale open consumes; the desk types
+    neither. Arc complete — boards 36 and 40 discharged with it, 48's
+    disposition stands in BALE.md §6.7; ratifications and tallies in
+    §3.]
 
 50. **CRLF tolerance at every text-file read** — queued 2026-08-18
     (small): bale tolerates CRLF wherever it reads text files
@@ -3028,9 +3115,9 @@ New from the 2026-08-18 smoothing sitting:
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.13 at
-  `2026-08-24-board-49a-ii-open-verb-006` (the open verb, the current
-  landmark); the per-bump trail —
+  still governs. bin/bale VERSION 0.4.14 at
+  `2026-08-25-board-49b-crafter-emission-001` (the crafter bundle
+  emission, the current landmark); the per-bump trail —
   every bump's sid and the doc-only / tests-only bump exemptions —
   lives in git (prior versions of this doc) and in the sessions'
   telemetry records.
