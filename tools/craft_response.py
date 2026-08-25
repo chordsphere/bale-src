@@ -69,7 +69,49 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   (§4.2): no response directory is read, required, or accepted, and
   no lint runs on it — the architect audits the pasted block by eye,
   so the unfilled placeholders are the unfilled-cannot-pass analog:
-  visibly not ready to paste.
+  visibly not ready to paste. The scaffold's tail is the opt-in
+  clipboard epilogue (registry fold-in, ratified 2026-08-18,
+  configurable-never-core): when a `clipboard_command` under
+  `[probe]` is readable from `bale.toml` (looked up in `./bale.toml`
+  then `./context/bale.toml` — the repo-root and request-root
+  layouts), the scaffold ends with a tee of the sentinel-bracketed
+  block into that command, reporting success or failure loudly at
+  runtime and never failing the probe over it; the sentinel banners
+  always emit either way (the dependency-free selection aid), and
+  the unset or misconfigured path emits remedy text walking the
+  operator through setup instead — never fails, never silently
+  skips. The key's future config-side carrier (bin/bale_config.py)
+  must land the same spelling: `[probe] clipboard_command`;
+
+- (bundle, board 49b; format home is the bale project's design doc,
+  §6.7 there) `--bundle STEM` assembles a planner bundle — the
+  desk-side emission half, so the authoring desk never hand-composes
+  argv or hash blocks. It writes `<STEM>{BUNDLE_SUFFIX}` (a gzipped
+  tar, members flat at the archive root: `bundle.json` plus exactly
+  the declared members — `brief.md` from `--brief`, `checkpoint.sh`
+  from `--checkpoint`) and prints the paste line the desk ships
+  beside it — `bale open <filename>`, the bundle FILENAME only, so a
+  downloads-dir save is paste-ready under the consumer's search-path
+  resolution. Member bytes are LF-normalized at write (every CRLF
+  becomes LF) and each published sha256 is the digest of those
+  normalized bytes — the format's own rule, so a transport-mangled
+  copy still verifies. The stored `pack_argv` never carries the
+  delivery flags (`--readme-file` / `--checkpoint-file`) or the
+  `pack` verb itself — the consumer injects delivery from member
+  presence — and the tool refuses an argv that tries (argument
+  hygiene, same posture as the rest of this surface). Pre-answered
+  intents (`--pre-answered PROMPT=SUBJECT`, closed vocabulary:
+  INTENT_PROMPTS below) ride `pre_answered`; `[]` is the honest
+  empty. Emission is deterministic (fixed tar metadata, zeroed gzip
+  mtime): identical inputs produce identical bytes, so a re-run onto
+  an existing identical bundle is an idempotent no-op and only
+  differing bytes need `--force`. The emitter assembles — it never
+  executes the checkpoint or the pack; the dry-run proof and the
+  authoritative manifest gate (validate_bundle_manifest) are the
+  consuming verb's alone. A worker never authors, requests, or names
+  a real bundle file (worker blindness — the bundle is
+  oracle-bearing); this mode is the DESK's, and tests exercise it
+  under temp dirs only.
 
 For the normal kind, `validation.sh` remains un-emitted on purpose:
 there it is the worker's hypothesis test (TARBALL.md §7) — judgment,
@@ -86,6 +128,9 @@ judges. An unfilled skeleton is deliberately lint-invalid (empty
 Usage:
     craft_response.py <response-dir> --sid SESSION_ID [options]
     craft_response.py --probe SLUG
+    craft_response.py --bundle STEM --pack-arg TOKEN...
+                      (--brief FILE | --no-brief) [--checkpoint FILE]
+                      [--pre-answered PROMPT=SUBJECT]... [--out-dir DIR]
 
 Modes (mutually exclusive; default prints the manifest skeleton):
     (default)       print the manifest-skeleton JSON to stdout
@@ -114,6 +159,26 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     Takes no response dir and combines with none of the
                     response-directory flags — a probe is a chat
                     paste-back, not a response artifact.
+    --bundle STEM   assemble the planner bundle STEM + the reserved
+                    suffix and print the `bale open` paste line to
+                    stdout. Desk-side only; takes no response dir and
+                    combines with none of the response-directory flags
+                    (or --probe).
+
+Bundle options (only with --bundle):
+    --pack-arg TOKEN    one pack-argv token, repeatable in order — the
+                        argument vector AFTER the pack subcommand; at
+                        least one required. Never a delivery flag and
+                        never the verb itself (both refuse). A token
+                        that itself starts with a dash uses the
+                        =-glued spelling: --pack-arg=--slug
+    --brief FILE        the brief member (stored as brief.md)
+    --no-brief          deliberate no-brief bundle (members.brief null)
+    --checkpoint FILE   the blind-checkpoint member (stored as
+                        checkpoint.sh); absent = members.checkpoint null
+    --pre-answered P=S  one pre-answered intent, prompt=subject,
+                        repeatable; prompt from the closed vocabulary
+    --out-dir DIR       where the bundle file lands (default: cwd)
 
 Options:
     --kind KIND         normal (default) | bailout | clarification
@@ -138,15 +203,67 @@ response_lint imports.
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
+import io
 import json
 import sys
+import tarfile
 from pathlib import Path, PurePosixPath
 
 EXIT_OK = 0
 EXIT_ERROR = 2
 
 KINDS = ("normal", "bailout", "clarification")
+
+# --- Planner-bundle constants (board 49b, the emission half) ---
+#
+# Re-declared from bin/bale_pack.py (BUNDLE_SUFFIX, INTENT_PROMPTS)
+# because this tool imports nothing from bale — it must run standalone
+# wherever a request tarball lands. Two homes without a pin is how
+# citations drift, so the duplication carries a drift guard: the bale
+# install's validate.sh asserts equality against bale_pack's constants,
+# and tests/test_craft_response.py pins the same parity unit-shaped.
+# A session changing either home changes both in the same response.
+BUNDLE_SUFFIX = ".bale-bundle"
+INTENT_PROMPTS = ("supersede",)
+
+# The two delivery flags the CONSUMER injects from member presence —
+# never stored in pack_argv (the member's presence is the single
+# source, so the stored argv can never disagree with the shipped
+# bytes). The emitter refuses an argv naming one, bare or =-glued; the
+# consumer-side validator (validate_bundle_manifest) independently
+# refuses the same, so a hand-rolled bundle is caught there too.
+DELIVERY_FLAGS = ("--readme-file", "--checkpoint-file")
+
+# Fixed flat archive-member names (the schema's stated conventions).
+# Internal to the container — the desk names the stem, never these.
+BRIEF_MEMBER = "brief.md"
+CHECKPOINT_MEMBER = "checkpoint.sh"
+
+# The unfilled-brief sentinel `bale pack --readme-file` refuses on
+# (TARBALL.md §3.4). The literal is duplicated from bin/bale_pack.py's
+# guard (no named constant exists there); the parity test in
+# tests/test_craft_response.py pins that the pack source still carries
+# it. Refusing here fails the half-generated brief at the desk, where
+# the fix is immediate, instead of at the operator's `bale open`.
+BRIEF_PLACEHOLDER = "TODO(brief)"
+
+# --- Probe clipboard epilogue (registry fold-in, ratified 2026-08-18,
+#     configurable-never-core) ---
+#
+# The opt-in config key naming the environment's clipboard command.
+# NAMED LOUDLY on purpose: the config-side carrier (the next
+# bin/bale_config.py touch) must land the same spelling — section
+# `[probe]`, key `clipboard_command`, a one-line TOML basic string
+# whose value is the shell command probe output is piped into (e.g.
+# "pbcopy", "xclip -selection clipboard"). This tool reads the key
+# with a deliberately minimal single-key scan (stdlib-only, no TOML
+# parser is available standalone on 3.10), looked up in ./bale.toml
+# then ./context/bale.toml — the repo-root and request-root layouts.
+CLIPBOARD_SECTION = "probe"
+CLIPBOARD_KEY = "clipboard_command"
+CLIPBOARD_CONFIG_CANDIDATES = ("bale.toml", "context/bale.toml")
 
 APPLY_NOOP = """#!/usr/bin/env bash
 # No additional operations for this session.
@@ -227,10 +344,43 @@ probe() {{
 }}
 
 out="$(probe 2>&1)"
-echo "=== PROBE BEGIN {slug} ==="
-printf '%s\\n' "$out"
-printf -- '--- integrity: %s lines ---\\n' "$(printf '%s\\n' "$out" | wc -l | tr -d ' ')"
-echo "=== PROBE END {slug} ==="
+emit_probe_block() {{
+  echo "=== PROBE BEGIN {slug} ==="
+  printf '%s\\n' "$out"
+  printf -- '--- integrity: %s lines ---\\n' "$(printf '%s\\n' "$out" | wc -l | tr -d ' ')"
+  echo "=== PROBE END {slug} ==="
+}}
+emit_probe_block
+"""
+
+# The keyless tail of the probe scaffold: remedy text walking the
+# operator through the clipboard opt-in (TARBALL.md 4.3). Comments
+# only — nothing runs, nothing fails, and the manual selection path
+# (the sentinel banners) is named. Emitted whenever no usable
+# clipboard_command was readable at craft time.
+PROBE_CLIPBOARD_REMEDY = """\
+# Clipboard epilogue not emitted (opt-in, unset at craft time). To have
+# this scaffold tee its own output to your clipboard, set in bale.toml:
+#     [probe]
+#     clipboard_command = "<your clipboard command>"   # e.g. pbcopy
+# and ship bale.toml in the request's context/ so the crafter can read
+# it (it looks in ./bale.toml, then ./context/bale.toml). Manual path:
+# select between the PROBE BEGIN/END banners above and copy.
+"""
+
+# The key-set tail: tee the sentinel-bracketed block into the
+# configured command. Loud either way at runtime, and the epilogue can
+# never fail the probe — a missing or failing clipboard command reports
+# and the banners remain the dependency-free selection aid.
+PROBE_CLIPBOARD_EPILOGUE = """\
+# Clipboard epilogue (opt-in; bale.toml [probe] clipboard_command).
+# Tees the sentinel-bracketed block above into the configured command;
+# the banners stay the dependency-free selection aid if this fails.
+if emit_probe_block | {clip} 2>/dev/null; then
+  echo "[clipboard] probe output copied (bale.toml [probe] clipboard_command)" >&2
+else
+  echo "[clipboard] the configured clipboard command failed or is missing — select between the PROBE BEGIN/END banners and copy manually" >&2
+fi
 """
 
 
@@ -347,6 +497,255 @@ def log(msg: str) -> None:
 def die(msg: str) -> "int":
     log(f"error: {msg}")
     return EXIT_ERROR
+
+
+# ---------------------------------------------------------------------------
+# Probe clipboard config (the opt-in epilogue's key)
+# ---------------------------------------------------------------------------
+
+def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
+    """Read the opt-in `[probe] clipboard_command` from bale.toml.
+
+    Returns (command, note): command is the configured one-line shell
+    command, or None whenever the key is unreadable for any reason —
+    no file, no section, no key, or a value outside the minimal shape
+    this reader supports. The note says which, for the emission log.
+
+    Deliberately a minimal single-key scan, not a TOML parser: this
+    tool is stdlib-only and runs standalone on 3.10 (no tomllib), and
+    the key's contract is one section, one key, one quoted one-line
+    basic string with no escapes. Anything richer is treated as unset
+    — the never-fails, never-silently-skips path: the scaffold then
+    carries remedy text instead of the epilogue. The config-side
+    accessor that eventually lands in bin/bale_config.py is the full
+    reader; this scan must agree with it on the simple shape.
+
+    Lookup order: ./bale.toml (the repo-root layout), then
+    ./context/bale.toml (the request-root layout). The first file
+    found settles it — the two are alternative locations for the same
+    project-layer file, not config layers.
+    """
+    root = base if base is not None else Path.cwd()
+    for rel in CLIPBOARD_CONFIG_CANDIDATES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            return None, f"{rel} exists but is unreadable ({e})"
+        section = None
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                continue
+            if section != CLIPBOARD_SECTION or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            if key.strip() != CLIPBOARD_KEY:
+                continue
+            value = value.strip()
+            # Minimal basic-string read: "cmd", optional trailing
+            # comment, no escapes and no embedded quotes supported.
+            if value.startswith('"'):
+                closing = value.find('"', 1)
+                if closing > 0:
+                    cmd = value[1:closing].strip()
+                    rest = value[closing + 1:].strip()
+                    usable = (cmd and "\\" not in cmd
+                              and (not rest or rest.startswith("#")))
+                    if usable:
+                        return cmd, (f"{rel} sets [{CLIPBOARD_SECTION}] "
+                                     f"{CLIPBOARD_KEY}")
+            return None, (f"{rel} carries [{CLIPBOARD_SECTION}] "
+                          f"{CLIPBOARD_KEY} but not as a non-empty "
+                          f"one-line quoted string without escapes — "
+                          f"treated as unset")
+        return None, (f"{rel} found; [{CLIPBOARD_SECTION}] "
+                      f"{CLIPBOARD_KEY} unset")
+    return None, (f"no bale.toml found "
+                  f"({', '.join('./' + c for c in CLIPBOARD_CONFIG_CANDIDATES)})")
+
+
+def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
+    """The full --probe emission: the fixed skeleton plus one of the
+    two clipboard tails — the epilogue when a command is configured,
+    the remedy text when it is not. One of the two always emits; the
+    epilogue never touches stdout (status lines go to stderr) and
+    never affects the probe's exit."""
+    body = PROBE_SCAFFOLD.format(slug=slug)
+    if clipboard_cmd is not None:
+        return body + "\n" + PROBE_CLIPBOARD_EPILOGUE.format(
+            clip=clipboard_cmd)
+    return body + "\n" + PROBE_CLIPBOARD_REMEDY
+
+
+# ---------------------------------------------------------------------------
+# Planner-bundle emission (--bundle; board 49b)
+# ---------------------------------------------------------------------------
+
+def normalize_member(data: bytes) -> bytes:
+    """Every CRLF read as LF — the bundle format's own normalization
+    rule, applied at write so the archived bytes ARE the hashed bytes.
+
+    Mirrors the consumer's normalize_bundle_member (bin/bale_open.py)
+    by contract: both are the format rule's one-line application, and
+    the round-trip tests pin the agreement. Scoped to bundle members;
+    nothing else in this tool normalizes line endings.
+    """
+    return data.replace(b"\r\n", b"\n")
+
+
+def bundle_stem_problem(stem: str) -> str | None:
+    """Return a human-readable objection to a bundle stem, or None.
+
+    The stem lands in a filename, the printed `bale open` line, and
+    the tar member-adjacent tooling; the recommended shape is
+    `<date>-<slug>` — kebab throughout, same hygiene as probe slugs.
+    The path knob is --out-dir, never the stem.
+    """
+    if not stem or not stem.strip():
+        return "empty stem"
+    if "/" in stem or "\\" in stem:
+        return (f"stem {stem!r} contains a path separator — the stem "
+                "names the file; --out-dir names where it lands")
+    if stem.endswith(BUNDLE_SUFFIX):
+        return (f"stem {stem!r} already ends with {BUNDLE_SUFFIX!r} — "
+                "pass the bare stem; the tool appends the reserved "
+                "suffix")
+    kebab = set("abcdefghijklmnopqrstuvwxyz0123456789-")
+    ok = all(c in kebab for c in stem) \
+        and not stem.startswith("-") and not stem.endswith("-") \
+        and "--" not in stem
+    if not ok:
+        return (f"stem {stem!r} is not kebab-case — lowercase letters, "
+                "digits, and single hyphens only (recommended shape: "
+                "<date>-<slug>)")
+    return None
+
+
+def pack_arg_problem(token: str, index: int) -> str | None:
+    """Return a human-readable objection to one stored pack-argv
+    token, or None. Argument hygiene mirroring the consumer-side
+    manifest gate (validate_bundle_manifest) so a defective argv
+    fails at the desk, where the fix is immediate:
+
+    - the delivery flags are never stored (bare or =-glued) — the
+      consumer injects them from member presence, the single source;
+    - the array is the vector AFTER the pack subcommand, so a leading
+      'pack' token is a composition error;
+    - `--no-readme` is likewise never stored: a null brief slot is
+      the one spelling of no-brief, and the consumer injects the
+      flag from it (emitter-side hygiene past the gate — flagged as
+      such where this tool's docs name it).
+    """
+    if not token:
+        return f"pack_argv[{index}] is empty — every token is non-empty"
+    for banned in DELIVERY_FLAGS:
+        if token == banned or token.startswith(banned + "="):
+            return (f"pack_argv[{index}] carries the delivery flag "
+                    f"{banned} — the consumer injects it from member "
+                    f"presence (--brief / --checkpoint are this "
+                    f"tool's spellings); never store it")
+    if token == "--no-readme":
+        return (f"pack_argv[{index}] carries --no-readme — a no-brief "
+                "bundle is spelled --no-brief here, and the consumer "
+                "injects the flag from the null brief slot")
+    if index == 0 and token == "pack":
+        return ("pack_argv[0] is 'pack' — the array is the argument "
+                "vector AFTER the pack subcommand; drop the verb")
+    return None
+
+
+def parse_intent(spec: str) -> tuple[str, str] | str:
+    """Parse one --pre-answered PROMPT=SUBJECT; return the pair or a
+    human-readable objection string. The prompt vocabulary is CLOSED
+    (INTENT_PROMPTS — one prompt, one subject, never a blanket yes)."""
+    prompt, sep, subject = spec.partition("=")
+    if not sep:
+        return (f"--pre-answered {spec!r} is not PROMPT=SUBJECT — an "
+                "intent names exactly one prompt and one subject")
+    prompt = prompt.strip()
+    subject = subject.strip()
+    if prompt not in INTENT_PROMPTS:
+        return (f"--pre-answered names unknown prompt {prompt!r} — the "
+                f"vocabulary is closed: {', '.join(INTENT_PROMPTS)}")
+    if not subject:
+        return (f"--pre-answered {spec!r} has an empty subject — for "
+                "'supersede' the subject is the parent session id")
+    return prompt, subject
+
+
+def build_bundle_manifest(pack_args: list[str],
+                          brief: bytes | None,
+                          checkpoint: bytes | None,
+                          intents: list[tuple[str, str]]) -> dict:
+    """bundle.json: the four required keys, hashes computed from the
+    LF-normalized member bytes handed in (never transcribed). Both
+    member slots are always present — an object when the member
+    ships, an explicit null when it does not (the uniform shape)."""
+    def slot(name: str, data: bytes | None) -> dict | None:
+        if data is None:
+            return None
+        return {"path": name,
+                "sha256": hashlib.sha256(data).hexdigest()}
+    return {
+        "bundle_format": 1,
+        "pack_argv": list(pack_args),
+        "members": {
+            "brief": slot(BRIEF_MEMBER, brief),
+            "checkpoint": slot(CHECKPOINT_MEMBER, checkpoint),
+        },
+        "pre_answered": [{"prompt": p, "subject": s}
+                         for p, s in intents],
+    }
+
+
+def bundle_archive_bytes(manifest: dict,
+                         members: dict[str, bytes]) -> bytes:
+    """The bundle container: a gzipped tar, members flat at the
+    archive root — bundle.json plus exactly the declared members, in
+    a stable order. Deterministic on purpose (fixed tar metadata,
+    zeroed gzip mtime, no embedded filename): identical inputs yield
+    identical bytes, which is what makes the idempotent re-run
+    checkable and desk-side diffs meaningful."""
+    payload: list[tuple[str, bytes]] = [
+        ("bundle.json",
+         json.dumps(manifest, indent=2).encode("utf-8") + b"\n"),
+    ]
+    payload += sorted(members.items())
+    buf = io.BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
+        with tarfile.open(fileobj=gz, mode="w") as tf:
+            for name, data in payload:
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                info.mtime = 0
+                info.mode = 0o644
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+                tf.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def read_bundle_input(label: str, path_str: str) -> bytes | str:
+    """Read one member input file for --bundle; return its raw bytes
+    or a human-readable objection string. Same loud posture as pack's
+    own file-delivery flags: a missing, unreadable, or empty file
+    refuses — a bundle carrying a hollow member helps nobody."""
+    path = Path(path_str)
+    if not path.is_file():
+        return f"{label}: not a file: {path}"
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        return f"{label}: unreadable: {e}"
+    if not data.strip():
+        return f"{label}: {path} is empty — a hollow member never ships"
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -937,6 +1336,41 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                     help="emit the TARBALL.md 4.2 probe skeleton for SLUG "
                          "to stdout; mutually exclusive with the "
                          "response-directory modes and flags")
+    ap.add_argument("--bundle", default=None, metavar="STEM",
+                    help="assemble the planner bundle STEM + the reserved "
+                         "suffix (board 49b, desk-side) and print the bale "
+                         "open paste line; mutually exclusive with the "
+                         "response-directory modes and flags, and with "
+                         "--probe")
+    ap.add_argument("--pack-arg", action="append", default=[],
+                    metavar="TOKEN", dest="pack_arg",
+                    help="with --bundle: one stored pack-argv token, "
+                         "repeatable in order — the vector AFTER the pack "
+                         "subcommand; never a delivery flag, never the "
+                         "verb itself. Dash-leading tokens use the =-glued "
+                         "spelling: --pack-arg=--slug")
+    ap.add_argument("--brief", default=None, metavar="FILE",
+                    help="with --bundle: the brief member's file (stored "
+                         "flat as brief.md); exactly one of --brief / "
+                         "--no-brief is required")
+    ap.add_argument("--no-brief", action="store_true",
+                    help="with --bundle: pack a deliberate no-brief bundle "
+                         "(members.brief is an explicit null; the consumer "
+                         "injects --no-readme from it)")
+    ap.add_argument("--checkpoint", default=None, metavar="FILE",
+                    help="with --bundle: the blind-checkpoint member's file "
+                         "(stored flat as checkpoint.sh); absent means "
+                         "members.checkpoint is an explicit null")
+    ap.add_argument("--pre-answered", action="append", default=[],
+                    metavar="PROMPT=SUBJECT", dest="pre_answered",
+                    help="with --bundle: one pre-answered intent, "
+                         "repeatable; PROMPT is from the closed vocabulary "
+                         "(" + ", ".join(INTENT_PROMPTS) + "), SUBJECT is "
+                         "what it answers about (for supersede, the parent "
+                         "session id)")
+    ap.add_argument("--out-dir", default=None, metavar="DIR",
+                    help="with --bundle: directory the bundle file is "
+                         "written into (default: the current directory)")
     ap.add_argument("--sid", default=None,
                     help="session id (fills session_id and responds_to)")
     ap.add_argument("--kind", choices=KINDS, default=None,
@@ -1000,7 +1434,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "header-coherence block (repeatable)")
     ap.add_argument("--force", action="store_true",
                     help="with --write: overwrite existing manifest.json / "
-                         "apply.sh")
+                         "apply.sh; with --bundle: overwrite an existing "
+                         "bundle whose bytes differ (an identical re-run "
+                         "is an idempotent no-op without it)")
     return ap.parse_args(argv)
 
 
@@ -1030,6 +1466,13 @@ def main(argv: list[str] | None = None) -> int:
             ("--deleted", bool(args.deleted)),
             ("--executable", bool(args.executable)),
             ("--force", args.force),
+            ("--bundle", args.bundle is not None),
+            ("--pack-arg", bool(args.pack_arg)),
+            ("--brief", args.brief is not None),
+            ("--no-brief", args.no_brief),
+            ("--checkpoint", args.checkpoint is not None),
+            ("--pre-answered", bool(args.pre_answered)),
+            ("--out-dir", args.out_dir is not None),
         ) if given]
         if supplied:
             return die(f"--probe is mutually exclusive with "
@@ -1044,21 +1487,180 @@ def main(argv: list[str] | None = None) -> int:
         problem = slug_problem(args.probe)
         if problem:
             return die(f"--probe: {problem}")
-        sys.stdout.write(PROBE_SCAFFOLD.format(slug=args.probe))
+        clip, note = read_clipboard_command()
+        sys.stdout.write(build_probe_scaffold(args.probe, clip))
+        if clip is not None:
+            log(f"clipboard epilogue emitted ({note}) — the scaffold "
+                "tees its sentinel-bracketed output to the configured "
+                "command at run time, loudly either way")
+        else:
+            log(f"clipboard epilogue not emitted ({note}) — remedy "
+                "text in the scaffold walks the operator through the "
+                "[probe] clipboard_command opt-in")
         log("probe skeleton emitted — fill the TODO placeholders (what, "
             "why, real sections with caps), then paste into chat; no lint "
             "runs on a probe — the architect audits it by eye "
             "(TARBALL.md 4.2)")
         return EXIT_OK
 
+    # Bundle mode (board 49b). Desk-side emission of a planner bundle:
+    # like --probe, it reads no response dir and combines with none of
+    # the response-directory modes or flags, so every such combination
+    # is a flag error, not a silent ignore. The emitter assembles —
+    # hashes computed from the LF-normalized bytes it writes, delivery
+    # flags never stored — and never executes anything: the dry-run
+    # proof and the authoritative manifest gate are `bale open`'s.
+    if args.bundle is not None:
+        supplied = [flag for flag, given in (
+            ("--kind", args.kind is not None),
+            ("--changes-only", args.changes_only),
+            ("--apply-only", args.apply_only),
+            ("--write", args.write),
+            ("--validation-epilogue", args.validation_epilogue),
+            ("--doc-assertions", args.doc_assertions),
+            ("--fragment", args.fragment is not None),
+            ("--index", args.index is not None),
+            ("--adr-dir", args.adr_dir is not None),
+            ("--adr-baseline", args.adr_baseline is not None),
+            ("--prune-reasons", args.prune_reasons),
+            ("--index-header", bool(args.index_header)),
+            ("--sid", args.sid is not None),
+            ("--questions", args.questions is not None),
+            ("--deleted", bool(args.deleted)),
+            ("--executable", bool(args.executable)),
+        ) if given]
+        if supplied:
+            return die(f"--bundle is mutually exclusive with "
+                       f"{', '.join(supplied)} — a planner bundle is a "
+                       "desk-side artifact, not a response-directory one "
+                       "(board 49b)")
+        if args.response_dir is not None:
+            return die(f"--bundle takes no response dir (got "
+                       f"{args.response_dir!r}) — the bundle lands under "
+                       "--out-dir and the paste line goes to stdout; drop "
+                       "the positional argument")
+        problem = bundle_stem_problem(args.bundle)
+        if problem:
+            return die(f"--bundle: {problem}")
+        if args.brief is not None and args.no_brief:
+            return die("--brief and --no-brief contradict — a bundle "
+                       "either ships the brief member or declares the "
+                       "explicit null, never both")
+        if args.brief is None and not args.no_brief:
+            return die("one of --brief / --no-brief is required — a "
+                       "no-brief bundle is a deliberate acknowledgment "
+                       "(the --no-readme precedent), never a default")
+        if not args.pack_arg:
+            return die("--bundle needs at least one --pack-arg token — "
+                       "pack_argv is required non-empty (the vector "
+                       "AFTER the pack subcommand)")
+        for i, token in enumerate(args.pack_arg):
+            problem = pack_arg_problem(token, i)
+            if problem:
+                return die(problem)
+        intents: list[tuple[str, str]] = []
+        for spec in args.pre_answered:
+            parsed = parse_intent(spec)
+            if isinstance(parsed, str):
+                return die(parsed)
+            if parsed in intents:
+                return die(f"--pre-answered duplicates "
+                           f"{parsed[0]}={parsed[1]} — one intent per "
+                           "prompt-and-subject; the consumer refuses "
+                           "duplicates at parse")
+            intents.append(parsed)
+
+        brief_bytes: bytes | None = None
+        if args.brief is not None:
+            got = read_bundle_input("--brief", args.brief)
+            if isinstance(got, str):
+                return die(got)
+            brief_bytes = normalize_member(got)
+            offenders = [n for n, ln in enumerate(
+                brief_bytes.decode("utf-8", errors="replace")
+                .splitlines(), 1) if BRIEF_PLACEHOLDER in ln]
+            if offenders:
+                return die(f"--brief: {args.brief} still contains the "
+                           f"unfilled placeholder sentinel "
+                           f"'{BRIEF_PLACEHOLDER}' on line(s) "
+                           f"{', '.join(map(str, offenders))} — the "
+                           "replayed pack would refuse it at the "
+                           "operator's open (TARBALL.md 3.4); fill or "
+                           "remove every such line at the desk instead")
+        checkpoint_bytes: bytes | None = None
+        if args.checkpoint is not None:
+            got = read_bundle_input("--checkpoint", args.checkpoint)
+            if isinstance(got, str):
+                return die(got)
+            checkpoint_bytes = normalize_member(got)
+
+        manifest = build_bundle_manifest(
+            args.pack_arg, brief_bytes, checkpoint_bytes, intents)
+        members: dict[str, bytes] = {}
+        if brief_bytes is not None:
+            members[BRIEF_MEMBER] = brief_bytes
+        if checkpoint_bytes is not None:
+            members[CHECKPOINT_MEMBER] = checkpoint_bytes
+        blob = bundle_archive_bytes(manifest, members)
+
+        out_dir = Path(args.out_dir) if args.out_dir is not None \
+            else Path.cwd()
+        if not out_dir.is_dir():
+            return die(f"--out-dir: not a directory: {out_dir}")
+        filename = args.bundle + BUNDLE_SUFFIX
+        out_path = out_dir / filename
+        if out_path.exists():
+            if out_path.is_file() and out_path.read_bytes() == blob:
+                log(f"{out_path} already exists with identical bytes — "
+                    "idempotent re-run, nothing written")
+                print(f"bale open {filename}")
+                return EXIT_OK
+            if not args.force:
+                return die(f"{out_path} exists with different content — "
+                           "re-run with --force to overwrite")
+        out_path.write_bytes(blob)
+
+        for slot in ("brief", "checkpoint"):
+            entry = manifest["members"][slot]
+            if entry is None:
+                log(f"member {slot}: explicit null (not shipped)")
+            else:
+                log(f"member {slot}: {entry['path']} "
+                    f"(sha256 {entry['sha256'][:12]}…, LF-normalized "
+                    f"bytes as written)")
+        log(f"pack_argv: {len(args.pack_arg)} token(s); pre_answered: "
+            f"{len(intents)} intent(s)")
+        if checkpoint_bytes is None:
+            log("no checkpoint member — the bundle is oracle-less; a "
+                "checkpoint-configured project's replayed pack will "
+                "refuse it")
+        log(f"wrote {out_path} ({len(blob)} bytes) — ship the file and "
+            "the printed line together; the line carries the bundle "
+            "filename only, so a downloads-dir save is paste-ready")
+        print(f"bale open {filename}")
+        return EXIT_OK
+
+    stray_bundle = [flag for flag, given in (
+        ("--pack-arg", bool(args.pack_arg)),
+        ("--brief", args.brief is not None),
+        ("--no-brief", args.no_brief),
+        ("--checkpoint", args.checkpoint is not None),
+        ("--pre-answered", bool(args.pre_answered)),
+        ("--out-dir", args.out_dir is not None),
+    ) if given]
+    if stray_bundle:
+        return die(f"{', '.join(stray_bundle)}: only meaningful with "
+                   "--bundle")
+
     if args.response_dir is None:
-        return die("response dir is required (only --probe runs without "
-                   "one)")
+        return die("response dir is required (only --probe and --bundle "
+                   "run without one)")
     rdir = Path(args.response_dir)
     if not rdir.is_dir():
         return die(f"response dir not found or not a directory: {rdir}")
     if args.force and not args.write:
-        return die("--force only means something with --write")
+        return die("--force only means something with --write or "
+                   "--bundle")
 
     kind = args.kind if args.kind is not None else "normal"
 

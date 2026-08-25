@@ -110,8 +110,12 @@ def sha_lf(text: str) -> str:
         text.encode("utf-8").replace(b"\r\n", b"\n")).hexdigest()
 
 
-class OpenVerbTest(unittest.TestCase):
-    """`bale open <bundle>`: gate, verify, dry-run, replay."""
+class _OpenVerbBase(unittest.TestCase):
+    """Shared sandbox fixtures and helpers for the open-verb suites.
+    No test methods live here (an underscore-prefixed base holds no
+    tests to inherit-and-re-run); OpenVerbTest carries the consumer's
+    refusal/replay pins and CrafterEmissionRoundTrip the 49b
+    producer→consumer round trip."""
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-open-")
@@ -229,6 +233,9 @@ class OpenVerbTest(unittest.TestCase):
                     assert raw is not None
                     return raw.read().decode("utf-8")
         return None
+
+class OpenVerbTest(_OpenVerbBase):
+    """`bale open <bundle>`: gate, verify, dry-run, replay."""
 
     # -- recognizer + gate -------------------------------------------
 
@@ -498,6 +505,94 @@ class OpenVerbTest(unittest.TestCase):
             result.returncode, 0,
             msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
         self.assertIn("was not consumed", result.stdout)
+
+
+class CrafterEmissionRoundTrip(_OpenVerbBase):
+    """Board 49b meets 49a-ii: a bundle EMITTED by the crafter
+    (`tools/craft_response.py --bundle`) consumed by a real `bale
+    open` — the producer against the consumer, end to end, in the
+    hermetic sandbox. The hand-assembled build_bundle covers the
+    consumer's refusal surface above; this class pins that the
+    emitter's happy path is inside it: the archive is accepted, the
+    hashes verify, the delivery flags inject from member presence,
+    the dry-run leg runs the shipped checkpoint, and the crafter's
+    printed paste line — the bundle filename only — resolves through
+    the configured search path exactly as the desk ships it.
+
+    Bundles here are runtime artifacts inside the scratch tmp, never
+    shipped fixtures (the worker-blindness rule)."""
+
+    CRAFT = Path(__file__).resolve().parent.parent / "tools" / \
+        "craft_response.py"
+
+    def craft_bundle(self, stem: str, *argv: str):
+        return subprocess.run(
+            [sys.executable, str(self.CRAFT), "--bundle", stem, *argv,
+             "--out-dir", str(self.tmp)],
+            capture_output=True, text=True, cwd=self.tmp)
+
+    def test_emitted_bundle_opens_via_the_printed_line(self) -> None:
+        # [validation] base for the checkpoint leg, plus a search path
+        # covering the bundle's directory so the crafter's
+        # filename-only paste line resolves from the repo cwd — the
+        # downloads-dir save, reproduced.
+        (self.repo / "bale.toml").write_text(
+            f"[validation]\nbase = \"{CP_PATTERN}\"\n"
+            f"[apply]\nsearch_paths = [\"{self.tmp}\"]\n",
+            encoding="utf-8")
+        brief = "# Crafted brief\n\nCRLF in transit\r\nis fine\r\n"
+        brief_file = self.tmp / "the-brief.md"
+        brief_file.write_text(brief, encoding="utf-8")
+        cp_file = self.tmp / "the-checkpoint.sh"
+        cp_file.write_text(CP_HOLD, encoding="utf-8")
+
+        crafted = self.craft_bundle(
+            "2026-07-29-crafted-rt",
+            "--brief", str(brief_file), "--checkpoint", str(cp_file),
+            "--pack-arg", "Goal for crafted-rt",
+            "--pack-arg=--slug", "--pack-arg", "crafted-rt",
+            "--pack-arg=--include", "--pack-arg", "hello.txt",
+            "--pack-arg=--expects-probe", "--pack-arg", "no")
+        self.assertEqual(crafted.returncode, 0, crafted.stderr)
+        # The paste line carries the bundle FILENAME only.
+        paste_line = crafted.stdout.strip()
+        self.assertEqual(paste_line,
+                         "bale open 2026-07-29-crafted-rt.bale-bundle")
+        filename = paste_line.split()[-1]
+        self.assertNotIn("/", filename)
+
+        result = run_bale(self.install,
+                          ["open", filename, "--no-sandbox"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        # Both member hashes verified; the dry-run leg ran the shipped
+        # checkpoint and echoed the expected-HOLD proof.
+        self.assertIn("member brief verified", result.stdout)
+        self.assertIn("member checkpoint verified", result.stdout)
+        self.assertIn("expected-HOLD proof", result.stdout)
+        # Delivery injection from member presence: the packed request
+        # carries the LF-normalized brief byte-for-byte.
+        self.assertEqual(self.request_readme(result),
+                         brief.replace("\r\n", "\n"))
+
+    def test_emitted_null_slots_open_clean(self) -> None:
+        crafted = self.craft_bundle(
+            "2026-07-29-crafted-nul", "--no-brief",
+            "--pack-arg", "Goal for crafted-nul",
+            "--pack-arg=--slug", "--pack-arg", "crafted-nul",
+            "--pack-arg=--include", "--pack-arg", "hello.txt",
+            "--pack-arg=--expects-probe", "--pack-arg", "no")
+        self.assertEqual(crafted.returncode, 0, crafted.stderr)
+        bundle = self.tmp / "2026-07-29-crafted-nul.bale-bundle"
+        result = self.open_bundle(bundle)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn("--no-readme", result.stdout)
+        self.assertIn("no checkpoint member", result.stdout)
+        self.assertIsNone(self.request_readme(result))
 
 
 if __name__ == "__main__":

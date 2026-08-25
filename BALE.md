@@ -909,9 +909,25 @@ disposition: the typed, non-bundle pack path keeps no standalone
 dry-run echo — the paste-surface hazard the proof guards exists
 only where the operator pastes a desk-emitted line over members
 they never inspected, and pack itself stays a no-script-execution
-command. The crafter-side emission, so the desk never hand-composes
-argv or hash blocks, is 49b and does not exist yet; the format
-below is what it will produce and `bale open` consumes.
+command. The crafter-side emission is 49b, landed in v0.4.14:
+`tools/craft_response.py --bundle` (the worker-toolkit crafter,
+running desk-side) assembles the container below — members
+LF-normalized at write, every sha256 computed from those bytes,
+`bundle.json` built with the delivery flags refused out of the
+stored argv, the archive exactly {bundle.json} ∪ the declared
+members — and prints the `bale open` line the desk ships beside the
+bundle, carrying the bundle filename only so a downloads-dir save
+is paste-ready under the verb's search-path resolution. Emission is
+deterministic (fixed tar metadata, zeroed gzip mtime): a re-run
+over identical inputs is an idempotent no-op. The emitter assembles
+and never executes — the dry-run proof and the authoritative
+manifest gate stay the verb's — so the desk never hand-composes
+argv or hash blocks; the format below is what it produces and
+`bale open` consumes. The crafter re-declares the suffix and intent
+vocabulary (it imports nothing from bale); `validate.sh` pins the
+duplication equal to `bin/bale_pack.py`'s constants — the lint's
+embedded-schema drift-guard precedent — and
+`tests/test_craft_response.py` pins the same parity unit-shaped.
 
 **Container and recognizer.** A bundle is a gzipped tar whose
 filename ends with the reserved suffix `.bale-bundle` — the suffix

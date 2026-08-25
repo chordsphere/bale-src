@@ -55,6 +55,30 @@ sequential numbering, prune declarations, index-header coherence) —
 each proven by executing the emitted block against synthetic staging
 trees, pass and fail sides both.
 
+Session board-49b adds --bundle STEM (the planner-bundle emission
+half — the desk stops hand-composing argv and hash blocks) plus the
+opt-in probe clipboard epilogue (registry fold-in). CraftBundleEmission
+proves the container against the consumer's own contract: flat archive
+= exactly {bundle.json} ∪ declared members, hashes over LF-normalized
+bytes (a CRLF input still verifies), the null slots' uniform shape,
+deterministic bytes, the idempotent re-run, and the stdout paste line
+carrying the bundle FILENAME only. CraftBundleHygiene proves the
+refusals (delivery flags bare and =-glued, a leading 'pack' verb,
+--no-readme, stem shapes, intent vocabulary and duplicates, the
+TODO(brief) sentinel, hollow member files) and the mode's mutual
+exclusion, both directions against --probe and the response-directory
+surface. CraftProbeClipboard proves the epilogue's contract per the
+fold-in text: emitted only when [probe] clipboard_command is readable
+(./bale.toml then ./context/bale.toml), sentinel banners always,
+runtime tee loud on success and failure and never failing the probe,
+remedy text on the unset and misconfigured paths. BundlePackParity
+(skipUnless bin/, the PackInjectionSurface rider pattern) pins the
+re-declared constants equal to bale_pack's, the TODO(brief) literal
+still present in the pack source, and the emitted bundle.json passing
+validate_bundle_manifest — the producer against the consumer's gate.
+The full producer→consumer E2E (a crafter-emitted bundle through a
+real `bale open`) lives in tests/test_open_verb.py.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -78,10 +102,14 @@ LINT = REPO / "tools" / "response_lint.py"
 PACK_MODULE = REPO / "bin" / "bale_pack.py"
 
 
-def run_craft(*argv: str) -> subprocess.CompletedProcess:
+def run_craft(*argv: str, cwd: Path | None = None
+              ) -> subprocess.CompletedProcess:
+    """cwd is None = inherit (the historical shape); the bundle and
+    clipboard tests pass an explicit tempdir because those surfaces
+    read the current directory (output landing, bale.toml lookup)."""
     return subprocess.run(
         [sys.executable, str(CRAFT), *argv],
-        capture_output=True, text=True,
+        capture_output=True, text=True, cwd=cwd,
     )
 
 
@@ -1350,6 +1378,452 @@ class CraftDocAssertions(unittest.TestCase):
                      "bin/ not present — a tools-only sandbox has no "
                      "bale_pack.py to drive; the injection surface is "
                      "covered where bin/ ships")
+def norm_sha(data: bytes) -> str:
+    """sha256 of the LF-normalized bytes — the bundle format's
+    published-hash rule, restated locally so the tests assert the
+    contract rather than echo the implementation."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
+class CraftBundleEmission(unittest.TestCase):
+    """--bundle STEM: the planner-bundle emission half (board 49b).
+
+    Every test runs in its own tempdir cwd — the bundle lands there
+    and no bale.toml is in reach, so nothing environmental leaks in.
+    Bundles are runtime artifacts under temp dirs only; nothing with
+    the reserved suffix is ever a committed fixture (worker-blindness
+    rule)."""
+
+    STEM = "2026-07-29-fixture-bundle"
+    SUFFIX = ".bale-bundle"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def inputs(self, brief: bytes = b"# Brief\n\nbody\n",
+               checkpoint: bytes = b"#!/usr/bin/env bash\nexit 1\n"
+               ) -> tuple[Path, Path]:
+        b = self.tmp / "the-brief.md"
+        b.write_bytes(brief)
+        c = self.tmp / "the-checkpoint.sh"
+        c.write_bytes(checkpoint)
+        return b, c
+
+    def emit(self, *argv: str) -> subprocess.CompletedProcess:
+        return run_craft("--bundle", self.STEM, *argv, cwd=self.tmp)
+
+    def read_archive(self, path: Path) -> tuple[dict, dict[str, bytes]]:
+        members: dict[str, bytes] = {}
+        with tarfile.open(path, "r:gz") as tf:
+            for m in tf.getmembers():
+                self.assertTrue(m.isreg(),
+                                f"non-regular member {m.name!r}")
+                self.assertNotIn("/", m.name,
+                                 f"nested member {m.name!r} — members "
+                                 "sit flat at the archive root")
+                raw = tf.extractfile(m)
+                assert raw is not None
+                members[m.name] = raw.read()
+        manifest = json.loads(members["bundle.json"])
+        return manifest, members
+
+    def test_full_bundle_matches_the_consumer_contract(self):
+        brief, checkpoint = self.inputs(
+            brief=b"# Brief\n\nCRLF travels\r\nfine\r\n")
+        cp = self.emit(
+            "--brief", str(brief), "--checkpoint", str(checkpoint),
+            "--pack-arg", "Goal text", "--pack-arg=--slug",
+            "--pack-arg", "fixture",
+            "--pre-answered", "supersede=2026-07-01-parent-001")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        # The paste line: bundle FILENAME only (the 49a-ii consumer
+        # fact — search-path resolution makes a downloads save
+        # paste-ready), nothing else on stdout.
+        filename = self.STEM + self.SUFFIX
+        self.assertEqual(cp.stdout, f"bale open {filename}\n")
+        out = self.tmp / filename
+        self.assertTrue(out.is_file())
+
+        manifest, members = self.read_archive(out)
+        # Archive = exactly {bundle.json} ∪ declared members, flat.
+        self.assertEqual(set(members),
+                         {"bundle.json", "brief.md", "checkpoint.sh"})
+        # The four required keys, format 1, argv verbatim, intents.
+        self.assertEqual(manifest["bundle_format"], 1)
+        self.assertEqual(manifest["pack_argv"],
+                         ["Goal text", "--slug", "fixture"])
+        self.assertEqual(manifest["pre_answered"],
+                         [{"prompt": "supersede",
+                           "subject": "2026-07-01-parent-001"}])
+        # Member slots publish the LF-normalized hash; the archived
+        # bytes are already normalized (CRLF written out as LF), so
+        # the stored bytes hash straight to the published digest.
+        for slot, name, src in ((("brief"), "brief.md", brief),
+                                (("checkpoint"), "checkpoint.sh",
+                                 checkpoint)):
+            entry = manifest["members"][slot]
+            self.assertEqual(entry["path"], name)
+            self.assertEqual(entry["sha256"], norm_sha(src.read_bytes()))
+            self.assertNotIn(b"\r\n", members[name])
+            self.assertEqual(hashlib.sha256(members[name]).hexdigest(),
+                             entry["sha256"])
+
+    def test_null_slots_uniform_shape(self):
+        cp = self.emit("--no-brief", "--pack-arg", "Goal")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        manifest, members = self.read_archive(
+            self.tmp / (self.STEM + self.SUFFIX))
+        # Both slots present, both explicit null; the archive carries
+        # exactly bundle.json and nothing else.
+        self.assertIsNone(manifest["members"]["brief"])
+        self.assertIsNone(manifest["members"]["checkpoint"])
+        self.assertEqual(set(members), {"bundle.json"})
+        self.assertEqual(manifest["pre_answered"], [])
+        self.assertIn("oracle-less", cp.stderr)
+
+    def test_deterministic_and_idempotent(self):
+        brief, checkpoint = self.inputs()
+        argv = ("--brief", str(brief), "--checkpoint", str(checkpoint),
+                "--pack-arg", "Goal")
+        other = self.tmp / "elsewhere"
+        other.mkdir()
+        first = self.emit(*argv)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        elsewhere = self.emit(*argv, "--out-dir", str(other))
+        self.assertEqual(elsewhere.returncode, 0, elsewhere.stderr)
+        name = self.STEM + self.SUFFIX
+        blob = (self.tmp / name).read_bytes()
+        self.assertEqual(blob, (other / name).read_bytes(),
+                         "identical inputs must produce identical bytes")
+        # Idempotent re-run onto the identical file: exit 0, bytes
+        # untouched, the paste line still printed, no --force needed.
+        again = self.emit(*argv)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("idempotent re-run", again.stderr)
+        self.assertEqual(again.stdout, f"bale open {name}\n")
+        self.assertEqual((self.tmp / name).read_bytes(), blob)
+
+    def test_differing_bytes_need_force(self):
+        brief, checkpoint = self.inputs()
+        cp = self.emit("--brief", str(brief), "--pack-arg", "Goal")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        clash = self.emit("--brief", str(brief), "--pack-arg", "Other")
+        self.assertEqual(clash.returncode, 2)
+        self.assertIn("--force", clash.stderr)
+        forced = self.emit("--brief", str(brief), "--pack-arg", "Other",
+                           "--force")
+        self.assertEqual(forced.returncode, 0, forced.stderr)
+        manifest, _ = self.read_archive(
+            self.tmp / (self.STEM + self.SUFFIX))
+        self.assertEqual(manifest["pack_argv"], ["Other"])
+
+
+class CraftBundleHygiene(unittest.TestCase):
+    """--bundle's argument hygiene and mode exclusivity: a defective
+    bundle fails at the desk, where the fix is immediate, not at the
+    operator's `bale open`."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.brief = self.tmp / "brief.md"
+        self.brief.write_text("# Brief\n\nbody\n")
+
+    def emit(self, *argv: str) -> subprocess.CompletedProcess:
+        return run_craft(*argv, cwd=self.tmp)
+
+    def test_brief_slot_is_a_deliberate_choice(self):
+        neither = self.emit("--bundle", "s-001", "--pack-arg", "g")
+        self.assertEqual(neither.returncode, 2)
+        self.assertIn("--no-brief", neither.stderr)
+        both = self.emit("--bundle", "s-001", "--pack-arg", "g",
+                         "--brief", str(self.brief), "--no-brief")
+        self.assertEqual(both.returncode, 2)
+        self.assertIn("contradict", both.stderr)
+
+    def test_pack_argv_hygiene(self):
+        for tokens, needle in (
+            ((), "at least one --pack-arg"),
+            (("--pack-arg=--readme-file",), "--readme-file"),
+            (("--pack-arg", "g",
+              "--pack-arg=--readme-file=x.md"), "--readme-file"),
+            (("--pack-arg=--checkpoint-file",), "--checkpoint-file"),
+            (("--pack-arg", "pack", "--pack-arg", "g"), "AFTER"),
+            (("--pack-arg", "g", "--pack-arg=--no-readme"),
+             "--no-readme"),
+            (("--pack-arg", ""), "empty"),
+        ):
+            with self.subTest(tokens=tokens):
+                cp = self.emit("--bundle", "s-001", "--no-brief",
+                               *tokens)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+        # 'pack' is only the verb in position 0; elsewhere it is an
+        # ordinary token (a goal word, a path segment).
+        ok = self.emit("--bundle", "s-001", "--no-brief",
+                       "--pack-arg", "Repack the pack goal",
+                       "--pack-arg", "pack")
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+
+    def test_stem_hygiene(self):
+        for bad in ("", "Has-Caps", "under_score", "a/b", "x.bale-bundle",
+                    "-lead", "trail-", "dou--ble"):
+            with self.subTest(bad=bad):
+                cp = self.emit(f"--bundle={bad}", "--no-brief",
+                               "--pack-arg", "g")
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+
+    def test_intent_hygiene(self):
+        for spec, needle in (
+            ("everything=yes", "closed"),
+            ("supersede=", "empty subject"),
+            ("supersede", "PROMPT=SUBJECT"),
+        ):
+            with self.subTest(spec=spec):
+                cp = self.emit("--bundle", "s-001", "--no-brief",
+                               "--pack-arg", "g", "--pre-answered", spec)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+        dup = self.emit("--bundle", "s-001", "--no-brief",
+                        "--pack-arg", "g",
+                        "--pre-answered", "supersede=p-001",
+                        "--pre-answered", "supersede=p-001")
+        self.assertEqual(dup.returncode, 2)
+        self.assertIn("duplicates", dup.stderr)
+
+    def test_member_input_hygiene(self):
+        missing = self.emit("--bundle", "s-001", "--pack-arg", "g",
+                            "--brief", "no-such-file.md")
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("not a file", missing.stderr)
+        hollow = self.tmp / "hollow.md"
+        hollow.write_text("   \n")
+        empty = self.emit("--bundle", "s-001", "--pack-arg", "g",
+                          "--brief", str(hollow))
+        self.assertEqual(empty.returncode, 2)
+        self.assertIn("empty", empty.stderr)
+        half = self.tmp / "half.md"
+        half.write_text("# Brief\n\nTODO(brief): fill the goal here\n")
+        sentinel = self.emit("--bundle", "s-001", "--pack-arg", "g",
+                             "--brief", str(half))
+        self.assertEqual(sentinel.returncode, 2)
+        self.assertIn("TODO(brief)", sentinel.stderr)
+
+    def test_mutually_exclusive_with_response_dir_surface(self):
+        for argv, needle in (
+            (["--kind", "normal"], "--kind"),
+            (["--changes-only"], "--changes-only"),
+            (["--write"], "--write"),
+            (["--validation-epilogue"], "--validation-epilogue"),
+            (["--doc-assertions"], "--doc-assertions"),
+            (["--sid", "s-042"], "--sid"),
+            (["--deleted", "x.txt"], "--deleted"),
+            (["--executable", "x.sh"], "--executable"),
+        ):
+            with self.subTest(argv=argv):
+                cp = self.emit("--bundle", "s-001", "--no-brief",
+                               "--pack-arg", "g", *argv)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+                self.assertIn("mutually exclusive", cp.stderr)
+
+    def test_mutually_exclusive_with_probe_both_directions(self):
+        a = self.emit("--probe", "slug-a", "--bundle", "s-001")
+        self.assertEqual(a.returncode, 2)
+        self.assertIn("--bundle", a.stderr)
+        b = self.emit("--probe", "slug-a", "--pack-arg", "g")
+        self.assertEqual(b.returncode, 2)
+        self.assertIn("--pack-arg", b.stderr)
+
+    def test_supplied_response_dir_refused_not_ignored(self):
+        cp = self.emit("--bundle", "s-001", "--no-brief",
+                       "--pack-arg", "g", str(self.tmp))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("no response dir", cp.stderr)
+
+    def test_bundle_flags_stray_on_the_response_path(self):
+        rdir = self.tmp / "response-042"
+        rdir.mkdir()
+        for argv, needle in (
+            (["--pack-arg", "g"], "--pack-arg"),
+            (["--no-brief"], "--no-brief"),
+            (["--brief", str(self.brief)], "--brief"),
+            (["--checkpoint", str(self.brief)], "--checkpoint"),
+            (["--pre-answered", "supersede=x"], "--pre-answered"),
+            (["--out-dir", str(self.tmp)], "--out-dir"),
+        ):
+            with self.subTest(argv=argv):
+                cp = self.emit(str(rdir), "--sid",
+                               "2026-07-29-fixture-042", *argv)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn(needle, cp.stderr)
+                self.assertIn("--bundle", cp.stderr)
+
+
+class CraftProbeClipboard(unittest.TestCase):
+    """The probe scaffold's opt-in clipboard epilogue (registry
+    fold-in, configurable-never-core): emitted only when [probe]
+    clipboard_command is readable at craft time, sentinel banners
+    always, runtime loud either way and never failing the probe,
+    remedy text on every unset or misconfigured path."""
+
+    SLUG = "fixture-probe"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def emit(self) -> subprocess.CompletedProcess:
+        return run_craft("--probe", self.SLUG, cwd=self.tmp)
+
+    def set_key(self, value_line: str, where: str = "bale.toml"):
+        path = self.tmp / where
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"[probe]\n{value_line}\n", encoding="utf-8")
+
+    def run_scaffold(self, script_text: str) -> subprocess.CompletedProcess:
+        script = self.tmp / "probe.sh"
+        script.write_text(script_text)
+        chk = subprocess.run(["bash", "-n", str(script)],
+                             capture_output=True, text=True)
+        self.assertEqual(chk.returncode, 0, chk.stderr)
+        return subprocess.run(["bash", str(script)], cwd=self.tmp,
+                              capture_output=True, text=True)
+
+    def test_keyless_emits_remedy_and_no_epilogue(self):
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("Clipboard epilogue not emitted", cp.stdout)
+        self.assertIn("clipboard_command", cp.stdout)
+        self.assertIn("[probe]", cp.stdout)
+        self.assertNotIn("emit_probe_block |", cp.stdout)
+        self.assertIn("clipboard epilogue not emitted", cp.stderr)
+        run = self.run_scaffold(cp.stdout)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        body = run.stdout.splitlines()
+        self.assertEqual(body[0], f"=== PROBE BEGIN {self.SLUG} ===")
+        self.assertEqual(body[-1], f"=== PROBE END {self.SLUG} ===")
+
+    def test_key_set_tees_the_sentinel_block(self):
+        self.set_key('clipboard_command = "cat >clipboard-capture.txt"')
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+                      cp.stdout)
+        self.assertIn("clipboard epilogue emitted", cp.stderr)
+        run = self.run_scaffold(cp.stdout)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        # stdout is exactly the sentinel-bracketed block (status lines
+        # ride stderr); the capture is the same block, byte for byte —
+        # what lands on the operator's clipboard is what they paste.
+        body = run.stdout.splitlines()
+        self.assertEqual(body[0], f"=== PROBE BEGIN {self.SLUG} ===")
+        self.assertEqual(body[-1], f"=== PROBE END {self.SLUG} ===")
+        self.assertIn("probe output copied", run.stderr)
+        capture = (self.tmp / "clipboard-capture.txt").read_bytes()
+        self.assertEqual(capture, run.stdout.encode("utf-8"))
+
+    def test_failing_command_is_loud_and_never_fails_the_probe(self):
+        self.set_key('clipboard_command = "false"')
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        run = self.run_scaffold(cp.stdout)
+        self.assertEqual(run.returncode, 0,
+                         "the epilogue must never fail the probe")
+        self.assertIn("failed or is missing", run.stderr)
+        self.assertIn("PROBE BEGIN", run.stdout)
+
+    def test_context_bale_toml_is_the_request_root_lookup(self):
+        self.set_key('clipboard_command = "cat >/dev/null"',
+                     where="context/bale.toml")
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("emit_probe_block | cat >/dev/null", cp.stdout)
+        self.assertIn("context/bale.toml", cp.stderr)
+
+    def test_misconfigured_shapes_fall_back_to_remedy(self):
+        for bad in ("clipboard_command = 123",
+                    'clipboard_command = ""',
+                    'clipboard_command = "with \\" escape"'):
+            with self.subTest(bad=bad):
+                self.set_key(bad)
+                cp = self.emit()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn("Clipboard epilogue not emitted",
+                              cp.stdout)
+                self.assertIn("treated as unset", cp.stderr)
+
+    def test_key_outside_the_probe_section_is_unset(self):
+        (self.tmp / "bale.toml").write_text(
+            '[hooks]\nclipboard_command = "pbcopy"\n', encoding="utf-8")
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("Clipboard epilogue not emitted", cp.stdout)
+        self.assertIn("unset", cp.stderr)
+
+
+@unittest.skipUnless(PACK_MODULE.is_file(),
+                     "bin/ not shipped in this sandbox")
+class BundlePackParity(unittest.TestCase):
+    """The 49b constant-duplication drift guard, unit-shaped — the CI
+    twin of validate.sh's install-side assertion: the crafter's
+    re-declared constants equal bale_pack's, the TODO(brief) sentinel
+    literal is still what the pack guard scans for, and the emitted
+    bundle.json passes the consumer's own manifest gate."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(REPO / "tools"))
+        sys.path.insert(0, str(REPO / "bin"))
+        import craft_response  # noqa: F401
+        import bale_pack  # noqa: F401
+        cls.craft = sys.modules["craft_response"]
+        cls.pack = sys.modules["bale_pack"]
+
+    def test_bundle_suffix_parity(self):
+        self.assertEqual(self.craft.BUNDLE_SUFFIX,
+                         self.pack.BUNDLE_SUFFIX)
+
+    def test_intent_vocabulary_parity(self):
+        self.assertEqual(tuple(self.craft.INTENT_PROMPTS),
+                         tuple(self.pack.INTENT_PROMPTS))
+
+    def test_brief_placeholder_literal_still_in_pack_source(self):
+        # bale_pack carries the sentinel as a literal (no named
+        # constant), so the pin is source containment: if pack renames
+        # its sentinel, this goes loud and the crafter follows.
+        self.assertIn(self.craft.BRIEF_PLACEHOLDER,
+                      PACK_MODULE.read_text(encoding="utf-8"))
+
+    def test_emitted_manifest_passes_the_consumer_gate(self):
+        import bale_validate
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            brief = tmp / "b.md"
+            brief.write_text("# Brief\n\nbody\r\nwith CRLF\r\n")
+            checkpoint = tmp / "c.sh"
+            checkpoint.write_text("#!/usr/bin/env bash\nexit 1\n")
+            cp = run_craft(
+                "--bundle", "2026-07-29-fixture-rt",
+                "--brief", str(brief), "--checkpoint", str(checkpoint),
+                "--pack-arg", "Goal", "--pack-arg=--slug",
+                "--pack-arg", "rt",
+                "--pre-answered", "supersede=2026-07-01-parent-001",
+                cwd=tmp)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            with tarfile.open(
+                    tmp / "2026-07-29-fixture-rt.bale-bundle") as tf:
+                raw = tf.extractfile("bundle.json")
+                assert raw is not None
+                manifest = json.loads(raw.read())
+            self.assertEqual(
+                bale_validate.validate_bundle_manifest(manifest), [])
+
+
 class PackInjectionSurface(unittest.TestCase):
     """Unit-shaped injection assertion: build_request_tarball ships
     exactly bin/bale's INJECTED_TOOLS members — the single source since
