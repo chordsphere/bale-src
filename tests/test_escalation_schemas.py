@@ -70,6 +70,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -452,6 +453,7 @@ class AnnotatedClaimsApplyE2ETest(unittest.TestCase):
         )
         return tar_response_dir(rdir)
 
+    @slow
     def test_annotated_claims_apply_and_promote_verbatim(self) -> None:
         annotated = {self.CHECK: {"value": "pass",
                                   "claim_basis": "observed"}}

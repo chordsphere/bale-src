@@ -89,6 +89,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -220,6 +221,7 @@ class ApplyPreflightRejectTest(unittest.TestCase):
 
     # -- the rows --------------------------------------------------------
 
+    @slow
     def test_row5_tar_archive_integrity(self) -> None:
         """Row 5: unreadable archives, unsafe member paths, and a broken
         top-level shape are all refused before anything else runs."""
@@ -359,6 +361,7 @@ class ApplyPreflightRejectTest(unittest.TestCase):
             self.apply(tarball),
             "reason must be non-empty after stripping")
 
+    @slow
     def test_row14_path_safety(self) -> None:
         """Row 14: traversal, reserved prefixes, and .baleignore matches
         are all refused. The fixture scope is the whole tree, so these
@@ -437,6 +440,7 @@ class ApplyPreflightRejectTest(unittest.TestCase):
             self.apply(tar_response_dir(rdir)),
             "failed to stage response", "apply.sh exited 3", "boom")
 
+    @slow
     def test_row18_reconciliation_mismatch(self) -> None:
         """Row 18: the post-apply.sh staging tree must match the manifest
         exactly — undeclared writes, undeclared deletes, and a declared
@@ -828,6 +832,7 @@ class BareApplyResolutionTest(unittest.TestCase):
 
     # -- the happy path (pty: the y/N must actually be answered) ---------
 
+    @slow
     def test_bare_resolves_newest_echoes_and_applies(self) -> None:
         sid = self.pack_session("bare")
         base = 1_700_000_000_000_000_000  # arbitrary fixed epoch ns
@@ -952,6 +957,7 @@ class BareApplyResolutionTest(unittest.TestCase):
                             "Name the tarball explicitly")
         self.assert_nothing_applied(sid)
 
+    @slow
     def test_argumented_form_untouched_by_bare_landing(self) -> None:
         """The boundary pin: naming the tarball still applies with no
         echo-prompt round and no bare-resolution scan."""

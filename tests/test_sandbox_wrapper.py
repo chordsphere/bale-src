@@ -96,6 +96,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -852,6 +853,7 @@ class SandboxApplyE2ETest(unittest.TestCase):
         )
         return tar_response_dir(rdir)
 
+    @slow
     def test_default_apply_confines_the_escape_write(self) -> None:
         result = run_bale(
             self.install, ["apply", str(self._tarball()), "--no-interact"],
@@ -899,6 +901,7 @@ class SandboxApplyE2ETest(unittest.TestCase):
                       msg="an escaped run exercises no grant — "
                           "nothing confined ran")
 
+    @slow
     def test_grant_runs_confined_scripts_with_network(self) -> None:
         """The full grant path: committed [sandbox] network = true →
         the confined validation.sh runs with the parent namespace's

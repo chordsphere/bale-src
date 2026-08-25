@@ -63,12 +63,13 @@ from pathlib import Path
 
 from harness import (
     bale_env,
+    git_env,
     make_install,
     make_repo,
     make_sandbox_home,
-    git_env,
     run_bale,
     run_checked,
+    slow,
 )
 
 # Sentinels for the surfaces this file pins, in one place (the closure
@@ -293,6 +294,7 @@ class RollbackTelemetryTest(unittest.TestCase):
 
     # -- board 35 gap 4a: rollback --list ---------------------------------
 
+    @slow
     def test_list_reports_status_per_session(self) -> None:
         """`--list` is read-only reporting: per-tag status, most-recent-
         first ordering, the empty message, and the contradiction refusal.

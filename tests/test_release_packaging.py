@@ -53,6 +53,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from harness import slow
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BUILD_SH = REPO_ROOT / "scripts" / "build.sh"
 INSTALL_SH = REPO_ROOT / "install.sh"
@@ -218,6 +220,7 @@ class VersionTagDriftGuardTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmpdir.cleanup()
 
+    @slow
     def test_build_passes_when_highest_tag_equals_constant(self) -> None:
         """The equal boundary passes, and the release ships bale_stats."""
         repo = make_release_tree(self.tmp)

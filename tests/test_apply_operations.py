@@ -51,6 +51,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -148,6 +149,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
 
     # -- the operations --------------------------------------------------
 
+    @slow
     def test_delete_lands(self) -> None:
         """A deleted entry (rm in apply.sh) is gone from both the working
         tree and the merged commit's index."""
@@ -174,6 +176,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
             (self.repo / "data" / "src.txt").read_text(encoding="utf-8"),
             "rename me\n")
 
+    @slow
     def test_rename_removal_half_lands(self) -> None:
         """A rename decomposed per §5.1.1 — created new path under files/
         plus rm of the old path — lands as exactly that transition: old
@@ -204,6 +207,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
             (self.repo / "data" / "dst.txt").read_bytes(), body,
             msg="the created half must carry the full content")
 
+    @slow
     def test_exec_bit_restore_lands_with_assertion(self) -> None:
         """The overlay strips mode; apply.sh's chmod +x restores it, the
         §7.7 assertion passes, and the merged tree records 100755."""

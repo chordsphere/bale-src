@@ -58,6 +58,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_checked,
+    slow,
     tar_response_dir,
 )
 
@@ -140,6 +141,7 @@ class HoldRetryE2ETest(unittest.TestCase):
 
     # -- the E2E ---------------------------------------------------------
 
+    @slow
     def test_hold_then_retry_appends_and_mirrors(self) -> None:
         sid = self.packed_sid()
 

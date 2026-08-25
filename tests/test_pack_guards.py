@@ -70,6 +70,7 @@ from harness import (
     make_sandbox_home,
     run_bale,
     run_bale_pty,
+    slow,
 )
 
 # The soft size cap, mirrored from bin/bale_pack.py's
@@ -318,6 +319,7 @@ class ForceOverrideTest(PackGuardsBase):
             "context/payload/f2.txt",
         ])
 
+    @slow
     def test_force_bypasses_piped_soft_breach(self) -> None:
         """The piped soft-breach refusal names --force as the escape
         hatch; this pins that the hatch works — the breached scope packs,
@@ -468,6 +470,7 @@ class SoftBreachPromptTest(PackGuardsBase):
         self.assertIn(PROMPT_ABORT_MARKER, out)
         self.assert_refused_pre_sid(out)
 
+    @slow
     def test_prompt_y_proceeds_at_breached_scope(self) -> None:
         """[y] continues with the pack as walked — the oversized file
         ships. (Copies the sparse file: ~1.5s.)"""

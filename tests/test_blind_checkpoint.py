@@ -54,6 +54,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
 )
 
 CHECKPOINT_PATH = "scripts/validation.base.sh"
@@ -220,6 +221,7 @@ class BlindCheckpointE2ETest(unittest.TestCase):
 
     # -- the E2Es --------------------------------------------------------
 
+    @slow
     def test_base_tree_bytes_run_and_stamp_records_their_hash(self) -> None:
         """A response that edits the checkpoint is graded against the
         committed (pre-edit) oracle — the assertion is on EXECUTED
@@ -266,6 +268,7 @@ class BlindCheckpointE2ETest(unittest.TestCase):
                           "edit is staged, never committed, so the "
                           "base-tree bytes still match the stamp")
 
+    @slow
     def test_checkpoint_fail_holds_and_worker_still_runs(self) -> None:
         """PASS requires both: checkpoint FAIL beside worker PASS is a
         HOLD, attributed per source, and the worker's run is not
@@ -302,6 +305,7 @@ class BlindCheckpointE2ETest(unittest.TestCase):
         self.assertEqual(attempt["checkpoint"]["state"], "HOLD")
         self.assertEqual(attempt["checkpoint"]["exit_code"], 1)
 
+    @slow
     def test_worker_fail_still_ran_checkpoint(self) -> None:
         """The converse suppression is also forbidden: a worker FAIL's
         log still carries the checkpoint's banded run, and the
@@ -323,6 +327,7 @@ class BlindCheckpointE2ETest(unittest.TestCase):
         self.assertIn("cp-passes", log,
                       msg="the checkpoint ran before the worker failed")
 
+    @slow
     def test_checkpoint_error_gets_distinct_phrasing(self) -> None:
         """Checkpoint exit 2 is 'the planner's checkpoint itself
         errored' — the remedy differs from a worker failure."""
@@ -413,6 +418,7 @@ class BlindCheckpointE2ETest(unittest.TestCase):
             (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
             msg="the session stays open after a pre-flight refusal")
 
+    @slow
     def test_absent_config_is_known_zero(self) -> None:
         """No [validation] config: no checkpoint bands in the log
         (today's behavior), and the validated attempt's stamp is the

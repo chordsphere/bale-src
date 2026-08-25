@@ -62,6 +62,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
 )
 
 ARCHIVE_DIR = "claude/responses"
@@ -209,6 +210,7 @@ class SweepOnMergeTest(AutoSweepBase):
     """Enabled happy path: the applied outcome commits exactly the
     bale-owned files, loudly, with operator dirt untouched."""
 
+    @slow
     def test_enabled_commits_owned_files_only(self) -> None:
         self.configure(sweep=True, archive=True)
         sid = self.packed_sid()
@@ -424,6 +426,7 @@ class SweepJsonTest(AutoSweepBase):
         self.assertIsInstance(payload, dict)
         return payload
 
+    @slow
     def test_applied_json_carries_committed_sweep_object(self) -> None:
         """Enabled happy path under --json: outcome applied, sweep is
         the committed object — status, the loud detail line, the short
@@ -458,6 +461,7 @@ class SweepJsonTest(AutoSweepBase):
         # trail — the stream discipline is untouched by the new key.
         self.assertIn("sweep: committed", result.stderr)
 
+    @slow
     def test_applied_json_sweep_null_when_unset(self) -> None:
         """The additive-null contract: [apply].sweep unset/false keeps
         the report shape with sweep: null — byte-identical semantics to

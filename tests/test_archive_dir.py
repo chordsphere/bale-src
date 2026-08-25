@@ -60,6 +60,7 @@ from harness import (
     run_bale,
     run_bale_pty,
     run_checked,
+    slow,
 )
 
 ARCHIVE_DIR = "claude/responses"
@@ -199,6 +200,7 @@ class ArchiveOnMergeTest(ArchiveDirBase):
     """Configured path: the applied outcome copies the shipped prose
     artifacts to <archive_dir>/<sid>/, untracked, and says so."""
 
+    @slow
     def test_configured_archives_shipped_artifacts(self) -> None:
         self.configure_archive_dir()
         sid = self.packed_sid()
@@ -239,6 +241,7 @@ class ArchiveOnMergeTest(ArchiveDirBase):
                          msg="no artifacts shipped → no directory created")
         self.assertIn("nothing to archive", result.stdout)
 
+    @slow
     def test_json_report_carries_archive_object(self) -> None:
         self.configure_archive_dir()
         sid = self.packed_sid()
@@ -340,6 +343,7 @@ class RollbackGuardCarveOutTest(ArchiveDirBase):
         self.assertIn(f"{ARCHIVE_DIR}/{sid}/README.md",
                       self.untracked_paths())
 
+    @slow
     def test_unrelated_untracked_file_still_refuses(self) -> None:
         """The carve-out is shape-matched: a stray untracked file under
         the configured directory that bale did not write keeps the
