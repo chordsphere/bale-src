@@ -268,6 +268,264 @@ def _peek_responds_to(tarball_path: Path) -> str:
     return responds_to
 
 
+def _peek_bare_candidate(tarball_path: Path) -> tuple[Optional[str], str]:
+    """Non-fatal candidacy peek for bare-apply resolution (board 51).
+
+    Returns (responds_to, "") when `tarball_path` is a readable response
+    tarball — a gzip tar whose members include a response-NNN/manifest.json
+    carrying a non-empty string `responds_to` — and (None, reason)
+    otherwise. The sibling of `_peek_responds_to`, split rather than
+    parameterized because the two callers want opposite failure postures:
+    the argumented multi-open path holds exactly the tarball the user
+    named, so an unreadable one is fatal there; the bare scan walks every
+    *.tar.gz in the search directories, where a stray request tarball or
+    a corrupt download is a skip with a reason, never an exit — dying on
+    the first non-candidate in ~/Downloads would make the feature unusable
+    beside ordinary clutter. This is also the response/request
+    discriminator: a request tarball's single top-level directory is
+    request-NNN/, so it has no response-*/manifest.json member and returns
+    (None, ...) here — request tarballs are structurally never candidates.
+    Every check this peek performs is re-run in full by the pipeline's own
+    pre-flight; candidacy is a scan filter, not a validation.
+    """
+    try:
+        with tarfile.open(tarball_path, "r:gz") as tf:
+            raw = None
+            for m in tf.getmembers():
+                parts = Path(m.name).parts
+                if (m.isfile() and len(parts) == 2
+                        and parts[0].startswith("response-")
+                        and parts[1] == "manifest.json"):
+                    extracted = tf.extractfile(m)
+                    if extracted is None:
+                        return None, f"could not read {m.name}"
+                    raw = extracted.read()
+                    break
+            if raw is None:
+                return None, ("no response-NNN/manifest.json member "
+                              "(not a response tarball)")
+    except (tarfile.TarError, OSError) as e:
+        return None, f"unreadable archive ({e})"
+    try:
+        manifest = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        return None, f"manifest.json is not valid JSON ({e})"
+    responds_to = manifest.get("responds_to")
+    if not isinstance(responds_to, str) or not responds_to.strip():
+        return None, "manifest.responds_to is missing or empty"
+    return responds_to.strip(), ""
+
+
+def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
+                               args: argparse.Namespace,
+                               search_paths: list[str]) -> Path:
+    """Resolve bare `bale apply` (no tarball argument) to a tarball path.
+
+    Board 51's contract: resolve the newest response tarball matching an
+    open session across cwd plus apply.search_paths, echo its identity,
+    and take a y/N; ambiguity refuses loudly, never guesses. Every
+    refusal exits through fail() with a remedy-naming message — the bare
+    spelling is a real command path, never an argparse usage error.
+
+    Semantics, in refusal order:
+
+    - Non-interactive mode (--no-interact or apply.no_interact) refuses:
+      the echoed-identity y/N is the guard that makes bare resolution
+      safe, so a mode whose whole point is skipping prompts contradicts
+      the bare form. The explicit form is the non-interactive spelling.
+    - Zero open sessions refuses (nothing to match); two or more refuse
+      (which session's response is wanted is a guess — the argumented
+      form disambiguates via the manifest's own responds_to).
+    - Candidates are the *.tar.gz files directly in cwd and each
+      configured search directory (non-recursive, the same surface the
+      argumented form's relative-name resolution searches) whose peeked
+      responds_to equals the open sid. Non-candidates are skipped with a
+      reason — logged per file under --verbose, always summarized in
+      aggregate — never fatal (see _peek_bare_candidate).
+    - "Newest" is file modification time at nanosecond stat granularity
+      (st_mtime_ns): the download that arrived last wins, which is the
+      re-delivery case the feature exists for. An exact tie refuses and
+      names every tied path — the contract's never-guess rule; there is
+      deliberately no secondary tie-break.
+    - The winner's identity — path, matched sid, content sha256 of the
+      tarball bytes, mtime — is echoed *before* the y/N, so the operator
+      confirms what resolution picked before anything applies. The
+      prompt follows the decline-default precedent (--supersedes, v0.3.17):
+      on a TTY, y/N with decline as the default; piped stdin takes the
+      decline without a prompt and refuses with the explicit-form remedy,
+      so automation never applies a guessed tarball silently.
+
+    On confirmation, returns the resolved path; cmd_apply proceeds
+    exactly as if the user had typed it — the argumented form's behavior
+    downstream is untouched.
+    """
+    from __main__ import confirm_yn, fail, log, open_sessions
+
+    no_interact, no_interact_source = resolve_no_interact(
+        repo, cfg, args.no_interact)
+    if no_interact:
+        fail(
+            f"bare `bale apply` and non-interactive mode are contradictory "
+            f"({no_interact_source}): the resolved tarball's identity echo "
+            f"and y/N confirmation are what make argument-less resolution "
+            f"safe, and non-interactive mode exists to skip prompts. Name "
+            f"the tarball explicitly instead: "
+            f"bale apply <response-NNN.tar.gz>."
+        )
+
+    open_sids = open_sessions(repo)
+    if not open_sids:
+        fail(
+            "bare `bale apply` resolves the newest response tarball "
+            "answering an open session, and no session is open. Run "
+            "`bale pack` to open one, or name the tarball explicitly: "
+            "bale apply <response-NNN.tar.gz>."
+        )
+    if len(open_sids) > 1:
+        fail(
+            f"bare `bale apply` is ambiguous with more than one session "
+            f"open — resolution never guesses which session's response "
+            f"you meant. Open sessions: {', '.join(open_sids)}. Name the "
+            f"tarball explicitly (its manifest's responds_to selects the "
+            f"session): bale apply <response-NNN.tar.gz>."
+        )
+    sid = open_sids[0]
+
+    # The scan surface: cwd first, then each configured directory, the
+    # same order resolve_inbound_path searches. Directories deduped by
+    # resolved path (cwd may itself be configured); candidate files
+    # deduped the same way (a symlinked twin is one delivery, not two).
+    directories: list[Path] = []
+    seen_dirs: set = set()
+    for d in [cwd] + [Path(sp) for sp in search_paths]:
+        try:
+            key = d.resolve()
+        except OSError:
+            key = d
+        if key in seen_dirs:
+            continue
+        seen_dirs.add(key)
+        directories.append(d)
+
+    candidates: list[tuple[Path, int]] = []
+    skipped: list[tuple[Path, str]] = []
+    seen_files: set = set()
+    for d in directories:
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob("*.tar.gz")):
+            if not p.is_file():
+                continue
+            try:
+                resolved = p.resolve()
+                mtime_ns = p.stat().st_mtime_ns
+            except OSError as e:
+                skipped.append((p, f"unreadable path ({e})"))
+                continue
+            if resolved in seen_files:
+                continue
+            seen_files.add(resolved)
+            responds_to, reason = _peek_bare_candidate(p)
+            if responds_to is None:
+                skipped.append((p, reason))
+                continue
+            if responds_to != sid:
+                skipped.append(
+                    (p, f"responds_to={responds_to} is not the open "
+                        f"session"))
+                continue
+            candidates.append((resolved, mtime_ns))
+
+    # Skips are reported, never silent: per-file under --verbose (a
+    # Downloads directory full of old request tarballs would otherwise
+    # drown the terminal on every bare run), in aggregate always — as a
+    # log line when resolution proceeds, and folded into the refusal
+    # itself when nothing was a candidate, so the stderr message alone
+    # says both what was searched and what was seen-but-rejected.
+    if skipped and args.verbose:
+        for p, reason in skipped:
+            log(f"bare apply: skipped {p} — {reason}")
+
+    if not candidates:
+        lines = [
+            f"bare `bale apply` found no response tarball answering open "
+            f"session {sid}.",
+            "  searched (*.tar.gz, non-recursive):",
+            f"    {cwd}  (cwd)",
+        ]
+        for sp in search_paths:
+            lines.append(f"    {sp}")
+        if skipped:
+            lines.append(
+                f"  {len(skipped)} tarball(s) were scanned and are not "
+                f"candidates"
+                + ("." if args.verbose
+                   else " (--verbose lists each with its reason)."))
+        lines.append(
+            "  Download the response tarball into one of these "
+            "directories, add its directory to apply.search_paths "
+            "(`bale config init`), or name the path explicitly: "
+            "bale apply <response-NNN.tar.gz>."
+        )
+        fail("\n".join(lines))
+
+    if skipped:
+        log(f"bare apply: {len(skipped)} tarball(s) scanned and not "
+            f"candidates"
+            + ("" if args.verbose else " (--verbose lists each with its "
+                                      "reason)"))
+
+    newest_ns = max(m for _, m in candidates)
+    newest = sorted(p for p, m in candidates if m == newest_ns)
+    if len(newest) > 1:
+        listing = "\n".join(f"    {p}" for p in newest)
+        fail(
+            f"bare `bale apply` is ambiguous: {len(newest)} candidates "
+            f"share the newest modification time, and resolution never "
+            f"guesses between them. Tied candidates:\n{listing}\n"
+            f"  Name the one you meant explicitly: bale apply <path>."
+        )
+    tarball_path = newest[0]
+
+    # The identity echo, before the prompt: path, the sid it matched, a
+    # content identity (sha256 of the tarball bytes), and the mtime that
+    # won the resolution. The operator confirms this, not a guess.
+    digest = hashlib.sha256()
+    try:
+        with tarball_path.open("rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as e:
+        fail(f"could not read resolved tarball {tarball_path}: {e}")
+    mtime_iso = datetime.fromtimestamp(
+        newest_ns / 1_000_000_000, tz=timezone.utc
+    ).isoformat(timespec="seconds")
+    log("bare apply resolved a response tarball:")
+    log(f"  path:        {tarball_path}")
+    log(f"  responds_to: {sid} (the open session)")
+    log(f"  sha256:      {digest.hexdigest()}")
+    log(f"  modified:    {mtime_iso}")
+    if len(candidates) > 1:
+        log(f"  ({len(candidates)} candidates matched the session; "
+            f"newest modification time won)")
+
+    if not sys.stdin.isatty():
+        fail(
+            f"stdin is not a TTY; the bare-apply confirmation's decline "
+            f"default applies without a prompt (nothing applied) — the "
+            f"--supersedes precedent: automation never accepts a "
+            f"resolution guess silently. Name the tarball explicitly to "
+            f"apply without the prompt: bale apply {tarball_path}"
+        )
+    if not confirm_yn(f"Apply this tarball against session {sid}?"):
+        fail(
+            "bare apply declined at the confirmation; nothing applied. "
+            "Name the tarball explicitly if the resolution picked the "
+            "wrong file: bale apply <path>."
+        )
+    return tarball_path
+
+
 def resolve_no_interact(repo: Path, cfg: dict, flag: bool) -> tuple[bool, str]:
     """Resolve whether non-interactive apply mode is active, and its source.
 
@@ -2541,19 +2799,36 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # before any session work.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
-    if not tarball_path.is_file():
-        # Only reachable for the absolute-path branch (relative + search
-        # paths configured already fails inside the helper); the empty-
-        # search-paths relative branch reaches here only if (cwd/arg)
-        # doesn't exist. Either way, the existing message is right.
-        fail(f"tarball not found: {tarball_path}")
+    if args.tarball is not None:
+        tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
+        if not tarball_path.is_file():
+            # Only reachable for the absolute-path branch (relative + search
+            # paths configured already fails inside the helper); the empty-
+            # search-paths relative branch reaches here only if (cwd/arg)
+            # doesn't exist. Either way, the existing message is right.
+            fail(f"tarball not found: {tarball_path}")
+    else:
+        # Bare form (board 51): resolved below, after the inspection and
+        # json branches — the inspection flags refuse the bare form (they
+        # are deliberately session-independent, and bare resolution is
+        # keyed on the open session), and json mode must be enabled before
+        # the bare path's identity echo and prompt so those land on stderr
+        # per the stream discipline.
+        tarball_path = None
 
     # `--show-apply-script` / `--show-validator`: pure inspection. Print the
     # requested deliverable(s) from the tarball and exit. Deliberately ahead
     # of the lock and clean-tree guards — inspecting what a tarball would run
     # shouldn't require an open session or a pristine worktree.
     if args.show_apply_script or args.show_validator:
+        if tarball_path is None:
+            fail(
+                "--show-validator / --show-apply-script need the tarball "
+                "named: inspection works without an open session, and "
+                "bare resolution is keyed on the open session, so the "
+                "two don't compose. Name the tarball explicitly: "
+                "bale apply <response-NNN.tar.gz> --show-validator."
+            )
         return inspect_response_scripts(
             tarball_path,
             show_apply=args.show_apply_script,
@@ -2569,6 +2844,14 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # pipeline emits at its terminal reporting point.
     if args.json:
         enable_json_mode()
+
+    # Bare form: resolve the newest matching response tarball against the
+    # single open session, echo its identity, take the y/N. Every refusal
+    # inside is a fail() with a remedy; on return, the resolved path flows
+    # into exactly the code the argumented form runs.
+    if tarball_path is None:
+        tarball_path = resolve_bare_apply_tarball(
+            repo, cwd, cfg, args, search_paths)
 
     # 8.1 step 4: an open session must exist (opened with `bale pack`),
     # resolved from the ADR-0006 session registry — §11 row 7 re-read as

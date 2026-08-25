@@ -4870,14 +4870,32 @@ def build_parser() -> argparse.ArgumentParser:
             "relative names are tried against cwd first, then each "
             "configured directory in order, first match wins. Absolute "
             "paths bypass search. Configure via `bale config init`.\n\n"
+            "The tarball argument may be omitted entirely (bare `bale "
+            "apply`, v0.4.16): with exactly one session open, bale scans "
+            "cwd and each apply.search_paths directory for the newest "
+            "response tarball whose manifest answers that session, echoes "
+            "the resolved identity (path, session, sha256, mtime), and "
+            "asks y/N before applying — decline is the default, and piped "
+            "stdin declines without a prompt. Ambiguity (no candidate, a "
+            "modification-time tie, or more than one open session) refuses "
+            "with a remedy rather than guessing; request tarballs are "
+            "never candidates.\n\n"
             "Inspection flags (--show-validator, --show-apply-script, "
             "--dry-run) look without applying: the first two print a script "
-            "from the tarball and need no open session; --dry-run runs the "
-            "read-only validation half against the open session and prints "
-            "the plan, touching neither the worktree nor git."
+            "from the tarball and need no open session (and therefore "
+            "require the tarball named — they don't compose with the bare "
+            "form); --dry-run runs the read-only validation half against "
+            "the open session and prints the plan, touching neither the "
+            "worktree nor git."
         ),
     )
-    p_apply.add_argument("tarball", help="Path to response-NNN.tar.gz.")
+    p_apply.add_argument(
+        "tarball", nargs="?", default=None,
+        help="Path to response-NNN.tar.gz. Omit it (bare `bale apply`) to "
+             "resolve the newest response tarball answering the open "
+             "session across cwd and apply.search_paths, with an identity "
+             "echo and a decline-default y/N before anything applies; "
+             "ambiguity refuses loudly rather than guessing.")
     p_apply.add_argument(
         "--staging-dir", default=None,
         help="Where to stage the apply (default: <repo>/.bale/staging/<sid>, "
