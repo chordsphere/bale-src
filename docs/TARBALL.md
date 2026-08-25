@@ -1522,6 +1522,17 @@ These apply to both the paste-back shape and the §4.4 fallback:
   values.
 - **Logged.** Every step prints a line. Silent operations are bugs.
 
+The crafter's probe scaffold additionally carries an opt-in
+clipboard epilogue: when `clipboard_command` under `[probe]` in
+`bale.toml` is readable at craft time (the file shipped in the
+request's `context/`, or the current directory's), the emitted
+script ends by teeing its sentinel-bracketed output into that
+command — reporting success or failure loudly and never failing the
+probe over it — and when the key is unset or unusable, the scaffold
+carries remedy text walking the operator through the opt-in instead;
+the `PROBE BEGIN`/`END` banners always emit either way, as the
+dependency-free selection aid.
+
 `probe.ps1` is conditional. Most environments (Linux container,
 macOS, WSL) run the bash variant natively. Offer a PowerShell variant
 only when the request or `STATE.md` indicates Windows-native

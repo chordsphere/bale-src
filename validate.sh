@@ -155,13 +155,34 @@ fi
 
 # tools/craft_response.py — the worker-side crafter `bale pack` injects
 # beside the lint (v1, session 007). Same present/executable rows as the
-# lint; no embedded-schema drift guard, because the crafter deliberately
-# embeds no schema (it scaffolds, the lint judges).
+# lint. The crafter still embeds no schema (it scaffolds, the lint
+# judges), but since the 49b bundle emission it re-declares two
+# constants from bin/bale_pack.py — BUNDLE_SUFFIX and INTENT_PROMPTS —
+# because it imports nothing from bale. Two homes without a pin is how
+# the self-containment citations drifted, so the equality assertion
+# below is the lint's embedded-schema drift guard applied to the pair:
+# a session changing either home changes both, or this goes loud.
 if [[ -f "$INSTALL_DIR/tools/craft_response.py" ]]; then
   pass "tools/craft_response.py present"
   [[ -x "$INSTALL_DIR/tools/craft_response.py" ]] \
     && pass "tools/craft_response.py executable" \
     || fail "tools/craft_response.py executable"
+  if python3 -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR/tools')
+sys.path.insert(0, '$INSTALL_DIR/bin')
+import craft_response, bale_pack
+sys.exit(0 if (
+    craft_response.BUNDLE_SUFFIX == bale_pack.BUNDLE_SUFFIX
+    and tuple(craft_response.INTENT_PROMPTS)
+        == tuple(bale_pack.INTENT_PROMPTS)
+) else 1)
+" 2>/dev/null; then
+    pass "crafter bundle constants equal bale_pack's (BUNDLE_SUFFIX, INTENT_PROMPTS)"
+  else
+    fail "crafter bundle constants equal bale_pack's (BUNDLE_SUFFIX, INTENT_PROMPTS)" \
+         "re-declare the pair in tools/craft_response.py from bin/bale_pack.py"
+  fi
 else
   fail "tools/craft_response.py present" "pack injects it into every request"
 fi
