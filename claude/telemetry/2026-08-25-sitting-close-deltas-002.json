@@ -1,0 +1,171 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-25-sitting-close-deltas-002",
+  "created_at": "2026-08-25T13:19:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-25T13:19:40+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (49).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "header last-landed-by edit (Block A)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "Block B placement + token-stream identity": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "Block C placement + token-stream identity": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "Block D1 placement + token-stream identity": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "Block D2 placement + token-stream identity": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "Block E span replacement + pinned tail": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "landed-line wrap discipline (72 chars)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "reverse-transform sha256 equality with shipped base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "header last-landed-by edit (Block A)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "Block B placement + token-stream identity": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "Block C placement + token-stream identity": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "Block D1 placement + token-stream identity": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "Block D2 placement + token-stream identity": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "Block E span replacement + pinned tail": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "landed-line wrap discipline (72 chars)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "reverse-transform sha256 equality with shipped base": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.14",
+            "contract_docs": {
+              "CLAUDE.md": "9aac338787224cc0e8b97aa027e546b72dc506df248b55febcc88ef526424ac5",
+              "TARBALL.md": "be6ec0a5351c2480228bd560c297146cb64f451b31696d113acfd93bb6ccc4c0",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-25-sitting-close-deltas-002.sh",
+              "sha256": "4fdaca25d770b59e537ebf1574872782e73f68e2e79a8956535891ed0840d81f"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "strict greedy at 72 joined Block C's opening line with the sid (71 chars), diverging from the brief's display wrap; token-stream identity preserved \u2014 wrapper calibrated byte-for-byte against the close-007-landed block first",
+            "Block E's pinned tail kept as the suffix of the span's final re-wrapped line, matching its base position; bytes from 'the per-bump trail' onward untouched"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-25-sitting-close-deltas-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-25-sitting-close-deltas-002.sh",
+          "sha256": "4fdaca25d770b59e537ebf1574872782e73f68e2e79a8956535891ed0840d81f"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-25T13:19:40+00:00",
+  "outcome": "applied"
+}
