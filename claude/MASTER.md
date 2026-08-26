@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-26-sitting-close-deltas-002`.
+Last landed by: `2026-08-26-board-53-close-deltas-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -224,7 +224,16 @@ source):
   tests/test_tree_position_echo.py forecast entry
   (`2026-08-25-board-52-pack-preamble-006`) — packer-side
   imprecision again, master-authored pack; two accruals, still no
-  clustering, watch stands.
+  clustering, watch stands. Third datum accrued 2026-08-26: three
+  unused forecast entries in one pack (validate.sh,
+  scripts/build.sh, install.sh;
+  `2026-08-26-board-53-amend-checkpoint-004`) — packer-side
+  imprecision, master-authored pack; three accruals, all
+  packer-side on master-authored packs, meeting the crude
+  three-event calibration threshold. Desk disposition: the
+  calibration question opens the next sitting rather than being
+  resolved at a tired close (end-at-milestones); the watch stands
+  until that sitting disposes it.
 - Drift-gate residue on default-forecast checkpoint edits: a
   default pack's recorded forecast is `["."]`, so the apply-side
   drift gate would not catch a response landing an edit under the
@@ -556,6 +565,11 @@ with the unverifiable ones carried verbatim and marked):
   one session; a future desk sequences it. (Accepted 2026-08-25 from
   boards 51/52's Proposals; the stderr/one-line-stdout ruling that
   scoped the JSON out of the pair is §5's session-opener contract.)
+  [2026-08-26: two motivators accrued from board 53 — a bare-retry
+  form would let amend-checkpoint emit a placeholder-free successor
+  line, and `--json` parity for the verb is accepted need-gated (if
+  it turns out to be scripted against). Both fold here; neither is
+  queued as its own item.]
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1163,6 +1177,61 @@ concurrency to run scope-disjoint end to end.
   the next-up candidate), the compression sitting (42→43) before
   harness scoping, board 45 before any harness autonomy, S6 last;
   board 55 joins the smalls.
+
+Landed 2026-08-26 (the board-53 sitting, master
+`2026-08-26-continue-plan-003`, read-only): board 53 landed and
+applied — `2026-08-26-board-53-amend-checkpoint-004` at 0.4.17,
+the checkpoint-amendment verb. One pre-build clarification round on
+outcome contract 4, resolved at the desk before any code: the
+ruling is (b)-as-adjusted — the accounting rung against the
+pack-time stamp, with the matching-neither refusal naming a
+per-invocation accept flag as its successor — now §5's contract,
+this date. Spawn traveled as a desk-emitted bundle (crafter
+emission, member hashes verified, checkpoint dry-run both
+directions at the desk before delivery).
+
+- Ratified, the worker's flagged decisions as shipped, one line
+  each in its archived notes: the `--accept-unaccounted-oracle`
+  spelling — deliberately not reusing `--accept-checkpoint-change`,
+  one spelling with two per-verb semantics being a trap; the verb's
+  home as bin/bale section 28 between sections 20 and 21, a fresh
+  number per the stable-numbering rule, with the new-module riders
+  correctly unfired as the consequence; both-halves stamp
+  accounting (path AND sha256, a different-path stamp landing
+  unaccounted — the conservative side of the ruling); the
+  three-state working-tree rung (local edits never clobbered;
+  hand-copy-in-place proceeds); idempotence short-circuiting before
+  the stamp read; the pre-composed retry successor with its
+  placeholder (pre-ratified at the ruling); `normalize_crlf`
+  imported from bale_pack so both ingest edges share board 50's one
+  implementation, with the two sibling docstring-only edits
+  flagged; the 64-hex `--sha256` shape gate refusing before config
+  or registry reads; the resolution rule — `[]`-forecast sessions
+  structurally invisible, missing/malformed scope records
+  conservatively whole-tree and still candidates, two-plus refusing
+  naming all, `--sid` vetted; no `--json` in v1; and the
+  index-header true-up of bin/bale's sections 19–26 listing —
+  in-forecast, docstring-only, flagged, the CODE.md-consistency
+  call over leaving knowingly-off neighbors.
+- Proposals dispositions: both accepted as annotations on the
+  successor-surface parity registry entry (its 2026-08-26
+  bracket); neither is queued as its own board item.
+- Packer-attributed tally, this desk's: three unused write-forecast
+  entries (validate.sh, scripts/build.sh, install.sh — the
+  packaging-coupling set, forecast per evidence 67 and unconsumed
+  because the worker's ratified module-home call landed the verb in
+  bin/bale). Third accrual on the forecast-precision watch (the §3
+  watch); all three accruals are packer-side imprecision on
+  master-authored packs, which meets the ratified crude calibration
+  threshold — nominated at the desk, disposition recorded on the
+  watch entry.
+- Compaction disclosure, recorded: the worker's context compacted
+  mid-session (post-implementation, pre-assembly); recovery per
+  CLAUDE.md §11.6 with every hash recomputed from on-disk bytes at
+  pack time and the disclosure in notes — §6 entry 86.
+- Sitting closed at the milestone; the calibration question (the
+  forecast-precision trigger) heads the next sitting's agenda,
+  ahead of the remaining smalls (38, 39, 41, 47, 55, 56, 57, 37).
 
 ## 4. The board
 
@@ -1906,6 +1975,14 @@ and §8, so done items keep their numbers as one-line pointers.
     landed), with board 50's ingest normalization now sitting
     underneath the amendment verb for free (CRLF strip is no longer
     the operator's hand step). Next-up candidate among the smalls.]
+    [2026-08-26: DONE — `2026-08-26-board-53-amend-checkpoint-004`
+    at 0.4.17. `bale amend-checkpoint` lands the bad-oracle
+    correction flow's operator half: resolution, mandatory
+    published-hash verification, LF-normalized ingest (board 50's
+    one implementation, imported), the accounting rung against the
+    pack-time `provenance.checkpoint` stamp, the per-sid commit,
+    and the paste-ready retry successor. Ratifications and tallies
+    in §3; the accounting contract is §5's, this date.]
 
 54. **Arc-level dual-stream mechanics** — queued 2026-08-18
     (medium; bale code + schemas + docs): the sub-master
@@ -2460,6 +2537,31 @@ section for bale-side contract force):
   harness *autonomy*, not harness existence or supervised rungs.
   Recorded to prevent the board ordering being read as gating the
   build.
+
+New, ratified 2026-08-26 (the board-53 sitting):
+
+- **The amendment accounting contract.** `bale amend-checkpoint`
+  verifies a delivered oracle against a desk-published sha256
+  (mandatory, full 64 hex), LF-normalizes at read, and accounts
+  HEAD's bytes at the session's resolved checkpoint path against
+  the session's pack-time `provenance.checkpoint` stamp before
+  replacing anything: committed == delivered is the idempotent
+  re-run (no commit, successor still emitted, decided before the
+  stamp is read); committed == stamp is the amendment proper
+  (commit, loudly naming both hashes); committed matching neither
+  refuses loudly naming committed vs stamped, with a
+  per-invocation accept flag (`--accept-unaccounted-oracle`) as
+  the named successor — on accept, proceed FORCE-logged naming all
+  three hashes. A stampless request (key absent, or the
+  explicit-null stamp) degrades to published-hash deliberateness
+  alone, loudly — the provenance gate's own verify-nothing
+  precedent. Uncommitted differing bytes at the resolved path
+  refuse on their own rung: local edits are never clobbered. The
+  verb mechanizes transport, never deliberateness: the retry-side
+  provenance gate, the per-invocation accept there, and
+  `stamp_matched: false` as the truthful record are all unchanged.
+  (Board 53; the clarification round's durable record is the
+  session's archived notes.)
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -3314,6 +3416,25 @@ New from the 2026-08-25 sitting (continue-plan-003):
     seeded as board 55, fed by this entry; the remedy interim rule is
     **desk-unique bundle stems**.
 
+86. **Fourth successful §11.6 recovery, and the first inside a
+    bundle-spawned worker.** Compaction landed post-implementation,
+    pre-assembly; the session re-grounded from on-disk state,
+    recomputed every hash from bytes at pack time, and disclosed in
+    notes — the disclosure-plus-mechanical-recomputation pattern
+    holding for the fourth time (entries 12, 59 carry the earlier
+    three). (`2026-08-26-board-53-amend-checkpoint-004`.)
+
+87. **The pre-build clarification round is the
+    questions-arrive-answerable shape, live on the manual path.**
+    The board-53 worker surfaced a blocking ambiguity in an outcome
+    contract before writing any code, as two coherent readings plus
+    a recommendation and a default — the §15 escalation shape
+    (options-plus-recommendation, cheapest-answer-available)
+    exercised end to end with the architect as transport; the desk
+    ruled with one adjustment and the session landed on the ruling.
+    Specimen for the escalation-contract's harness-side design
+    (seed D13, D14).
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -3376,10 +3497,8 @@ New from the 2026-08-25 sitting (continue-plan-003):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.16 at
-  `2026-08-25-pair-close-rider-008` (the pair-close rider's shared
-  bump for boards 50/51/52, the current landmark; board 50 took
-  0.4.15, boards 51/52 landed bumpless per the hot-file ruling); the
+  still governs. bin/bale VERSION 0.4.17 at
+  `2026-08-26-board-53-amend-checkpoint-004`; the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
