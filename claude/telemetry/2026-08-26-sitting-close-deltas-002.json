@@ -1,0 +1,147 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-26-sitting-close-deltas-002",
+  "created_at": "2026-08-26T01:39:54+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-26T01:39:54+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (50).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "last-landed-by line updated to this sid": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section-5 harness ratification block present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board-10 sitting-close annotations present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board items 56 and 57 queued": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "top-level section headings unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "last-landed-by line updated to this sid": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section-5 harness ratification block present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board-10 sitting-close annotations present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board items 56 and 57 queued": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "top-level section headings unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.16",
+            "contract_docs": {
+              "CLAUDE.md": "e66b45162d26fe4c972df005ae425fe9864cbd50f494c21ed68c4fa40564f8bb",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-26-sitting-close-deltas-002.sh",
+              "sha256": "f1dc6306c52dff175caade41a8ce010c680425e63de9113cecaaf68465fdbd65"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude (anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the crib's 'could ride the changelog session' option is superseded by the ratified queue-as-own-item constraint; board 57 queued neutral on sequencing",
+            "the escalation-contract-producer routing is carried in the row-level S6-discharge annotation since no board-10 sub-item exists for it"
+          ],
+          "judgment_calls": [
+            "section-5 changelog entry cross-references board 56/57 concretely where the crib said '(below)'",
+            "last-landed-by header line edited in place per the doc's own convention, outside the goal's three named delta groups but in-forecast"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-26-sitting-close-deltas-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-26-sitting-close-deltas-002.sh",
+          "sha256": "f1dc6306c52dff175caade41a8ce010c680425e63de9113cecaaf68465fdbd65"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-26T01:39:54+00:00",
+  "outcome": "applied"
+}
