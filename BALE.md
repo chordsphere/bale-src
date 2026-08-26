@@ -469,6 +469,7 @@ forward-looking entry.
 | `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
+| `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry ... --accept-checkpoint-change` line as its named successor. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
@@ -759,6 +760,83 @@ The human report renders the rate table and corpus rows as the
 reference body and ends on the standard summary block — corpus
 totals and the filters in effect — with no trailing next-step hint:
 stats is terminal, not a lifecycle step.
+
+### 5.7 `bale amend-checkpoint`
+
+The operator half of the bad-oracle correction flow (PLANNER.md §5
+steps 4–5) as a first-class verb (board 53, v0.4.17). Before it, a
+checkpoint amendment was a hand-composed chain — copy from a
+downloads directory, CRLF strip, hash compare, commit at the per-sid
+path — the same paste-surface hazard class the identity echoes and
+the one-command install retired elsewhere. The verb mechanizes
+exactly that transport and nothing of the deliberateness: the desk
+still authors the amendment blind, still publishes its sha256, and
+the provenance gate downstream still refuses at retry, with the
+accept per-invocation and `stamp_matched: false` the truthful
+record.
+
+**The flow.** `bale amend-checkpoint <file> --sha256 <hex>`
+resolves the target session (the sole open **scoped** session
+implicitly, `--sid` when several are candidates; a read-only
+session's empty forecast waived the checkpoint at pack — §8.5 — so
+it carries no oracle and is structurally invisible to resolution,
+and naming one with `--sid` refuses with the waiver named). The
+amendment file resolves like apply's tarball argument — cwd first,
+then each configured `apply.search_paths` directory, absolute paths
+bypassing — so a desk-downloaded amendment amends by bare name. Its
+bytes are CRLF-normalized at the ingest edge (every CRLF → LF, bare
+CR untouched; the board-50 rule, one implementation shared with
+pack's `--checkpoint-file` read), then hashed and compared against
+the **mandatory** published sha256: a mismatch refuses naming both
+hashes and the resolved source path, because first-match resolution
+picks stale near-duplicates silently and the published hash is what
+catches the wrong file before it becomes the oracle. On the far
+side of the commit nothing changes: committed bytes are hashed and
+executed byte-exact everywhere downstream, exactly as before.
+
+**The accounting rung.** The verb never silently replaces committed
+oracle bytes it cannot account for. Against the committed bytes at
+the session's resolved per-sid path:
+
+- **Identical to the amendment** → the idempotent re-run (an
+  aborted earlier invocation, or a hand commit already made): no
+  new commit, and the successor line still emits.
+- **Identical to the session's pack-time `provenance.checkpoint`
+  stamp** → the amendment proper: the bytes are committed as their
+  own pathspec-limited commit on the current branch, subject
+  `bale: amend per-session checkpoint for <sid>`, the log naming
+  old → new hashes.
+- **No stamp to account against** (a hand-rolled or pre-v0.3.28
+  request, or the explicit-null stamp of a pack with no checkpoint
+  configured) → the rung degrades loudly to the published-hash
+  deliberateness alone, per the provenance gate's own "verify
+  nothing, `stamp_matched: null`" precedent (§8.5). The skip is
+  logged, never silent.
+- **Matching neither** — a prior amendment, or an edit outside
+  this flow — → loud refusal naming all three hashes (committed,
+  pack-time stamp, delivered). `--accept-unaccounted-oracle`
+  admits the replacement per-invocation (no config key, never
+  carried forward), FORCE-logged naming the same three hashes —
+  the house override shape: refuse by default, the named flag is
+  the deliberateness, made loud.
+
+A working-tree rung backs the committed one: uncommitted bytes at
+the resolved path matching neither HEAD nor the amendment refuse —
+the verb never clobbers local edits.
+
+**The successor.** The report ends with the paste-ready line
+
+```
+bale retry <response-tarball> --accept-checkpoint-change --sid <sid>
+```
+
+with `--accept-checkpoint-change` pre-composed deliberately (board
+53): after an amendment the stamp mismatch holds by construction,
+the deliberateness was already spent at this verb's invocation with
+the published hash in hand, and the emitted line is complete so the
+operator pastes rather than reassembles. The recorded
+`stamp_matched: false` at that retry remains the truthful double
+record, alongside the amendment's own commit.
 
 ---
 

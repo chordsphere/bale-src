@@ -17,9 +17,12 @@ Public surface consumed by `bin/bale`: `cmd_apply` (CLI dispatch);
 `refuse_dirty_on_target`, and `resolve_target_branch` (cmd_retry — the
 pipeline's second front door; the first two dropped their leading
 underscore at extraction, since what `bin/bale` imports by name is this
-module's public surface); and `default_staging_root` +
+module's public surface); `default_staging_root` +
 `default_staging_dir` (`bale status`'s gather, so the path status reports
-is by construction the path apply uses). Shared `bin/bale` helpers are
+is by construction the path apply uses); and
+`read_request_checkpoint_stamp` (`bale amend-checkpoint`'s accounting
+rung, v0.4.17 — the amendment verb and the provenance gate read the
+session's pack-time stamp through one implementation). Shared `bin/bale` helpers are
 imported lazily from `__main__` inside the functions that use them, the
 same idiom every other sibling uses. Sibling-owned entry points
 (`bale_config`, `bale_staging`'s staging/commit machinery,
