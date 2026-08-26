@@ -1,0 +1,129 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-26-board-53-close-deltas-005",
+  "created_at": "2026-08-26T14:55:11+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-26T14:55:11+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-005 (24).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "top-level section headings unchanged (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "delta groups A-H landed, each anchor present exactly once (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no CRLF and no stale 0.4.16 landmark remain (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "top-level section headings unchanged (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "delta groups A-H landed, each anchor present exactly once (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no CRLF and no stale 0.4.16 landmark remain (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.17",
+            "contract_docs": {
+              "CLAUDE.md": "e66b45162d26fe4c972df005ae425fe9864cbd50f494c21ed68c4fa40564f8bb",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-26-board-53-close-deltas-005.sh",
+              "sha256": "1536356f6e6f1c3bc15b3742eec079b079f13c2ffcdc8bda742a44a9661d7a60"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Group B's stated anchor ('after the harness spec-intake block' in \u00a73) does not exist in the shipped bytes; the block was landed at the end of \u00a73's landed blocks (after continue-plan-003), its chronological position under the section's own ordering. Flagged in notes.md \u00a7Deviations 1.",
+            "The -004 telemetry's single attempt with outcome 'applied' and validation PASS licenses the brief's DONE framing unmodified, per the brief's own conditional."
+          ],
+          "judgment_calls": [
+            "Two brief-internal pointers in group B ('delta group E below', 'delta group F') reworded to doc-resolvable references ('its 2026-08-26 bracket', 'the \u00a73 watch') so nothing dangles inside MASTER.md; everything else verbatim up to re-wrap.",
+            "Group F appended as an in-bullet sentence continuation directly after 'watch stands.' \u2014 the watch entry's established accrual style \u2014 rather than as a new bullet.",
+            "Group G's replacement keeps the per-bump-trail sentence's lines byte-identical; the displaced parenthetical is dropped per the brief's 'needs no preservation'."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-26-board-53-close-deltas-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-26-board-53-close-deltas-005.sh",
+          "sha256": "1536356f6e6f1c3bc15b3742eec079b079f13c2ffcdc8bda742a44a9661d7a60"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-26T14:55:11+00:00",
+  "outcome": "applied"
+}
