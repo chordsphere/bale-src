@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-25-sitting-close-deltas-010`.
+Last landed by: `2026-08-26-sitting-close-deltas-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -1246,6 +1246,18 @@ and §8, so done items keep their numbers as one-line pointers.
     resolved-existence refusal per its archived notes; its
     handoff-under-pattern E2E proposal queued onto board 35).
     Remaining: S6 only (harness spec-intake, packed fresh).
+    [2026-08-25: S6 spec-intake substantially DISCHARGED at
+    `2026-08-25-harness-discussion-005` — decomposition (the seed's
+    rung ladder) and ambiguity questions (five, answered at the
+    desk) done; per-arc checkpoint plans ride each arc's own pack
+    authoring, per standing practice. The escalation-contract
+    producer, the clarification-relay subsumption, and the
+    session-interaction mechanization mandate route to the harness
+    project (seed D13, D14) — the two that live as items below
+    carry their own seed-doc pointers. Outward pointer, architect's
+    ruling this sitting: the harness spec lives at the harness
+    repo's `harness-seed.md`; MASTER.md carries no harness project
+    documentation beyond this row.]
     Charter: spec-intake ritual (decomposition + ambiguity
     questions + checkpoint plan ratified BEFORE anything spawns),
     escalation contract as schema, promotion of the
@@ -1266,7 +1278,10 @@ and §8, so done items keep their numbers as one-line pointers.
       wrapper, the per-invocation escape flag, the per-project
       network-grant config surface, the env allowlist, and the
       checkpoint bash -n fail-fast candidate (§3 fold-in
-      registry).]
+      registry).] [2026-08-25: implementation half remains open on
+      this board — the mechanism is bale-side — with the note that
+      the harness's cage (seed §3) is its first unattended
+      consumer; coordinate via board 9 Level 1 when it lands.]
     - **MASTER.md category promotion** — this doc is a project doc
       today (see §5); when masters multiply, the master-handoff
       category wants the ADR-0009 staging treatment (explainer at
@@ -1285,7 +1300,12 @@ and §8, so done items keep their numbers as one-line pointers.
       sitting on the audience principle (doc-rides-code makes the
       straddle rate structurally high; a stranded worker has no
       fetch path); re-decidable only after the transport decision
-      this item exists to make.]
+      this item exists to make.] [2026-08-25: RESOLVED —
+      tool-access lazy reading (seed D10, D11), the side this
+      item's own annotation predicted, now with prompt-caching
+      economics behind it. Physical doc splits remain decidable
+      but unmotivated; the gating this item held over splits is
+      released.]
     - **Orchestrated accept spelling for --supersedes** (parked
       2026-07-29) — piped packs can never complete a supersession;
       correct until the authorship contract for worker-emitted
@@ -1307,7 +1327,9 @@ and §8, so done items keep their numbers as one-line pointers.
       architect → master → architect → worker via TARBALL.md §5.9's
       clarification response, with the architect as transport; the
       harness-era design should carry that channel with the
-      architect moving from transport to overseer.
+      architect moving from transport to overseer. [2026-08-25:
+      routes to the harness project — seed D13, D14
+      (`harness-seed.md`).]
     **Added at the wave-1 landing (2026-08-12), for S6:**
     - **Per-session blind checkpoints** — the single-path
       `[validation] base` mechanism shares one committed checkpoint
@@ -1372,7 +1394,8 @@ and §8, so done items keep their numbers as one-line pointers.
       beyond the current state; this sitting's transcript is the
       evidence corpus. Feeds S6's harness spec-intake and the
       escalation-contract item; the readme-hash row below is the first
-      mechanization queued under it.
+      mechanization queued under it. [2026-08-25: routes to the
+      harness project — seed D13, D14 (`harness-seed.md`).]
     **Added 2026-08-16, from the 008 rider, for S6:**
     - **Who audits thin checkpoints at scale** — once
       checkpoint-authoring is the bottleneck, checkpoint quality needs
@@ -1910,6 +1933,25 @@ and §8, so done items keep their numbers as one-line pointers.
     sequenced by the next desk among the smalls. Interim rule until
     it lands: desk-unique bundle stems (§6 entry 85).
 
+56. **Changelog record family** — queued 2026-08-25 (small; from
+    the harness spec-intake sitting, seed D5): schema per existing
+    record conventions (loose), a validator row so omission is
+    loud, and the same-response discipline sentence in the
+    appropriate contract doc — the session that changes a
+    machine-readable surface writes the entry. Primarily for
+    bale's own version ladder; the harness is its first external
+    consumer, and its consumption manifest references the same
+    surface list — a natural board-9 Level-1 linked pair with the
+    harness side if timed together, not required to be.
+    Retroactive backfill explicitly out of scope.
+
+57. **`aborted`-class closure reason** — queued 2026-08-25 (small;
+    from the harness spec-intake sitting, seed D15): the harness
+    kill-switch wants a closure vocabulary entry; additive,
+    follows the v0.4.7 legacy-tolerant pattern. Ratified as its
+    own small board item alongside board 56; sequencing among the
+    smalls is the next desk's call.
+
 ## 5. Contracts established (do not re-litigate casually)
 
 Carried forward: JSON vocabulary (outcome, sid, tarball, log,
@@ -2393,6 +2435,31 @@ New, ratified 2026-08-25 (the continue-plan-003 sitting):
   lines that are not checks, moving no counters. Gate criterion:
   cases ≥0.7s gate, with the fastest-per-class representative kept in
   the default run. (Board 52's rider.)
+
+New, ratified 2026-08-25 (the harness spec-intake sitting,
+`2026-08-25-harness-discussion-005`, read-only; decision texts of
+record live in the harness repo's `harness-seed.md`, D1–D24 — the
+seed doc is the verbatim home for harness-side decisions, this
+section for bale-side contract force):
+
+- **The harness project is born; the seed doc is its spec home.**
+  Separate repo (seed D1); bale-version pinning with arc-boundary
+  upgrades (D2); narrowest consumption surface (D3) with a
+  harness-side consumption manifest (D4); board 9 Level 1 as the
+  cross-repo procedure (D6). Bale-side force: bale commits to
+  nothing new here — the pin and manifest are harness-side; bale's
+  only obligation is the changelog record family (next entry).
+- **The changelog record family** (seed D5): loose schema per
+  existing record conventions, same-response discipline — the
+  session that changes a machine-readable surface writes the entry
+  — and a validator row that makes omission loud. Primarily for
+  bale's own version ladder; the harness is its first external
+  consumer. Implementation queued as board 56, with the
+  `aborted`-class closure reason queued beside it as board 57.
+- **Autonomy sequencing reaffirmed** (seed D7): board 45 gates
+  harness *autonomy*, not harness existence or supervised rungs.
+  Recorded to prevent the board ordering being read as gating the
+  build.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
