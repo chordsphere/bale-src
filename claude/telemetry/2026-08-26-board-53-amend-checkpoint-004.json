@@ -1,0 +1,153 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-26-board-53-amend-checkpoint-004",
+  "created_at": "2026-08-26T02:44:12+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-26T02:44:12+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-004 (32).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests (tests/, default gate)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "amend-checkpoint verb registered (help output)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "VERSION bump consistency (0.4.17)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "BALE.md documents the verb (command row + section 5.7)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/bale index header lists section 28": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "executable bit: bin/bale": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "unit tests (tests/, default gate)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "amend-checkpoint verb registered (help output)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERSION bump consistency (0.4.17)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md documents the verb (command row + section 5.7)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale index header lists section 28": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "executable bit: bin/bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "install.sh",
+        "scripts/build.sh",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "tests/test_amend_checkpoint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true
+        },
+        "self_reported": {
+          "assumptions": [
+            "The accounting rung requires BOTH stamp halves to match (path == the session's resolved path AND sha256 == the committed hash) before committed bytes count as the pack-time oracle, mirroring the provenance gate's own match rule; a stamp naming a different path lands in the unaccounted branch.",
+            "Idempotence (committed == delivered) short-circuits before the stamp is read, per the contract's wording as stated.",
+            "Test files carry no exec bit (matching the shipped tests/ convention), so only bin/bale needs the apply.sh chmod."
+          ],
+          "judgment_calls": [
+            "Flag spelling --accept-unaccounted-oracle rather than reusing --accept-checkpoint-change: near-identical events, different consequences (run current bytes vs replace them); one spelling with two semantics seemed a trap.",
+            "Verb home: bin/bale section 28, physically between Retry and Unlock, fresh number per the stable-numbering rule \u2014 so the new-module riders (build.sh / install.sh) deliberately do not fire.",
+            "Read path: shared locate_inbound_path resolution + bale_pack.normalize_crlf, with amend-owned refusal wording (the per-surface split --checkpoint-file established); hash-mismatch refusal names the resolved source path (the evidence-45 stale-duplicate catch).",
+            "bin/bale's docstring index numbers for sections 19\u201326 were trued up alongside adding section 28 \u2014 pre-existing >50-line drift; docstring-only (disclosed in notes.md).",
+            "Full 601-test default-gated suite in validation.sh rather than a scoped subset: the change touches the dispatcher file; runtime ~100s, inside the 2-minute target with little headroom (noted in notes.md).",
+            "No --json on the verb in v1; parity noted in notes.md Proposals alongside the ruling's bare-retry successor-parity pointer."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": true,
+            "disclosure_ref": "notes.md"
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-26-board-53-amend-checkpoint-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-26-board-53-amend-checkpoint-004.sh",
+          "sha256": "f17050e1a4d76a61b88cfa39fc51598ce9f6c0d2c8236dd47329dfb646e6f710"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-26T02:44:12+00:00",
+  "outcome": "applied"
+}
