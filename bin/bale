@@ -5,9 +5,9 @@ The CLI for the Claude tarball workflow: `bale pack` builds request
 tarballs, `bale apply` validates and integrates the response tarballs a
 worker Claude returns, `bale open` consumes a planner bundle into a
 packed session (verify, dry-run, replay — bin/bale_open.py, board
-49a-ii), and the ancillary commands (revert, rollback, retry, unlock,
-handoff, config init, status, stats) manage the session
-lifecycle around them. BALE.md at the repo root is the canonical design
+49a-ii), and the ancillary commands (revert, rollback, retry,
+amend-checkpoint, unlock, handoff, config init, status, stats) manage
+the session lifecycle around them. BALE.md at the repo root is the canonical design
 document — comments below cite its sections. Stdlib-only, Python 3.10+
 (3.11+ uses stdlib `tomllib`; 3.10 the vendored parser in
 `bin/_bale_toml.py`). The version narrative that once lived here is git
@@ -24,15 +24,16 @@ Sections:
    8. Path safety + inbound path resolution               (~line  1045)
    9. Editor invocation                                   (~line  1160)
   10. Baleignore matching (pack filter chain + apply rule 14) (~line 1220)
-  19. Revert                                              (~line  1470)
-  20. Retry                                               (~line  1770)
-  21. Unlock                                              (~line  1955)
-  22. Handoff                                             (~line  2255)
-  23. Hook invocation                                     (~line  2880)
-  24. Help and completion                                 (~line  3040)
-  25. Status                                              (~line  3445)
-  27. Stats                                               (~line  4155)
-  26. CLI                                                 (~line  4210)
+  19. Revert                                              (~line  1720)
+  20. Retry                                               (~line  2065)
+  28. Amend-checkpoint                                    (~line  2255)
+  21. Unlock                                              (~line  2615)
+  22. Handoff                                             (~line  2925)
+  23. Hook invocation                                     (~line  3605)
+  24. Help and completion                                 (~line  3765)
+  25. Status                                              (~line  4165)
+  27. Stats                                               (~line  4890)
+  26. CLI                                                 (~line  4945)
 
 Sections 11-15 (the pack path: scope projection + threshold caps, slug
 validation, manifest and tarball construction, wizard, pack) were
@@ -47,8 +48,11 @@ heading slicers in section 22 beside their consumer. Section numbers
 19-26 keep their old values — the banners are the searchable anchors and
 every cross-file "section N" comment stays true — so the 11-18 gap is
 deliberate, not drift. Section 27 (Stats, v0.3.24) sits physically
-before section 26 so the CLI section stays the file's tail; the listing
-above is in physical order, the numbers stay stable.
+before section 26 so the CLI section stays the file's tail; section 28
+(Amend-checkpoint, v0.4.17) sits physically between 20 and 21, beside
+the lifecycle verbs it corrects for, with a fresh number rather than a
+renumbering; the listing above is in physical order, the numbers stay
+stable.
 """
 
 from __future__ import annotations
@@ -161,8 +165,11 @@ from bale_stats import (  # noqa: E402 — sys.path tweak above is load-bearing
 # same sys.path-insert mechanism as the five above). Imported by name so
 # the call sites stay unqualified: cmd_pack wires the CLI dispatch; the
 # five build/persist entry points serve `bale handoff` (the second
-# request-building path) and `bale retry` (its record re-persist); and
-# format_bytes plus the PACK_MAX_* caps render the --max-* flag help text.
+# request-building path) and `bale retry` (its record re-persist);
+# format_bytes plus the PACK_MAX_* caps render the --max-* flag help
+# text; and normalize_crlf serves `bale amend-checkpoint`'s ingest edge
+# (v0.4.17), so the amendment read and pack's --checkpoint-file read
+# normalize by the same board-50 rule from the same implementation.
 # The module reaches back for shared helpers (log/fail/git/run/repo_root/
 # refuse_system_dir/resolve_inbound_path/confirm_yn/open_in_editor/
 # next_session_id/is_valid_slug/current_branch/set_log_file/the registry
@@ -184,6 +191,7 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
     cmd_pack,
     format_bytes,
     gather_files_for_pack,
+    normalize_crlf,
     persist_pack_session,
 )
 
@@ -197,9 +205,12 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
 # resolve_no_interact, refuse_dirty_on_target, and resolve_target_branch
 # serve `bale retry` (the pipeline's second front door — the first two
 # dropped their leading underscore at extraction, since what bin/bale
-# imports by name is the sibling's public surface); and default_staging_root
+# imports by name is the sibling's public surface); default_staging_root
 # + default_staging_dir serve `bale status`'s gather, so the staging layout
-# status reports is by construction the layout apply uses. The module
+# status reports is by construction the layout apply uses; and
+# read_request_checkpoint_stamp serves `bale amend-checkpoint`'s
+# accounting rung (v0.4.17), so the amendment verb and the provenance
+# gate read the session's pack-time stamp through one implementation. The module
 # reaches back for bin/bale-owned shared helpers (logging, git,
 # current_branch, path safety, resolve_inbound_path, the registry + scope +
 # integration-lock helpers, run_hook, _discard_hold_state) lazily from
@@ -214,6 +225,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
     cmd_apply,
     default_staging_dir,
     default_staging_root,
+    read_request_checkpoint_stamp,
     record_rejected_attempt,
     refuse_dirty_on_target,
     resolve_no_interact,
@@ -2248,6 +2260,366 @@ def cmd_retry(args: argparse.Namespace) -> int:
         record_rejected_attempt(repo, locked_sid, "retry",
                                 tarball_path.name, e)
         raise
+
+
+# ---------------------------------------------------------------------------
+# 28. Amend-checkpoint
+# ---------------------------------------------------------------------------
+#
+# `bale amend-checkpoint` — the operator half of the bad-oracle correction
+# flow (PLANNER.md section 5, steps 4-5) as a first-class verb (board 53,
+# v0.4.17). Mechanizes the transport, never the deliberateness: resolve the
+# open session, read the desk's amendment file LF-normalized, verify it
+# against the desk-published sha256, commit it at the session's per-sid
+# checkpoint path (bale-prefixed subject, pathspec-limited), and end the
+# report with the paste-ready `bale retry ... --accept-checkpoint-change`
+# line as the named successor. The provenance gate downstream is untouched:
+# it still refuses at retry, the accept stays per-invocation, and
+# stamp_matched: false remains the truthful record.
+#
+# The section sits physically between 20 (Retry) and 21 (Unlock) — beside
+# the lifecycle verbs it corrects for — with a fresh number, per the
+# stable-numbering rule the 26/27 ordering already exercises.
+
+
+def _amend_base_or_refuse(repo: Path) -> str:
+    """The amend-side config gate: the merged config must pin a
+    {sid}-bearing [validation] base, or the verb refuses — never a
+    silent ignore. Returns the base.
+
+    The same two-refusal shape as pack's --checkpoint-file gate
+    (bale_pack.checkpoint_file_base_or_refuse), with amend's own
+    wording so each refusal names this verb's real state and remedy:
+
+    - **Unconfigured**: no blind checkpoint is pinned, so there is no
+      oracle for an amendment to revise.
+    - **Literal base**: a literal base's oracle is project-wide, not
+      per-session; the planner amends it by committing the new bytes
+      at the literal path directly — no session resolution, no verb.
+    """
+    base = bale_config.get_validation_base(bale_config.merged_config(repo))
+    if base is None:
+        fail("`bale amend-checkpoint` requires a configured per-session "
+             "blind checkpoint, but bale.toml pins no [validation] base — "
+             "there is no oracle for an amendment to revise. Configure a "
+             "{sid}-bearing base via `bale config init` ([validation] "
+             "base, e.g. claude/checkpoints/{sid}.sh).")
+    if "{sid}" not in base:
+        fail(f"`bale amend-checkpoint` is per-session ({{sid}} bases) "
+             f"only, but [validation] base is the literal path {base!r}. "
+             f"A literal base's oracle is project-wide: the planner "
+             f"commits the amended bytes at {base!r} directly (edit, "
+             f"commit — no verb involved).")
+    return base
+
+
+def resolve_scoped_open_session(repo: Path, requested: Optional[str]) -> str:
+    """Resolve which open SCOPED session `bale amend-checkpoint` targets.
+
+    The board-51 posture applied to this verb's candidate set: a
+    read-only session (deliberately recorded forecast `[]`) is
+    structurally invisible — its empty forecast waived the checkpoint
+    at pack (BALE.md section 8.5), so it carries no oracle to amend and
+    never competes with the scoped session the amendment is for. Only a
+    deliberate `[]` is excluded: read_session_scope returns the
+    conservative whole-tree scope for a missing or malformed record, so
+    a legacy session stays a candidate rather than silently vanishing.
+
+    An explicit --sid always wins, vetted: it must be open, and it must
+    be scoped — naming a read-only session refuses with the waiver
+    named, not a dangling-path surprise later. With no --sid, exactly
+    one scoped open session resolves implicitly; zero or several refuse
+    loudly naming every candidate (a case the resolution rule cannot
+    separate never guesses).
+    """
+    opens = open_sessions(repo)
+    scoped = [s for s in opens if read_session_scope(repo, s) != []]
+    if requested is not None:
+        if not session_is_open(repo, requested):
+            listing = (f" Open session(s): {', '.join(opens)}."
+                       if opens else " No sessions are open.")
+            fail(f"session {requested} is not open; nothing to "
+                 f"amend.{listing}")
+        if read_session_scope(repo, requested) == []:
+            listing = (f" Scoped open session(s): {', '.join(scoped)}."
+                       if scoped else "")
+            fail(f"session {requested} is read-only (empty write "
+                 f"forecast): its pack waived the blind checkpoint "
+                 f"(BALE.md \u00a78.5), so it carries no oracle to "
+                 f"amend.{listing}")
+        return requested
+    if not scoped:
+        ro = [s for s in opens if s not in scoped]
+        ro_note = (f" Open session(s) {', '.join(ro)} are read-only — "
+                   f"empty forecast, checkpoint waived — and are not "
+                   f"candidates." if ro else "")
+        fail(f"no scoped session is open; nothing to amend. `bale "
+             f"amend-checkpoint` revises an open session's committed "
+             f"blind checkpoint.{ro_note}")
+    if len(scoped) == 1:
+        return scoped[0]
+    fail(f"{len(scoped)} scoped sessions are open; `bale "
+         f"amend-checkpoint` needs an explicit --sid when more than one "
+         f"is a candidate. Scoped open sessions (oldest first): "
+         f"{', '.join(scoped)}.")
+    raise AssertionError("unreachable")  # fail() exits
+
+
+def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
+    """`bale amend-checkpoint <file> --sha256 <hex> [--sid] [--accept-
+    unaccounted-oracle]` — commit a desk-published amendment over an
+    open session's blind checkpoint and name the retry as successor.
+
+    The flow, each step loud (board-53 ruling, (b)-as-adjusted):
+
+    1. Config gate: a {sid}-bearing [validation] base, or refuse.
+    2. Published-hash shape gate: --sha256 must be 64 hex chars — a
+       truncated paste is the transport defect the mandatory hash
+       exists to catch, refused before anything else runs.
+    3. Session resolution: the sole open scoped session, or --sid;
+       read-only sessions are structurally invisible.
+    4. Read the amendment: locate_inbound_path over apply.search_paths
+       (cwd first, absolute bypasses — a desk-downloaded amendment
+       resolves by bare name), bytes CRLF-normalized at read
+       (bale_pack.normalize_crlf, board 50 — the operator's hand-run
+       strip step no longer exists as a concept), empty refused.
+    5. Verify the normalized bytes' sha256 against the published hash;
+       a mismatch refuses naming both hashes and the resolved source
+       path (first-match resolution picks stale near-duplicates
+       silently — evidence 45's class; the echo exists to be compared).
+    6. The accounting rung against the committed oracle at the
+       session's resolved per-sid path:
+       - committed bytes == the amendment → the idempotent re-run:
+         no new commit, successor still emitted;
+       - committed bytes == the session's pack-time
+         provenance.checkpoint stamp → the amendment proper: commit;
+       - no stamp to account against (hand-rolled or pre-0.3.28
+         request, or explicit-null: packed with no checkpoint
+         configured) → degrade to the published-hash deliberateness
+         alone, loudly, per the provenance gate's own "verify nothing,
+         stamp_matched: null" precedent (BALE.md \u00a78.5);
+       - committed bytes match NEITHER → refuse loudly naming all
+         three hashes, unless --accept-unaccounted-oracle (per
+         invocation, FORCE-logged) deliberately admits the
+         replacement. Never silent either way.
+    7. The working-tree rung: uncommitted bytes at the resolved path
+       differing from both HEAD and the amendment refuse — the verb
+       never clobbers local edits it cannot account for.
+    8. Commit the amendment bytes at the resolved path — its own
+       pathspec-limited commit on the current branch, subject
+       `bale: amend per-session checkpoint for <sid>` — and end the
+       report with the paste-ready retry line: after an amendment the
+       stamp mismatch holds by construction, so the successor
+       pre-composes --accept-checkpoint-change (the deliberateness was
+       spent here, published hash in hand; ratified board 53).
+    """
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("not in a git repo. `bale amend-checkpoint` requires the "
+             "project repo.")
+    refuse_system_dir(repo)
+
+    # Step 2 first among the argument gates: pure and cheap, so a
+    # mangled hash refuses before any config or registry read.
+    published = args.sha256.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", published):
+        fail(f"--sha256 must be the desk-published sha256 as 64 hex "
+             f"characters; got {args.sha256!r} "
+             f"({len(args.sha256.strip())} chars). A truncated or "
+             f"mangled hash is the transport defect this check exists "
+             f"to catch — re-copy the published hash and re-run.")
+
+    base = _amend_base_or_refuse(repo)
+    sid = resolve_scoped_open_session(repo, args.sid)
+    set_log_file(repo / ".bale" / "logs" / f"{sid}.log")
+    log(f"amend-checkpoint: session {sid}")
+
+    # Step 4: locate + read + normalize. Resolution is the shared
+    # locate_inbound_path core (one resolver, every inbound surface);
+    # the read posture and refusal wording are this verb's own, the
+    # same per-surface split pack's --checkpoint-file established.
+    cfg = bale_config.merged_config(repo)
+    search = bale_config.get_apply_search_paths(cfg)
+    src = locate_inbound_path(args.file, cwd, search)
+    if src is None:
+        lines = [f"amendment file not found: {args.file}", "  searched:",
+                 f"    {cwd}  (cwd)"]
+        lines += [f"    {sp}" for sp in search]
+        fail("\n".join(lines))
+    if not src.is_file():
+        # The absolute / no-search-path branches return their candidate
+        # unchecked; the read is the existence check there.
+        fail(f"amendment file not found: {src}")
+    try:
+        data = src.read_bytes()
+    except OSError as e:
+        fail(f"could not read amendment file {src}: {e}")
+    data = normalize_crlf(data)
+    if not data.strip():
+        fail(f"amendment file {src} is empty. An empty oracle would "
+             f"grade nothing; the desk's amendment carries the corrected "
+             f"checkpoint's full bytes.")
+
+    # Step 5: the mandatory published-hash comparison, over the same
+    # LF-normalized bytes every downstream surface hashes and runs.
+    delivered_sha = hashlib.sha256(data).hexdigest()
+    log(f"amendment read: {src} (sha256 {delivered_sha[:12]}, "
+        f"LF-normalized)")
+    if delivered_sha != published:
+        fail(f"amendment hash mismatch: the delivered file's "
+             f"LF-normalized bytes hash to {delivered_sha}, but the "
+             f"published sha256 is {published}.\n"
+             f"  resolved file: {src}\n"
+             f"First-match resolution picks stale near-duplicates in a "
+             f"downloads directory silently — check that the resolved "
+             f"path above is the amendment the desk published, then "
+             f"re-run with the matching file and hash.")
+
+    # Step 6: the accounting rung. The committed oracle is read
+    # binary-exact from HEAD, the same extraction every checkpoint
+    # surface performs, so accounting and execution hash the same bytes.
+    resolved = bale_config.resolve_checkpoint_path(base, sid)
+    shown = subprocess.run(["git", "show", f"HEAD:{resolved}"],
+                           cwd=str(repo), capture_output=True)
+    if shown.returncode != 0:
+        fail(f"no committed blind checkpoint at {resolved} in HEAD — "
+             f"nothing to amend. An amendment revises a session's "
+             f"committed oracle; this session has none at its resolved "
+             f"path (the pack-time install is `bale pack "
+             f"--checkpoint-file`, or the planner commits it directly).")
+    committed = shown.stdout
+    committed_sha = hashlib.sha256(committed).hexdigest()
+
+    amend_commit_made = False
+    if committed == data:
+        log(f"{resolved} is already committed with identical bytes "
+            f"(sha256 {committed_sha[:12]}) — the idempotent re-run; "
+            f"proceeding without a new commit")
+        accounting = "idempotent re-run — no new commit"
+    else:
+        stamp_present, stamp = read_request_checkpoint_stamp(repo, sid)
+        if not stamp_present or stamp is None:
+            # No stamp to account against — degrade to the working
+            # half of the flow loudly, mirroring the provenance gate's
+            # "verify nothing, stamp_matched: null" posture.
+            why = ("the request carried no provenance.checkpoint key "
+                   "(hand-rolled, or packed pre-0.3.28)"
+                   if not stamp_present else
+                   "the request's checkpoint stamp is the explicit "
+                   "null (packed with no checkpoint configured)")
+            log(f"no pack-time stamp to account the committed oracle "
+                f"against — {why}; the accounting rung is skipped and "
+                f"the amendment proceeds on the published-hash "
+                f"deliberateness alone (committed sha256 "
+                f"{committed_sha[:12]} \u2192 delivered "
+                f"{delivered_sha[:12]})", force=True)
+            accounting = "no pack-time stamp — accounting skipped, loud"
+        elif (stamp.get("path") == resolved
+                and stamp.get("sha256") == committed_sha):
+            log(f"committed oracle matches the pack-time stamp (sha256 "
+                f"{committed_sha[:12]}) — amending the session's "
+                f"original oracle to {delivered_sha[:12]}")
+            accounting = "committed == pack-time stamp"
+        elif not args.accept_unaccounted_oracle:
+            stamped_desc = (f"{stamp.get('path')} sha256 "
+                            f"{str(stamp.get('sha256'))[:12]}")
+            fail(f"`bale amend-checkpoint` refuses to replace committed "
+                 f"oracle bytes it cannot account for: {resolved} at "
+                 f"HEAD (sha256 {committed_sha[:12]}) matches neither "
+                 f"the session's pack-time stamp ({stamped_desc}) nor "
+                 f"the delivered amendment (sha256 "
+                 f"{delivered_sha[:12]}). A prior amendment or an edit "
+                 f"outside this flow landed there. If replacing it is "
+                 f"deliberate, re-run with --accept-unaccounted-oracle "
+                 f"(per-invocation; FORCE-logged naming all three "
+                 f"hashes).")
+        else:
+            log(f"--accept-unaccounted-oracle — replacing committed "
+                f"oracle bytes that match neither the pack-time stamp "
+                f"nor the delivered amendment: committed "
+                f"{committed_sha[:12]}, pack-time stamp "
+                f"{str(stamp.get('sha256'))[:12]} at "
+                f"{stamp.get('path')}, delivered {delivered_sha[:12]} "
+                f"(per-invocation admission)", force=True)
+            accounting = ("unaccounted committed bytes — replacement "
+                          "admitted by --accept-unaccounted-oracle")
+
+        # Step 7: the working-tree rung — never clobber uncommitted
+        # edits the flow cannot account for. Working tree == HEAD is
+        # the normal checked-out state; == the amendment is a hand-copy
+        # already in place; anything else is local work.
+        target = repo / resolved
+        if target.exists():
+            try:
+                existing = target.read_bytes()
+            except OSError as e:
+                fail(f"could not read the working-tree file at "
+                     f"{resolved}: {e}")
+            if existing != committed and existing != data:
+                fail(f"`bale amend-checkpoint` refuses to overwrite "
+                     f"uncommitted working-tree edits at {resolved}: "
+                     f"its bytes (sha256 "
+                     f"{hashlib.sha256(existing).hexdigest()[:12]}) "
+                     f"match neither HEAD ({committed_sha[:12]}) nor "
+                     f"the amendment ({delivered_sha[:12]}). Commit, "
+                     f"stash, or remove the local edits, then re-run.")
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+        # Step 8: the pathspec-limited amend commit, the same commit
+        # hygiene as pack's --checkpoint-file install — other staged
+        # work is untouched.
+        for cmd, what in (
+                (["git", "add", "--", resolved], "stage"),
+                (["git", "commit", "-m",
+                  f"bale: amend per-session checkpoint for {sid}",
+                  "--", resolved], "commit")):
+            r = subprocess.run(cmd, cwd=str(repo), capture_output=True,
+                               text=True)
+            if r.returncode != 0:
+                fail(f"amend-checkpoint: could not {what} {resolved} "
+                     f"(exit {r.returncode}): "
+                     f"{(r.stderr or r.stdout).strip()}")
+        amend_commit_made = True
+        log(f"amended {resolved} on the current branch: committed "
+            f"sha256 {committed_sha[:12]} \u2192 {delivered_sha[:12]} "
+            f"(pathspec-limited commit; the provenance gate at retry "
+            f"still reads the original pack-time stamp and refuses — "
+            f"the accept below is the deliberate, per-invocation "
+            f"acknowledgment)")
+
+    # The end-of-run report. The trailer's last line is the paste-ready
+    # successor — the report ends with it, per the board-53 constraint;
+    # --accept-checkpoint-change is pre-composed because after an
+    # amendment the stamp mismatch holds by construction and the
+    # deliberateness was already spent at this verb's invocation.
+    print(format_summary_block(
+        [
+            ("session", sid),
+            ("oracle", resolved),
+            ("committed", f"sha256 {committed_sha[:12]}"
+                          + ("" if amend_commit_made
+                             else " (unchanged)")),
+            ("delivered", f"sha256 {delivered_sha[:12]} ({src.name})"),
+            ("accounting", accounting),
+            ("commit", (f"bale: amend per-session checkpoint for {sid}"
+                        if amend_commit_made
+                        else "none — identical bytes already committed")),
+        ],
+        status="AMENDED",
+        sid=sid,
+        trailer=[
+            "Next step — retry the held response against the amended "
+            "oracle (the stamp refusal is expected; the accept is the "
+            "deliberate acknowledgment):",
+            f"bale retry <response-tarball> --accept-checkpoint-change "
+            f"--sid {sid}",
+        ],
+    ))
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -5143,6 +5515,74 @@ def build_parser() -> argparse.ArgumentParser:
              "--no-interact for scripted retries.",
     )
     p_retry.set_defaults(func=cmd_retry)
+
+    # amend-checkpoint
+    p_amend = sub.add_parser(
+        "amend-checkpoint",
+        help="Commit a desk-published checkpoint amendment over an open "
+             "session's blind oracle and emit the retry line "
+             "(PLANNER.md \u00a75 steps 4\u20135).",
+        description=(
+            "The operator half of the bad-oracle correction flow "
+            "(PLANNER.md \u00a75, steps 4\u20135) as one command: resolve "
+            "the open scoped session (read-only sessions are not "
+            "candidates \u2014 their empty forecast waived the "
+            "checkpoint), read the desk's amendment file LF-normalized "
+            "(CRLF\u2192LF at the ingest edge, board 50), verify it "
+            "against the desk-published sha256, commit the bytes at the "
+            "session's per-sid checkpoint path as a pathspec-limited "
+            "bale-prefixed commit, and end the report with the "
+            "paste-ready `bale retry ... --accept-checkpoint-change` "
+            "line as the named successor. The verb mechanizes the "
+            "transport, never the deliberateness: the provenance gate "
+            "still refuses at retry, the accept stays per-invocation, "
+            "and stamp_matched: false remains the truthful record. "
+            "Identical committed bytes are the idempotent re-run; "
+            "committed bytes matching neither the pack-time stamp nor "
+            "the amendment refuse unless --accept-unaccounted-oracle "
+            "deliberately admits the replacement."
+        ),
+    )
+    p_amend.add_argument(
+        "file",
+        help="Path to the planner's amendment file. A relative path "
+             "resolves like apply's tarball argument: cwd first, then "
+             "each configured apply.search_paths directory in order; an "
+             "absolute path bypasses the search. Bytes are "
+             "CRLF-normalized at read, so the hash check, the commit, "
+             "and every downstream surface see the LF oracle the desk "
+             "published.",
+    )
+    p_amend.add_argument(
+        "--sha256", required=True, metavar="HEX",
+        help="The desk-published sha256 of the amendment (64 hex "
+             "chars), verified against the file's LF-normalized bytes "
+             "before anything is committed. Mandatory \u2014 the "
+             "published-hash comparison is part of the flow, not an "
+             "option: it is what catches a stale near-duplicate that "
+             "first-match resolution picked up silently.",
+    )
+    p_amend.add_argument(
+        "--sid", default=None,
+        help="Session id to amend. Optional with exactly one scoped "
+             "session open (it resolves implicitly; read-only sessions "
+             "are structurally invisible \u2014 empty forecast, "
+             "checkpoint waived); required when several scoped sessions "
+             "are open. Must name an open scoped session.",
+    )
+    p_amend.add_argument(
+        "--accept-unaccounted-oracle", action="store_true",
+        dest="accept_unaccounted_oracle",
+        help="Replace committed oracle bytes that match neither the "
+             "session's pack-time provenance stamp nor the delivered "
+             "amendment (a prior amendment, or an edit outside this "
+             "flow). Per-invocation only \u2014 deliberately no config "
+             "key, never carried forward \u2014 and every use is "
+             "FORCE-logged naming all three hashes (committed, "
+             "pack-time stamp, delivered). Without it, that case "
+             "refuses loudly naming the same three hashes.",
+    )
+    p_amend.set_defaults(func=cmd_amend_checkpoint)
 
     # revert
     p_revert = sub.add_parser(

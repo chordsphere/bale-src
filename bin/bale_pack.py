@@ -16,8 +16,11 @@ Public surface consumed by `bin/bale`: `cmd_pack` (CLI dispatch);
 `gather_files_for_pack`, `build_request_manifest`,
 `build_provenance_block`, `build_request_tarball`,
 `persist_pack_session` (the second request-building path, `bale
-handoff`, plus `bale retry`'s record re-persist); and `format_bytes` +
-the `PACK_MAX_*` cap constants (the `--max-*` flag help text). Shared
+handoff`, plus `bale retry`'s record re-persist); `format_bytes` +
+the `PACK_MAX_*` cap constants (the `--max-*` flag help text); and
+`normalize_crlf` (`bale amend-checkpoint`'s ingest edge, v0.4.17 —
+the amendment read and the `--checkpoint-file` read normalize by the
+same board-50 rule from the same implementation). Shared
 `bin/bale` helpers are imported lazily from `__main__` inside the
 functions that use them, the same idiom every other sibling uses.
 Sibling-owned entry points (`bale_config`, `bale_report`'s pack-report
