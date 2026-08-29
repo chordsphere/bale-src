@@ -172,13 +172,27 @@ deleted.
   environment-scrubbing extension). Pull when planning the
   board-10 sandbox build or touching the apply-time script
   invocation paths.
+- `context/adr/0017-exchange-shape-independent-of-counterparty.md` —
+  the exchange doctrine: the shape of a worker↔planner exchange
+  never depends on who is at the other end; roles only (planner,
+  worker, operator, courier); the artifact is the ask shape on every
+  path, never chat; the exchange record (one schema, both
+  directions, the thread under `.bale/clarifications/<sid>/`), the
+  `bale relay` verb, and the paste block; overrides ADR-0010's
+  no-subcommand line, ADR-0011's Notes, and ADR-0012's future-tense
+  rule without editing them. Status: Accepted (ratified 2026-08-29 at
+  the formalize-convo sitting; doctrine landed in the global docs and
+  BALE.md §8.11; the schema and `bale relay` land with the code
+  siblings). Pull when touching the clarification thread, `bale
+  relay`, the exchange or escalation records, or role language in
+  the global docs.
 
-Current status: of the sixteen ADRs (0001–0016), fifteen are
+Current status: of the seventeen ADRs (0001–0017), sixteen are
 Accepted and one — ADR-0007 — is Superseded (by ADR-0015, the
 board-13 read-vs-write separation, ratified and landed 2026-08-07).
-None is Proposed: the last, ADR-0016 (the response-script sandbox
-doctrine), was ratified at the master desk 2026-08-07, all five
-positions including the environment-scrubbing extension.
+None is Proposed: the last, ADR-0017 (the exchange doctrine), was
+ratified 2026-08-29 at the formalize-convo sitting, Accepted at
+creation.
 Each ADR file's own Status and Notes lines carry its ratification
 and flip record; the flip-by-flip narrative lives in git.
 
@@ -221,13 +235,15 @@ the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
 state doc), two explainers plus one tombstone (orchestration.md,
-relocated into the global PLANNER.md), and sixteen ADRs (0001–0005 the
+relocated into the global PLANNER.md), and seventeen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012
 the agent-driven direction, 0013 the TARBALL.md rationale
 relocation, 0014 the worker-determined new-files doctrine, 0015
-the read-vs-write separation, superseding 0007, and 0016 the
-response-script sandbox doctrine, extending 0005).
+the read-vs-write separation, superseding 0007, 0016 the
+response-script sandbox doctrine, extending 0005, and 0017 the
+exchange doctrine, overriding lines of 0010–0012 without editing
+them).
 Testing doctrine itself lives in the global
 `CODE.md` §13, not as a project doc; it is not listed here for the same
 reason the other global docs aren't (see above). Further explainers will

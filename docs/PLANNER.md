@@ -24,9 +24,11 @@ and §20 — later-numbered, core-placed; the core banner carries the
 note) is authoring doctrine — project-agnostic planner practice,
 binding wherever a planner authors. Past the core banner sits
 **orchestration doctrine** (sections 8–19): the working doctrine for
-the harness era, relocated here as the conditional layer it always
-was. The banner between them is a deliberate, pre-marked seam — see
-its own text.
+orchestration — the exchange shapes, present tense on the manual
+path, and the scheduling and courier-automation layer the harness
+era adds (§8 draws that line) — relocated here as the conditional
+layer it always was. The banner between them is a deliberate,
+pre-marked seam — see its own text.
 
 ### Who reads this, and when
 
@@ -475,22 +477,33 @@ how trust in it is phased up. They relocated here from the project
 explainer that was their working home, carrying their ratified
 standing with them; the ratification records stay project-side.
 
-**No orchestration harness exists yet.** The manual workflow is the
-present tense. Where a sentence below is present-tense, it describes
-behavior that already ships (the clarification response, the
-disjointness gates, revert, the telemetry records) — proven by hand
-before any harness consumes it, which is the standing commitment:
-the manual path remains fallback and ground truth. Everything
-harness-dependent is written in the future tense, as doctrine the
-harness will implement — and those harness-era passages are
-**provisional-until-S6** — S6 being the harness spec-intake, which
-inherits "ratify and churn the orchestration half of this doc."
-Sections below that are wholly harness-era carry the marker inline.
+**No orchestration harness exists yet, and no exchange shape waits
+on one.** Every shape a worker and a planner exchange — the
+request, the probe, the response, and the clarification thread
+(`TARBALL.md` §2) — is present tense on the manual path, exercised
+by hand, recorded by bale, and identical whoever holds the roles.
+The manual path is where contract behavior is defined and verified,
+and it remains fallback and ground truth: a harness inherits every
+shape as it stands and changes none of them. What is genuinely
+harness-era is narrower than it once read: *scheduling* (who spawns
+what, when, within what budget) and *courier automation* (a program
+carrying the pastes the operator carries by hand today). Only
+passages about those two things are written for the harness, and
+only they are **provisional-until-S6** — S6 being the harness
+spec-intake, which inherits "ratify and churn the orchestration half
+of this doc." Sections below that are wholly about scheduling or
+courier automation carry the marker inline; a section that
+describes an exchange shape does not, because the shape is already
+the present tense.
 
-Language is role-neutral throughout: *planner*, *worker*, and
-*operator* name roles (`TARBALL.md` §1), and any role can be held by
-a human or an agent. *Master* (or *orchestrator*) names the planning
-agent of the harness era; *architect* names the human. Citations of
+Language is role-only throughout: *planner* (intent authority),
+*worker* (mechanism authority), *operator* (runs pack/apply), and
+*courier* (carries pastes between sessions) name roles
+(`TARBALL.md` §1), any role can be held by a human or a session,
+and no doctrine keys on which. *Master* (or *orchestrator*) names a
+planning session — a planner that is itself a session; *architect*
+names the human, used where a sentence needs the person rather than
+the role. Citations of
 the form "(evidence N)" point at the live-traffic evidence ledger
 this doctrine was earned from — a project-side record, deliberately
 not restated here; the entries are cited, not carried, because this
@@ -693,55 +706,69 @@ and asked (evidence 53) — the behavior HOLD triage exists to reward.
 
 ## 15. Escalation and the Clarification Queue
 
-*Provisional-until-S6 — harness-era doctrine; the escalation-record
-schemas inherit this section as requirements.*
-
 The escalation contract is the specification-friction principle
-(§9) made concrete, and it subsumes an existing channel rather than
-inventing one. Today, a blocking intent gap flows worker → architect
-→ master → architect → worker via the clarification response
-(`TARBALL.md` §5.9, ADR-0011), with the architect as transport. The
-harness era moves the architect from transport to overseer: the
-master will answer what its own context can answer and escalate the
-rest — the same artifact, a different courier, exactly the
-courier-agnostic framing the clarification was designed under. The
-first delegated arc's structured upward report — partitioned landed
-/ ratified / escalated / on-watch — is the working prototype of this
-contract's shape (evidence 50).
+(§9) made concrete, and it is built on an existing channel rather
+than a new one. A blocking intent gap is a **thread**: the worker
+opens it with a clarification response (`TARBALL.md` §5.9,
+ADR-0011); the courier carries it; `bale relay` records the round
+and emits the planner-facing paste block; the planner answers as an
+exchange record; `bale relay` records the answer and emits the
+worker-facing block; the courier carries it back, and the worker
+continues under the same session. Every party in that sentence is a
+role (§8): the planner is whoever holds intent authority for the
+request — the architect at the desk, or a master session answering
+from its own context and escalating upward what it cannot — and the
+courier is whoever carries the paste, the operator by hand or a
+harness in its stead. The shape is the same in every case; only the
+holders change. A planner that is itself a session escalates the
+questions it cannot answer to its own planner by the same shape one
+level up — the master→architect distillation is the escalation
+record, which coexists with the exchange record and shares its
+`amendment_target` field and meaning. The first delegated arc's
+structured upward report — partitioned landed / ratified / escalated
+/ on-watch — is the working prototype of that upward contract's
+shape (evidence 50).
 
-This section is the doctrine home for what the escalation-record
-schemas inherit; detailed design stays with the harness spec-intake,
-as does the rest of this half's mechanism detail.
+This section is the doctrine home for what the exchange and
+escalation records inherit; the records' schemas and the relay verb
+are the bale tool's, and this section names the doctrine they
+implement rather than restating their fields.
 
 - **Dedup before the architect sees anything.** Concurrent workers
-  will ask overlapping questions; the master dedupes them, and the
-  schema carries the dedup lineage — which worker questions a
-  surfaced question answers — so one architect answer fans back out
-  to every asker.
+  ask overlapping questions; a master planner dedupes them before
+  escalating, and the escalation record carries the dedup lineage —
+  which worker questions a surfaced question answers — so one
+  answer fans back out to every asker, each as its own thread's
+  next round.
 - **Answers accrete into the spec, mechanically.** An answer lands
   in the seed document or in a decisions ledger beside it, and ships
-  verbatim into future requests — the answer-to-amendment path is
-  schema, not convention. This is §9's accretion test enforced at
-  the record level, with the verbatim-transport rule (evidence 49)
-  built in rather than relied on.
-- **Questions arrive answerable.** The shape is
-  options-plus-recommendation — the asker's read of the choices and
-  its recommended default, extending the clarification response's
+  verbatim into future requests. This is mechanized: an answer names
+  its `amendment_target` — the repo-relative path it accretes into —
+  on the record itself, so the answer-to-amendment path is schema,
+  not convention. This is §9's accretion test enforced at the record
+  level, with the verbatim-transport rule (evidence 49) built in
+  rather than relied on.
+- **Questions arrive answerable.** This is mechanized: a question
+  row carries `options` and a `recommendation` — the asker's read of
+  the choices and its recommended default, extending the
   load-bearing `default_assumption` — so the cheapest possible
-  architect answer ("your recommendation is correct") is always
-  available.
+  answer is always available, and the answer records it as a
+  disposition of `as-recommended` rather than restating it.
 - **Priority classes.** Only critical-path blockers interrupt the
-  architect; non-blocking questions batch. Workers never idle on a
-  parked question: a worker whose question is non-blocking proceeds
-  on its named assumption, and a worker whose question blocks is
-  suspended the way a clarification already suspends a session —
-  the spawn schedule routes around it.
-- **The answer-fatigue guard.** Answer-latency telemetry will
-  measure what the queue costs the architect; question classes whose
-  answers have become predictable are retired into autonomy — the
-  trust ledger (§18) applied to questions. And the four heavyweight
-  controls (§10) stay ceremonially distinct from the quick queue: a
-  trust expansion never rides in as one more batched question.
+  planner; non-blocking questions batch. This is mechanized on the
+  question row's `priority` (`blocking` | `batched`). A worker never
+  idles on a parked question: a worker whose question is `batched`
+  proceeds on its named assumption, and a worker whose question
+  `blocking` is suspended the way a clarification already suspends a
+  session — the schedule routes around it. Non-blocking mid-work
+  inquiry is not a thread; the `batched` doctrine stands as written.
+- **The answer-fatigue guard.** Answer-latency telemetry measures
+  what the queue costs the planner who answers; question classes
+  whose answers have become predictable are retired into autonomy —
+  the trust ledger (§18) applied to questions. And the four
+  heavyweight controls (§10) stay ceremonially distinct from the
+  quick queue: a trust expansion never rides in as one more batched
+  question.
 
 ---
 
@@ -825,14 +852,18 @@ architect's money. The doctrine:
 ## 18. Trust Phasing
 
 Autonomy is granted per work class, in phases, on longitudinal
-evidence — never as a vibe. The ladder: **manual** (every step
-human-operated, the present tense) → **orchestrated decomposition**
-(the master plans and packs; a human runs the mechanical steps) →
-**mechanical inner loop** (the harness runs pack/apply/validate
-unattended inside an arc; humans hold the §10 controls) →
-**autonomous spawn** (the master spawns workers within budget and
-trust bounds without per-spawn review). Recursion depth —
-sub-masters spawning sub-masters — is earned last.
+evidence — never as a vibe. The rungs describe **who decides and
+who carries**, never which shapes exist: every exchange shape is
+mechanized and identical on every rung (§8), and what a rung grants
+is a change of role-holder. The ladder: **manual** (the architect
+holds the planner role and the operator carries; the present tense)
+→ **orchestrated decomposition** (a master session holds the
+planner role — plans, packs, answers threads — and the operator
+carries) → **mechanical inner loop** (a harness carries: it runs
+pack/apply/relay/validate unattended inside an arc, and humans hold
+the §10 controls) → **autonomous spawn** (the master spawns workers
+within budget and trust bounds without per-spawn review). Recursion
+depth — sub-masters spawning sub-masters — is earned last.
 
 Transitions are gated by the longitudinal signal the diagnostics and
 telemetry records were built to carry: bailout and HOLD clustering
