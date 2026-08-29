@@ -76,7 +76,7 @@ The minimum context for the task. Default at every threshold:
 | Documentation is the work — adding, splitting, pruning, updating, or auditing docs | Re-read `DOCS.md` before producing |
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
-| A blocking intent gap in the request | Return a clarification response rather than guess at the intent — see `TARBALL.md` §5.9 |
+| A blocking intent gap in the request | Open the exchange thread with a clarification response — the artifact, never a chat aside — and continue under the same session when the planner's answer arrives via `bale relay`; see `TARBALL.md` §5.9 |
 | Budget running thin mid-session, or a bailout is on the table | §11.3–§11.5 — bail triggers, the bailout response, and the bailout-discipline rule |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
@@ -189,8 +189,11 @@ Within tarball mode, four response shapes are possible: a full
 response tarball (the default, when work landed), a probe
 (`TARBALL.md` section 4, when an environment gap blocks the work),
 a clarification response (`TARBALL.md` §5.9, when a blocking intent
-gap in the request prevents trustworthy work), and a bailout
-response (§11, when the budget won't carry the work through).
+gap in the request prevents trustworthy work — it opens an exchange
+thread: the planner answers as an exchange record, `bale relay`
+carries each round, and the session continues to a normal response
+under the same id), and a bailout response (§11, when the budget
+won't carry the work through).
 
 ### When Claude is unsure which mode
 
@@ -225,9 +228,9 @@ When a conversational exchange transitions to tarball mode mid-session
 mode; let me re-read `TARBALL.md` before producing"*) and pauses for
 the request tarball. The design conversation may inform the new
 request's `README.md` — a shared prose-context tool authored by
-either party: the planner (today, me) directly, or the worker
-(Claude) on request, delivered as a downloadable file and shipped
-via `--readme-file` (`TARBALL.md` §3.4).
+either party: the planner directly, or the worker on request,
+delivered as a downloadable file and shipped via `--readme-file`
+(`TARBALL.md` §3.4).
 
 ---
 
@@ -239,6 +242,7 @@ via `--readme-file` (`TARBALL.md` §3.4).
 | Writing tests         | Claude |
 | Writing scaffolding   | Claude |
 | Exploratory commands  | Claude (via probe) |
+| Intent questions      | Claude, via the exchange (`TARBALL.md` §5.9) |
 | Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4) |
 | Architectural choices | Me, with Claude's input |
 | Reviewing changes     | Me |

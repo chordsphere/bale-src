@@ -64,30 +64,45 @@ if it doesn't describe this session, the section stays unread.
   the same NNN as the session ID, zero-padded to three digits. A
   response is numbered to match the request it answers. Probes
   produce no artifact directory (§4.2).
-- **Roles.** Three roles recur here and in `CLAUDE.md`: the
-  **planner** decomposes goals, authors packs, and reviews — today
-  the human architect; the **worker** builds responses — Claude; the
-  **operator** runs pack/apply and holds the mechanical steps
-  between them — today the same human as the planner, later possibly
-  a harness. "Architect" and "planner", "Claude" and "worker" are
-  synonyms throughout; the docs use whichever a sentence inherited.
+- **Roles.** Four roles recur here and in `CLAUDE.md`, and every
+  one is a role, never a species: the **planner** holds intent
+  authority for a request — decomposes goals, authors packs, answers
+  the worker's questions, and reviews; the **worker** holds
+  mechanism authority — builds responses; the **operator** runs
+  pack/apply and the mechanical steps between them; the **courier**
+  carries pastes between sessions — a probe's output, an exchange
+  record's paste block. Any role can be held by a human or a
+  session, and no rule in these docs keys on which. The same party
+  commonly holds several hats (the planner who also operates and
+  carries), and the shape of an exchange never depends on that.
+  "Architect" names the human where a sentence needs the person
+  rather than the role; "Claude" and "worker" read as the same
+  party in worker-facing prose. The docs use whichever term a
+  sentence inherited, and a rule stated for a role binds whoever
+  holds it.
 - **Examples are examples.** Schemas below reference Vue/Vite/etc. to
   make shapes concrete. They are illustrative, not normative.
   Substitute the project's actual stack.
 
 ---
 
-## 2. Three Exchanges
+## 2. Four Exchanges
 
 | Exchange | Direction | When |
 |----------|-----------|------|
 | Request tarball | planner → worker | start of a tarball-mode session |
 | Probe | worker → planner | whenever an environment-specific fact is missing, stale, or unclear (§4.1) |
 | Response tarball | worker → planner | every tarball-mode response |
+| Exchange | planner ⇄ worker | a thread opened by the worker's clarification response (§5.9) — both directions travel as the same exchange record, and the session stays suspended until the thread resolves |
 
-The two tarballs are artifacts; the probe is not — it is a
+The two tarballs are artifacts. The probe is not — it is a
 paste-back script and its pasted output, chat-ephemeral by design
-(§4.2).
+(§4.2). The exchange is a record in both directions: the worker's
+clarification manifest opens it and the planner's answer continues
+it, each round preserved by bale under the session (§5.9.2), and
+each carried by a courier of the operator's choosing — a tarball or
+a paste block (§5.9.2). Chat carries conversation and never a
+blocking ask (§5.9.1).
 
 ---
 
@@ -169,8 +184,8 @@ sibling for a different failure: the *request* is blocking — an
 intent gap, not a budget or environment gap. Same empty change
 surfaces, but its payload rides in the manifest as a `questions[]`
 block, and unlike a bailout it does not consume the session: the
-lock stays held, the architect answers, and the same session
-continues to a normal response.
+lock stays held, the planner answers through the exchange thread
+(§5.9.4), and the same session continues to a normal response.
 
 ### 5.1.1 apply.sh
 
@@ -520,8 +535,7 @@ visible only from inside the code, an out-of-scope fix worth doing
 
 Proposals are prose suggestions with rationale, **never ready-to-run
 commands** — no `bale pack` line, no literal paste-this text; §3.4
-carries the reasoning. The planner (the architect today, an
-orchestrator later) reads proposals as *input*, decides sequencing,
+carries the reasoning. The planner reads proposals as *input*, decides sequencing,
 and authors its own pack commands (§3.4) from its own understanding.
 
 Proposals are distinct from the manifest's `deferred` list (§5.2):
@@ -760,27 +774,36 @@ remains.
 answers.* Nice-to-know questions go in `notes.md` Proposals on a
 full response (§5.4.1), not here (precedent: ADR-0011).
 
-Which surface carries the ask defaults on the **courier**. In a
-human-attended session, chat is the default — even for a blocking
-gap (`CLAUDE.md` §3: ask, in one sentence). In an orchestrated
-session, the artifact is the default: the apply walkthrough
-surfaces it, the record persists for aggregation (§5.9.4), and a
-programmatic courier can carry it where a chat aside cannot go.
-When a blocking ask resolves in chat, the eventual response's
+**The artifact is the ask shape, on every path.** A blocking ask
+is a clarification response — the manifest with its `questions[]`
+— whoever is at the other end. The shape does not depend on the
+counterparty (§1): the worker always emits the formal record, bale
+always preserves it and emits the next paste block, and a harness,
+where one exists, only stops the operator from being the one who
+pastes. Which **courier** carries the record is the operator's
+choice — the tarball, or the paste block that wraps the same
+manifest (§5.9.2) — and either way the apply walkthrough or
+`bale relay` surfaces it and the record persists for aggregation
+(§5.9.4). Chat is not a surface for a blocking ask on any path:
+chat carries conversation, never the ask. If the rule is broken and
+a blocking ask resolves in chat anyway, the eventual response's
 `notes.md` records the question and its answer — the §4.5
-provenance rule applied to clarifications: chat is ephemeral, and
-the record is how the answer survives it.
+provenance rule applied as the fallback: chat is ephemeral, and the
+record is the only way the answer survives it. That fallback is
+provenance for a breach, not a sanctioned path.
 
 The same default-to-ask doctrine that governs probes (§4.1)
 governs clarifications: proceeding on a guessed intent is the
 confidently wrong response this workflow exists to prevent, and
 asking beats guessing. `expects_probe: no` does **not** forbid a
 clarification — that flag governs probes against the environment
-(§3.2), not questions about the request. For a gap too small to
-earn the artifact, the lightweight fallbacks stand: ask in chat, or
-proceed on the most plausible assumption named explicitly in
-`notes.md` and flagged for review — the same recoverable-risk
-posture §3.3 takes.
+(§3.2), not questions about the request. For a gap that does not
+block — a nice-to-know, a preference the work can proceed without —
+the lightweight paths stand: a question in chat as conversation, or
+proceeding on the most plausible assumption named explicitly in
+`notes.md` and flagged for review, the same recoverable-risk
+posture §3.3 takes. The test is *blocking*, not *size*: a small
+question that blocks trustworthy work is still the artifact.
 
 #### 5.9.2 Shape and manifest specifics
 
@@ -788,8 +811,37 @@ Unlike the bailout there are no companion artifacts: the payload is
 the manifest's own `questions[]` block — required and non-empty on
 this kind, forbidden (or empty) on every other. `README.md` is
 absent on a clarification in either direction — the questions are
-the payload and `notes.md` (optional, addressed to me) is the prose
-channel.
+the payload and `notes.md` (optional, addressed to the planner) is
+the prose channel.
+
+The manifest travels by one of two couriers, the operator's choice,
+and the record is the same either way. **The tarball** is the
+response tarball shape with the empty change surfaces below; apply
+ingests it (the apply-time behavior is the bale tool's contract,
+§5.9.3). **The paste block** wraps the same manifest JSON for a
+courier who pastes rather than uploads: a fenced, self-delimited
+block with the probe's four properties (§4.2) — sentinel lines
+`BALE EXCHANGE BEGIN <sid>` and `BALE EXCHANGE END`, the record's
+JSON as the body, a purpose header stating the direction and the
+round, and an integrity trailer carrying the body's sha256 so a
+truncated paste is detected and re-requested instead of reasoned
+from. `bale relay <sid> <file|->` ingests the block (§5.9.4).
+
+The thread's record is the **exchange record**,
+`exchange-record.schema.json` (in the bale installation, beside
+this kind's manifest schema): one schema for both directions of the
+thread. A record names its `session_id`, its `round`, and `from`
+(`worker` or `planner`); it carries `questions[]` — the same
+question row this section defines, by reference — and `answers[]`
+— each answer keyed to the round and index of the question it
+answers, with a `disposition` of `as-recommended`, `option`, or
+`free-text`, and an optional `amendment_target` naming the
+repo-relative path the answer accretes into. At least one of the
+two arrays is non-empty, and a record may carry both: a planner
+answering and asking back in one turn. A preserved clarification
+manifest reads as the thread's `from: worker` record for its round,
+so round one is the manifest this section already defines and the
+thread continues from it.
 
 The shape is mechanized: when the ask takes the artifact shape,
 `tools/craft_response.py --kind clarification` (shipped in every
@@ -841,14 +893,21 @@ aggregation surface for that signal (jq across
 `.bale/clarifications/*/*.json`), parallel to the role
 `diagnostics.json` plays for bail triggers.
 
-The answer path is courier-agnostic, mirroring the probe's §4.6:
-manual today (the architect reads the questions in the apply
-walkthrough, answers in the worker's chat, and the session
-continues — or repacks if the framing was wrong), programmatic
-later (the orchestrator receives the clarification, answers from
-its own context or escalates to the human, and re-prompts the
-worker). The artifact is identical in both worlds; only the
-courier changes.
+The answer path is the thread, and it is one path, mirroring the
+probe's §4.6. The planner reads the questions — in the apply
+walkthrough or from the paste block — and answers as an exchange
+record (§5.9.2): an `answers[]` row per question, `as-recommended`
+when the worker's recommendation or `default_assumption` stands.
+`bale relay` records the answer as the thread's next round, keeps
+the session suspended, and emits the worker-facing paste block; the
+courier carries that block to the worker, who reads it, continues
+under the same session id, and ships the normal response the
+clarification deferred. A planner that cannot answer from its own
+context escalates upward and answers when it can; a planner that
+answers and needs to ask back does both in one record. The artifact
+is identical whoever holds the planner and courier roles; only the
+holder changes. If the gap invalidates the request's framing, the
+recourse is `bale unlock` and a repack — the planner's call.
 
 ---
 
@@ -1257,11 +1316,11 @@ never runnable commands.
 The hazards that confine unsolicited runnable commands to that one
 place — blind firing, and the self-oracle problem of the entity
 under review framing its own follow-up — are ADR-0013's; sequencing
-authority belongs to the planner (`CLAUDE.md` §4). An orchestration
-layer consuming rescope offers should still re-derive the command
-from the proposed seam rather than fire the worker's verbatim —
-doctrine for when an orchestrator exists, not a change to the human
-path, which needs the paste-ready command.
+authority belongs to the planner (`CLAUDE.md` §4). A planner
+consuming a rescope offer re-derives the command from the proposed
+seam rather than firing the worker's verbatim; the paste-ready form
+serves the courier who carries it, not the planner who decides, and
+the offer is emitted the same way whoever holds either role.
 
 The flags below are the stable surface; each maps to a manifest field
 or a packing behavior:
@@ -1447,7 +1506,7 @@ cost-benefit case: ADR-0010).
 Two boundaries keep the default-to-ask posture from sprawling:
 
 - **Conceptual and scope gaps are not probes.** If the question is
-  what the goal means, which option the architect prefers, or whether
+  what the goal means, which option the planner prefers, or whether
   something is in scope, no script against the environment can answer
   it. Quick, non-blocking questions resolve in chat; a gap of this
   kind that *blocks* trustworthy work takes the clarification response
@@ -1461,9 +1520,10 @@ Two boundaries keep the default-to-ask posture from sprawling:
 
 Probes are session-scoped only: no `claude/probes/` directory, no
 bale subcommand, no artifact in the project tree. The default
-transport is a **single copy-pasteable shell block**. The architect
-pastes it into a terminal and pastes stdout back into the chat; the
-worker reads the paste and proceeds. No files change hands.
+transport is a **single copy-pasteable shell block**. The courier
+(§1) runs it in the environment and returns stdout to the worker —
+a paste into the chat when the courier is a person; the worker
+reads the output and proceeds. No files change hands.
 
 The block Claude returns is one fenced, self-contained script with
 these required properties:
@@ -1474,7 +1534,7 @@ these required properties:
   (rationale: ADR-0010).
 - **Purpose header.** A comment block at the top stating what the
   probe asks, why the session needs it, and confirming the script is
-  read-only. The architect audits this before pasting.
+  read-only. The courier audits this before running it.
 - **Self-delimiting.** `PROBE BEGIN`/`PROBE END` sentinel lines
   bracket the whole output, and each question gets its own labeled
   section so the worker can map answers back to gaps.
@@ -1544,7 +1604,7 @@ For genuinely large or binary output — a full dependency tree, a
 generated fixture, anything past what a terminal paste carries
 intact — the earlier file-based shape remains valid, explicitly as
 the fallback: the script writes to `./probe-output/` and the
-architect returns the contents (pasted as text if small enough, or
+courier returns the contents (pasted as text if small enough, or
 included in the next request tarball's `context/`). Paste-back is
 the default; the worker picks the fallback **only when output size
 or format demands it, and says so** — the chat preamble names the
@@ -1591,12 +1651,16 @@ probe resolves within its own session and leaves the field null.
 
 ### 4.6 The probe as a tool call
 
-In the orchestrated workflow, the probe becomes a tool call the
-harness executes and feeds back automatically. The paste-back shape
-is the manual-transport analog of that: **same contract, different
-courier**. Nothing in this section assumes the courier is human —
-the sentinels, bounded output, and integrity trailer are exactly the
-properties a harness needs to validate a machine round-trip too.
+The probe is a tool call whose courier is a role (§1): the worker
+emits the block, the courier runs it and returns the output, the
+worker reads the paste. **Same contract, whoever carries it.**
+Nothing in this section assumes the courier is human or that it is
+a program — the sentinels, bounded output, and integrity trailer
+are exactly the properties any courier needs to validate the
+round-trip, and a courier that executes the block and feeds the
+output back without a human pasting changes nothing about the
+block. The exchange (§5.9) is built on the same four properties for
+the same reason.
 
 ---
 
@@ -1775,7 +1839,13 @@ mechanical checks won't catch them.
    question, context, default_assumption, why_blocked (§5.9.2).
 3. Ship no `files/`, a no-op `apply.sh`, and a no-op
    `validation.sh`. `notes.md` is optional, addressed to the
-   architect.
-4. Stop. The answers arrive in the chat; the session stays open and
-   continues to a normal response against the same request. Do not
-   guess ahead of the answers.
+   planner.
+4. Deliver by either courier — the tarball, or the same manifest
+   wrapped in a `BALE EXCHANGE BEGIN <sid>` / `BALE EXCHANGE END`
+   paste block with its purpose header and sha256 trailer (§5.9.2).
+   Never in chat.
+5. Stop. The answers arrive as an exchange record's paste block,
+   emitted by `bale relay` (§5.9.4); verify its trailer before
+   reading it. The session stays suspended and continues to a
+   normal response against the same request. Do not guess ahead of
+   the answers.
