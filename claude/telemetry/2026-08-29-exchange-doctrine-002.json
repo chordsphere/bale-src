@@ -1,0 +1,196 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-29-exchange-doctrine-002",
+  "created_at": "2026-08-29T23:45:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-29T23:45:36+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (52).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim tokens present (TARBALL.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "retired fork phrases absent": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "ADR-0017 shape": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "ADRs 0010-0012 untouched": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "exchange vocabulary placed": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "section numbers stable": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "INDEX coherence (ADR entries)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "tests: test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim tokens present (TARBALL.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "retired fork phrases absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ADR-0017 shape": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ADRs 0010-0012 untouched": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exchange vocabulary placed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section numbers stable": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX coherence (ADR entries)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr",
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "claude/INDEX.md",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.17",
+            "contract_docs": {
+              "CLAUDE.md": "e66b45162d26fe4c972df005ae425fe9864cbd50f494c21ed68c4fa40564f8bb",
+              "TARBALL.md": "d9e755c87bdca290c96f4c6276914f62ab3c768a5a023383af415b6cd3bb03cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "6dabcd1babd7499f24d6db6afc1daec4387b78c5c2920ff73604b55f9904170d"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-29-exchange-doctrine-002.sh",
+              "sha256": "a0ab8066b9347b4c577d505dfa58d8f950560249ec8e917811decf77c133fb67"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "BALE.md \u00a75 command row for `bale relay` is wanted alongside \u00a78.11 (the brief offered either layout; both shipped)",
+            "The retired-phrase list is the twelve substrings in validation.sh; the brief left the exact set to the worker"
+          ],
+          "judgment_calls": [
+            "TARBALL.md \u00a72 heading renamed Three\u2192Four Exchanges (number stable)",
+            "BALE.md \u00a76.6 stale orchestration.md pointer re-homed to PLANNER.md \u00a715 while adding the coexistence sentence",
+            "Sweep forks beyond the brief's list made role-only: TARBALL.md \u00a73.4, \u00a75.1, \u00a75.4.1, \u00a74.2\u20134.4; PLANNER.md META and \u00a78 role paragraph",
+            "Crafted INDEX-coherence block replaced by a narrowed ADR-entries check because INDEX.md's repo-root BALE.md entry cannot resolve from claude/"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-29-exchange-doctrine-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-29-exchange-doctrine-002.sh",
+          "sha256": "a0ab8066b9347b4c577d505dfa58d8f950560249ec8e917811decf77c133fb67"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-29T23:45:36+00:00",
+  "outcome": "applied"
+}
