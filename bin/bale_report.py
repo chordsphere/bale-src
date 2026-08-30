@@ -1043,6 +1043,24 @@ def emit_json_line(line: str) -> None:
     out.flush()
 
 
+def emit_stdout_block(text: str) -> None:
+    """Write `text` verbatim to the REAL stdout and flush — the multi-line
+    twin of emit_json_line (v0.4.18, `bale relay`).
+
+    `bale relay` runs under the same stream discipline as the machine
+    reports (enable_json_mode routes every `[bale] ` line and the human
+    trailer to stderr) so that stdout carries exactly the counterpart's
+    paste block and `bale relay <sid> <file> > block.txt` captures it
+    clean. The block is multi-line by construction (sentinels, header,
+    JSON body, trailer), which is why this is not emit_json_line's
+    one-line contract; the flush reason is the same — the block is the
+    consumer's entire signal.
+    """
+    out = _json_real_stdout if _json_real_stdout is not None else sys.stdout
+    out.write(text if text.endswith("\n") else text + "\n")
+    out.flush()
+
+
 def format_pack_json(
     *,
     sid: str,
@@ -1475,6 +1493,29 @@ def format_status_json(report) -> str:
                                                  (unknown, not zero)
                                   latest_record  repo-relative path of
                                                  the latest record
+                                  from           (additive, v0.4.18 —
+                                                 the exchange thread,
+                                                 BALE.md §8.11) the side
+                                                 that wrote the latest
+                                                 record: "worker" |
+                                                 "planner" | null
+                                                 (unreadable, or names
+                                                 neither side); a
+                                                 preserved clarification
+                                                 manifest reads as
+                                                 "worker"
+                                  answers        (additive, v0.4.18) the
+                                                 latest record's
+                                                 answers[] length, or
+                                                 null when absent or
+                                                 unreadable
+                                  awaiting       (additive, v0.4.18)
+                                                 which side the thread
+                                                 waits on — the
+                                                 counterpart of `from`:
+                                                 "planner" | "worker" |
+                                                 null when `from` is
+                                                 null
                                 Present whenever records exist,
                                 independent of `state`: a held session
                                 that clarified earlier still carries the
@@ -1636,6 +1677,12 @@ def format_status_json(report) -> str:
                     "rounds": report.clarification_rounds,
                     "questions": report.clarification_questions,
                     "latest_record": report.clarification_latest,
+                    # Additive (v0.4.18, BALE.md §8.11): the thread's
+                    # direction — the latest record's side, its answer
+                    # count, and the side the thread waits on.
+                    "from": report.clarification_from,
+                    "answers": report.clarification_answers,
+                    "awaiting": awaiting_side(report.clarification_from),
                 }
                 if report.clarification_rounds else None
             ),
@@ -2055,9 +2102,11 @@ def format_staging_row(*, state: str, path=None, error=None) -> str:
 
 
 def format_clarification_value(rounds: int, questions=None,
-                               latest_record=None) -> str:
+                               latest_record=None, latest_from=None,
+                               answers=None) -> str:
     """Render the classified session's clarification facts as a row value
-    (v0.3.22, board 32).
+    (v0.3.22, board 32; the thread's direction added v0.4.18, BALE.md
+    §8.11).
 
     `rounds` is the count of preserved records under
     .bale/clarifications/<sid>/ — the caller only emits the row when it
@@ -2067,23 +2116,38 @@ def format_clarification_value(rounds: int, questions=None,
     unknown rather than dropped, the silent-skips-are-bugs posture
     (CLAUDE.md §6) applied to a row value. `latest_record` is the latest
     record's repo-relative path, the pointer the architect opens to
-    re-read the questions; omitted when the caller has none. The value
-    stays purely factual (rounds, count, path): the lifecycle state row
-    and the next-step hint carry the "suspended — answer, then apply"
-    framing, so this row can also serve a held session whose
-    clarification round is history without contradicting its state.
-    Used for the single classified session's `clarification` row.
+    re-read the questions; omitted when the caller has none.
+    `latest_from` is the side that wrote the latest record (`worker` /
+    `planner`, per exchange_record_view; None = unknown) and `answers`
+    its answers[] length (None = absent) — together they say what the
+    latest round carried and, through awaiting_side, which side the
+    thread waits on. The value stays purely factual (rounds, side,
+    counts, path, waiting side): the lifecycle state row and the
+    next-step hint carry the "suspended — relay / apply" framing, so
+    this row can also serve a held session whose clarification round is
+    history without contradicting its state. Used for the single
+    classified session's `clarification` row.
     """
     if rounds <= 0:
         return "none"
     value = f"round {rounds} — "
-    if questions is None:
-        value += "question count unreadable (see the record)"
-    else:
+    if latest_from is not None:
+        value += f"from {latest_from}: "
+    carried = []
+    if questions is not None and (questions > 0 or not answers):
         noun = "question" if questions == 1 else "questions"
-        value += f"{questions} blocking {noun}"
+        carried.append(f"{questions} blocking {noun}")
+    if answers:
+        noun = "answer" if answers == 1 else "answers"
+        carried.append(f"{answers} {noun}")
+    if not carried:
+        carried.append("question count unreadable (see the record)")
+    value += ", ".join(carried)
     if latest_record:
         value += f"; latest record {latest_record}"
+    waiting = awaiting_side(latest_from)
+    if waiting is not None:
+        value += f"; awaiting {waiting}"
     return value
 
 
@@ -2465,6 +2529,64 @@ def build_telemetry_attempt(
     return attempt
 
 
+EXCHANGE_SIDE_WORKER = "worker"
+EXCHANGE_SIDE_PLANNER = "planner"
+
+
+def exchange_record_view(data, n: int) -> dict:
+    """Read one preserved thread record as the exchange-record view every
+    consumer shares (v0.4.18, ADR-0017 clause 3; BALE.md §8.11).
+
+    Two shapes live under `.bale/clarifications/<sid>/`: a preserved
+    clarification manifest (`response_kind: "clarification"`, the
+    apply-side round-one record) and an exchange record proper. The
+    doctrine is that the manifest READS as a `from: worker` record with
+    `round` = its NNN — no migration, no second directory — and this
+    function is where that reading lives, so `bale status`, the
+    close-time summary, and `bale relay`'s thread reads never each
+    re-derive it. Returns::
+
+        {"from": "worker" | "planner" | None,
+         "round": n,
+         "questions": list | None,   # None = absent or not a list
+         "answers": list | None,
+         "is_manifest": bool}
+
+    `from` is None only for a record that is neither shape (an unknown
+    or missing `from` on a non-manifest), which readers render as
+    unknown rather than guess. Never raises on data: a non-dict `data`
+    yields the all-None view with `round` = n.
+    """
+    view = {"from": None, "round": n, "questions": None,
+            "answers": None, "is_manifest": False}
+    if not isinstance(data, dict):
+        return view
+    qs = data.get("questions")
+    view["questions"] = qs if isinstance(qs, list) else None
+    ans = data.get("answers")
+    view["answers"] = ans if isinstance(ans, list) else None
+    if data.get("response_kind") == "clarification":
+        view["is_manifest"] = True
+        view["from"] = EXCHANGE_SIDE_WORKER
+        return view
+    side = data.get("from")
+    if side in (EXCHANGE_SIDE_WORKER, EXCHANGE_SIDE_PLANNER):
+        view["from"] = side
+    return view
+
+
+def awaiting_side(latest_from: Optional[str]) -> Optional[str]:
+    """Which side the thread waits on, from the latest record's `from`:
+    the counterpart. After a worker record the planner owes an answer;
+    after a planner record the worker owes the follow-up response (or a
+    further round). None when the latest record's side is unknown."""
+    if latest_from == EXCHANGE_SIDE_WORKER:
+        return EXCHANGE_SIDE_PLANNER
+    if latest_from == EXCHANGE_SIDE_PLANNER:
+        return EXCHANGE_SIDE_WORKER
+    return None
+
+
 def read_clarification_summary(repo: Path, sid: str) -> dict:
     """Summarize `.bale/clarifications/<sid>/` for the close-time stamp
     (v0.3.23, board 5 D1).
@@ -2494,10 +2616,23 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
       non-string or empty ``preserved_at`` is tolerated, not crashed
       on: it reads as absent and the mtime fallback covers it.
     - ``blocking_questions`` — len(questions) from the preserved
-      manifest, or null when the record won't parse. Presence still
+      record, or null when the record won't parse. Presence still
       counts as a round (the file IS the suspension fact, `bale
       status`'s posture); only the count degrades, and the miss is
       logged, never silent.
+    - ``from`` (additive, v0.4.18 — the exchange thread, BALE.md §8.11)
+      — the side that wrote the record per exchange_record_view:
+      ``"worker"`` for a preserved clarification manifest, else the
+      record's own ``from``; null when the record won't parse or names
+      neither side.
+    - ``answers`` (additive, v0.4.18) — len(answers) from the record,
+      or null when absent or unparsable. Null, not zero, is the honest
+      value for a record that carries no answers[] at all (every
+      pre-thread manifest), so aggregation can tell "asked only" from
+      "answered nothing".
+
+    ``rounds`` counts every preserved record on either side, not only
+    worker rounds — the thread length ADR-0017 makes measurable.
 
     Read-only and never raises: an unreadable directory reads as the
     honest zero it presents.
@@ -2518,12 +2653,18 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
             n = pos
         blocking: Optional[int] = None
         preserved_at: Optional[str] = None
+        side: Optional[str] = None
+        answers: Optional[int] = None
         try:
-            manifest = json.loads(path.read_text(encoding="utf-8"))
-            qs = manifest.get("questions")
-            if isinstance(qs, list):
-                blocking = len(qs)
-            pa = manifest.get("preserved_at")
+            record = json.loads(path.read_text(encoding="utf-8"))
+            view = exchange_record_view(record, n)
+            if view["questions"] is not None:
+                blocking = len(view["questions"])
+            if view["answers"] is not None:
+                answers = len(view["answers"])
+            side = view["from"]
+            pa = record.get("preserved_at") if isinstance(record, dict) \
+                else None
             if isinstance(pa, str) and pa:
                 preserved_at = pa
         except (OSError, json.JSONDecodeError):
@@ -2544,7 +2685,8 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
             except OSError:
                 at = None
         summary["records"].append(
-            {"n": n, "at": at, "blocking_questions": blocking})
+            {"n": n, "at": at, "blocking_questions": blocking,
+             "from": side, "answers": answers})
     summary["rounds"] = len(summary["records"])
     return summary
 

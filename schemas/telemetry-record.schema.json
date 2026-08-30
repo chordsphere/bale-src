@@ -238,7 +238,7 @@
               "rounds": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "Number of preserved clarification records — len(records)."
+                "description": "Number of preserved clarification records — len(records). Since v0.4.18 this is the exchange thread's length: every preserved record on either side (worker rounds and planner answers alike, BALE.md section 8.11), not only worker rounds."
               },
               "records": {
                 "type": "array",
@@ -249,7 +249,9 @@
                   "properties": {
                     "n": { "type": "integer", "description": "The round number from the record's NNN filename." },
                     "at": { "type": ["string", "null"], "description": "The record's own preserved_at stamp when present (v0.3.27 — stamped by apply at preservation time, since mtime survives normal use but not every copy/restore path), else the record file's mtime as ISO 8601 UTC (the fallback for pre-v0.3.27 records, which carry no stamp of their own — deliberately not backfilled). Null when neither is available." },
-                    "blocking_questions": { "type": ["integer", "null"], "description": "len(questions) from the preserved manifest; null when the record would not parse — presence still counts as a round (the file is the suspension fact), only the count degrades." }
+                    "blocking_questions": { "type": ["integer", "null"], "description": "len(questions) from the preserved manifest; null when the record would not parse — presence still counts as a round (the file is the suspension fact), only the count degrades." },
+                    "from": { "type": ["string", "null"], "enum": ["worker", "planner", null], "description": "Additive (v0.4.18, the exchange thread — BALE.md section 8.11, ADR-0017; record_version stays 1): the side that wrote the record. A preserved clarification manifest reads as 'worker'; an exchange record carries its own `from`. Null when the record would not parse or names neither side. Absent on pre-v0.4.18 stamps." },
+                    "answers": { "type": ["integer", "null"], "description": "Additive (v0.4.18): len(answers) from the record, or null when the record carries no answers[] (every pre-thread manifest) or would not parse — null, not zero, so aggregation tells 'asked only' from 'answered nothing'. Absent on pre-v0.4.18 stamps." }
                   }
                 }
               }

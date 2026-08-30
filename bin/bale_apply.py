@@ -697,6 +697,56 @@ def _apply_bailout(repo: Path, response_dir: Path, manifest: dict, sid: str,
     return 0
 
 
+def clarifications_dir(repo: Path, sid: str) -> Path:
+    """The session's exchange-thread directory, `.bale/clarifications/<sid>/`
+    (BALE.md §8.10.2 step 3, §8.11). One home for the path: the apply-side
+    preservation, `bale relay`, `bale status`'s gather, and the close-time
+    summary all resolve through it. Deliberately NOT under
+    `.bale/sessions/<sid>/`, which the eventual normal-PASS merge wipes —
+    the thread must outlive the session it suspended."""
+    return repo / ".bale" / "clarifications" / sid
+
+
+def next_clarification_seq(repo: Path, sid: str) -> int:
+    """The next NNN in the session's thread: count of preserved `*.json`
+    records + 1. Race-free enough for a single-user CLI (BALE.md §3.5);
+    `bale relay` refuses a record whose `round` is not this value, so a
+    stale or skipped round is caught before anything is written."""
+    clar_dir = clarifications_dir(repo, sid)
+    if not clar_dir.is_dir():
+        return 1
+    return len(list(clar_dir.glob("*.json"))) + 1
+
+
+def preserve_clarification_record(repo: Path, sid: str, record: dict) -> Path:
+    """Write `record` as the thread's next `NNN.json` under
+    `.bale/clarifications/<sid>/` and return the path.
+
+    The one write both ingest paths share (v0.4.18, BALE.md §8.11): apply's
+    clarification handler preserves the manifest through it, and `bale
+    relay` preserves an exchange record or a paste-block-borne manifest
+    through it, so the thread is identical after either. Sequence
+    numbering keeps rounds distinct (next_clarification_seq). The
+    preserved copy carries a `preserved_at` sidecar key stamped here at
+    write time (v0.3.27) — a sidecar key, not a wrapper, so the record
+    keeps its own shape for every reader of questions[] / answers[], and
+    read_clarification_summary's fallback chain (preserved_at, then
+    mtime, then null) covers stampless pre-v0.3.27 records unchanged. A
+    shallow copy keeps the caller's in-memory record pristine.
+    """
+    clar_dir = clarifications_dir(repo, sid)
+    clar_dir.mkdir(parents=True, exist_ok=True)
+    seq = next_clarification_seq(repo, sid)
+    record_path = clar_dir / f"{seq:03d}.json"
+    preserved = dict(record)
+    preserved["preserved_at"] = datetime.now(timezone.utc).isoformat(
+        timespec="seconds")
+    record_path.write_text(
+        json.dumps(preserved, indent=2) + "\n", encoding="utf-8",
+    )
+    return record_path
+
+
 def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     """Apply-time handler for `response_kind: "clarification"` per TARBALL.md
     §5.9.3 — the branch apply_pipeline takes when the manifest declares a
@@ -720,6 +770,9 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
     What this handler does:
 
       1. Preserve the manifest under `.bale/clarifications/<sid>/NNN.json`
+         via preserve_clarification_record — the write `bale relay` shares
+         (v0.4.18; BALE.md §8.11 — apply's tarball ingest is one of two
+         ingest paths for the same round-one record)
          (NOT under `.bale/sessions/<sid>/`, which the eventual normal-PASS
          merge wipes — the clarification record must outlive the session it
          suspended, since its whole longitudinal value is aggregation across
@@ -749,25 +802,11 @@ def _apply_clarification(repo: Path, manifest: dict, sid: str) -> int:
         json_mode,
         print_clarification_banner,
     )
-    # Preserve the manifest for the aggregation surface. Sequence numbering
-    # keeps repeat clarifications within one session distinct; the count of
-    # existing entries + 1 is race-free enough for a single-user CLI.
-    clar_dir = repo / ".bale" / "clarifications" / sid
-    clar_dir.mkdir(parents=True, exist_ok=True)
-    seq = len(list(clar_dir.glob("*.json"))) + 1
-    record_path = clar_dir / f"{seq:03d}.json"
-    # Sidecar key, not a wrapper (v0.3.27): the record stays a preserved
-    # manifest — every reader of questions[] keeps its shape, and
-    # read_clarification_summary's fallback chain (preserved_at, then
-    # mtime, then null) covers stampless pre-v0.3.27 records unchanged.
-    # A shallow copy keeps the in-memory manifest pristine for the
-    # banner below.
-    record = dict(manifest)
-    record["preserved_at"] = datetime.now(timezone.utc).isoformat(
-        timespec="seconds")
-    record_path.write_text(
-        json.dumps(record, indent=2) + "\n", encoding="utf-8",
-    )
+    # Preserve the manifest for the aggregation surface — the shared
+    # thread write (preserve_clarification_record), which `bale relay`
+    # also uses, so the two ingest paths for a round-one record (BALE.md
+    # §8.10.2 step 4) leave a byte-for-byte identical thread behind.
+    record_path = preserve_clarification_record(repo, sid, manifest)
     log(f"clarification manifest preserved at {record_path}")
 
     print_clarification_banner(manifest)

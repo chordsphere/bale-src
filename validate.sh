@@ -100,7 +100,7 @@ done
 # missing escalation-record or telemetry-record file passed silently.
 # The list below is the full schemas/ inventory; a session adding a
 # schema extends it in the same change.
-for s in request-manifest response-manifest diagnostics escalation-record telemetry-record bundle-manifest; do
+for s in request-manifest response-manifest diagnostics escalation-record telemetry-record bundle-manifest exchange-record; do
   schema="$INSTALL_DIR/schemas/$s.schema.json"
   if [[ -f "$schema" ]]; then
     pass "schemas/$s.schema.json present"
