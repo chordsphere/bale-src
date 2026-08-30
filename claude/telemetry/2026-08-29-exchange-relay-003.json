@@ -1,0 +1,275 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-29-exchange-relay-003",
+  "created_at": "2026-08-30T00:45:08+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-30T00:45:08+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-29-exchange-relay-003.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "claude/INDEX.md",
+        "schemas/exchange-record.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_exchange_record.py",
+        "tests/test_relay_verb.py",
+        "tests/test_thread_status.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.4.17",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "286684563d43743c3019611d693cd66ec6e9464633d31ef41fe0260ecd9fe6fb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "9473effc57d12c5f613e16b87b781bb7f0c8b20b9fc1fc4a7603a0801bddc720"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-29-exchange-relay-003.sh",
+              "sha256": "2d5bab3ddceb2ae50a2e6b690c81f755e2cc540bd4287a8ebe80c32af74c2950"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai chat surface; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "install.sh and build.sh (not shipped) list bin/*.py files explicitly; no new bin module was added, so their lists are unaffected \u2014 the 10 test_release_packaging errors in my scratch run are the missing files, not this change",
+            "claude/MASTER.md, claude/context/bale-internals.md, meta-sessions.md, and orchestration.md exist in the tree (not shipped); the crafted INDEX check was observed passing only with those four stubbed"
+          ],
+          "judgment_calls": [
+            "relay landed inline as bin/bale section 29, not a new bale_relay.py \u2014 the brief's module model disagrees with the tree (amend-checkpoint is inline as section 28) and the release lists a new module must join were out of reach",
+            "relay's stdout carries exactly the paste block; [bale] lines and the [RELAYED] summary go to stderr unconditionally (the enable_json_mode mechanism, no flag)",
+            "BALE.md \u00a72.2 swept to role-only alongside \u00a76.5 \u2014 the same sentence in the same doc",
+            "the library validator additionally refuses an answer whose question_round is not earlier than the record's round (a shape fact, thread-independent); the thread-level resolvability check lives in relay"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "install.sh",
+            "build.sh",
+            "claude/MASTER.md",
+            "claude/context/bale-internals.md",
+            "claude/context/meta-sessions.md",
+            "claude/context/orchestration.md"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "validate.sh",
+              "why": "the install validator hard-codes its schema list and its own comment requires a session adding a schema to extend it in the same change; without the line the new schema is a silent skip on every install validation \u2014 ratified at the sitting (item 2)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-29-exchange-relay-003.log"
+    },
+    {
+      "at": "2026-08-30T00:48:17+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-29-exchange-relay-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "schema well-formedness walk": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "INDEX coherence": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "exchange-record session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "schema well-formedness walk": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "INDEX coherence": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exchange-record session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/INDEX.md",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [
+        "validate.sh"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "claude/INDEX.md",
+        "schemas/exchange-record.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_exchange_record.py",
+        "tests/test_relay_verb.py",
+        "tests/test_thread_status.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.4.17",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "286684563d43743c3019611d693cd66ec6e9464633d31ef41fe0260ecd9fe6fb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "9473effc57d12c5f613e16b87b781bb7f0c8b20b9fc1fc4a7603a0801bddc720"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-29-exchange-relay-003.sh",
+              "sha256": "2d5bab3ddceb2ae50a2e6b690c81f755e2cc540bd4287a8ebe80c32af74c2950"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai chat surface; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "install.sh and build.sh (not shipped) list bin/*.py files explicitly; no new bin module was added, so their lists are unaffected \u2014 the 10 test_release_packaging errors in my scratch run are the missing files, not this change",
+            "claude/MASTER.md, claude/context/bale-internals.md, meta-sessions.md, and orchestration.md exist in the tree (not shipped); the crafted INDEX check was observed passing only with those four stubbed"
+          ],
+          "judgment_calls": [
+            "relay landed inline as bin/bale section 29, not a new bale_relay.py \u2014 the brief's module model disagrees with the tree (amend-checkpoint is inline as section 28) and the release lists a new module must join were out of reach",
+            "relay's stdout carries exactly the paste block; [bale] lines and the [RELAYED] summary go to stderr unconditionally (the enable_json_mode mechanism, no flag)",
+            "BALE.md \u00a72.2 swept to role-only alongside \u00a76.5 \u2014 the same sentence in the same doc",
+            "the library validator additionally refuses an answer whose question_round is not earlier than the record's round (a shape fact, thread-independent); the thread-level resolvability check lives in relay"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "install.sh",
+            "build.sh",
+            "claude/MASTER.md",
+            "claude/context/bale-internals.md",
+            "claude/context/meta-sessions.md",
+            "claude/context/orchestration.md"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "validate.sh",
+              "why": "the install validator hard-codes its schema list and its own comment requires a session adding a schema to extend it in the same change; without the line the new schema is a silent skip on every install validation \u2014 ratified at the sitting (item 2)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-29-exchange-relay-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-29-exchange-relay-003.sh",
+          "sha256": "2d5bab3ddceb2ae50a2e6b690c81f755e2cc540bd4287a8ebe80c32af74c2950"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-30T00:48:17+00:00",
+  "outcome": "applied"
+}
