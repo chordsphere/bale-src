@@ -147,9 +147,9 @@ moves bytes safely.
   going on and paste output of `git log` or similar. Bale does not
   duplicate git's read commands; `bale status` reports bale's own
   state (sessions, outbox, staging, config), not git's history.
-- Probe handling. Probes are session-scoped only — Claude returns a
-  script in chat, the user runs it, the user pastes output back into
-  the next message. Bale does not see probes.
+- Probe handling. Probes are session-scoped only — the worker returns
+  a script in chat, the courier runs it and pastes the output back
+  into the next message. Bale does not see probes.
 - Out-of-scope enforcement, in the prose sense. The request's
   `out_of_scope` field is prose, not glob patterns; bale does not
   mechanically check paths against it. Drift against that prose
@@ -475,7 +475,7 @@ forward-looking entry.
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
 | `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. Since v0.3.33 it also runs the checkpoint blindness gate pack runs (§7.1 step 4b, §11 row 30) against its reading-plan scope — pre-sid, one gate implementation shared with pack — refusing a handoff whose scope covers the configured blind checkpoint; `--allow-checkpoint-in-scope` (per-invocation, flag-only, mirroring pack's spelling) admits it, FORCE-logged, with `checkpoint_scope_admitted: true` stamped into the new request's provenance through the shared builder. | v0.0.6 |
-| `bale relay <sid> <file\|->` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> <file\|->`. Contract in §8.11; schema `schemas/exchange-record.schema.json`. Lands with the exchange-doctrine code sibling. | pending |
+| `bale relay <sid> <file\|->` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> <file\|->`. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
 | `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, checkpoint-HOLD, drift-refusal, bailout, and clarification rates, the required-check refusal/override counts, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
@@ -840,6 +840,51 @@ operator pastes rather than reassembles. The recorded
 `stamp_matched: false` at that retry remains the truthful double
 record, alongside the amendment's own commit.
 
+### 5.8 `bale relay`
+
+The exchange thread's recording verb (ADR-0017, v0.4.18): one
+exchange in, one record preserved, one paste block out. The contract
+— what a record is, how the thread is numbered, what the block looks
+like, and what relay refuses — is §8.11; this section is the usage.
+
+```
+bale relay <sid> <file|->
+```
+
+`<sid>` is the suspended session (open in the registry, no
+`bale/<sid>` branch). `<file>` is the exchange — an exchange record,
+a saved clarification manifest, or the `BALE EXCHANGE` paste block
+wrapping either — resolved like apply's tarball argument (cwd, then
+`apply.search_paths`; an absolute path bypasses), or `-` for stdin.
+There are no other options; direction comes from the record's
+`from`.
+
+**Stream discipline.** stdout carries exactly the counterpart-facing
+paste block, so `bale relay <sid> answer.json > block.txt` captures
+it clean; every `[bale] ` line and the `[RELAYED]` summary go to
+stderr — the same split `--json` gives pack and apply, made
+unconditional here because the block is the verb's whole output.
+The summary ends with the next-step line: after a worker record,
+*answer as an exchange record (round N+1, `answers[]` keyed
+`question_round` N) and relay it*; after a planner record, *carry the
+block to the worker, then `bale apply` the follow-up response*.
+
+**The two typical invocations.**
+
+```
+# The planner answers round 1 (a preserved clarification manifest):
+bale relay 2026-08-29-foo-001 answer.json > worker-block.txt
+
+# The courier records the worker's round-one manifest from a paste
+# instead of a tarball (the second ingest path, §8.10.2 step 4):
+bale relay 2026-08-29-foo-001 - < pasted-block.txt > planner-block.txt
+```
+
+A refusal (§11 row 34) preserves nothing, names the failing rule,
+exits 1, and leaves the session exactly as it was; relay has no
+`--force` and no override flag — a record that does not fit the
+thread is corrected at its source and relayed again.
+
 ---
 
 ## 6. Wire format
@@ -932,9 +977,9 @@ user add project-specific permanent exclusions on top of the above.
 ### 6.5 No probe handling in the file format
 
 Probes are not part of bale's wire format. They are a session-level
-concept: Claude returns a script in chat, the user runs it, the user
-pastes output back. Bale does not have a `probe-apply` or
-`probe-output/` directory anywhere.
+concept: the worker returns a script in chat, the courier runs it in
+the environment and pastes the output back. Bale does not have a
+`probe-apply` or `probe-output/` directory anywhere.
 
 ### 6.6 Escalation record (schema only, v0.4.7)
 
@@ -3033,6 +3078,36 @@ and the worker-facing block after a planner record; the
 worker-side emission of the round-one block belongs to the crafter
 (the other code sibling) and is not specified here.
 
+As landed (v0.4.18, `format_exchange_block` / `parse_exchange_input`
+in `bin/bale` section 29), the block is exactly:
+
+```
+BALE EXCHANGE BEGIN <sid>
+# bale exchange record — session <sid> — round N — from <side> to <side>
+# <what the record carries, and what the reader does next>
+# Body: the record (exchange-record.schema.json). Trailer: sha256 …
+{ …the record's JSON, two-space indented, ASCII-escaped… }
+# sha256 <64 hex>
+BALE EXCHANGE END
+```
+
+The header is every leading `#` line after the BEGIN sentinel; the
+trailer is the last line inside the sentinels; the body is
+everything between, and the trailer's sha256 is computed over
+exactly those bytes (LF line endings, one trailing newline). Ingest
+CRLF-normalizes first (the board-50 ingest-edge rule), reads only
+the sentinel-bracketed span — a chat's fence lines or surrounding
+prose are ignored by construction — refuses a BEGIN sentinel naming
+another sid before parsing the body, and accepts bare JSON (a record
+or a saved manifest) when no sentinel is present. A block-borne
+clarification manifest is preserved as the manifest itself (so the
+thread is byte-identical to apply's tarball ingest) while the block
+relay then emits carries the manifest's exchange-record reading —
+`record_version` 1, `from: worker`, `round` = its NNN, `created_at`
+= the preserved stamp, `questions[]` verbatim — which validates
+under `validate_exchange_record` like any other record, so a planner
+answering keys `question_round` off the body it was handed.
+
 When relay runs against `<sid>` with `<file>` (or `-` for stdin),
 it:
 
@@ -3045,7 +3120,23 @@ it:
    closed-vocabulary posture as `validate_clarification_questions`
    (§6.6), and refuses a record whose `session_id` is not `<sid>`
    or whose `round` is not the thread's next `NNN`. Direction is
-   read from the record's `from`, never from a flag.
+   read from the record's `from`, never from a flag. Two further
+   refusals landed with the sibling, ratified at its authoring
+   sitting: **round one is worker-only** — the planner initiates
+   through the request, a bundle, or a HOLD card, never through the
+   thread, so a `from: planner` record against an empty thread
+   refuses; and **every answer resolves** — each `answers[]` row's
+   `(question_round, question_index)` must name a question in an
+   already-preserved record of that round (a preserved manifest is
+   round `NNN`, which is what makes round one resolvable), refused
+   naming the unresolved pair. The latter is a shape check against
+   the thread, not a sequencing rule: there is no `from`-alternation
+   rule, and a worker may post twice. A clarification manifest
+   ingested here is gated as apply gates it — `session_id` equals
+   `<sid>`, `questions[]` non-empty and row-valid — and takes the
+   next `NNN` as its round. Relay also refuses to run at all against
+   a sid that is not open, or one with a `bale/<sid>` branch (a held
+   normal response makes the round history, §5.5's precedence).
 3. Preserves the record as the next `NNN` under
    `.bale/clarifications/<sid>/`, with the `preserved_at` sidecar
    key §8.10.2 step 3 stamps.
@@ -3055,17 +3146,32 @@ it:
 5. Emits the counterpart-facing paste block to stdout (the same
    stream discipline as pack and apply: `[bale] ` lines to stderr)
    and ends with the next-step hint — carry the block to the
-   worker, or answer it as the planner.
+   worker, or answer it as the planner. Usage and the stream split
+   in full: §5.8.
 
 Consequences the sibling implements: `bale status`'s
 clarification-suspended row (§5.5) grows to show which side the
-thread waits on, read from the latest record's `from`; the
-close-time `clarification` summary stamped by every closing event
-(§8.10.2) gains the thread length — its `rounds` counts every
-preserved record on either side, not only worker rounds; a relay
-writes no telemetry record of its own, for the same reason a
-clarification apply writes none. The option surface is exactly
-`<sid> <file|->`; anything beyond it is the sibling's to add.
+thread waits on, read from the latest record's `from` — the row
+value reads `round N — from <side>: K blocking question(s) / M
+answer(s); latest record …; awaiting <side>`, the state description
+and next-step hint name the waiting side (relay the answer after a
+worker record; carry the block and then apply after a planner
+record), and the json report's `session.clarification` object gains
+`from`, `answers`, and `awaiting` additively (the
+`format_status_json` docstring owns the keys); the close-time
+`clarification` summary stamped by every closing event (§8.10.2)
+gains the thread length — its `rounds` counts every preserved record
+on either side, not only worker rounds — and each `records[]` entry
+gains `from` and `answers` additively (`record_version` stays 1;
+`telemetry-record.schema.json`); a relay writes no telemetry record
+of its own, for the same reason a clarification apply writes none.
+One reading serves every consumer: `exchange_record_view` in
+`bin/bale_report.py` is where a preserved manifest becomes a `from:
+worker` record, and `bale status`, the close-time summary, and
+relay's thread read all go through it. The preservation write is
+likewise one implementation — `preserve_clarification_record` in
+`bin/bale_apply.py`, which apply's clarification handler and relay
+both call. The option surface is exactly `<sid> <file|->`.
 
 ---
 
@@ -3496,7 +3602,7 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3; re-keyed to explicit naming at v0.4.9): when `[validation] base` pins a blind checkpoint, pack refuses an include entry that names it explicitly — an entry equal to the checkpoint path, equal to its static prefix (the `{sid}` pattern's static directory prefix), or strictly under that prefix — an explicit ask to ship the oracle's bytes in `context/` to the worker the oracle grades. Incidental coverage by a default or broad include does not refuse: the walk auto-excludes the checkpoint from shipped context with a loud per-file drop line (§7.1 step 4b, §7.5 step 5), which is what restores the bare default pack in a checkpoint-configured project; the one containment holdover is a `{sid}` base with no static directory prefix, where no auto-exclusion basis is computable and coverage still refuses. Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired (the read-half admission keyed on containment, since the flag disables auto-exclusion and any covering include set then ships the bytes), because the delegation decision is one decision (§7.1 step 4b). Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
 | 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
 | 33 | Planner-bundle blindness (v0.4.12, board 49a-i; format home §6.7): pack refuses any `--include` or `--write` entry that explicitly names a planner bundle — a file with the reserved `.bale-bundle` suffix — and the walk unconditionally auto-excludes every bundle file that incidental coverage would otherwise ship, with a loud drop line (per-file for one, one count summary for several, the v0.4.10 grain). Bundles carry the planner's blind checkpoint, so this is the checkpoint exclusion's species keyed structurally on the suffix, with **no admission flag on either half** — no session legitimately ships or lands a real bundle; synthetic fixtures for bundle-handling work are named outside the suffix (§7.1 step 4c, §7.5 step 5); appended after row 32 per the appended-row precedent, so rows 1–32 stay stable | pack pre-flight |
-| 34 | Exchange-record shape gate (the exchange-doctrine code sibling; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body, a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty), a `session_id` other than the named sid, or a `round` that is not the thread's next `NNN`. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects; appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
+| 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects; appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

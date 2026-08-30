@@ -20,7 +20,7 @@ will stay that way for a while.
 
 ## Tool design
 
-- `BALE.md` (repo root) — the bale tool's canonical design document.
+- `../BALE.md` (repo root) — the bale tool's canonical design document.
   Covers purpose, scope, command surface, wire format, pack and apply
   pipelines, rollback/revert/unlock semantics, the bale-enforced
   contract (§11), self-applicability, build phases, and open decisions.
@@ -105,8 +105,8 @@ deleted.
 - `context/adr/0010-paste-back-probes.md` — probes default to a strictly
   read-only paste-back block (sentinels, bounded output, integrity trailer)
   and the engagement doctrine flips to default-to-ask: the worker treats the
-  architect's environment as its own, and working around missing context is
-  a policy violation. File-based probe-output/ survives as the fallback.
+  environment the courier runs its probes in as its own, and working around
+  missing context is a policy violation. File-based probe-output/ survives as the fallback.
   Status: Accepted (landed in the global docs and the pack help text — the
   TARBALL.md §4 rewrite with its cross-references aligned, CLAUDE.md's
   probe-posture lines, the previous_probe schema description, and the
@@ -182,8 +182,9 @@ deleted.
   no-subcommand line, ADR-0011's Notes, and ADR-0012's future-tense
   rule without editing them. Status: Accepted (ratified 2026-08-29 at
   the formalize-convo sitting; doctrine landed in the global docs and
-  BALE.md §8.11; the schema and `bale relay` land with the code
-  siblings). Pull when touching the clarification thread, `bale
+  BALE.md §8.11; the schema and `bale relay` landed in v0.4.18, the
+  worker-side paste-block emission lands with the crafter sibling).
+  Pull when touching the clarification thread, `bale
   relay`, the exchange or escalation records, or role language in
   the global docs.
 
@@ -195,6 +196,37 @@ ratified 2026-08-29 at the formalize-convo sitting, Accepted at
 creation.
 Each ADR file's own Status and Notes lines carry its ratification
 and flip record; the flip-by-flip narrative lives in git.
+
+## Schemas
+
+The wire-format shape files under `schemas/` (repo root), each the one
+home for its record's shape; `bin/bale_validate.py` loads them and
+layers the cross-field rules a per-instance schema cannot express.
+Pull the one a session's record touches, never the set.
+
+- `../schemas/request-manifest.schema.json` — the request tarball's
+  `manifest.json` (TARBALL.md §3.2). Pull when packing changes shape.
+- `../schemas/response-manifest.schema.json` — the response tarball's
+  `manifest.json` for every response kind, including the clarification
+  question row every other consumer references (TARBALL.md §5.2, §5.9.2).
+  Pull when a response field or the question row changes.
+- `../schemas/diagnostics.schema.json` — the bailout's `diagnostics.json`
+  (TARBALL.md §5.8). Pull when bail triggers or exploration data change.
+- `../schemas/telemetry-record.schema.json` — the per-session record
+  under `claude/telemetry/` bale writes at close (BALE.md §8.9); loose,
+  additive, `record_version` the evolution hook. Pull when a close event
+  gains a field or `bale stats` gains a rate.
+- `../schemas/escalation-record.schema.json` — the master→architect
+  escalation question (BALE.md §6.6; schema-first, no bale producer).
+  Pull when touching escalation or `amendment_target`'s meaning.
+- `../schemas/bundle-manifest.schema.json` — the planner bundle's
+  `bundle.json` (BALE.md §6.7; `bale open`). Pull when the bundle format
+  or its consumer changes.
+- `../schemas/exchange-record.schema.json` — one record of the
+  worker↔planner exchange thread, both directions (BALE.md §8.11,
+  ADR-0017; `bale relay`, v0.4.18); the question row by reference to the
+  response manifest's. Pull when touching the thread, the paste block,
+  or an answer's shape.
 
 ## Explainers
 
@@ -234,7 +266,10 @@ cross-reference into an injected global doc, not an inventory entry —
 the global docs are not listed here (see above).
 
 The current inventory is BALE.md, MASTER.md (the master-session
-state doc), two explainers plus one tombstone (orchestration.md,
+state doc), the seven schemas under `schemas/` (repo root — bale-src
+keeps its wire-format contracts beside `bin/`, not under
+`claude/context/schemas/`, because the installed tool loads them at
+runtime), two explainers plus one tombstone (orchestration.md,
 relocated into the global PLANNER.md), and seventeen ADRs (0001–0005 the
 test-doctrine set, 0006–0009 the concurrency-architecture set, 0010
 the probe-doctrine flip, 0011 the clarification response kind, 0012

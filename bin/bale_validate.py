@@ -67,6 +67,7 @@ DIAGNOSTICS_SCHEMA = "diagnostics.schema.json"
 TELEMETRY_RECORD_SCHEMA = "telemetry-record.schema.json"
 ESCALATION_RECORD_SCHEMA = "escalation-record.schema.json"
 BUNDLE_MANIFEST_SCHEMA = "bundle-manifest.schema.json"
+EXCHANGE_RECORD_SCHEMA = "exchange-record.schema.json"
 
 
 # --- JSON Schema validation (BALE.md §11 rows 6) ----------------------------
@@ -320,6 +321,17 @@ CLAIM_VALUES = ("pass", "fail", "untested", "unknown")
 # manifest's questions rows); a third spelling anywhere is drift.
 ESCALATION_PRIORITIES = ("blocking", "batched")
 
+# The exchange record's two closed vocabularies and its version pin
+# (v0.4.18, ADR-0017; exchange-record.schema.json is the one home for the
+# shape). `from` names the side that wrote the record — role language
+# only, never the species at either end. `disposition` says how an
+# answer relates to its question's candidates. Mirrored into the
+# schema's enum spots; the parity test (tests/test_exchange_record.py)
+# pins the mirror, so a third spelling anywhere is drift caught by name.
+EXCHANGE_RECORD_VERSION = 1
+EXCHANGE_SIDES = ("worker", "planner")
+ANSWER_DISPOSITIONS = ("as-recommended", "option", "free-text")
+
 
 def _load_schema_lib(name: str) -> dict:
     """Load and cache a schema WITHOUT the __main__.fail dependency.
@@ -384,6 +396,26 @@ def _priority_check(v) -> str | None:
                 f"the escalation priority vocabulary "
                 f"(orchestration.md section 8's two classes) is closed, "
                 f"wherever the key appears")
+    return None
+
+
+def _exchange_side_check(v) -> str | None:
+    """Closed-vocabulary checker for an exchange record's `from` key
+    (v0.4.18, ADR-0017)."""
+    if v not in EXCHANGE_SIDES:
+        return (f"{v!r} is not one of {list(EXCHANGE_SIDES)} — the exchange "
+                f"side vocabulary is closed (role language only, ADR-0017 "
+                f"clause 1), wherever the key appears")
+    return None
+
+
+def _disposition_check(v) -> str | None:
+    """Closed-vocabulary checker for an answer's `disposition` key
+    (v0.4.18, ADR-0017)."""
+    if v not in ANSWER_DISPOSITIONS:
+        return (f"{v!r} is not one of {list(ANSWER_DISPOSITIONS)} — the "
+                f"answer disposition vocabulary is closed, wherever the "
+                f"key appears")
     return None
 
 
@@ -688,6 +720,127 @@ def validate_clarification_questions(rows: list) -> list:
     _validate_against_schema(rows, questions_schema, "questions", errors)
     _walk_closed_vocabularies(rows, "questions",
                               {"priority": _priority_check}, errors)
+    return errors
+
+
+def _created_at_problem(value) -> str | None:
+    """Return why `value` is not an ISO 8601 UTC timestamp, or None.
+
+    The schema pins `created_at` as a non-empty string; the format is
+    this check's, because bale's validator subset has no `format`
+    keyword. Accepted: anything datetime.fromisoformat parses that
+    carries a zero UTC offset — `...+00:00` or the `Z` suffix (mapped to
+    +00:00 before parsing, since 3.10's fromisoformat does not accept
+    it). A naive timestamp or a non-UTC offset is refused: the thread's
+    records are compared across sessions and machines, and an ambiguous
+    wall-clock time is exactly the value that would sort wrong later.
+    """
+    from datetime import datetime, timezone
+    if not isinstance(value, str):
+        return None  # the schema pass already reported the type
+    text = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return (f"{value!r} is not an ISO 8601 timestamp (expected e.g. "
+                f"2026-08-29T14:03:00+00:00)")
+    if parsed.tzinfo is None:
+        return (f"{value!r} carries no UTC offset — created_at is ISO 8601 "
+                f"UTC (append +00:00 or Z)")
+    if parsed.utcoffset() != timezone.utc.utcoffset(None):
+        return (f"{value!r} is not in UTC — created_at carries a zero "
+                f"offset (+00:00 or Z), never a local one")
+    return None
+
+
+def validate_exchange_record(record: dict) -> list:
+    """Validate one exchange record; [] = valid, else human-readable errors.
+
+    The per-record entry point over exchange-record.schema.json (v0.4.18,
+    ADR-0017; contract BALE.md §8.11), importable as a library from
+    bin/bale_validate.py, no bale process required — the
+    validate_bundle_manifest posture exactly:
+
+        errors = validate_exchange_record(json.loads(path.read_text()))
+        if errors: ...
+
+    `bale relay` calls it before preserving anything (BALE.md §11 row
+    34); the crafter's worker-side emission and any checkpoint can call
+    it the same way. Four layers:
+
+    1. **Shape** — the schema pass. Loose at the envelope
+       (additionalProperties: true, so the preserved copy's
+       `preserved_at` sidecar and future additive fields validate);
+       what it pins, it pins: the five-field required core
+       (record_version exactly 1, session_id, round >= 1, from,
+       created_at), the closed answer-row field set, and the enums at
+       their named spots.
+    2. **The question rows, by reference** — questions[] delegates to
+       validate_clarification_questions, so the row shape has one home
+       (response-manifest.schema.json's questions.items) and a row that
+       validates inside a clarification manifest validates here and
+       vice versa. The schema file carries a $ref to the same spot for
+       human readers and external tooling; bale's validator subset
+       ignores $ref, which is why the delegation is explicit.
+    3. **The closed-vocabulary invariant** — the record-wide walk
+       (_walk_closed_vocabularies): a `from` key at ANY depth must be
+       exactly worker | planner, and a `disposition` key at any depth
+       exactly as-recommended | option | free-text, so an invented
+       value rejects wherever a consumer put it. (priority inside the
+       question rows is layer 2's walk.)
+    4. **The rules the schema subset cannot express** — at least one of
+       questions[] / answers[] is non-empty (a record may carry both);
+       created_at is ISO 8601 with a UTC offset; and every answer's
+       question_round is an EARLIER round than the record's own, since
+       a record cannot answer a question of its own or a later round
+       (the thread-level resolvability of the pair is relay's check,
+       against the preserved records — it needs the thread, which a
+       library validator does not have).
+
+    A non-dict argument is reported as an error, not raised. A missing
+    or corrupt schema file raises RuntimeError: an install problem, not
+    a record problem (_load_schema_lib).
+    """
+    if not isinstance(record, dict):
+        return [f"exchange record is not a JSON object "
+                f"(got {_describe_json_value(record)})"]
+    schema = _load_schema_lib(EXCHANGE_RECORD_SCHEMA)
+    errors = validate_against_schema(record, schema)
+
+    questions = record.get("questions")
+    if isinstance(questions, list):
+        errors.extend(validate_clarification_questions(questions))
+    answers = record.get("answers")
+
+    _walk_closed_vocabularies(
+        record, "",
+        {"from": _exchange_side_check, "disposition": _disposition_check},
+        errors)
+
+    has_questions = isinstance(questions, list) and len(questions) > 0
+    has_answers = isinstance(answers, list) and len(answers) > 0
+    if not has_questions and not has_answers:
+        errors.append(
+            "<root>: at least one of questions[] / answers[] must be "
+            "non-empty — an exchange record with nothing asked and "
+            "nothing answered is not a round")
+
+    problem = _created_at_problem(record.get("created_at"))
+    if problem is not None:
+        errors.append(f"created_at: {problem}")
+
+    rnd = record.get("round")
+    if isinstance(answers, list) and isinstance(rnd, int) \
+            and not isinstance(rnd, bool):
+        for i, row in enumerate(answers):
+            if not isinstance(row, dict):
+                continue  # the schema pass already reported the type
+            qr = row.get("question_round")
+            if isinstance(qr, int) and not isinstance(qr, bool) and qr >= rnd:
+                errors.append(
+                    f"answers[{i}].question_round: {qr} is not an earlier "
+                    f"round than this record's round {rnd} — an answer "
+                    f"keys a question already in the thread")
     return errors
 
 
