@@ -1,0 +1,247 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-guard-deny-shapes-022",
+  "created_at": "2026-08-31T21:19:57+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T21:19:57+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-31-guard-deny-shapes-022.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-08-31T21:52:56+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-022 (1).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "schemas/telemetry-record.schema.json",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "2026-08-31-guard-deny-shapes-022"
+          },
+          "provenance": {
+            "bale_version": "0.4.22",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-guard-deny-shapes-022.sh",
+              "sha256": "f8b82541ca44516c49c0df41786f77a4be49154817a5db9f7763e5f7d8269bef"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Read 'board followed by digits' as the row-tolerant anchor \\bboard(?: row)? \\d rather than the literal narrow form \u2014 flagged as judgment call 1 in notes.md for ratification."
+          ],
+          "judgment_calls": [
+            "Reworded the hyphenated board-63 residue although no ratified pattern matches it (purge notes item 3 precedent; judgment call 2 in notes.md).",
+            "Claimed both non-tautological checks with claim_basis observed after running them against a replica tree assembled from the request's own bytes, including a negative run proving the guard fails on the pre-clean drift state."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-guard-deny-shapes-022.log"
+    },
+    {
+      "at": "2026-08-31T21:53:56+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-022 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "self-containment guard suite (staging)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "telemetry-record structure identity (descriptions-only edit)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "self-containment guard suite (staging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry-record structure identity (descriptions-only edit)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "overridden_paths": [
+        "schemas/telemetry-record.schema.json"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "schemas/telemetry-record.schema.json",
+        "tests/test_global_doc_selfcontainment.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "2026-08-31-guard-deny-shapes-022"
+          },
+          "provenance": {
+            "bale_version": "0.4.22",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-guard-deny-shapes-022.sh",
+              "sha256": "f8b82541ca44516c49c0df41786f77a4be49154817a5db9f7763e5f7d8269bef"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Read 'board followed by digits' as the row-tolerant anchor \\bboard(?: row)? \\d rather than the literal narrow form \u2014 flagged as judgment call 1 in notes.md for ratification."
+          ],
+          "judgment_calls": [
+            "Reworded the hyphenated board-63 residue although no ratified pattern matches it (purge notes item 3 precedent; judgment call 2 in notes.md).",
+            "Claimed both non-tautological checks with claim_basis observed after running them against a replica tree assembled from the request's own bytes, including a negative run proving the guard fails on the pre-clean drift state."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-guard-deny-shapes-022.log",
+      "clarification": {
+        "rounds": 2,
+        "records": [
+          {
+            "n": 1,
+            "at": "2026-08-31T21:40:40+00:00",
+            "blocking_questions": 3,
+            "from": "worker",
+            "answers": null
+          },
+          {
+            "n": 2,
+            "at": "2026-08-31T21:44:29+00:00",
+            "blocking_questions": null,
+            "from": "planner",
+            "answers": 3
+          }
+        ]
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-guard-deny-shapes-022.sh",
+          "sha256": "f8b82541ca44516c49c0df41786f77a4be49154817a5db9f7763e5f7d8269bef"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T21:53:56+00:00",
+  "outcome": "applied"
+}
