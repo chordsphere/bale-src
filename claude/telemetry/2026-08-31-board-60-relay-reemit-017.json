@@ -1,0 +1,340 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-60-relay-reemit-017",
+  "created_at": "2026-08-31T20:57:41+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T20:57:41+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-017.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-60-relay-reemit-017.sh",
+              "sha256": "dc1e5a07e407a521d86a5c7b31182341d1b698f79b9df22bdda954c21be4c296"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "preserve_clarification_record preserves key order \u2014 re-emit byte-identity for exchange-record rounds depends on it; pinned by test_reemit_record_round_is_byte_identical (notes.md, first thing to check)",
+            "bin/VERSION currently reads 0.4.21 (per request provenance); shipped as 0.4.22",
+            "format_summary_block accepts an arbitrary status label ([RE-EMITTED]); asserted by the new tests"
+          ],
+          "judgment_calls": [
+            "contract sentence placed in BALE.md 5.8 (usage) as 'the relay verb's documentation'; 8.11 carries a contract-voice paragraph instead of a second copy",
+            "session gates (open, unbranched) retained on the no-file form",
+            "no new 11 row for the no-rounds refusal \u2014 row 34 extended instead",
+            "rider 2 shipped as six word-level substitutions rather than deferred; judged inside the rider's 'small'"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_apply.py (preserve_clarification_record's write shape \u2014 the byte-identity assumption above)",
+            "bin/bale_report.py (format_summary_block / awaiting_side surfaces)",
+            "bin/VERSION (bumped blind on provenance)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-60-relay-reemit-017.log"
+    },
+    {
+      "at": "2026-08-31T20:58:02+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-017.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "relay verb tests (python3 -m unittest tests.test_relay_verb)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "session-specific assertions (verbatim sentences, option surface, riders, version)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "overridden_paths": [
+        "bin/VERSION"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-60-relay-reemit-017.sh",
+              "sha256": "dc1e5a07e407a521d86a5c7b31182341d1b698f79b9df22bdda954c21be4c296"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "preserve_clarification_record preserves key order \u2014 re-emit byte-identity for exchange-record rounds depends on it; pinned by test_reemit_record_round_is_byte_identical (notes.md, first thing to check)",
+            "bin/VERSION currently reads 0.4.21 (per request provenance); shipped as 0.4.22",
+            "format_summary_block accepts an arbitrary status label ([RE-EMITTED]); asserted by the new tests"
+          ],
+          "judgment_calls": [
+            "contract sentence placed in BALE.md 5.8 (usage) as 'the relay verb's documentation'; 8.11 carries a contract-voice paragraph instead of a second copy",
+            "session gates (open, unbranched) retained on the no-file form",
+            "no new 11 row for the no-rounds refusal \u2014 row 34 extended instead",
+            "rider 2 shipped as six word-level substitutions rather than deferred; judged inside the rider's 'small'"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_apply.py (preserve_clarification_record's write shape \u2014 the byte-identity assumption above)",
+            "bin/bale_report.py (format_summary_block / awaiting_side surfaces)",
+            "bin/VERSION (bumped blind on provenance)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-60-relay-reemit-017.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-60-relay-reemit-017.sh",
+          "sha256": "dc1e5a07e407a521d86a5c7b31182341d1b698f79b9df22bdda954c21be4c296"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-31T21:00:37+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-017-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session-specific assertions (verbatim sentences, option surface, riders, version)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "relay verb tests (python3 -m unittest discover -s tests -p 'test_relay_verb.py')": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session-specific assertions (verbatim sentences, option surface, riders, version)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "relay verb tests (python3 -m unittest discover -s tests -p 'test_relay_verb.py')": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "overridden_paths": [
+        "bin/VERSION"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "tests/test_relay_verb.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-60-relay-reemit-017.sh",
+              "sha256": "dc1e5a07e407a521d86a5c7b31182341d1b698f79b9df22bdda954c21be4c296"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "preserve_clarification_record preserves key order \u2014 re-emit byte-identity for exchange-record rounds depends on it; pinned by test_reemit_record_round_is_byte_identical (notes.md, first thing to check)",
+            "bin/VERSION currently reads 0.4.21 (per request provenance); shipped as 0.4.22",
+            "format_summary_block accepts an arbitrary status label ([RE-EMITTED]); asserted by the new tests"
+          ],
+          "judgment_calls": [
+            "contract sentence placed in BALE.md 5.8 (usage) as 'the relay verb's documentation'; 8.11 carries a contract-voice paragraph instead of a second copy",
+            "session gates (open, unbranched) retained on the no-file form",
+            "no new 11 row for the no-rounds refusal \u2014 row 34 extended instead",
+            "rider 2 shipped as six word-level substitutions rather than deferred; judged inside the rider's 'small'",
+            "retry: validation.sh corrected (unbound $label under set -u; unittest discover form) \u2014 change set untouched, corrects set"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_apply.py (preserve_clarification_record's write shape \u2014 the byte-identity assumption above)",
+            "bin/bale_report.py (format_summary_block / awaiting_side surfaces)",
+            "bin/VERSION (bumped blind on provenance)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-60-relay-reemit-017.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-60-relay-reemit-017.sh",
+          "sha256": "dc1e5a07e407a521d86a5c7b31182341d1b698f79b9df22bdda954c21be4c296"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T21:00:37+00:00",
+  "outcome": "applied"
+}
