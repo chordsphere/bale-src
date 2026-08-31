@@ -1,0 +1,121 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-sitting-close-deltas-013",
+  "created_at": "2026-08-31T20:15:55+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T20:15:55+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-013 (3).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "kernel byte-exact self-checks (claude/MASTER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "landing assertions (header, board brackets, watch closure, registry)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "kernel byte-exact self-checks (claude/MASTER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "landing assertions (header, board brackets, watch closure, registry)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-sitting-close-deltas-013.sh",
+              "sha256": "58ce0c16c11364093d2ee85218ef530e2f529e099e45ebe361982bdfdc4b7cf3"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The shipped context copy of claude/MASTER.md matches the current tree; this whole-file mirror was built from it (check the moved-base note in notes.md before accepting).",
+            "The 011 rider record reads most naturally on row 64 (its stale premise and the lane reconciliation both center there); row 65 carries the cross-reference. The brief left the row choice to the worker."
+          ],
+          "judgment_calls": [
+            "The new BALE.md group-mention registry entry is appended at the registry's end (accretion order) rather than beside the other BALE.md rider.",
+            "The closed forecast-precision watch entry stays in place with a CLOSED closure sentence rather than being deleted \u2014 the board-hygiene conditional's keep-substance posture; condensing is a future sweep's call.",
+            "The section-5 entry's connective prose says 'the last two the packaging trio itself' \u2014 accruals 3 (board 53's pack) and 4 (009's pack) are both the validate.sh/scripts/build.sh/install.sh trio.",
+            "Carried Proposals texts are word-verbatim but rewrapped to the registry's wrap width, matching every existing verbatim carry in the registry; only the two pinned kernels are byte-exact-one-line per the constraint."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-sitting-close-deltas-013.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-sitting-close-deltas-013.sh",
+          "sha256": "58ce0c16c11364093d2ee85218ef530e2f529e099e45ebe361982bdfdc4b7cf3"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T20:15:55+00:00",
+  "outcome": "applied"
+}
