@@ -83,8 +83,8 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   skips. The key's future config-side carrier (bin/bale_config.py)
   must land the same spelling: `[probe] clipboard_command`;
 
-- (bundle, board 49b; format home is the bale project's design doc,
-  §6.7 there) `--bundle STEM` assembles a planner bundle — the
+- (bundle; the format's one home is the bale tool's own
+  documentation) `--bundle STEM` assembles a planner bundle — the
   desk-side emission half, so the authoring desk never hand-composes
   argv or hash blocks. It writes `<STEM>{BUNDLE_SUFFIX}` (a gzipped
   tar, members flat at the archive root: `bundle.json` plus exactly
@@ -245,7 +245,7 @@ EXIT_ERROR = 2
 
 KINDS = ("normal", "bailout", "clarification")
 
-# --- Planner-bundle constants (board 49b, the emission half) ---
+# --- Planner-bundle constants (the emission half) ---
 #
 # Re-declared from bin/bale_pack.py (BUNDLE_SUFFIX, INTENT_PROMPTS)
 # because this tool imports nothing from bale — it must run standalone
@@ -613,7 +613,7 @@ def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Planner-bundle emission (--bundle; board 49b)
+# Planner-bundle emission (--bundle)
 # ---------------------------------------------------------------------------
 
 def normalize_member(data: bytes) -> bytes:
@@ -1907,7 +1907,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "response-directory modes and flags")
     ap.add_argument("--bundle", default=None, metavar="STEM",
                     help="assemble the planner bundle STEM + the reserved "
-                         "suffix (board 49b, desk-side) and print the bale "
+                         "suffix (desk-side) and print the bale "
                          "open paste line; mutually exclusive with the "
                          "response-directory modes and flags, and with "
                          "--probe")
@@ -2090,7 +2090,7 @@ def main(argv: list[str] | None = None) -> int:
             "(TARBALL.md 4.2)")
         return EXIT_OK
 
-    # Bundle mode (board 49b). Desk-side emission of a planner bundle:
+    # Bundle mode. Desk-side emission of a planner bundle:
     # like --probe, it reads no response dir and combines with none of
     # the response-directory modes or flags, so every such combination
     # is a flag error, not a silent ignore. The emitter assembles —
@@ -2121,8 +2121,7 @@ def main(argv: list[str] | None = None) -> int:
         if supplied:
             return die(f"--bundle is mutually exclusive with "
                        f"{', '.join(supplied)} — a planner bundle is a "
-                       "desk-side artifact, not a response-directory one "
-                       "(board 49b)")
+                       "desk-side artifact, not a response-directory one")
         if args.response_dir is not None:
             return die(f"--bundle takes no response dir (got "
                        f"{args.response_dir!r}) — the bundle lands under "

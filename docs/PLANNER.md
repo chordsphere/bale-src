@@ -117,7 +117,7 @@ practice of exercising the planner's half well.
   artifact — never re-authored fresh from memory. Live traffic's
   clearest lesson: a brief derived through five successive revisions
   preserved its load-bearing content; the one rewritten fresh
-  dropped a section and caused the HOLD (evidence 71). The corollary
+  dropped a section and caused the HOLD. The corollary
   generalizes to the receiving side: **verbatim-marked content gets
   a byte-exact assertion wherever it lands** — the worker that lands
   a must-be-verbatim line adds a byte-exact self-check on the landed
@@ -131,7 +131,7 @@ practice of exercising the planner's half well.
   Relative file arguments (a brief via its file flag, a checkpoint
   via its delivery flag) resolve against a search path, first match
   wins — and undated near-duplicates in a downloads directory get
-  picked silently (evidence 45). Practice: give delivered files
+  picked silently. Practice: give delivered files
   distinct, session-identifying names; and at pack time, glance at
   the pack report's echoed identity — resolved path, first heading,
   sha256 — before shipping. The echo exists to be compared.
@@ -145,7 +145,7 @@ practice of exercising the planner's half well.
   passage carrying a prior session's decision or proposal carries
   its text verbatim, never a paraphrase — a paraphrase once
   flattened a conditional into an unconditional and shipped a
-  different decision than the one made (evidence 49).
+  different decision than the one made.
 - **The desk default is smaller sessions.** Default toward smaller,
   pre-split sessions: a split costs one extra paste; an oversized
   session costs a round-trip. Ratified at the desk, 2026-08-18; the
@@ -172,7 +172,7 @@ silently. The practices:
 - **Briefs open by naming the session and sitting they serve.** The
   first lines identify which request the brief belongs to, so a
   stale near-duplicate is recognizable on sight and the pack
-  report's echoed heading is checkable against intent (evidence 45).
+  report's echoed heading is checkable against intent.
 - **Inline registry state verbatim, or state its absence.** When a
   brief cites session-registry items — open sessions, forecasts,
   closures — it carries the registry text verbatim, or says plainly
@@ -228,7 +228,7 @@ of it, the authoring craft:
   worker, is the defect.
 - **The imagined-surfaces failure class.** The recurring planner
   defect is a fixture built against a surface *imagined* rather than
-  *read* — a wire-format detail assumed from memory (evidence 65).
+  *read* — a wire-format detail assumed from memory.
   The practice that ended it: read the format the fixture touches,
   and **dry-run every checkpoint fixture path against the corpus
   with the graded surface stubbed** before first commit. Blind
@@ -244,14 +244,14 @@ of it, the authoring craft:
 - **Per-scenario fixture isolation.** One fresh fixture (repo,
   sandbox, dataset) per scenario, always. A shared fixture leaks one
   scenario's residue into the next — a leftover open session from
-  scenario A tripping a gate in scenario B is the canonical instance
-  (evidence 72) — and with dry-runs structurally unavailable, the
+  scenario A tripping a gate in scenario B is the canonical instance —
+  and with dry-runs structurally unavailable, the
   leak surfaces as a false HOLD in production.
 - **The checkpoint tracks the scope.** Any scope change — a split, a
   narrowed forecast, a rescope — invalidates the authored oracle:
   assertions can fall outside the new scope and HOLD a good session.
-  Standing rule: **re-derive the checkpoint whenever scope changes**
-  (evidence 70), in the same motion as the rescope.
+  Standing rule: **re-derive the checkpoint whenever scope changes**, in
+  the same motion as the rescope.
 - **Locators are strict line anchors.** A checkpoint that locates
   content does it by exact, byte-stable anchors, never by fuzzy
   match — a fuzzy locator that drifts passes the wrong content or
@@ -282,7 +282,7 @@ of it, the authoring craft:
 When a HOLD traces to content the worker never received — a brief
 gap, an untransported decision — the retry request gets **the
 missing specification prose, never the checkpoint's mechanics**:
-reveal the spec, never the oracle (evidence 75). The retry must not
+reveal the spec, never the oracle. The retry must not
 be taught to the test. A retry that passes because it saw the
 oracle's assertions has learned the grader, not the goal, and the
 blindness contract is spent for every session after it.
@@ -311,8 +311,11 @@ traffic — is the contract:
    the echoed hash compared by the operator (§4's delivery
    practice).
 5. The operator commits the amended bytes at the session's
-   checkpoint path and retries the same response tarball; the
-   provenance gate refuses on the stamp mismatch, the operator
+   checkpoint path — `bale amend-checkpoint` is the verb that
+   performs it, verifying the delivered file against the published
+   sha256 before committing — and retries the same response
+   tarball; the provenance gate refuses on the stamp mismatch, the
+   operator
    accepts deliberately with the per-invocation flag, and the
    recorded stamp mismatch plus a prose mention at the next doc
    landing is the truthful double record.
@@ -332,15 +335,14 @@ is orchestration doctrine, §14.
   desk: one master session authors the sitting's commands, briefs,
   and checkpoints. Split authorship inside a sitting produced
   compounding misses — an artifact hand-written by the wrong role
-  because a refusal's wording pointed at the wrong actor (evidence
-  69). The corollary binds tooling: refusals name their real actor.
+  because a refusal's wording pointed at the wrong actor. The corollary
+  binds tooling: refusals name their real actor.
 - **End at milestones.** Masters end sittings at natural milestones
   rather than resolving open questions on a tired context — the
-  sitting-level form of `CLAUDE.md` §11's bail-early discipline
-  (evidence 15).
+  sitting-level form of `CLAUDE.md` §11's bail-early discipline.
 - **Authoring practice accretes into doctrine, or it evaporates.**
   Planner practice keeps living in ephemeral chats until a gate
-  refuses (evidence 78). When a sitting resolves an authoring
+  refuses. When a sitting resolves an authoring
   question, the answer lands somewhere durable — this doc, a
   decision record, a brief convention — in the same sitting.
 - **Calibration sittings are trigger-fired, never calendar-fired.**
@@ -361,8 +363,8 @@ is orchestration doctrine, §14.
   stateless, so the only teaching channel is the injected docs and
   the request — a calibration sitting's outputs are constrained by
   construction to durable artifacts: a doc delta, a mechanical
-  gate, a queued work item, an evidence entry, or a trust grant
-  (evidence 40). The loop closes measurably: every session record
+  gate, a queued work item, an evidence entry, or a trust grant. The
+  loop closes measurably: every session record
   pins the injected docs' hashes (`contract_docs`), so the next
   calibration sitting can check whether the previous one's doc
   delta moved the rates — the epoch read the records were built to
@@ -416,14 +418,14 @@ Two boundary facts, one sentence each. The read-only-waiver
 collision: a sub-master's own session packs read-only while its
 subtree lands plenty, so the arc oracle cannot live in the
 per-response checkpoint slot — the mechanical home for arc-level
-grading is queued tool-side (board row 54). And
+grading is queued tool-side. And
 one-master-per-sitting (§6) is preserved by recursion: each
 subtree's sitting has exactly one desk.
 
 ### 20.2 The upward report
 
 A sub-master closes its arc with a structured upward report — the
-shape §15 records as prototyped (evidence 50), restated here as
+shape §15 records as prototyped, restated here as
 the required sections:
 
 - **The partition** — every item of the arc's work sorted landed /
@@ -507,11 +509,11 @@ Language is role-only throughout: *planner* (intent authority),
 and no doctrine keys on which. *Master* (or *orchestrator*) names a
 planning session — a planner that is itself a session; *architect*
 names the human, used where a sentence needs the person rather than
-the role. Citations of
-the form "(evidence N)" point at the live-traffic evidence ledger
-this doctrine was earned from — a project-side record, deliberately
-not restated here; the entries are cited, not carried, because this
-doc travels to every project and the ledger does not.
+the role. The doctrine below was earned from live traffic; the
+evidence ledger recording that traffic is a project-side record,
+deliberately not referenced here, because this doc travels to every
+project and the ledger does not. Every lesson stands self-contained
+as written; provenance stays project-side.
 
 ---
 
@@ -526,9 +528,9 @@ Ambiguity is the enemy, not capability.
 The dominant observed failure class in this workflow is
 misunderstanding — the ratified floor (§10) already says so, and the
 evidence pile keeps confirming it: mechanical validation passes
-cleanly on work that answers the wrong question (evidence 32, 53),
-and a wrong fact in a brief costs more than a missing one (evidence
-21). As model capability grows, the binding constraint on "seed
+cleanly on work that answers the wrong question,
+and a wrong fact in a brief costs more than a missing one. As model
+capability grows, the binding constraint on "seed
 document in, application out" is not what a worker can build; it is
 the specification gap between what the architect meant and what the
 request transported. The scarce resource that closes that gap is
@@ -540,8 +542,8 @@ decision — schema, queue, control surface, telemetry field — will be
 tested against two questions: *does this maximize spec-decisions per
 unit of architect attention,* and *does every decision made accrete
 durably into the spec?* An answer that lives only in a chat is not
-accreted (evidence 40); an answer paraphrased on its way into a
-request is not the answer (evidence 49). The escalation contract
+accreted; an answer paraphrased on its way into a
+request is not the answer. The escalation contract
 (§15) is this principle made concrete; the four controls (§10) are
 the attention budget it spends.
 
@@ -578,8 +580,8 @@ The orchestrator will split a large goal along real boundaries into
 worker sessions that each fit a context window — `CLAUDE.md` §11.2's
 seam discipline, promoted from self-rescoping to planning. A worker
 refusing an oversized goal and returning seams is the happy path;
-the orchestrator, not the worker, weighs split economics plan-wide
-(evidence 3). The decomposition is also the disjointness proof that
+the orchestrator, not the worker, weighs split economics plan-wide. The
+decomposition is also the disjointness proof that
 the mechanical gates (§13) then make load-bearing: forecasts are
 declared per session at pack time, and a decomposition whose
 forecasts collide is wrong before anything spawns. The proof's flip
@@ -594,37 +596,35 @@ planner role (the sentence-scale practices live in the core, §2–§3;
 the fleet-scale rules below are this half's):
 
 - **Decision context ships into the request; the packer never
-  assumes the worker shares its conversation** (evidence 1). The
+  assumes the worker shares its conversation**. The
   request is the whole interface.
 - **Include sets are a completeness obligation.** The
   missing-context class — load-time imports, runtime-loaded files,
   brief-referenced unshipped text — has recurred with the architect,
-  the master, a worker, and a sub-master as packer (evidence 13,
-  58). The execution-context manifest is the countermeasure; the
-  class is why packing is graded (evidence 6).
-- **A wrong fact in a brief is worse than a missing fact** (evidence
-  21). Missing facts trigger probes; wrong facts trigger
+  the master, a worker, and a sub-master as packer. The
+  execution-context manifest is the countermeasure; the
+  class is why packing is graded.
+- **A wrong fact in a brief is worse than a missing fact**. Missing
+  facts trigger probes; wrong facts trigger
   investigations the worker cannot decline, at context prices.
   Corollaries: read files whole before making claims about them;
-  pin doc touches only against structure actually read (evidence
-  24, 34).
-- **Transported decisions ship verbatim, never paraphrased**
-  (evidence 49). A constraint that flattens a prior proposal's
+  pin doc touches only against structure actually read.
+- **Transported decisions ship verbatim, never paraphrased**. A
+  constraint that flattens a prior proposal's
   conditional transports a different decision.
 - **Scope statements ride the artifact, not the chat.** The
   manifest's scope stamp closed the class of workers inferring scope
-  from the shipped file list (evidence 41, 44); chat-delivered
+  from the shipped file list; chat-delivered
   commands and briefs are convention-only artifacts, and the durable
-  row is the spec (evidence 40, 45, 47).
+  row is the spec.
 - **Ordering constraints are claims.** Serialization the
   orchestrator imposes between sessions is stated with rationale so
-  it can be contested (evidence 23); a delegated-to gate is named
-  with its firing condition, not presumed to fire (evidence 42).
+  it can be contested; a delegated-to gate is named
+  with its firing condition, not presumed to fire.
 - **The orchestrator's own session packs scopeless** — empty
   recorded scope, forecasting nothing, so its read set locks no
-  worker out (evidence 36, 46). Masters end sittings at milestones
-  rather than resolving open questions on a tired context (evidence
-  15).
+  worker out. Masters end sittings at milestones
+  rather than resolving open questions on a tired context.
 
 ---
 
@@ -636,7 +636,7 @@ authors the oracle it is graded by — the workflow-level rejection of
 self-oracles, and the standing test generalizes: for any new
 mechanism, ask whether the entity under evaluation authors the input
 its evaluation rests on, and where it does, split mechanical from
-self-reported and weight the mechanical (evidence 16).
+self-reported and weight the mechanical.
 
 The mechanics already ship on the manual path: a planner-authored
 checkpoint pinned at pack time runs in staging beside the worker's
@@ -666,17 +666,17 @@ write forecast intersects an open session's forecast, and apply
 rejects a response whose changes cross a sibling's forecast — the
 one refusal that takes no override (ADR-0015; `TARBALL.md` §3.2
 carries the worker-facing contract). The read/write separation
-matters to orchestration specifically: read context no longer locks
-(evidence 25, closed by evidence 60), so concurrency is bounded by
+matters to orchestration specifically: read context no longer locks, so
+concurrency is bounded by
 genuine write collisions, not by shared reading.
 
 Two earned rules ride on the gates. **Predicted refusals are control
-flow; surprise refusals are incidents** (evidence 43): a
+flow; surprise refusals are incidents**: a
 decomposition whose plan names each gate firing in advance walks
 through refusals as sequencing, while the same refusal unstated
 invites an unlock that throws a session away. An orchestrator will
 plan with the gates, not around them. And **queues go stale under
-concurrency** (evidence 61): a worker verifies the shipped tree
+concurrency**: a worker verifies the shipped tree
 against its goal before building, because an intervening sibling may
 have closed the queued item — the drill-down doctrine catching at
 zero cost what scheduling cannot.
@@ -698,13 +698,13 @@ the work routes into the core §5's bad-oracle correction — an
 amendment at the desk, no retry tarball from the worker.
 
 The triage judgment is itself graded input: packer errors are a
-grading signal on the planner, not (only) on the worker (evidence
-6, 11), and a correction round that repairs a ratified-but-
+grading signal on the planner, not (only) on the worker, and a
+correction round that repairs a ratified-but-
 underspecified decision is flagged for ratification, never shipped
-silently (evidence 2, 10). The misunderstanding-control doctrine has
+silently. The misunderstanding-control doctrine has
 functioned live on this surface: a worker receiving a stale
 redundant goal verified the tree, refused to fabricate a change set,
-and asked (evidence 53) — the behavior HOLD triage exists to reward.
+and asked — the behavior HOLD triage exists to reward.
 
 ---
 
@@ -731,7 +731,7 @@ record, which coexists with the exchange record and shares its
 `amendment_target` field and meaning. The first delegated arc's
 structured upward report — partitioned landed / ratified / escalated
 / on-watch — is the working prototype of that upward contract's
-shape (evidence 50).
+shape.
 
 This section is the doctrine home for what the exchange and
 escalation records inherit; the records' schemas and the relay verb
@@ -750,7 +750,7 @@ implement rather than restating their fields.
   its `amendment_target` — the repo-relative path it accretes into —
   on the record itself, so the answer-to-amendment path is schema,
   not convention. This is §9's accretion test enforced at the record
-  level, with the verbatim-transport rule (evidence 49) built in
+  level, with the verbatim-transport rule built in
   rather than relied on.
 - **Questions arrive answerable.** This is mechanized: a question
   row carries `options` and a `recommendation` — the asker's read of
@@ -785,8 +785,8 @@ worker session ends wrong. The protocol is strong exactly where a
 worker is honest about its own failure — the probe, the
 clarification, and the bailout give honest gaps a respectable wire
 shape, HOLD triage (§14) covers well-formed wrongness, and the
-compaction-recovery discipline has held repeatedly in live traffic
-(evidence 12, 59). It is weak where the failure corrupts the
+compaction-recovery discipline has held repeatedly in live traffic. It
+is weak where the failure corrupts the
 failure-reporting channel itself: a worker damaged enough to produce
 a malformed response is damaged enough that its account of the
 damage is worthless. The named gaps, each future-tense doctrine for
@@ -795,8 +795,8 @@ the harness:
 - **Malformed response → respawn from the original request, with a
   master-authored failure note.** The respawned worker gets the
   master's account of what came back broken — never the failed
-  worker's self-report, which is the self-oracle constraint
-  (evidence 16) applied one level up: the entity whose output was
+  worker's self-report, which is the self-oracle constraint applied one
+  level up: the entity whose output was
   malformed does not author the context its successor plans by.
 - **Bounded retries, escalating to re-decomposition.** Retry is not
   free and not unbounded. Clustered failures on the same work signal
@@ -827,7 +827,7 @@ architect's money. The doctrine:
   sits empty until a harness fills it — the same pattern as the
   closure vocabulary (§16), and the same dual-stream discipline as
   the rest of telemetry: spend is mechanical-stream data, never a
-  worker self-estimate. The apply-only corpus lesson (evidence 38)
+  worker self-estimate. The apply-only corpus lesson
   applies in advance: cost records must cover every session exit, or
   the aggregate computes rates over a numerator-only dataset.
 - **A hard spend cap is a harness-level gate: refuse loudly, never
@@ -875,10 +875,10 @@ per work class, claim/verdict calibration, clarification clustering
 per packer. The grant itself is one of the four controls (§10) —
 deliberate, per class, and revocable the same way. The evidence
 weighting is the §12 rule again: mechanical-stream data over
-self-report (evidence 16), across every exit path, not only the
-applies (evidence 38). A first delegated arc has already run
+self-report, across every exit path, not only the
+applies. A first delegated arc has already run
 end-to-end at the orchestrated-decomposition rung under a human
-operator (evidence 50); each further rung is proven by hand on the
+operator; each further rung is proven by hand on the
 manual path before the harness inherits it.
 
 ---
