@@ -475,7 +475,7 @@ forward-looking entry.
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
 | `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. Since v0.3.33 it also runs the checkpoint blindness gate pack runs (§7.1 step 4b, §11 row 30) against its reading-plan scope — pre-sid, one gate implementation shared with pack — refusing a handoff whose scope covers the configured blind checkpoint; `--allow-checkpoint-in-scope` (per-invocation, flag-only, mirroring pack's spelling) admits it, FORCE-logged, with `checkpoint_scope_admitted: true` stamped into the new request's provenance through the shared builder. | v0.0.6 |
-| `bale relay <sid> <file\|->` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> <file\|->`. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
+| `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
 | `bale status` | Read-only summary of the repo's bale state: session lifecycle, outbox, applied pointer, config. Takes no lock, writes nothing, always exits 0 on a successful read. `--json` for the stable machine contract. See §5.5. | v0.2.3 |
 | `bale stats` | Read-only aggregation of the tracked `claude/telemetry/` corpus into the trust ledger's rates: per-work-class claim/verdict agreement, HOLD, checkpoint-HOLD, drift-refusal, bailout, and clarification rates, the required-check refusal/override counts, closure mix, epoch and coverage rows, and the dual-stream cross-checks. `--work-class`, `--since`, `--json`. See §5.6. | v0.3.24 |
@@ -851,7 +851,7 @@ exchange in, one record preserved, one paste block out. The contract
 like, and what relay refuses — is §8.11; this section is the usage.
 
 ```
-bale relay <sid> <file|->
+bale relay <sid> [<file|->]
 ```
 
 `<sid>` is the suspended session (open in the registry, no
@@ -860,7 +860,18 @@ a saved clarification manifest, or the `BALE EXCHANGE` paste block
 wrapping either — resolved like apply's tarball argument (cwd, then
 `apply.search_paths`; an absolute path bypasses), or `-` for stdin.
 There are no other options; direction comes from the record's
-`from`.
+`from`, and the file argument is optional since v0.4.22 (board row
+60; ADR-0017 Notes).
+
+With no file argument, bale relay re-emits the paste block for the thread's latest recorded round, byte-identical to the original emission, and records nothing.
+The re-emit form exists because a counterpart-facing block otherwise
+lives only on the stdout that made it: a planner who lost the paste
+re-runs `bale relay <sid>` and hands the same bytes to the courier
+again. It is read-only end to end — no record written, no thread
+mutation, no registry touch — and the session gates above still
+apply. A sid with no recorded rounds refuses loudly, naming the sid;
+the summary's status line reads `[RE-EMITTED]` rather than
+`[RELAYED]`, so a transcript never suggests a round was recorded.
 
 **Stream discipline.** stdout carries exactly the counterpart-facing
 paste block, so `bale relay <sid> answer.json > block.txt` captures
@@ -1472,12 +1483,14 @@ The inputs:
   reading-plan scope since v0.3.33 (§11 row 30) — same gate
   implementation, same per-invocation contract, same stamp.
 - **read-only** (v0.3.15) — `--read-only`, a bare boolean, opens the
-  session with an **empty recorded scope**: the read-only session
-  shape for discussion, orchestration, or audit. The session opens
+  session with an **empty write forecast** (the empty recorded scope,
+  reinterpreted as the forecast model's degenerate case by ADR-0015):
+  the read-only session shape for discussion, orchestration, or audit. The session opens
   normally in the registry (sid, `origin_branch` stamp, status row,
-  unlock — everything §7.6 does), but its scope locks nothing (the
-  ADR-0007 gates admit sibling packs and applies alongside it, §7.1
-  step 5) and may land nothing (the own-scope drift gate refuses
+  unlock — everything §7.6 does), but its forecast intersects nothing
+  (the §7.1 step-5 disjointness gate — ADR-0007, re-based onto write
+  forecasts by ADR-0015 — admits sibling packs and applies alongside
+  it) and covers nothing (the own-forecast drift gate refuses
   every `changes[]` path a response under this sid ships, §8.1 step
   14). `--include` still selects what ships in `context/` — a
   read-only session reads files; it just cannot land changes to
@@ -1485,7 +1498,7 @@ The inputs:
   session-shape question's read-only answer (§7.3). Two lifecycle
   behaviors ride the shape (v0.3.21, board 33):
   - **The read-only sweep.** A read-only pack — and only a read-only
-    pack — that finds an open session with recorded scope `[]`
+    pack — that finds an open session with recorded forecast `[]`
     offers to close it: `closure_reason` `closed-read-only`,
     `command` `"pack"`, through the shared close-with-record
     sequencing (`close_session_with_record` — the same machinery
@@ -1497,7 +1510,7 @@ The inputs:
     new session's log. The prompt is the §5.2 wizard idiom with an
     **accept default** — deliberately inverting `--supersedes`'
     decline default, because a read-only session structurally cannot
-    lose work (its empty scope means the drift gate refuses
+    lose work (its empty forecast means the drift gate refuses
     everything a response under it could ship, so nothing appliable
     is abandoned). **Piped stdin declines without a prompt** —
     automation never silently closes a session, the same posture as
@@ -1552,10 +1565,10 @@ The inputs:
     parent was being abandoned by declared intent) and the idempotent
     re-run above is its repair path.
   - **On decline**, nothing closes and the pack refuses: via the
-    step-5 gate when the still-open parent's scope collides (the
+    step-5 gate when the still-open parent's forecast collides (the
     refusal names the declined supersession and the remedies —
     re-run accepting the prompt, or `bale unlock <sid>`), via an
-    explicit refusal when the scopes happen to be disjoint (a
+    explicit refusal when the forecasts happen to be disjoint (a
     `--supersedes` pack that closes nothing and stamps no lineage
     would not be the pack asked for), and immediately at the decline
     on the wizard path, before any prompt collects throwaway answers.
@@ -1836,7 +1849,9 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    §7.1 step 4b — and, v0.4.12, every planner bundle: any file with
    the reserved `.bale-bundle` suffix drops unconditionally, same
    loud grain, no admission flag, §6.7); copy matching files into
-   `context/`.
+   `context/`. When the configured include group's triggers
+   intersect the includes (board 64, §7.2), its pulls join the walk
+   here, read-side only, with a logged line naming the group.
 6. If README prose was resolved — from `--readme-file`, from
    `$EDITOR` (the wizard's y-path or `--edit`), or the combination —
    include it as `README.md`. Otherwise omit the file entirely (the
@@ -3117,7 +3132,8 @@ worker-side emission of the round-one block belongs to the crafter
 (the other code sibling) and is not specified here.
 
 As landed (v0.4.18, `format_exchange_block` / `parse_exchange_input`
-in `bin/bale` section 29), the block is exactly:
+in `bin/bale_relay.py` — extracted from `bin/bale`'s section 29 in
+v0.4.21, behavior-preserving), the block is exactly:
 
 ```
 BALE EXCHANGE BEGIN <sid>
@@ -3209,7 +3225,27 @@ worker` record, and `bale status`, the close-time summary, and
 relay's thread read all go through it. The preservation write is
 likewise one implementation — `preserve_clarification_record` in
 `bin/bale_apply.py`, which apply's clarification handler and relay
-both call. The option surface is exactly `<sid> <file|->`.
+both call. The option surface is exactly `<sid> [<file|->]`: the file
+argument is optional since v0.4.22 (board row 60; the widening is
+recorded in ADR-0017's Notes, whose foreclosure had pinned the
+narrower surface).
+
+**The no-file re-emit form** (v0.4.22). Invoked as `bale relay
+<sid>` with no file, relay ingests nothing and re-emits the paste
+block for the thread's latest recorded round, byte-identical to the
+original emission — a preserved clarification manifest renders in
+its `from: worker` exchange-record reading (round = its `NNN`,
+`created_at` = the preserved stamp) and a preserved exchange record
+renders as itself, its `preserved_at` sidecar stripped, which is
+exactly what the original emission rendered. The form is read-only
+end to end: no record written, no thread mutation, no registry
+touch; the session gates (open, unbranched) still run first, the
+stream discipline is unchanged (the block alone on stdout), and the
+summary's status is `[RE-EMITTED]`. A sid with no recorded rounds
+refuses loudly, naming the sid — there is no round to re-emit, and
+round one still arrives only by ingest (apply's tarball path or
+relay's file form). An unreadable latest record likewise refuses
+rather than re-emitting bytes relay cannot stand behind.
 
 ---
 
@@ -3640,7 +3676,7 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 31 | Checkpoint blindness, read side (ADR-0015, board 13 E3; re-keyed to explicit naming at v0.4.9): when `[validation] base` pins a blind checkpoint, pack refuses an include entry that names it explicitly — an entry equal to the checkpoint path, equal to its static prefix (the `{sid}` pattern's static directory prefix), or strictly under that prefix — an explicit ask to ship the oracle's bytes in `context/` to the worker the oracle grades. Incidental coverage by a default or broad include does not refuse: the walk auto-excludes the checkpoint from shipped context with a loud per-file drop line (§7.1 step 4b, §7.5 step 5), which is what restores the bare default pack in a checkpoint-configured project; the one containment holdover is a `{sid}` base with no static directory prefix, where no auto-exclusion basis is computable and coverage still refuses. Same per-invocation `--allow-checkpoint-in-scope` override, same FORCE log, same `provenance.checkpoint_scope_admitted` stamp — one flag admits whichever half fired (the read-half admission keyed on containment, since the flag disables auto-exclusion and any covering include set then ships the bytes), because the delegation decision is one decision (§7.1 step 4b). Appended after row 30 per the appended-row precedent, so rows 1–30 stay stable | pack pre-flight |
 | 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
 | 33 | Planner-bundle blindness (v0.4.12, board 49a-i; format home §6.7): pack refuses any `--include` or `--write` entry that explicitly names a planner bundle — a file with the reserved `.bale-bundle` suffix — and the walk unconditionally auto-excludes every bundle file that incidental coverage would otherwise ship, with a loud drop line (per-file for one, one count summary for several, the v0.4.10 grain). Bundles carry the planner's blind checkpoint, so this is the checkpoint exclusion's species keyed structurally on the suffix, with **no admission flag on either half** — no session legitimately ships or lands a real bundle; synthetic fixtures for bundle-handling work are named outside the suffix (§7.1 step 4c, §7.5 step 5); appended after row 32 per the appended-row precedent, so rows 1–32 stay stable | pack pre-flight |
-| 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects; appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
+| 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects. The no-file re-emit form (v0.4.22, §8.11) ingests nothing and adds one refusal of its own: a sid with no recorded rounds refuses loudly, naming the sid — re-emit is read-only and preserves nothing on any path. Appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
 | 35 | Include-group coherence (board 64; §7.2): a half-configured `[pack]` include group (a name without both list keys, or a list without the name) refuses at config read wherever the merged config is consulted; an engaged group whose configured pull path does not exist refuses the pack rather than silently thinning the shipped context; and `--no-include-group` refuses on a name that is not the configured group's exact name, or when no group is configured — the opt-out is loud (FORCE-logged, report row) and a typo cannot silently skip the pull. Engagement itself is read-side only and never widens the recorded write forecast; appended after row 34 per the appended-row precedent, so rows 1–34 stay stable | pack pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory

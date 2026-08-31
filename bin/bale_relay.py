@@ -11,7 +11,12 @@ suspended, and emits the counterpart-facing paste block on stdout under
 the machine-report stream discipline (every `[bale] ` line and the human
 trailer on stderr), so `bale relay <sid> <file> > block.txt` captures
 the block clean. Direction is read from the record's `from`, never from
-a flag; the option surface is exactly `<sid> <file|->`.
+a flag; the option surface is exactly `<sid> [<file|->]` — since
+v0.4.22 (board row 60, ADR-0017 Notes) the file argument is optional,
+and the no-file form re-emits the paste block for the thread's latest
+recorded round, byte-identical to the original emission, recording
+nothing: a planner-side block otherwise exists only on the stdout that
+made it.
 
 Public surface consumed by `bin/bale`: the single `cmd_relay(args)`
 entry point — `bin/bale` does `from bale_relay import cmd_relay` and
@@ -341,6 +346,104 @@ def unresolved_answers(record: dict, thread: list[dict]) -> list[str]:
     return problems
 
 
+def _next_step_trailer(sid: str, awaiting: str, latest_round: int) -> list[str]:
+    """The summary's next-step line after a round whose latest record
+    leaves the thread awaiting `awaiting` — shared by the recording path
+    and the no-file re-emit path so the two emissions of the same
+    round's block always carry the same instruction."""
+    if awaiting == EXCHANGE_SIDE_PLANNER:
+        return [
+            f"Next step — answer as an exchange record (from: planner, "
+            f"round {latest_round + 1}, answers[] keyed question_round "
+            f"{latest_round}), then `bale relay {sid} <answer.json|->`.",
+        ]
+    return [
+        f"Next step — carry the block above to the worker; it continues "
+        f"under {sid} and ships the normal response, then "
+        f"`bale apply <response>`.",
+    ]
+
+
+def _cmd_reemit(repo: Path, sid: str) -> int:
+    """The no-file form of `bale relay` (v0.4.22, board row 60; ADR-0017
+    Notes): re-emit the paste block for the thread's latest recorded
+    round, byte-identical to the original emission, and record nothing.
+
+    Read-only end to end: no record is written, no thread mutation, no
+    registry touch — the session gates (open, unbranched) have already
+    run in cmd_relay, and everything past them here only reads. The
+    block is rebuilt from the preserved record through the same
+    rendering the original emission used: a preserved clarification
+    manifest renders in its `from: worker` exchange-record reading
+    (round = its NNN, created_at = the preserved stamp) and a preserved
+    exchange record renders as itself, its `preserved_at` sidecar
+    stripped — exactly what format_exchange_block was handed the first
+    time, so the bytes match. A sid with no recorded rounds refuses
+    loudly, naming the sid; an unreadable latest record refuses rather
+    than re-emitting bytes it cannot stand behind.
+    """
+    from __main__ import fail, log  # lazy — see module docstring
+    from bale_apply import clarifications_dir  # lazy — sibling, loaded by bin/bale
+    from bale_report import (  # lazy — sibling, loaded by bin/bale
+        awaiting_side,
+        emit_stdout_block,
+        format_summary_block,
+    )
+    clar_dir = clarifications_dir(repo, sid)
+    records = sorted(clar_dir.glob("*.json")) if clar_dir.is_dir() else []
+    if not records:
+        fail(f"session {sid} has no recorded rounds — nothing to re-emit. "
+             f"The no-file form re-emits the thread's latest recorded "
+             f"round; record round one first (apply the clarification "
+             f"tarball, or `bale relay {sid} <file|->`).")
+    path = records[-1]
+    try:
+        rnd = int(path.stem)
+    except ValueError:
+        rnd = len(records)  # read_exchange_thread's positional fallback
+    try:
+        preserved = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        fail(f"the thread's latest recorded round {path.name} is "
+             f"unreadable ({e}) — nothing re-emitted. Fix or remove the "
+             f"record at {path} and re-run.")
+    if not isinstance(preserved, dict):
+        fail(f"the thread's latest recorded round {path.name} is not a "
+             f"JSON object (got {type(preserved).__name__}) — nothing "
+             f"re-emitted.")
+    preserved_at = preserved.pop("preserved_at", None)
+    if preserved.get("response_kind") == "clarification":
+        kind = "clarification manifest"
+        body_record = _normalize_manifest_to_record(preserved, sid, rnd,
+                                                    preserved_at)
+    else:
+        kind = "exchange record"
+        body_record = preserved
+    side = body_record.get("from")
+    rel_path = path.relative_to(repo)
+    log(f"relay: no file argument — re-emitting the thread's latest "
+        f"recorded round (v0.4.22)")
+    block = format_exchange_block(sid, body_record)
+    emit_stdout_block(block)
+    awaiting = awaiting_side(side)
+    log(f"relay: {kind} at {rel_path} (round {rnd}, from {side}) "
+        f"re-emitted; nothing recorded — the thread, the session, and "
+        f"the registry are untouched")
+    print(format_summary_block(
+        [
+            ("session", sid),
+            ("re-emitted", f"{rel_path} (round {rnd}, from {side})"),
+            ("thread", f"{len(records)} round(s); awaiting {awaiting}"),
+            ("block", f"emitted on stdout for the {awaiting}, "
+                      f"byte-identical to the original emission"),
+        ],
+        status="RE-EMITTED",
+        sid=sid,
+        trailer=_next_step_trailer(sid, awaiting, rnd),
+    ))
+    return 0
+
+
 def _read_relay_input(arg: str, cwd: Path, repo: Path) -> tuple[bytes, str]:
     """Read the relay input: stdin for `-`, else a file resolved like
     apply's tarball argument (cwd, then apply.search_paths; absolute
@@ -371,10 +474,14 @@ def _read_relay_input(arg: str, cwd: Path, repo: Path) -> tuple[bytes, str]:
 
 
 def cmd_relay(args: argparse.Namespace) -> int:
-    """`bale relay <sid> <file|->` — record one exchange in a suspended
+    """`bale relay <sid> [<file|->]` — record one exchange in a suspended
     session's thread and emit the counterpart's paste block (BALE.md
-    §8.11; contract row §11.34). The flow, each refusal naming its rule
-    and preserving nothing:
+    §8.11; contract row §11.34). With no file argument (v0.4.22, board
+    row 60), the verb instead re-emits the paste block for the thread's
+    latest recorded round, byte-identical to the original emission, and
+    records nothing — the session gates below still run, then _cmd_reemit
+    takes over and steps 2–7 never engage. The recording flow, each
+    refusal naming its rule and preserving nothing:
 
     1. Session gates. `<sid>` must be open in the registry (ADR-0006),
        and no `bale/<sid>` branch may exist — a held session's
@@ -465,6 +572,11 @@ def cmd_relay(args: argparse.Namespace) -> int:
              f"(`bale retry` / `bale revert {sid}`) before any further "
              f"exchange.")
     log(f"relay: session {sid}")
+
+    # The no-file form: re-emit the latest recorded round, read-only
+    # (v0.4.22). The session gates above have run; nothing below does.
+    if args.file is None:
+        return _cmd_reemit(repo, sid)
 
     # Step 2: ingest.
     data, source_name = _read_relay_input(args.file, cwd, repo)
@@ -568,18 +680,7 @@ def cmd_relay(args: argparse.Namespace) -> int:
     emit_stdout_block(block)
 
     awaiting = awaiting_side(side)
-    if awaiting == EXCHANGE_SIDE_PLANNER:
-        trailer = [
-            f"Next step — answer as an exchange record (from: planner, "
-            f"round {next_seq + 1}, answers[] keyed question_round "
-            f"{next_seq}), then `bale relay {sid} <answer.json|->`.",
-        ]
-    else:
-        trailer = [
-            f"Next step — carry the block above to the worker; it continues "
-            f"under {sid} and ships the normal response, then "
-            f"`bale apply <response>`.",
-        ]
+    trailer = _next_step_trailer(sid, awaiting, next_seq)
     print(format_summary_block(
         [
             ("session", sid),

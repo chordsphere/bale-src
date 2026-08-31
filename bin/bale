@@ -5709,7 +5709,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_relay = sub.add_parser(
         "relay",
         help="Record one exchange in a suspended session's clarification "
-             "thread and emit the counterpart's paste block "
+             "thread and emit the counterpart's paste block; with no "
+             "file, re-emit the latest recorded round "
              "(BALE.md \u00a78.11).",
         description=(
             "The exchange thread's recording verb (ADR-0017, v0.4.18). "
@@ -5729,7 +5730,10 @@ def build_parser() -> argparse.ArgumentParser:
             "counterpart-facing paste block on stdout with every "
             "[bale] line on stderr. Direction is read from the record's "
             "`from`, never from a flag. Executes nothing and stages "
-            "nothing."
+            "nothing. With no file argument (v0.4.22), re-emits the "
+            "paste block for the thread's latest recorded round, "
+            "byte-identical to the original emission, and records "
+            "nothing; a sid with no recorded rounds refuses loudly."
         ),
     )
     p_relay.add_argument(
@@ -5740,13 +5744,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_relay.add_argument(
         "file",
+        nargs="?",
+        default=None,
         help="Path to the exchange \u2014 an exchange record, a "
              "clarification manifest, or the paste block wrapping either "
              "\u2014 or `-` to read it from stdin. A relative path "
              "resolves like apply's tarball argument: cwd first, then "
              "each configured apply.search_paths directory; an absolute "
              "path bypasses the search. CRLF line endings are normalized "
-             "at read.",
+             "at read. Omitted entirely, the no-file form re-emits the "
+             "paste block for the thread's latest recorded round, "
+             "byte-identical to the original emission, and records "
+             "nothing (v0.4.22).",
     )
     p_relay.set_defaults(func=cmd_relay)
 
