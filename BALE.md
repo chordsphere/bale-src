@@ -713,6 +713,9 @@ discipline ones, per ADR-0014's doctrine), rejection and
 bailout figures, and the clarification rate over the sessions whose
 closing attempt carries the promoted stamp (key presence with
 `rounds: 0` is a known zero; key absence is pre-epoch unknown).
+Each stats class row carries a `linkage` aggregation over the
+records' `feedback.mechanical.linkage` stamps; unstamped classes
+render no fabricated zeros.
 Blind-checkpoint outcomes never enter the claim/verdict counts: the
 checkpoint has no claims by construction (§8.5), so agreement is the
 worker's calibration stream alone.
@@ -1942,6 +1945,9 @@ and where a stale README ships wrong prose, a stale oracle HOLDs a
 good session — the checkpoint file's exposure is strictly worse. The
 json key contract's one home is `format_pack_json`'s docstring in
 `bale_report.py`, as for every other pack-report key.
+
+**The include-group row** (board 64). When the `release-surface`
+group engages, pack output carries an include-group row.
 
 The latest-applied fact is the same one the status applied row
 renders, read from the same source (`applied_tags` in `bin/bale`;
