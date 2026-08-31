@@ -826,6 +826,10 @@ JSON as the body, a purpose header stating the direction and the
 round, and an integrity trailer carrying the body's sha256 so a
 truncated paste is detected and re-requested instead of reasoned
 from. `bale relay <sid> <file|->` ingests the block (§5.9.4).
+Invoked without the file argument, the same verb re-emits the paste
+block for the thread's latest recorded round — byte-identical to the
+original emission — and records nothing, so a lost or truncated
+paste is recovered by re-emission rather than by a new round.
 
 The thread's record is the **exchange record**,
 `exchange-record.schema.json` (in the bale installation, beside
@@ -930,7 +934,10 @@ when the worker's recommendation or `default_assumption` stands.
 the session suspended, and emits the worker-facing paste block; the
 courier carries that block to the worker, who reads it, continues
 under the same session id, and ships the normal response the
-clarification deferred. A planner that cannot answer from its own
+clarification deferred. Run with no file argument,
+`bale relay <sid>` re-emits the latest recorded round's block,
+byte-identical, recording nothing — the recovery path when a block
+is lost between sessions. A planner that cannot answer from its own
 context escalates upward and answers when it can; a planner that
 answers and needs to ask back does both in one record. The artifact
 is identical whoever holds the planner and courier roles; only the
