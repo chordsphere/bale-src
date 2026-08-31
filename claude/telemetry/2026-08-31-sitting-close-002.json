@@ -1,0 +1,126 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-sitting-close-002",
+  "created_at": "2026-08-31T02:29:46+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T02:29:46+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (53).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "doc suites (self-containment + crossrefs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session-specific assertions (close deltas)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "doc suites (self-containment + crossrefs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session-specific assertions (close deltas)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md",
+        "claude/context/adr",
+        "docs/PLANNER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md",
+        "claude/context/adr/0017-exchange-shape-independent-of-counterparty.md",
+        "docs/PLANNER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "cf29e384368dba78637e74a4c7526d3c57a5c72d1a7d0650f1814fe9080dfcfb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "9473effc57d12c5f613e16b87b781bb7f0c8b20b9fc1fc4a7603a0801bddc720"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-sitting-close-002.sh",
+              "sha256": "6a032bdf377d024c3523527159f5e1e300300fdbe1fe65ae6f27ad99294174b1"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The shipped context/claude/MASTER.md is the live board (packed from the live tree); the request's own constraint distinguishes it from the stale desk copy, so board numbers 58-60 were assigned against it without a probe.",
+            "The arc table's two 'below' outcome pointers refer to the close document's own section-4 ledger entries; landed in MASTER.md they resolve to section-6 entries 90 (specimen b) and 88."
+          ],
+          "judgment_calls": [
+            "Routing-reversal narrative landed as one full 2026-08-31 bracket on board 10 plus one-line pointer brackets at the two item-level 2026-08-25 routing sites, so no stale routing statement survives un-annotated.",
+            "The generic --doc-assertions --adr-dir block was not used: its sanctioned-flip reverse-transform does not admit a dated Notes append to an Accepted ADR; a stricter session-specific reverse-transform pins the exact diff instead.",
+            "Ledger entry 90's 'proposed for PLANNER.md section 4' became 'landed on ... at this close' since the same response lands the line."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-31-sitting-close-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-sitting-close-002.sh",
+          "sha256": "6a032bdf377d024c3523527159f5e1e300300fdbe1fe65ae6f27ad99294174b1"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T02:29:46+00:00",
+  "outcome": "applied"
+}
