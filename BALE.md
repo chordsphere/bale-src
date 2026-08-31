@@ -682,9 +682,13 @@ uncommitted records count; git history is the corpus's timeline, not
 its reader.
 
 **What it reports.** One row per work class present in the filtered
-corpus — sessions resolve to the class on their latest
-feedback-bearing attempt, with an `unclassed` bucket for sessions
-carrying none — with the headline rates: claim/verdict agreement
+corpus — sessions resolve to their class from the open-time
+provenance stamp first (the board 63 attempt-level pair, present on
+post-v0.4.21 `opened` attempts, which is what resolves sessions that
+close without a feedback-bearing attempt), falling back to the class
+on their latest feedback-bearing attempt, with an `unclassed` bucket
+for sessions carrying neither; `opened` records read as in-flight,
+never a closure — with the headline rates: claim/verdict agreement
 over checks, the unparsed-reconciliation share (a parse miss is a
 tooling fact, never folded into agreement), HOLD rate, the blind
 checkpoint's rows (v0.3.29, board 6 session D) — the
@@ -747,6 +751,58 @@ eyeballed) reported beside the mechanical rates, never blended in.
 Corrupt records are skipped, counted, and named on stderr; records
 with `record_version > 1` are filtered and counted.
 
+**Drill-downs (board 44).** Every drill surface below is a read side
+over the tracked records — computed in `bin/bale_stats.py`, rendered
+by `bin/bale_report.py`, exercisable by jq against
+`claude/telemetry/` without either — and every one ships in both
+output modes; the renderer never owns the numbers.
+
+*Level 1 — bucket membership.* Anomalous counts name the session ids
+composing them: each class row carries a `members` set per anomaly
+bucket (held, disagreeing checks, unparsed reconciliations, drift and
+required-check refusals, checkpoint HOLDs and catches, forecast
+drift, bailouts, empty-claims attempts), and the corpus level names
+the in-flight, read-only, crash-debris, cross-check-disagreement, and
+bailed-with-pressure-none sids. Sid-granular and sorted; non-anomalous
+counts carry no membership — nominate, never curate.
+
+*Level 2 — the session dossier.* One sid rendered whole
+(`compute_session_dossier` / the dossier rendering pair): the
+record's envelope and resolved identities, every attempt with its
+claim/verdict pairs (each check's agreement and declared basis), the
+blind checkpoint's per-source attribution, forecast facts and
+admitted paths, the promoted clarification rounds with their
+preserved-record summaries, bailout diagnostics, the open-time
+provenance stamp, and the lineage edges the corpus records
+(`superseded_by` in both directions; the `corrects` pair is read
+tolerantly and is honestly null on every record bale writes today —
+the manifest field is not yet promoted into telemetry) — so a
+HOLD-to-retry arc reads end to end, replacing the hand-jq walk with
+one command. A missing sid renders an honest miss that names the
+parse-failure or filtered-version cause when that is the reason.
+
+*Aggregate cuts (no new fields).* Claim coverage: claims declared
+per validated attempt (a ratio) and the count of validated attempts
+shipping an empty claims map while validation ran — the §5.3
+wasted-signal shape; gaming shows in aggregate trends, which is where
+the trust ledger already looks — cut per work class in the class rows
+and per packer in the `packers` table (packer identity resolves
+stamp-first like the class, with an `unattributed` bucket).
+Checkpoint catch rates per work class: catches are checkpointed
+attempts where the blind oracle objected (its own exit 1) while the
+worker's script passed — an errored checkpoint is a tooling fact, not
+a catch — over the checkpointed denominator, beside the HOLD rate.
+The claim-basis split: claim/verdict checks bucketed by the worker's
+declared `claim_basis` (observed vs predicted, `unspecified` for
+bare-string claims), agreement reported per bucket — the ship-time
+calibration split the annotated claims form exists for. And outcome
+rates per contract-doc-hash epoch (`doc_epochs`): sessions bucket by
+the digest of their echoed `provenance.contract_docs` set (the full
+name→hash map reported beside the digest; `unstamped` the honest
+bucket for records carrying no echo), each epoch row carrying its
+closure counts and applied rate.
+Outcome rates cut per contract-doc-hash epoch make doc changes A/B-able; the epoch read is an intended use, not a side effect.
+
 **Flags.** `--work-class CLS` filters the classed rows to one
 resolved class (the §7 work classes plus `unclassed`) — the surface
 board 10's per-class grant evaluation reads. `--since DATE` (ISO
@@ -757,7 +813,9 @@ the human report for one line of JSON on stdout under the shared
 §5.4 stream discipline. **The `format_stats_json` docstring in
 `bin/bale_report.py` owns the key contract** — stable keys, additions
 only (the same rule every `format_*_json` surface carries); this doc
-deliberately does not duplicate the key list. Aggregation semantics
+deliberately does not duplicate the key list, and the session dossier
+line's keys are owned the same way by `format_session_dossier_json`'s
+docstring. Aggregation semantics
 live in `bin/bale_stats.py`, whose docstrings restate the unit model
 and every rate's numerator and denominator.
 

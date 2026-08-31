@@ -175,6 +175,18 @@ departures-vs-admissions cross-check under the existing key-stability
 rules; definitions live in `bin/bale_stats.py` per the standing
 division.
 
+Board 44 (the stats drill-down read sides) extends the stats banner
+section: the stats pair gains the claim-coverage, checkpoint-catch,
+claim-basis, membership, per-packer, and doc-epoch surfaces
+(additive, same key-stability rules), and the session dossier lands
+as a second rendering pair — `format_session_dossier_json`, whose
+docstring owns the dossier line's key contract per the
+one-owner-per-surface rule, and `format_session_dossier_report`, the
+human dossier (reference body first, summary last, no next-step
+hint: terminal, like stats). Aggregation stays in `bin/bale_stats.py`
+(`compute_session_dossier`); `bin/bale` keeps wiring only, per the
+standing division.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
@@ -2901,9 +2913,15 @@ def format_stats_json(stats: dict) -> str:
                   sessions                  classed membership after all
                                             filters and exclusions
                   in_flight_sessions        membership sessions whose
-                                            latest outcome is held /
+                                            latest outcome is an
+                                            in-flight one (held /
                                             scope-drift-refused /
-                                            rejected — counted beside,
+                                            rejected /
+                                            required-check-refused /
+                                            opened — the board 63
+                                            open-time records read as
+                                            in-flight, per the
+                                            schema) — counted beside,
                                             never inside, the mix
                   response_attempts / validated_attempts / checks
                                             membership attempt totals
@@ -2922,6 +2940,9 @@ def format_stats_json(stats: dict) -> str:
                   override_attempts, rejected_attempts,
                   checkpointed_attempts, checkpoint_hold_attempts,
                   checkpoint_hold_rate,
+                  checkpoint_catch_attempts, checkpoint_catch_rate,
+                  claims_declared, claims_per_validated_attempt,
+                  empty_claims_validated_attempts,
                   required_check_refused_attempts,
                   required_check_override_attempts,
                   forecast_attempts, forecast_drift_attempts,
@@ -2934,7 +2955,7 @@ def format_stats_json(stats: dict) -> str:
                   bailout_rate,
                   clarified_sessions, clarification_epoch_sessions,
                   clarification_rate,
-                  linkage
+                  linkage, claim_basis, members
                 The per-agreement counts follow the telemetry schema's
                 claim_verdict.agreement vocabulary, one named count per
                 value: checks_agree ("agree"), checks_disagree
@@ -2988,6 +3009,35 @@ def format_stats_json(stats: dict) -> str:
                 beside the rates, never blended in; the per-work-class
                 split is the classes keying itself. Semantics in
                 bin/bale_stats.py's _class_row docstring.
+                The board 44 keys (additive). Claim coverage:
+                claims_declared sums the promoted claims-map entries
+                over validated attempts, claims_per_validated_attempt
+                is that sum over validated attempts (a RATIO, not a
+                0..1 rate — it can exceed 1; null on zero), and
+                empty_claims_validated_attempts counts validated
+                attempts with an empty claims map (the computable form
+                of the empty-claims-beside-declared-checks cut — the
+                record does not persist validation_will_run).
+                Checkpoint catch: checkpoint_catch_attempts counts
+                checkpointed attempts where the blind oracle objected
+                (stamp state HOLD, stamp exit 1) while the worker's
+                own script passed (validation exit 0) — an errored
+                checkpoint (exit 2) is a tooling fact, not a catch —
+                and checkpoint_catch_rate is that count over
+                checkpointed attempts, null on zero. claim_basis
+                buckets claim_verdict checks by the worker's declared
+                basis (observed / predicted / "unspecified" for every
+                bare-string claim), each bucket {checks, agree,
+                agreement_rate} — the calibration split, partitioning
+                checks like the per-agreement counts do. members is
+                the level 1 drill: the sorted session ids composing
+                each per-class anomaly count (held, checks_disagree,
+                unparsed, drift_refused, rejected,
+                required_check_refused, checkpoint_hold,
+                checkpoint_catch, forecast_drift, bailout,
+                empty_claims), sid-granular, emitted beside the counts
+                they compose. Semantics in bin/bale_stats.py's
+                _class_row docstring.
       closure_mix
                 distribution over closed membership sessions: applied,
                 reverted, bailout (counts) and unlocked (an object
@@ -3018,10 +3068,45 @@ def format_stats_json(stats: dict) -> str:
                                  smell (admitted with no declared
                                  departure), computed instead of
                                  eyeballed.
+      packers   (board 44, additive) the per-packer claim-coverage
+                cut over the same filtered membership as classes, one
+                row per resolved packer identity (open-time stamp
+                first, feedback echo second, "unattributed" for
+                neither; identities bucket verbatim): {sessions,
+                validated_attempts, claims_declared,
+                empty_claims_validated_attempts,
+                claims_per_validated_attempt} — the last a ratio,
+                null on zero, like its class-row twin. Semantics in
+                bin/bale_stats.py (session_packer, compute_stats).
+      doc_epochs
+                (board 44, additive) outcome counts per contract-doc-
+                hash epoch — the read side that makes doc changes
+                A/B-able (BALE.md §5.6). Keyed by a 12-hex digest of
+                the session's echoed provenance.contract_docs set
+                ("unstamped" for records carrying no echo), rows
+                ordered by first_created_at; each row
+                {first_created_at, sessions, closed_sessions,
+                in_flight, applied, reverted, bailout, unlocked,
+                applied_rate (applied over closed, null on zero),
+                contract_docs (the full name→hash map, or null on the
+                unstamped row — the digest is an identifier, never
+                the only record)}.
+      members   (board 44, additive) the corpus-level half of the
+                level 1 drill (per-class membership lives in each
+                class row): sorted sid lists for in_flight, read_only,
+                crash_debris, clarification_self_only,
+                clarification_promoted_only, forecast_admitted_only,
+                forecast_declared_only (sessions with at least one
+                such path), and bailed_with_pressure_none. The counts
+                these compose are unchanged and stay where they were.
 
     Emitted as a single compact line (no indent) so the consumer
     contract stays line-oriented. Pure: builds a string, prints
-    nothing; the caller emits it via emit_json_line.
+    nothing; the caller emits it via emit_json_line. The board 44
+    session dossier is a separate line with a separate owner:
+    format_session_dossier_json's docstring, per the same
+    one-owner-per-surface rule every format_*_json carries — this list
+    never duplicates it.
     """
     payload = {"outcome": "stats", **stats}
     return json.dumps(payload)
@@ -3034,10 +3119,15 @@ def format_stats_report(stats: dict) -> str:
     per-class rate table — one row per class present in the filtered
     corpus, columns for the D2 headline rates, each cell carrying its
     numerator/denominator so the percentages stay auditable — then the
-    epoch, coverage, closure-mix, churn, and cross-check rows; then the
-    trailing format_summary_block with the corpus totals and the
-    filters in effect. No trailing next-step hint: stats is terminal.
-    Pure: builds a string, prints nothing.
+    per-class extras and membership lines (board 44: claim coverage,
+    checkpoint catch, the claim-basis split when a basis was declared,
+    and one sid line per non-empty anomaly bucket), the epoch,
+    coverage, closure-mix, churn, and cross-check rows, the per-packer
+    claim-coverage lines, the doc-epoch outcome rows, and the
+    corpus-level membership; then the trailing format_summary_block
+    with the corpus totals and the filters in effect. No trailing
+    next-step hint: stats is terminal. Pure: builds a string, prints
+    nothing.
     """
     lines: list[str] = []
     classes: dict = stats["classes"]
@@ -3136,11 +3226,59 @@ def format_stats_report(stats: dict) -> str:
                 details.append(
                     f"linkage {row['linkage']['attempts']} "
                     f"[{kinds}] surfaced [{points}]")
+            # The board 44 extras, appended after the pre-existing
+            # entries (order is part of the human surface older
+            # assertions read). All render-when-meaningful, like every
+            # extras entry — no fabricated zeros.
+            if row["validated_attempts"]:
+                ratio = row["claims_per_validated_attempt"]
+                details.append(
+                    f"claims {row['claims_declared']} "
+                    f"({ratio:.1f}/validated attempt)")
+            if row["empty_claims_validated_attempts"]:
+                details.append(
+                    f"empty-claims "
+                    f"{row['empty_claims_validated_attempts']}")
+            if row["checkpointed_attempts"]:
+                # The catch beside the table's hold rate: what the
+                # blind oracle saw that the worker's own script
+                # missed, over the same denominator.
+                details.append(
+                    f"ckpt catch {row['checkpoint_catch_attempts']}/"
+                    f"{row['checkpointed_attempts']} "
+                    f"({_pct(row['checkpoint_catch_rate'])})")
+            declared_bases = {basis: cell
+                              for basis, cell in row["claim_basis"].items()
+                              if basis != "unspecified"}
+            if declared_bases:
+                # The observed-vs-predicted calibration split —
+                # rendered only once a worker has declared a basis
+                # (every bare-string claim is "unspecified" and the
+                # split would restate the agree column).
+                bases = ", ".join(
+                    f"{basis} {cell['agree']}/{cell['checks']} agree "
+                    f"({_pct(cell['agreement_rate'])})"
+                    for basis, cell in row["claim_basis"].items())
+                details.append(f"claim basis [{bases}]")
             if details:
                 extras.append(f"  {cls}: " + ", ".join(details))
         if extras:
             lines.append("")
             lines.extend(extras)
+        # Bucket membership (board 44 level 1): the sids composing
+        # each anomaly count, one line per non-empty bucket under a
+        # per-class header, keys verbatim from the json contract so
+        # both modes read one vocabulary. Classes with no anomalous
+        # sids render nothing here.
+        for cls, row in classes.items():
+            named = [(bucket, sids)
+                     for bucket, sids in row["members"].items() if sids]
+            if not named:
+                continue
+            lines.append("")
+            lines.append(f"  {cls} members:")
+            for bucket, sids in named:
+                lines.append(f"    {bucket}: " + ", ".join(sids))
     else:
         lines.append("  (no sessions in the filtered corpus)")
 
@@ -3196,6 +3334,34 @@ def format_stats_report(stats: dict) -> str:
                  f"{departures['both']}, admitted-only "
                  f"{departures['admitted_only']}, declared-only "
                  f"{departures['declared_only']}")
+    # The board 44 corpus surfaces, all computed in bale_stats (this
+    # renderer never owns the numbers): the per-packer claim-coverage
+    # cut, the doc-epoch outcome rows, and the corpus-level membership.
+    for packer, row in stats["packers"].items():
+        ratio = row["claims_per_validated_attempt"]
+        ratio_text = "—" if ratio is None else f"{ratio:.1f}"
+        lines.append(
+            f"  packer {packer}: {row['sessions']} sessions, "
+            f"{row['validated_attempts']} validated, claims "
+            f"{row['claims_declared']} ({ratio_text}/validated "
+            f"attempt), empty-claims "
+            f"{row['empty_claims_validated_attempts']}")
+    for key, row in stats["doc_epochs"].items():
+        lines.append(
+            f"  doc epoch {key} since {row['first_created_at']}: "
+            f"{row['sessions']} sessions ({row['in_flight']} "
+            f"in-flight), applied {row['applied']}/"
+            f"{row['closed_sessions']} closed "
+            f"({_pct(row['applied_rate'])}), reverted "
+            f"{row['reverted']}, bailout {row['bailout']}, unlocked "
+            f"{row['unlocked']}")
+    corpus_members = [(bucket, sids)
+                      for bucket, sids in stats["members"].items()
+                      if sids]
+    if corpus_members:
+        lines.append("  corpus members:")
+        for bucket, sids in corpus_members:
+            lines.append(f"    {bucket}: " + ", ".join(sids))
 
     corpus = stats["corpus"]
     filters = stats["filters"]
@@ -3219,3 +3385,222 @@ def format_stats_report(stats: dict) -> str:
     ]
     body = "\n".join(lines)
     return body + format_summary_block(rows)
+
+
+def format_session_dossier_json(dossier: dict) -> str:
+    """Render the board 44 session dossier as ONE line of JSON.
+
+    The dossier sibling of format_stats_json: same stability rules
+    (existing keys are never renamed or removed; new keys may be
+    added), same one-compact-line shape, same emission path (the
+    caller emits via emit_json_line under json mode's stream
+    discipline). THIS DOCSTRING OWNS THE DOSSIER LINE'S KEY CONTRACT
+    (the per-surface one-owner rule; format_stats_json's list points
+    here and never duplicates this). Semantics live in
+    bin/bale_stats.py's compute_session_dossier and _dossier_attempt
+    docstrings; this list is the wire shape. The set:
+
+      outcome     "dossier" — the only state that reaches the report;
+                  failure paths (an unusable telemetry dir, a bad sid
+                  argument) exit through fail() before rendering. Part
+                  of the one-place outcome vocabulary this module owns.
+      session_id  the sid asked for, echoed verbatim.
+      found       whether a record under the sid parsed. On false the
+                  line additionally carries parse_failure (a file
+                  exists but the loader skipped it — named on stderr
+                  as ever) and filtered_record_version
+                  (record_version > supported), and NO other keys: an
+                  honest miss, never a fabricated empty record.
+      record      envelope facts and status: record_version,
+                  created_at, updated_at, outcome, the resolved
+                  work_class and packer (open-time stamp first,
+                  feedback echo second), in_flight, closure
+                  ({category, unlock_reason} or null), read_only,
+                  crash_debris.
+      attempts    one view per attempts[] entry, in order: at,
+                  command, outcome, closure_reason, tarball,
+                  scope_kind, scope, change_paths, overridden_paths,
+                  required_check_overrides, forecast_drift_paths
+                  (computed for post-epoch response attempts, null
+                  otherwise), validation (null, or {state, exit_code,
+                  reconciliation_parsed, claims_declared, checks:
+                  [{check, claim, verdict, agreement, claim_basis}]}),
+                  checkpoint (the stamp, or null when the record
+                  carries none), linkage, clarification (the promoted
+                  stamp with rounds and records[], or null),
+                  diagnostics (the bailout embed, or null), provenance
+                  (the open-time stamp, or null), superseded_by, log.
+                  Key-presence semantics survive as null-vs-value: a
+                  null here means the record carried nothing, per each
+                  field's own doctrine.
+      lineage     the cross-record edges recoverable from the corpus:
+                  superseded_by, superseded_from (sids whose stamp
+                  names this one), corrects and corrected_by (read
+                  tolerantly at both depths; null / empty on every
+                  bale-written record today — the manifest field is
+                  not promoted into telemetry — an honest unrecorded,
+                  never a known "no correction").
+
+    Emitted as a single compact line (no indent). Pure: builds a
+    string, prints nothing; the caller emits it via emit_json_line.
+    """
+    payload = {"outcome": "dossier", **dossier}
+    return json.dumps(payload)
+
+
+def format_session_dossier_report(dossier: dict) -> str:
+    """Render the human session dossier (BALE.md §5.6, board 44 level
+    2): one sid rendered whole, replacing the hand-jq walk.
+
+    Reference body first, summary block last (module rule): one block
+    per attempt — outcome and command, the claim/verdict pairs with
+    each check's agreement and declared basis, the checkpoint stamp's
+    per-source attribution, forecast facts (scope, changes, drift,
+    overrides), the clarification rounds with their preserved-record
+    summaries, bailout diagnostics, and the open-time provenance
+    stamp — then the lineage lines, then the trailing
+    format_summary_block with the envelope facts. A not-found sid
+    renders the honest miss (naming the parse-failure or
+    filtered-version cause when that is the reason) and its own
+    summary. No trailing next-step hint: the dossier, like stats, is
+    terminal. All values computed in bin/bale_stats.py; this renderer
+    never owns the numbers. Pure: builds a string, prints nothing.
+    """
+    sid = dossier["session_id"]
+    if not dossier["found"]:
+        if dossier.get("parse_failure"):
+            cause = ("a record file exists but did not parse "
+                     "(skipped and named on stderr)")
+        elif dossier.get("filtered_record_version"):
+            cause = ("a record file exists but its record_version is "
+                     "newer than this reader supports")
+        else:
+            cause = "no record under claude/telemetry/ carries this sid"
+        body = f"  no dossier: {cause}"
+        return body + format_summary_block([
+            ("session", sid),
+            ("found", "no"),
+        ])
+
+    lines: list[str] = []
+    record = dossier["record"]
+    for n, attempt in enumerate(dossier["attempts"], start=1):
+        lines.append(f"  attempt {n}: {attempt['outcome']} "
+                     f"({attempt['command']}) at {attempt['at']}")
+        if attempt["closure_reason"]:
+            lines.append(f"    closure reason: "
+                         f"{attempt['closure_reason']}")
+        if attempt["tarball"]:
+            lines.append(f"    tarball: {attempt['tarball']}")
+        validation = attempt["validation"]
+        if validation is not None:
+            parsed = ("parsed" if validation["reconciliation_parsed"]
+                      else "NOT parsed")
+            lines.append(
+                f"    validation: {validation['state']} "
+                f"(exit {validation['exit_code']}), claims declared "
+                f"{validation['claims_declared']}, reconciliation "
+                f"{parsed}")
+            for check in validation["checks"]:
+                lines.append(
+                    f"      {check['check']}: claim {check['claim']} / "
+                    f"verdict {check['verdict']} [{check['agreement']}]"
+                    f" basis {check['claim_basis']}")
+        checkpoint = attempt["checkpoint"]
+        if checkpoint is not None:
+            if checkpoint.get("configured") is True:
+                stamp = checkpoint.get("stamp_matched")
+                stamp_text = ("verified" if stamp is True
+                              else "divergence admitted" if stamp is False
+                              else "unstamped request")
+                lines.append(
+                    f"    checkpoint: {checkpoint.get('state')} "
+                    f"(exit {checkpoint.get('exit_code')}), "
+                    f"{stamp_text}")
+            else:
+                lines.append("    checkpoint: none configured "
+                             "(known zero)")
+        if attempt["scope_kind"]:
+            drift = attempt["forecast_drift_paths"]
+            drift_text = ("n/a" if drift is None
+                          else ", ".join(drift) if drift else "none")
+            lines.append(
+                f"    forecast: [{', '.join(attempt['scope']) or 'empty'}]"
+                f", changes [{', '.join(attempt['change_paths']) or 'none'}]"
+                f", drift [{drift_text}]")
+            if attempt["overridden_paths"]:
+                lines.append(f"    admitted paths: "
+                             + ", ".join(attempt["overridden_paths"]))
+        if attempt["required_check_overrides"]:
+            lines.append(f"    required-check overrides: "
+                         + ", ".join(attempt["required_check_overrides"]))
+        linkage = attempt["linkage"]
+        if linkage is not None:
+            point = (linkage.get("point") or linkage.get("surfaced")
+                     or "unspecified")
+            lines.append(f"    linkage: {linkage.get('kind', '?')} "
+                         f"({point})")
+        clarification = attempt["clarification"]
+        if clarification is not None:
+            rounds = clarification.get("rounds")
+            lines.append(f"    clarification: rounds {rounds}"
+                         + (" (known zero)" if rounds == 0 else ""))
+            for rec in clarification.get("records") or []:
+                who = rec.get("from") or "unrecorded side"
+                lines.append(
+                    f"      round {rec.get('n')} ({who}) at "
+                    f"{rec.get('at')}: blocking questions "
+                    f"{rec.get('blocking_questions')}, answers "
+                    f"{rec.get('answers')}")
+        diagnostics = attempt["diagnostics"]
+        if diagnostics is not None:
+            lines.append(
+                f"    bailout diagnostics: trigger "
+                f"{diagnostics.get('bail_trigger')!r}")
+        provenance = attempt["provenance"]
+        if provenance is not None:
+            lines.append(
+                f"    opened as: work-class "
+                f"{provenance.get('work_class')}, packer "
+                f"{provenance.get('packer')}")
+        if attempt["superseded_by"]:
+            lines.append(f"    superseded by: "
+                         f"{attempt['superseded_by']}")
+
+    lineage = dossier["lineage"]
+    lineage_bits = []
+    if lineage["superseded_by"]:
+        lineage_bits.append(f"superseded by {lineage['superseded_by']}")
+    if lineage["superseded_from"]:
+        lineage_bits.append("supersedes "
+                            + ", ".join(lineage["superseded_from"]))
+    if lineage["corrects"]:
+        lineage_bits.append(f"corrects {lineage['corrects']}")
+    if lineage["corrected_by"]:
+        lineage_bits.append("corrected by "
+                            + ", ".join(lineage["corrected_by"]))
+    lines.append("")
+    lines.append("  lineage: "
+                 + ("; ".join(lineage_bits) if lineage_bits
+                    else "none recorded"))
+
+    closure = record["closure"]
+    if record["in_flight"]:
+        status = "in-flight"
+    elif closure["category"] == "unlocked":
+        status = f"unlocked ({closure['unlock_reason']})"
+    else:
+        status = closure["category"]
+    flags = [flag for flag, on in (("read-only", record["read_only"]),
+                                   ("crash-debris",
+                                    record["crash_debris"])) if on]
+    rows = [
+        ("session", sid),
+        ("status", status + (f" [{', '.join(flags)}]" if flags else "")),
+        ("work class", record["work_class"]),
+        ("packer", record["packer"]),
+        ("attempts", str(len(dossier["attempts"]))),
+        ("created", record["created_at"]),
+        ("updated", str(record["updated_at"])),
+    ]
+    return "\n".join(lines) + format_summary_block(rows)
