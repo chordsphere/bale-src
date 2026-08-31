@@ -162,7 +162,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
     },
     "claims": {
       "type": "object",
-      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). A value is the bare claim string ('pass', 'fail', 'untested', 'unknown'), or — from v0.4.7 (board 10 S4), the manifest carrier for S5's record-side shape — the annotated object form {\"value\": ..., \"claim_basis\": ...}, declaring at ship time whether the claim was predicted from structural grounds or observed from a real run; apply's verbatim promotion into the telemetry record's attempts[].validation.claims carries the object through unchanged. Bare-string values keep validating (everything additive). The bare-string enum is enforced in Python (validate_response_manifest) — bale's schema-validator subset has no oneOf, so the schema pins only the object form's shape here and the type alternatives.",
+      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). A value is the bare claim string ('pass', 'fail', 'untested', 'unknown'), or — from v0.4.7, the manifest carrier for the record-side shape — the annotated object form {\"value\": ..., \"claim_basis\": ...}, declaring at ship time whether the claim was predicted from structural grounds or observed from a real run; apply's verbatim promotion into the telemetry record's attempts[].validation.claims carries the object through unchanged. Bare-string values keep validating (everything additive). The bare-string enum is enforced in Python (validate_response_manifest) — bale's schema-validator subset has no oneOf, so the schema pins only the object form's shape here and the type alternatives.",
       "additionalProperties": {
         "type": ["string", "object"],
         "additionalProperties": false,
@@ -213,17 +213,17 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             "type": "array",
             "minItems": 1,
             "items": { "type": "string", "minLength": 1 },
-            "description": "Optional (v0.4.7, board 10 S4): candidate answers, at least one when present — the asker's read of the choices, so the question arrives answerable. Doctrine: claude/context/orchestration.md section 8. Legacy four-field rows without this key keep validating."
+            "description": "Optional (v0.4.7): candidate answers, at least one when present — the asker's read of the choices, so the question arrives answerable. Doctrine: PLANNER.md §15. Legacy four-field rows without this key keep validating."
           },
           "recommendation": {
             "type": "string",
             "minLength": 1,
-            "description": "Optional (v0.4.7, board 10 S4): the worker's pick among the choices, extending default_assumption's cheapest-possible-answer role. Doctrine: orchestration.md section 8."
+            "description": "Optional (v0.4.7): the worker's pick among the choices, extending default_assumption's cheapest-possible-answer role. Doctrine: PLANNER.md §15."
           },
           "priority": {
             "type": "string",
             "enum": ["blocking", "batched"],
-            "description": "Optional (v0.4.7, board 10 S4): orchestration.md section 8's two classes — only critical-path blockers interrupt; everything else batches. The vocabulary is CLOSED; validate_clarification_questions (bin/bale_validate.py) additionally enforces it row-wide at any depth."
+            "description": "Optional (v0.4.7): PLANNER.md §15's two classes — only critical-path blockers interrupt; everything else batches. The vocabulary is CLOSED; validate_clarification_questions (bin/bale_validate.py) additionally enforces it row-wide at any depth."
           }
         }
       }
@@ -320,7 +320,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   "type": ["object", "null"],
                   "additionalProperties": false,
                   "required": ["path", "sha256"],
-                  "description": "Echo of the request's provenance.checkpoint stamp (v0.3.28, board 6 session C) — the blind checkpoint's pack-time {path, sha256} identity, or null when the request was packed with no checkpoint configured. Optional so echoes of pre-v0.3.28 requests (which carry no key) stay valid; when the request carries it, the verbatim echo does too.",
+                  "description": "Echo of the request's provenance.checkpoint stamp (v0.3.28) — the blind checkpoint's pack-time {path, sha256} identity, or null when the request was packed with no checkpoint configured. Optional so echoes of pre-v0.3.28 requests (which carry no key) stay valid; when the request carries it, the verbatim echo does too.",
                   "properties": {
                     "path":   { "type": "string", "minLength": 1 },
                     "sha256": { "type": "string", "minLength": 1 }
@@ -328,7 +328,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                 },
                 "checkpoint_scope_admitted": {
                   "type": "boolean",
-                  "description": "Echo of the request's provenance.checkpoint_scope_admitted stamp (v0.3.28, board 6 session C): whether the planner admitted a checkpoint-covering pack scope with --allow-checkpoint-in-scope. Optional so echoes of pre-v0.3.28 requests stay valid."
+                  "description": "Echo of the request's provenance.checkpoint_scope_admitted stamp (v0.3.28): whether the planner admitted a checkpoint-covering pack scope with --allow-checkpoint-in-scope. Optional so echoes of pre-v0.3.28 requests stay valid."
                 },
                 "checkpoint_waived": {
                   "type": "string",
@@ -385,7 +385,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             },
             "forecast_departures": {
               "type": "array",
-              "description": "The worker's own structured account of judgment past the ask (v0.4.2, ADR-0015 board 13 E2, ratified — additive and OPTIONAL, so every pre-epoch manifest stays valid and omission means the session declares no departures). One entry per changes[] path the worker shipped outside the session's write forecast: path plus why, the structured twin of the notes.md enumeration (which remains the human-facing account and the apply-walkthrough input; this field is the aggregable one). Apply persists the feedback block verbatim into telemetry, so `bale stats` cross-checks these declarations against the mechanically admitted overridden_paths — an admitted path with no declared departure is the ADR-0014 audit smell, computed instead of eyeballed.",
+              "description": "The worker's own structured account of judgment past the ask (v0.4.2, ADR-0015, ratified — additive and OPTIONAL, so every pre-epoch manifest stays valid and omission means the session declares no departures). One entry per changes[] path the worker shipped outside the session's write forecast: path plus why, the structured twin of the notes.md enumeration (which remains the human-facing account and the apply-walkthrough input; this field is the aggregable one). Apply persists the feedback block verbatim into telemetry, so `bale stats` cross-checks these declarations against the mechanically admitted overridden_paths — an admitted path with no declared departure is the ADR-0014 audit smell, computed instead of eyeballed.",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1021,8 +1021,8 @@ def _check_diagnostics(ctx: dict) -> list[dict]:
 # Session B1 checks: generated-artifact deny list, retired next-prompt.md,
 # and the feedback-block verification.
 
-# Mirror of bin/bale's deny list (BALE.md section 11 row 20; TARBALL.md
-# section 5.1 carries the builder-side rule). Deliberately duplicated
+# Mirror of bale's apply pre-flight deny list (TARBALL.md section 5.1
+# carries the builder-side rule). Deliberately duplicated
 # rather than imported: this lint is a standalone second implementation
 # of the WRITTEN contract, never a bale import (see module docstring).
 GENERATED_ARTIFACT_DIRS = frozenset({
@@ -1037,8 +1037,8 @@ def check_generated_artifacts(ctx: dict) -> list[dict]:
     A path offends when any NON-FINAL component is one of the deny-list
     directory names, or its basename ends in .pyc/.pyo. A source file
     merely named like one (`scripts/build`, `pyc_utils.py`) passes —
-    the conservative side of the line, matching bale's apply pre-flight
-    (BALE.md §11 row 20) so the worker catches the rejection pre-pack.
+    the conservative side of the line, matching bale's apply pre-flight,
+    so the worker catches the rejection pre-pack.
     """
     manifest = ctx["manifest"]
     changes = manifest.get("changes")
@@ -1062,8 +1062,7 @@ def check_generated_artifacts(ctx: dict) -> list[dict]:
                 "no *.pyc/*.pyo basename)", p,
                 f"changes[{i}] names a generated artifact — files/ carries "
                 "source, never toolchain products (TARBALL.md section 5.1); "
-                "bale's apply pre-flight rejects this tarball (BALE.md "
-                "section 11 row 20)",
+                "bale's apply pre-flight rejects this tarball",
             ))
     return out
 
@@ -1218,7 +1217,7 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
      check_kind_shape),
     ("generated-artifacts",
      "no changes[] path names a generated artifact (TARBALL.md 5.1 deny "
-     "list; BALE.md 11 row 20)",
+     "list)",
      check_generated_artifacts),
     ("next-prompt-retired",
      "no next-prompt.md in the response (retired, TARBALL.md 5.5)",
