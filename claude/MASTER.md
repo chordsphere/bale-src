@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-decisions-foldin-005`.
+Last landed by: `2026-08-31-sitting-close-deltas-006`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -593,6 +593,13 @@ with the unverifiable ones carried verbatim and marked):
   line, and `--json` parity for the verb is accepted need-gated (if
   it turns out to be scripted against). Both fold here; neither is
   queued as its own item.]
+- The bin/-sanction docstring line — one rationale line in
+  tests/test_global_doc_selfcontainment.py's guard docstring
+  recording the injected-surface bin/ sanction (§5, the 2026-08-31
+  fold-in/purge review block). Rides the next session touching that
+  file rather than warranting its own touch. (Ratified 2026-08-31
+  at the fold-in/purge review; landed by
+  `2026-08-31-sitting-close-deltas-006`.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -2163,6 +2170,10 @@ and §8, so done items keep their numbers as one-line pointers.
     pins. Fallback if it runs heavy: docs purge (contract-doc)
     first, guard extension (code) second, the guard depending on
     the purge.
+    [2026-08-31: DONE — landed at `2026-08-31-global-doc-purge-004`,
+    applied 2026-08-31, reinstall fired. Ratifications from its
+    review are §5's fold-in/purge-review block; specimens are §6
+    entries 93–94.]
 
 62. **PLANNER.md doctrine additions** — queued 2026-08-31
     (contract-doc class; serializes after board 61 — both forecast
@@ -2213,6 +2224,12 @@ and §8, so done items keep their numbers as one-line pointers.
     are inert to validation, so behavior is untouched. Discovered
     at the 2026-08-31 desk rehearsal, which also widened board 61
     to cover the lint-embedded response-manifest schema.
+    [2026-08-31: sweep extension, ratified at the fold-in/purge
+    review — when this row runs, its purge also sweeps sitting-label shapes
+    (S-digit forms and session-letter residue) in the five schemas'
+    descriptions, not only evidence and board numbers. The purge
+    session found and genericized one such residue ("S5") in the
+    response-manifest schema.]
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -2758,6 +2775,28 @@ New, ratified 2026-08-31 (the meta-specific-003 sitting, read-only):
   project-side. Overturns PLANNER.md §8's "cited, not carried"
   sanction, which the purge session (board 61) rewrites rather
   than quietly contradicts.
+
+New, ratified 2026-08-31 (the fold-in/purge review, at the fold-in
+(005) and purge (004) responses' review):
+
+- **The fold-in's six-row superset reading is ratified; the brief's five-row header was the defect.**
+  The desk amended the brief mid-authoring to add the sixth row
+  after the checkpoint rehearsal and left the header's count
+  stale; the worker flagged the mismatch in chat before building
+  and landed the superset — the only reading that could fail
+  neither the land-every-item constraint nor the checkpoint pins.
+  No correction shipped or needed. (Specimen: §6 entry 92.)
+- **bin/ paths are sanctioned in injected surfaces — they resolve wherever the install exists.**
+  BALE.md and MASTER.md exist only in the bale-src checkout, so
+  citing them from an injected surface dangles in every other
+  project; bin/ ships with the install, so a bin/bale_pack.py or
+  bin/bale_validate.py reference is a tool-side fact resolving for
+  every project — the same species as naming a bale verb. No deny
+  entry is added to the self-containment guard; the sanction's
+  durable code-side home is a rationale line in the guard's
+  docstring, queued (§3 fold-in registry) to ride the next session
+  touching tests/test_global_doc_selfcontainment.py rather than
+  warranting its own touch.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -3668,6 +3707,32 @@ formalize-convo-001):
     test that exists because ASCII-only corpora pass under either
     setting). Cite from CODE.md's testing doctrine if a home is
     wanted; recorded here regardless.
+
+92. **The stale-count brief defect.** A desk amending a brief
+    mid-authoring added a sixth enumerated row and left the "five
+    work rows" header stale — derived edits that add content can
+    leave a stale count as easily as a fresh rewrite drops a
+    section (the evidence-71 class, inverted). Caught by the
+    worker pre-build, flagged in chat, resolved by the superset
+    reading (§5, the fold-in/purge-review ratification). (From sid
+    `2026-08-31-sitting-decisions-foldin-005`.)
+
+93. **The citation-count correction.** The purge brief estimated
+    ~30 evidence citations in PLANNER.md from a per-line grep; the
+    worker's multi-line-aware pattern found 45 — doubled-per-line
+    and wrap-split citations are invisible to line-based counting.
+    A desk stating a count states a claim; count with the same
+    class of pattern the work will use. (From sid
+    `2026-08-31-global-doc-purge-004`.)
+
+94. **The dual-spelling resolution.** A brief marked a citation
+    VERBATIM in a rendering ambiguous about whether its backticks
+    were formatting; the worker resolved it per destination house
+    style — backticked in the markdown doc, plain in the schema's
+    JSON descriptions — and byte-asserted both spellings in
+    validation. Verbatim markers should state their exact bytes or
+    delegate to house style explicitly. (From sid
+    `2026-08-31-global-doc-purge-004`.)
 
 ## 7. Standing environment facts
 
