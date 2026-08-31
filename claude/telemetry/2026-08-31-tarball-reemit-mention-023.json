@@ -1,0 +1,157 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-tarball-reemit-mention-023",
+  "created_at": "2026-08-31T21:19:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T21:19:58+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-31-tarball-reemit-mention-023.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-08-31T21:38:09+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-023.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "assert: 5.9.2 documents the relay re-emit form": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: 5.9.4 documents the relay re-emit form": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pytest tests/test_global_doc_selfcontainment.py": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "assert: 5.9.2 documents the relay re-emit form": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: 5.9.4 documents the relay re-emit form": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pytest tests/test_global_doc_selfcontainment.py": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.22",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-tarball-reemit-mention-023.sh",
+              "sha256": "771da2f25edb4dc8b0f793021588f732c56e4876352cdd25211ce12f7d6b3542"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The guard suite's self-containment test lives at tests/test_global_doc_selfcontainment.py (named in the brief as an open sibling forecast); validation [SKIP]s with a reason if the path differs."
+          ],
+          "judgment_calls": [
+            "Sentence placement: 5.9.2's sentence sits directly after the ingest sentence, inside the truncated-paste context it resolves; 5.9.4's sits after the answer-recording sentence, before the escalation prose.",
+            "Wording varies slightly between the two sections (records nothing / recording nothing) to fit each sentence's grammar; both carry the full contract: no file argument, latest recorded round, byte-identical, nothing recorded."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-tarball-reemit-mention-023.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-tarball-reemit-mention-023.sh",
+          "sha256": "771da2f25edb4dc8b0f793021588f732c56e4876352cdd25211ce12f7d6b3542"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T21:38:09+00:00",
+  "outcome": "applied"
+}
