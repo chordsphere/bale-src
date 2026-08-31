@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-close-deltas-2-019`.
+Last landed by: `2026-08-31-sitting-close-deltas-3-025`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -409,6 +409,14 @@ with the unverifiable ones carried verbatim and marked):
   `tests/fixtures/stats_corpus/`,
   `tests/test_stats_aggregation.py`; rides the already-queued
   entry, no source changes."]
+  [2026-08-31: did not fire at the row-44 landing — neither this
+  entry nor its linkage-shapes extension: 024 took the
+  separate-suite path and never perturbed the shared-corpus
+  expectations (the entry's own firing condition), and this
+  registry was not in its context, so a firing would have needed
+  a clarification round regardless. Transport lesson, recorded on
+  both riders: the next session that perturbs those expectations
+  must be shipped this entry's text, extension included.]
 - Checkpoint `bash -n` fail-fast: `check_response_shell_syntax`
   gates `apply.sh` and `validation.sh` only; a syntax-errored
   checkpoint surfaces mid-pipeline. Rides board 10 or the next
@@ -676,6 +684,126 @@ with the unverifiable ones carried verbatim and marked):
   nothing — normalization can land later at read time or as its own
   stamp-time session with the map agreed." (Accepted 2026-08-31 at
   the continue-plan-012 sitting.)
+- persist_pack_session's stale command-paragraph docstring — rides
+  the next bale_pack.py touch. Text verbatim from
+  `2026-08-31-bin-bale-tidy-020`'s Proposals: "**What:** One-line
+  docstring touch-up in `bale_pack.py`'s `persist_pack_session`:
+  the `command` paragraph still reads "cmd_handoff passing
+  \"handoff\" is proposed but not yet wired (bin/bale is out of
+  the board-63 session's scope), so handoff opens stamp \"pack\"
+  until that one-word change lands" — stale the moment this
+  response merges. **Why:** The docstring is the parameter's
+  contract of record; a reader tracing a `"handoff"` stamp back to
+  it would be told the stamp can't exist yet. Noticed while
+  confirming the parameter's semantics for item 1; left untouched
+  as out of scope ("everything except bin/bale"). **Scope hints:**
+  `bin/bale_pack.py` (one docstring paragraph); only after this
+  session lands." (Accepted 2026-08-31 at the continue-plan-012
+  sitting's wave-3 close.)
+- The last section-29 string literal in the parity assertEqual
+  message — rides the next behavior-lane test_craft_response.py
+  touch. Text verbatim from `2026-08-31-tools-true-up-021`'s
+  Proposals: "**Retire the last section-29 string literal.**
+  `test_rendering_is_byte_identical`'s `assertEqual` message still
+  names `bin/bale` section 29 as the drift source. *Why:* it is
+  now the only stale citation left in either file, and it is the
+  one a developer reads at the exact moment the guard goes red —
+  the worst moment to be pointed at a section that no longer
+  exists. *Scope hints:* one string in
+  `tests/test_craft_response.py`; a behavior-surface change by
+  this session's constraint, so it wants a lane that admits string
+  literals. Cheap to fold into whatever session next touches that
+  class." (Accepted 2026-08-31 at the continue-plan-012 sitting's
+  wave-3 close.)
+- The two `_section_29` test-id renames — want a session that
+  checks name-selecting consumers. Text verbatim from
+  `2026-08-31-tools-true-up-021`'s Proposals: "**Rename the two
+  `_section_29` test ids.** `test_constants_match_section_29` and
+  `test_normalization_matches_section_29` name a contract by its
+  former address. *Why:* their docstrings now have to explain the
+  name, which is the tell that the name is doing work the code no
+  longer supports; a reader grepping `section 29` after the
+  extraction finds test ids and concludes the section still exists
+  somewhere. *Scope hints:* `tests/test_craft_response.py` only,
+  but it changes test identity — anything selecting these by name
+  (CI shards, a `-k` filter, the board's own retry records) moves
+  with them, so it wants a session that can check those consumers
+  rather than a comment-only lane." (Accepted 2026-08-31 at the
+  continue-plan-012 sitting's wave-3 close.)
+- The response_lint.py index header — its own micro-session or the
+  next lint touch. Text verbatim from
+  `2026-08-31-tools-true-up-021`'s Proposals: "**Consider an index
+  header for `tools/response_lint.py`.** *Why:* I noticed it while
+  confirming the crafter's banner shape — the lint has its own
+  multi-section body and no listing, so the rule this session just
+  mechanized for one of the two shipped tools is unenforced on the
+  other. I did not look closely enough to say how many sections it
+  has or whether its banners are numbered; that is the session's
+  first job. *Scope hints:* `tools/response_lint.py`; independent
+  of anything here, and its `validation.sh` is a one-line change
+  to this session's check 2 (add a second `--index-header` path)."
+  (Accepted 2026-08-31 at the continue-plan-012 sitting's wave-3
+  close.)
+- Purge response-manifest.schema.json together with the lint's
+  vendored copy, then extend the guard's scan — one change, now
+  unblocked (022 has landed, satisfying the entry's own
+  sequencing condition). Text verbatim from
+  `2026-08-31-guard-deny-shapes-022`'s Proposals: "**Purge
+  response-manifest.schema.json together with the lint's vendored
+  copy, then extend the scan.** `tools/response_lint.py` line 235
+  vendors response-manifest's dirty description verbatim, and
+  lines 929/1021/1124 cite B1/B2 free-standing; the lint is
+  already in the guard's docs-and-tools scan group. Why: until
+  both land in one change, response-manifest can't join the schema
+  scan set and the letter-digit shape can never extend toward the
+  tools group — the convergence question stays artificially open.
+  Scope hints: `schemas/response-manifest.schema.json` +
+  `tools/response_lint.py`, descriptions/comments only, then a
+  one-line INSTALL_SCHEMAS addition here; only after this session
+  lands, to avoid forecast collision on the guard file." (Accepted
+  2026-08-31 at the continue-plan-012 sitting's wave-3 close.)
+- Promote validation_will_run and corrects into the telemetry
+  attempt — two one-line write-side additions; unlocks the literal
+  empty-claims cut and live corrects lineage. Rides the next
+  bin/bale_report.py touch. Text verbatim from
+  `2026-08-31-board-44-stats-read-sides-024`'s Proposals:
+  "**What:** two one-line additions in `build_telemetry_attempt`
+  (bin/bale_report.py): carry `manifest.validation_will_run`
+  inside the attempt's `validation` object, and
+  `manifest.corrects` on the attempt, both with the established
+  key-presence semantics. **Why:** this session's read sides had
+  to ship computable proxies for two of the row's asks
+  (assumptions above) because neither field reaches the record.
+  Both promotions are additive under the schema's
+  `additionalProperties: true` — but they are new fields in
+  spirit, and this session's brief cut new fields out of scope, so
+  they are proposed rather than made. Once landed, the literal
+  empty-claims cut is a two-line read change and the dossier's
+  corrects lineage goes live with zero read-side changes (the
+  tolerant read already resolves the field). **Scope hints:**
+  bin/bale_report.py (build_telemetry_attempt),
+  telemetry-record.schema.json descriptions if you want the fields
+  documented; independent of everything else here." (Accepted
+  2026-08-31 at the continue-plan-012 sitting's wave-3 close.)
+- Wire the dossier into `bale stats --sid` — bin/bale is now free
+  (the wave's bin/bale-holding siblings closed with it); the
+  compute and render halves are done and unit-covered. Text
+  verbatim from `2026-08-31-board-44-stats-read-sides-024`'s
+  Proposals: "**What:** `bale stats --sid SID` swaps the aggregate
+  report for the dossier — call `compute_session_dossier`, render
+  via `format_session_dossier_report` /
+  `format_session_dossier_json` under the existing `--json` stream
+  discipline, fail() on an unusable telemetry dir; the not-found
+  case renders the honest miss (already built and tested). Then
+  promote the new suite's dossier coverage to E2E. **Why:** the
+  compute and render halves are done and unit-covered; only the
+  wiring is missing, and it lives in bin/bale — out of scope here
+  and inside an open sibling's forecast, so it could not land in
+  this response even as admitted drift. **Scope hints:** bin/bale
+  (the stats subcommand's argparse and dispatch),
+  tests/test_stats_drilldown.py (E2E extension); only after the
+  sibling session holding bin/bale closes." (Accepted 2026-08-31
+  at the continue-plan-012 sitting's wave-3 close.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1415,6 +1543,55 @@ only what has no row home; close recorded by
   from 018's notes (the provenance-block widening proposal, the
   deferred normalize-at-stamp rider).
 
+Landed 2026-08-31, wave 3 of the continue-plan-012 sitting — the
+routed destinations of the wave-2 dispositions block above, every
+one landed; board 44's landing is its row's bracket, facts of
+record there; this block carries only what has no row home; close
+recorded by `2026-08-31-sitting-close-deltas-3-025`:
+
+- bin-bale-tidy — `2026-08-31-bin-bale-tidy-020`, applied
+  2026-08-31: both one-liners landed (017's `bale status`
+  lost-paste hint, 018's cmd_handoff `command="handoff"`). The
+  hint's awaiting-worker-branch-only placement ratified as shipped
+  (the one state whose hint tells the operator to carry a paste
+  block they may no longer have); the negative-run assertion
+  discipline — both validation assertions also run against the
+  unmodified file to confirm they bite — noted approvingly at the
+  desk.
+- tools-true-up — `2026-08-31-tools-true-up-021`, applied
+  2026-08-31: seven stale section-29 citations retargeted in the
+  crafter, not the brief's four — the desk's count was a
+  head-truncated grep, corrected in the chat round recorded in its
+  notes; the nine-section index header landed; the
+  provenance-not-mechanism retarget ruling holds (the vocabulary
+  originates in bin/bale_relay.py and reaches the parity suite
+  through bin/bale's re-export; the loader stays untouched); test
+  ids frozen (the two `_section_29` methods keep their identities,
+  their docstrings carrying the moved contract).
+  The tools-true-up oracle was amended rev1 to rev2 at the desk; the retry's stamp mismatch was accepted deliberately, and this sentence is its prose record.
+  The blind checkpoint had HOLDed on a fixture defect — the index
+  probe asserted an imagined surface (wrong anchor word, wrong
+  position window) — corrected per the bad-oracle flow, and the
+  same response tarball landed on retry.
+- guard-deny-shapes — `2026-08-31-guard-deny-shapes-022`, applied
+  2026-08-31: landed through a full clarification thread — a
+  paste-back probe, a three-question exchange round (the planner's
+  record preserved at `.bale/clarifications` under the sid), and a
+  desk scope amendment authorizing the telemetry-schema
+  description purge, which shipped as admitted drift. Two of the
+  worker's three defaults were corrected by the round (the five's
+  membership; the seven's reconstruction). The row-tolerant board
+  anchor and the hyphenated reword ratified as shipped. The
+  ratified deny set's durable home is now the guard itself (the
+  015 archive holds only notes.md).
+- tarball-reemit-mention —
+  `2026-08-31-tarball-reemit-mention-023`, applied 2026-08-31:
+  both sentences landed correct, one per section, no notes.md —
+  the desk-probe record is the source, and the §5 wave-3 close
+  block carries the rescued record. Its predicted guard-suite
+  claim resolved to verdict skip at staging — flagged; self-heals
+  at the next full-suite run.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2004,6 +2181,23 @@ and §8, so done items keep their numbers as one-line pointers.
     `bale stats` run warns once per open session (the reader's
     designed unknown-vocabulary path, counting the session
     correctly as in-flight) — accepted noise per 018's notes.]
+    [2026-08-31: DONE — `2026-08-31-board-44-stats-read-sides-024`,
+    applied 2026-08-31. All four read sides in one session. One
+    admission at apply: tests/test_stats_drilldown.py (created —
+    the separate-suite pattern test_stats_linkage.py names as
+    ratified; admitted per path). Two proxy-form assumptions
+    ratified as shipped: the telemetry record carries neither
+    validation_will_run nor corrects, so the empty-claims cut and
+    the dossier's corrects lineage shipped in computable forms
+    with the divergence stated in both doc homes; the write-side
+    promotion that unlocks the literal forms is registered in the
+    §3 fold-in registry (024's rider), beside its dossier-wiring
+    sibling. The brief's two fixture riders did not fire — the
+    session never touched the shared-corpus expectations, and the
+    fold-in registry was not in its context; the transport lesson
+    is annotated on the registry entry: the next session that
+    perturbs those expectations must be shipped the registry
+    text.]
 
 45. **hostile-foreign-repo arc** — queued 2026-08-16 (multi-session arc;
     feeds S6; sequenced before any harness autonomy): deliberately run
@@ -3009,6 +3203,25 @@ New, ratified 2026-08-31 (the continue-plan-012 sitting):
   The ruling is bale-src authoring practice; it does not touch the
   global docs. (Accruals and closure: the §3 watch entry.)
 
+New, ratified 2026-08-31 (the continue-plan-012 sitting's wave-3
+close):
+
+- **A response carrying anything ratifiable writes notes.md, however short; the archive keeps only notes.**
+  TARBALL.md §5.4 already says it; the ruling restates it as
+  bale-src practice of record after 023 tucked ratifiable material
+  into its manifest, whose bytes the archive drops — established
+  by 022's probe (the 015 archive holds notes.md only).
+- **023's durable record, probe-rescued.** Beside the ruling, the
+  facts the archive would otherwise drop:
+  `2026-08-31-tarball-reemit-mention-023` landed the TARBALL.md
+  §5.9.2 sentence "Invoked without the file argument, the same
+  verb re-emits the paste block for the thread's latest recorded
+  round — byte-identical to the original emission — and records
+  nothing" and the §5.9.4 recovery-path sentence, and its
+  predicted guard-suite claim resolved to verdict skip at staging
+  (flagged in the §3 wave-3 block; self-heals at the next
+  full-suite run).
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
 
@@ -3945,6 +4158,44 @@ formalize-convo-001):
     delegate to house style explicitly. (From sid
     `2026-08-31-global-doc-purge-004`.)
 
+New from the 2026-08-31 continue-plan-012 sitting (waves 2–3):
+
+95. **Two desk fixture defects in one sitting.** The sid-key
+    defect caught at the pre-delivery dry-run (board 63's
+    oracle), and the index-probe defect that leaked to a live
+    HOLD (the tools-true-up checkpoint, corrected rev1→rev2 per
+    the bad-oracle flow) — with the masking lesson: the rehearsal
+    stubbed content at line 1 instead of where the house format
+    places it, so the position assumption went unexercised.
+    Practice residue, both recorded: rehearsal content is placed
+    per house format, and an artifact with a mechanical format
+    checker gets an oracle replicating that checker's detector.
+    The checkpoint-thinness watch's threshold reading: two
+    desk-side fixture defects, one sitting; a third fires the
+    watch.
+
+96. **Predicted-to-observed resolution.** 021's parity-suite
+    claim, predicted at build (no bin/ shipped), verified
+    observed at real staging — the claim-basis split resolving as
+    designed. Feeds the thin-predicted-basis watch. (From sid
+    `2026-08-31-tools-true-up-021`.)
+
+97. **Compaction disclosure, done properly.** 024 disclosed a
+    mid-session compaction and ran the full §11.6 recovery —
+    manifest re-read, pinned kernel re-compared byte-for-byte,
+    §10.1 step-10 set re-derived from present bytes. Feeds the
+    queued bailout-vs-compaction ruling's corpus. (From sid
+    `2026-08-31-board-44-stats-read-sides-024`.)
+
+98. **Same-day citation reintroduction.** Board 63's session
+    reintroduced board-number citations into the just-purged
+    telemetry schema — the desk's own authoring miss (its brief
+    carried no descriptions-stay-clean constraint) and the
+    concrete argument that the mechanical guard, not brief
+    discipline, is the durable fix. Caught and re-purged by the
+    guard session under the exchange-amended scope. (From sid
+    `2026-08-31-guard-deny-shapes-022`.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -4007,8 +4258,8 @@ formalize-convo-001):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.17 at
-  `2026-08-26-board-53-amend-checkpoint-004`; the
+  still governs. bin/bale VERSION 0.4.22 at
+  `2026-08-31-board-60-relay-reemit-017`; the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
