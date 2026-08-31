@@ -1,0 +1,120 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-66-schema-purge-015",
+  "created_at": "2026-08-31T19:48:00+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T19:48:00+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-015.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "deny shapes absent (5 schemas)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "deny shapes absent (5 schemas)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "schemas/bundle-manifest.schema.json",
+        "schemas/escalation-record.schema.json",
+        "schemas/exchange-record.schema.json",
+        "schemas/request-manifest.schema.json",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "schemas/bundle-manifest.schema.json",
+        "schemas/escalation-record.schema.json",
+        "schemas/exchange-record.schema.json",
+        "schemas/request-manifest.schema.json",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-66-schema-purge-015.sh",
+              "sha256": "afcd70f09dbae4be473635bce6b896ec7488c277dcbf0b35c2eed224f972fb6e"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "ADR-NNNN citations are house style, not part of the deny set \u2014 kept (notes.md item 1)",
+            "the dated sitting citation ('ratified 2026-08-03...') was fair game for rewrite even though not a literal deny shape (notes.md item 3)"
+          ],
+          "judgment_calls": [
+            "S-digit epoch labels converted to version anchors rather than deleted, preserving key-presence epoch semantics (notes.md item 2)",
+            "BALE.md pointers resolved to the unnamed 'the bale tool's own documentation' idiom; orchestration.md citations redirected to PLANNER.md sections 15/16/17"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-66-schema-purge-015.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-66-schema-purge-015.sh",
+          "sha256": "afcd70f09dbae4be473635bce6b896ec7488c277dcbf0b35c2eed224f972fb6e"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T19:48:00+00:00",
+  "outcome": "applied"
+}
