@@ -1,0 +1,219 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-65-linkage-rollup-010",
+  "created_at": "2026-08-31T15:08:25+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T15:08:25+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-board-65-linkage-rollup-010.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_stats.py",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/test_stats_linkage.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the live corpus's legacy-spelled linkage stamps (`surfaced`) are the same placement fact as the current `point` key, so the rollup normalizes the key and reports one placement vocabulary \u2014 flagged in notes.md for ratification"
+          ],
+          "judgment_calls": [
+            "separate-suite test path (rider does not fire; registry entry stays queued)",
+            "scan-every-attempt semantics mirroring the clarification cross-check's read",
+            "per-class rollup only; no corpus-wide total block (deferred with rationale)",
+            "human extras line renders only for stamped classes \u2014 no fabricated zeros"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "outcome contract 1 needs the linkage label in the human output mode, and the format_stats_json docstring owns the wire key contract (one-home rule) \u2014 both live in this file"
+            },
+            {
+              "path": "tests/test_stats_linkage.py",
+              "why": "the brief's sanctioned separate-suite path; the forecast names test_stats_aggregation.py as a file, so a new suite is drift by construction"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-65-linkage-rollup-010.log"
+    },
+    {
+      "at": "2026-08-31T15:13:15+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-board-65-linkage-rollup-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "full suite (python3 -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "stats exit-0 both modes (staging root)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "linkage aggregation present (synthetic corpus)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "full suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stats exit-0 both modes (staging root)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "linkage aggregation present (synthetic corpus)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_stats.py",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [
+        "bin/bale_report.py",
+        "tests/test_stats_linkage.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/test_stats_linkage.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the live corpus's legacy-spelled linkage stamps (`surfaced`) are the same placement fact as the current `point` key, so the rollup normalizes the key and reports one placement vocabulary \u2014 flagged in notes.md for ratification"
+          ],
+          "judgment_calls": [
+            "separate-suite test path (rider does not fire; registry entry stays queued)",
+            "scan-every-attempt semantics mirroring the clarification cross-check's read",
+            "per-class rollup only; no corpus-wide total block (deferred with rationale)",
+            "human extras line renders only for stamped classes \u2014 no fabricated zeros"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "outcome contract 1 needs the linkage label in the human output mode, and the format_stats_json docstring owns the wire key contract (one-home rule) \u2014 both live in this file"
+            },
+            {
+              "path": "tests/test_stats_linkage.py",
+              "why": "the brief's sanctioned separate-suite path; the forecast names test_stats_aggregation.py as a file, so a new suite is drift by construction"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-65-linkage-rollup-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-65-linkage-rollup-010.sh",
+          "sha256": "d85377f1dba4436b4776fd2fd4b16c463e0bffc0a9de951d82ed0e5b374aedd6"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T15:13:15+00:00",
+  "outcome": "applied"
+}
