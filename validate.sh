@@ -80,12 +80,20 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/bin/bale_config.py" ]]      && pass "bin/bale_config.py present" || fail "bin/bale_config.py present"
 [[ -f "$INSTALL_DIR/bin/bale_validate.py" ]]    && pass "bin/bale_validate.py present" || fail "bin/bale_validate.py present"
 [[ -f "$INSTALL_DIR/bin/bale_staging.py" ]]     && pass "bin/bale_staging.py present" || fail "bin/bale_staging.py present"
+[[ -f "$INSTALL_DIR/bin/bale_sandbox.py" ]]     && pass "bin/bale_sandbox.py present" || fail "bin/bale_sandbox.py present"
 [[ -f "$INSTALL_DIR/bin/bale_rollback.py" ]]    && pass "bin/bale_rollback.py present" || fail "bin/bale_rollback.py present"
 [[ -f "$INSTALL_DIR/bin/bale_report.py" ]]      && pass "bin/bale_report.py present" || fail "bin/bale_report.py present"
 [[ -f "$INSTALL_DIR/bin/bale_pack.py" ]]        && pass "bin/bale_pack.py present" || fail "bin/bale_pack.py present"
 [[ -f "$INSTALL_DIR/bin/bale_apply.py" ]]       && pass "bin/bale_apply.py present" || fail "bin/bale_apply.py present"
 [[ -f "$INSTALL_DIR/bin/bale_stats.py" ]]       && pass "bin/bale_stats.py present" || fail "bin/bale_stats.py present"
 [[ -f "$INSTALL_DIR/bin/_bale_toml.py" ]]       && pass "bin/_bale_toml.py present" || fail "bin/_bale_toml.py present"
+# bale_sandbox (above, in layout order), bale_open, and bale_relay: trued
+# up in v0.4.21 against install.sh's INSTALL_LAYOUT, which had grown three
+# bin modules this list never learned about — the schema-loop lesson
+# (v0.4.12) replayed on bin/. A session adding a bin module extends this
+# list in the same change.
+[[ -f "$INSTALL_DIR/bin/bale_open.py" ]]        && pass "bin/bale_open.py present" || fail "bin/bale_open.py present"
+[[ -f "$INSTALL_DIR/bin/bale_relay.py" ]]       && pass "bin/bale_relay.py present" || fail "bin/bale_relay.py present"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
@@ -182,6 +190,37 @@ sys.exit(0 if (
   else
     fail "crafter bundle constants equal bale_pack's (BUNDLE_SUFFIX, INTENT_PROMPTS)" \
          "re-declare the pair in tools/craft_response.py from bin/bale_pack.py"
+  fi
+  # Exchange-constants drift guard (v0.4.21): `bale relay`'s extraction
+  # moved the paste block's wire vocabulary to bin/bale_relay.py, and the
+  # crafter re-declares it because it imports nothing from bale (its
+  # worker session has no install to import from). The five constants
+  # below are the shared vocabulary both homes declare — the sentinels,
+  # the trailer label, and the two sides. The bale-src suite
+  # (tests/test_craft_response.py's ExchangeBlockParity) pins the full
+  # byte layout; tests/ is not in the release, so this row is the
+  # install-side subset — the bundle-constants guard above, applied to
+  # the exchange vocabulary — and a release whose two homes disagree
+  # fails here instead of only in the source checkout.
+  if python3 -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR/tools')
+sys.path.insert(0, '$INSTALL_DIR/bin')
+import craft_response, bale_relay
+sys.exit(0 if (
+    craft_response.EXCHANGE_BLOCK_BEGIN == bale_relay.EXCHANGE_BLOCK_BEGIN
+    and craft_response.EXCHANGE_BLOCK_END == bale_relay.EXCHANGE_BLOCK_END
+    and craft_response.EXCHANGE_TRAILER_LABEL
+        == bale_relay.EXCHANGE_TRAILER_LABEL
+    and craft_response.EXCHANGE_SIDE_WORKER == bale_relay.EXCHANGE_SIDE_WORKER
+    and craft_response.EXCHANGE_SIDE_PLANNER
+        == bale_relay.EXCHANGE_SIDE_PLANNER
+) else 1)
+" 2>/dev/null; then
+    pass "crafter exchange constants equal bale_relay's (sentinels, trailer label, sides)"
+  else
+    fail "crafter exchange constants equal bale_relay's (sentinels, trailer label, sides)" \
+         "re-declare the exchange vocabulary in tools/craft_response.py from bin/bale_relay.py"
   fi
 else
   fail "tools/craft_response.py present" "pack injects it into every request"
