@@ -1,0 +1,146 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-sitting-decisions-foldin-005",
+  "created_at": "2026-08-31T12:22:20+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T12:22:20+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-sitting-decisions-foldin-005_tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "verbatim pins present and contiguous (10 strings)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board rows 61-66 present and sequentially numbered": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "ruling-queue and watch entries seated in section 3": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "last-landed-by line updated in place": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "top-level section headers unchanged (8)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "verbatim pins present and contiguous (10 strings)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board rows 61-66 present and sequentially numbered": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ruling-queue and watch entries seated in section 3": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "last-landed-by line updated in place": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "top-level section headers unchanged (8)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "cf29e384368dba78637e74a4c7526d3c57a5c72d1a7d0650f1814fe9080dfcfb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "ada0b06c3aaf489af98f0a23e42472a2db2199af6949cec1b852cb4f47d448f5"
+            },
+            "packer": "master:2026-08-31-meta-specific-003",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-sitting-decisions-foldin-005.sh",
+              "sha256": "ee30f4a94d609728b2535b6a87719227976beb78acc6fd83b6212ee9d7188d07"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude-fable-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's 'five work rows' header is a stale count and all six enumerated rows land (the sixth was added at the desk rehearsal per its own body); flagged in chat pre-build and in notes.md"
+          ],
+          "judgment_calls": [
+            "created a named Ruling queue list in section 3 (between Watches and the Fold-in registry) as the sitting/ruling-queue home the brief names but the doc lacked",
+            "edited the header's last-landed-by line in place to this sid per the doc's own convention, though the brief's inventory didn't name it",
+            "board rows landed as 61-66 in the brief's order with queued-2026-08-31 datelines matching house style"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-sitting-decisions-foldin-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-sitting-decisions-foldin-005.sh",
+          "sha256": "ee30f4a94d609728b2535b6a87719227976beb78acc6fd83b6212ee9d7188d07"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T12:22:20+00:00",
+  "outcome": "applied"
+}
