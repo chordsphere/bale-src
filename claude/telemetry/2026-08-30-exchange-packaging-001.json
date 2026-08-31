@@ -1,0 +1,123 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-30-exchange-packaging-001",
+  "created_at": "2026-08-31T01:22:25+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T01:22:25+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-30-exchange-packaging-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "packaging suite (BALE_TEST_SLOW=1 python3 -m unittest discover -s tests -p test_release_packaging.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "packaging suite (BALE_TEST_SLOW=1 python3 -m unittest discover -s tests -p test_release_packaging.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "install.sh",
+        "scripts",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.17",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "286684563d43743c3019611d693cd66ec6e9464633d31ef41fe0260ecd9fe6fb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "9473effc57d12c5f613e16b87b781bb7f0c8b20b9fc1fc4a7603a0801bddc720"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-30-exchange-packaging-001.sh",
+              "sha256": "2b90c62f30ced872c0fefa9639f297b1d0948cb2f7a1b59b7c117a300baee567"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "upgrade.sh's REQUIRED_RELEASE_MEMBERS intentionally omits post-telemetry schemas (escalation-record, bundle-manifest precedent); exchange-record follows the lineage and is left out \u2014 reasoning in notes.md, ratify at review"
+          ],
+          "judgment_calls": [
+            "full-suite claim marked predicted, packaging-suite claim observed: only the packaging suite shipped in context, so discover here cannot see the checkout's other suites",
+            "validation.sh opens the slow gate for the packaging suite only, keeping the default discover run inside the 2-minute budget while still observing the E2E drive of the modified build.sh"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-30-exchange-packaging-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-30-exchange-packaging-001.sh",
+          "sha256": "2b90c62f30ced872c0fefa9639f297b1d0948cb2f7a1b59b7c117a300baee567"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T01:22:25+00:00",
+  "outcome": "applied"
+}
