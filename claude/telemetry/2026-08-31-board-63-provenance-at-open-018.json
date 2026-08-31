@@ -1,0 +1,264 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-63-provenance-at-open-018",
+  "created_at": "2026-08-31T21:08:53+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T21:08:53+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-018 (2).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_pack.py",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_pack.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_closure_telemetry.py",
+        "tests/test_provenance_at_open.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-63-provenance-at-open-018.sh",
+              "sha256": "0661129dc11d05973cf97f80ddc62c353c966ea227ab281d67533b83236ed5f0"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude-fable-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "build_telemetry_attempt accepts the new 'opened' outcome string without rejection \u2014 its body was truncated in the probe at the docstring boundary; proceeded on its documented records-what-it-is-handed posture, with the new suite exercising it E2E as validation's first test check (notes.md)"
+          ],
+          "judgment_calls": [
+            "the open-time stamp rides the opened attempt (through the one builder, uniform epoch stamps) rather than envelope-level keys",
+            "the stamp lives in persist_pack_session so handoff opens are covered with no bin/bale change; the pre-register_session debris window is documented, not fixed",
+            "handoff opens stamp command 'pack' until cmd_handoff threads 'handoff' (reserved in the schema enum; one-word change proposed)",
+            "registry provenance.json carries exactly the two asked-for fields",
+            "bale_stats left untouched: the unknown-vocabulary path counts opened records as in-flight correctly at the cost of a stderr warning per open session; the vocabulary row is proposed for board 44 rather than shipped as drift",
+            "normalization rider deferred (verbatim stamp; rationale in notes.md)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_report.py (telemetry writer/builder \u2014 fetched via probe)",
+            "bin/bale close_session_with_record and registry helpers (fetched via probe)",
+            "bin/bale_validate.py validate_telemetry_record (fetched via probe)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_provenance_at_open.py",
+              "why": "tests ship with code; the new open-time behavior needed its own pinned suite the pack could not have named (ADR-0014)"
+            },
+            {
+              "path": "tests/test_closure_telemetry.py",
+              "why": "three existing tests pinned the pre-epoch record shape (attempts[0] = unlock, len 1); unmodified they reject the feature the goal asked for"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-63-provenance-at-open-018.log"
+    },
+    {
+      "at": "2026-08-31T21:10:55+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-018 (2).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "schema additive-shape assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_provenance_at_open": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_closure_telemetry": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_telemetry_extensions": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "schema additive-shape assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_provenance_at_open": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_closure_telemetry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_telemetry_extensions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_pack.py",
+        "schemas/telemetry-record.schema.json"
+      ],
+      "overridden_paths": [
+        "tests/test_closure_telemetry.py",
+        "tests/test_provenance_at_open.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_pack.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_closure_telemetry.py",
+        "tests/test_provenance_at_open.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-63-provenance-at-open-018.sh",
+              "sha256": "0661129dc11d05973cf97f80ddc62c353c966ea227ab281d67533b83236ed5f0"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "claude-fable-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "build_telemetry_attempt accepts the new 'opened' outcome string without rejection \u2014 its body was truncated in the probe at the docstring boundary; proceeded on its documented records-what-it-is-handed posture, with the new suite exercising it E2E as validation's first test check (notes.md)"
+          ],
+          "judgment_calls": [
+            "the open-time stamp rides the opened attempt (through the one builder, uniform epoch stamps) rather than envelope-level keys",
+            "the stamp lives in persist_pack_session so handoff opens are covered with no bin/bale change; the pre-register_session debris window is documented, not fixed",
+            "handoff opens stamp command 'pack' until cmd_handoff threads 'handoff' (reserved in the schema enum; one-word change proposed)",
+            "registry provenance.json carries exactly the two asked-for fields",
+            "bale_stats left untouched: the unknown-vocabulary path counts opened records as in-flight correctly at the cost of a stderr warning per open session; the vocabulary row is proposed for board 44 rather than shipped as drift",
+            "normalization rider deferred (verbatim stamp; rationale in notes.md)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_report.py (telemetry writer/builder \u2014 fetched via probe)",
+            "bin/bale close_session_with_record and registry helpers (fetched via probe)",
+            "bin/bale_validate.py validate_telemetry_record (fetched via probe)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_provenance_at_open.py",
+              "why": "tests ship with code; the new open-time behavior needed its own pinned suite the pack could not have named (ADR-0014)"
+            },
+            {
+              "path": "tests/test_closure_telemetry.py",
+              "why": "three existing tests pinned the pre-epoch record shape (attempts[0] = unlock, len 1); unmodified they reject the feature the goal asked for"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-63-provenance-at-open-018.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-63-provenance-at-open-018.sh",
+          "sha256": "0661129dc11d05973cf97f80ddc62c353c966ea227ab281d67533b83236ed5f0"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T21:10:55+00:00",
+  "outcome": "applied"
+}
