@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# board-64/65 close-rider blind checkpoint v1 — repo root, staging.
-# Exit 0 PASS, 1 HOLD, 2 defective oracle.
+# board-64/65 close-rider blind checkpoint v2 — repo root, staging.
+# Amends v1 per the 2026-08-31 desk ruling: former P3 (wizard-walk
+# line) dropped — flag ratified; former P4's needle replaced with the
+# corrected engagement sentence. Exit 0 PASS, 1 HOLD, 2 defective.
 set -u
 fail=0
 v="$(tr -d '[:space:]' < bin/VERSION 2>/dev/null)"
@@ -25,11 +27,10 @@ PYEOF
   [ "$rc" -ne 0 ] && fail=1
 }
 probe "P2-stats-line" "Each stats class row carries a \`linkage\` aggregation over the records' \`feedback.mechanical.linkage\` stamps; unstamped classes render no fabricated zeros."
-probe "P3-walk-line" "A configured \`release-surface\` include group joins the wizard walk, its three keys read as one unit."
-probe "P4-output-line" "When the \`release-surface\` group engages, pack output carries an include-group row naming its additions."
+probe "P3-engagement-line" "When the \`release-surface\` group engages, pack output carries an include-group row."
 if python3 -m unittest discover -s tests >/dev/null 2>&1; then
-  echo "[P5-suite] PASS"
+  echo "[P4-suite] PASS"
 else
-  echo "[P5-suite] FAIL: full suite not green"; fail=1
+  echo "[P4-suite] FAIL: full suite not green"; fail=1
 fi
 exit "$fail"
