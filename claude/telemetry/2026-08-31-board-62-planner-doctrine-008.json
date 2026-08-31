@@ -1,0 +1,128 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-62-planner-doctrine-008",
+  "created_at": "2026-08-31T14:14:13+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T14:14:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-008 (14).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "landed-sentence verbatim assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc guard suites (stdlib unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no VERSION change shipped": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "landed-sentence verbatim assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc guard suites (stdlib unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no VERSION change shipped": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/PLANNER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/PLANNER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "34d6a7256af66b184608ddad52e079a3267574856493a037e6ed14a10f706865"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-62-planner-doctrine-008.sh",
+              "sha256": "cf513161a4a0e9773145d02869b9643adaaa3c358761df26ce67175ce7eb8625"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the request's context/ tree (docs/, tests/, tools/) matches the desk's working tree at base \u2014 the guard suites and sentence assertions were dry-run against a reconstruction of it"
+          ],
+          "judgment_calls": [
+            "Addition 1 landed as its own \u00a72 bullet with a bold lead (section style) rather than folded into an existing bullet's close",
+            "Addition 2 appended to \u00a74's delivery-practice bullet close with no connective clause"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-62-planner-doctrine-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-62-planner-doctrine-008.sh",
+          "sha256": "cf513161a4a0e9773145d02869b9643adaaa3c358761df26ce67175ce7eb8625"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T14:14:13+00:00",
+  "outcome": "applied"
+}
