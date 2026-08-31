@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Blind checkpoint — exchange-crafter (2026-08-30), v1. Outcome-only.
+# Blind checkpoint — exchange-crafter (2026-08-30), v2. Outcome-only.
+# v2 (2026-08-31, desk amendment, bad-oracle correction): the two
+# manifest-path invocations dropped `--kind clarification` — the v1
+# probes encoded a pre-ratification invocation model; the ratified
+# surface makes --emit-block a standalone mode that refuses extra
+# flags. Only the failing probes changed; every passing probe is
+# byte-identical to v1.
 # Writes only under a mktemp -d scratch, removed on exit.
 # Exit: 0 all pass, 1 any fail, 2 script error.
 set -u
 scratch="$(mktemp -d)" || { echo "[FAIL] scratch dir"; exit 2; }
 trap 'rm -rf "$scratch"' EXIT
-echo "checkpoint exchange-crafter v1: writes only under $scratch (removed on exit)"
+echo "checkpoint exchange-crafter v2: writes only under $scratch (removed on exit)"
 fail=0
 pass() { echo "[PASS] $1"; }
 fail() { echo "[FAIL] $1"; fail=1; }
@@ -39,7 +45,7 @@ JSON
 
 # --- 1. The flag exists and stdout is exactly the block.
 probe "crafter --help names --emit-block" bash -c "python3 tools/craft_response.py --help 2>&1 | grep -q -- --emit-block"
-if python3 tools/craft_response.py --kind clarification --emit-block "$scratch/manifest.json" > "$scratch/block.txt" 2>"$scratch/err.txt"; then
+if python3 tools/craft_response.py --emit-block "$scratch/manifest.json" > "$scratch/block.txt" 2>"$scratch/err.txt"; then
   pass "emit-block over a filled manifest exits 0"
 else
   fail "emit-block over a filled manifest exits 0"
@@ -72,7 +78,7 @@ sys.exit(0 if validate_exchange_record({k: v for k, v in rec.items()}) == [] els
 PYEOF
 
 # --- 3. Round selection and refusals.
-probe "emit-block honors --round 3" bash -c "python3 tools/craft_response.py --kind clarification --emit-block '$scratch/manifest.json' --round 3 2>/dev/null | grep -q '\"round\": 3'"
+probe "emit-block honors --round 3" bash -c "python3 tools/craft_response.py --emit-block '$scratch/manifest.json' --round 3 2>/dev/null | grep -q '\"round\": 3'"
 probe "a from-planner record is refused" bash -c "printf '{\"record_version\":1,\"session_id\":\"s\",\"round\":2,\"from\":\"planner\",\"created_at\":\"2026-08-30T00:00:00+00:00\",\"answers\":[{\"question_round\":1,\"question_index\":0,\"answer\":\"x\",\"disposition\":\"free-text\"}]}' > '$scratch/p.json'; ! python3 tools/craft_response.py --emit-block '$scratch/p.json' >/dev/null 2>&1"
 
 # --- 4. Parity is pinned in the suite and the suite passes.
