@@ -1,0 +1,274 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-64-release-surface-group-009",
+  "created_at": "2026-08-31T15:15:15+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T15:15:15+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-board-64-release-surface-group-009.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bale.toml",
+        "bin/bale",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "tests/test_include_group.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-64-release-surface-group-009.sh",
+              "sha256": "82b877276ef92c470a387d43b98bb9926dc6c301990048ab3d0d47a9f93ae1e3"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the wizard-rewrite hazard makes the trio contract (accessor + walk + render) mandatory for any new config key, so the [pack] keys ship wizard-walkable rather than hand-edit-only",
+            "'includes cover paths under bin/, tests/, or schemas/' in the brief means the scope_paths_intersect relation (directory entries cover subtrees, '.' covers everything), matching how every existing gate reads coverage"
+          ],
+          "judgment_calls": [
+            "group engagement is read-side only \u2014 no forecast seeding; the brief's optional extension deliberately not taken (notes.md carries the reasoning and the composing path)",
+            "opt-out line is FORCE-prefixed so it journals as an override event; a mismatched or unconfigured --no-include-group refuses rather than no-opping",
+            "dangling configured pulls refuse at engagement, stay dormant otherwise \u2014 the at-use posture of configured hooks",
+            "--json report carries no include-group key this session; proposed in notes.md rather than touching bale_report.py as a third out-of-forecast file"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale",
+              "why": "the --no-include-group flag lives on pack's argparse surface, which is in bin/bale"
+            },
+            {
+              "path": "bale.toml",
+              "why": "the configured release-surface instance itself; the brief sanctions the config-driven mechanism"
+            },
+            {
+              "path": "tests/test_include_group.py",
+              "why": "worker-determined new test suite, the drift class the brief itself prices"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-64-release-surface-group-009.log"
+    },
+    {
+      "at": "2026-08-31T15:18:47+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-board-64-release-surface-group-009.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "bale.toml configures the release-surface group (triggers and pulls exist)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "BALE.md documents the release-surface group (session assertions)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests/test_include_group.py (direct run)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "python3 -m unittest discover -s tests": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/VERSION unchanged (0.4.19 \u2014 bumpless per the lane note)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "bale.toml configures the release-surface group (triggers and pulls exist)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md documents the release-surface group (session assertions)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests/test_include_group.py (direct run)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest discover -s tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION unchanged (0.4.19 \u2014 bumpless per the lane note)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "install.sh",
+        "scripts/build.sh",
+        "validate.sh"
+      ],
+      "overridden_paths": [
+        "bale.toml",
+        "bin/bale",
+        "tests/test_include_group.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bale.toml",
+        "bin/bale",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "tests/test_include_group.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-64-release-surface-group-009.sh",
+              "sha256": "82b877276ef92c470a387d43b98bb9926dc6c301990048ab3d0d47a9f93ae1e3"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the wizard-rewrite hazard makes the trio contract (accessor + walk + render) mandatory for any new config key, so the [pack] keys ship wizard-walkable rather than hand-edit-only",
+            "'includes cover paths under bin/, tests/, or schemas/' in the brief means the scope_paths_intersect relation (directory entries cover subtrees, '.' covers everything), matching how every existing gate reads coverage"
+          ],
+          "judgment_calls": [
+            "group engagement is read-side only \u2014 no forecast seeding; the brief's optional extension deliberately not taken (notes.md carries the reasoning and the composing path)",
+            "opt-out line is FORCE-prefixed so it journals as an override event; a mismatched or unconfigured --no-include-group refuses rather than no-opping",
+            "dangling configured pulls refuse at engagement, stay dormant otherwise \u2014 the at-use posture of configured hooks",
+            "--json report carries no include-group key this session; proposed in notes.md rather than touching bale_report.py as a third out-of-forecast file"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale",
+              "why": "the --no-include-group flag lives on pack's argparse surface, which is in bin/bale"
+            },
+            {
+              "path": "bale.toml",
+              "why": "the configured release-surface instance itself; the brief sanctions the config-driven mechanism"
+            },
+            {
+              "path": "tests/test_include_group.py",
+              "why": "worker-determined new test suite, the drift class the brief itself prices"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-64-release-surface-group-009.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-64-release-surface-group-009.sh",
+          "sha256": "82b877276ef92c470a387d43b98bb9926dc6c301990048ab3d0d47a9f93ae1e3"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T15:18:47+00:00",
+  "outcome": "applied"
+}
