@@ -1,0 +1,161 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-sitting-close-deltas-3-025",
+  "created_at": "2026-08-31T22:39:55+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T22:39:55+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-31-sitting-close-deltas-3-025.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-08-31T22:55:55+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-sitting-close-deltas-3-025.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "verbatim kernels (both byte-exact, contiguous, one unwrapped line each)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "close assertions (row-44 bracket, wave-3 block, section-5 block, entries 95-98, registry riders, section-7 version line, last-landed-by line)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "diff confinement (only the three edited-in-place lines removed; additions only elsewhere)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "verbatim kernels (both byte-exact, contiguous, one unwrapped line each)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "close assertions (row-44 bracket, wave-3 block, section-5 block, entries 95-98, registry riders, section-7 version line, last-landed-by line)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "diff confinement (only the three edited-in-place lines removed; additions only elsewhere)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.22",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-sitting-close-deltas-3-025.sh",
+              "sha256": "4dceb6e4e72efb4a0fd2b1e648600f71a12f11956d0c134766bb4f62d5d005e2"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "\"annotate both registry entries\" satisfied by one dated bracket on the single physical bullet that carries both fixture riders, naming both (notes.md call 1)",
+            "\"where the tools-true-up landing is recorded\" resolved to the new wave-3 block's tools-true-up bullet, the landing's only home (notes.md call 3)",
+            "registering a rider at the close counts as desk acceptance for the entries' \"(Accepted ...)\" stamps (notes.md call 4)"
+          ],
+          "judgment_calls": [
+            "wave-3 landings recorded as a sibling block after 019's, not appended under its recorded-by header (notes.md call 2)",
+            "row 44's DONE bracket stays silent on whether 018's folded read side landed - neither the brief nor 024's notes says; the possibly-stale 'until it lands' clause is flagged, not edited (deferred list)",
+            "evidence 97 carries no recovery ordinal - entry 86's 'fourth' chain undercounts against the ruling queue's 15-disclosure corpus, so the entry describes rather than numbers"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-31-sitting-close-deltas-3-025.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-sitting-close-deltas-3-025.sh",
+          "sha256": "4dceb6e4e72efb4a0fd2b1e648600f71a12f11956d0c134766bb4f62d5d005e2"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T22:55:55+00:00",
+  "outcome": "applied"
+}
