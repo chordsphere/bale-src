@@ -1,0 +1,138 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-58-exchange-constants-parity-016",
+  "created_at": "2026-08-31T20:54:32+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T20:54:32+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-016.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "bash -n validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "presence rows cover every INSTALL_LAYOUT bin module": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exchange-constants parity row present and holds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "fixture run: new rows pass intact, parity row fails on drift": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "bash -n validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "presence rows cover every INSTALL_LAYOUT bin module": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exchange-constants parity row present and holds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "fixture run: new rows pass intact, parity row fails on drift": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.21",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-58-exchange-constants-parity-016.sh",
+              "sha256": "5c14fb7519f9a0ce54ae03bb17544f784f8221ab5f6541a9f5b17ef6382941fc"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the parity row's constant set is the five exchange constants both homes declare module-level (the bale_relay.py docstring's shared vocabulary); the crafter's wider re-declarations stay pinned by the bale-src byte-parity suite \u2014 named in notes.md for ratification"
+          ],
+          "judgment_calls": [
+            "presence rows inserted in INSTALL_LAYOUT order with a true-up comment in the v0.4.12 schema-loop voice",
+            "parity row placed inside the existing craft_response block, directly after the bundle-constants guard it generalizes",
+            "validation.sh's drift fixture clears __pycache__ after its same-length sed edit \u2014 same-size same-second rewrites otherwise reimport stale bytecode and mask the drift"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-58-exchange-constants-parity-016.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-58-exchange-constants-parity-016.sh",
+          "sha256": "5c14fb7519f9a0ce54ae03bb17544f784f8221ab5f6541a9f5b17ef6382941fc"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T20:54:32+00:00",
+  "outcome": "applied"
+}
