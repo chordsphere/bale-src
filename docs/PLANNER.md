@@ -151,6 +151,10 @@ practice of exercising the planner's half well.
   session costs a round-trip. Ratified at the desk, 2026-08-18; the
   split the default produces is a role transition, and §20 carries
   what the offering session then authors.
+- **Concurrent splits forecast narrowly.** When split sessions are
+  meant to run concurrently, each pack carries a narrow `--write`
+  forecast — the declared forecasts are the decomposition's
+  disjointness proof, and a default forecast intersects everything.
 - **Hooks never carry load-bearing protocol behavior.** They are
   for environment-local conveniences. Verification, telemetry, and
   refusal surfaces integrate into the tool or they don't exist — an
@@ -269,7 +273,12 @@ of it, the authoring craft:
   revisions never collide under first-match resolution (§2);
   delivery publishes the file's sha256; and the delivering planner
   compares the tool's echoed hash against the published one before
-  proceeding. One file, one identity, verified at both ends.
+  proceeding. One file, one identity, verified at both ends. In a
+  checkpoint-pinning project, spawn materials are delivered as one
+  crafter-emitted bundle — brief, blind checkpoint, and pack argv
+  with published hashes — beside its emitted `bale open` line, so
+  the desk hand-composes neither; the bundle format itself lives in
+  the bale tool's documentation, not here.
 - A brief or oracle claim about any surface — tree, reach, or
   ruling — is verified against bytes or the sitting record at
   authoring time, and an oracle authored before a ruling is
