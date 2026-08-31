@@ -270,6 +270,10 @@ of it, the authoring craft:
   delivery publishes the file's sha256; and the delivering planner
   compares the tool's echoed hash against the published one before
   proceeding. One file, one identity, verified at both ends.
+- A brief or oracle claim about any surface — tree, reach, or
+  ruling — is verified against bytes or the sitting record at
+  authoring time, and an oracle authored before a ruling is
+  re-verified against every ruling made after it.
 
 ---
 
