@@ -5746,6 +5746,21 @@ def build_parser() -> argparse.ArgumentParser:
              "telemetry carries it via the response's provenance echo.",
     )
     p_pack.add_argument(
+        "--no-include-group", default=None, metavar="NAME",
+        dest="no_include_group",
+        help="Opt this pack out of the project's configured include "
+             "group ([pack] include_group in bale.toml; board 64). NAME "
+             "must be the group's exact configured name — a mismatch or "
+             "an unconfigured group refuses, so a typo cannot silently "
+             "skip the pull. The opt-out is loud: pack logs a FORCE "
+             "line naming the group and the flag, and the report "
+             "carries an 'include group' row. Without the flag, the "
+             "group engages automatically whenever the resolved "
+             "includes touch a configured trigger path, pulling the "
+             "group's paths into shipped context (read side only — the "
+             "write forecast is never widened).",
+    )
+    p_pack.add_argument(
         "--read-only", action="store_true",
         help="Open the session with an EMPTY recorded write forecast "
              "(v0.3.15; the degenerate forecast under ADR-0015): "

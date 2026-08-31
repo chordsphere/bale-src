@@ -25,3 +25,8 @@ base = "claude/checkpoints/{sid}.sh"
 
 [sandbox]
 network = true
+
+[pack]
+include_group = "release-surface"
+include_group_triggers = ["bin", "tests", "schemas"]
+include_group_pulls = ["install.sh", "scripts/build.sh", "validate.sh", "upgrade.sh", "docs", "schemas"]

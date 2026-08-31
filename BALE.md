@@ -1355,6 +1355,38 @@ The inputs:
   forecast, not a wall: out-of-forecast work ships enumerated and is
   admitted per path at apply (§8.1 step 14), and the ledger grades
   the drift.
+- **include group** (board 64) — a project may pin one **named
+  include group** in `bale.toml`'s `[pack]` section, three flat keys
+  read as a unit (`include_group` — the name, the spelling users see
+  in config, in the `--no-include-group` flag, in report lines, and
+  here; `include_group_triggers` — repo-relative trigger paths;
+  `include_group_pulls` — repo-relative paths the group ships). When
+  the pack's resolved include set intersects any trigger (directory
+  entries cover their subtrees; the whole-tree default include covers
+  every trigger), the group **engages automatically**: every pull not
+  already covered by the includes joins the shipped context and
+  `manifest.context_included`, and pack logs a line naming the group,
+  the matched trigger, and the pulled paths. Engagement is **read
+  side only** — since ADR-0015 reads participate in no gate, so the
+  group's additions never join the write forecast, never widen a
+  session's lock, and never block a sibling; a pack whose forecast
+  defaults to its include set records the *user's* includes, not the
+  group's additions. The opt-out is per pack and loud, never silent:
+  `--no-include-group <name>` takes the group's exact configured
+  name (a mismatch or an unconfigured group refuses — a typo cannot
+  silently skip the pull), logs a FORCE line naming the group and
+  the flag, and stamps an `include group` row in the report. A
+  configured pull that does not exist when the group engages refuses
+  the pack loudly rather than thinning the shipped context silently
+  (§11 row 35). Project-layer only, one group per project at v1
+  (flat keys, not a keyed sub-table — the wizard-walkable spelling;
+  `bale config init` walks all three keys in project mode). This
+  repo's own configured group is **`release-surface`**: triggers
+  `bin`, `tests`, `schemas`; pulls `install.sh`, `scripts/build.sh`,
+  `validate.sh`, `upgrade.sh`, `docs`, `schemas` — so any code
+  session on bale's tool, test, or schema surfaces ships the release
+  and packaging surface alongside, retiring the most-repeated
+  missing-context class in the session record.
 - **excludes** (list of patterns) — appended to the always-excluded
   set for this session only.
 - **readme prose** (optional) — the request's `README.md` body.
@@ -3603,6 +3635,7 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 32 | Duplicate `changes[]` paths (v0.4.2 — the board-35 rider, ratified at the master desk 2026-08-07): no path string appears in `changes[]` more than once — a duplicated path makes the `files/` ↔ `changes[]` mirror correspondence ambiguous (`TARBALL.md` §5.2's long-standing prose, converted to apply-side contract; identical path strings, the worker-side lint's DUPLICATE_PATH basis, so the two surfaces agree on what a duplicate is). The rejection names every duplicated path; manifest-only, so it runs under `--dry-run` and passes vacuously for bailout and clarification manifests (§8.1 step 16); appended after row 31 per the appended-row precedent, so rows 1–31 stay stable | apply pre-flight |
 | 33 | Planner-bundle blindness (v0.4.12, board 49a-i; format home §6.7): pack refuses any `--include` or `--write` entry that explicitly names a planner bundle — a file with the reserved `.bale-bundle` suffix — and the walk unconditionally auto-excludes every bundle file that incidental coverage would otherwise ship, with a loud drop line (per-file for one, one count summary for several, the v0.4.10 grain). Bundles carry the planner's blind checkpoint, so this is the checkpoint exclusion's species keyed structurally on the suffix, with **no admission flag on either half** — no session legitimately ships or lands a real bundle; synthetic fixtures for bundle-handling work are named outside the suffix (§7.1 step 4c, §7.5 step 5); appended after row 32 per the appended-row precedent, so rows 1–32 stay stable | pack pre-flight |
 | 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects; appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
+| 35 | Include-group coherence (board 64; §7.2): a half-configured `[pack]` include group (a name without both list keys, or a list without the name) refuses at config read wherever the merged config is consulted; an engaged group whose configured pull path does not exist refuses the pack rather than silently thinning the shipped context; and `--no-include-group` refuses on a name that is not the configured group's exact name, or when no group is configured — the opt-out is loud (FORCE-logged, report row) and a typo cannot silently skip the pull. Engagement itself is read-side only and never widens the recorded write forecast; appended after row 34 per the appended-row precedent, so rows 1–34 stay stable | pack pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

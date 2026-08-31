@@ -285,6 +285,46 @@ SANDBOX_VALUES = (
     "network",
 )
 
+# Value-shaped configurables under the [pack] section — the named
+# include/forecast group (board 64). Same trio contract as the sections
+# above: each key has a typed accessor (get_pack_include_group reads
+# all three as one validated unit), a walk_configurables() block, and a
+# render_bale_toml() branch. Like [validation] and [sandbox], the
+# section is PROJECT-LAYER ONLY: an include group names paths that
+# exist in ONE repo's tree (bale-src's release surface is bale-src's),
+# and a global group would engage in every repo the install touches and
+# refuse loudly wherever its pulls dangle — the same every-repo hazard
+# the [validation] project-only ruling rejected. merged_config never
+# inherits [pack] from the global layer, and the global wizard never
+# walks it.
+#
+# One group per project at v1, spelled as three flat keys rather than a
+# keyed sub-table — the keyed-table shape is the same wizard-unwalkable
+# structure the [validation].required decision rejected. A multi-group
+# form is the recorded deferred widening; it needs a wizard-walkable
+# spelling before it lands.
+PACK_VALUES = (
+    # String: the group's name — the spelling users see in config, in
+    # the `--no-include-group NAME` opt-out flag, in pack's report
+    # lines, and in BALE.md (§7.2). Absent/empty = no group configured
+    # (today's behavior). Setting the name requires both list keys
+    # below to be non-empty — a half-configured group is fatal at read,
+    # never a silent no-op.
+    "include_group",
+    # List of repo-relative trigger paths. The group engages when the
+    # pack's resolved include set intersects any entry (directory
+    # entries cover their subtrees, `.` covers everything — the
+    # scope_paths_intersect relation). Read-side only: engagement never
+    # touches the write forecast.
+    "include_group_triggers",
+    # List of repo-relative paths the engaged group pulls into the
+    # pack's shipped context (and manifest.context_included). Each
+    # pulled entry must exist at engagement time; a dangling entry is a
+    # loud pack refusal (config rot must not silently thin the shipped
+    # context the group exists to guarantee).
+    "include_group_pulls",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -492,6 +532,21 @@ def merged_config(repo: Path) -> dict:
             out_sandbox[key] = p_sandbox[key]
     if out_sandbox:
         merged["sandbox"] = out_sandbox
+
+    # [pack] — PROJECT LAYER ONLY (board 64; see PACK_VALUES).
+    # Deliberately no `elif key in g_pack` branch: an include group
+    # names one repo's tree, and a global group would engage in every
+    # repo the install touches — the same every-repo hazard the
+    # [validation] and [sandbox] project-only rulings rejected. A
+    # hand-edited global [pack] table is ignored here, never inherited.
+    p_pack = (p.get("pack")
+              if isinstance(p.get("pack"), dict) else {})
+    out_pack: dict = {}
+    for key in PACK_VALUES:
+        if key in p_pack:
+            out_pack[key] = p_pack[key]
+    if out_pack:
+        merged["pack"] = out_pack
 
     return merged
 
@@ -983,6 +1038,90 @@ def get_sandbox_network(cfg: dict) -> bool:
         fail(f"{BALE_CONFIG}: sandbox.network must be a boolean "
              f"(true/false), got {type(raw).__name__}")
     return raw
+
+
+def get_pack_include_group(cfg: dict) -> Optional[dict]:
+    """Return the project's named include group, or None if unconfigured.
+
+    The [pack] include-group trio (board 64): `include_group` (the
+    name), `include_group_triggers`, and `include_group_pulls` read as
+    one validated unit — the shape callers consume is
+    `{"name": str, "triggers": list[str], "pulls": list[str]}`.
+    Consumed by `bale pack`, which engages the group when the resolved
+    include set intersects a trigger and pulls the group's paths into
+    the shipped context (read side only — the write forecast is never
+    touched; BALE.md §7.2).
+
+    Merged-config note: [pack] is project-layer only (PACK_VALUES owns
+    the rationale) — merged_config never carries a global value into
+    this section, so this accessor reads the project's own keys or
+    nothing.
+
+    Shape posture mirrors the sibling accessors: a typo must not
+    silently disable (or half-enable) the group the planner thought
+    was pinned. An empty-string name reads as unset — the wizard's
+    skip form — but ONLY when both list keys are also absent or empty;
+    any partially configured combination (a name without both lists, a
+    list without the name) is fatal, because a half-configured group
+    that silently never engages is exactly the missing-context failure
+    the group exists to retire. Entries are repo-relative with no
+    `..` components, matching validation.base's path rules; duplicates
+    are tolerated (engagement deduplicates), order preserved.
+    """
+    from __main__ import fail
+
+    pack_section = cfg.get("pack")
+    if pack_section is None:
+        return None
+    if not isinstance(pack_section, dict):
+        fail(f"{BALE_CONFIG}: [pack] must be a table, "
+             f"got {type(pack_section).__name__}")
+
+    raw_name = pack_section.get("include_group")
+    if raw_name is not None and not isinstance(raw_name, str):
+        fail(f"{BALE_CONFIG}: pack.include_group must be a string, "
+             f"got {type(raw_name).__name__}")
+    name = raw_name.strip() if isinstance(raw_name, str) else ""
+
+    def _path_list(key: str) -> list[str]:
+        raw = pack_section.get(key)
+        if raw is None:
+            return []
+        if not isinstance(raw, list):
+            fail(f"{BALE_CONFIG}: pack.{key} must be an array of "
+                 f"repo-relative path strings, got {type(raw).__name__}")
+        out: list[str] = []
+        for i, entry in enumerate(raw):
+            if not isinstance(entry, str):
+                fail(f"{BALE_CONFIG}: pack.{key}[{i}] must be a string, "
+                     f"got {type(entry).__name__}")
+            val = entry.strip()
+            if not val:
+                fail(f"{BALE_CONFIG}: pack.{key}[{i}] is empty; "
+                     f"remove the entry or name a path")
+            if os.path.isabs(val) or ".." in Path(val).parts:
+                fail(f"{BALE_CONFIG}: pack.{key}[{i}] must be a "
+                     f"repo-relative path with no '..' components, "
+                     f"got {val!r}")
+            out.append(val)
+        return out
+
+    triggers = _path_list("include_group_triggers")
+    pulls = _path_list("include_group_pulls")
+
+    if not name and not triggers and not pulls:
+        return None
+    if not (name and triggers and pulls):
+        missing = [k for k, v in (("include_group", name),
+                                  ("include_group_triggers", triggers),
+                                  ("include_group_pulls", pulls))
+                   if not v]
+        fail(f"{BALE_CONFIG}: [pack] include group is half-configured — "
+             f"missing or empty: {', '.join(missing)}. A group needs "
+             f"all three keys (include_group, include_group_triggers, "
+             f"include_group_pulls) so it cannot silently never engage; "
+             f"set the missing key(s) or remove the group entirely.")
+    return {"name": name, "triggers": triggers, "pulls": pulls}
 
 
 # ---------------------------------------------------------------------------
@@ -1733,6 +1872,91 @@ def walk_configurables(existing: dict, *, layer: str,
         if val_b is not None:
             new.setdefault("sandbox", {})["network"] = val_b
 
+        # ---- [pack] include group (PROJECT LAYER ONLY) -------------------
+        # The named include/forecast group (board 64). Walked only in
+        # project mode, per the project-only ruling recorded on
+        # PACK_VALUES: a group names one repo's paths, and a global
+        # group would engage (and dangle) in every repo the install
+        # touches. `inherited` is deliberately not consulted
+        # (merged_config never carries a global value into [pack]).
+        # Three keys walked as a unit — string name via _prompt_value,
+        # two path lists via _prompt_path_list, the canonical wizard
+        # interfaces for those shapes; the typed accessor
+        # (get_pack_include_group) enforces the all-or-nothing rule at
+        # read time.
+        existing_pack = (existing.get("pack")
+                         if isinstance(existing.get("pack"), dict)
+                         else {})
+        raw_cur = existing_pack.get("include_group")
+        current = raw_cur if isinstance(raw_cur, str) else None
+
+        val = _prompt_value(
+            "pack.include_group",
+            current=current,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip; you can pin one later.",
+                "Name of this project's INCLUDE GROUP (BALE.md 7.2):",
+                "when a pack's resolved includes touch any of the",
+                "trigger paths (next prompt), bale pulls the group's",
+                "paths (the prompt after) into the shipped context",
+                "automatically, with a loud report line. Read-side",
+                "only — the write forecast is never widened. The name",
+                "is what report lines and the --no-include-group",
+                "opt-out flag spell. Setting it requires both list",
+                "keys below (a half-configured group refuses loudly).",
+                "Project-layer only — the global wizard does not walk",
+                "this key.",
+            ],
+        )
+        if val is not None:
+            new.setdefault("pack", {})["include_group"] = val
+
+        raw_cur_list = (existing_pack.get("include_group_triggers")
+                        if "include_group_triggers" in existing_pack
+                        else None)
+        current_list = (_coerce_path_list(raw_cur_list)
+                        if raw_cur_list is not None else None)
+
+        val_list = _prompt_path_list(
+            "pack.include_group_triggers",
+            current=current_list,
+            inherited=None,
+            description=[
+                "Optional; required when pack.include_group is set.",
+                "Repo-relative TRIGGER paths for the include group:",
+                "the group engages when a pack's resolved include set",
+                "intersects any entry (directory entries cover their",
+                "subtrees). Colon-separated paths, e.g. bin:tests.",
+                "Project-layer only.",
+            ],
+        )
+        if val_list is not None:
+            new.setdefault("pack", {})["include_group_triggers"] = val_list
+
+        raw_cur_list = (existing_pack.get("include_group_pulls")
+                        if "include_group_pulls" in existing_pack
+                        else None)
+        current_list = (_coerce_path_list(raw_cur_list)
+                        if raw_cur_list is not None else None)
+
+        val_list = _prompt_path_list(
+            "pack.include_group_pulls",
+            current=current_list,
+            inherited=None,
+            description=[
+                "Optional; required when pack.include_group is set.",
+                "Repo-relative paths the engaged group PULLS into the",
+                "pack's shipped context (files or directories). Each",
+                "must exist when the group engages — a dangling entry",
+                "refuses the pack loudly rather than thinning the",
+                "context silently. Colon-separated paths, e.g.",
+                "install.sh:docs. Project-layer only.",
+            ],
+        )
+        if val_list is not None:
+            new.setdefault("pack", {})["include_group_pulls"] = val_list
+
     return new
 
 
@@ -1911,6 +2135,30 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         for key in SANDBOX_VALUES:
             if key in sandbox_section:
                 parts.append(f"{key} = {json.dumps(sandbox_section[key])}")
+        parts.append("")
+
+    # [pack] section (board 64 — the named include group). One string
+    # key (`include_group`, including the empty-string skip form) and
+    # two path lists (the empty-list suppress form included) — the same
+    # serialization shapes the sections above cover. Emitted in
+    # PACK_VALUES order. Project-layer only by walk (the ruling on
+    # PACK_VALUES): the global wizard never puts this section in its
+    # dict, so a global bale.toml never gains it through this renderer
+    # — and a hand-edited global [pack] is ignored by merged_config
+    # regardless.
+    pack_section = cfg.get("pack") or {}
+    if pack_section:
+        parts.append("[pack]")
+        for key in PACK_VALUES:
+            if key in pack_section:
+                v = pack_section[key]
+                if isinstance(v, list):
+                    rendered_array = ("["
+                                      + ", ".join(json.dumps(p) for p in v)
+                                      + "]")
+                    parts.append(f"{key} = {rendered_array}")
+                else:
+                    parts.append(f"{key} = {json.dumps(v)}")
         parts.append("")
 
     return "\n".join(parts)
