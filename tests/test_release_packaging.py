@@ -213,6 +213,18 @@ class ReleaseListCoverageTest(unittest.TestCase):
         self.assertIn("schemas/exchange-record.schema.json",
                       extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
 
+    def test_release_files_covers_bale_relay(self) -> None:
+        """bin/bale_relay.py (the relay verb's home since v0.4.21, when
+        section 29 was extracted from bin/bale) ships: bin/bale imports
+        cmd_relay at module load, so a release without it is dead on
+        arrival — the same class as the bale_stats rows above."""
+        self.assertIn("bin/bale_relay.py",
+                      extract_bash_array(BUILD_SH, "RELEASE_FILES"))
+
+    def test_install_layout_covers_bale_relay(self) -> None:
+        self.assertIn("bin/bale_relay.py",
+                      extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
     def test_lists_are_set_equal(self) -> None:
         release = extract_bash_array(BUILD_SH, "RELEASE_FILES")
         layout = extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT")

@@ -99,6 +99,7 @@ RELEASE_FILES=(
   bin/bale_stats.py
   bin/_bale_toml.py
   bin/bale_open.py
+  bin/bale_relay.py
   docs/CLAUDE.md
   docs/TARBALL.md
   docs/DOCS.md
