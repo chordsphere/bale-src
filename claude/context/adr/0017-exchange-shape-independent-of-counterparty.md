@@ -156,3 +156,8 @@ Status is Accepted at creation — the direction was stated by the
 architect directly at the authoring sitting; review at apply is the
 check. Ratified at `2026-08-29-formalize-convo-001`; recorded by the
 doctrine session packed from it.
+
+2026-08-31 — implemented across 0.4.18–0.4.19 (relay, packaging,
+crafter); the worker↔planner leg of the 2026-08-25 harness routing
+formally reversed; re-emit surface deliberately not widened, see
+board row 60.

@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-26-board-53-close-deltas-005`.
+Last landed by: `2026-08-31-sitting-close-002`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -1233,6 +1233,54 @@ directions at the desk before delivery).
   forecast-precision trigger) heads the next sitting's agenda,
   ahead of the remaining smalls (38, 39, 41, 47, 55, 56, 57, 37).
 
+Landed 2026-08-29→31 (the exchange-arc sitting, master
+`2026-08-29-formalize-convo-001`, read-only, registered with an
+empty write forecast as declared at open): all four arc sessions
+applied PASS; the sitting-close deltas the arc deliberately left to
+the close landed by `2026-08-31-sitting-close-002` against live
+bytes. The arc, one row each:
+
+| session | landed | outcome |
+|---|---|---|
+| 2026-08-29-exchange-doctrine-002 | ADR-0017; the human/agent forks retired across TARBALL.md, PLANNER.md, CLAUDE.md, BALE.md; exchange vocabulary pinned | PASS |
+| 2026-08-29-exchange-relay-003 | exchange-record schema, `validate_exchange_record`, `bale relay` (bin/bale §29), thread-aware status and telemetry; 0.4.18 | PASS |
+| 2026-08-30-exchange-packaging-001 | release-list coverage for the schema + pins | PASS (correction session; cause at §6 entry 90, specimen b) |
+| 2026-08-31-exchange-crafter-001 | `--emit-block`/`--round`, byte- and verdict-parity suites, TARBALL.md §5.9.2 worker flow; 0.4.19 | PASS on retry after desk checkpoint amendment (bad oracle, §6 entry 88) |
+
+- Live-traffic evidence gathered by the arc itself: one full manual
+  thread ran during authoring (worker inquiry → desk answer →
+  build), one desk→tree probe ran the reverse direction, and both
+  used chat/paste because the mechanism landed one session later —
+  the last hand-carried instances of the pattern the arc mechanizes.
+- Board deltas of the close: rows 58 (exchange constants,
+  install-side parity), 59 (the bin/bale §29 extraction), and 60
+  (the `bale relay` re-emit path) opened in §4; the
+  routing-reversal narrative lands on board 10's row (its
+  2026-08-31 brackets); ledger entries 88–91 land in §6.
+- Proposals dispositions (the crafter session's three): the first
+  (exchange constants, install-side parity) accepted as board row
+  58, scope as written there; the second (crafter index header)
+  accepted, its fold-in rule recorded on row 59 — fold in if the
+  extraction session's forecast gains `tools/` for any reason, else
+  its own micro-session; the third (§5.9.2 two-audiences) recorded
+  as trajectory, no action — the next §5.9.2 addition triggers the
+  DOCS.md §6 seam question by rule.
+- Routing reversal, architect ruling at this sitting: the
+  2026-08-25 routing of the clarification-relay subsumption and the
+  session-interaction mechanization mandate to the harness project
+  is reversed for the worker↔planner leg (ADR-0017 records it; full
+  narrative on board 10's 2026-08-31 bracket); the escalation
+  record's master→architect leg stays routed to the harness seed.
+  Cross-project: the architect carries the D13/D14 annotation to
+  `harness-seed.md`, which lives outside this repo and outside any
+  bale session here.
+- PLANNER.md §4 gains the desk-discipline checklist line (the one
+  rule covering §6 entry 90's three specimens); ADR-0017's Notes
+  gains the dated implementation-record entry. Both landed by the
+  close session.
+- Sitting closed at the milestone; sequencing of the new rows among
+  the smalls is the next desk's call.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -1327,6 +1375,20 @@ and §8, so done items keep their numbers as one-line pointers.
     ruling this sitting: the harness spec lives at the harness
     repo's `harness-seed.md`; MASTER.md carries no harness project
     documentation beyond this row.]
+    [2026-08-31: the 2026-08-25 routing of the clarification-relay
+    subsumption and the session-interaction mechanization mandate
+    to the harness project is REVERSED for the worker↔planner leg
+    (architect ruling at the `2026-08-29-formalize-convo-001`
+    sitting; ADR-0017 records it) — the exchange arc mechanized
+    that leg bale-side (the exchange-record schema, `bale relay`,
+    the crafter's paste-block emission; 0.4.18–0.4.19). The
+    escalation record's master→architect leg stays routed to the
+    harness seed. S6's "session-interaction mechanization" charge
+    is discharged on the worker↔planner leg by this arc; what
+    remains under S6 is courier automation only. Cross-project: the
+    architect carries the D13/D14 annotation to `harness-seed.md`,
+    which lives outside this repo and outside any bale session
+    here.]
     Charter: spec-intake ritual (decomposition + ambiguity
     questions + checkpoint plan ratified BEFORE anything spawns),
     escalation contract as schema, promotion of the
@@ -1398,7 +1460,9 @@ and §8, so done items keep their numbers as one-line pointers.
       harness-era design should carry that channel with the
       architect moving from transport to overseer. [2026-08-25:
       routes to the harness project — seed D13, D14
-      (`harness-seed.md`).]
+      (`harness-seed.md`).] [2026-08-31: reversed for the
+      worker↔planner leg — see this row's 2026-08-31 bracket; the
+      master→architect leg keeps the routing.]
     **Added at the wave-1 landing (2026-08-12), for S6:**
     - **Per-session blind checkpoints** — the single-path
       `[validation] base` mechanism shares one committed checkpoint
@@ -1465,6 +1529,10 @@ and §8, so done items keep their numbers as one-line pointers.
       escalation-contract item; the readme-hash row below is the first
       mechanization queued under it. [2026-08-25: routes to the
       harness project — seed D13, D14 (`harness-seed.md`).]
+      [2026-08-31: reversed for the worker↔planner leg, and the
+      charge is discharged on that leg by the exchange arc — see
+      this row's 2026-08-31 bracket. Courier automation is what
+      remains under S6.]
     **Added 2026-08-16, from the 008 rider, for S6:**
     - **Who audits thin checkpoints at scale** — once
       checkpoint-authoring is the bottleneck, checkpoint quality needs
@@ -2028,6 +2096,35 @@ and §8, so done items keep their numbers as one-line pointers.
     follows the v0.4.7 legacy-tolerant pattern. Ratified as its
     own small board item alongside board 56; sequencing among the
     smalls is the next desk's call.
+
+58. **exchange constants, install-side parity** — queued 2026-08-31
+    (small; from the exchange arc's close): accepted from the
+    crafter session's first Proposal, scope as written there —
+    validate.sh beside the crafter rows; needs load-bin/bale-by-path,
+    a new capability, hence its own session.
+
+59. **Extract bin/bale §29 into `bin/bale_relay.py`** — queued
+    2026-08-31 (from the exchange arc's close): accepted earlier in
+    the arc with sequencing "after the crafter lands"; now
+    unblocked. Scope per the relay session's Proposal: `bin/`,
+    `install.sh`, `scripts/build.sh`, packaging-test coverage list.
+    Note for the brief-author: the crafter re-declares rather than
+    imports, so extraction changes nothing tools-side; the parity
+    suite is the guard that must stay green across the move. Rider
+    disposition from the close: the crafter index header (the
+    crafter session's second Proposal) folds in here if this
+    session's forecast gains `tools/` for any reason, else it runs
+    as its own micro-session.
+
+60. **`bale relay` re-emit path** — queued 2026-08-31 (from the
+    exchange arc's close; ruling now made): accepted as a board
+    item, not yet as surface. The need is real (a planner-side
+    block exists only on the stdout that made it) but it widens the
+    option surface ADR-0017 closed at `<sid> <file|->`, so the
+    landing session's brief must carry the doctrine half — an
+    ADR-0017 Notes append recording the widened surface — and the
+    shape decision (no-file `bale relay <sid>` reprint vs a
+    separate read-only verb) is made there, not here.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -3434,6 +3531,44 @@ New from the 2026-08-25 sitting (continue-plan-003):
     ruled with one adjustment and the session landed on the ruling.
     Specimen for the escalation-contract's harness-side design
     (seed D13, D14).
+
+New from the 2026-08-29→31 sitting (the exchange arc,
+formalize-convo-001):
+
+88. **Bad oracle (crafter v1).** Two manifest-path probes carried
+    `--kind clarification`, the desk's pre-ratification invocation
+    model; ratified surface refused it; five red lines from one
+    refusal. Corrected by desk amendment (`bale amend-checkpoint`,
+    v2, passing probes byte-identical, same response bytes on
+    retry). Model instance of the diagnosis protocol on the worker
+    side: labels → single-shape hypothesis → spec questions, no
+    script, no speculative retry.
+
+89. **Vacuous passes, both directions.** An expect-non-zero probe
+    cannot distinguish "refused for the right reason" from "never
+    ran" (the from-planner probe passed on the flag gate in the
+    HOLD run); the worker's suite had the inverted blind spot
+    (never tested the combination it designed away). Standing
+    watch item for oracle and suite authors both.
+
+90. **Desk discipline — the arc's one repeated defect, three
+    specimens.** Unverified claims in briefs about (a) tree state
+    ("amend-checkpoint has its own module"), (b) worker reach
+    ("the schema it already ships beside" — INJECTED_TOOLS says
+    otherwise), (c) the desk's own post-authoring rulings (the v1
+    oracle vs the ratified flag surface). One rule covers all
+    three, landed on PLANNER.md §4's checklist at this close: **a
+    brief or oracle claim about any surface — tree, reach, or
+    ruling — is verified against bytes or the sitting record at
+    authoring time, and an oracle authored before a ruling is
+    re-verified against every ruling made after it.**
+
+91. **Verification exemplar.** The crafter session's
+    mutation-tested parity guard (five injected drifts, each red,
+    restored green; the `ensure_ascii` drift caught by exactly one
+    test that exists because ASCII-only corpora pass under either
+    setting). Cite from CODE.md's testing doctrine if a home is
+    wanted; recorded here regardless.
 
 ## 7. Standing environment facts
 
