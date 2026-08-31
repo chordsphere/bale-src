@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/anthropics/bale/schemas/escalation-record.schema.json",
   "title": "bale escalation record",
-  "description": "Shape of one master-distilled escalation question — the question as the architect will see it, distilled from one or more worker clarification questions. Doctrine home: claude/context/orchestration.md section 8 (escalation and the clarification queue); this schema is that section's wire format and restates none of it. Landed schema-first at v0.4.7 (board 10 S4): no producer exists yet — the harness era writes these; the schema is the contract landing ahead of it, which is the ratified point. INTENTIONALLY LOOSE, matching telemetry-record.schema.json and diagnostics.schema.json: additionalProperties is true at the top level so future additive fields do not reject earlier records; what it pins, it pins — the six-field required core and the closed priority vocabulary (enum exactly blocking | batched), which validate_escalation_record (bin/bale_validate.py, the per-record library entry point) additionally enforces record-wide at any depth, so an invented priority rejects wherever a consumer put it.",
+  "description": "Shape of one master-distilled escalation question — the question as the architect will see it, distilled from one or more worker clarification questions. Doctrine home: PLANNER.md section 15 (escalation and the clarification queue); this schema is that section's wire format and restates none of it. Landed schema-first at v0.4.7: no producer exists yet — the harness era writes these; the schema is the contract landing ahead of it, which is the ratified point. INTENTIONALLY LOOSE, matching telemetry-record.schema.json and diagnostics.schema.json: additionalProperties is true at the top level so future additive fields do not reject earlier records; what it pins, it pins — the six-field required core and the closed priority vocabulary (enum exactly blocking | batched), which validate_escalation_record (bin/bale_validate.py, the per-record library entry point) additionally enforces record-wide at any depth, so an invented priority rejects wherever a consumer put it.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -23,27 +23,27 @@
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 },
-      "description": "Candidate answers, at least one — the asker's read of the choices (orchestration.md section 8: questions arrive answerable). An escalation with no options is not yet distilled."
+      "description": "Candidate answers, at least one — the asker's read of the choices (PLANNER.md section 15: questions arrive answerable). An escalation with no options is not yet distilled."
     },
     "recommendation": {
       "type": "string",
       "minLength": 1,
-      "description": "The recommended default among the choices, extending the clarification response's load-bearing default_assumption (orchestration.md section 8) — what makes 'your recommendation is correct' the cheapest possible architect answer. Conventionally one of options[]; not schema-enforced, because a recommendation may carry qualifying prose around its pick."
+      "description": "The recommended default among the choices, extending the clarification response's load-bearing default_assumption (PLANNER.md section 15) — what makes 'your recommendation is correct' the cheapest possible architect answer. Conventionally one of options[]; not schema-enforced, because a recommendation may carry qualifying prose around its pick."
     },
     "priority": {
       "type": "string",
       "enum": ["blocking", "batched"],
-      "description": "orchestration.md section 8's two classes: only critical-path blockers interrupt the architect; everything else batches. The vocabulary is CLOSED — validate_escalation_record enforces the enum record-wide, on a priority key at any depth, not only at this named spot."
+      "description": "PLANNER.md section 15's two classes: only critical-path blockers interrupt the architect; everything else batches. The vocabulary is CLOSED — validate_escalation_record enforces the enum record-wide, on a priority key at any depth, not only at this named spot."
     },
     "subsumes": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "description": "Dedup lineage: which worker questions this distillation absorbs, so one architect answer fans back out to every asker (orchestration.md section 8). Entries are worker-question references (a session ID, or a session ID plus a question index in the producer's own notation). May be empty — a question asked by exactly one worker subsumes nothing — but is always an array: the lineage's shape does not depend on its length."
+      "description": "Dedup lineage: which worker questions this distillation absorbs, so one architect answer fans back out to every asker (PLANNER.md section 15). Entries are worker-question references (a session ID, or a session ID plus a question index in the producer's own notation). May be empty — a question asked by exactly one worker subsumes nothing — but is always an array: the lineage's shape does not depend on its length."
     },
     "amendment_target": {
       "type": "string",
       "minLength": 1,
-      "description": "Repo-relative path where the answer accretes — typically the seed document or a decisions ledger beside it — per orchestration.md section 8's answer-to-amendment contract: answers land in the spec mechanically, never only in chat."
+      "description": "Repo-relative path where the answer accretes — typically the seed document or a decisions ledger beside it — per PLANNER.md section 15's answer-to-amendment contract: answers land in the spec mechanically, never only in chat."
     },
     "record_version": {
       "type": "integer",
@@ -78,7 +78,7 @@
     "answer": {
       "type": "string",
       "minLength": 1,
-      "description": "The architect's answer, verbatim, once given. The record carries it for lineage; the amendment into amendment_target is where it becomes spec (orchestration.md section 8)."
+      "description": "The architect's answer, verbatim, once given. The record carries it for lineage; the amendment into amendment_target is where it becomes spec (PLANNER.md section 15)."
     }
   }
 }

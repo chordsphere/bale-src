@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/anthropics/bale/schemas/bundle-manifest.schema.json",
   "title": "bale planner-bundle manifest",
-  "description": "Shape of bundle.json, the manifest inside a planner bundle (a gzipped tar with the reserved .bale-bundle filename suffix; format home BALE.md section 6.7, v0.4.12, board 49a-i). The bundle is the one planner-emitted file carrying a session's brief, its blind checkpoint, and its full pack invocation; this manifest binds them: the argument vector the consumer replays, the published sha256 of each member's LF-normalized bytes (boards 36 and 40, absorbed — the fields land here, the verification lands with the consuming verb, 49a-ii), and the pre-answered intents that route through — never around — the pack pipeline's decline-default exchanges. Landed schema-first, the section-6.6 precedent: the pack-side half (deny-list, intents API, this validation surface) exists now; the open verb (49a-ii) and the crafter emission (49b) consume and produce it. INTENTIONALLY LOOSE, matching the sibling schemas: additionalProperties is true at the envelope and inside entries so future additive fields do not reject earlier bundles; what it pins, it pins — the four-key required envelope, bundle_format exactly 1, the two named member slots (object or explicit null, the depends_on uniform-shape precedent), and the closed intent-prompt vocabulary at its named spot, which parse_pre_answered_intents (bin/bale_pack.py, INTENT_PROMPTS) additionally enforces at the consumption site. Cross-field invariants the schema subset cannot express — 64-lowercase-hex sha256 values, flat distinct member paths, an argv free of the delivery flags the consumer injects — live in validate_bundle_manifest (bin/bale_validate.py), the per-record library entry point in the validate_telemetry_record posture.",
+  "description": "Shape of bundle.json, the manifest inside a planner bundle (a gzipped tar with the reserved .bale-bundle filename suffix; format home in the bale tool's own documentation, v0.4.12). The bundle is the one planner-emitted file carrying a session's brief, its blind checkpoint, and its full pack invocation; this manifest binds them: the argument vector the consumer replays, the published sha256 of each member's LF-normalized bytes (the fields land here; the verification lands with the consuming verb), and the pre-answered intents that route through — never around — the pack pipeline's decline-default exchanges. Landed schema-first, this schema family's established precedent: the pack-side half (deny-list, intents API, this validation surface) exists now; the open verb and the crafter emission — planned, not yet landed — consume and produce it. INTENTIONALLY LOOSE, matching the sibling schemas: additionalProperties is true at the envelope and inside entries so future additive fields do not reject earlier bundles; what it pins, it pins — the four-key required envelope, bundle_format exactly 1, the two named member slots (object or explicit null, the depends_on uniform-shape precedent), and the closed intent-prompt vocabulary at its named spot, which parse_pre_answered_intents (bin/bale_pack.py, INTENT_PROMPTS) additionally enforces at the consumption site. Cross-field invariants the schema subset cannot express — 64-lowercase-hex sha256 values, flat distinct member paths, an argv free of the delivery flags the consumer injects — live in validate_bundle_manifest (bin/bale_validate.py), the per-record library entry point in the validate_telemetry_record posture.",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -27,7 +27,7 @@
       "type": "object",
       "additionalProperties": true,
       "required": ["brief", "checkpoint"],
-      "description": "The bundle's payload members, each sitting flat beside bundle.json at the archive root. Both slots are always present — an object when the member ships, an explicit null when it does not (uniform shape, the depends_on precedent). sha256 values are computed over the member's LF-normalized bytes (every CRLF read as LF — the format-level rule that keeps a bundle verifiable after a line-ending-mangling transport; BALE.md section 6.7), which is also how the consumer normalizes before verifying.",
+      "description": "The bundle's payload members, each sitting flat beside bundle.json at the archive root. Both slots are always present — an object when the member ships, an explicit null when it does not (uniform shape, the depends_on precedent). sha256 values are computed over the member's LF-normalized bytes (every CRLF read as LF — the format-level rule that keeps a bundle verifiable after a line-ending-mangling transport), which is also how the consumer normalizes before verifying.",
       "properties": {
         "brief": {
           "type": ["object", "null"],
@@ -51,7 +51,7 @@
           "type": ["object", "null"],
           "additionalProperties": true,
           "required": ["path", "sha256"],
-          "description": "The planner-authored blind checkpoint script, or null for a project that pins none. The bundle is oracle-bearing exactly when this member ships — the basis for the pack walk's structural auto-exclusion of .bale-bundle files (BALE.md section 6.7), which applies to the suffix unconditionally either way.",
+          "description": "The planner-authored blind checkpoint script, or null for a project that pins none. The bundle is oracle-bearing exactly when this member ships — the basis for the pack walk's structural auto-exclusion of .bale-bundle files, which applies to the suffix unconditionally either way.",
           "properties": {
             "path": {
               "type": "string",
@@ -69,7 +69,7 @@
     },
     "pre_answered": {
       "type": "array",
-      "description": "The bundle's pre-answered intents — explicit, per-prompt accepts of named decline-default exchanges in the pack pipeline, routed through the exchange, never around it (design constraint 2 of the ratifying board row). An empty array is the honest-empty form: no prompt is pre-answered and every decline default governs. An intent that matches no prompt the invocation raises also changes nothing — the decline default governs as if the intent were absent, and the pack reports the unconsumed intent loudly.",
+      "description": "The bundle's pre-answered intents — explicit, per-prompt accepts of named decline-default exchanges in the pack pipeline, routed through the exchange, never around it — a ratified design constraint of the format. An empty array is the honest-empty form: no prompt is pre-answered and every decline default governs. An intent that matches no prompt the invocation raises also changes nothing — the decline default governs as if the intent were absent, and the pack reports the unconsumed intent loudly.",
       "items": {
         "type": "object",
         "additionalProperties": true,
