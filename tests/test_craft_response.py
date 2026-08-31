@@ -89,9 +89,12 @@ contradicts-refuses rule, the from: planner refusal, and mutual
 exclusion against every other mode and flag in both directions.
 
 ExchangeBlockParity is the drift guard for what that emission
-re-declares from bin/bale section 29 and bin/bale_validate.py — the
-class the crafter's constants point at. It imports BOTH homes (the
-test tree has bin/ and tools/; the crafter itself may not) and pins
+re-declares from bin/bale_relay.py and bin/bale_validate.py — the
+class the crafter's constants point at. The relay half was bin/bale
+section 29 until the v0.4.21 extraction; it reaches this suite through
+bin/bale, which re-exports the wire surface for exactly this consumer,
+so the loader below names bin/bale on purpose. It imports BOTH homes
+(the test tree has bin/ and tools/; the crafter itself may not) and pins
 three things: byte-equality of the two renderings over a corpus,
 equality of the sentinel and body-serialization constants, and
 verdict-for-verdict agreement of the crafter's structural checks with
@@ -2000,8 +2003,9 @@ class CraftEmitBlock(unittest.TestCase):
         cp = run_craft("--emit-block", str(path))
         self.assertEqual(cp.returncode, 0, cp.stderr)
         body = self._body_of(cp.stdout)
-        # record_version rides the normalized reading: section 29's
-        # _normalize_manifest_to_record emits it, so this side does too.
+        # record_version rides the normalized reading:
+        # bin/bale_relay.py's _normalize_manifest_to_record emits it, so
+        # this side does too.
         self.assertEqual(body["record_version"], 1)
         self.assertEqual(body["session_id"], self.SID)
         self.assertEqual(body["from"], "worker")
@@ -2173,13 +2177,19 @@ class CraftEmitBlock(unittest.TestCase):
                       / "bale").is_file(),
                      "parity needs bin/bale beside tools/")
 class ExchangeBlockParity(unittest.TestCase):
-    """The section-29 duplication drift guard — the class the crafter's
-    re-declared constants point at.
+    """The exchange-vocabulary duplication drift guard — the class the
+    crafter's re-declared constants point at.
+
+    The vocabulary's home is bin/bale_relay.py (bin/bale section 29
+    until the v0.4.21 extraction). setUpClass loads bin/bale rather
+    than the relay module because bin/bale re-exports the wire surface
+    for this suite; that re-export is itself part of what the guard
+    holds still, so the loader stays as it is.
 
     Imports both homes and compares them by EXECUTION, never against a
     pinned fixture string: a string would pin today's layout twice
     instead of pinning the two implementations to each other, which is
-    the whole point of the duplication guard. If section 29's rendering
+    the whole point of the duplication guard. If the relay rendering
     changes, this goes red and the crafter follows in the same
     response.
     """
@@ -2272,6 +2282,9 @@ class ExchangeBlockParity(unittest.TestCase):
             self.bale.format_exchange_block(self.SID, record))
 
     def test_constants_match_section_29(self):
+        """The section-29 contract now lives in bin/bale_relay.py; the
+        id keeps the historical name, and bin/bale's re-export is what
+        this reads it through."""
         self.assertEqual(self.craft.EXCHANGE_BLOCK_BEGIN,
                          self.bale.EXCHANGE_BLOCK_BEGIN)
         self.assertEqual(self.craft.EXCHANGE_BLOCK_END,
@@ -2293,7 +2306,10 @@ class ExchangeBlockParity(unittest.TestCase):
 
     def test_normalization_matches_section_29(self):
         """Same keys, same ORDER — json.dumps preserves insertion order,
-        so the key order is part of the body's bytes."""
+        so the key order is part of the body's bytes.
+
+        The section-29 contract now lives in bin/bale_relay.py; the id
+        keeps the historical name."""
         manifest = clarification_manifest(self.SID)
         stamp = "2026-08-29T14:03:00+00:00"
         mine = self.craft.normalize_manifest_to_record(

@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 """craft_response.py — mechanical scaffolder for a bale response directory.
 
+Sections:
+  1. Imports + constants                                                   (~line 244)
+  2. Shared helpers (slug, log, exit)                                      (~line 517)
+  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 551)
+  4. Planner-bundle emission (--bundle)                                    (~line 635)
+  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 800)
+  6. Path handling                                                         (~line 1347)
+  7. Skeleton construction                                                 (~line 1408)
+  8. Doc-contract assertions (--doc-assertions)                            (~line 1573)
+  9. CLI                                                                   (~line 1915)
+
 A WORKER runs this against its own response-NNN/ directory while
 building a response, without bale installed. It mechanizes the
 computed half of TARBALL.md §5.2/§5.2.1 and the §5.1.1 scaffold, and
@@ -126,10 +137,10 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   as-is once it validates. A `from: planner` record refuses (that side
   is relay's, and it needs the thread to sequence against), and a
   `--round` contradicting a record's own round refuses rather than
-  rewrites. The rendering is byte-identical to section 29's for the same
-  record — the constants and layout are re-declared here, per the
-  INTENT_PROMPTS precedent, and the parity suite is what keeps the two
-  from drifting. stdout is the block and only the block, so
+  rewrites. The rendering is byte-identical to `bin/bale_relay.py`'s for
+  the same record — the constants and layout are re-declared here, per
+  the INTENT_PROMPTS precedent, and the parity suite is what keeps the
+  two from drifting. stdout is the block and only the block, so
   `--emit-block r.json > block.txt` captures it clean;
 
 For the normal kind, `validation.sh` remains un-emitted on purpose:
@@ -228,6 +239,10 @@ Exit codes:
 Stdlib only. Python 3.10+. No network. No bale imports. No
 response_lint imports.
 """
+
+# ---------------------------------------------------------------------------
+# 1. Imports + constants
+# ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
@@ -498,6 +513,10 @@ reconcile_claims
 """
 
 
+# ---------------------------------------------------------------------------
+# 2. Shared helpers (slug, log, exit)
+# ---------------------------------------------------------------------------
+
 def slug_problem(slug: str) -> str | None:
     """Return a human-readable objection to a probe slug, or None.
 
@@ -529,7 +548,7 @@ def die(msg: str) -> "int":
 
 
 # ---------------------------------------------------------------------------
-# Probe clipboard config (the opt-in epilogue's key)
+# 3. Probe clipboard config (the opt-in epilogue's key)
 # ---------------------------------------------------------------------------
 
 def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
@@ -613,7 +632,7 @@ def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Planner-bundle emission (--bundle)
+# 4. Planner-bundle emission (--bundle)
 # ---------------------------------------------------------------------------
 
 def normalize_member(data: bytes) -> bytes:
@@ -778,7 +797,7 @@ def read_bundle_input(label: str, path_str: str) -> bytes | str:
 
 
 # ---------------------------------------------------------------------------
-# Exchange block emission (--emit-block; the worker side of the thread)
+# 5. Exchange block emission (--emit-block; the worker side of the thread)
 # ---------------------------------------------------------------------------
 #
 # The worker's half of the exchange thread (TARBALL.md §5.9.2; ADR-0017).
@@ -791,11 +810,16 @@ def read_bundle_input(label: str, path_str: str) -> bytes | str:
 # even slightly differently on this side is a truncated-paste refusal on
 # the other.
 #
-# Everything below is RE-DECLARED from `bin/bale` section 29 (the
+# Everything below is RE-DECLARED from `bin/bale_relay.py` (the
 # sentinels, the body serialization, the header layout) and from
 # bin/bale_validate.py (the closed vocabularies and the record's
 # structural rules) — the INTENT_PROMPTS precedent above, for the same
-# reason, one size larger. This tool imports nothing from bale because it
+# reason, one size larger. That wire vocabulary was `bin/bale` section
+# 29 until the v0.4.21 extraction moved it into bin/bale_relay.py
+# (ADR-0017), which is why this file cites the module and not a section
+# number: the section is gone, the bytes are not.
+#
+# This tool imports nothing from bale because it
 # runs in a worker session where no bale install exists; and there is no
 # schema file to fall back on either, because TARBALL.md §3.1 injects
 # exactly the five global docs and the two tools into a request. A
@@ -808,9 +832,13 @@ def read_bundle_input(label: str, path_str: str) -> bytes | str:
 # carries the drift guard the bundle constants carry, widened to match
 # what is duplicated: tests/test_craft_response.py's ExchangeBlockParity
 # renders both implementations over a fixture corpus and compares BYTES,
-# pins these constants against section 29's, and asserts the structural
+# pins these constants against bale_relay's, and asserts the structural
 # checks below verdict-for-verdict against validate_exchange_record and
-# validate_clarification_questions over a shared pass/fail corpus. A
+# validate_clarification_questions over a shared pass/fail corpus. That
+# suite loads the vocabulary through `bin/bale`, which re-exports the
+# wire surface for it — provenance is bale_relay's, the import path is
+# bale's, and the two are not in tension. The install-side subset of the
+# same guard is validate.sh's crafter-vs-bale_relay constants row. A
 # session changing either home changes both in the same response.
 
 EXCHANGE_BLOCK_BEGIN = "BALE EXCHANGE BEGIN"
@@ -854,8 +882,8 @@ CLARIFICATION_KIND = "clarification"
 
 
 def exchange_body_bytes(record: dict) -> bytes:
-    """The paste block's body for `record` — re-declared from section
-    29's _exchange_body_bytes.
+    """The paste block's body for `record` — re-declared from
+    bin/bale_relay.py's _exchange_body_bytes.
 
     The trailer's sha256 is computed over exactly these bytes, and
     ingest recomputes over exactly the bytes it read between header and
@@ -867,7 +895,7 @@ def exchange_body_bytes(record: dict) -> bytes:
 
 def format_exchange_block(sid: str, record: dict) -> str:
     """Render the counterpart-facing paste block — re-declared from
-    section 29's format_exchange_block, byte for byte:
+    bin/bale_relay.py's format_exchange_block, byte for byte:
 
       BALE EXCHANGE BEGIN <sid>          sentinel (self-delimiting)
       # ... purpose header ...           direction and round, who reads it
@@ -925,11 +953,11 @@ def format_exchange_block(sid: str, record: dict) -> str:
 def normalize_manifest_to_record(manifest: dict, sid: str, rnd: int,
                                  created_at: str) -> dict:
     """The clarification manifest's reading as an exchange record —
-    re-declared from section 29's _normalize_manifest_to_record.
+    re-declared from bin/bale_relay.py's _normalize_manifest_to_record.
 
     Key insertion order is load-bearing: json.dumps preserves it, so the
     body's bytes (and therefore the trailer) depend on it matching
-    section 29's dict literal exactly.
+    bin/bale_relay.py's dict literal exactly.
 
     Two fields differ in PROVENANCE from relay's, not in shape. `round`
     is the worker's `--round` rather than the thread's next NNN — the
@@ -1318,7 +1346,7 @@ def build_emit_block(data: bytes, round_arg: int | None) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Path handling
+# 6. Path handling
 # ---------------------------------------------------------------------------
 
 def rel_path_problem(path_str: str) -> str | None:
@@ -1379,7 +1407,7 @@ def sha256_of(path: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Skeleton construction
+# 7. Skeleton construction
 # ---------------------------------------------------------------------------
 
 def build_changes(files_root: Path | None, deleted: list[str]) -> list[dict]:
@@ -1544,7 +1572,7 @@ def build_validation_epilogue(executables: list[str],
 
 
 # ---------------------------------------------------------------------------
-# Doc-contract assertions (--doc-assertions)
+# 8. Doc-contract assertions (--doc-assertions)
 # ---------------------------------------------------------------------------
 #
 # Parameterized, opt-in emissions for the per-project doc-contract rows
@@ -1886,7 +1914,7 @@ def shell_quote(path_str: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# CLI
+# 9. CLI
 # ---------------------------------------------------------------------------
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
