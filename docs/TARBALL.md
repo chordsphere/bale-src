@@ -863,6 +863,34 @@ questions below; and the `default_assumption` field is load-bearing
 — it lets the planner answer with a single *"your assumption is
 correct"* and surfaces the worker's reasoning for audit.
 
+**The worker-side flow, when the courier is the paste block.** The
+block is emitted by the same tool that scaffolded the manifest:
+`tools/craft_response.py --emit-block <file|->` renders it to
+stdout. The flow is four steps — scaffold (`--kind clarification`),
+fill the judgment fields, `--emit-block` the filled file, hand the
+block to the courier. The input is either shape the thread carries:
+a filled clarification manifest, which is rendered in its `from:
+worker` reading — `round` from `--round` (an integer at least 1,
+default 1, valid only with `--emit-block`), `created_at` stamped at
+emission, `session_id` and `questions[]` its own — or a filled
+worker exchange record, rendered as it stands once it validates.
+The record is validated before anything is rendered, and a
+`from: planner` record refuses: the crafter emits the worker's side,
+and the planner's side is emitted by `bale relay`, which has the
+suspended session's thread to sequence it against. A `--round` that
+contradicts a record's own `round` refuses rather than rewrites it.
+stdout is the block and only the block, so a redirect captures it
+clean.
+
+The two emissions of the same block — the worker's here and
+`bale relay`'s on the other side — are byte-identical for the same
+record, and that is a pinned property rather than a coincidence: the
+integrity trailer is a hash of the body, so a body that serialized
+even slightly differently on one side would read as a truncated
+paste on the other. The worker's copy of the layout is therefore
+held to the bale tool's by parity tests rather than by prose, and
+this section describes the flow, never the bytes.
+
 A question row may additionally carry three optional fields
 (v0.4.7); legacy four-field rows keep validating. **`options`** —
 candidate answers, at least one when present. **`recommendation`**
@@ -876,11 +904,11 @@ documentation; this section names the fields and stops there.
 #### 5.9.3 Apply-time UX (moved)
 
 Moved to the bale tool's own design documentation — the apply-time
-behavior is a contract on the bale implementation, not on the
-worker; the worker-facing consequence (the session suspends and
-continues to a normal response) stays in §5.9's own prose and
-§5.9.4. This section number is kept so older cross-references stay
-resolvable.
+ingest and the thread it opens are contracts on the bale
+implementation, not on the worker; the worker-facing consequence
+(the session suspends and continues to a normal response) stays in
+§5.9's own prose and §5.9.4. This section number is kept so older
+cross-references stay resolvable.
 
 #### 5.9.4 Posture and the answer path
 
