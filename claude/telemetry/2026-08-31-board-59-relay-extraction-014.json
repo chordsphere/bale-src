@@ -1,0 +1,443 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-59-relay-extraction-014",
+  "created_at": "2026-08-31T20:16:02+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T20:16:02+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-014 (3).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+              "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the fast-lane unittest discover run stays under the 2-minute validation target in your environment, per the harness's slow-gate design"
+          ],
+          "judgment_calls": [
+            "index-header line numbers refreshed wholesale (pre-existing drift past the ~50-line threshold), not just shifted",
+            "no sibling ordinal claimed in bale_relay.py's docstring \u2014 could not establish it from shipped material",
+            "bin/VERSION bumped to 0.4.21 with matching comment stamps; ships as one unit with the extraction comments"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py (or any sibling module) \u2014 needed for the lazy-__main__ idiom's exact spelling; resolved by probe",
+            "bin/VERSION \u2014 needed for the bump; resolved by probe"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-59-relay-extraction-014.log"
+    },
+    {
+      "at": "2026-08-31T20:17:56+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-014 (3).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "unittest discover -s tests (fast lane)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "scripts/build.sh release build (staging only)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "unittest discover -s tests (fast lane)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "scripts/build.sh release build (staging only)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "overridden_paths": [
+        "bin/VERSION",
+        "bin/bale_relay.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+              "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the fast-lane unittest discover run stays under the 2-minute validation target in your environment, per the harness's slow-gate design"
+          ],
+          "judgment_calls": [
+            "index-header line numbers refreshed wholesale (pre-existing drift past the ~50-line threshold), not just shifted",
+            "no sibling ordinal claimed in bale_relay.py's docstring \u2014 could not establish it from shipped material",
+            "bin/VERSION bumped to 0.4.21 with matching comment stamps; ships as one unit with the extraction comments"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py (or any sibling module) \u2014 needed for the lazy-__main__ idiom's exact spelling; resolved by probe",
+            "bin/VERSION \u2014 needed for the bump; resolved by probe"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-59-relay-extraction-014.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+          "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-08-31T20:28:02+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-014-r2.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+              "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the fast-lane unittest discover run stays under the 2-minute validation target in your environment, per the harness's slow-gate design"
+          ],
+          "judgment_calls": [
+            "index-header line numbers refreshed wholesale (pre-existing drift past the ~50-line threshold), not just shifted",
+            "no sibling ordinal claimed in bale_relay.py's docstring \u2014 could not establish it from shipped material",
+            "bin/VERSION bumped to 0.4.21 with matching comment stamps; ships as one unit with the extraction comments",
+            "_fail mirrors bin/bale fail()'s two visible lines standalone \u2014 a deliberate small duplication so the ingest surface is host-agnostic; ratify or point me at a better seam",
+            "re-export scope limited to the wire surface (constants + render/ingest + normalization), not the thread/verb machinery"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py (or any sibling module) \u2014 needed for the lazy-__main__ idiom's exact spelling; resolved by probe",
+            "bin/VERSION \u2014 needed for the bump; resolved by probe"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-59-relay-extraction-014.log"
+    },
+    {
+      "at": "2026-08-31T20:31:46+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-014-r2.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest discover -s tests (fast lane)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "scripts/build.sh release build (staging only)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "unittest discover -s tests (fast lane)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "scripts/build.sh release build (staging only)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "overridden_paths": [
+        "bin/VERSION",
+        "bin/bale_relay.py"
+      ],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_relay.py",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_release_packaging.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.20",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "bdd2b7c5e3167b1714489ffc0febe1c024b03c1cfb64bda35a0b7e51f880143f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+              "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the fast-lane unittest discover run stays under the 2-minute validation target in your environment, per the harness's slow-gate design"
+          ],
+          "judgment_calls": [
+            "index-header line numbers refreshed wholesale (pre-existing drift past the ~50-line threshold), not just shifted",
+            "no sibling ordinal claimed in bale_relay.py's docstring \u2014 could not establish it from shipped material",
+            "bin/VERSION bumped to 0.4.21 with matching comment stamps; ships as one unit with the extraction comments",
+            "_fail mirrors bin/bale fail()'s two visible lines standalone \u2014 a deliberate small duplication so the ingest surface is host-agnostic; ratify or point me at a better seam",
+            "re-export scope limited to the wire surface (constants + render/ingest + normalization), not the thread/verb machinery"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py (or any sibling module) \u2014 needed for the lazy-__main__ idiom's exact spelling; resolved by probe",
+            "bin/VERSION \u2014 needed for the bump; resolved by probe"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-59-relay-extraction-014.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-59-relay-extraction-014.sh",
+          "sha256": "28e54b3d0248895d2d99d94b4977ed28e58c116481182698fbb1a00007b4acce"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T20:31:46+00:00",
+  "outcome": "applied"
+}
