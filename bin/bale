@@ -3624,7 +3624,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # board-33 stamp and this registry record share one value.)
         persist_pack_session(repo, new_sid, new_manifest,
                              scope=handoff_scope,
-                             origin_branch=current_branch(repo))
+                             origin_branch=current_branch(repo),
+                             command="handoff")
         register_session(repo, new_sid)
         log(f"opened session {new_sid} in the registry")
 
@@ -4362,7 +4363,8 @@ def _session_state_and_hint(
                 f"under .bale/clarifications/{lock_sid}/), then "
                 f"`bale apply <response>` when the follow-up normal "
                 f"response arrives (a further round enters via "
-                f"`bale relay {lock_sid} <file|->`)",
+                f"`bale relay {lock_sid} <file|->`; lost the block? "
+                f"`bale relay {lock_sid}` alone re-emits it)",
             )
         return (
             SESSION_STATE_CLARIFICATION,
