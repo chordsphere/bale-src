@@ -45,15 +45,20 @@ is also what makes it directly unit-testable.
 
 Stateless and read-only: no writes, no locks, no git. Public surface is
 `compute_stats(telemetry_dir, work_class=None, since=None)` returning the
-plain-dict stats payload both renderers consume; the loaders and
-classifiers below it are importable for tests. The payload's *key list*
-as a consumer contract is owned by the `format_stats_json` docstring in
-`bin/bale_report.py` (one-home rule) — this module's docstrings describe
-semantics, not the wire key set.
+plain-dict stats payload both renderers consume, and — board 44's level
+2 — `compute_session_dossier(telemetry_dir, sid)`, one sid rendered
+whole over the same one substrate; the loaders and
+classifiers below them are importable for tests. The payload's *key
+list* as a consumer contract is owned by the `format_stats_json`
+docstring in `bin/bale_report.py` (one-home rule; the dossier line's
+keys are owned by `format_session_dossier_json`'s, per the same
+per-surface rule) — this module's docstrings describe semantics, not
+the wire key set.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -90,6 +95,13 @@ CLOSED_OUTCOMES = frozenset({
 # (v0.3.29, _class_row); this membership line preceded them by contract.
 IN_FLIGHT_OUTCOMES = frozenset({
     "held", "scope-drift-refused", "rejected", "required-check-refused",
+    # opened (board 63 write side, v0.4.21; this membership is the board
+    # 44 read half): the record was created at session open and no close
+    # or apply event has landed yet. In-flight by the schema's own
+    # instruction ("readers treat the session as in-flight — never a
+    # closure category"), which also retires the per-open-session
+    # unrecognized-outcome warning closure_category used to emit.
+    "opened",
 })
 
 # The work_class vocabulary the pack surface stamps (BALE.md §7), plus the
@@ -100,6 +112,14 @@ IN_FLIGHT_OUTCOMES = frozenset({
 # bin/bale), not a filter.
 WORK_CLASSES = ("code", "doc", "contract-doc", "meta", "mixed")
 UNCLASSED = "unclassed"
+
+# The packer-resolution sibling of UNCLASSED (board 44): sessions whose
+# record carries no usable packer identity anywhere — no open-time
+# provenance stamp, no feedback echo — bucket here, reported, never
+# dropped or guessed. (The write side's own no-identity fallback is the
+# literal "unconfigured", which is a *recorded* value and buckets
+# verbatim like any other.)
+UNATTRIBUTED = "unattributed"
 
 
 def _warn(msg: str) -> None:
@@ -195,27 +215,77 @@ def is_validated_attempt(attempt: dict) -> bool:
         attempt.get("validation"), dict)
 
 
-def session_work_class(record: dict) -> str:
-    """Resolve the session's work class (D2).
+def _attempt_provenance_stamp(attempt: dict) -> Optional[dict]:
+    """The attempt-level open-time provenance stamp (v0.4.21, board 63),
+    or None. The one home for the read: per the schema the stamp rides
+    on 'opened' attempts only, but the reader keys on the stamp itself —
+    a dict under the `provenance` key — so a record whose stamp survived
+    at another depth still resolves. Tolerant like every stamp read."""
+    stamp = attempt.get("provenance")
+    return stamp if isinstance(stamp, dict) else None
 
-    The value on the session's LATEST feedback-bearing attempt
-    (feedback.mechanical.provenance.work_class); sessions with none —
-    pure unlock closures, rejected-only — fall in the `unclassed`
-    bucket, reported, never silently dropped or guessed. Attempt-level
-    rates inherit this session-level resolution, which is what classes
-    a rejected first attempt of a session whose later attempts carry
-    the class.
+
+def _resolve_provenance_value(record: dict, key: str,
+                              fallback: str) -> str:
+    """Resolve one provenance identity (work_class or packer) for a
+    session: the open-time stamp first, the feedback echo second (board
+    63 fold-in, landed with board 44's read sides).
+
+    Pass 1 reads the attempt-level `provenance` stamp — the open-time
+    pair bale writes verbatim from the request manifest at pack, which
+    exists precisely so sessions that close without a feedback-bearing
+    attempt (unlock closures, open sessions) still resolve. Pass 2 is
+    the pre-stamp behavior unchanged: the latest feedback-bearing
+    attempt's mechanical.provenance echo. Both passes scan latest-first
+    for symmetry; sessions carrying neither fall to `fallback`
+    (UNCLASSED / UNATTRIBUTED), reported, never dropped or guessed.
     """
+    for attempt in reversed(record["attempts"]):
+        stamp = _attempt_provenance_stamp(attempt)
+        if stamp is not None:
+            value = stamp.get(key)
+            if isinstance(value, str) and value:
+                return value
     for attempt in reversed(record["attempts"]):
         feedback = attempt.get("feedback")
         if not isinstance(feedback, dict):
             continue
         provenance = (feedback.get("mechanical") or {}).get("provenance")
         if isinstance(provenance, dict):
-            work_class = provenance.get("work_class")
-            if isinstance(work_class, str) and work_class:
-                return work_class
-    return UNCLASSED
+            value = provenance.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return fallback
+
+
+def session_work_class(record: dict) -> str:
+    """Resolve the session's work class (D2; stamp-first since board 44).
+
+    The open-time provenance stamp resolves first — the board 63 write
+    side's pair, present on post-v0.4.21 'opened' attempts — falling
+    back to the value on the session's LATEST feedback-bearing attempt
+    (feedback.mechanical.provenance.work_class); sessions with neither —
+    pre-stamp pure unlock closures, rejected-only — fall in the
+    `unclassed` bucket, reported, never silently dropped or guessed.
+    The stamp-first order is what closes the unlocked-session blind
+    spot: the class now resolves for sessions that never carried a
+    feedback echo. Attempt-level rates inherit this session-level
+    resolution, which is what classes a rejected first attempt of a
+    session whose later attempts carry the class.
+    """
+    return _resolve_provenance_value(record, "work_class", UNCLASSED)
+
+
+def session_packer(record: dict) -> str:
+    """Resolve the session's packer identity (board 44), the
+    session_work_class sibling: the open-time provenance stamp first,
+    the feedback echo's provenance.packer second, `unattributed` when
+    the record carries neither. Buckets are the recorded value verbatim
+    (the honest-row doctrine) — including the write side's own
+    "unconfigured" fallback, which is a recorded identity, not this
+    reader's absence bucket.
+    """
+    return _resolve_provenance_value(record, "packer", UNATTRIBUTED)
 
 
 def is_read_only(record: dict) -> bool:
@@ -348,6 +418,77 @@ def _rate(numerator: int, denominator: int) -> Optional[float]:
     if denominator == 0:
         return None
     return numerator / denominator
+
+
+# The absence bucket every self-reported grouping shares (linkage kinds
+# and points, claim bases): the stamp exists but omits the field.
+UNSPECIFIED = "unspecified"
+
+
+def _claim_basis(validation: dict, check_name: str,
+                 verdict_entry: dict) -> str:
+    """Resolve one check's claim basis (board 10 queue, landed with
+    board 44): the claim_verdict row's own `claim_basis` when present,
+    else the claims map's annotated object form for the same check, else
+    UNSPECIFIED — the honest bucket for every bare-string claim and
+    every pre-v0.4.6 record, which carry no basis at all. Values pass
+    through verbatim (the honest-row doctrine): the schema's enum is
+    closed, but an out-of-vocabulary basis forms its own row here
+    rather than being dropped or coerced.
+    """
+    basis = (verdict_entry or {}).get("claim_basis")
+    if isinstance(basis, str) and basis:
+        return basis
+    claim = (validation.get("claims") or {}).get(check_name) \
+        if isinstance(validation.get("claims"), dict) else None
+    if isinstance(claim, dict):
+        basis = claim.get("claim_basis")
+        if isinstance(basis, str) and basis:
+            return basis
+    return UNSPECIFIED
+
+
+def _session_contract_docs(record: dict) -> Optional[dict]:
+    """The session's contract-doc hash set, or None when unstamped.
+
+    Read from the latest feedback-bearing attempt's
+    mechanical.provenance.contract_docs — the request provenance block
+    apply persists verbatim — mirroring session resolution's
+    latest-first scan. (The open-time attempt stamp carries only
+    work_class and packer, so feedback is this read's one carrier
+    today.) None means the record predates provenance echoes or the
+    request carried none — pre-epoch unknown, bucketed as "unstamped",
+    never conflated with a recorded hash set.
+    """
+    for attempt in reversed(record["attempts"]):
+        feedback = attempt.get("feedback")
+        if not isinstance(feedback, dict):
+            continue
+        provenance = (feedback.get("mechanical") or {}).get("provenance")
+        if not isinstance(provenance, dict):
+            continue
+        docs = provenance.get("contract_docs")
+        if isinstance(docs, dict) and docs and all(
+                isinstance(k, str) and isinstance(v, str)
+                for k, v in docs.items()):
+            return dict(docs)
+    return None
+
+
+DOC_EPOCH_UNSTAMPED = "unstamped"
+
+
+def _doc_epoch_key(docs: Optional[dict]) -> str:
+    """A stable, jq-derivable bucket key for one contract-doc hash set:
+    the first 12 hex of sha256 over the sorted "name=hash" lines. The
+    full hash set is reported beside the key in the epoch row, so the
+    digest is an identifier, never the only record of what it names.
+    None (unstamped) keys the DOC_EPOCH_UNSTAMPED bucket.
+    """
+    if docs is None:
+        return DOC_EPOCH_UNSTAMPED
+    joined = "\n".join(f"{name}={docs[name]}" for name in sorted(docs))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:12]
 
 
 # ---------------------------------------------------------------------------
@@ -555,6 +696,59 @@ def _class_row(sessions: list[dict]) -> dict:
       `forecast_entries_untouched` is reported beside the rate — the
       imprecision count itself. Imprecision clustering reads as
       forecasts drawn too WIDE, the mirror signal.
+
+    Claim-coverage rows (board 44, the queued no-new-fields cut):
+    `claims_declared` sums the promoted claims-map entries over
+    validated attempts, `claims_per_validated_attempt` is that sum
+    over validated attempts (a ratio, not a 0..1 rate — it can exceed
+    1; None on a zero denominator), and
+    `empty_claims_validated_attempts` counts validated attempts whose
+    promoted claims map is empty. The last is the computable form of
+    the queued "empty claims beside a non-empty validation_will_run"
+    count: the record does not persist `validation_will_run` (only the
+    claims map is promoted), but validation RAN on every validated
+    attempt, so an empty claims map here is the §5.3 wasted-signal
+    shape the cut hunts — with the one honest residual that a session
+    whose checks were all mechanical (the typo-session shape) counts
+    too. Gaming shows in aggregate trends, which is where the ledger
+    already looks; the per-packer cut of the same three values is
+    compute_stats' `packers` table.
+
+    Checkpoint CATCH rows (board 44, beside the D4.2 hold rows): a
+    CATCH is a checkpointed attempt where the blind oracle objected —
+    the stamp's own `state` is "HOLD" with the stamp's own
+    `exit_code` 1 — while the worker's own script passed
+    (`validation.exit_code` 0, the worker-script code per the schema;
+    the attempt's overall state needs both). A both-HOLD attempt is
+    not a catch (the worker also saw it), and a checkpoint that
+    ERRORED (stamp exit 2) is not a catch either — that is a tooling
+    fact, the unparsed-share analogy, still visible in the hold count.
+    `checkpoint_catch_rate` is catches over checkpointed attempts,
+    None on zero.
+
+    Claim-basis split (board 44, from the board 10 queue): the
+    `claim_basis` sub-dict buckets claim_verdict checks by the
+    worker's declared basis — `observed` (a real run before shipping)
+    vs `predicted` (structural grounds) vs UNSPECIFIED (every
+    bare-string claim and every pre-v0.4.6 record) — resolved per
+    check by `_claim_basis` (verdict row first, annotated claims-map
+    form second). Each bucket reports {checks, agree, agreement_rate}
+    so the observed-vs-predicted calibration split reads directly;
+    buckets are the recorded value verbatim (honest rows), and the
+    per-basis counts partition `checks` the same way the
+    per-agreement counts do.
+
+    Bucket membership (board 44 level 1): the `members` sub-dict names
+    the session ids composing each anomaly count, sid-granular and
+    sorted — the sets were computed on the way to the counts already
+    and are now emitted, so an anomalous rate drills to its sids with
+    one jq. Keys mirror their counts: held, checks_disagree, unparsed,
+    drift_refused, rejected, required_check_refused, checkpoint_hold,
+    checkpoint_catch, forecast_drift, bailout, empty_claims. A sid
+    appears once per bucket however many attempts put it there;
+    non-anomalous counts (applied closures, agreeing checks) carry no
+    membership — nominate, never curate, and the dossier is the level
+    2 read for any named sid.
     """
     response_attempts = 0
     validated_attempts = 0
@@ -586,8 +780,19 @@ def _class_row(sessions: list[dict]) -> dict:
     linkage_attempts = 0
     linkage_kinds: dict[str, int] = {}
     linkage_points: dict[str, int] = {}
+    claims_declared = 0
+    empty_claims_validated = 0
+    checkpoint_catch_attempts = 0
+    basis_checks: dict[str, int] = {}
+    basis_agree: dict[str, int] = {}
+    members: dict[str, set] = {key: set() for key in (
+        "held", "checks_disagree", "unparsed", "drift_refused",
+        "rejected", "required_check_refused", "checkpoint_hold",
+        "checkpoint_catch", "forecast_drift", "bailout", "empty_claims",
+    )}
 
     for record in sessions:
+        sid = record["session_id"]
         had_response_attempt = False
         for attempt in record["attempts"]:
             linkage = _attempt_linkage(attempt)
@@ -612,15 +817,19 @@ def _class_row(sessions: list[dict]) -> dict:
             outcome = attempt.get("outcome")
             if outcome == "held":
                 held_attempts += 1
+                members["held"].add(sid)
             elif outcome == "scope-drift-refused":
                 drift_refused_attempts += 1
+                members["drift_refused"].add(sid)
             elif outcome == "rejected":
                 rejected_attempts += 1
+                members["rejected"].add(sid)
             elif outcome == "required-check-refused":
                 # The step-15 superset gate's refusal (board 6 session
                 # B; counted here since session D) — a count beside the
                 # drift refusals, same species, different gate.
                 required_check_refused_attempts += 1
+                members["required_check_refused"].add(sid)
             if attempt.get("overridden_paths"):
                 override_attempts += 1
             if attempt.get("required_check_overrides"):
@@ -646,6 +855,7 @@ def _class_row(sessions: list[dict]) -> dict:
                          if not _forecast_covers(forecast, p)}
                 if drift:
                     forecast_drift_attempts += 1
+                    members["forecast_drift"].add(sid)
                 forecast_drift_paths += len(drift)
                 admitted = {_scope_norm(p) for p in
                             (attempt.get("overridden_paths") or [])
@@ -667,6 +877,18 @@ def _class_row(sessions: list[dict]) -> dict:
             if not is_validated_attempt(attempt):
                 continue
             validated_attempts += 1
+            validation = attempt["validation"]
+            # Claim coverage (board 44; docstring above): the promoted
+            # claims map's size, and the empty-map count — validation
+            # ran on this attempt, so an empty map is the §5.3
+            # wasted-signal shape.
+            claims_map = validation.get("claims")
+            declared = len(claims_map) if isinstance(claims_map, dict) \
+                else 0
+            claims_declared += declared
+            if declared == 0:
+                empty_claims_validated += 1
+                members["empty_claims"].add(sid)
             checkpoint = attempt.get("checkpoint")
             if isinstance(checkpoint, dict) \
                     and checkpoint.get("configured") is True:
@@ -680,17 +902,37 @@ def _class_row(sessions: list[dict]) -> dict:
                     # objected (exit 1) or errored (exit 2), whatever
                     # the worker's verdict was.
                     checkpoint_hold_attempts += 1
-            validation = attempt["validation"]
+                    members["checkpoint_hold"].add(sid)
+                    if checkpoint.get("exit_code") == 1 \
+                            and validation.get("exit_code") == 0:
+                        # The CATCH (board 44; docstring above): the
+                        # blind oracle objected (its own exit 1) while
+                        # the worker's own script passed — the
+                        # checkpoint saw what the worker missed. An
+                        # errored checkpoint (exit 2) is a tooling
+                        # fact, not a catch.
+                        checkpoint_catch_attempts += 1
+                        members["checkpoint_catch"].add(sid)
             if validation.get("reconciliation_parsed") is True:
                 claim_verdict = validation.get("claim_verdict")
                 if isinstance(claim_verdict, dict):
                     for check_name, entry in claim_verdict.items():
                         checks += 1
+                        # The claim-basis split (board 44; docstring
+                        # above): every check lands in exactly one
+                        # basis bucket, agreement counted beside it.
                         agreement = (entry or {}).get("agreement")
+                        basis = _claim_basis(validation, check_name,
+                                             entry or {})
+                        basis_checks[basis] = basis_checks.get(basis,
+                                                               0) + 1
                         if agreement == "agree":
+                            basis_agree[basis] = basis_agree.get(basis,
+                                                                 0) + 1
                             checks_agree += 1
                         elif agreement == "disagree":
                             checks_disagree += 1
+                            members["checks_disagree"].add(sid)
                         elif agreement == "n/a":
                             # The named residual: the §7.3 [n/a] tag —
                             # the claim made no prediction (untested,
@@ -719,6 +961,7 @@ def _class_row(sessions: list[dict]) -> dict:
                 # disagreement — its own share, NEVER folded into
                 # agreement (D2).
                 unparsed_validated += 1
+                members["unparsed"].add(sid)
         if had_response_attempt:
             sessions_with_response_attempt += 1
         category = closure_category(record)
@@ -726,6 +969,7 @@ def _class_row(sessions: list[dict]) -> dict:
             closed_sessions += 1
             if category[0] == "bailout":
                 bailout_sessions += 1
+                members["bailout"].add(sid)
             stamp = _clarification_stamp(record)
             if stamp is not None:
                 clarification_epoch_sessions += 1
@@ -752,10 +996,17 @@ def _class_row(sessions: list[dict]) -> dict:
         "drift_refusal_rate": _rate(drift_refused_attempts, response_attempts),
         "override_attempts": override_attempts,
         "rejected_attempts": rejected_attempts,
+        "claims_declared": claims_declared,
+        "claims_per_validated_attempt": _rate(claims_declared,
+                                              validated_attempts),
+        "empty_claims_validated_attempts": empty_claims_validated,
         "checkpointed_attempts": checkpointed_attempts,
         "checkpoint_hold_attempts": checkpoint_hold_attempts,
         "checkpoint_hold_rate": _rate(checkpoint_hold_attempts,
                                       checkpointed_attempts),
+        "checkpoint_catch_attempts": checkpoint_catch_attempts,
+        "checkpoint_catch_rate": _rate(checkpoint_catch_attempts,
+                                       checkpointed_attempts),
         "required_check_refused_attempts": required_check_refused_attempts,
         "required_check_override_attempts": required_check_override_attempts,
         "forecast_attempts": forecast_attempts,
@@ -783,6 +1034,17 @@ def _class_row(sessions: list[dict]) -> dict:
             "kinds": dict(sorted(linkage_kinds.items())),
             "points": dict(sorted(linkage_points.items())),
         },
+        "claim_basis": {
+            basis: {
+                "checks": count,
+                "agree": basis_agree.get(basis, 0),
+                "agreement_rate": _rate(basis_agree.get(basis, 0),
+                                        count),
+            }
+            for basis, count in sorted(basis_checks.items())
+        },
+        "members": {bucket: sorted(sids)
+                    for bucket, sids in members.items()},
     }
 
 
@@ -813,6 +1075,40 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
     read-only and crash-debris (context/hygiene counts; D2's membership
     exclusions) → resolve work class → work_class filter. Everything
     classed is computed over what survives.
+
+    Three board 44 surfaces ride the same filtered membership as the
+    classes table (so both filters reach them the way they reach every
+    rate):
+    - **`packers`** — the per-packer cut of the claim-coverage
+      aggregates (_class_row's docstring carries the definitions), one
+      row per resolved packer identity (session_packer: the open-time
+      stamp first, the feedback echo second, UNATTRIBUTED for neither):
+      sessions, validated_attempts, claims_declared,
+      claims_per_validated_attempt, empty_claims_validated_attempts.
+      Packer identities bucket verbatim (honest rows).
+    - **`doc_epochs`** — outcome counts per contract-doc-hash epoch,
+      the read side that makes doc changes A/B-able (BALE.md §5.6
+      names it as an intended use). Sessions bucket by the digest of
+      their echoed provenance.contract_docs set (_doc_epoch_key; the
+      full name→hash map is reported beside the digest so the key is
+      an identifier, never the only record), with DOC_EPOCH_UNSTAMPED
+      the honest bucket for records carrying no echo. Each row:
+      first_created_at (so epochs order chronologically), sessions,
+      closed_sessions, in_flight, the closure counts (applied /
+      reverted / bailout / unlocked), applied_rate (applied over
+      closed, None on zero), and contract_docs (the map, or None for
+      the unstamped row). Counts only beyond the one rate — every
+      other rate is derivable, and the renderer never owns the
+      numbers.
+    - **`members`** — the corpus-level half of the level 1 drill
+      (per-class membership lives in each class row): sid lists for
+      in_flight, read_only, crash_debris, the clarification
+      cross-check's self_only / promoted_only disagreement sets, the
+      forecast-departures smells (admitted_only / declared_only —
+      sids of sessions with at least one such path), and
+      bailed_with_pressure_none. Sorted, sid-granular, emitted beside
+      the counts they compose — the existing cross_checks counts are
+      unchanged.
 
     Returns a plain dict; `format_stats_json` in bale_report owns its
     key list as the consumer contract, and `format_stats_report` renders
@@ -864,6 +1160,7 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
     closure_mix: dict = {"applied": 0, "reverted": 0, "bailout": 0,
                          "unlocked": {}}
     in_flight = 0
+    in_flight_sids: set = set()
     rolled_back = 0
     re_applied = 0
     for record in membership:
@@ -875,6 +1172,7 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
         category = closure_category(record)
         if category is None:
             in_flight += 1
+            in_flight_sids.add(record["session_id"])
             continue
         kind, reason = category
         if kind == "unlocked":
@@ -908,6 +1206,8 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
     fd_both = 0
     fd_admitted_only = 0
     fd_declared_only = 0
+    fd_admitted_only_sids: set = set()
+    fd_declared_only_sids: set = set()
     for record in membership:
         for attempt in record["attempts"]:
             if not is_response_attempt(attempt):
@@ -923,9 +1223,18 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             fd_both += len(declared & admitted)
             fd_admitted_only += len(admitted - declared)
             fd_declared_only += len(declared - admitted)
+            # The corpus-level membership half (board 44): a session
+            # with at least one smell path is named so the count
+            # drills to its sids; the counts above stay path-granular
+            # and unchanged.
+            if admitted - declared:
+                fd_admitted_only_sids.add(record["session_id"])
+            if declared - admitted:
+                fd_declared_only_sids.add(record["session_id"])
 
     pressure: dict[str, int] = {}
     bailed_with_none = 0
+    bailed_with_none_sids: set = set()
     for record in membership:
         feedback = _latest_feedback(record)
         value = None
@@ -940,6 +1249,68 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
         if category is not None and category[0] == "bailout" \
                 and value == "none":
             bailed_with_none += 1
+            bailed_with_none_sids.add(record["session_id"])
+
+    # The per-packer claim-coverage cut (board 44; the compute_stats
+    # docstring carries the surface, _class_row's docstring the
+    # definitions). Same filtered membership as the classes table.
+    packers: dict[str, dict] = {}
+    for record in membership:
+        row = packers.setdefault(session_packer(record), {
+            "sessions": 0,
+            "validated_attempts": 0,
+            "claims_declared": 0,
+            "empty_claims_validated_attempts": 0,
+        })
+        row["sessions"] += 1
+        for attempt in record["attempts"]:
+            if not is_validated_attempt(attempt):
+                continue
+            row["validated_attempts"] += 1
+            claims_map = attempt["validation"].get("claims")
+            declared_n = len(claims_map) \
+                if isinstance(claims_map, dict) else 0
+            row["claims_declared"] += declared_n
+            if declared_n == 0:
+                row["empty_claims_validated_attempts"] += 1
+    for row in packers.values():
+        row["claims_per_validated_attempt"] = _rate(
+            row["claims_declared"], row["validated_attempts"])
+    packers = dict(sorted(packers.items()))
+
+    # Outcome counts per contract-doc-hash epoch (board 44; the
+    # compute_stats docstring carries the surface). Same filtered
+    # membership; sessions bucket by their echoed doc-hash set.
+    doc_epochs: dict[str, dict] = {}
+    for record in membership:
+        docs = _session_contract_docs(record)
+        key = _doc_epoch_key(docs)
+        row = doc_epochs.setdefault(key, {
+            "first_created_at": record["created_at"],
+            "sessions": 0,
+            "closed_sessions": 0,
+            "in_flight": 0,
+            "applied": 0,
+            "reverted": 0,
+            "bailout": 0,
+            "unlocked": 0,
+            "contract_docs": docs,
+        })
+        row["first_created_at"] = min(row["first_created_at"],
+                                      record["created_at"])
+        row["sessions"] += 1
+        category = closure_category(record)
+        if category is None:
+            row["in_flight"] += 1
+        else:
+            row["closed_sessions"] += 1
+            row[category[0]] += 1
+    for row in doc_epochs.values():
+        row["applied_rate"] = _rate(row["applied"],
+                                    row["closed_sessions"])
+    doc_epochs = dict(sorted(
+        doc_epochs.items(),
+        key=lambda item: (item[1]["first_created_at"], item[0])))
 
     total_response = sum(row["response_attempts"] for row in classes.values())
     total_validated = sum(row["validated_attempts"]
@@ -984,5 +1355,212 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
                 "admitted_only": fd_admitted_only,
                 "declared_only": fd_declared_only,
             },
+        },
+        "packers": packers,
+        "doc_epochs": doc_epochs,
+        "members": {
+            "in_flight": sorted(in_flight_sids),
+            "read_only": sorted(r["session_id"] for r in read_only),
+            "crash_debris": sorted(r["session_id"]
+                                   for r in crash_debris),
+            "clarification_self_only": sorted(self_clar - promoted_clar),
+            "clarification_promoted_only": sorted(
+                promoted_clar - self_clar),
+            "forecast_admitted_only": sorted(fd_admitted_only_sids),
+            "forecast_declared_only": sorted(fd_declared_only_sids),
+            "bailed_with_pressure_none": sorted(bailed_with_none_sids),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# The session dossier (board 44, level 2)
+# ---------------------------------------------------------------------------
+
+def _dossier_attempt(attempt: dict) -> dict:
+    """One attempt's dossier view: the record's own facts projected
+    with light, definition-reusing annotation — nothing here is
+    invented, and every value is re-derivable from the raw record with
+    jq (PLANNER.md §17: the read side never owns the numbers).
+
+    Key-presence semantics survive the projection: `checkpoint`,
+    `clarification`, `diagnostics`, `provenance`, `superseded_by`, and
+    `linkage` are None when the record carries none — pre-epoch
+    unknown or not-a-carrier, per each field's own doctrine — and the
+    claim/verdict `checks` rows carry the resolved `claim_basis`
+    (UNSPECIFIED for bare-string claims). `forecast_drift_paths` is
+    computed for post-epoch response attempts (the drift gate's own
+    containment, the same read the class rows use) and None
+    otherwise — pre-epoch scope is the conflated include set and
+    drift against it would lie.
+    """
+    validation = attempt.get("validation")
+    validation_view = None
+    if isinstance(validation, dict):
+        checks = []
+        claim_verdict = validation.get("claim_verdict")
+        if isinstance(claim_verdict, dict):
+            for check_name in sorted(claim_verdict):
+                entry = claim_verdict[check_name] or {}
+                checks.append({
+                    "check": check_name,
+                    "claim": entry.get("claim"),
+                    "verdict": entry.get("verdict"),
+                    "agreement": entry.get("agreement"),
+                    "claim_basis": _claim_basis(validation, check_name,
+                                                entry),
+                })
+        claims_map = validation.get("claims")
+        validation_view = {
+            "state": validation.get("state"),
+            "exit_code": validation.get("exit_code"),
+            "reconciliation_parsed":
+                validation.get("reconciliation_parsed"),
+            "claims_declared": (len(claims_map)
+                                if isinstance(claims_map, dict) else 0),
+            "checks": checks,
+        }
+
+    drift_paths = None
+    if is_response_attempt(attempt) \
+            and attempt.get("scope_kind") == FORECAST_SCOPE_KIND:
+        forecast = [_scope_norm(e) for e in (attempt.get("scope") or [])
+                    if isinstance(e, str) and e.strip()]
+        change_paths = {_scope_norm(p) for p in
+                        (attempt.get("change_paths") or [])
+                        if isinstance(p, str) and p.strip()}
+        drift_paths = sorted(p for p in change_paths
+                             if not _forecast_covers(forecast, p))
+
+    checkpoint = attempt.get("checkpoint")
+    clarification = attempt.get("clarification")
+    diagnostics = attempt.get("diagnostics")
+    superseded_by = attempt.get("superseded_by")
+    return {
+        "at": attempt.get("at"),
+        "command": attempt.get("command"),
+        "outcome": attempt.get("outcome"),
+        "closure_reason": attempt.get("closure_reason"),
+        "tarball": attempt.get("tarball"),
+        "scope_kind": attempt.get("scope_kind"),
+        "scope": list(attempt.get("scope") or []),
+        "change_paths": list(attempt.get("change_paths") or []),
+        "overridden_paths": list(attempt.get("overridden_paths") or []),
+        "required_check_overrides":
+            list(attempt.get("required_check_overrides") or []),
+        "forecast_drift_paths": drift_paths,
+        "validation": validation_view,
+        "checkpoint": (checkpoint if isinstance(checkpoint, dict)
+                       else None),
+        "linkage": _attempt_linkage(attempt),
+        "clarification": (clarification
+                          if isinstance(clarification, dict) else None),
+        "diagnostics": (diagnostics
+                        if isinstance(diagnostics, dict) else None),
+        "provenance": _attempt_provenance_stamp(attempt),
+        "superseded_by": (superseded_by
+                          if isinstance(superseded_by, str) else None),
+        "log": attempt.get("log"),
+    }
+
+
+def compute_session_dossier(telemetry_dir: Path, sid: str) -> dict:
+    """Compute the board 44 level 2 read: one sid rendered whole.
+
+    The dossier replaces the hand-jq walk across the record's surfaces
+    with one computed view over `claude/telemetry/` — the same one
+    substrate, and nothing else (D1: never `.bale/`): the record's
+    envelope and status, every attempt with its claim/verdict pairs,
+    checkpoint stamp, clarification stamp (rounds and preserved-record
+    summaries — the promoted image of `.bale/clarifications/<sid>/`,
+    which is how those records reach a fresh clone), bailout
+    diagnostics, and the lineage edges the corpus records — so a
+    HOLD-to-retry arc reads end to end. Read-only, stateless; the
+    renderers in bale_report project it and never own the numbers
+    (PLANNER.md §17).
+
+    Returns a plain dict, always: `found` False when no record under
+    the sid parses (with `parse_failure` True when a file exists but
+    was skipped by the loader — named on stderr as ever), so the
+    caller renders an honest miss instead of crashing. On a hit:
+
+    - `record` — envelope facts (record_version, created_at,
+      updated_at, outcome) plus the resolved `work_class` and `packer`
+      (stamp-first, the session_* resolvers) and status flags:
+      `in_flight`, `closure` ({category, unlock_reason} or None),
+      `read_only`, `crash_debris`.
+    - `attempts` — one _dossier_attempt view per attempt, in order.
+    - `lineage` — the cross-record edges recoverable from the corpus:
+      `superseded_by` (this record's own closure stamp),
+      `superseded_from` (sids whose stamp names this one), and the
+      corrects pair — `corrects` (read tolerantly from the record or
+      any attempt; the response manifest's field is NOT promoted into
+      telemetry today, so this is None on every bale-written record —
+      an honest unrecorded, not a known "no correction"; the write-side
+      promotion is proposed, and this reader lights up the day it
+      lands) and `corrected_by` (the tolerant converse scan).
+
+    The full-corpus load is deliberate: lineage edges live on OTHER
+    records, so the dossier reads the corpus the aggregation reads.
+    """
+    records, parse_failures, filtered = load_corpus(telemetry_dir)
+    record = next((r for r in records if r["session_id"] == sid), None)
+    if record is None:
+        return {
+            "session_id": sid,
+            "found": False,
+            "parse_failure": f"{sid}.json" in parse_failures,
+            "filtered_record_version": f"{sid}.json" in filtered,
+        }
+
+    def _record_corrects(r: dict) -> Optional[str]:
+        # Tolerant read at both depths (docstring): the field is not
+        # promoted today; a record carrying it anyway resolves.
+        value = r.get("corrects")
+        if isinstance(value, str) and value:
+            return value
+        for a in r["attempts"]:
+            value = a.get("corrects")
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    superseded_by = None
+    for attempt in reversed(record["attempts"]):
+        candidate = attempt.get("superseded_by")
+        if isinstance(candidate, str) and candidate:
+            superseded_by = candidate
+            break
+    superseded_from = sorted(
+        r["session_id"] for r in records if r["session_id"] != sid
+        and any(a.get("superseded_by") == sid for a in r["attempts"]))
+    corrected_by = sorted(
+        r["session_id"] for r in records if r["session_id"] != sid
+        and _record_corrects(r) == sid)
+
+    closure = closure_category(record)
+    return {
+        "session_id": sid,
+        "found": True,
+        "record": {
+            "record_version": record["record_version"],
+            "created_at": record["created_at"],
+            "updated_at": record.get("updated_at"),
+            "outcome": record["outcome"],
+            "work_class": session_work_class(record),
+            "packer": session_packer(record),
+            "in_flight": closure is None,
+            "closure": (None if closure is None
+                        else {"category": closure[0],
+                              "unlock_reason": closure[1]}),
+            "read_only": is_read_only(record),
+            "crash_debris": is_crash_debris(record),
+        },
+        "attempts": [_dossier_attempt(a) for a in record["attempts"]],
+        "lineage": {
+            "superseded_by": superseded_by,
+            "superseded_from": superseded_from,
+            "corrects": _record_corrects(record),
+            "corrected_by": corrected_by,
         },
     }
