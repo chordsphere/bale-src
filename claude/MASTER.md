@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-close-002`.
+Last landed by: `2026-08-31-sitting-decisions-foldin-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -282,6 +282,29 @@ source):
   validate-bundle gate and 49b's emitter, where the incoherence would
   originate. Re-trigger: a genuinely unconsumed intent observed after
   49a-ii lands; revisit refuse-vs-proceed on the live specimen.
+- Thin predicted-basis claims: the observed/predicted calibration
+  split has almost no predicted data — predicted-basis claims number
+  18 against 233 observed in the corpus. Watch whether the predicted
+  side stays thin now that the basis field is named; no action
+  attached. (From the 2026-08-31 meta-specific sitting.)
+- The contract-doc HOLD rate per applied session (6/21) runs
+  slightly above code's (12/51) — below any action threshold, worth
+  an eye; no action attached. (From the 2026-08-31 meta-specific
+  sitting.)
+
+**Ruling queue** (desk rulings awaiting a future sitting —
+decisions, not work rows; a ruling becomes a doc delta only if it
+says so):
+
+- **Bailout-vs-compaction calibration** — a desk ruling at a future
+  sitting: whether CLAUDE.md §11's emphasis shifts — accept §11.6
+  recovery as the de facto primary defense on auto-compacting
+  surfaces, or find a pre-compaction trigger that actually fires.
+  Corpus facts of record: zero bailout outcomes in 181 records;
+  §11.6 compaction recovery exercised on every one of the 15
+  attempt-level compaction disclosures across 7 sessions, done
+  properly each time; 13 tight budget_pressure self-reports.
+  (Queued 2026-08-31 at the meta-specific sitting.)
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -2126,6 +2149,71 @@ and §8, so done items keep their numbers as one-line pointers.
     shape decision (no-file `bale relay <sid>` reprint vs a
     separate read-only verb) is made there, not here.
 
+61. **Global-doc purge** — queued 2026-08-31 at the meta-specific
+    sitting (mixed class; first in sequence; packed the same day,
+    sid slug `global-doc-purge`). One response: strip or inline
+    every evidence-N and board-number citation across the five
+    globals; rewrite PLANNER.md §8's sanctioning paragraph; repoint
+    TARBALL.md §5.9.2's orchestration-documentation sentence at
+    PLANNER.md §15; name the amend-checkpoint verb in PLANNER.md §5
+    step 5; fix the injected crafter's dangling design-doc pointer;
+    and extend tests/test_global_doc_selfcontainment.py in the same
+    response with citation-shape deny patterns plus the injected
+    tools in the scan set, so the pin lands with the cleanup it
+    pins. Fallback if it runs heavy: docs purge (contract-doc)
+    first, guard extension (code) second, the guard depending on
+    the purge.
+
+62. **PLANNER.md doctrine additions** — queued 2026-08-31
+    (contract-doc class; serializes after board 61 — both forecast
+    docs/PLANNER.md). Two additions to the core: the
+    bundle-delivery practice (checkpoint-pinning projects deliver
+    spawn materials via the crafter's bundle emission plus the
+    emitted bale open line; the format itself stays in the bale
+    tool's documentation), and a one-sentence §2 prompt to carry a
+    narrow `--write` forecast when split sessions should run
+    concurrently.
+
+63. **Provenance stamped at open** — queued 2026-08-31 (code
+    class): pack writes work_class/packer provenance into the
+    registry and telemetry record at session open, so every exit
+    path carries it — closes the 49-record blind spot where
+    unlocked sessions (27% of the corpus) are invisible to
+    per-class and per-packer rates. Candidate rider: closed
+    vocabulary or normalize-at-stamp for packer and model_identity
+    (ten packer spellings and roughly 62 model_identity spellings
+    in the corpus today).
+
+64. **Release-surface include group** — queued 2026-08-31 (code
+    class): a named include/forecast group (bale.toml or a
+    pack-time hint) so bin/, tests/, or schemas/ includes pull
+    install.sh, scripts/build.sh, validate.sh, upgrade.sh, docs/,
+    and schemas/ along. Retires the corpus's most-repeated
+    includes_missing class (8+ recurrences over six weeks), the
+    matching overridden_paths admission cluster (14 events on the
+    same file family), and the can't-run-locally claim/verdict
+    DISAGREEs (all 9 in the corpus) in one fix.
+
+65. **Linkage rollup** — queued 2026-08-31 (code class): a bale
+    stats aggregation over feedback.mechanical.linkage, giving the
+    field a consumer — the corpus carries 9 clarification linkages
+    and 10 probe linkages, yet every close-time clarification
+    stamp reads rounds: 0 — every blocking ask to date resolved
+    off-artifact, and the signal lives only in linkage, which
+    nothing queries.
+
+66. **Install-surface schema purge** — queued 2026-08-31 (mixed
+    class; serializes after board 61): the five non-embedded
+    schemas (request-manifest, telemetry-record, escalation-record,
+    exchange-record, bundle-manifest) ship with the install and
+    their description strings cite BALE.md, orchestration.md, and
+    board numbers — dangling from any other project's vantage.
+    Resolve to self-standing prose or the doctrine's global home
+    (PLANNER.md §15 for the orchestration citations); descriptions
+    are inert to validation, so behavior is untouched. Discovered
+    at the 2026-08-31 desk rehearsal, which also widened board 61
+    to cover the lint-embedded response-manifest schema.
+
 ## 5. Contracts established (do not re-litigate casually)
 
 Carried forward: JSON vocabulary (outcome, sid, tarball, log,
@@ -2659,6 +2747,17 @@ New, ratified 2026-08-26 (the board-53 sitting):
   `stamp_matched: false` as the truthful record are all unchanged.
   (Board 53; the clarification round's durable record is the
   session's archived notes.)
+
+New, ratified 2026-08-31 (the meta-specific-003 sitting, read-only):
+
+- **Global docs reference no project-specific material — including bale-src's own.**
+  No evidence-ledger citations, no board-row citations, no
+  telemetry references, no project doc names in any of the five
+  injected globals. A lesson a global doc carries is stated
+  self-standingly (resolved or inlined); provenance stays
+  project-side. Overturns PLANNER.md §8's "cited, not carried"
+  sanction, which the purge session (board 61) rewrites rather
+  than quietly contradicts.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
