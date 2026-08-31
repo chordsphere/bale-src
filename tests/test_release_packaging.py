@@ -201,6 +201,18 @@ class ReleaseListCoverageTest(unittest.TestCase):
         self.assertIn("docs/PLANNER.md",
                       extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
 
+    def test_release_files_covers_exchange_schema(self) -> None:
+        """schemas/exchange-record.schema.json ships: bale relay reads
+        it from the installed schemas tree to validate every exchange
+        round (TARBALL.md section 5.9.2), so a release without it breaks
+        the clarification thread at the first relay."""
+        self.assertIn("schemas/exchange-record.schema.json",
+                      extract_bash_array(BUILD_SH, "RELEASE_FILES"))
+
+    def test_install_layout_covers_exchange_schema(self) -> None:
+        self.assertIn("schemas/exchange-record.schema.json",
+                      extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
     def test_lists_are_set_equal(self) -> None:
         release = extract_bash_array(BUILD_SH, "RELEASE_FILES")
         layout = extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT")
