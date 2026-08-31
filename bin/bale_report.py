@@ -2933,7 +2933,8 @@ def format_stats_json(stats: dict) -> str:
                   bailout_sessions, sessions_with_response_attempt,
                   bailout_rate,
                   clarified_sessions, clarification_epoch_sessions,
-                  clarification_rate
+                  clarification_rate,
+                  linkage
                 The per-agreement counts follow the telemetry schema's
                 claim_verdict.agreement vocabulary, one named count per
                 value: checks_agree ("agree"), checks_disagree
@@ -2976,6 +2977,17 @@ def format_stats_json(stats: dict) -> str:
                 numerator and denominator beside its rate, rates null
                 on zero. Semantics in bin/bale_stats.py's _class_row
                 docstring.
+                The linkage key (board 65, additive) is the rollup of
+                feedback.mechanical.linkage stamps — the self-reported
+                probe/clarification round record — over the class's
+                attempts: {attempts, kinds, points}, where kinds
+                buckets by the stamp's kind verbatim and points by its
+                placement (the current `point` key or the legacy
+                `surfaced` spelling; "unspecified" the honest bucket
+                for an omitted field). Counts and groupings only,
+                beside the rates, never blended in; the per-work-class
+                split is the classes keying itself. Semantics in
+                bin/bale_stats.py's _class_row docstring.
       closure_mix
                 distribution over closed membership sessions: applied,
                 reverted, bailout (counts) and unlocked (an object
@@ -3109,6 +3121,21 @@ def format_stats_report(stats: dict) -> str:
                     f"{row['forecast_entries'] - row['forecast_entries_untouched']}/"
                     f"{row['forecast_entries']} "
                     f"({_pct(row['forecast_precision'])})")
+            if row["linkage"]["attempts"]:
+                # The board 65 linkage rollup: counts and groupings
+                # only, computed in bale_stats._class_row (this
+                # renderer never owns the numbers); rendered when the
+                # class has stamped attempts, like every extras entry —
+                # no fabricated zeros for a class with no stamps.
+                kinds = ", ".join(
+                    f"{value} {count}"
+                    for value, count in row["linkage"]["kinds"].items())
+                points = ", ".join(
+                    f"{value} {count}"
+                    for value, count in row["linkage"]["points"].items())
+                details.append(
+                    f"linkage {row['linkage']['attempts']} "
+                    f"[{kinds}] surfaced [{points}]")
             if details:
                 extras.append(f"  {cls}: " + ", ".join(details))
         if extras:

@@ -300,15 +300,45 @@ def _latest_feedback(record: dict) -> Optional[dict]:
     return None
 
 
+def _attempt_linkage(attempt: dict) -> Optional[dict]:
+    """The attempt's feedback.mechanical.linkage stamp, or None.
+
+    The one home for the read (board 65): the linkage rollup and the
+    clarification cross-check both go through here. Tolerant like every
+    feedback read — a missing block or a non-dict linkage reads as no
+    stamp, never a crash.
+    """
+    feedback = attempt.get("feedback")
+    if not isinstance(feedback, dict):
+        return None
+    linkage = (feedback.get("mechanical") or {}).get("linkage")
+    return linkage if isinstance(linkage, dict) else None
+
+
+def _linkage_point(linkage: dict) -> Optional[str]:
+    """The linkage stamp's placement value, or None when unreported.
+
+    The current response-manifest schema spells the key `point`
+    (enum pre-read / pre-build / mid-build); records persisted from
+    older manifests spell it `surfaced` — the corpus carries both, and
+    telemetry persists feedback verbatim, so the reader accepts the
+    legacy key rather than reporting real placements as missing.
+    `point` wins when both are present. Values pass through verbatim
+    (the honest-row doctrine); only the key is normalized here.
+    """
+    for key in ("point", "surfaced"):
+        value = linkage.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
 def _self_reported_clarification(record: dict) -> bool:
     """Cross-check 1's self-reported side: any attempt whose
     feedback.mechanical.linkage.kind == "clarification"."""
     for attempt in record["attempts"]:
-        feedback = attempt.get("feedback")
-        if not isinstance(feedback, dict):
-            continue
-        linkage = (feedback.get("mechanical") or {}).get("linkage")
-        if isinstance(linkage, dict) and linkage.get("kind") == "clarification":
+        linkage = _attempt_linkage(attempt)
+        if linkage is not None and linkage.get("kind") == "clarification":
             return True
     return False
 
@@ -475,6 +505,23 @@ def _class_row(sessions: list[dict]) -> dict:
     rows, mirroring drift's refusal/override pair; override incidence
     is a count, not a rate, per the drift precedent.
 
+    Linkage rollup (board 65): the `linkage` sub-dict counts the
+    class's attempts carrying a `feedback.mechanical.linkage` stamp —
+    the self-reported record that the session went through a probe or
+    clarification round on the way to the response
+    (response-manifest.schema.json). Counts and groupings only,
+    nominated beside the rates, never blended into them: `attempts`
+    is the stamped-attempt count, `kinds` buckets by the stamp's
+    `kind` verbatim (an unexpected value forms its own honest row;
+    a stamp with no usable kind lands under "unspecified"), and
+    `points` buckets by the placement value `_linkage_point` resolves
+    (the current `point` key or the legacy `surfaced` spelling; a
+    stamp reporting neither lands under "unspecified"). Every attempt
+    is scanned, response or not, mirroring the clarification
+    cross-check's read — the stamp is self-reported data and the
+    rollup reports what was recorded, wherever it was recorded. The
+    per-work-class split is the classes table itself.
+
     Forecast rows (ADR-0015, board 13 session B — design brief I.5).
     All three read POST-EPOCH response attempts only: attempts whose
     `scope_kind` reads FORECAST_SCOPE_KIND, where `scope` is the
@@ -536,10 +583,28 @@ def _class_row(sessions: list[dict]) -> dict:
     closed_sessions = 0
     clarified_sessions = 0
     clarification_epoch_sessions = 0
+    linkage_attempts = 0
+    linkage_kinds: dict[str, int] = {}
+    linkage_points: dict[str, int] = {}
 
     for record in sessions:
         had_response_attempt = False
         for attempt in record["attempts"]:
+            linkage = _attempt_linkage(attempt)
+            if linkage is not None:
+                # The board 65 rollup (docstring above): every stamped
+                # attempt counts, by kind and by placement, values
+                # verbatim, "unspecified" the honest bucket for a
+                # stamp that omits the field.
+                linkage_attempts += 1
+                kind = linkage.get("kind")
+                kind_key = (kind if isinstance(kind, str) and kind
+                            else "unspecified")
+                linkage_kinds[kind_key] = linkage_kinds.get(kind_key, 0) + 1
+                point = _linkage_point(linkage)
+                point_key = point if point is not None else "unspecified"
+                linkage_points[point_key] = (
+                    linkage_points.get(point_key, 0) + 1)
             if not is_response_attempt(attempt):
                 continue
             had_response_attempt = True
@@ -713,6 +778,11 @@ def _class_row(sessions: list[dict]) -> dict:
         "clarification_epoch_sessions": clarification_epoch_sessions,
         "clarification_rate": _rate(clarified_sessions,
                                     clarification_epoch_sessions),
+        "linkage": {
+            "attempts": linkage_attempts,
+            "kinds": dict(sorted(linkage_kinds.items())),
+            "points": dict(sorted(linkage_points.items())),
+        },
     }
 
 
