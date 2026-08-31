@@ -154,7 +154,14 @@ class ClosureTelemetryTest(unittest.TestCase):
 
     def test_unlock_records_abandoned_with_scope(self) -> None:
         """pack then unlock: outcome unlocked, reason abandoned, command
-        unlock, and the scope captured before the wipe (non-empty)."""
+        unlock, and the scope captured before the wipe (non-empty).
+
+        Since v0.4.21 (board 63) pack writes the record at session OPEN
+        with an `opened` first attempt, so the unlock event is the
+        SECOND attempt and the envelope mirrors it — the open-time
+        record's own shape is pinned by tests/test_provenance_at_open.py;
+        this suite asserts the closure half appends rather than
+        clobbers."""
         sid = self.packed_sid(self.pack())
         result = self.unlock()
         self.assert_ok(result)
@@ -163,8 +170,12 @@ class ClosureTelemetryTest(unittest.TestCase):
         self.assertEqual(record["session_id"], sid)
         self.assertEqual(record["outcome"], "unlocked",
                          msg="envelope outcome mirrors the latest attempt")
-        self.assertEqual(len(record["attempts"]), 1)
-        attempt = record["attempts"][0]
+        self.assertEqual(len(record["attempts"]), 2,
+                         msg="the opened attempt (v0.4.21) plus the "
+                             "unlock closure — append, never clobber")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened",
+                         msg="the open-time stamp survives the close")
+        attempt = record["attempts"][-1]
         self.assertEqual(attempt["outcome"], "unlocked")
         self.assertEqual(attempt["command"], "unlock")
         self.assertEqual(attempt["closure_reason"], "abandoned")
@@ -189,7 +200,8 @@ class ClosureTelemetryTest(unittest.TestCase):
         sid = self.packed_sid(self.pack("--read-only"))
         self.assert_ok(self.unlock())
 
-        attempt = self.telemetry_record(sid)["attempts"][0]
+        # attempts[-1]: the closure follows the v0.4.21 opened attempt.
+        attempt = self.telemetry_record(sid)["attempts"][-1]
         self.assertEqual(attempt["closure_reason"], "closed-read-only")
         self.assertEqual(attempt["scope"], [],
                          msg="the recorded empty scope is what the "
@@ -203,7 +215,8 @@ class ClosureTelemetryTest(unittest.TestCase):
         sid = self.packed_sid(self.pack("--read-only"))
         self.assert_ok(self.unlock("--reason", "abandoned"))
 
-        attempt = self.telemetry_record(sid)["attempts"][0]
+        # attempts[-1]: the closure follows the v0.4.21 opened attempt.
+        attempt = self.telemetry_record(sid)["attempts"][-1]
         self.assertEqual(attempt["closure_reason"], "abandoned")
         self.assertEqual(attempt["scope"], [])
 

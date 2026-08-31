@@ -1785,7 +1785,8 @@ def build_request_tarball(
 
 def persist_pack_session(repo: Path, sid: str, manifest: dict,
                          scope: Optional[list[str]] = None,
-                         origin_branch: Optional[str] = None) -> None:
+                         origin_branch: Optional[str] = None,
+                         command: str = "pack") -> None:
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
 
@@ -1820,6 +1821,31 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     before reaching here (BALE.md §7.1 step 4a; §11 rows 23–24), so on
     both request-building paths the sentinel is unreachable; the guard
     stays as defense in depth for any other caller.
+
+    `command` (v0.4.21, board 63) names the request-building command
+    for the open-time telemetry stamp below — the telemetry command
+    vocabulary's honest-command posture (telemetry-record.schema.json).
+    Default "pack"; cmd_handoff passing "handoff" is proposed but not
+    yet wired (bin/bale is out of the board-63 session's scope), so
+    handoff opens stamp "pack" until that one-word change lands.
+
+    Since v0.4.21 (board 63) this function also stamps the two
+    open-time provenance facts — work_class and packer, read from the
+    manifest's provenance block — via _persist_open_provenance: into
+    `.bale/sessions/<sid>/provenance.json` (registry-side, beside
+    scope.json) and into an `opened` attempt that CREATES the sid's
+    telemetry record at session open, so every exit path — including
+    unlock and the read-only sweep, previously the blind spot —
+    closes onto a record that already carries the pair. Close-time
+    writes append (write_telemetry_record's update semantics), never
+    clobber.
+
+    Debris window, documented not fixed: this function runs before
+    register_session (the §7.6 ordering), so a crash between the two
+    can leave an `opened` telemetry record for a sid that never
+    opened — the same half-state class the crash-debris machinery
+    already tolerates for registry remains; the record honestly reads
+    as in-flight.
     """
     from __main__ import persist_session_scope  # lazy — see module docstring
     sessions_dir = repo / ".bale" / "sessions" / sid
@@ -1831,6 +1857,99 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
         persist_session_scope(repo, sid, scope)
     if origin_branch and origin_branch != "HEAD":
         (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
+    _persist_open_provenance(repo, sid, manifest, scope=scope,
+                             command=command)
+
+
+def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
+                             scope: Optional[list[str]],
+                             command: str) -> None:
+    """Stamp work_class and packer at session open (v0.4.21, board 63).
+
+    Closes the telemetry blind spot where sessions that close without
+    an apply (unlock, closed-read-only) carried no work_class or
+    packer: before this, the pair lived only in the manifest copy
+    under .bale/sessions/<sid>/, which the close-time rmtree destroys
+    and nothing longitudinal reads.
+
+    Two writes, both best-effort (a provenance stamp failure never
+    fails the pack — the record is longitudinal signal, matching
+    write_telemetry_record's own posture):
+
+    1. **Registry**: `.bale/sessions/<sid>/provenance.json`, exactly
+       `{"work_class": ..., "packer": ...}` — the structured
+       registry-side home, beside scope.json, readable without
+       parsing the manifest copy.
+    2. **Telemetry**: an `opened` attempt — outcome "opened",
+       `command` naming the request-building command — built through
+       bale_report.build_telemetry_attempt (the one builder, so the
+       epoch stamps scope_kind / sandbox_escaped /
+       network_grant_exercised / cost stay uniform with every other
+       event) and appended through write_telemetry_record (which
+       creates the record when absent and preserves it across
+       close-time appends). The attempt carries the pair under its
+       `provenance` key; values are stamped VERBATIM from the
+       manifest — no normalization (the spelling-consolidation rider
+       is deferred: normalizing without a ratified canonical map
+       risks silent mis-attribution).
+
+    A manifest with no usable provenance block (hand-rolled request,
+    or a block missing either field) skips both writes with a logged
+    line — loud skip, never silent — and the record shape stays
+    exactly pre-v0.4.21 for such sessions.
+
+    `scope` mirrors what persist_pack_session recorded; None (no
+    scope.json written — a hypothetical future caller; both current
+    request-building paths pass a list) stamps `[]`, the schema's
+    honest "no scope recorded" form, never a fabricated whole-tree
+    widening.
+    """
+    from __main__ import log  # lazy — see module docstring
+    provenance = manifest.get("provenance")
+    if not isinstance(provenance, dict):
+        log(f"open provenance: request manifest for {sid} carries no "
+            f"provenance block; skipping the open-time stamps "
+            f"(hand-rolled request?)")
+        return
+    work_class = provenance.get("work_class")
+    packer = provenance.get("packer")
+    if (not isinstance(work_class, str) or not work_class
+            or not isinstance(packer, str) or not packer):
+        log(f"open provenance: manifest provenance block for {sid} is "
+            f"missing work_class or packer "
+            f"(work_class={work_class!r}, packer={packer!r}); "
+            f"skipping the open-time stamps")
+        return
+    stamp = {"work_class": work_class, "packer": packer}
+
+    sessions_dir = repo / ".bale" / "sessions" / sid
+    try:
+        (sessions_dir / "provenance.json").write_text(
+            json.dumps(stamp, indent=2) + "\n", encoding="utf-8")
+        log(f"open provenance: work_class={work_class!r} "
+            f"packer={packer!r} recorded at "
+            f".bale/sessions/{sid}/provenance.json")
+    except OSError as e:
+        log(f"open provenance: could not write provenance.json for "
+            f"{sid}: {e} — the pack stands; the registry-side stamp "
+            f"is lost", force=True)
+
+    from bale_report import (  # lazy — see module docstring
+        build_telemetry_attempt,
+        write_telemetry_record,
+    )
+    attempt = build_telemetry_attempt(
+        outcome="opened", command=command,
+        scope=list(scope) if scope is not None else [],
+        log_path=f".bale/logs/{sid}.log",
+    )
+    attempt["provenance"] = stamp
+    rel = write_telemetry_record(repo, sid, attempt)
+    if rel:
+        log(f"open provenance: telemetry record opened at {rel} "
+            f"(outcome 'opened'; close-time events append to it)")
+    # A write failure already logged force=True inside
+    # write_telemetry_record — nothing to add, nothing to unwind.
 
 
 # ---------------------------------------------------------------------------
