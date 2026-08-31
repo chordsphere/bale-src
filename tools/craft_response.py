@@ -113,6 +113,25 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   oracle-bearing); this mode is the DESK's, and tests exercise it
   under temp dirs only.
 
+- (exchange, §5.9.2) `--emit-block <file|->` renders the
+  counterpart-facing paste block for a filled clarification manifest or
+  a filled worker exchange record, to stdout. This is the WORKER side of
+  the exchange thread: `bale relay` renders the same block for records
+  it ingests, but relay runs in the planner's repo against a suspended
+  session's `.bale/` state, which a worker session does not have. A
+  manifest (`response_kind: "clarification"`) is normalized to its
+  `from: worker` reading — `round` from `--round` (default 1),
+  `created_at` stamped at emission, `session_id` and `questions[]`
+  lifted from the manifest; a record carrying a `from` key is emitted
+  as-is once it validates. A `from: planner` record refuses (that side
+  is relay's, and it needs the thread to sequence against), and a
+  `--round` contradicting a record's own round refuses rather than
+  rewrites. The rendering is byte-identical to section 29's for the same
+  record — the constants and layout are re-declared here, per the
+  INTENT_PROMPTS precedent, and the parity suite is what keeps the two
+  from drifting. stdout is the block and only the block, so
+  `--emit-block r.json > block.txt` captures it clean;
+
 For the normal kind, `validation.sh` remains un-emitted on purpose:
 there it is the worker's hypothesis test (TARBALL.md §7) — judgment,
 never scaffolded. The no-op validation.sh exists only for the two
@@ -131,6 +150,7 @@ Usage:
     craft_response.py --bundle STEM --pack-arg TOKEN...
                       (--brief FILE | --no-brief) [--checkpoint FILE]
                       [--pre-answered PROMPT=SUBJECT]... [--out-dir DIR]
+    craft_response.py --emit-block FILE [--round N]
 
 Modes (mutually exclusive; default prints the manifest skeleton):
     (default)       print the manifest-skeleton JSON to stdout
@@ -164,6 +184,15 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     stdout. Desk-side only; takes no response dir and
                     combines with none of the response-directory flags
                     (or --probe).
+    --emit-block FILE
+                    render the exchange paste block for FILE (a filled
+                    clarification manifest or a filled worker exchange
+                    record; `-` reads stdin) to stdout, byte-identical
+                    to `bale relay`'s. Takes no response dir and
+                    combines with none of the response-directory flags
+                    (or --probe / --bundle). --round N sets the round
+                    on the manifest path and asserts it on the record
+                    path.
 
 Bundle options (only with --bundle):
     --pack-arg TOKEN    one pack-argv token, repeatable in order — the
@@ -746,6 +775,546 @@ def read_bundle_input(label: str, path_str: str) -> bytes | str:
     if not data.strip():
         return f"{label}: {path} is empty — a hollow member never ships"
     return data
+
+
+# ---------------------------------------------------------------------------
+# Exchange block emission (--emit-block; the worker side of the thread)
+# ---------------------------------------------------------------------------
+#
+# The worker's half of the exchange thread (TARBALL.md §5.9.2; ADR-0017).
+# `bale relay` renders the counterpart-facing paste block for every record
+# it ingests — but relay runs in the PLANNER's repo, against a suspended
+# session's `.bale/` state, and the worker has neither. So the block the
+# worker hands the courier is rendered here, and the two renderings have
+# to be the same bytes: the trailer's sha256 is computed over the body,
+# ingest recomputes it over the bytes it read, and a body that serializes
+# even slightly differently on this side is a truncated-paste refusal on
+# the other.
+#
+# Everything below is RE-DECLARED from `bin/bale` section 29 (the
+# sentinels, the body serialization, the header layout) and from
+# bin/bale_validate.py (the closed vocabularies and the record's
+# structural rules) — the INTENT_PROMPTS precedent above, for the same
+# reason, one size larger. This tool imports nothing from bale because it
+# runs in a worker session where no bale install exists; and there is no
+# schema file to fall back on either, because TARBALL.md §3.1 injects
+# exactly the five global docs and the two tools into a request. A
+# project's own `schemas/` reaches `context/` only when its packer names
+# it, and §3.1 permits even that copy to be a partial extract. A lookup
+# would therefore work in the bale-src repo and nowhere else, which is
+# worse than no lookup at all.
+#
+# Two homes without a pin is how citations drift, so the duplication
+# carries the drift guard the bundle constants carry, widened to match
+# what is duplicated: tests/test_craft_response.py's ExchangeBlockParity
+# renders both implementations over a fixture corpus and compares BYTES,
+# pins these constants against section 29's, and asserts the structural
+# checks below verdict-for-verdict against validate_exchange_record and
+# validate_clarification_questions over a shared pass/fail corpus. A
+# session changing either home changes both in the same response.
+
+EXCHANGE_BLOCK_BEGIN = "BALE EXCHANGE BEGIN"
+EXCHANGE_BLOCK_END = "BALE EXCHANGE END"
+EXCHANGE_TRAILER_LABEL = "# sha256"
+
+EXCHANGE_SIDE_WORKER = "worker"
+EXCHANGE_SIDE_PLANNER = "planner"
+EXCHANGE_SIDES = (EXCHANGE_SIDE_WORKER, EXCHANGE_SIDE_PLANNER)
+
+# The record_version exchange-record.schema.json pins to exactly 1, and
+# the two closed vocabularies validate_exchange_record enforces record-
+# wide at any depth.
+EXCHANGE_RECORD_VERSION = 1
+ANSWER_DISPOSITIONS = ("as-recommended", "option", "free-text")
+QUESTION_PRIORITIES = ("blocking", "batched")
+
+# The body serialization parameters, which are the byte-parity surface:
+# two-space indent and ASCII escaping (json.dumps' default ensure_ascii),
+# one trailing newline. ASCII escaping is the transport-proof spelling —
+# a chat or mail hop cannot mangle a non-ASCII character the body never
+# carries — and it is why the parity test pins the parameter rather than
+# trusting two call sites to keep defaulting the same way.
+EXCHANGE_BODY_INDENT = 2
+
+# The exchange record's envelope, and the answer row's closed field set
+# (additionalProperties: false at that level, unlike the loose envelope).
+EXCHANGE_ENVELOPE_KEYS = ("record_version", "session_id", "round", "from",
+                          "created_at")
+ANSWER_REQUIRED_KEYS = ("question_round", "question_index", "answer",
+                        "disposition")
+ANSWER_OPTIONAL_KEYS = ("amendment_target",)
+
+# The question row: the four legacy fields plus the three v0.4.7 additive
+# ones. QUESTION_STUB_KEYS above is the required half — the seeded stub's
+# home — and this is the full permitted set, so the two cannot disagree
+# about what a filled row may carry.
+QUESTION_OPTIONAL_KEYS = ("options", "recommendation", "priority")
+
+CLARIFICATION_KIND = "clarification"
+
+
+def exchange_body_bytes(record: dict) -> bytes:
+    """The paste block's body for `record` — re-declared from section
+    29's _exchange_body_bytes.
+
+    The trailer's sha256 is computed over exactly these bytes, and
+    ingest recomputes over exactly the bytes it read between header and
+    trailer, so any truncation or edit in transit refuses.
+    """
+    return (json.dumps(record, indent=EXCHANGE_BODY_INDENT) + "\n").encode(
+        "utf-8")
+
+
+def format_exchange_block(sid: str, record: dict) -> str:
+    """Render the counterpart-facing paste block — re-declared from
+    section 29's format_exchange_block, byte for byte:
+
+      BALE EXCHANGE BEGIN <sid>          sentinel (self-delimiting)
+      # ... purpose header ...           direction and round, who reads it
+      { ...record JSON... }              the body
+      # sha256 <hex>                     integrity trailer over the body
+      BALE EXCHANGE END                  sentinel
+
+    Both direction branches are mirrored even though the crafter emits
+    only the worker side (a `from: planner` record refuses at the CLI —
+    the planner's side of the thread comes from `bale relay`). A partial
+    mirror would leave half the layout unpinned by the parity suite and
+    would diverge silently the first time someone rendered the other
+    direction; the policy belongs at the gate, not in a hole in the
+    renderer. Pure: the tests render and re-parse it in memory.
+    """
+    side = record.get("from")
+    rnd = record.get("round")
+    to_side = (EXCHANGE_SIDE_PLANNER if side == EXCHANGE_SIDE_WORKER
+               else EXCHANGE_SIDE_WORKER)
+    n_q = len(record.get("questions") or [])
+    n_a = len(record.get("answers") or [])
+    body = exchange_body_bytes(record)
+    digest = hashlib.sha256(body).hexdigest()
+    header = [
+        f"{EXCHANGE_BLOCK_BEGIN} {sid}",
+        f"# bale exchange record — session {sid} — round {rnd} — "
+        f"from {side} to {to_side}",
+    ]
+    if side == EXCHANGE_SIDE_WORKER:
+        header.append(
+            f"# {n_q} blocking question(s)"
+            + (f" and {n_a} answer(s)" if n_a else "")
+            + ". Planner: answer as an exchange record (from: planner,"
+            f" round {rnd + 1 if isinstance(rnd, int) else '<next>'},"
+            f" answers[] keyed question_round {rnd}) and record it with"
+            f" `bale relay {sid} <answer.json|->`.")
+    else:
+        header.append(
+            f"# {n_a} answer(s)"
+            + (f" and {n_q} question(s) asked back" if n_q else "")
+            + f". Worker: read the record, continue under {sid}, and"
+            " ship the normal response the clarification deferred"
+            + (" — or answer the questions asked back as the next"
+               " round." if n_q else "."))
+    header.append(
+        "# Body: the record (exchange-record.schema.json). Trailer: sha256 "
+        "of the body bytes — a mismatch on ingest means a truncated paste; "
+        "re-request the block rather than reason from it.")
+    return ("\n".join(header) + "\n"
+            + body.decode("utf-8")
+            + f"{EXCHANGE_TRAILER_LABEL} {digest}\n"
+            + f"{EXCHANGE_BLOCK_END}\n")
+
+
+def normalize_manifest_to_record(manifest: dict, sid: str, rnd: int,
+                                 created_at: str) -> dict:
+    """The clarification manifest's reading as an exchange record —
+    re-declared from section 29's _normalize_manifest_to_record.
+
+    Key insertion order is load-bearing: json.dumps preserves it, so the
+    body's bytes (and therefore the trailer) depend on it matching
+    section 29's dict literal exactly.
+
+    Two fields differ in PROVENANCE from relay's, not in shape. `round`
+    is the worker's `--round` rather than the thread's next NNN — the
+    worker has no thread directory to count — and `created_at` is
+    stamped at emission rather than copied from the preserved sidecar,
+    for the same reason. Both land in the same slots with the same
+    spelling, so the record relay would have built and the record this
+    builds are the same record whenever the round agrees.
+    """
+    return {
+        "record_version": EXCHANGE_RECORD_VERSION,
+        "session_id": sid,
+        "round": rnd,
+        "from": EXCHANGE_SIDE_WORKER,
+        "created_at": created_at,
+        "questions": list(manifest.get("questions") or []),
+    }
+
+
+def emission_stamp() -> str:
+    """The `created_at` stamp for a record built at emission: ISO 8601
+    with a zero UTC offset, seconds precision — the spelling
+    preserve_clarification_record uses for `preserved_at`, so the two
+    provenances of the same slot read identically."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _created_at_problem(value) -> str | None:
+    """Why `value` is not an ISO 8601 UTC timestamp, or None.
+
+    Re-declared from bale_validate._created_at_problem, including its
+    asymmetry: a non-string returns None here because the envelope check
+    has already reported the type, exactly as the schema pass does
+    there. Accepted: anything datetime.fromisoformat parses that carries
+    a zero UTC offset — `...+00:00` or the `Z` suffix, mapped before
+    parsing since 3.10's fromisoformat does not accept it.
+    """
+    from datetime import datetime, timezone
+    if not isinstance(value, str):
+        return None
+    text = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return (f"{value!r} is not an ISO 8601 timestamp (expected e.g. "
+                f"2026-08-29T14:03:00+00:00)")
+    if parsed.tzinfo is None:
+        return (f"{value!r} carries no UTC offset — created_at is ISO 8601 "
+                f"UTC (append +00:00 or Z)")
+    if parsed.utcoffset() != timezone.utc.utcoffset(None):
+        return (f"{value!r} is not in UTC — created_at carries a zero "
+                f"offset (+00:00 or Z), never a local one")
+    return None
+
+
+def _is_int(value) -> bool:
+    """JSON-Schema integer semantics: bool is a distinct type, so True is
+    not 1 here even though Python says otherwise."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _nonempty_str(value) -> bool:
+    return isinstance(value, str) and len(value) >= 1
+
+
+def _walk_closed_vocabularies(value, path: str, checks: dict,
+                              problems: list[str]) -> None:
+    """Enforce closed vocabularies anywhere their keys appear — the
+    record-wide backstop re-declared from bale_validate's walk of the
+    same name.
+
+    A schema's enums catch the spots the schema names; this catches an
+    invented value at ANY depth, so a consumer that put the key
+    somewhere the schema never enumerated gets the same verdict.
+    """
+    if isinstance(value, dict):
+        for k, v in value.items():
+            child = f"{path}.{k}" if path else str(k)
+            check = checks.get(k)
+            if check is not None:
+                problem = check(v)
+                if problem is not None:
+                    problems.append(f"{child}: {problem}")
+            _walk_closed_vocabularies(v, child, checks, problems)
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            _walk_closed_vocabularies(item, f"{path}[{i}]", checks, problems)
+
+
+def _vocabulary_check(allowed: tuple, label: str):
+    def check(v) -> str | None:
+        if v not in allowed:
+            return (f"{v!r} is not one of {list(allowed)} — the {label} "
+                    f"vocabulary is closed, wherever the key appears")
+        return None
+    return check
+
+
+def question_row_problems(rows) -> list[str]:
+    """Structural check over clarification question rows; [] = valid.
+
+    The crafter's stdlib-only twin of
+    bale_validate.validate_clarification_questions, which derives the
+    same rules from response-manifest.schema.json's questions.items. The
+    row shape is the four required fields (QUESTION_STUB_KEYS — the
+    seeded stub's home, reused here so the tool cannot seed a stub its
+    own check would reject), the three additive v0.4.7 fields, and no
+    others (additionalProperties: false at the row level). `options`,
+    when present, is a non-empty array of non-empty strings; `priority`
+    is the closed two-class vocabulary, enforced here at its named spot
+    AND row-wide by the walk, matching the library's discipline.
+
+    Messages are the crafter's own; only the VERDICT is pinned against
+    the library, over the corpus in tests/test_craft_response.py.
+    """
+    if not isinstance(rows, list):
+        return [f"questions: expected an array, got "
+                f"{type(rows).__name__}"]
+    problems: list[str] = []
+    permitted = set(QUESTION_STUB_KEYS) | set(QUESTION_OPTIONAL_KEYS)
+    for i, row in enumerate(rows):
+        at = f"questions[{i}]"
+        if not isinstance(row, dict):
+            problems.append(f"{at}: expected an object, got "
+                            f"{type(row).__name__}")
+            continue
+        for key in QUESTION_STUB_KEYS:
+            if key not in row:
+                problems.append(f"{at}: missing required key {key!r}")
+            elif not _nonempty_str(row[key]):
+                problems.append(f"{at}.{key}: expected a non-empty string")
+        for key in sorted(set(row) - permitted):
+            problems.append(f"{at}: unknown key {key!r}")
+        if "options" in row:
+            opts = row["options"]
+            if not isinstance(opts, list):
+                problems.append(f"{at}.options: expected an array")
+            elif not opts:
+                problems.append(f"{at}.options: at least one candidate when "
+                                "the key is present")
+            else:
+                for j, opt in enumerate(opts):
+                    if not _nonempty_str(opt):
+                        problems.append(f"{at}.options[{j}]: expected a "
+                                        "non-empty string")
+        if "recommendation" in row and not _nonempty_str(row["recommendation"]):
+            problems.append(f"{at}.recommendation: expected a non-empty "
+                            "string")
+        if "priority" in row and not isinstance(row["priority"], str):
+            problems.append(f"{at}.priority: expected a string")
+    _walk_closed_vocabularies(
+        rows, "questions",
+        {"priority": _vocabulary_check(QUESTION_PRIORITIES,
+                                       "question priority")},
+        problems)
+    return problems
+
+
+def exchange_record_problems(record) -> list[str]:
+    """Structural check over one exchange record; [] = valid.
+
+    The crafter's stdlib-only twin of
+    bale_validate.validate_exchange_record, layer for layer:
+
+    1. **Envelope** — the five required keys, record_version exactly 1,
+       session_id a non-empty string, round an integer >= 1, from in the
+       closed side vocabulary, created_at a non-empty string. Loose
+       otherwise (additionalProperties: true), so the preserved copy's
+       `preserved_at` sidecar and future additive fields validate.
+    2. **Question rows, by reference** — delegated to
+       question_row_problems, so a row that validates inside a
+       clarification manifest validates here and vice versa.
+    3. **The closed-vocabulary walk** — `from` and `disposition` at any
+       depth.
+    4. **The rules a schema cannot express** — at least one of
+       questions[] / answers[] non-empty; created_at ISO 8601 UTC; every
+       answer's question_round strictly earlier than this record's round.
+
+    What it deliberately does NOT check is the thread-level half:
+    whether a (question_round, question_index) resolves to a preserved
+    question needs the thread, which no library validator has and the
+    worker has less of. That check is relay's, on ingest — so a record
+    this accepts can still be refused there, on a fact this side cannot
+    see. Everything the library checks WITHOUT the thread, this checks,
+    and the corpus in tests/test_craft_response.py pins the agreement.
+    """
+    if not isinstance(record, dict):
+        return [f"exchange record is not a JSON object "
+                f"(got {type(record).__name__})"]
+    problems: list[str] = []
+
+    for key in EXCHANGE_ENVELOPE_KEYS:
+        if key not in record:
+            problems.append(f"<root>: missing required key {key!r}")
+    if "record_version" in record:
+        if record["record_version"] != EXCHANGE_RECORD_VERSION \
+                or not _is_int(record["record_version"]):
+            problems.append(
+                f"record_version: expected exactly "
+                f"{EXCHANGE_RECORD_VERSION}, got "
+                f"{record['record_version']!r}")
+    if "session_id" in record and not _nonempty_str(record["session_id"]):
+        problems.append("session_id: expected a non-empty string")
+    rnd = record.get("round")
+    if "round" in record and (not _is_int(rnd) or rnd < 1):
+        problems.append(f"round: expected an integer >= 1, got {rnd!r}")
+    if "created_at" in record and not _nonempty_str(record["created_at"]):
+        problems.append("created_at: expected a non-empty string")
+
+    questions = record.get("questions")
+    if questions is not None:
+        if not isinstance(questions, list):
+            problems.append("questions: expected an array")
+        else:
+            problems.extend(question_row_problems(questions))
+
+    answers = record.get("answers")
+    if answers is not None and not isinstance(answers, list):
+        problems.append("answers: expected an array")
+    elif isinstance(answers, list):
+        permitted = set(ANSWER_REQUIRED_KEYS) | set(ANSWER_OPTIONAL_KEYS)
+        for i, row in enumerate(answers):
+            at = f"answers[{i}]"
+            if not isinstance(row, dict):
+                problems.append(f"{at}: expected an object, got "
+                                f"{type(row).__name__}")
+                continue
+            for key in ANSWER_REQUIRED_KEYS:
+                if key not in row:
+                    problems.append(f"{at}: missing required key {key!r}")
+            for key in sorted(set(row) - permitted):
+                problems.append(f"{at}: unknown key {key!r}")
+            qr = row.get("question_round")
+            if "question_round" in row and (not _is_int(qr) or qr < 1):
+                problems.append(f"{at}.question_round: expected an integer "
+                                f">= 1, got {qr!r}")
+            qi = row.get("question_index")
+            if "question_index" in row and (not _is_int(qi) or qi < 0):
+                problems.append(f"{at}.question_index: expected an integer "
+                                f">= 0, got {qi!r}")
+            if "answer" in row and not _nonempty_str(row["answer"]):
+                problems.append(f"{at}.answer: expected a non-empty string")
+            if "disposition" in row and not isinstance(row["disposition"],
+                                                       str):
+                problems.append(f"{at}.disposition: expected a string")
+            if "amendment_target" in row \
+                    and not _nonempty_str(row["amendment_target"]):
+                problems.append(f"{at}.amendment_target: expected a "
+                                "non-empty string")
+            if _is_int(qr) and _is_int(rnd) and qr >= rnd:
+                problems.append(
+                    f"{at}.question_round: {qr} is not an earlier round "
+                    f"than this record's round {rnd} — an answer keys a "
+                    f"question already in the thread")
+
+    _walk_closed_vocabularies(
+        record, "",
+        {"from": _vocabulary_check(EXCHANGE_SIDES, "exchange side"),
+         "disposition": _vocabulary_check(ANSWER_DISPOSITIONS,
+                                          "answer disposition")},
+        problems)
+
+    has_questions = isinstance(questions, list) and len(questions) > 0
+    has_answers = isinstance(answers, list) and len(answers) > 0
+    if not has_questions and not has_answers:
+        problems.append(
+            "<root>: at least one of questions[] / answers[] must be "
+            "non-empty — an exchange record with nothing asked and "
+            "nothing answered is not a round")
+
+    problem = _created_at_problem(record.get("created_at"))
+    if problem is not None:
+        problems.append(f"created_at: {problem}")
+    return problems
+
+
+def read_emit_block_input(path_str: str) -> bytes | str:
+    """Read the --emit-block input: stdin for `-`, else the named file.
+    Returns bytes, or an error message string.
+
+    Deliberately not a search-path resolution (relay's `_read_relay_input`
+    consults the project's apply search paths): those paths come from a
+    project's bale config, which a worker session has no install to read.
+    The worker names the file it just filled, in its own directory.
+    """
+    if path_str == "-":
+        try:
+            return sys.stdin.buffer.read()
+        except OSError as exc:
+            return f"--emit-block: could not read the record from stdin: {exc}"
+    src = Path(path_str)
+    if not src.is_file():
+        return f"--emit-block: file not found: {src}"
+    try:
+        return src.read_bytes()
+    except OSError as exc:
+        return f"--emit-block: could not read {src}: {exc}"
+
+
+def build_emit_block(data: bytes, round_arg: int | None) -> tuple[str, str]:
+    """Turn the read bytes into (block, log line), or raise ValueError
+    with the refusal message.
+
+    Input detection follows relay's, deliberately: a `response_kind:
+    "clarification"` object is a filled clarification manifest and takes
+    the normalization path; anything else is read as an exchange record
+    and is emitted as-is once it validates. Both refuse rather than
+    rewrite when the worker's `--round` contradicts what the input
+    already says.
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"--emit-block: input is not valid UTF-8: {exc}")
+    if not text.strip():
+        raise ValueError(
+            "--emit-block: input is empty — expected a filled clarification "
+            "manifest or a filled worker exchange record")
+    try:
+        record = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--emit-block: input is not valid JSON: {exc}")
+    if not isinstance(record, dict):
+        raise ValueError(
+            f"--emit-block: input is not a JSON object (got "
+            f"{type(record).__name__})")
+
+    if record.get("response_kind") == CLARIFICATION_KIND:
+        sid = record.get("session_id")
+        if not _nonempty_str(sid):
+            raise ValueError(
+                "--emit-block: the clarification manifest carries no "
+                "session_id — the sentinel line and the record's own "
+                "session_id both come from it, and a block pasted against "
+                "the wrong session must refuse on the sentinel")
+        rnd = 1 if round_arg is None else round_arg
+        body_record = normalize_manifest_to_record(record, sid, rnd,
+                                                   emission_stamp())
+        problems = exchange_record_problems(body_record)
+        if problems:
+            raise ValueError(
+                "--emit-block: the clarification manifest does not read as "
+                "a valid exchange record; nothing emitted:\n  "
+                + "\n  ".join(problems))
+        return (format_exchange_block(sid, body_record),
+                f"clarification manifest normalized to a from: worker "
+                f"record, round {rnd}, "
+                f"{len(body_record['questions'])} question(s)")
+
+    if "from" not in record:
+        raise ValueError(
+            "--emit-block: input is neither a clarification manifest "
+            "(response_kind: \"clarification\") nor an exchange record (a "
+            "`from` key) — the two shapes relay accepts are the two shapes "
+            "emitted here")
+    if record["from"] != EXCHANGE_SIDE_WORKER:
+        raise ValueError(
+            f"--emit-block: the record is from {record['from']!r}; the "
+            f"crafter emits the worker side of the thread only. The "
+            f"planner's side is emitted by `bale relay <sid> "
+            f"<answer.json|->` in the planner's repo, which has the "
+            f"suspended session's thread to sequence it against.")
+    rnd = record.get("round")
+    if round_arg is not None and rnd != round_arg:
+        raise ValueError(
+            f"--emit-block: --round {round_arg} contradicts the record's "
+            f"own round {rnd!r} — the round is the record's fact and this "
+            f"flag does not rewrite it; drop --round, or fix the record")
+    sid = record.get("session_id")
+    if not _nonempty_str(sid):
+        raise ValueError(
+            "--emit-block: the exchange record carries no session_id — the "
+            "sentinel line comes from it, and a block pasted against the "
+            "wrong session must refuse on the sentinel")
+    problems = exchange_record_problems(record)
+    if problems:
+        raise ValueError(
+            "--emit-block: the exchange record is not valid "
+            "(exchange-record.schema.json); nothing emitted:\n  "
+            + "\n  ".join(problems))
+    return (format_exchange_block(sid, record),
+            f"worker exchange record emitted as-is, round {rnd}, "
+            f"{len(record.get('questions') or [])} question(s) and "
+            f"{len(record.get('answers') or [])} answer(s)")
 
 
 # ---------------------------------------------------------------------------
@@ -1371,6 +1940,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("--out-dir", default=None, metavar="DIR",
                     help="with --bundle: directory the bundle file is "
                          "written into (default: the current directory)")
+    ap.add_argument("--emit-block", default=None, metavar="FILE",
+                    dest="emit_block",
+                    help="render the counterpart-facing exchange paste "
+                         "block for FILE (a filled clarification manifest "
+                         "or a filled worker exchange record; `-` reads "
+                         "stdin) to stdout, byte-identical to what `bale "
+                         "relay` emits for the same record; mutually "
+                         "exclusive with the response-directory modes and "
+                         "flags, and with --probe and --bundle")
+    ap.add_argument("--round", type=int, default=None, metavar="N",
+                    help="with --emit-block: the round the record occupies "
+                         "(integer >= 1, default 1). On a clarification "
+                         "manifest it fills the normalized record's round; "
+                         "on an exchange record it asserts the record's "
+                         "own round, and a contradiction refuses rather "
+                         "than rewrites")
     ap.add_argument("--sid", default=None,
                     help="session id (fills session_id and responds_to)")
     ap.add_argument("--kind", choices=KINDS, default=None,
@@ -1473,6 +2058,8 @@ def main(argv: list[str] | None = None) -> int:
             ("--checkpoint", args.checkpoint is not None),
             ("--pre-answered", bool(args.pre_answered)),
             ("--out-dir", args.out_dir is not None),
+            ("--emit-block", args.emit_block is not None),
+            ("--round", args.round is not None),
         ) if given]
         if supplied:
             return die(f"--probe is mutually exclusive with "
@@ -1528,6 +2115,8 @@ def main(argv: list[str] | None = None) -> int:
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
             ("--executable", bool(args.executable)),
+            ("--emit-block", args.emit_block is not None),
+            ("--round", args.round is not None),
         ) if given]
         if supplied:
             return die(f"--bundle is mutually exclusive with "
@@ -1640,6 +2229,67 @@ def main(argv: list[str] | None = None) -> int:
         print(f"bale open {filename}")
         return EXIT_OK
 
+    # Exchange-block mode (TARBALL.md §5.9.2, the worker-side flow). Like
+    # --probe and --bundle it reads no response dir and combines with none
+    # of the response-directory modes or flags — every such combination is
+    # a flag error, not a silent ignore. stdout is the block and only the
+    # block (relay's stream discipline, so `--emit-block r.json > block.txt`
+    # captures it clean); every [craft] line is already stderr's.
+    if args.emit_block is not None:
+        supplied = [flag for flag, given in (
+            ("--kind", args.kind is not None),
+            ("--changes-only", args.changes_only),
+            ("--apply-only", args.apply_only),
+            ("--write", args.write),
+            ("--validation-epilogue", args.validation_epilogue),
+            ("--doc-assertions", args.doc_assertions),
+            ("--fragment", args.fragment is not None),
+            ("--index", args.index is not None),
+            ("--adr-dir", args.adr_dir is not None),
+            ("--adr-baseline", args.adr_baseline is not None),
+            ("--prune-reasons", args.prune_reasons),
+            ("--index-header", bool(args.index_header)),
+            ("--sid", args.sid is not None),
+            ("--questions", args.questions is not None),
+            ("--deleted", bool(args.deleted)),
+            ("--executable", bool(args.executable)),
+            ("--force", args.force),
+            ("--pack-arg", bool(args.pack_arg)),
+            ("--brief", args.brief is not None),
+            ("--no-brief", args.no_brief),
+            ("--checkpoint", args.checkpoint is not None),
+            ("--pre-answered", bool(args.pre_answered)),
+            ("--out-dir", args.out_dir is not None),
+        ) if given]
+        if supplied:
+            return die(f"--emit-block is mutually exclusive with "
+                       f"{', '.join(supplied)} — the block is a paste "
+                       "carried to the planner, not a response-directory "
+                       "artifact (TARBALL.md 5.9.2)")
+        if args.response_dir is not None:
+            return die(f"--emit-block takes no response dir (got "
+                       f"{args.response_dir!r}) — it renders the record in "
+                       "the named file to stdout; drop the positional "
+                       "argument")
+        if args.round is not None and args.round < 1:
+            return die(f"--round must be at least 1 — a thread's rounds are "
+                       f"the NNN files under .bale/clarifications/<sid>/ and "
+                       f"they start at 1 (got {args.round})")
+        got = read_emit_block_input(args.emit_block)
+        if isinstance(got, str):
+            return die(got)
+        try:
+            block, what = build_emit_block(got, args.round)
+        except ValueError as exc:
+            return die(str(exc))
+        sys.stdout.write(block)
+        log(what)
+        log("block emitted on stdout — hand it to the courier for `bale "
+            "relay <sid> <file|->`; the trailer is the sha256 of the body "
+            "bytes, so a truncated paste refuses on ingest instead of "
+            "being reasoned from (TARBALL.md 5.9.2)")
+        return EXIT_OK
+
     stray_bundle = [flag for flag, given in (
         ("--pack-arg", bool(args.pack_arg)),
         ("--brief", args.brief is not None),
@@ -1651,6 +2301,9 @@ def main(argv: list[str] | None = None) -> int:
     if stray_bundle:
         return die(f"{', '.join(stray_bundle)}: only meaningful with "
                    "--bundle")
+
+    if args.round is not None:
+        return die("--round: only meaningful with --emit-block")
 
     if args.response_dir is None:
         return die("response dir is required (only --probe and --bundle "

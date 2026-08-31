@@ -79,6 +79,28 @@ validate_bundle_manifest — the producer against the consumer's gate.
 The full producer→consumer E2E (a crafter-emitted bundle through a
 real `bale open`) lives in tests/test_open_verb.py.
 
+Session 2026-08-31-exchange-crafter-001 adds --emit-block, the worker
+side of the exchange thread (TARBALL.md 5.9.2). CraftEmitBlock covers
+the emission and its refusals through the CLI: the two input shapes
+(a filled clarification manifest normalized to its from: worker
+reading, a filled worker exchange record emitted as-is), stdout as the
+block and only the block, --round's two meanings and the
+contradicts-refuses rule, the from: planner refusal, and mutual
+exclusion against every other mode and flag in both directions.
+
+ExchangeBlockParity is the drift guard for what that emission
+re-declares from bin/bale section 29 and bin/bale_validate.py — the
+class the crafter's constants point at. It imports BOTH homes (the
+test tree has bin/ and tools/; the crafter itself may not) and pins
+three things: byte-equality of the two renderings over a corpus,
+equality of the sentinel and body-serialization constants, and
+verdict-for-verdict agreement of the crafter's structural checks with
+validate_exchange_record / validate_clarification_questions over a
+shared pass/fail corpus. The rendering is compared by EXECUTION rather
+than against pinned strings — the request's parity rule: a fixture
+string would pin today's layout twice instead of pinning the two
+implementations to each other.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -1894,6 +1916,559 @@ class PackInjectionSurface(unittest.TestCase):
         names = self._run_injection(["response_lint.py"])
         self.assertIn("request-042/tools/response_lint.py", names)
         self.assertNotIn("request-042/tools/craft_response.py", names)
+
+
+QUESTION_ROW = {
+    "question": "Which lint config governs the package?",
+    "context": "Wiring the validation.sh lint step.",
+    "default_assumption": "The repo-root config governs.",
+    "why_blocked": "A per-package config would change every path below.",
+}
+
+
+def clarification_manifest(sid: str, rows: list[dict] | None = None) -> dict:
+    """A filled clarification manifest as the crafter's own --kind
+    clarification scaffold leaves it once the worker fills the judgment
+    fields (TARBALL.md 5.9.2's empty change surfaces included)."""
+    return {
+        "session_id": sid,
+        "responds_to": sid,
+        "corrects": None,
+        "response_kind": "clarification",
+        "summary": "Blocked on the questions below.",
+        "changes": [],
+        "deferred": [],
+        "validation_will_run": [],
+        "claims": {},
+        "questions": [dict(QUESTION_ROW)] if rows is None else rows,
+    }
+
+
+def worker_record(sid: str, rnd: int = 1, **kw) -> dict:
+    record = {
+        "record_version": 1,
+        "session_id": sid,
+        "round": rnd,
+        "from": "worker",
+        "created_at": "2026-08-29T14:03:00+00:00",
+        "questions": [dict(QUESTION_ROW)],
+    }
+    record.update(kw)
+    return record
+
+
+class CraftEmitBlock(unittest.TestCase):
+    """--emit-block through the CLI: the two input shapes, the stream
+    discipline, --round's two meanings, and the refusals."""
+
+    SID = "2026-08-29-fixture-001"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def _write(self, name: str, payload: dict) -> Path:
+        path = self.tmp / name
+        path.write_text(json.dumps(payload, indent=2) + "\n",
+                        encoding="utf-8")
+        return path
+
+    def _body_of(self, block: str) -> dict:
+        """The block's body, read the way ingest reads it: the lines
+        between the header comments and the sha256 trailer."""
+        lines = block.split("\n")
+        self.assertTrue(lines[0].startswith("BALE EXCHANGE BEGIN "))
+        inner = lines[1:lines.index("BALE EXCHANGE END")]
+        k = 0
+        while inner[k].startswith("#"):
+            k += 1
+        t = len(inner) - 1
+        while t > k and not inner[t].strip():
+            t -= 1
+        body = "\n".join(inner[k:t]) + "\n"
+        self.assertRegex(inner[t], r"^# sha256 [0-9a-f]{64}$")
+        self.assertEqual(
+            hashlib.sha256(body.encode("utf-8")).hexdigest(),
+            inner[t].split()[-1],
+            "the trailer must be the sha256 of exactly the body bytes")
+        return json.loads(body)
+
+    def test_manifest_normalizes_to_the_worker_record(self):
+        path = self._write("clar.json",
+                           clarification_manifest(self.SID))
+        cp = run_craft("--emit-block", str(path))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        body = self._body_of(cp.stdout)
+        # record_version rides the normalized reading: section 29's
+        # _normalize_manifest_to_record emits it, so this side does too.
+        self.assertEqual(body["record_version"], 1)
+        self.assertEqual(body["session_id"], self.SID)
+        self.assertEqual(body["from"], "worker")
+        self.assertEqual(body["round"], 1)
+        self.assertEqual(body["questions"], [QUESTION_ROW])
+        # created_at is stamped at emission, and is ISO 8601 UTC.
+        self.assertRegex(body["created_at"],
+                         r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$")
+        # The manifest's own keys never leak into the record.
+        self.assertNotIn("response_kind", body)
+        self.assertNotIn("summary", body)
+
+    def test_stdout_is_the_block_and_only_the_block(self):
+        path = self._write("clar.json", clarification_manifest(self.SID))
+        cp = run_craft("--emit-block", str(path))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertTrue(cp.stdout.startswith(
+            f"BALE EXCHANGE BEGIN {self.SID}\n"))
+        self.assertTrue(cp.stdout.endswith("BALE EXCHANGE END\n"))
+        self.assertNotIn("[craft]", cp.stdout)
+        self.assertIn("[craft]", cp.stderr)
+
+    def test_stdin_is_the_dash_spelling(self):
+        payload = json.dumps(clarification_manifest(self.SID))
+        cp = subprocess.run(
+            [sys.executable, str(CRAFT), "--emit-block", "-"],
+            input=payload, capture_output=True, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(self._body_of(cp.stdout)["session_id"], self.SID)
+
+    def test_round_fills_the_manifest_path(self):
+        path = self._write("clar.json", clarification_manifest(self.SID))
+        cp = run_craft("--emit-block", str(path), "--round", "3")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(self._body_of(cp.stdout)["round"], 3)
+        # The header's next-round arithmetic follows the round.
+        self.assertIn("round 4, answers[] keyed question_round 3",
+                      cp.stdout)
+
+    def test_worker_record_is_emitted_as_is(self):
+        record = worker_record(self.SID, 3, answers=[{
+            "question_round": 2, "question_index": 0,
+            "answer": "The repo-root config governs.",
+            "disposition": "as-recommended"}])
+        path = self._write("record.json", record)
+        cp = run_craft("--emit-block", str(path))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(self._body_of(cp.stdout), record)
+        self.assertIn("1 blocking question(s) and 1 answer(s)", cp.stdout)
+
+    def test_round_asserts_but_never_rewrites_a_record(self):
+        path = self._write("record.json", worker_record(self.SID, 3))
+        agreeing = run_craft("--emit-block", str(path), "--round", "3")
+        self.assertEqual(agreeing.returncode, 0, agreeing.stderr)
+        self.assertEqual(self._body_of(agreeing.stdout)["round"], 3)
+        clash = run_craft("--emit-block", str(path), "--round", "2")
+        self.assertEqual(clash.returncode, 2)
+        self.assertIn("contradicts the record's own round 3", clash.stderr)
+        self.assertEqual(clash.stdout, "")
+
+    def test_absent_round_asserts_nothing_on_a_record(self):
+        """The documented default is 1, but a record past round 1 is not
+        thereby self-contradictory: the default fills the manifest path
+        and asserts nothing on the record path."""
+        path = self._write("record.json", worker_record(self.SID, 7))
+        cp = run_craft("--emit-block", str(path))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(self._body_of(cp.stdout)["round"], 7)
+
+    def test_planner_record_refuses(self):
+        record = worker_record(self.SID, 2, questions=[])
+        record["from"] = "planner"
+        record["answers"] = [{"question_round": 1, "question_index": 0,
+                              "answer": "yes",
+                              "disposition": "as-recommended"}]
+        path = self._write("planner.json", record)
+        cp = run_craft("--emit-block", str(path))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("worker side of the thread only", cp.stderr)
+        self.assertIn("bale relay", cp.stderr)
+        self.assertEqual(cp.stdout, "")
+
+    def test_invalid_record_refuses_before_rendering(self):
+        for label, mutate in (
+            ("bad priority", lambda r: r["questions"][0].update(
+                {"priority": "urgent"})),
+            ("naive created_at", lambda r: r.update(
+                {"created_at": "2026-08-29T14:03:00"})),
+            ("nothing asked or answered", lambda r: r.update(
+                {"questions": []})),
+            ("bad record_version", lambda r: r.update({"record_version": 2})),
+        ):
+            with self.subTest(label):
+                record = worker_record(self.SID, 2)
+                mutate(record)
+                path = self._write("bad.json", record)
+                cp = run_craft("--emit-block", str(path))
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "",
+                                 "a refusal emits no partial block")
+
+    def test_input_shape_refusals(self):
+        neither = self._write("neither.json", {"hello": "world"})
+        cp = run_craft("--emit-block", str(neither))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("neither a clarification manifest", cp.stderr)
+
+        notjson = self.tmp / "notjson.json"
+        notjson.write_text("this is not json\n")
+        cp = run_craft("--emit-block", str(notjson))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("not valid JSON", cp.stderr)
+
+        empty = self.tmp / "empty.json"
+        empty.write_text("")
+        cp = run_craft("--emit-block", str(empty))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("input is empty", cp.stderr)
+
+        cp = run_craft("--emit-block", str(self.tmp / "absent.json"))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("file not found", cp.stderr)
+
+    def test_flag_hygiene(self):
+        path = self._write("clar.json", clarification_manifest(self.SID))
+        for extra in (["--sid", "2026-08-29-fixture-001"],
+                      ["--kind", "clarification"],
+                      ["--questions", "2"],
+                      ["--write"],
+                      ["--changes-only"],
+                      ["--apply-only"],
+                      ["--validation-epilogue"],
+                      ["--doc-assertions", "--index", "INDEX.md"],
+                      ["--deleted", "a.txt"],
+                      ["--executable", "a.sh"],
+                      ["--force"],
+                      ["--pack-arg", "Goal"],
+                      ["--no-brief"],
+                      ["--out-dir", "."]):
+            with self.subTest(extra=extra[0]):
+                cp = run_craft("--emit-block", str(path), *extra)
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertIn("--emit-block is mutually exclusive",
+                              cp.stderr)
+                self.assertEqual(cp.stdout, "")
+
+        cp = run_craft("--emit-block", str(path), str(self.tmp))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("takes no response dir", cp.stderr)
+
+        for other in (["--probe", "some-slug"], ["--bundle", "2026-08-29-x"]):
+            with self.subTest(other=other[0]):
+                cp = run_craft(*other, "--emit-block", str(path))
+                self.assertEqual(cp.returncode, 2)
+                self.assertIn("--emit-block", cp.stderr)
+                self.assertEqual(cp.stdout, "")
+
+        cp = run_craft(str(self.tmp), "--sid", self.SID, "--round", "2")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("--round: only meaningful with --emit-block",
+                      cp.stderr)
+
+        cp = run_craft("--emit-block", str(path), "--round", "0")
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("--round must be at least 1", cp.stderr)
+
+
+@unittest.skipUnless((Path(__file__).resolve().parent.parent / "bin"
+                      / "bale").is_file(),
+                     "parity needs bin/bale beside tools/")
+class ExchangeBlockParity(unittest.TestCase):
+    """The section-29 duplication drift guard — the class the crafter's
+    re-declared constants point at.
+
+    Imports both homes and compares them by EXECUTION, never against a
+    pinned fixture string: a string would pin today's layout twice
+    instead of pinning the two implementations to each other, which is
+    the whole point of the duplication guard. If section 29's rendering
+    changes, this goes red and the crafter follows in the same
+    response.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.machinery
+        import importlib.util
+        sys.path.insert(0, str(REPO / "tools"))
+        sys.path.insert(0, str(REPO / "bin"))
+        import craft_response
+        cls.craft = sys.modules["craft_response"]
+        # bin/bale has no .py suffix, so name the source loader; nothing
+        # runs at import (main() is guarded). Same shape as
+        # tests/test_thread_status.py's load_bale_module.
+        path = str(REPO / "bin" / "bale")
+        loader = importlib.machinery.SourceFileLoader("bale_parity", path)
+        spec = importlib.util.spec_from_file_location(
+            "bale_parity", path, loader=loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["bale_parity"] = module
+        loader.exec_module(module)
+        cls.bale = module
+        import bale_validate
+        cls.lib = bale_validate
+
+    SID = "2026-08-29-fixture-001"
+
+    def _corpus(self) -> dict[str, dict]:
+        """The records both renderers are compared over. (a) is the
+        normalized manifest, (b) the worker record with answers and
+        questions, (c) the one-question minimal row — the three the
+        request names — plus the planner direction, so the header's
+        other branch is pinned too."""
+        answered = worker_record(self.SID, 3, answers=[{
+            "question_round": 2, "question_index": 0,
+            "answer": "The repo-root config governs.",
+            "disposition": "as-recommended",
+            "amendment_target": "docs/TARBALL.md"}])
+        planner = {
+            "record_version": 1, "session_id": self.SID, "round": 2,
+            "from": "planner", "created_at": "2026-08-29T15:00:00+00:00",
+            "answers": [{"question_round": 1, "question_index": 0,
+                         "answer": "Yes.", "disposition": "free-text"}],
+        }
+        planner_asking_back = dict(planner)
+        planner_asking_back["questions"] = [dict(QUESTION_ROW)]
+        return {
+            "a-normalized-manifest": self.craft.normalize_manifest_to_record(
+                clarification_manifest(self.SID), self.SID, 1,
+                "2026-08-29T14:03:00+00:00"),
+            "b-worker-answers-and-questions": answered,
+            "c-one-question-minimal": worker_record(self.SID, 1),
+            "d-extended-question-row": worker_record(self.SID, 1, questions=[
+                {**QUESTION_ROW, "options": ["root", "per-package"],
+                 "recommendation": "root", "priority": "blocking"}]),
+            "e-planner-direction": planner,
+            "f-planner-asking-back": planner_asking_back,
+        }
+
+    def test_rendering_is_byte_identical(self):
+        for label, record in self._corpus().items():
+            with self.subTest(label):
+                self.assertEqual(
+                    self.craft.format_exchange_block(self.SID, record),
+                    self.bale.format_exchange_block(self.SID, record),
+                    "the crafter's rendering has drifted from bin/bale "
+                    "section 29's — the trailer's sha256 is computed "
+                    "over the body, so a divergence here is a refused "
+                    "paste on ingest")
+
+    def test_body_serialization_is_byte_identical(self):
+        for label, record in self._corpus().items():
+            with self.subTest(label):
+                self.assertEqual(
+                    self.craft.exchange_body_bytes(record),
+                    self.bale._exchange_body_bytes(record))
+
+    def test_non_ascii_body_is_escaped_the_same_way(self):
+        """The ensure_ascii default is a parity surface, not an
+        incidental: a body carrying a non-ASCII character must escape
+        identically on both sides or the trailer disagrees."""
+        record = worker_record(self.SID, 1, questions=[
+            {**QUESTION_ROW, "question": "Which — em dash — config? ünïcøde"}])
+        self.assertEqual(
+            self.craft.exchange_body_bytes(record),
+            self.bale._exchange_body_bytes(record))
+        self.assertEqual(
+            self.craft.format_exchange_block(self.SID, record),
+            self.bale.format_exchange_block(self.SID, record))
+
+    def test_constants_match_section_29(self):
+        self.assertEqual(self.craft.EXCHANGE_BLOCK_BEGIN,
+                         self.bale.EXCHANGE_BLOCK_BEGIN)
+        self.assertEqual(self.craft.EXCHANGE_BLOCK_END,
+                         self.bale.EXCHANGE_BLOCK_END)
+        self.assertEqual(self.craft.EXCHANGE_TRAILER_LABEL,
+                         self.bale.EXCHANGE_TRAILER_LABEL)
+        self.assertEqual(self.craft.EXCHANGE_SIDE_WORKER,
+                         self.bale.EXCHANGE_SIDE_WORKER)
+        self.assertEqual(self.craft.EXCHANGE_SIDE_PLANNER,
+                         self.bale.EXCHANGE_SIDE_PLANNER)
+
+    def test_vocabularies_match_the_library(self):
+        self.assertEqual(tuple(self.craft.EXCHANGE_SIDES),
+                         tuple(self.lib.EXCHANGE_SIDES))
+        self.assertEqual(tuple(self.craft.ANSWER_DISPOSITIONS),
+                         tuple(self.lib.ANSWER_DISPOSITIONS))
+        self.assertEqual(tuple(self.craft.QUESTION_PRIORITIES),
+                         tuple(self.lib.ESCALATION_PRIORITIES))
+
+    def test_normalization_matches_section_29(self):
+        """Same keys, same ORDER — json.dumps preserves insertion order,
+        so the key order is part of the body's bytes."""
+        manifest = clarification_manifest(self.SID)
+        stamp = "2026-08-29T14:03:00+00:00"
+        mine = self.craft.normalize_manifest_to_record(
+            manifest, self.SID, 2, stamp)
+        theirs = self.bale._normalize_manifest_to_record(
+            manifest, self.SID, 2, stamp)
+        self.assertEqual(mine, theirs)
+        self.assertEqual(list(mine), list(theirs))
+
+    def test_emitted_records_pass_the_library_validator(self):
+        """The pinned outcome: any record the crafter emits, the library
+        validator accepts with []."""
+        for label, record in self._corpus().items():
+            with self.subTest(label):
+                self.assertEqual(self.lib.validate_exchange_record(record),
+                                 [])
+
+    def test_emitted_block_survives_relay_ingest(self):
+        """End to end against the consumer's own parser: the block the
+        crafter renders parses, its trailer verifies, and the record
+        that comes back out is the one that went in."""
+        record = worker_record(self.SID, 1)
+        block = self.craft.format_exchange_block(self.SID, record)
+        parsed, block_sid = self.bale.parse_exchange_input(
+            block.encode("utf-8"))
+        self.assertEqual(block_sid, self.SID)
+        self.assertEqual(parsed, record)
+        self.assertEqual(self.lib.validate_exchange_record(parsed), [])
+
+    def test_emitted_block_survives_a_courier(self):
+        """The wire form a courier actually carries: CRLF endings and a
+        chat's fence lines around the block."""
+        record = worker_record(self.SID, 1)
+        block = self.craft.format_exchange_block(self.SID, record)
+        carried = ("Here you go:\n```\n" + block + "```\nthanks\n"
+                   ).replace("\n", "\r\n")
+        parsed, block_sid = self.bale.parse_exchange_input(
+            carried.encode("utf-8"))
+        self.assertEqual(block_sid, self.SID)
+        self.assertEqual(parsed, record)
+
+    # -- the structural checks, verdict for verdict --------------------
+
+    def _record_corpus(self) -> dict[str, object]:
+        """Records spanning every rule the crafter re-declares. The key
+        prefix is the expected verdict: `ok-` accepted, `bad-` refused.
+        Both sides must agree with the prefix AND with each other."""
+        row = dict(QUESTION_ROW)
+        ans = {"question_round": 1, "question_index": 0, "answer": "y",
+               "disposition": "as-recommended"}
+
+        def rec(**kw):
+            return worker_record(self.SID, 2, **kw)
+
+        drop = lambda d, k: {a: b for a, b in d.items() if a != k}  # noqa: E731
+        return {
+            "ok-minimal": rec(),
+            "ok-extended-row": rec(questions=[
+                {**row, "options": ["a"], "recommendation": "a",
+                 "priority": "batched"}]),
+            "ok-answers-only": rec(questions=[], answers=[ans]),
+            "ok-both-arrays": rec(answers=[ans]),
+            "ok-planner-side": rec(**{"from": "planner"}),
+            "ok-z-suffix-created-at": rec(created_at="2026-08-29T14:03:00Z"),
+            "ok-preserved-at-sidecar": rec(
+                preserved_at="2026-08-29T14:03:01+00:00"),
+            "ok-amendment-target": rec(answers=[
+                {**ans, "amendment_target": "docs/TARBALL.md"}]),
+            "bad-not-an-object": ["nope"],
+            "bad-missing-record-version": drop(rec(), "record_version"),
+            "bad-record-version-two": rec(record_version=2),
+            "bad-record-version-bool": rec(record_version=True),
+            "bad-empty-session-id": rec(session_id=""),
+            "bad-session-id-not-string": rec(session_id=7),
+            "bad-round-zero": rec(round=0),
+            "bad-round-string": rec(round="2"),
+            "bad-round-bool": rec(round=True),
+            "bad-from-invented": rec(**{"from": "operator"}),
+            "bad-from-nested-invented": {**rec(), "meta": {"from": "courier"}},
+            "bad-created-at-naive": rec(created_at="2026-08-29T14:03:00"),
+            "bad-created-at-offset": rec(created_at="2026-08-29T14:03:00+02:00"),
+            "bad-created-at-garbage": rec(created_at="yesterday"),
+            "bad-created-at-empty": rec(created_at=""),
+            "bad-nothing-asked-or-answered": rec(questions=[], answers=[]),
+            "bad-no-arrays-at-all": drop(rec(), "questions"),
+            "bad-questions-not-array": rec(questions="nope"),
+            "bad-answers-not-array": rec(questions=[], answers="nope"),
+            "bad-row-missing-field": rec(questions=[drop(row, "context")]),
+            "bad-row-empty-field": rec(questions=[{**row, "why_blocked": ""}]),
+            "bad-row-unknown-key": rec(questions=[{**row, "extra": "x"}]),
+            "bad-row-not-object": rec(questions=["hi"]),
+            "bad-row-field-not-string": rec(questions=[{**row, "question": 7}]),
+            "bad-options-empty": rec(questions=[{**row, "options": []}]),
+            "bad-options-item-empty": rec(questions=[{**row, "options": [""]}]),
+            "bad-options-item-not-string": rec(questions=[
+                {**row, "options": [1]}]),
+            "bad-recommendation-empty": rec(questions=[
+                {**row, "recommendation": ""}]),
+            "bad-priority-invented": rec(questions=[
+                {**row, "priority": "urgent"}]),
+            "bad-priority-null": rec(questions=[{**row, "priority": None}]),
+            "bad-answer-not-object": rec(answers=["x"]),
+            "bad-answer-missing-key": rec(answers=[drop(ans, "disposition")]),
+            "bad-answer-unknown-key": rec(answers=[{**ans, "nope": 1}]),
+            "bad-disposition-invented": rec(answers=[
+                {**ans, "disposition": "maybe"}]),
+            "bad-answer-empty": rec(answers=[{**ans, "answer": ""}]),
+            "bad-question-round-zero": rec(answers=[
+                {**ans, "question_round": 0}]),
+            "bad-question-index-negative": rec(answers=[
+                {**ans, "question_index": -1}]),
+            "bad-question-round-not-earlier": rec(answers=[
+                {**ans, "question_round": 2}]),
+            "bad-question-round-later": rec(answers=[
+                {**ans, "question_round": 5}]),
+            "bad-amendment-target-empty": rec(answers=[
+                {**ans, "amendment_target": ""}]),
+        }
+
+    def test_record_checks_agree_with_the_library(self):
+        for label, record in self._record_corpus().items():
+            expect_refused = label.startswith("bad-")
+            with self.subTest(label):
+                library = bool(self.lib.validate_exchange_record(record))
+                crafter = bool(self.craft.exchange_record_problems(record))
+                self.assertEqual(
+                    library, expect_refused,
+                    f"the corpus case {label!r} no longer means what its "
+                    f"name says to validate_exchange_record")
+                self.assertEqual(
+                    crafter, library,
+                    f"{label}: the crafter's structural check disagrees "
+                    f"with validate_exchange_record — the crafter said "
+                    f"{self.craft.exchange_record_problems(record)}, the "
+                    f"library said "
+                    f"{self.lib.validate_exchange_record(record)}")
+
+    def test_question_row_checks_agree_with_the_library(self):
+        row = dict(QUESTION_ROW)
+        corpus = {
+            "ok-legacy-four-field": [dict(row)],
+            "ok-extended": [{**row, "options": ["a", "b"],
+                             "recommendation": "b", "priority": "blocking"}],
+            "ok-empty-list": [],
+            "ok-several-rows": [dict(row), {**row, "priority": "batched"}],
+            "bad-not-a-list": "nope",
+            "bad-missing-field": [{k: v for k, v in row.items()
+                                   if k != "question"}],
+            "bad-empty-field": [{**row, "context": ""}],
+            "bad-unknown-key": [{**row, "zzz": 1}],
+            "bad-priority-invented": [{**row, "priority": "later"}],
+            "bad-options-empty": [{**row, "options": []}],
+            "bad-row-not-object": [42],
+            "bad-second-row-bad": [dict(row), {**row, "priority": "nope"}],
+        }
+        for label, rows in corpus.items():
+            expect_refused = label.startswith("bad-")
+            with self.subTest(label):
+                library = bool(
+                    self.lib.validate_clarification_questions(rows))
+                crafter = bool(self.craft.question_row_problems(rows))
+                self.assertEqual(library, expect_refused,
+                                 f"corpus case {label!r} drifted")
+                self.assertEqual(
+                    crafter, library,
+                    f"{label}: the crafter's row check disagrees with "
+                    f"validate_clarification_questions")
+
+    def test_stub_keys_are_the_required_half_of_the_row(self):
+        """The seeded stub and the row check share one home, so the tool
+        cannot seed a stub its own check would reject."""
+        seeded = {k: "filled" for k in self.craft.QUESTION_STUB_KEYS}
+        self.assertEqual(self.craft.question_row_problems([seeded]), [])
+        self.assertEqual(
+            self.lib.validate_clarification_questions([seeded]), [])
 
 
 if __name__ == "__main__":
