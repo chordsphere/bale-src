@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-close-deltas-006`.
+Last landed by: `2026-08-31-sitting-close-deltas-013`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -233,7 +233,13 @@ source):
   three-event calibration threshold. Desk disposition: the
   calibration question opens the next sitting rather than being
   resolved at a tired close (end-at-milestones); the watch stands
-  until that sitting disposes it.
+  until that sitting disposes it. Fourth accrual 2026-08-31:
+  009's unused validate.sh, scripts/build.sh, install.sh trio
+  (`2026-08-31-board-64-release-surface-group-009`) — packer-side
+  imprecision, master-authored pack. CLOSED 2026-08-31: the
+  continue-plan-012 sitting disposed the calibration question with
+  the ratified ruling (also a §5 contract, this date):
+  Master-authored forecasts stop pre-seeding the packaging trio; the release-surface include group carries the read side, and a needed packaging change travels ship-enumerate-admit.
 - Drift-gate residue on default-forecast checkpoint edits: a
   default pack's recorded forecast is `["."]`, so the apply-side
   drift gate would not catch a response landing an edit under the
@@ -343,6 +349,18 @@ with the unverifiable ones carried verbatim and marked):
   (`close_session_with_record` 3-tuple; pack's callers currently
   discard). Carrier: the next `bale_pack.py` or pack-json touch,
   or board 10's json-surface enumeration, whichever first.
+  [2026-08-31: merged — 009's pack-json `include_group` key
+  proposal rides this same carrier (the next bale_report.py /
+  pack-json touch). Text verbatim from
+  `2026-08-31-board-64-release-surface-group-009`'s Proposals:
+  "**`include_group` key in pack's `--json` report.** The human
+  report carries the durable "include group" row; the JSON report
+  can't without a `format_pack_json` change in `bale_report.py` — a
+  third out-of-forecast file for one additive key this session, so
+  proposed instead, following the session-opener precedent already
+  recorded at that call site. Scope: `bin/bale_report.py`,
+  `bin/bale_pack.py` (pass-through), a `--json` case in
+  `tests/test_include_group.py`."]
 - BALE.md §7/§7.2 includes-as-scope true-up — rides the next
   BALE.md-touching session. Text verbatim from
   `2026-08-07-board-13c-contract-docs-006`'s Proposals: "**What:**
@@ -370,6 +388,22 @@ with the unverifiable ones carried verbatim and marked):
   anyway keeps the one-corpus doctrine whole. **Scope hints:**
   `tests/fixtures/stats_corpus/`, `tests/test_stats_aggregation.py`;
   no source changes."
+  [2026-08-31: extended — 010's linkage-shapes extension rides
+  this same entry when it fires. Text verbatim from
+  `2026-08-31-board-65-linkage-rollup-010`'s Proposals: "**What:**
+  When the queued fixture fold-in fires (the next session that
+  must touch `test_stats_aggregation.py`'s expectations anyway),
+  extend its fixture set with linkage shapes the shared corpus
+  currently lacks: a probe-kind stamp, and a `point`-keyed stamp
+  beside the existing two `surfaced`-keyed ones. **Why:** The
+  shared corpus today carries only clarification-kind,
+  legacy-spelled stamps; folding both spellings and both kinds in
+  keeps the one-corpus doctrine's coverage honest for the rollup
+  this session added, at near-zero marginal cost once that file's
+  expectations are being recomputed anyway. **Scope hints:**
+  `tests/fixtures/stats_corpus/`,
+  `tests/test_stats_aggregation.py`; rides the already-queued
+  entry, no source changes."]
 - Checkpoint `bash -n` fail-fast: `check_response_shell_syntax`
   gates `apply.sh` and `validation.sh` only; a syntax-errored
   checkpoint surfaces mid-pipeline. Rides board 10 or the next
@@ -600,6 +634,15 @@ with the unverifiable ones carried verbatim and marked):
   file rather than warranting its own touch. (Ratified 2026-08-31
   at the fold-in/purge review; landed by
   `2026-08-31-sitting-close-deltas-006`.)
+- BALE.md §7.5/§7.7 one-line group mention — rides any future
+  BALE.md touch. Text verbatim from
+  `2026-08-31-board-64-release-surface-group-009`'s Proposals:
+  "**Sweep BALE.md §7.5/§7.7 for a one-line group mention.** §7.2
+  carries the full contract and §11 row 35 the refusals; the walk
+  (§7.5) and output (§7.7) sections could each name the group in
+  one sentence for readers who enter there. Doc-only, low value,
+  rides any future BALE.md touch." (Accepted 2026-08-31 at the
+  continue-plan-012 sitting.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -2184,6 +2227,10 @@ and §8, so done items keep their numbers as one-line pointers.
     tool's documentation), and a one-sentence §2 prompt to carry a
     narrow `--write` forecast when split sessions should run
     concurrently.
+    [2026-08-31: DONE — landed at
+    `2026-08-31-board-62-planner-doctrine-008`, applied 2026-08-31
+    (contract-doc class; no version claim). Both additions landed;
+    placement calls per its archived notes.]
 
 63. **Provenance stamped at open** — queued 2026-08-31 (code
     class): pack writes work_class/packer provenance into the
@@ -2204,6 +2251,30 @@ and §8, so done items keep their numbers as one-line pointers.
     matching overridden_paths admission cluster (14 events on the
     same file family), and the can't-run-locally claim/verdict
     DISAGREEs (all 9 in the corpus) in one fix.
+    [2026-08-31: DONE — landed at
+    `2026-08-31-board-64-release-surface-group-009`, applied
+    2026-08-31 at 0.4.20, reinstall fired. (0.4.20 is the wave's
+    close version per the operator's `bale --version` at the
+    continue-plan-012 sitting; the desk did not resolve which of
+    009/010 rode the bump — strike this attribution at review if
+    the desk corrects it, same flag on row 65.) Three
+    out-of-forecast admissions at apply (bin/bale, bale.toml,
+    tests/test_include_group.py), all admitted; design
+    ratifications per its archived notes. The board's BALE.md
+    deltas rode the close rider
+    `2026-08-31-board-64-65-close-rider-011`, landed as a
+    HOLD-then-corrected-retry: the first response HELD on two
+    probes, the ruling arrived by chat relay (S2 dropped as
+    already-landed, S3 replaced by a desk sentence), and the
+    corrected retry landed with `corrects` lineage — the rider's
+    archived notes are the durable record of the question and its
+    answer per the TARBALL.md §5.9.1 provenance fallback
+    (cross-referenced from row 65). Lane reconciliation, ratified
+    at the continue-plan-012 sitting, consuming 011's Proposal:
+    Board 64's documentation cargo landed at its own session; the close rider's deferred-doc premise was stale, and the drift was the rider brief's, not the board's.
+    Basis: 009's forecast named BALE.md and its unconsumed entries
+    were only validate.sh, scripts/build.sh, install.sh — BALE.md
+    was consumed at 009.]
 
 65. **Linkage rollup** — queued 2026-08-31 (code class): a bale
     stats aggregation over feedback.mechanical.linkage, giving the
@@ -2212,6 +2283,17 @@ and §8, so done items keep their numbers as one-line pointers.
     stamp reads rounds: 0 — every blocking ask to date resolved
     off-artifact, and the signal lives only in linkage, which
     nothing queries.
+    [2026-08-31: DONE — landed at
+    `2026-08-31-board-65-linkage-rollup-010`, applied 2026-08-31 at
+    0.4.20, reinstall fired (same wave's-close version attribution
+    caveat as row 64's bracket — strike at review if the desk
+    corrects which of 009/010 rode the bump). Two out-of-forecast
+    admissions at apply (bin/bale_report.py,
+    tests/test_stats_linkage.py), both admitted; judgment calls
+    ratified per its archived notes. Its BALE.md stats line rode
+    the close rider `2026-08-31-board-64-65-close-rider-011`; the
+    rider's HOLD-then-corrected-retry record and the lane
+    reconciliation it prompted live on row 64's bracket.]
 
 66. **Install-surface schema purge** — queued 2026-08-31 (mixed
     class; serializes after board 61): the five non-embedded
@@ -2797,6 +2879,15 @@ New, ratified 2026-08-31 (the fold-in/purge review, at the fold-in
   docstring, queued (§3 fold-in registry) to ride the next session
   touching tests/test_global_doc_selfcontainment.py rather than
   warranting its own touch.
+
+New, ratified 2026-08-31 (the continue-plan-012 sitting):
+
+- **Master-authored forecasts stop pre-seeding the packaging trio; the release-surface include group carries the read side, and a needed packaging change travels ship-enumerate-admit.**
+  The calibration ruling closing the §3 forecast-precision watch at
+  its fourth accrual — all four packer-side imprecision on
+  master-authored packs, the last two the packaging trio itself.
+  The ruling is bale-src authoring practice; it does not touch the
+  global docs. (Accruals and closure: the §3 watch entry.)
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
