@@ -32,6 +32,13 @@ test_amend_checkpoint shape — one fixture per scenario):
 - **Round trips.** relay's own emitted block (with a chat's fence lines
   and CRLF endings around it) is accepted on ingest — it is the wire
   form the courier carries.
+- **The no-file re-emit form (v0.4.22, board row 60).** `bale relay
+  <sid>` with no file re-emits the latest recorded round's block
+  byte-identical to the original emission — for a manifest round and
+  for an exchange-record round alike — records nothing (the thread,
+  session, and registry are untouched), reports `[RE-EMITTED]` rather
+  than `[RELAYED]`, refuses loudly on a sid with no recorded rounds
+  naming the sid, and still runs the session gates first.
 
 Run:  python3 -m unittest tests.test_relay_verb -v
   or: python3 -m unittest discover -s tests -p 'test_relay_verb.py'
@@ -183,10 +190,13 @@ class RelayVerbTest(unittest.TestCase):
         p.write_text(text, encoding="utf-8")
         return p
 
-    def relay(self, arg: str, *, stdin: str = None, sid: str = None):
-        """Run `bale relay <sid> <arg>`; `stdin` feeds `-`."""
+    def relay(self, arg: str = None, *, stdin: str = None, sid: str = None):
+        """Run `bale relay <sid> <arg>`; `stdin` feeds `-`. `arg=None`
+        runs the no-file re-emit form (v0.4.22)."""
         cmd = [sys.executable, str(self.install / "bin" / "bale"),
-               "relay", sid or self.sid, arg]
+               "relay", sid or self.sid]
+        if arg is not None:
+            cmd.append(arg)
         return subprocess.run(
             cmd, cwd=self.repo, env=self.env,
             input=stdin if stdin is not None else None,
@@ -477,7 +487,85 @@ class RelayVerbTest(unittest.TestCase):
         self.assert_refused(result, "exchange file not found",
                             "no-such-file.json")
 
-    # -- pinned behavior 7: the verb is in the CLI surface ---------------
+    # -- pinned behavior 7: the no-file re-emit form (v0.4.22) -----------
+
+    def test_reemit_manifest_round_is_byte_identical(self) -> None:
+        """`bale relay <sid>` re-emits the latest round's block
+        byte-identical to the original emission — here round one, a
+        preserved clarification manifest, whose block carries the
+        manifest's exchange-record reading."""
+        original = self.relay(
+            str(self.write("m.json", clarification_manifest(self.sid))))
+        self.assert_ok(original)
+        reemit = self.relay()
+        self.assert_ok(reemit)
+        self.assertEqual(reemit.stdout, original.stdout,
+                         "re-emit is byte-identical to the original "
+                         "emission")
+        self.assertNotIn("[bale]", reemit.stdout)
+        self.assertIn("[RE-EMITTED]", reemit.stderr)
+        self.assertNotIn("[RELAYED]", reemit.stderr)
+        self.assertIn("Next step", reemit.stderr)
+        self.assertEqual(self.thread_files(), ["001.json"],
+                         "re-emit records nothing")
+        self.assert_untouched()
+
+    def test_reemit_record_round_is_byte_identical(self) -> None:
+        """The latest round an exchange record: the planner's answer is
+        recorded, its block captured, and the no-file form re-emits the
+        same bytes — the preserved_at sidecar never leaks into the
+        body."""
+        self.relay_round_one()
+        original = self.relay(
+            str(self.write("a.json", planner_answer(self.sid))))
+        self.assert_ok(original)
+        reemit = self.relay()
+        self.assert_ok(reemit)
+        self.assertEqual(reemit.stdout, original.stdout)
+        self.assertNotIn("preserved_at", reemit.stdout)
+        _, header, body, digest = split_block(reemit.stdout)
+        self.assertIn("round 2", header[0])
+        self.assertIn("from planner to worker", header[0])
+        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), digest)
+        self.assertEqual(json.loads(body), planner_answer(self.sid))
+        self.assertEqual(self.thread_files(), ["001.json", "002.json"])
+        self.assert_untouched()
+
+    def test_reemit_reemitted_block_round_trips_through_ingest(self) -> None:
+        """The re-emitted block is the same wire form the original was:
+        a courier can paste it and relay ingests it (here into a fresh
+        thread after resetting, as the round-trip test does)."""
+        rec = worker_record(self.sid)
+        self.assert_ok(self.relay(str(self.write("w.json", rec))))
+        block = self.relay().stdout
+        (self.clar_dir() / "001.json").unlink()
+        second = self.relay(str(self.write("paste.txt", block)))
+        self.assert_ok(second)
+        preserved = json.loads(
+            (self.clar_dir() / "001.json").read_text(encoding="utf-8"))
+        preserved.pop("preserved_at")
+        self.assertEqual(preserved, rec)
+
+    def test_reemit_empty_thread_refuses_naming_sid(self) -> None:
+        result = self.relay()
+        self.assert_refused(result, "no recorded rounds", self.sid,
+                            "nothing to re-emit")
+        self.assertEqual(self.thread_files(), [])
+        self.assert_untouched()
+
+    def test_reemit_runs_session_gates(self) -> None:
+        """The no-file form is still the relay verb: a sid that is not
+        open, or one with a held bale/<sid> branch, refuses before any
+        re-emit."""
+        result = self.relay(sid="2026-08-29-nothere-001")
+        self.assert_refused(result, "is not open in the registry")
+        self.relay_round_one()
+        run_checked(["git", "branch", f"bale/{self.sid}"],
+                    cwd=self.repo, env=self.git_env)
+        held = self.relay()
+        self.assert_refused(held, f"has a bale/{self.sid} branch")
+
+    # -- pinned behavior 8: the verb is in the CLI surface ---------------
 
     def test_help_lists_relay(self) -> None:
         result = run_bale(self.install, ["help", "relay"],

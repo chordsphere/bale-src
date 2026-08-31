@@ -161,3 +161,14 @@ doctrine session packed from it.
 crafter); the worker↔planner leg of the 2026-08-25 harness routing
 formally reversed; re-emit surface deliberately not widened, see
 board row 60.
+
+2026-08-31 — board row 60 lands the widening the entry above had
+deferred (v0.4.22).
+The option surface widens to sid-only: the no-file form re-emits the latest recorded round and records nothing.
+The need: a planner-side paste block existed only on the stdout that
+made it, so a lost paste had no recovery short of hand-rebuilding
+the block. The foreclosure above ("a `bale relay` option surface
+beyond `<sid> <file|->`") is overridden to exactly this extent —
+the surface is `<sid> [<file|->]`, still flagless, direction still
+read from the record; re-emit is read-only end to end and refuses a
+sid with no recorded rounds. Contract: BALE.md §8.11; usage §5.8.
