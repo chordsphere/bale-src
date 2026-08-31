@@ -332,6 +332,78 @@ def bundle_named_entries(entries: list[str]) -> list[str]:
     return [e for e in entries if is_bundle_file(e.rstrip("/"))]
 
 
+def evaluate_include_group(repo: Path, includes: list[str],
+                           group: dict) -> dict:
+    """Evaluate the configured include group against this pack's includes.
+
+    The board-64 engagement rule (BALE.md §7.2): the group engages when
+    the pack's **resolved include set** intersects any trigger entry —
+    the scope_paths_intersect relation, so directory entries cover
+    their subtrees and the default whole-tree include (`.`) covers
+    every trigger. Engagement is read-side only; callers never feed the
+    result into the write forecast.
+
+    Returns a dict:
+      - ``engaged``: bool — a trigger matched.
+      - ``trigger_hits``: the trigger entries that matched, config
+        order, deduplicated.
+      - ``adds``: pull entries to append to the walk's include set —
+        the pulls NOT already covered by an include entry (covered:
+        some include is the pull, or a directory ancestor of it, or
+        `.`). Config order, deduplicated.
+      - ``covered``: the pulls that were already covered.
+
+    A pull that must be added but does not exist in the repo is a loud
+    refusal, not a skip: the group exists to guarantee the shipped
+    context, and a dangling configured pull silently thinning it is
+    the config-rot failure the no-silent-skips rule forbids. (A
+    covered pull is never existence-checked here — the walk's own
+    include handling governs it, same as any user include.)
+    """
+    from __main__ import fail, resolved_scope, scope_path, \
+        scope_paths_intersect  # lazy — see module docstring
+
+    resolved = resolved_scope(list(includes))
+    trigger_hits: list[str] = []
+    for trig in group["triggers"]:
+        t = scope_path(trig)
+        if any(scope_paths_intersect(e, t) for e in resolved):
+            if trig not in trigger_hits:
+                trigger_hits.append(trig)
+    if not trigger_hits:
+        return {"engaged": False, "trigger_hits": [],
+                "adds": [], "covered": []}
+
+    adds: list[str] = []
+    covered: list[str] = []
+    for pull in group["pulls"]:
+        p = scope_path(pull)
+        is_covered = any(
+            e == "." or e == p or p.startswith(e + "/")
+            for e in resolved
+        )
+        if is_covered:
+            if pull not in covered:
+                covered.append(pull)
+            continue
+        if pull in adds:
+            continue
+        if not (repo / p).exists():
+            fail(
+                f"include group {group['name']!r} engaged (trigger: "
+                f"{', '.join(trigger_hits)}) but its configured pull "
+                f"path does not exist: {pull!r}. The group guarantees "
+                f"these paths ship in context/, so a dangling entry "
+                f"refuses rather than silently thinning the pack; fix "
+                f"[pack] include_group_pulls in bale.toml, or opt out "
+                f"of the group this pack with --no-include-group "
+                f"{group['name']}."
+            )
+        adds.append(pull)
+    return {"engaged": True, "trigger_hits": trigger_hits,
+            "adds": adds, "covered": covered}
+
+
 def build_pack_matcher(
     repo: Path, session_excludes: list[str],
 ) -> Optional[BaleignoreMatcher]:
@@ -3237,6 +3309,78 @@ def cmd_pack(args: argparse.Namespace) -> int:
     _applied_count, applied_latest = applied_tags(repo)
     log(format_tree_position(branch=pack_branch, applied_latest=applied_latest))
 
+    # Include-group engagement (board 64; BALE.md §7.2). Sited here
+    # because the include set is final at arg-parse (the wizard never
+    # collects includes), so the group's read-side additions can be
+    # computed once, pre-wizard, and feed every downstream consumer:
+    # the blindness gate's read_includes at both of its sites, and the
+    # walk. Two invariants pinned at this site:
+    #   - READ SIDE ONLY. group_adds never joins a forecast expression
+    #     — the --write set, the include-set default, and the
+    #     read-only [] below are all computed from the user's own
+    #     flags, untouched. Reads don't lock (ADR-0015), and the group
+    #     is reads: engagement must never widen a session's lock or
+    #     block a sibling.
+    #   - LOUD OR NOTHING. Engagement logs a line naming the group,
+    #     the trigger, and the pulls; the opt-out logs a FORCE line
+    #     naming the group and the flag; a dangling configured pull
+    #     refuses (evaluate_include_group). The only silent path is a
+    #     group whose triggers this pack's includes never touch.
+    group_cfg = bale_config.get_pack_include_group(
+        bale_config.merged_config(repo))
+    group_adds: list[str] = []
+    group_report: Optional[str] = None
+    if args.no_include_group is not None:
+        # Opt-out validation is strict in both directions: a flag with
+        # no configured group, or naming a group that is not the
+        # configured one, is a typo or a stale paste — and a typo'd
+        # opt-out that silently opts out of nothing would be the
+        # silent skip the loud-opt-out rule forbids.
+        if group_cfg is None:
+            fail(
+                f"--no-include-group {args.no_include_group!r}: no "
+                f"include group is configured in bale.toml ([pack] "
+                f"include_group), so there is nothing to opt out of. "
+                f"Drop the flag."
+            )
+        if args.no_include_group != group_cfg["name"]:
+            fail(
+                f"--no-include-group {args.no_include_group!r} does not "
+                f"match the configured include group "
+                f"{group_cfg['name']!r}. The flag takes the group's "
+                f"exact name so a typo cannot silently skip the pull."
+            )
+        # FORCE-prefixed deliberately: the opt-out overrides an
+        # automatic behavior the project's config pinned, so it is an
+        # audit-trail event like the other override logs — and the
+        # force queue replays it into the session journal once the sid
+        # opens.
+        log(f"include group {group_cfg['name']!r} opt-out "
+            f"(--no-include-group): automatic engagement disabled for "
+            f"this pack", force=True)
+        group_report = f"{group_cfg['name']} opt-out (--no-include-group)"
+    elif group_cfg is not None:
+        engagement = evaluate_include_group(
+            repo, list(args.include), group_cfg)
+        if engagement["engaged"]:
+            trig = ", ".join(engagement["trigger_hits"])
+            if engagement["adds"]:
+                group_adds = engagement["adds"]
+                log(f"include group {group_cfg['name']!r} engaged "
+                    f"(trigger: {trig}): pulled "
+                    f"{', '.join(group_adds)} into context "
+                    f"(read side only — the write forecast is "
+                    f"unchanged; opt out with --no-include-group "
+                    f"{group_cfg['name']})")
+                group_report = (f"{group_cfg['name']} engaged: pulled "
+                                f"{len(group_adds)} path(s)")
+            else:
+                log(f"include group {group_cfg['name']!r} engaged "
+                    f"(trigger: {trig}): all group paths already "
+                    f"covered by the includes")
+                group_report = (f"{group_cfg['name']} engaged "
+                                f"(already covered)")
+
     # Split supersession (v0.3.17, board 26): resolve --supersedes and
     # run its exchange BEFORE the disjointness gate on both paths — the
     # fully-specified path fires the gate in pre-flight just below, and
@@ -3380,7 +3524,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # side is checked at whichever site the gate fires from.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
             repo, _early_scope, allow=args.allow_checkpoint_in_scope,
-            read_includes=resolved_scope(list(args.include)),
+            # The group's read-side additions ride into the read
+            # includes (board 64): they will ship in context/, so the
+            # read-half blindness key must see them.
+            read_includes=resolved_scope(list(args.include) + group_adds),
             # v0.4.9: the forecast half keys on a DECLARED forecast —
             # a typed --write, or the read-only shape (whose empty
             # forecast covers nothing anyway). The include-set default
@@ -3444,7 +3591,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # wizard's answers have finalized the forecast.
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
             repo, pack_scope, allow=args.allow_checkpoint_in_scope,
-            read_includes=resolved_scope(list(args.include)),
+            # Board 64: group additions join the read includes at
+            # this site too — same value as the pre-flight site.
+            read_includes=resolved_scope(list(args.include) + group_adds),
             # Same v0.4.9 keying as the pre-flight site, evaluated
             # post-wizard (the wizard can fill args.write or set
             # args.read_only; it never collects includes).
@@ -3685,15 +3834,22 @@ def cmd_pack(args: argparse.Namespace) -> int:
     #           re-walk (this iteration).
     #      - n: abort.
     #   4. No breach → break out of loop, proceed.
+    # The walk's include set is the user's includes plus the engaged
+    # include group's additions (board 64) — read side only; every
+    # forecast expression above stayed on args.include/args.write.
+    # When args.include is empty (the whole-tree default), group_adds
+    # is empty by construction (everything is already covered), so the
+    # concatenation preserves the empty-list include-everything walk.
     # The loop terminates either via `break` (continue/abort decision
     # made) or via `fail()` (hard breach without --force, piped-mode soft
     # breach, or user abort). Piped mode never enters [e] — a soft breach
     # without a TTY fails outright (v0.2.4), since no prompt can run and
     # warn-and-proceed defeats the cap exactly where nobody is watching.
     # --force bypasses the prompt and the piped refusal entirely.
+    walk_includes = list(args.include) + group_adds
     while True:
         projection = walk_for_pack(
-            repo, args.include, caps=caps, force=args.force, matcher=matcher,
+            repo, walk_includes, caps=caps, force=args.force, matcher=matcher,
             verbose=args.verbose, checkpoint_exclude=checkpoint_exclude,
         )
         files = projection.files
@@ -4082,6 +4238,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
             ("tarball", str(tarball_path)),
             ("files", f"{len(files)} in context/"),
         ]
+        if group_report is not None:
+            # Board 64: the durable half of the engagement/opt-out
+            # line — the log line above is visibility at paste time,
+            # this row is the record beside the sid. (A --json key
+            # needs a format_pack_json change in bale_report.py —
+            # proposed, not made; see notes.md.)
+            rows.append(("include group", group_report))
         if readme_echo_sha256 is not None:
             # The board-33 identity echo: path, first heading, sha256
             # of the shipped README.md (see the computation above).
