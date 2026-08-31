@@ -1,0 +1,148 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-global-doc-purge-004",
+  "created_at": "2026-08-31T12:28:05+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T12:28:05+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-004 (36).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: global-doc self-containment (extended guard)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: schema embeds JSON-equal": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim strings land byte-exact": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "citation sweep: injected surface is clean": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: global-doc self-containment (extended guard)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: schema embeds JSON-equal": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim strings land byte-exact": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "citation sweep: injected surface is clean": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs",
+        "schemas/response-manifest.schema.json",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.19",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "cf29e384368dba78637e74a4c7526d3c57a5c72d1a7d0650f1814fe9080dfcfb",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "ada0b06c3aaf489af98f0a23e42472a2db2199af6949cec1b852cb4f47d448f5"
+            },
+            "packer": "master:2026-08-31-meta-specific-003",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-global-doc-purge-004.sh",
+              "sha256": "f9b0a0a0fa12544993c775c0df0676dfadc063e703336fcaeb98c8dc58eb1882"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the brief's VERBATIM rendering of the TARBALL.md replacement citation includes the backticks (house style for doc cites in TARBALL.md); the schema descriptions carry the unbackticked form matching their own style \u2014 both asserted byte-exact in validation.sh and flagged in notes.md"
+          ],
+          "judgment_calls": [
+            "45 evidence parentheticals removed, not the brief's ~30 \u2014 the shape count, verified against the diff, is in notes.md",
+            "13 prose lines rewrapped to the ~72-col convention after citation removal joined wrapped lines; pre-existing long table rows untouched",
+            "bin/-path references in the injected surface left in place as tool-implementation facts (TARBALL.md \u00a73.1 precedent); raised as a proposal rather than folded in",
+            "the guard's pattern half is confined to two word-boundary-anchored digit shapes; the docstring's literal-substrings framing amended honestly rather than silently outgrown"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-31-global-doc-purge-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-global-doc-purge-004.sh",
+          "sha256": "f9b0a0a0fa12544993c775c0df0676dfadc063e703336fcaeb98c8dc58eb1882"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-08-31T12:28:05+00:00",
+  "outcome": "applied"
+}
