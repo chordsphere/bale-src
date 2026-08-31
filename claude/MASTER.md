@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-close-deltas-013`.
+Last landed by: `2026-08-31-sitting-close-deltas-2-019`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -372,6 +372,11 @@ with the unverifiable ones carried verbatim and marked):
   TARBALL.md §3.4 rows that point into it. **Scope hints:** BALE.md
   §7.2 (`--read-only`, `--supersedes` semantics); only after B
   lands, to avoid restating what it already fixed."
+  [2026-08-31: consumed — landed as a rider at
+  `2026-08-31-board-60-relay-reemit-017`: six word-level
+  substitutions confined to the `--read-only` and `--supersedes`
+  bullets (session B's sweep had already fixed the includes bullet;
+  §7.1/§7.4 were clean).]
 - Post-epoch stats-corpus fixtures — rides board 35 (the next
   test_stats_aggregation.py touch). Text verbatim from
   `2026-08-07-board-13b-epoch-ledger-005`'s Proposals: "**What:**
@@ -581,6 +586,11 @@ with the unverifiable ones carried verbatim and marked):
   true-up fixed. Why: noticed while landing the drift guard in the same
   file; left out as off-goal scope this session. Scope hints:
   `validate.sh`, two rows."
+  [2026-08-31: consumed —
+  `2026-08-31-board-58-exchange-constants-parity-016` landed both
+  rows plus board 59's bale_relay row from the same proposal
+  family, in INSTALL_LAYOUT order (sandbox after staging; open and
+  relay after `_bale_toml`).]
 - The rider's config-side carrier — rides the next bin/bale_config.py
   touch. Text verbatim from the same Proposals: "What: the `[probe]`
   `clipboard_command` accessor plus the `bale config init` wizard walk,
@@ -643,6 +653,29 @@ with the unverifiable ones carried verbatim and marked):
   one sentence for readers who enter there. Doc-only, low value,
   rides any future BALE.md touch." (Accepted 2026-08-31 at the
   continue-plan-012 sitting.)
+  [2026-08-31: consumed — `2026-08-31-board-60-relay-reemit-017`
+  landed the §7.5 walk-step sentence; §7.7 already carried its half
+  (the include-group row, board 64) — no change there.]
+- Provenance-block widening — the planner's call; rides the next
+  provenance-stamp touch. Text verbatim from
+  `2026-08-31-board-63-provenance-at-open-018`'s Proposals:
+  "**What:** consider widening `.bale/sessions/<sid>/provenance.json`
+  (or the opened attempt) to the full provenance block. **Why:**
+  the manifest copy dies at close, so contract-doc hashes and the
+  checkpoint stamp vanish for never-responding sessions the same
+  way work_class did; low cost while the seam is open. Not done
+  now — the ask was the pair, and block-width is the planner's
+  call." (Accepted 2026-08-31 at the continue-plan-012 sitting.)
+- Normalize-at-stamp for packer/model_identity — deferred with
+  rationale at 018; rides a stamp-time session with a ratified
+  canonical map, or board 44 read-time. Text verbatim from
+  `2026-08-31-board-63-provenance-at-open-018`'s notes (the
+  deferred rider): "normalizing ~10 packer and ~62 model_identity
+  spellings without the corpus in hand and a ratified canonical map
+  risks silent mis-attribution, and the verbatim stamp loses
+  nothing — normalization can land later at read time or as its own
+  stamp-time session with the map agreed." (Accepted 2026-08-31 at
+  the continue-plan-012 sitting.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1354,6 +1387,34 @@ bytes. The arc, one row each:
 - Sitting closed at the milestone; sequencing of the new rows among
   the smalls is the next desk's call.
 
+Landed 2026-08-31, wave 2 of the continue-plan-012 sitting (rows
+58, 59, 60, 63, and 66 closed on their board brackets — facts of
+record, versions, and retry stories live there; this block carries
+only what has no row home; close recorded by
+`2026-08-31-sitting-close-deltas-2-019`):
+
+- Proposals dispositions, routed to the sitting's wave-3 sessions —
+  open siblings at this close, so their landings are the next
+  close's facts, not this one's: 016's crafter
+  re-declaration-citation true-up → tools-true-up
+  (tools/craft_response.py, tests/test_craft_response.py; the
+  row-59 index-header rider rides the same session); 017's
+  TARBALL.md re-emit mention (§5.9.2 and §5.9.4, one sentence
+  each) → tarball-reemit-mention; 017's `bale status` lost-paste
+  hint and 018's cmd_handoff `command="handoff"` → bin-bale-tidy;
+  018's stats read side (`"opened"` into IN_FLIGHT_OUTCOMES;
+  provenance-stamp resolution in session_work_class) → folded into
+  board 44 as its first customer (annotated on that row); 015's
+  deny-shapes guard extension → guard-deny-shapes
+  (tests/test_global_doc_selfcontainment.py).
+- Registry deltas of the close: three entries marked consumed in
+  place (the BALE.md §7/§7.2 includes-as-scope true-up and the
+  §7.5/§7.7 group mention, both landed at 60; the
+  bale_open/bale_sandbox presence rows, landed at 58 with board
+  59's bale_relay row); two entries added with What/Why verbatim
+  from 018's notes (the provenance-block widening proposal, the
+  deferred normalize-at-stamp rider).
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -1934,6 +1995,15 @@ and §8, so done items keep their numbers as one-line pointers.
     surface stays a read side over the records, exercisable by jq); and
     nominate, never curate (§5, 2026-08-16). (Rider item 6 and rider
     §2.3.)
+    [2026-08-31: 018's read-side proposal folds in here as the
+    row's first customer — accepted at the continue-plan-012
+    sitting: `"opened"` joins IN_FLIGHT_OUTCOMES in
+    bin/bale_stats.py, and session_work_class (or its successor
+    here) resolves from the opened attempt's provenance stamp
+    before falling back to the feedback echo. Until it lands, every
+    `bale stats` run warns once per open session (the reader's
+    designed unknown-vocabulary path, counting the session
+    correctly as in-flight) — accepted noise per 018's notes.]
 
 45. **hostile-foreign-repo arc** — queued 2026-08-16 (multi-session arc;
     feeds S6; sequenced before any harness autonomy): deliberately run
@@ -2175,6 +2245,14 @@ and §8, so done items keep their numbers as one-line pointers.
     crafter session's first Proposal, scope as written there —
     validate.sh beside the crafter rows; needs load-bin/bale-by-path,
     a new capability, hence its own session.
+    [2026-08-31: DONE —
+    `2026-08-31-board-58-exchange-constants-parity-016`, applied
+    2026-08-31. Five-constant parity scope ratified per its notes
+    (the five constants both homes declare; the crafter's wider set
+    re-declares bale_validate.py's rules, pinned by the byte-parity
+    suite); the presence-rows rider (board 59's Proposals, with the
+    registry's bale_open/bale_sandbox pair) consumed here — the §3
+    registry entry is marked consumed.]
 
 59. **Extract bin/bale §29 into `bin/bale_relay.py`** — queued
     2026-08-31 (from the exchange arc's close): accepted earlier in
@@ -2188,6 +2266,16 @@ and §8, so done items keep their numbers as one-line pointers.
     crafter session's second Proposal) folds in here if this
     session's forecast gains `tools/` for any reason, else it runs
     as its own micro-session.
+    [2026-08-31: DONE — `2026-08-31-board-59-relay-extraction-014`,
+    applied 2026-08-31 at 0.4.21, HOLD-then-retry (worker-side
+    parity-suite root cause: the extraction took the wire symbols
+    off the entry module's import surface and the refusal path
+    assumed the host's fail; fixed by a narrow re-export plus a
+    host-preferring fallback, ratified). Two admissions at apply:
+    the new relay module, bin/VERSION. The index-header rider
+    resolved to its own micro-session — the forecast never gained
+    `tools/` — and rides the wave-3 crafter pair (the §3 wave-2
+    dispositions block).]
 
 60. **`bale relay` re-emit path** — queued 2026-08-31 (from the
     exchange arc's close; ruling now made): accepted as a board
@@ -2198,6 +2286,20 @@ and §8, so done items keep their numbers as one-line pointers.
     ADR-0017 Notes append recording the widened surface — and the
     shape decision (no-file `bale relay <sid>` reprint vs a
     separate read-only verb) is made there, not here.
+    [2026-08-31: DONE — `2026-08-31-board-60-relay-reemit-017`,
+    applied 2026-08-31 at 0.4.22, HOLD-then-retry (worker
+    validation.sh bugs, not the change set; the blind checkpoint
+    passed both rounds). Shape ruling recorded: no new verb, the
+    file argument optional, the no-file form re-emits the latest
+    recorded round and records nothing; ADR-0017 Notes appended.
+    bin/VERSION admitted at apply. Rider dispositions per its
+    notes: the BALE.md §7.5/§7.7 group mention landed (§7.5's walk
+    step got the sentence; §7.7 already carried its half); the
+    §7/§7.2 includes-as-scope true-up landed (six word-level
+    substitutions — both registry entries marked consumed); board
+    59's section-29 citations true-up — only §8.11's block
+    provenance line was stale, now citing bin/bale_relay.py; row
+    §11.34 and the §5 verb inventory never cited section 29.]
 
 61. **Global-doc purge** — queued 2026-08-31 at the meta-specific
     sitting (mixed class; first in sequence; packed the same day,
@@ -2241,6 +2343,16 @@ and §8, so done items keep their numbers as one-line pointers.
     vocabulary or normalize-at-stamp for packer and model_identity
     (ten packer spellings and roughly 62 model_identity spellings
     in the corpus today).
+    [2026-08-31: DONE —
+    `2026-08-31-board-63-provenance-at-open-018`, applied
+    2026-08-31. One paste-back probe round. Ratified per its notes:
+    the stamp rides the opened attempt; the write lives in
+    persist_pack_session; handoff opens stamp command pack as a
+    bounded flagged inaccuracy; the registry stamp carries exactly
+    the two fields; the normalize-at-stamp rider deferred with
+    rationale (now a §3 registry entry, beside the widening
+    proposal). Read-side proposal folded into board 44 (its row's
+    bracket).]
 
 64. **Release-surface include group** — queued 2026-08-31 (code
     class): a named include/forecast group (bale.toml or a
@@ -2312,6 +2424,14 @@ and §8, so done items keep their numbers as one-line pointers.
     descriptions, not only evidence and board numbers. The purge
     session found and genericized one such residue ("S5") in the
     response-manifest schema.]
+    [2026-08-31: DONE — `2026-08-31-board-66-schema-purge-015`,
+    applied 2026-08-31. Five judgment calls ratified per its notes
+    (ADR citations stay; sitting labels became version anchors; one
+    dated citation rewritten beyond the literal deny set; BALE.md
+    pointers resolved to the unnamed form; deliberately broad deny
+    sweep in validation — the sweep extension above executed as
+    ratified). Deny-shapes guard proposal routed per the §3 wave-2
+    dispositions block.]
 
 ## 5. Contracts established (do not re-litigate casually)
 
