@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# board-70 blind checkpoint v2 — shipped-doc reachability.
-# (v2 derives from v1: header wording only; every probe byte-identical.)
+# board-70 blind checkpoint v3 — shipped-doc reachability.
+# (v3 derives from v2: ONLY P5 changes — v2's P5 pinned the deny
+# pattern's literal spelling, a mechanism assertion that HOLDs any
+# equally valid implementation, e.g. a whitespace-class regex over
+# the guard's raw-text scan. P1-P4 are byte-identical to v2. v3's
+# P5 asserts the outcome: the guard rejects a planted wrapped
+# instance and stays green on the clean tree, implementation-free.)
 # Outcome contracts only. Runs at the applied tree's root.
 # Exit 0 = all probes pass; exit 1 = HOLD (labels above name the
 # failures); exit 2 = the checkpoint itself could not run.
@@ -65,11 +70,26 @@ norm docs/CLAUDE.md | grep -q "craft_response.py" \
   && norm docs/CLAUDE.md | grep -q "response_lint.py"
 probe "P4-claude-reachability-paragraph" "$?"
 
-# P5 — the self-containment guard denies the pointer class (the
-# pattern text is present in the guard file, wrap-tolerant).
-norm tests/test_global_doc_selfcontainment.py \
-  | grep -qi "tool's documentation\|tool's (own )?documentation"
-probe "P5-guard-denies-pointer-class" "$?"
+# P5 — the self-containment guard denies the pointer class, as an
+# outcome: run the guard suite twice on a hermetic copy of the
+# tree — the clean copy must be green; a copy with a planted,
+# wrapped "own"-variant instance in a scanned doc must go red. The
+# guard self-roots from its own file path, so the copy grades
+# itself, whatever the deny's implementation.
+tmpd=$(mktemp -d) || { echo "[CHECKPOINT-ERROR] mktemp failed"; exit 2; }
+cp -r docs tools tests schemas "$tmpd"/ 2>/dev/null \
+  || { echo "[CHECKPOINT-ERROR] tree copy failed"; rm -rf "$tmpd"; exit 2; }
+( cd "$tmpd" && python3 -m unittest discover -s tests \
+    -p 'test_global_doc_selfcontainment.py' ) >/dev/null 2>&1
+clean_rc=$?
+printf "stray note: see the bale tool's own\ndocumentation for details.\n" \
+  >> "$tmpd/docs/CODE.md"
+( cd "$tmpd" && python3 -m unittest discover -s tests \
+    -p 'test_global_doc_selfcontainment.py' ) >/dev/null 2>&1
+planted_rc=$?
+rm -rf "$tmpd"
+probe "P5-guard-denies-pointer-class (clean=$clean_rc planted=$planted_rc; want 0/nonzero)" \
+      "$([ "$clean_rc" -eq 0 ] && [ "$planted_rc" -ne 0 ]; echo $?)"
 
 if [ "$fail_count" -gt 0 ]; then
   echo "checkpoint: HOLD ($fail_count probe(s) failed)"
