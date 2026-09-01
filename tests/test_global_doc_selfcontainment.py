@@ -54,6 +54,21 @@ fuzzier) so the false-positive surface stays near zero:
   anchor keeps "keyboard"/"dashboard" out; version strings
   ("v0.3.21") never match.
 
+A third half rides beside the substrings and the citation shapes:
+the pointer class (the 2026-09-01 reachability cleanup). "the
+(bale) tool's (own) (design) documentation" — every spelling, the
+optional words optional — points at bale's repo-local operator
+manual, which ships with no install and dangles from every other
+project. Unlike the two halves above, this deny is matched over the
+raw text with whitespace runs tolerated inside the phrase, because
+its live specimen wrapped across two physical lines in a tool
+docstring and was invisible to a line scan; the wrapped matcher
+reports the line the match starts on. One sanction bounds the whole
+guard: bin/, schemas/, and tools/ paths are sanctioned in the
+request-carried docs and tools because they ship with the install
+and resolve wherever it exists; repo-local doc names do not and are
+denied.
+
 The third scan group is the install-shipped schemas — the five
 non-embedded schemas the 2026-08-31 schema purge (board row 66,
 session ...-board-66-schema-purge-015) made self-contained:
@@ -147,6 +162,18 @@ DENIED_PATTERNS = (
      re.compile(r"\bboard(?: row)? \d")),
 )
 
+# Half three: the pointer class — matched over the whole text, with
+# whitespace runs (including line wraps) tolerated between words, so
+# a wrapped instance cannot hide from a line scan (docstring carries
+# the rationale and the live wrapped specimen's story). Both
+# apostrophes are tolerated; "bale", "own", and "design" are each
+# optional so every observed spelling of the phrase is one shape.
+DENIED_WRAPPED_PATTERNS = (
+    ("(bale) tool's (own) (design) documentation",
+     re.compile(r"(?:bale\s+)?tool['\u2019]s\s+(?:own\s+)?"
+                r"(?:design\s+)?documentation")),
+)
+
 # The third scan group: the five non-embedded install-shipped schemas
 # the 2026-08-31 schema purge made self-contained (docstring carries
 # the group's rationale and why diagnostics/response-manifest stay
@@ -186,6 +213,17 @@ def occurrences(text: str, matcher) -> list:
         (i, line)
         for i, line in enumerate(text.splitlines(), start=1)
         if matcher(line)
+    ]
+
+
+def wrapped_occurrences(text: str, pattern) -> list:
+    """Return (1-based line number of the match start, matched text
+    with whitespace runs collapsed to single spaces) for every hit of
+    a full-text pattern — the wrap-tolerant twin of `occurrences`,
+    for the deny shapes a line scan cannot see."""
+    return [
+        (text.count("\n", 0, m.start()) + 1, " ".join(m.group(0).split()))
+        for m in pattern.finditer(text)
     ]
 
 
@@ -246,6 +284,28 @@ class GlobalDocSelfContainment(unittest.TestCase):
                     self._assert_clean(
                         rel, label,
                         lambda line, p=pattern: p.search(line) is not None)
+
+    def test_no_wrapped_pointer_shapes(self):
+        """The pointer class, matched wrap-tolerantly over the whole
+        text (module docstring, half three) — an instance split
+        across physical lines fails here with the line its match
+        starts on."""
+        for rel in SCANNED_FILES:
+            for label, pattern in DENIED_WRAPPED_PATTERNS:
+                with self.subTest(file=rel, shape=label):
+                    path = REPO / rel
+                    if not path.is_file():
+                        continue  # the presence tests own this failure
+                    text = path.read_text(encoding="utf-8")
+                    hits = wrapped_occurrences(text, pattern)
+                    listing = "\n".join(
+                        f"  line {n}: {snippet}" for n, snippet in hits)
+                    self.assertEqual(
+                        hits, [],
+                        f"{rel} carries the unreachable-doc pointer "
+                        f"{label!r} — {self.INJECTED_DOCTRINE}; re-point "
+                        "at an install-shipped surface (bin/, schemas/, "
+                        f"tools/) or a bale verb instead:\n{listing}")
 
     def test_all_scanned_schemas_present(self):
         """Same meaningfulness rule as the injected surface: a moved

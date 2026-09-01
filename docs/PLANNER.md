@@ -277,8 +277,14 @@ of it, the authoring craft:
   checkpoint-pinning project, spawn materials are delivered as one
   crafter-emitted bundle — brief, blind checkpoint, and pack argv
   with published hashes — beside its emitted `bale open` line, so
-  the desk hand-composes neither; the bundle format itself lives in
-  the bale tool's documentation, not here.
+  the desk hand-composes neither: the request-carried crafter
+  (`tools/craft_response.py`, its `--bundle` mode) assembles the
+  bundle, and the format's mechanical home is
+  `schemas/bundle-manifest.schema.json`, shipped with every install
+  and enforced by `bale open`'s gate-first validation. Both
+  surfaces are reachable from any project (`CLAUDE.md` META's
+  reachability model); no prose spec is needed to emit or consume
+  a bundle.
 - A brief or oracle claim about any surface — tree, reach, or
   ruling — is verified against bytes or the sitting record at
   authoring time, and an oracle authored before a ruling is
