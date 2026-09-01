@@ -1077,6 +1077,54 @@ def read_request_checkpoint_stamp(
     return (True, stamp if isinstance(stamp, dict) else None)
 
 
+def read_request_base_stamp(
+        repo: Path, sid: str) -> tuple[bool, Optional[dict]]:
+    """Return (key_present, stamp) for the session's base-drift stamp —
+    the request manifest's `provenance.base_files` map (board 41).
+
+    `key_present` False means the request carried no
+    `provenance.base_files` key at all — a hand-rolled request, a
+    pre-feature pack, or (defensively) a missing/unreadable session
+    manifest, each logged so the skip is never silent. That is the
+    additive "verify nothing" case: a stampless request applies
+    exactly as it did before the feature. When True, `stamp` is the
+    key's value when it is the schema's shape (a dict of repo-relative
+    path → sha256 hex), or None for a malformed value — logged and
+    treated as stampless rather than guessed at.
+
+    read_request_checkpoint_stamp's structure, one key over: the two
+    read the same persisted manifest, and this one deliberately does
+    not share the other's I/O so each skip path logs in its own
+    vocabulary.
+    """
+    from __main__ import log  # lazy — see module docstring
+    manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
+    try:
+        request_manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except OSError as e:
+        log(f"note: session request manifest unreadable at "
+            f"{manifest_path} ({e}); base-drift verification skipped "
+            f"(treated as a stampless request)")
+        return (False, None)
+    except json.JSONDecodeError as e:
+        log(f"note: session request manifest at {manifest_path} is not "
+            f"valid JSON ({e}); base-drift verification skipped "
+            f"(treated as a stampless request)")
+        return (False, None)
+    provenance = request_manifest.get("provenance")
+    if not isinstance(provenance, dict) or "base_files" not in provenance:
+        return (False, None)
+    stamp = provenance.get("base_files")
+    if not isinstance(stamp, dict):
+        log(f"note: provenance.base_files in the session request "
+            f"manifest is not an object ({type(stamp).__name__}); "
+            f"base-drift verification skipped (treated as a stampless "
+            f"request)")
+        return (True, None)
+    return (True, stamp)
+
+
 def base_tree_sha256(repo: Path, base_sha: str, path: str) -> Optional[str]:
     """sha256 of the committed blob at `base_sha:path`, or None when no
     blob exists there. Binary-exact via a direct subprocess call
@@ -1105,6 +1153,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     allow_out_of_scope: Optional[list[str]] = None,
                     allow_missing_required_check: Optional[list[str]] = None,
                     accept_checkpoint_change: bool = False,
+                    accept_base_drift: Optional[list[str]] = None,
                     no_sandbox: bool = False,
                     ) -> int:
     """The apply pipeline proper: extract, validate, stage, run
@@ -1172,6 +1221,24 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     re-stated on retry exactly like `allow_out_of_scope` above, never
     carried from a prior attempt. Any missing name NOT admitted still
     refuses. None/empty means no override.
+
+    `accept_base_drift` (board 41; cmd_apply/cmd_retry
+    --accept-base-drift, repeatable) names changes[] paths the
+    base-drift gate below (BALE.md §8.1 step 17) should admit despite
+    their base-tree bytes no longer matching the request's pack-time
+    `provenance.base_files` stamp — the base moved under the session,
+    and the whole-file overlay would silently revert the intervening
+    edits (the lost-update hazard the gate exists for). The override's
+    unit is the path — the gate compares per file, the ratified
+    granularity — and its contract mirrors `allow_out_of_scope`'s
+    grammar exactly: per-invocation only (deliberately no config key,
+    per the ratified override contract), re-stated on retry, never
+    carried from a prior attempt. Any drifted path NOT named still
+    refuses. None/empty means no override. Admitting a path means the
+    response's bytes land OVER the moved base — the operator is
+    choosing the response's version of the file deliberately, and the
+    FORCE: log line plus the attempt's `base_drift_overrides`
+    telemetry stamp record exactly that.
 
     `accept_checkpoint_change` (v0.3.28, board 6 session C; cmd_apply/
     cmd_retry --accept-checkpoint-change) admits a blind checkpoint whose
@@ -1256,6 +1323,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         build_telemetry_attempt,
         emit_json_line,
         format_apply_json,
+        format_base_drift_refusal,
         format_checkpoint_stamp_refusal,
         format_dry_run_report,
         format_required_check_refusal,
@@ -1761,6 +1829,162 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # .baleignore match per BALE.md §11 rule 14).
         verify_files_against_manifest(repo, response_dir, manifest)
         log("file presence, sha256, and path safety verified")
+
+        # 8.1 step 17 / §11 row 36 (board 41): the base-drift gate — the
+        # checkpoint provenance verification's pattern one level wider,
+        # and the lost-update guard the whole-file overlay needs: when
+        # the request carries the pack-time `provenance.base_files`
+        # stamp, every changes[] path the stamp covers must still hash
+        # to its stamped sha256 at the target branch's tip. A mismatch
+        # means the base moved between pack and apply — an intervening
+        # edit the overlay would silently revert, which validation can
+        # pass right over — and the gate refuses by default (warn-and-
+        # proceed is the silent-skip bug CLAUDE.md §6 names; ratified).
+        # Comparison is per file over the changes[]∩stamp intersection
+        # only: a path outside the stamp (a file the response creates,
+        # an out-of-forecast admission, an untracked-at-pack base)
+        # compares nothing and never refuses; a stampless request (no
+        # key — pre-feature or hand-rolled) skips the gate entirely,
+        # keeping the feature additive. Sited here — after the
+        # manifest-side verification, before the dry-run exit — so the
+        # dry-run and the real apply run the identical gate once:
+        # manifest-and-git-read-only (resolve_target_branch + rev-parse
+        # + git show), pre-staging, no session-dir stamps, so a refusal
+        # leaves the session open with no git side effects on either
+        # path. --accept-base-drift (per-invocation, per-path,
+        # repeatable; no config key — the --allow-out-of-scope grammar
+        # by pinned constraint) admits exactly the named paths; any
+        # other drifted path still refuses. Bailout and clarification
+        # manifests forked above and never reach this gate (their
+        # changes[] is empty regardless).
+        base_stamp_present, base_stamp = read_request_base_stamp(
+            repo, locked_sid)
+        base_accept_norm = sorted({scope_path(p)
+                                   for p in (accept_base_drift or [])})
+        base_drift_overridden: list[str] = []
+        if base_stamp_present and isinstance(base_stamp, dict):
+            stamped = {scope_path(k): v for k, v in base_stamp.items()
+                       if isinstance(k, str) and isinstance(v, str)}
+            candidates = sorted({
+                scope_path(change["path"])
+                for change in manifest.get("changes", []) or []
+            } & set(stamped))
+            drift_detail: list[dict] = []
+            if candidates:
+                # Read-only target resolution, the dry-run
+                # dangling-checkpoint prediction's precedent: rev-parse
+                # only, no session-dir writes — §8.2's stamping still
+                # owns the durable record on the real path.
+                base_gate_origin = resolve_target_branch(repo, locked_sid)
+                base_gate_sha = git(
+                    ["rev-parse", f"refs/heads/{base_gate_origin}"],
+                    cwd=repo).stdout.strip()
+                for path in candidates:
+                    current = base_tree_sha256(repo, base_gate_sha, path)
+                    if current != stamped[path]:
+                        drift_detail.append({
+                            "path": path,
+                            "stamped_sha256": stamped[path],
+                            "current_sha256": current,
+                        })
+            drifted_paths = [d["path"] for d in drift_detail]
+            base_drift_overridden = [p for p in drifted_paths
+                                     if p in base_accept_norm]
+            base_refused = [p for p in drifted_paths
+                            if p not in base_accept_norm]
+            unused_accept = [p for p in base_accept_norm
+                             if p not in drifted_paths]
+            if unused_accept:
+                # Named but not drifting: harmless (base unmoved, path
+                # not stamped, or not in the change set at all), but
+                # say so — the step-14 unused_allow mirror; a silently
+                # ignored override flag is exactly the surprise the
+                # logging rules exist to prevent.
+                log(f"--accept-base-drift named path(s) with no "
+                    f"matching base drift: {', '.join(unused_accept)} "
+                    f"(no effect)")
+            if base_refused:
+                refused_detail = [d for d in drift_detail
+                                  if d["path"] in base_refused]
+                log(f"[REJECT] base drift (BALE.md §11 row 36): "
+                    f"{len(base_refused)} changes[] path(s) whose base "
+                    f"moved since pack — {', '.join(base_refused)}; "
+                    f"the whole-file overlay would revert the "
+                    f"intervening edits")
+                # A distinct, dispatchable outcome — the step-14
+                # refusal's structure exactly: rendering and the json
+                # line come from bale_report (wiring only here),
+                # telemetry records the attempt (except under
+                # --dry-run, which has no outcome), and the return
+                # keeps the session open, pre-staging, with no git
+                # side effects. The cmd_apply/cmd_retry SystemExit
+                # wrapper never fires (no SystemExit), so the attempt
+                # is not double-recorded as "rejected".
+                telemetry_rel = None
+                if not dry_run:
+                    telemetry_rel = write_telemetry_record(
+                        repo, locked_sid, build_telemetry_attempt(
+                            outcome="base-drift-refused",
+                            command=invoked_by,
+                            tarball=tarball_path.name, manifest=manifest,
+                            scope=session_scope,
+                            overridden_paths=overridden_paths,
+                            required_check_overrides=(
+                                required_check_overridden),
+                            base_drift_overrides=base_drift_overridden,
+                            log_path=f".bale/logs/{locked_sid}.log",
+                        ))
+                print(format_base_drift_refusal(
+                    sid=locked_sid,
+                    drifted=refused_detail,
+                    overridden=base_drift_overridden,
+                    telemetry=telemetry_rel,
+                    dry_run=dry_run,
+                ))
+                if json_mode():
+                    # Emitted on this exit-1 path deliberately, like
+                    # held/scope-drift-refused: an orchestrating
+                    # operator dispatches on the outcome key instead
+                    # of parsing prose.
+                    emit_json_line(format_apply_json(
+                        outcome="base-drift-refused", sid=locked_sid,
+                        log_path=session_log,
+                        telemetry=telemetry_rel,
+                        base_drift={
+                            "drifted_paths": base_refused,
+                            "overridden_paths": base_drift_overridden,
+                            "detail": refused_detail,
+                        },
+                    ))
+                return 1
+            if base_drift_overridden:
+                # force=True: an admitted base drift is an override
+                # event of the same species as --allow-out-of-scope —
+                # the FORCE: journal line is the session log's audit
+                # trail; the telemetry stamp at the terminal action is
+                # the durable copy. The line names what the operator is
+                # choosing: the response's bytes over the moved base.
+                log(f"base drift admitted by --accept-base-drift: "
+                    f"{', '.join(base_drift_overridden)} (the "
+                    f"response's bytes will land over the moved base — "
+                    f"the intervening edits to these paths are "
+                    f"deliberately superseded)", force=True)
+            # No pass-path log line beyond the reads above, matching
+            # steps 13–15: a clean pass adds no output, keeping
+            # accepted-tarball output byte-identical.
+        else:
+            if base_stamp_present:
+                # Malformed value: read_request_base_stamp already
+                # logged the skip in its own vocabulary.
+                pass
+            else:
+                log("request carries no base-drift provenance stamp "
+                    "(hand-rolled, or packed pre-feature); base-drift "
+                    "verification skipped")
+            if base_accept_norm:
+                log(f"--accept-base-drift named path(s) but the request "
+                    f"carries no usable base-drift stamp: "
+                    f"{', '.join(base_accept_norm)} (no effect)")
 
         # --dry-run stops here: every check that doesn't touch the worktree
         # or .bale/ has now run and passed. Report the plan and return before
@@ -2428,6 +2652,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
                     required_check_overrides=required_check_overridden,
+                    base_drift_overrides=base_drift_overridden,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
@@ -2557,6 +2782,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
                     required_check_overrides=required_check_overridden,
+                    base_drift_overrides=base_drift_overridden,
                     validation_state=state,
                     validation_exit_code=exit_code,
                     validation_output=val_output,
@@ -2643,6 +2869,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 scope=session_scope,
                 overridden_paths=overridden_paths,
                 required_check_overrides=required_check_overridden,
+                base_drift_overrides=base_drift_overridden,
                 validation_state=state,
                 validation_exit_code=exit_code,
                 validation_output=val_output,
@@ -2952,6 +3179,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
             accept_checkpoint_change=args.accept_checkpoint_change,
+            accept_base_drift=args.accept_base_drift,
             no_sandbox=args.no_sandbox,
         )
 
@@ -2979,6 +3207,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
             allow_out_of_scope=args.allow_out_of_scope,
             allow_missing_required_check=args.allow_missing_required_check,
             accept_checkpoint_change=args.accept_checkpoint_change,
+            accept_base_drift=args.accept_base_drift,
             no_sandbox=args.no_sandbox,
         )
     except SystemExit as e:

@@ -2309,6 +2309,7 @@ def cmd_retry(args: argparse.Namespace) -> int:
                                   args.allow_missing_required_check),
                               accept_checkpoint_change=(
                                   args.accept_checkpoint_change),
+                              accept_base_drift=args.accept_base_drift,
                               no_sandbox=args.no_sandbox)
     except SystemExit as e:
         record_rejected_attempt(repo, locked_sid, "retry",
@@ -3569,6 +3570,11 @@ def cmd_handoff(args: argparse.Namespace) -> int:
                 repo,
                 sid=new_sid,
                 checkpoint_scope_admitted=checkpoint_scope_admitted,
+                # The base-drift stamp (board 41): handoff is the second
+                # request-building path, so it stamps the same way pack
+                # does — against its reading-plan forecast, the same
+                # value the registry records at persist.
+                forecast=handoff_scope,
             ),
             # Board-33 scope stamp (v0.3.21): the same value persisted
             # to the registry below — one source, never a re-derivation.
@@ -5483,6 +5489,25 @@ def build_parser() -> argparse.ArgumentParser:
              "the ratified override contract.",
     )
     p_apply.add_argument(
+        "--accept-base-drift", action="append", default=None,
+        metavar="PATH", dest="accept_base_drift",
+        help="Admit one changes[] path past the base-drift gate (BALE.md "
+             "§8.1 step 17, §11 row 36) despite its base-tree bytes no "
+             "longer matching the request's pack-time provenance."
+             "base_files stamp — the base moved between pack and apply, "
+             "and the whole-file overlay would revert the intervening "
+             "edits (the lost-update hazard the gate exists for). "
+             "Admitting a path lands the response's bytes OVER the moved "
+             "base, deliberately superseding those edits. Repeat the "
+             "flag per path — mirroring --allow-out-of-scope's grammar; "
+             "any drifted path NOT named still refuses. Per-invocation "
+             "only — deliberately no config key, per the ratified "
+             "override contract. Every effective use is logged "
+             "prominently (FORCE: line in the session log) and the "
+             "admitted paths are stamped into the attempt's "
+             "base_drift_overrides telemetry field.",
+    )
+    p_apply.add_argument(
         "--no-sandbox", action="store_true",
         help="Run the response scripts (apply.sh, the blind checkpoint, "
              "validation.sh) UNCONFINED for this invocation — no "
@@ -5501,16 +5526,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Emit the end-of-run apply report as one line of JSON on "
              "stdout. Keys are a stable contract for downstream tooling: "
              "outcome (applied|held|reverted|bailout|clarification|"
-             "dry-run|scope-drift-refused|required-check-refused), sid, log, "
+             "dry-run|scope-drift-refused|required-check-refused|"
+             "base-drift-refused), sid, log, "
              "verdict (validation.sh state/exit_code/claims; null when it "
              "did not run), merge (walkthrough action/merged/tag/"
              "origin_branch; null when no walkthrough ran), drift (the "
              "own-scope refusal detail; null otherwise), required_checks "
-             "(the required-check refusal detail; null otherwise). Stream "
+             "(the required-check refusal detail; null otherwise), "
+             "base_drift (the base-drift refusal detail; null "
+             "otherwise). Stream "
              "discipline: '[bale] ' lines, prompts, and the human banners "
              "go to stderr; stdout carries exactly the JSON line on the "
              "reporting paths — exit 0, plus the held/reverted/"
-             "scope-drift-refused/required-check-refused exit-1 outcomes. "
+             "scope-drift-refused/required-check-refused/base-drift-"
+             "refused exit-1 outcomes. "
              "Error paths exit "
              "through stderr with nothing on "
              "stdout. Pair with --no-interact for scripted runs. No effect "
@@ -5617,6 +5646,23 @@ def build_parser() -> argparse.ArgumentParser:
              "stamp_matched: false. Per-invocation only — no config "
              "key, and the override is never carried forward from a "
              "failed apply attempt: a retry that needs it re-states it.",
+    )
+    p_retry.add_argument(
+        "--accept-base-drift", action="append", default=None,
+        metavar="PATH", dest="accept_base_drift",
+        help="Admit one changes[] path past the base-drift gate — same "
+             "semantics as `bale apply --accept-base-drift` (retry "
+             "reruns the same pipeline): the response's bytes land over "
+             "the moved base for exactly the named paths, FORCE-logged "
+             "and stamped into the attempt's base_drift_overrides "
+             "telemetry field. Repeat the flag per path; any drifted "
+             "path NOT named still refuses. Per-invocation only — no "
+             "config key, and the override is never carried forward "
+             "from a failed apply attempt: a retry that needs it "
+             "re-states it. Note the repack alternative: a fresh `bale "
+             "pack` restamps against the current base by construction, "
+             "so regenerating the response against today's tree clears "
+             "the drift without any override.",
     )
     p_retry.add_argument(
         "--no-sandbox", action="store_true",

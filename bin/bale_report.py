@@ -761,6 +761,81 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     )
 
 
+def format_base_drift_refusal(*, sid: str, drifted: list,
+                              overridden: list,
+                              telemetry: Optional[str],
+                              dry_run: bool = False) -> str:
+    """Render the base-drift refusal (BALE.md §8.1 step 17, §11 row 36;
+    board 41).
+
+    The human face of the lost-update guard: the request's pack-time
+    `provenance.base_files` stamp no longer matches the base-tree bytes
+    for at least one of the response's changes[] paths — the base moved
+    between pack and apply, and the whole-file overlay would silently
+    revert the intervening edits, a breakage validation can pass right
+    over. `drifted` is a list of per-path detail dicts
+    ({path, stamped_sha256, current_sha256}); `current_sha256` is None
+    when the file no longer exists at the base tree at all (deleted or
+    renamed since pack), which the row renders in words rather than as
+    a missing hash. The refusal reads as a decision point, mirroring
+    the scope-drift renderer: the mechanics (gate, flag, json
+    `base_drift` key, BASE-DRIFT-REFUSED status, telemetry outcome)
+    are the scope-drift gate's byte-for-byte, and the session stays
+    open, which is why every remedy is a re-run rather than a
+    repack-from-scratch — though the repack IS one remedy here, and a
+    structurally clean one: a fresh pack restamps against the current
+    base by construction.
+
+    Follows the module's summary-block-last rule trivially (the block
+    is the whole output) and the pure-string-assembler rule: builds a
+    string, prints nothing; the json twin is format_apply_json's
+    `base_drift` key, not this renderer. Under `dry_run` the telemetry
+    row reports that no record was written (a dry-run has no outcome —
+    BALE.md §8.9) and a row notes the prediction.
+    """
+    rows: list[tuple[str, str]] = []
+    for entry in drifted:
+        current = entry.get("current_sha256")
+        current_desc = (f"now {current[:12]}" if current
+                        else "missing at the base tree (deleted or "
+                             "renamed since pack)")
+        rows.append((
+            "base moved",
+            f"{entry.get('path')} — stamped "
+            f"{str(entry.get('stamped_sha256'))[:12]} at pack, "
+            f"{current_desc}",
+        ))
+    if overridden:
+        rows.append(("admitted by flag", ", ".join(overridden)))
+    if dry_run:
+        rows.append(("dry-run", "a real apply would refuse the same way"))
+        rows.append(("telemetry", "not recorded (dry-run has no outcome)"))
+    else:
+        rows.append(("telemetry",
+                     f"recorded {telemetry}" if telemetry
+                     else "write failed — see log"))
+    trailer = [
+        "The base moved under this session: the named files changed on "
+        "the target branch after the request was packed, and the "
+        "response's whole-file mirror was built against the old bytes — "
+        "applying it would revert those intervening edits. Nothing was "
+        "staged or committed, and the session stays open. Either:",
+        "  - regenerate the response against the current tree (a fresh "
+        "`bale pack` restamps against today's base by construction), "
+        "recommended when the intervening edits must survive,",
+        "  - or land the response's bytes over the moved base "
+        "deliberately, superseding those edits for exactly the named "
+        "paths: `bale apply <tarball> --accept-base-drift <path>` "
+        "(repeat per path; same flag on `bale retry`).",
+    ]
+    return format_summary_block(
+        rows,
+        status="BASE-DRIFT-REFUSED",
+        sid=sid,
+        trailer=trailer,
+    )
+
+
 def format_required_check_refusal(*, sid: str, required: list,
                                   declared: list, missing: list,
                                   overridden: list,
@@ -1228,6 +1303,7 @@ def format_apply_json(
     drift: Optional[dict] = None,
     checkpoint: Optional[dict] = None,
     required_checks: Optional[dict] = None,
+    base_drift: Optional[dict] = None,
     archive: Optional[dict] = None,
     sweep: Optional[dict] = None,
 ) -> str:
@@ -1265,6 +1341,17 @@ def format_apply_json(
                            dispatchable posture as the drift refusal).
                            Emitted under --dry-run too when the plan
                            would refuse.
+               "base-drift-refused"
+                           the base-drift gate refused (BALE.md §8.1
+                           step 17, §11 row 36; board 41): a changes[]
+                           path covered by the request's pack-time
+                           provenance.base_files stamp no longer hashes
+                           to its stamped sha256 at the target branch's
+                           tip — the base moved, and the whole-file
+                           overlay would revert the intervening edits
+                           (exit 1, session open — same dispatchable
+                           posture as the drift refusal). Emitted under
+                           --dry-run too when the plan would refuse.
                Together with pack's "packed" these are the whole outcome
                vocabulary; extend it here, never with caller-side literals.
       sid      the session id the response was applied against.
@@ -1307,6 +1394,18 @@ def format_apply_json(
                  overridden  names a partial
                              --allow-missing-required-check did admit
                              on this invocation
+      base_drift (board 41, additive) the base-drift refusal detail on
+               the base-drift-refused outcome, null on every other. An
+               object:
+                 drifted_paths     the refused changes[] paths whose
+                                   base moved and no override admitted
+                 overridden_paths  paths a partial --accept-base-drift
+                                   did admit on this invocation
+                 detail            per-path objects {path,
+                                   stamped_sha256, current_sha256} for
+                                   the refused paths; current_sha256 is
+                                   null when the file no longer exists
+                                   at the base tree
       archive  (v0.3.30, additive) the response-artifact archival result
                ([apply].archive_dir, BALE.md §8.8) — an object on the
                applied outcome when the key is configured, null on every
@@ -1419,6 +1518,10 @@ def format_apply_json(
         # (BALE.md §8.1 step 15) — object on outcome=
         # required-check-refused, null on every other outcome.
         "required_checks": required_checks,
+        # board 41, additive: the base-drift refusal detail (BALE.md
+        # §8.1 step 17) — object on outcome=base-drift-refused, null on
+        # every other outcome.
+        "base_drift": base_drift,
         # v0.3.30, additive: the response-artifact archival result
         # ([apply].archive_dir, BALE.md §8.8) — object on the applied
         # outcome when the key is configured, null otherwise (semantics
@@ -2362,6 +2465,7 @@ def build_telemetry_attempt(
     log_path: Optional[str] = None,
     overridden_paths: Optional[list] = None,
     required_check_overrides: Optional[list] = None,
+    base_drift_overrides: Optional[list] = None,
     closure_reason: Optional[str] = None,
     diagnostics: Optional[dict] = None,
     clarification: Optional[dict] = None,
@@ -2416,6 +2520,19 @@ def build_telemetry_attempt(
     the refused names themselves are recoverable from the refusal's
     session-log line, and the manifest's declared list is on the
     attempt via the promoted change surfaces.
+
+    `base_drift_overrides` (board 41) is the overridden_paths mirror
+    for the base-drift gate: the changes[] PATHS a per-invocation
+    `--accept-base-drift` admitted past the gate on this attempt — the
+    operator's deliberate choice to land the response's bytes over a
+    moved base, superseding the intervening edits to exactly those
+    paths. Bale-computed, always a list: empty means no override was in
+    play (including every attempt written before the field landed,
+    where the key is absent). On a `base-drift-refused` attempt it
+    carries what a PARTIAL override admitted while other drifted paths
+    still refused; the refused paths themselves are recoverable from
+    the refusal's session-log line and report block, and the drifted
+    hashes live there too.
 
     `closure_reason` (v0.3.16) stamps why a session closed on unlock and
     revert attempts — one of CLOSURE_REASONS, or None. The stamping
@@ -2509,6 +2626,9 @@ def build_telemetry_attempt(
         "scope": list(scope or []),
         "overridden_paths": list(overridden_paths or []),
         "required_check_overrides": list(required_check_overrides or []),
+        # The board-41 base-drift override stamp (docstring above owns
+        # the semantics) — unconditional, the overridden_paths posture.
+        "base_drift_overrides": list(base_drift_overrides or []),
         # The v0.4.5 sandbox stamps (board 10 S2; docstring above owns
         # the semantics) — unconditional, the overridden_paths posture.
         "sandbox_escaped": bool(sandbox_escaped),
@@ -2945,6 +3065,8 @@ def format_stats_json(stats: dict) -> str:
                   empty_claims_validated_attempts,
                   required_check_refused_attempts,
                   required_check_override_attempts,
+                  base_drift_refused_attempts,
+                  base_drift_override_attempts,
                   forecast_attempts, forecast_drift_attempts,
                   forecast_drift_rate,
                   forecast_drift_paths, forecast_admitted_paths,
@@ -2981,7 +3103,13 @@ def format_stats_json(stats: dict) -> str:
                 a non-empty required_check_overrides list — both
                 counts beside the drift refusal/override pair, and
                 like drift's, override incidence is a count, not a
-                rate. The forecast keys (v0.4.2, ADR-0015 board 13
+                rate. The base-drift keys (board 41, additive) mirror
+                the pair one gate over: base_drift_refused_attempts
+                counts response attempts with outcome
+                base-drift-refused (the step-17 gate), and
+                base_drift_override_attempts counts attempts with a
+                non-empty base_drift_overrides list — override
+                incidence a count, not a rate, per the same precedent. The forecast keys (v0.4.2, ADR-0015 board 13
                 session B, additive) read post-epoch response attempts
                 only (scope_kind "write-forecast"; key absence is
                 pre-epoch and never enters these denominators):
@@ -3033,7 +3161,8 @@ def format_stats_json(stats: dict) -> str:
                 the level 1 drill: the sorted session ids composing
                 each per-class anomaly count (held, checks_disagree,
                 unparsed, drift_refused, rejected,
-                required_check_refused, checkpoint_hold,
+                required_check_refused, base_drift_refused,
+                checkpoint_hold,
                 checkpoint_catch, forecast_drift, bailout,
                 empty_claims), sid-granular, emitted beside the counts
                 they compose. Semantics in bin/bale_stats.py's
@@ -3191,6 +3320,16 @@ def format_stats_report(stats: dict) -> str:
             if row["required_check_override_attempts"]:
                 details.append(f"required-check overrides "
                                f"{row['required_check_override_attempts']}")
+            # The step-17 gate's pair (board 41): counts beside the
+            # required-check pair above — same species, different
+            # gate — rendered only when non-zero like every other
+            # extras entry.
+            if row["base_drift_refused_attempts"]:
+                details.append(f"base-drift refused "
+                               f"{row['base_drift_refused_attempts']}")
+            if row["base_drift_override_attempts"]:
+                details.append(f"base-drift overrides "
+                               f"{row['base_drift_override_attempts']}")
             if row["forecast_attempts"]:
                 # The ADR-0015 forecast rows (board 13 session B):
                 # rendered once the class has post-epoch attempts, all

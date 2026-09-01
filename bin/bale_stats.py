@@ -95,6 +95,12 @@ CLOSED_OUTCOMES = frozenset({
 # (v0.3.29, _class_row); this membership line preceded them by contract.
 IN_FLIGHT_OUTCOMES = frozenset({
     "held", "scope-drift-refused", "rejected", "required-check-refused",
+    # base-drift-refused (board 41): the step-17 refusal keeps its
+    # session open exactly as the drift and required-check refusals do
+    # — pre-staging, no git side effects, superseded by a later
+    # attempt — so a session whose latest outcome is this refusal is
+    # in-flight, never misclassed into the closure mix.
+    "base-drift-refused",
     # opened (board 63 write side, v0.4.21; this membership is the board
     # 44 read half): the record was created at session open and no close
     # or apply event has landed yet. In-flight by the schema's own
@@ -646,6 +652,14 @@ def _class_row(sessions: list[dict]) -> dict:
     rows, mirroring drift's refusal/override pair; override incidence
     is a count, not a rate, per the drift precedent.
 
+    Base-drift rows (board 41): the refusal count is the response
+    attempts whose outcome is `base-drift-refused` (the step-17 gate —
+    the base moved under the session between pack and apply), and the
+    override count is the attempts carrying a non-empty
+    `base_drift_overrides` list — both counts beside the drift and
+    required-check pairs, same species, different gate; override
+    incidence is a count, not a rate, per the drift precedent.
+
     Linkage rollup (board 65): the `linkage` sub-dict counts the
     class's attempts carrying a `feedback.mechanical.linkage` stamp —
     the self-reported record that the session went through a probe or
@@ -743,7 +757,8 @@ def _class_row(sessions: list[dict]) -> dict:
     sorted — the sets were computed on the way to the counts already
     and are now emitted, so an anomalous rate drills to its sids with
     one jq. Keys mirror their counts: held, checks_disagree, unparsed,
-    drift_refused, rejected, required_check_refused, checkpoint_hold,
+    drift_refused, rejected, required_check_refused,
+    base_drift_refused, checkpoint_hold,
     checkpoint_catch, forecast_drift, bailout, empty_claims. A sid
     appears once per bucket however many attempts put it there;
     non-anomalous counts (applied closures, agreeing checks) carry no
@@ -759,6 +774,8 @@ def _class_row(sessions: list[dict]) -> dict:
     unparsed_validated = 0
     held_attempts = 0
     drift_refused_attempts = 0
+    base_drift_refused_attempts = 0
+    base_drift_override_attempts = 0
     override_attempts = 0
     rejected_attempts = 0
     checkpointed_attempts = 0
@@ -787,7 +804,8 @@ def _class_row(sessions: list[dict]) -> dict:
     basis_agree: dict[str, int] = {}
     members: dict[str, set] = {key: set() for key in (
         "held", "checks_disagree", "unparsed", "drift_refused",
-        "rejected", "required_check_refused", "checkpoint_hold",
+        "rejected", "required_check_refused", "base_drift_refused",
+        "checkpoint_hold",
         "checkpoint_catch", "forecast_drift", "bailout", "empty_claims",
     )}
 
@@ -830,6 +848,12 @@ def _class_row(sessions: list[dict]) -> dict:
                 # drift refusals, same species, different gate.
                 required_check_refused_attempts += 1
                 members["required_check_refused"].add(sid)
+            elif outcome == "base-drift-refused":
+                # The step-17 base-drift gate's refusal (board 41) — a
+                # count beside the drift refusals, same species,
+                # different gate: the base moved under the session.
+                base_drift_refused_attempts += 1
+                members["base_drift_refused"].add(sid)
             if attempt.get("overridden_paths"):
                 override_attempts += 1
             if attempt.get("required_check_overrides"):
@@ -838,6 +862,12 @@ def _class_row(sessions: list[dict]) -> dict:
                 # names). Absent on pre-session-B records; a truthy
                 # check reads absence and [] the same honest way.
                 required_check_override_attempts += 1
+            if attempt.get("base_drift_overrides"):
+                # Effective --accept-base-drift use (board 41) — the
+                # overridden_paths mirror in the gate's own unit
+                # (per-file paths). Absent on pre-board-41 records; a
+                # truthy check reads absence and [] the same honest way.
+                base_drift_override_attempts += 1
             if attempt.get("scope_kind") == FORECAST_SCOPE_KIND:
                 # The write-forecast epoch (ADR-0015; docstring above
                 # carries every definition). Post-epoch only: key
@@ -1009,6 +1039,8 @@ def _class_row(sessions: list[dict]) -> dict:
                                        checkpointed_attempts),
         "required_check_refused_attempts": required_check_refused_attempts,
         "required_check_override_attempts": required_check_override_attempts,
+        "base_drift_refused_attempts": base_drift_refused_attempts,
+        "base_drift_override_attempts": base_drift_override_attempts,
         "forecast_attempts": forecast_attempts,
         "forecast_drift_attempts": forecast_drift_attempts,
         "forecast_drift_rate": _rate(forecast_drift_attempts,
@@ -1448,6 +1480,8 @@ def _dossier_attempt(attempt: dict) -> dict:
         "overridden_paths": list(attempt.get("overridden_paths") or []),
         "required_check_overrides":
             list(attempt.get("required_check_overrides") or []),
+        "base_drift_overrides":
+            list(attempt.get("base_drift_overrides") or []),
         "forecast_drift_paths": drift_paths,
         "validation": validation_view,
         "checkpoint": (checkpoint if isinstance(checkpoint, dict)
