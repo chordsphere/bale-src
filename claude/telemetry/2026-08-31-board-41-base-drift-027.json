@@ -1,0 +1,177 @@
+{
+  "record_version": 1,
+  "session_id": "2026-08-31-board-41-base-drift-027",
+  "created_at": "2026-08-31T23:59:38+00:00",
+  "attempts": [
+    {
+      "at": "2026-08-31T23:59:38+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-08-31-board-41-base-drift-027.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-01T00:47:06+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-08-31-board-41-base-drift-027.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests/test_base_drift.py (default gate)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full suite no-regression vs pre-existing baseline (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "base-drift surface assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests/test_base_drift.py (default gate)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full suite no-regression vs pre-existing baseline (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "base-drift surface assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "schemas/request-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_base_drift.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.22",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-08-31-board-41-base-drift-027.sh",
+              "sha256": "f5d0174e3905c9fda04162ba87e31f81a2300fa0f247f574602faf6c5e2c650a"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the landing version is 0.4.23 (bin/VERSION bumped; the schema-purge guard forbids board citations in schemas, so the new schema descriptions cite the version string)",
+            "handoff, as the second request-building path, should stamp base_files against its reading-plan forecast like pack does"
+          ],
+          "judgment_calls": [
+            "no-base-bytes forecast paths are ABSENT from the stamp (no null sentinel); the gate compares the changes/stamp intersection only, so absence structurally never refuses",
+            "the stamp hashes committed HEAD bytes (committed-is-ratified, the checkpoint stamp's rule), accepting the same committed-vs-shipped residue the checkpoint carries",
+            "a stamped file missing at the base tree reads as drift and refuses; the report renders that case in words",
+            "the gate sits after file verification and before the dry-run exit so dry-run and real apply share one code path (no duplicated dry-run prediction)",
+            "validation's --slow check judges the full suite as no-regression against the 15 enumerated pre-existing failures rather than absolute pass"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-08-31-board-41-base-drift-027.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-08-31-board-41-base-drift-027.sh",
+          "sha256": "f5d0174e3905c9fda04162ba87e31f81a2300fa0f247f574602faf6c5e2c650a"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-01T00:47:06+00:00",
+  "outcome": "applied"
+}
