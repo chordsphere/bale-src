@@ -321,6 +321,16 @@ CLAIM_VALUES = ("pass", "fail", "untested", "unknown")
 # manifest's questions rows); a third spelling anywhere is drift.
 ESCALATION_PRIORITIES = ("blocking", "batched")
 
+# The clarification-origin vocabulary (v0.4.24): which gap class put a
+# question on the clarification path — an intent gap (the canonical
+# TARBALL.md §5.9.1 triggers), or an environment gap asked here because
+# the request forbade probing (expects_probe: no, TARBALL.md §3.3).
+# Both origins still indict packing; the tag splits the signal into two
+# different fixes (brief/decomposition vs include completeness). One
+# home, mirrored into the response manifest's questions-row enum spot;
+# a third spelling anywhere is drift.
+CLARIFICATION_ORIGINS = ("intent-gap", "probe-forbidden-environment")
+
 # The exchange record's two closed vocabularies and its version pin
 # (v0.4.18, ADR-0017; exchange-record.schema.json is the one home for the
 # shape). `from` names the side that wrote the record — role language
@@ -395,6 +405,17 @@ def _priority_check(v) -> str | None:
         return (f"{v!r} is not one of {list(ESCALATION_PRIORITIES)} — "
                 f"the escalation priority vocabulary "
                 f"(orchestration.md section 8's two classes) is closed, "
+                f"wherever the key appears")
+    return None
+
+
+def _origin_check(v) -> str | None:
+    """Closed-vocabulary checker for a clarification question's `origin`
+    key (v0.4.24)."""
+    if v not in CLARIFICATION_ORIGINS:
+        return (f"{v!r} is not one of {list(CLARIFICATION_ORIGINS)} — "
+                f"the clarification origin vocabulary is closed (omit the "
+                f"key on a row that predates it, never invent a class), "
                 f"wherever the key appears")
     return None
 
@@ -698,14 +719,17 @@ def validate_clarification_questions(rows: list) -> list:
     validate_telemetry_record: no bale process, no __main__.
 
     Rows are the legacy four-field shape (question, context,
-    default_assumption, why_blocked) or the v0.4.7 extended shape
+    default_assumption, why_blocked), the v0.4.7 extended shape
     adding any of options (non-empty when present), recommendation,
-    and priority (enum exactly 'blocking' | 'batched') — everything
-    additive, so every legacy row keeps validating. The priority
-    vocabulary is additionally enforced row-wide by the closed-
-    vocabulary walk (its docstring for why), matching
-    validate_escalation_record's discipline so the two surfaces give
-    one verdict for an invented class.
+    and priority (enum exactly 'blocking' | 'batched'), or the
+    v0.4.24 shape additionally admitting origin (enum exactly
+    'intent-gap' | 'probe-forbidden-environment' — which gap class
+    put the question here) — everything additive, so every legacy
+    row keeps validating. The priority and origin vocabularies are
+    additionally enforced row-wide by the closed-vocabulary walk
+    (its docstring for why), matching validate_escalation_record's
+    discipline so the two surfaces give one verdict for an invented
+    class.
 
     A non-list argument is reported as an error, not raised; error
     strings carry questions[i]-prefixed paths. A missing or corrupt
@@ -719,7 +743,8 @@ def validate_clarification_questions(rows: list) -> list:
     errors: list[str] = []
     _validate_against_schema(rows, questions_schema, "questions", errors)
     _walk_closed_vocabularies(rows, "questions",
-                              {"priority": _priority_check}, errors)
+                              {"priority": _priority_check,
+                               "origin": _origin_check}, errors)
     return errors
 
 
