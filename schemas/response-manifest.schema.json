@@ -153,6 +153,11 @@
             "type": "string",
             "enum": ["blocking", "batched"],
             "description": "Optional (v0.4.7): PLANNER.md §15's two classes — only critical-path blockers interrupt; everything else batches. The vocabulary is CLOSED; validate_clarification_questions (bin/bale_validate.py) additionally enforces it row-wide at any depth."
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["intent-gap", "probe-forbidden-environment"],
+            "description": "Optional (v0.4.24): which gap class put this question on the clarification path — 'intent-gap' for the canonical ambiguity/contradiction/untransported-decision triggers (TARBALL.md section 5.9.1), or 'probe-forbidden-environment' for an environment gap asked here because the request set expects_probe: no and the probe recourse was unavailable (TARBALL.md section 3.3). Both origins still indict packing — a probe-forbidden environment gap is an include-completeness failure under a probe ban — so the tag does not de-noise the packing signal; it splits it into two different fixes (brief/decomposition vs include completeness). The vocabulary is CLOSED; validate_clarification_questions (bin/bale_validate.py) additionally enforces it row-wide at any depth, the priority discipline applied again. Legacy rows without this key keep validating."
           }
         }
       }
@@ -298,6 +303,11 @@
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
               "description": "Files or docs the session wanted but the request did not include — packing signal for the planner, one path or description per entry."
+            },
+            "docs_read": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Optional (v0.4.24): the docs and sections the session actually read, one doc or doc-section reference per entry (e.g. 'TARBALL.md sections 1, 2, 5, 7'). Self-report, weighted like everything else in this stream — the lint checks shape only, never content, and no mechanism attests the reading happened. Additive and OPTIONAL, so every pre-v0.4.24 manifest keeps validating and omission means the session reported nothing, never that it read nothing."
             },
             "compaction_occurred": {
               "type": "object",
