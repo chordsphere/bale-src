@@ -1,0 +1,263 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-01-board-42-telemetry-fields-003",
+  "created_at": "2026-09-01T12:18:05+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-01T12:18:05+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-01-board-42-telemetry-fields-003.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-01T12:34:33+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (46).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "bin/bale_validate.py",
+        "bin/VERSION",
+        "tools/response_lint.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.23",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-01-board-42-telemetry-fields-003.sh",
+              "sha256": "dbea71f62a9a29a00a51fc47cb52c620cc31474e21b6138dd0e75267783fb2e8"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Rider home: the telemetry schema's description, not the pipeline doc \u2014 the constraint offered either, and the description is the surface that already enumerates every other writer epoch (one home). Wording kept inside the self-containment guard's deny tables for the install-shipped schema group.",
+            "origin is enforced on both surfaces mirroring priority exactly: the schema's named enum spot plus row-wide closed-vocabulary walk registration in validate_clarification_questions, with CLARIFICATION_ORIGINS as the one-home constant; null origin rejects (omit the key on pre-vocabulary rows), the claim_basis asymmetry applied again.",
+            "No bale stats read side for either field: write-only at birth per the established deferral precedent, and docs_read's named reader is out of this session's scope. Recorded as a deliberate stop in notes.md per the brief.",
+            "This response's own feedback block carries no docs_read entry: the request-injected lint validates against the pre-change embedded schema (additionalProperties: false on self_reported), so a docs_read key here would fail the very lint that fills the mechanical stream. The equivalent reading account is in notes.md; the field is usable from the next request packed against this landing."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tools/response_lint.py",
+              "why": "The vendored RESPONSE_MANIFEST_SCHEMA_JSON embed must be refreshed in the same change as its source schema: tests/test_schema_embeds.py and validate.sh both assert embed/source JSON-equality, so shipping the schema edit without the embed refresh fails the suite this response's own validation runs. The write forecast (BALE.md, bin, schemas, tests) could not have named it without predicting the guard."
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-42-telemetry-fields-003.log"
+    },
+    {
+      "at": "2026-09-01T12:40:21+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (46).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "wave-1 suite (tests/test_telemetry_fields_wave1.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "version assertion (bin/VERSION is 0.4.24; bale --version reads it)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "wave-1 suite (tests/test_telemetry_fields_wave1.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test suite (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version assertion (bin/VERSION is 0.4.24; bale --version reads it)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "schemas",
+        "tests"
+      ],
+      "overridden_paths": [
+        "tools/response_lint.py"
+      ],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "bin/bale_validate.py",
+        "bin/VERSION",
+        "tools/response_lint.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.23",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-01-board-42-telemetry-fields-003.sh",
+              "sha256": "dbea71f62a9a29a00a51fc47cb52c620cc31474e21b6138dd0e75267783fb2e8"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic), Claude Fable 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Rider home: the telemetry schema's description, not the pipeline doc \u2014 the constraint offered either, and the description is the surface that already enumerates every other writer epoch (one home). Wording kept inside the self-containment guard's deny tables for the install-shipped schema group.",
+            "origin is enforced on both surfaces mirroring priority exactly: the schema's named enum spot plus row-wide closed-vocabulary walk registration in validate_clarification_questions, with CLARIFICATION_ORIGINS as the one-home constant; null origin rejects (omit the key on pre-vocabulary rows), the claim_basis asymmetry applied again.",
+            "No bale stats read side for either field: write-only at birth per the established deferral precedent, and docs_read's named reader is out of this session's scope. Recorded as a deliberate stop in notes.md per the brief.",
+            "This response's own feedback block carries no docs_read entry: the request-injected lint validates against the pre-change embedded schema (additionalProperties: false on self_reported), so a docs_read key here would fail the very lint that fills the mechanical stream. The equivalent reading account is in notes.md; the field is usable from the next request packed against this landing."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tools/response_lint.py",
+              "why": "The vendored RESPONSE_MANIFEST_SCHEMA_JSON embed must be refreshed in the same change as its source schema: tests/test_schema_embeds.py and validate.sh both assert embed/source JSON-equality, so shipping the schema edit without the embed refresh fails the suite this response's own validation runs. The write forecast (BALE.md, bin, schemas, tests) could not have named it without predicting the guard."
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-42-telemetry-fields-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-01-board-42-telemetry-fields-003.sh",
+          "sha256": "dbea71f62a9a29a00a51fc47cb52c620cc31474e21b6138dd0e75267783fb2e8"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-01T12:40:21+00:00",
+  "outcome": "applied"
+}
