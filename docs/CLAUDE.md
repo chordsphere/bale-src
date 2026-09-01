@@ -42,10 +42,17 @@ are global — bale injects all five into every request from its own
 installation. Claude does not modify these in response tarballs;
 they evolve only via bale sessions targeting the bale tool's own
 repository.
-The five injected docs are self-contained and cite only one another
-— never a project-local doc — because they travel to every project,
-and a pointer into any one project's local docs would dangle
-everywhere else.
+The reachability model, stated once here: every request carries
+these five docs plus the two request-carried tools,
+`tools/craft_response.py` and `tools/response_lint.py`; and
+wherever a bale install exists — a probe away — `bin/`, `schemas/`,
+and `tools/` plus `validate.sh` are reachable too. Nothing else
+travels: bale's own repo-local documentation and any project's
+local docs are unreachable from other projects by design. That is
+why the five docs and the two tools are self-contained — they cite
+only one another, install-shipped paths (`bin/`, `schemas/`,
+`tools/`), and bale's own verbs; a pointer at anything else would
+dangle everywhere except its home repo.
 `INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs, and schemas are
 project-specific. Bale includes whatever the user names; nothing
 is auto-detected. Drill further into project docs only when the

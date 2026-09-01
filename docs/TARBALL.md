@@ -617,11 +617,11 @@ have its own fresh `session_id` (same slug, new date+NNN), and its
 
 #### 5.6.3 Apply-time UX (moved)
 
-Moved to the bale tool's own design documentation — the apply-time
-behavior is a contract on the bale implementation, not on the
-worker, and nothing that binds response authoring left this file.
-This section number is kept so older cross-references stay
-resolvable.
+Moved out of this contract, to be maintained beside the bale
+implementation itself — the apply-time behavior is a contract on
+the bale tool, not on the worker, and nothing that binds response
+authoring left this file. This section number is kept so older
+cross-references stay resolvable.
 
 ### 5.7 handoff.md (required in bailout responses)
 
@@ -907,9 +907,9 @@ names the fields and stops there.
 
 #### 5.9.3 Apply-time UX (moved)
 
-Moved to the bale tool's own design documentation — the apply-time
-ingest and the thread it opens are contracts on the bale
-implementation, not on the worker; the worker-facing consequence
+Moved out of this contract, to be maintained beside the bale
+implementation itself — the apply-time ingest and the thread it
+opens are contracts on the bale implementation, not on the worker; the worker-facing consequence
 (the session suspends and continues to a normal response) stays in
 §5.9's own prose and §5.9.4. This section number is kept so older
 cross-references stay resolvable.
@@ -1374,12 +1374,12 @@ or a packing behavior:
 | `--checkpoint-file PATH` | Delivers the planner-authored blind checkpoint (§7) for a project that pins one: bale commits the file's bytes at the project's configured per-session checkpoint path and proceeds with the pack in the same invocation. The bytes are CRLF-normalized at read — every CRLF replaced by LF, bare CR never touched — before the commit, the echoed sha256, and the provenance stamp, so the committed oracle and every published hash are over LF-normalized bytes and a CRLF-mangled delivery commits as the LF oracle the planner published; everything downstream of the commit hashes and executes committed bytes byte-exact, unchanged. A relative PATH resolves exactly like `--readme-file` (cwd first, then each configured search directory in order; an absolute path bypasses the search), and a missing, unreadable, or empty file fails loudly, same posture. Idempotent when the resolved path is already committed with identical bytes — compared after normalization, so LF and CRLF twins of one oracle are the same delivery (the re-run of an aborted pack); differing bytes refuse loudly — the flag never silently replaces a committed checkpoint. Contradicts `--read-only` at arg-parse time: a read-only pack's empty write forecast waives the checkpoint requirement — the session can land nothing, so there is nothing for a checkpoint to grade and nothing to install. |
 | `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
 | `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
-| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; the guard's TTY/piped split is covered in the bale tool's own documentation. |
+| `--no-readme` | Packs with no README, explicitly — the acknowledgment the no-brief guard demands when neither the wizard nor `--readme-file` supplies prose context; without it, an unacknowledged README omission warns and proceeds on a TTY and refuses when stdin is piped — automation never gets the silent omission. |
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones. |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by. On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean; full semantics in the bale tool's own documentation. |
-| `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them; full flow in the bale tool's own documentation. |
+| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean. |
+| `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
 
@@ -1442,8 +1442,12 @@ delivers, never authors.
 bundle is a single planner-emitted file — reserved filename suffix
 `.bale-bundle` — packaging a session's brief, its blind checkpoint
 (§7), and its full pack invocation, so the operator saves one file
-and pastes one emitted line; the format and its pack-side mechanics
-live in the bale tool's own documentation. Two worker-facing rules
+and pastes one emitted line; the format's mechanical home is
+`schemas/bundle-manifest.schema.json` (shipped with every install),
+its emitter is the request-carried crafter
+(`tools/craft_response.py --bundle`), and `bale open` validates the
+bundle manifest gate-first on the operator's machine — no surface
+outside the install is needed. Two worker-facing rules
 follow. First, because the bundle carries the checkpoint, it is
 structurally invisible to workers: bale auto-excludes every
 `.bale-bundle` file from shipped context with a loud drop line, an

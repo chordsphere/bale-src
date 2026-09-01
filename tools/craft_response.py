@@ -94,8 +94,9 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   skips. The key's future config-side carrier (bin/bale_config.py)
   must land the same spelling: `[probe] clipboard_command`;
 
-- (bundle; the format's one home is the bale tool's own
-  documentation) `--bundle STEM` assembles a planner bundle — the
+- (bundle; the format's mechanical home is
+  schemas/bundle-manifest.schema.json, shipped with every install)
+  `--bundle STEM` assembles a planner bundle — the
   desk-side emission half, so the authoring desk never hand-composes
   argv or hash blocks. It writes `<STEM>{BUNDLE_SUFFIX}` (a gzipped
   tar, members flat at the archive root: `bundle.json` plus exactly
