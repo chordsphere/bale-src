@@ -570,6 +570,24 @@ The following flags apply across multiple commands:
   and the override is never carried forward from the failed attempt
   — the operator re-states it, exactly as with
   `--allow-out-of-scope`.
+- `--accept-base-drift <path>` — apply-scoped, repeatable (one path
+  per flag; board 41): admit exactly the named `changes[]` path(s)
+  past the base-drift gate (§8.1 step 17, §11 row 36) despite their
+  base-tree bytes no longer matching the request's pack-time
+  `provenance.base_files` stamp — the base moved between pack and
+  apply, and admitting a path lands the response's bytes over it,
+  deliberately superseding the intervening edits; any other drifted
+  path still refuses. The override's unit is the path — the gate
+  compares per file, the ratified granularity — and the grammar
+  mirrors `--allow-out-of-scope` by pinned constraint.
+  Per-invocation only — there is deliberately no config key, per the
+  ratified override contract — and every effective use is logged
+  prominently (FORCE: line) and stamped into the session's telemetry
+  record as `base_drift_overrides` (§8.9). `bale retry` takes the
+  same flag: the gate reruns on retry and the override is never
+  carried forward from the failed attempt — the operator re-states
+  it; and the structurally clean alternative is a repack, which
+  restamps against the current base by construction.
 - `--no-sandbox` — apply-scoped (v0.4.4, board 10 S1; ADR-0016):
   run the three response scripts (apply.sh, the blind checkpoint,
   validation.sh) unconfined for this invocation — no namespace
@@ -1507,7 +1525,24 @@ The inputs:
   pack under a `{sid}`-bearing base stamps explicit null here plus
   the additive key `checkpoint_waived: "read-only"` — the §8.5
   read-only waiver's durable record, distinguishing waived from
-  unconfigured — plus
+  unconfigured; and, since board 41 — the checkpoint stamp's pattern
+  one level wider — the **base-drift stamp**: `provenance.base_files`
+  carries per-file sha256s of the resolved write forecast's committed
+  bytes at the pack-time tip (HEAD), keyed by repo-relative path,
+  with directory forecast entries enumerated to the committed files
+  under them at pack time (per-file is the ratified granularity;
+  whole-tree hashing was rejected at ratification), forecast paths
+  with no committed base — untracked at pack, or files the response
+  will create — absent by design, and `{}` for the empty (read-only)
+  forecast; apply's step-17 gate (§8.1, §11 row 36) compares the
+  intersection of the response's `changes[]` with this map against
+  the base tree about to be overlaid and refuses drift — the
+  lost-update guard, since `files/` is a whole-file mirror and
+  applying it over a moved base silently reverts intervening edits;
+  absence of the KEY remains the pre-feature / hand-rolled signal
+  (stampless requests apply as before; no retroactive stamping), and
+  a repack restamps against the then-current base by construction —
+  plus
   `provenance.checkpoint_scope_admitted`, the boolean record of a
   covering-scope admission past the blindness gate on either
   request-building path (pack: §7.1 step 4b; handoff: §11 row 30,
@@ -2258,12 +2293,60 @@ Pipeline steps:
     under `--dry-run` and passes vacuously for bailout and
     clarification manifests, whose `changes[]` is empty.
 
-If any of 1–16 fails: log the failure with a clear `[REJECT] <rule>:
+17. Base-drift gate (board 41 — the checkpoint provenance
+    verification's pattern one level wider, and the lost-update guard
+    the whole-file overlay needs; appended as step 17 so steps 1–16
+    stay stable, and sited in the pipeline after the step-8–10 file
+    verification, before the dry-run exit, so the dry-run and the real
+    apply run the identical gate once). When the request manifest
+    carries the pack-time `provenance.base_files` stamp (per-file
+    sha256s of the resolved forecast's committed bytes at the
+    pack-time tip — the pack-side half, §7's provenance identity
+    prose): every `changes[]` path the stamp covers must still hash to
+    its stamped sha256 at the target branch's tip. A mismatch —
+    including a stamped file now missing from the base tree entirely —
+    means the base moved between pack and apply: an intervening edit
+    the whole-file overlay would silently revert, a breakage
+    `validation.sh` can pass right over, which is why the gate refuses
+    rather than warns (warn-and-proceed is the silent-skip bug
+    CLAUDE.md §6 names; refuse-not-warn is a ratified default, as is
+    per-file granularity). Comparison runs over the changes[]∩stamp
+    intersection only: a path outside the stamp — a file the response
+    creates, an out-of-forecast admission, a base untracked at pack —
+    compares nothing and never refuses, and a stampless request (no
+    key: pre-feature, or hand-rolled) skips the gate entirely, keeping
+    the feature additive with no retroactive stamping. The refusal
+    names every drifted path with its stamped and current hashes,
+    keeps the session open pre-staging with no git side effects,
+    records telemetry outcome `base-drift-refused` (except under
+    `--dry-run`, which predicts the same refusal with no record — no
+    outcome occurred), and in `--json` mode is the one-line report
+    with that outcome and a `base_drift` detail object.
+    `--accept-base-drift <path>` (repeatable, per-invocation only,
+    per-**path** — the gate's own unit; deliberately no config key,
+    per the ratified override contract; the `--allow-out-of-scope`
+    grammar by pinned constraint) admits exactly the named paths past
+    the gate — the operator deliberately landing the response's bytes
+    over the moved base, superseding the intervening edits to those
+    paths — while any other drifted path still refuses; every
+    effective use logs a FORCE: session-log line and the admitted
+    paths are stamped into the attempt's `base_drift_overrides`
+    (§8.9). A named-but-not-drifted path logs a no-effect line,
+    mirroring step 14's unused override handling. `bale retry` takes
+    the same flag and runs the same gate: the override is re-stated
+    per invocation exactly as step 14's is, never carried from the
+    failed attempt — and the structurally clean alternative is always
+    a repack, which restamps against the current base by construction.
+    Bailout and clarification manifests fork before this gate and
+    never reach it (their `changes[]` is empty regardless).
+
+If any of 1–17 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
-staging branch, no file modifications. (The step-14 and step-15
-refusals additionally report through their structured surfaces above;
-their telemetry attempts record outcomes `scope-drift-refused` and
-`required-check-refused` respectively rather than `rejected`.)
+staging branch, no file modifications. (The step-14, step-15, and
+step-17 refusals additionally report through their structured
+surfaces above; their telemetry attempts record outcomes
+`scope-drift-refused`, `required-check-refused`, and
+`base-drift-refused` respectively rather than `rejected`.)
 
 ### 8.2 Stamp session
 
@@ -3696,7 +3779,7 @@ transition path (§9.1 step 3), and read-only queries (`status`,
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–16 of section 8.1) or before commit (sections
+before staging (steps 1–17 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
@@ -3736,6 +3819,7 @@ before staging (steps 1–16 of section 8.1) or before commit (sections
 | 33 | Planner-bundle blindness (v0.4.12, board 49a-i; format home §6.7): pack refuses any `--include` or `--write` entry that explicitly names a planner bundle — a file with the reserved `.bale-bundle` suffix — and the walk unconditionally auto-excludes every bundle file that incidental coverage would otherwise ship, with a loud drop line (per-file for one, one count summary for several, the v0.4.10 grain). Bundles carry the planner's blind checkpoint, so this is the checkpoint exclusion's species keyed structurally on the suffix, with **no admission flag on either half** — no session legitimately ships or lands a real bundle; synthetic fixtures for bundle-handling work are named outside the suffix (§7.1 step 4c, §7.5 step 5); appended after row 32 per the appended-row precedent, so rows 1–32 stay stable | pack pre-flight |
 | 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects. The no-file re-emit form (v0.4.22, §8.11) ingests nothing and adds one refusal of its own: a sid with no recorded rounds refuses loudly, naming the sid — re-emit is read-only and preserves nothing on any path. Appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
 | 35 | Include-group coherence (board 64; §7.2): a half-configured `[pack]` include group (a name without both list keys, or a list without the name) refuses at config read wherever the merged config is consulted; an engaged group whose configured pull path does not exist refuses the pack rather than silently thinning the shipped context; and `--no-include-group` refuses on a name that is not the configured group's exact name, or when no group is configured — the opt-out is loud (FORCE-logged, report row) and a typo cannot silently skip the pull. Engagement itself is read-side only and never widens the recorded write forecast; appended after row 34 per the appended-row precedent, so rows 1–34 stay stable | pack pre-flight |
+| 36 | Base-drift gate (board 41 — the checkpoint provenance verification's pattern one level wider, the lost-update guard the whole-file overlay needs): when the request manifest carries the pack-time `provenance.base_files` stamp (per-file sha256s of the resolved write forecast's committed bytes at the pack-time tip; directory forecast entries enumerated to their committed files at pack — per-file is the ratified granularity, whole-tree hashing rejected at ratification), every `changes[]` path the stamp covers must still hash to its stamped sha256 at the target branch's tip. A mismatch — including a stamped file now missing from the base tree — means the base moved between pack and apply, and the whole-file overlay would silently revert the intervening edits, a breakage validation can pass right over; the gate refuses rather than warns (refuse-not-warn is a ratified default). Comparison covers the changes[]∩stamp intersection only — created files, out-of-forecast admissions, and bases untracked at pack are absent from the stamp and never refuse — and a stampless request (no key: pre-feature or hand-rolled) skips the gate entirely, additive with no retroactive stamping; a repack restamps against the current base by construction. Per-invocation `--accept-base-drift PATH` (repeatable, per-path — the `--allow-out-of-scope` grammar by pinned constraint; no config key, per the ratified override contract; same flag on `bale retry`, re-stated per invocation) admits exactly the named paths — the operator deliberately landing the response's bytes over the moved base — while any other drifted path still refuses. The refusal names every drifted path with stamped and current hashes, keeps the session open pre-staging with no git side effects, records telemetry outcome `base-drift-refused` with admitted paths stamped as `base_drift_overrides`, and in `--json` mode is the one-line report with that outcome and a `base_drift` detail object; `--dry-run` predicts the refusal with no telemetry (§8.1 step 17); appended after row 35 per the appended-row precedent, so rows 1–35 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

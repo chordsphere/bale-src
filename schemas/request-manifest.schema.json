@@ -123,6 +123,11 @@
           "type": "boolean",
           "description": "True when the planner admitted the request past the checkpoint blindness refusal with --allow-checkpoint-in-scope — the resolved write forecast covered the configured checkpoint's path, or (ADR-0015 read side) the resolved include set would have shipped its content; pack since v0.3.28, handoff against its reading-plan forecast (the mirroring flag, v0.3.33); false otherwise. Stamped unconditionally by bale-built provenance blocks (uniform shape), optional in the schema so pre-v0.3.28 and hand-rolled manifests stay valid. Echoed into telemetry via the response's feedback.mechanical.provenance — the durable record of a delegated oracle-maintenance session."
         },
+        "base_files": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1},
+          "description": "The base-drift stamp (v0.4.23 — the checkpoint stamp's pattern one level wider): per-file sha256 (hex) of the resolved write forecast's committed bytes at the pack-time tip (HEAD), keyed by repo-relative path. Directory forecast entries are enumerated to the committed files under them at pack time (per-file granularity is the ratified default; whole-tree hashing was rejected at ratification). A forecast path with no committed base bytes — untracked at pack, or a file the response is expected to create — is absent from the map, and apply compares only the intersection of the response's changes[] with the map, so absence never refuses. {} for an empty (read-only) forecast. Apply's base-drift gate refuses a covered path whose base-tree bytes no longer match — the lost-update guard, overridable per path via --accept-base-drift. Absence of the KEY is the pre-feature / hand-rolled-request signal, which is what keeps the gate additive: a stampless request applies exactly as before the feature, with no retroactive stamping (the v0.4.7 additive/legacy-tolerant pattern). Additive per the checkpoint precedent: not required, so previously stamped manifests stay valid; bale-built blocks carry it whenever the request-building path passed its forecast — both do."
+        },
         "checkpoint_waived": {
           "type": "string",
           "enum": ["read-only"],

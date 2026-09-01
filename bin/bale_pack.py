@@ -952,6 +952,7 @@ def build_provenance_block(
     work_class: str = "mixed",
     checkpoint_scope_admitted: bool = False,
     checkpoint_waived: bool = False,
+    forecast: Optional[list] = None,
 ) -> dict:
     """Assemble the request manifest's provenance block (v0.3.8, B1).
 
@@ -1001,6 +1002,34 @@ def build_provenance_block(
       shape (the superseded_session precedent), and echoed into
       telemetry via the response's feedback.mechanical.provenance —
       which is how the session's record carries the admission.
+    - `base_files` (board 41) — the checkpoint stamp's pattern one
+      level wider: per-file sha256s of the resolved write forecast's
+      committed bytes at the pack-time tip (HEAD), keyed by
+      repo-relative path. This is the base-drift stamp: apply compares
+      the intersection of the response's `changes[]` with this map
+      against the base tree about to be overlaid, and refuses drift
+      (BALE.md §8.1 step 17) — the lost-update guard, since `files/`
+      is a whole-file mirror and applying it over a moved base
+      silently reverts intervening edits to the same file.
+      Committed-is-ratified, exactly the checkpoint stamp's rule:
+      bytes come from HEAD, never the working tree, so stamp and
+      apply-side comparison hash the same species of bytes. Directory
+      forecast entries enumerate the committed files under them at
+      pack time (per-file granularity is the ratified default;
+      whole-tree hashing was rejected at ratification — a tree hash
+      would false-positive on every sibling landing anywhere). A
+      forecast path with no committed base bytes — an untracked file,
+      or a file the response is expected to create — enumerates
+      nothing and is simply absent from the map; apply compares only
+      the changes[]∩stamp intersection, so absence never refuses. An
+      empty forecast (a read-only pack) stamps `{}`. The key is
+      present on every bale-built block whose caller passes a
+      forecast — both request-building paths do — so absence of the
+      KEY remains the pre-feature / hand-rolled-request signal, which
+      is what keeps apply's gate additive (a stampless request
+      applies exactly as before the feature; no retroactive
+      stamping). A repack restamps against the then-current base by
+      construction, so retry-after-refusal needs nothing special.
     - `checkpoint_waived` (v0.4.9) — the read-only checkpoint waiver's
       stamp. When the caller passes True AND the configured base
       carries {sid}, the checkpoint stamp is explicit null and the
@@ -1125,6 +1154,54 @@ def build_provenance_block(
         "checkpoint": checkpoint_stamp,
         "checkpoint_scope_admitted": bool(checkpoint_scope_admitted),
     }
+    # The base-drift stamp (board 41; docstring above owns the
+    # semantics). Enumeration and bytes both come from HEAD via git —
+    # `ls-tree -r` per forecast entry resolves a file entry to itself
+    # and a directory entry to the committed files under it (untracked
+    # paths resolve to nothing, deliberately), and `git show` extracts
+    # the committed bytes binary-exact (text=False), mirroring the
+    # checkpoint stamp's extraction so pack-side stamp and apply-side
+    # comparison hash identical bytes.
+    if forecast is not None:
+        base_files: dict[str, str] = {}
+        for entry in forecast:
+            listed = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", "-z", "HEAD",
+                 "--", entry],
+                cwd=str(repo), capture_output=True,
+            )
+            if listed.returncode != 0:
+                # HEAD is guaranteed by the detached-HEAD refusal
+                # upstream on both request-building paths, so a
+                # failure here is git itself erroring — loud, never a
+                # silent thin stamp (a missing entry would read as
+                # "no base bytes" at apply and skip the very
+                # comparison the stamp exists for).
+                fail(f"base-drift stamp: could not enumerate committed "
+                     f"files under forecast entry {entry!r} "
+                     f"(git ls-tree exited {listed.returncode}: "
+                     f"{listed.stderr.decode(errors='replace').strip()})")
+            for raw in listed.stdout.split(b"\x00"):
+                if not raw:
+                    continue
+                rel = raw.decode("utf-8", errors="surrogateescape")
+                if rel in base_files:
+                    continue
+                shown = subprocess.run(
+                    ["git", "show", f"HEAD:{rel}"],
+                    cwd=str(repo), capture_output=True,
+                )
+                if shown.returncode != 0:
+                    fail(f"base-drift stamp: could not read committed "
+                         f"bytes of {rel!r} at HEAD (git show exited "
+                         f"{shown.returncode})")
+                base_files[rel] = hashlib.sha256(shown.stdout).hexdigest()
+        block["base_files"] = dict(sorted(base_files.items()))
+        log(f"provenance: base-drift stamp covers {len(base_files)} "
+            f"committed file(s) across {len(list(forecast))} forecast "
+            f"entr{'y' if len(list(forecast)) == 1 else 'ies'} "
+            f"(HEAD bytes; files with no committed base are absent by "
+            f"design)")
     if waived:
         block["checkpoint_waived"] = "read-only"
         log(f"provenance: checkpoint waived (read-only pack; "
@@ -4236,6 +4313,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # v0.4.9: an empty forecast waives the per-session checkpoint;
         # the builder scopes the stamp to {sid} bases itself.
         checkpoint_waived=not pack_scope,
+        # The base-drift stamp (board 41): the same pack_scope value
+        # the resolved_scope stamp and the registry record carry — one
+        # source, never a re-derivation. [] stamps base_files: {}.
+        forecast=pack_scope,
     )
     log(f"provenance: packer={provenance['packer']!r} "
         f"work_class={provenance['work_class']!r} "
