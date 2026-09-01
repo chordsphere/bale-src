@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-08-31-sitting-close-deltas-3-025`.
+Last landed by: `2026-09-01-sitting-close-deltas-4-004`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -280,7 +280,9 @@ source):
   2026-08-16): a pack refused at the forecast gate never receives a sid,
   so per-path refusal counts have no durable home today. Re-trigger: the
   harness observing refusals as control flow, or a pack-side refusal log
-  wanted as new surface. (Rider item 5's deferral.)
+  wanted as new surface. (Rider item 5's deferral.) First specimen
+  accrued 2026-08-31/09-01 at the 026 sitting: the 67-r1 pack refusal
+  at the forecast gate, master desk the offender (§6 entry 103).
 - Unconsumed pre-answered intents (ratified 2026-08-24): an intent
   answering a prompt the flow never raised proceeds with a FORCE-line
   report, never a refusal — brief-conformant, ratified with a routing
@@ -311,6 +313,9 @@ says so):
   attempt-level compaction disclosures across 7 sessions, done
   properly each time; 13 tight budget_pressure self-reports.
   (Queued 2026-08-31 at the meta-specific sitting.)
+  [2026-08-31: DISPOSED — ratified at the continue-plan sitting
+  (session 026); the ruling's text of record is §5, this date, and
+  the board-37 reshape it directs is bracketed on that row.]
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -804,6 +809,12 @@ with the unverifiable ones carried verbatim and marked):
   tests/test_stats_drilldown.py (E2E extension); only after the
   sibling session holding bin/bale closes." (Accepted 2026-08-31
   at the continue-plan-012 sitting's wave-3 close.)
+- Release-surface include group, candidate extension: pull tools/
+  along with the group (specimen: 002's includes_missing —
+  tests/harness.py hard-requires tools/ via INSTALL_TREES, and the
+  67 pack didn't ship it). Rides row 68's bin/ touch or the next
+  release-surface touch. (Accepted 2026-08-31/09-01 at the
+  continue-plan sitting, session 026.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1592,6 +1603,30 @@ recorded by `2026-08-31-sitting-close-deltas-3-025`:
   claim resolved to verdict skip at staging — flagged; self-heals
   at the next full-suite run.
 
+Landed 2026-08-31→09-01, the continue-plan sitting (session 026,
+read-only, empty forecast; the sitting straddled midnight, so 09-01
+sids over the 08-31 sitting are expected provenance). Rows 41, 67,
+and 42 closed on their board brackets — facts of record, versions,
+ratifications, and retry stories live there; this block carries only
+what has no row home; close recorded by
+`2026-09-01-sitting-close-deltas-4-004`:
+
+- Wave record: the sitting spawned 027 (row 41), 002 (row 67, after
+  one desk re-emit and one refused r1 open — the refusal's specimen
+  is §6 entry 103, the sequencing cost §6 entry 102), and 003
+  (row 42, one admitted guard-forced path).
+- Sitting-open record: the 025-close ratifications — all four of
+  close-025's judgment calls ratified as shipped at this sitting.
+- Sequencing rider: boards 56+57 deliberately deferred to a fresh
+  desk; boards 39, 43, and 47 held as previously ratified; board 37
+  now packable under the §5 ruling (this date).
+- Dispositions with their own homes, pointed to rather than
+  restated: the bailout-vs-compaction calibration ruling (§5,
+  disposing the §3 ruling-queue item above); the retry-telemetry
+  corpus tolerance note (§7); evidence entries 99–106 (§6); rows
+  68–69 opened in §4; the release-surface include-group extension
+  in the registry above.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2064,6 +2099,13 @@ and §8, so done items keep their numbers as one-line pointers.
     premise's machinery, so the conditions-to-soften paragraph rides
     naturally here. ADR appends kept as the fallback, not the plan.
     (Rider item 9.)]
+    [2026-08-31: reshaped by the §5 bailout-vs-compaction
+    calibration ruling (the continue-plan sitting, session 026),
+    which disposes the §3 ruling-queue item this row was waiting on:
+    part 1 shrinks to what survives the ruling; parts 2–3 and the
+    PLANNER.md rider are the surviving work, per the ruling's text
+    of record in §5. Now packable per the sitting's sequencing
+    rider.]
 
 38. **Stats-digest auto-include for planner-shaped packs** — queued
     2026-08-14/15 (small, timing open): mechanizes and then deletes
@@ -2108,6 +2150,20 @@ and §8, so done items keep their numbers as one-line pointers.
     can pass right over. The fix's exact pattern already ships: the
     checkpoint provenance stamp (pack-time sha256, apply-time
     comparison, refuse with a named override). (Rider item 3.)
+    [2026-09-01: DONE — `2026-08-31-board-41-base-drift-027`,
+    applied at the 026 sitting at 0.4.23. Seven determinations
+    ratified as shipped: ls-tree-at-HEAD enumeration for directory
+    forecast entries; absence-over-null for no-base-bytes paths;
+    committed-is-ratified on both ends, the dirty-at-pack residue
+    accepted as a recorded property; a stamped file deleted at the
+    base refuses; a malformed stamp reads as stampless, loudly;
+    gate placement pre-staging with a single dry-run/real code path
+    (noted at the desk: better than the checkpoint-stamp precedent
+    it copied — no inherited dry-run duplication); handoff stamps
+    too. Whole-tree stamp growth recorded as a known property. The
+    stats read side floor-matched to the required-check pair's
+    launch floor; re-trigger: the first real base-drift-refused
+    occurrence in the corpus.]
 
 42. **telemetry field additions, wave 1** — queued 2026-08-16 (small;
     documentation + schema): a self-reported docs_read field in the
@@ -2124,6 +2180,17 @@ and §8, so done items keep their numbers as one-line pointers.
     de-noise the packing signal; it splits it into two different fixes
     (brief/decomposition vs include completeness), which is the value.
     Sequencing: before or with board 43. (Rider items 1 and 7.)
+    [2026-09-01: DONE — `2026-09-01-board-42-telemetry-fields-003`,
+    applied at the 026 sitting at 0.4.24. docs_read and origin
+    landed additive/legacy-tolerant; the one-home delegation
+    verified by test — exchange rounds inherit origin with no
+    second edit; the retry/open rider doc landed in the telemetry
+    schema description, and the doc echo it offered was DECLINED at
+    the desk — one home stands, closing the session's deferred
+    entry; the write-only floor recorded as a decision (read side
+    lands when data accrues); the guard-forced
+    tools/response_lint.py embed refresh admitted per path at
+    apply.]
 
 43. **TARBALL.md section-5 compression pilot** — queued 2026-08-16 (one
     session; gated on or riding alongside board 42's docs_read so the
@@ -2172,15 +2239,6 @@ and §8, so done items keep their numbers as one-line pointers.
     surface stays a read side over the records, exercisable by jq); and
     nominate, never curate (§5, 2026-08-16). (Rider item 6 and rider
     §2.3.)
-    [2026-08-31: 018's read-side proposal folds in here as the
-    row's first customer — accepted at the continue-plan-012
-    sitting: `"opened"` joins IN_FLIGHT_OUTCOMES in
-    bin/bale_stats.py, and session_work_class (or its successor
-    here) resolves from the opened attempt's provenance stamp
-    before falling back to the feedback echo. Until it lands, every
-    `bale stats` run warns once per open session (the reader's
-    designed unknown-vocabulary path, counting the session
-    correctly as in-flight) — accepted noise per 018's notes.]
     [2026-08-31: DONE — `2026-08-31-board-44-stats-read-sides-024`,
     applied 2026-08-31. All four read sides in one session. One
     admission at apply: tests/test_stats_drilldown.py (created —
@@ -2198,6 +2256,13 @@ and §8, so done items keep their numbers as one-line pointers.
     is annotated on the registry entry: the next session that
     perturbs those expectations must be shipped the registry
     text.]
+    [2026-09-01: row-44 true-up at the 026 sitting — 018's folded
+    read side landed with 024, verified against shipped bytes at
+    the sitting: `"opened"` in IN_FLIGHT_OUTCOMES,
+    provenance-stamp-first resolution in session_work_class. The
+    stale "until it lands, every stats run warns" fold-in bracket
+    (2026-08-31) is struck this landing — the one sanctioned
+    retroactive edit of this close.]
 
 45. **hostile-foreign-repo arc** — queued 2026-08-16 (multi-session arc;
     feeds S6; sequenced before any harness autonomy): deliberately run
@@ -2626,6 +2691,53 @@ and §8, so done items keep their numbers as one-line pointers.
     sweep in validation — the sweep extension above executed as
     ratified). Deny-shapes guard proposal routed per the §3 wave-2
     dispositions block.]
+
+67. **Suite repair (the 17 stale tests) — DONE at birth**
+    2026-09-01 at the 026 sitting (lineage: spawned from 027's
+    Proposals): `2026-09-01-board-67-suite-repair-002`, applied
+    2026-09-01. Suite green under both gate positions, unconfined
+    and confined; the reversed fail-loud rationale in
+    test_sandbox_wrapper ratified as shipped (the grading topology
+    broke the docstring's premise — a confined run's staging cwd
+    can be /tmp-resident, so the absence is a legitimately missing
+    capability, not a broken contract); the constraint-2 retry
+    finding and its admitted source fix — retry's re-persist
+    appended a spurious mid-session 'opened' telemetry attempt,
+    fixed by `open_telemetry=False` on retry's re-persist
+    (bin/bale_pack.py + bin/bale, both admitted per path; the
+    corpus tolerance this leaves is §7's dated note); the
+    writable-non-tmp-base capability identified as the entire
+    confined delta's key (all 11 confinement-only ids probe it;
+    the guard now prints probe, finding, and run/skip decision);
+    the 42-vs-43 skip-count loose end recorded with the worker's
+    arithmetic — if the grading oracle ever pins skip counts,
+    expect 53, not 54.
+
+68. **bale open gate ordering** — queued 2026-09-01 (small; bin/):
+    reorder bale open so arg-inspectable pack gates (forecast
+    existence, disjointness) run before the checkpoint dry-run —
+    cheap gates before expensive oracle executions. Specimen: this
+    sitting's r2 open, where a ~9-minute confined dry-run ran
+    before the disjointness gate refused on arg-inspectable
+    grounds (§6 entry 102). Carrier note: the registry's
+    release-surface tools/ extension rides this row's bin/ touch.
+
+69. **tools pair** — queued 2026-09-01 (one micro session, both
+    halves from the 026 sitting): (a) a bare-string claims-value
+    check in tools/response_lint.py (a CLAIMS_VALUE finding;
+    vocabulary pass|fail|untested|unknown), closing the
+    lint/apply parity gap of §6 entry 104; (b) seed docs_read in
+    the crafter's self_reported skeleton, text verbatim from 003's
+    Proposals: "What: have `tools/craft_response.py`'s manifest
+    skeleton include a `docs_read: []` stub (or a commented nudge)
+    in the `self_reported` block it emits. Why: grounded in this
+    session — the skeleton names only the required self_reported
+    keys, and an optional field with no scaffold presence tends to
+    go unfilled; the field's value is longitudinal, so early fill
+    rates decide whether the read side ever accrues the data it is
+    deferred on. Scope hints: tools/craft_response.py (and its
+    embed-parity tests if the skeleton is asserted anywhere); only
+    after this session lands."
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -3221,6 +3333,16 @@ close):
   predicted guard-suite claim resolved to verdict skip at staging
   (flagged in the §3 wave-3 block; self-heals at the next
   full-suite run).
+
+New, ratified 2026-08-31 (the continue-plan sitting, session 026 —
+the text of record, verbatim, disposing the §3 ruling-queue item):
+
+- **Bailout-vs-compaction calibration ruling (2026-08-31 sitting, session 026): on the corpus of record (zero bailout outcomes in 181 records; §11.6 recovery exercised properly on all 15 compaction disclosures; 13 tight budget-pressure self-reports), §11.6 recovery is accepted as the de facto primary defense on auto-compacting surfaces; the pre-flight half of the bail machinery stands as-is.**
+  **Board 37 reshapes accordingly: part 1 shrinks to what survives the ruling; parts 2–3 (crafter --bailout emission, the bail/compaction telemetry marker) are the surviving work; the single-window-premise rider paragraph still lands in PLANNER.md at 37's session.**
+  The ruling touches no global doc by itself — CLAUDE.md §11's
+  emphasis shift, if any wording follows, is board 37's session's
+  cargo. Queue disposition annotated in §3; the reshape bracketed
+  on row 37.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -4196,6 +4318,71 @@ New from the 2026-08-31 continue-plan-012 sitting (waves 2–3):
     guard session under the exchange-amended scope. (From sid
     `2026-08-31-guard-deny-shapes-022`.)
 
+New from the 2026-08-31→09-01 continue-plan sitting (session 026;
+09-01 sids over the 08-31 sitting are expected provenance):
+
+99. **Two falsified desk environment claims.** One sitting, two
+    specimens: (a) the desk declared cross-machine environment
+    stability from a two-machine sample that excluded the grading
+    machine; (b) the desk attributed the delta to WSL when the
+    isolated variable was sandbox confinement. Lesson, generalized:
+    the grading environment is (machine × confinement), and only
+    the dry-run observes it; a suite-shaped oracle must report its
+    full failing enumeration, not a sample, and a brief's "green"
+    must name the environment it is measured in. PLANNER.md §4
+    candidates, recorded here for the doctrine doc: the enumeration
+    rule, and the capability-map probe-print pattern (002's guards;
+    also its proposal 2 — a per-id oracle stronger than
+    exit-plus-enumeration). (From sid
+    `2026-09-01-board-67-suite-repair-002`.)
+
+100. **Desk pack-authoring pattern, three specimens in one
+    sitting**, each caught by a gate at one round-trip's cost: 67's
+    nonexistent forecast path; 42's missing embed sibling; the
+    close pack's own out-of-vocabulary work-class value (`docs`
+    for `doc`). PLANNER.md §2 candidate lines, the first verbatim:
+    before fixing a write forecast, grep for the guards that pin cross-tree equality (embeds, mirrors, vendored copies) — every one names a `guard-forced sibling` the forecast must carry.
+    The second, the general form: desk-authored argv is checked
+    against the tool's own enumerations, not recalled.
+
+101. **Nested-confinement discovery.** The sandbox wrapper's own
+    tests fail inside the wrapper's confinement;
+    suite-green-under-confinement is now a standing, enforced
+    property (established by 67's oracle). Board-10-adjacent.
+
+102. **Gate-ordering specimen.** bale open ran a ~9-minute
+    confined dry-run before the pack's disjointness gate refused
+    on arg-inspectable grounds. Candidate row opened: board 68.
+
+103. **Forecast-refusal watch datum.** The 67-r1 pack refusal at
+    the forecast gate (a nonexistent --write path) had no
+    telemetry home — the first specimen for the deferred per-path
+    counter watch (§3, annotated there); the master desk was the
+    offender.
+
+104. **The response_lint claims-value parity gap** (operator-found,
+    desk-verified this sitting). The embedded schema cannot carry
+    the bare-string claims enum (no oneOf in the subset validator;
+    the schema text itself says the enum is "enforced in Python
+    (validate_response_manifest)"), and the lint, deliberately
+    bale-import-free, never replicates that Python check — so a
+    bare-string claim value outside pass|fail|untested|unknown
+    lints clean and refuses at apply. The annotated object form IS
+    enforced (a plain enum inside the object shape).
+    Lint-clean-but-apply-refused is the exact friction the lint
+    exists to prevent. Counter queued: board 69(a).
+
+105. **Read-precision stream, datum 2.** 003's in-spirit docs_read
+    list — its own manifest could not carry the field (the
+    request-injected lint predates the landing); the first
+    mechanized fill arrives next request.
+
+106. **The 002 exchange round as specimen.** expects-probe
+    satisfied by a brief-designated relay courier; the trailer-hash
+    verification caught nothing but proved the transport; and the
+    answer's guard-print-your-probe instruction became 002's
+    shipped behavior.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -4258,8 +4445,9 @@ New from the 2026-08-31 continue-plan-012 sitting (waves 2–3):
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.22 at
-  `2026-08-31-board-60-relay-reemit-017`; the
+  still governs. bin/bale VERSION 0.4.24 at
+  `2026-09-01-board-42-telemetry-fields-003` (0.4.23 rode
+  `2026-08-31-board-41-base-drift-027`); the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
@@ -4283,6 +4471,15 @@ New from the 2026-08-31 continue-plan-012 sitting (waves 2–3):
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
   only, no retroactive sweep).
+- Telemetry corpus tolerance, dated (from the 026 sitting): every
+  post-v0.4.21 retry before the
+  `2026-09-01-board-67-suite-repair-002` landing appended a
+  spurious mid-session 'opened' telemetry attempt — fixed by
+  threading `open_telemetry` through persist_pack_session (retry
+  passes False). No retroactive record edits, per the additive
+  doctrine; attempt-level open-counting consumers need this dated
+  tolerance. Outcome-level counts — the §5 bailout-vs-compaction
+  ruling's corpus facts included — are unaffected.
 - One-apply-behind (meta-sessions §2): the apply that lands a change
   to apply-path code runs the OLD code one final time. Recurred four
   times in the v2 sitting; workers now flag it unprompted.
