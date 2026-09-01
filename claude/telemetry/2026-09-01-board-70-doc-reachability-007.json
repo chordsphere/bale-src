@@ -1,0 +1,393 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-01-board-70-doc-reachability-007",
+  "created_at": "2026-09-01T16:29:20+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-01T16:29:20+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-01-board-70-doc-reachability-007.log",
+      "provenance": {
+        "work_class": "mixed",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-01T16:48:09+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-007 (17).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "self-containment guard (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc cross-references (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "crafter suite (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pointer-class negative run (planted wrapped instance goes red)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pointer-class sweep (normalized scan over the injected surface)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "required re-point tokens present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec bit (tools/craft_response.py)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "self-containment guard (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc cross-references (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "crafter suite (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pointer-class negative run (planted wrapped instance goes red)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pointer-class sweep (normalized scan over the injected surface)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "required re-point tokens present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit (tools/craft_response.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.24",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "treated the TARBALL.md 5.6.3/5.9.3 tombstones ('own design documentation') as in-goal members of the pointer class and fixed them, per the goal's 'every documentation pointer' plus the never-cite-a-non-shipping-doc constraint; enumerated in notes.md for ratification",
+            "took the no-version-bump call without the project-local cadence rules in context (docstring-only tool change); flagged in notes.md"
+          ],
+          "judgment_calls": [
+            "sites 4-5: dropped the deferral clause instead of re-pointing, because each flag row already carries the operative contract",
+            "site 3: stated the TTY-warn/piped-refuse split inline, read from bin/bale_pack.py's guard rather than the brief",
+            "widened the guard's deny with an optional 'design' alternative to pin the tombstone fix",
+            "kept the wrapped deny out of the schema group's ratified-seven table; proposed convergence for a sitting instead"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-70-doc-reachability-007.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-01-board-70-doc-reachability-007.sh",
+          "sha256": "1670fec567f7b57736760ef2c7f14f5d9c5b5cb01fbfd1d6fb65890353b8d0cc"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-01T16:56:31+00:00",
+      "outcome": "rejected",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-007 (17).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-01-board-70-doc-reachability-007.log"
+    },
+    {
+      "at": "2026-09-01T16:57:52+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-007 (17).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "self-containment guard (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc cross-references (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "crafter suite (unittest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pointer-class negative run (planted wrapped instance goes red)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pointer-class sweep (normalized scan over the injected surface)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "required re-point tokens present": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec bit (tools/craft_response.py)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "self-containment guard (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc cross-references (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "crafter suite (unittest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pointer-class negative run (planted wrapped instance goes red)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pointer-class sweep (normalized scan over the injected surface)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "required re-point tokens present": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit (tools/craft_response.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.24",
+            "contract_docs": {
+              "CLAUDE.md": "22c691db71dd98d6e48db373054a2bfae6d276bf9b62debfc7a581ae99af42c1",
+              "TARBALL.md": "9f2eb27f23fabaac182e1dd4221da500604fb7439d01b899be986334430a69a7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3ab81e032ee112673b21b55e850ac77a2791cd89e7f2893edb21ab3d11293ecf"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "model_identity": "Claude (Anthropic), Fable 5, claude.ai session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "treated the TARBALL.md 5.6.3/5.9.3 tombstones ('own design documentation') as in-goal members of the pointer class and fixed them, per the goal's 'every documentation pointer' plus the never-cite-a-non-shipping-doc constraint; enumerated in notes.md for ratification",
+            "took the no-version-bump call without the project-local cadence rules in context (docstring-only tool change); flagged in notes.md"
+          ],
+          "judgment_calls": [
+            "sites 4-5: dropped the deferral clause instead of re-pointing, because each flag row already carries the operative contract",
+            "site 3: stated the TTY-warn/piped-refuse split inline, read from bin/bale_pack.py's guard rather than the brief",
+            "widened the guard's deny with an optional 'design' alternative to pin the tombstone fix",
+            "kept the wrapped deny out of the schema group's ratified-seven table; proposed convergence for a sitting instead"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-70-doc-reachability-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-01-board-70-doc-reachability-007.sh",
+          "sha256": "439489b24584c0b775019ecf576de4d0ef4ebc905683e2312c4f119d786bfc9a"
+        },
+        "stamp_matched": false
+      }
+    }
+  ],
+  "updated_at": "2026-09-01T16:57:52+00:00",
+  "outcome": "applied"
+}
