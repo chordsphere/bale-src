@@ -155,10 +155,22 @@ class HoldRetryE2ETest(unittest.TestCase):
         self.assertIn(HOLD_HEADLINE, held.stdout)
         self.assertIn(RECORDED_MARKER, held.stdout)
 
+        # v0.4.21: the record was CREATED at session open with an
+        # `opened` attempt; the HOLD is the first close-side event and
+        # APPENDS to it, so the held record carries two attempts.
         record = self.telemetry_record(sid)
         self.assertEqual(record["outcome"], "held")
-        self.assertEqual(len(record["attempts"]), 1)
+        self.assertEqual(len(record["attempts"]), 2,
+                         msg="open-time record + the HOLD append")
+        opened_attempt = record["attempts"][0]
+        self.assertEqual(opened_attempt["outcome"], "opened")
+        self.assertEqual(opened_attempt["command"], "pack")
+        self.assertIsNone(opened_attempt["validation"],
+                          msg="nothing ran at open; nothing to record")
         created_at = record["created_at"]
+        self.assertEqual(created_at, opened_attempt["at"],
+                         msg="the envelope's created_at is the open "
+                             "stamp, not the first close event's")
 
         # Attempt 2: corrected response → retry → PASS → piped merge.
         fixed = self.build_response_tarball(sid, name="second",
@@ -170,11 +182,14 @@ class HoldRetryE2ETest(unittest.TestCase):
             msg=f"stdout:\n{merged.stdout}\nstderr:\n{merged.stderr}")
         self.assertIn(PASS_HEADLINE, merged.stdout)
 
-        # One file per sid; the retry APPENDED.
+        # One file per sid; the retry APPENDED — the open-time attempt
+        # plus both close-side events, in order.
         record = self.telemetry_record(sid)
-        self.assertEqual(len(record["attempts"]), 2,
-                         msg="HOLD then retry accumulates both attempts")
-        held_attempt, applied_attempt = record["attempts"]
+        self.assertEqual(len(record["attempts"]), 3,
+                         msg="opened + HOLD + retry accumulate in one "
+                             "record")
+        opened_attempt, held_attempt, applied_attempt = record["attempts"]
+        self.assertEqual(opened_attempt["outcome"], "opened")
 
         self.assertEqual(held_attempt["outcome"], "held")
         self.assertEqual(held_attempt["command"], "apply")
@@ -247,7 +262,14 @@ class HoldRetryE2ETest(unittest.TestCase):
 
         record = self.telemetry_record(sid)
         self.assertEqual(record["outcome"], "held")
-        attempt = record["attempts"][0]
+        # v0.4.21: attempts[0] is the open-time `opened` attempt
+        # (validation null — nothing ran at open); the HOLD is the
+        # append that follows it.
+        self.assertEqual(len(record["attempts"]), 2)
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertIsNone(record["attempts"][0]["validation"])
+        attempt = record["attempts"][-1]
+        self.assertEqual(attempt["outcome"], "held")
         self.assertEqual(attempt["validation"]["state"], "HOLD")
         self.assertEqual(attempt["validation"]["exit_code"], 2,
                          msg="exit 2 is recorded verbatim — the record "

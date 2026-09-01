@@ -420,13 +420,21 @@ class ForecastLedgerE2ETest(unittest.TestCase):
     # -- helpers ---------------------------------------------------------
 
     def pack_narrow_forecast(self) -> str:
-        """Generous read (whole tree), narrow forecast (src only)."""
+        """Generous read (whole tree), narrow forecast (src only).
+
+        --work-class code: since board 44 (v0.4.21) session-class
+        resolution is STAMP-FIRST — the open-time provenance stamp
+        outranks the feedback echo — so the class these code-fixture
+        sessions aggregate under is declared at pack, exactly as a
+        real code session's pack would declare it.
+        """
         result = run_bale(
             self.install,
             ["pack", "forecast ledger e2e session",
              "--slug", "fcst-e2e",
              "--include", ".",
              "--write", "src",
+             "--work-class", "code",
              "--no-readme"],
             cwd=self.repo, env=self.env,
         )
@@ -573,6 +581,13 @@ class ForecastLedgerE2ETest(unittest.TestCase):
         self.assertEqual(len(lines), 1)
         stats = json.loads(lines[0])
         self.assertIsNotNone(stats["coverage"]["scope_kind"])
+        # Class resolution is stamp-first (board 44): these sessions
+        # aggregate under "code" via the open-time provenance stamp
+        # their pack declared, and the record carries that stamp on
+        # its `opened` attempt.
+        opened = self.telemetry_record(sid)["attempts"][0]
+        self.assertEqual(opened["outcome"], "opened")
+        self.assertEqual(opened["provenance"]["work_class"], "code")
         code = stats["classes"]["code"]
         # sid1 applied (1 response attempt) + sid2 refused + admitted
         # (2 response attempts) = 3 post-epoch response attempts; the

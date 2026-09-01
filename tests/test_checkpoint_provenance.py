@@ -490,7 +490,14 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
                              f"stderr:\n{held.stderr}")
         record = self.telemetry_record(sid)
         self.assertEqual(record["outcome"], "held")
-        first_stamp = record["attempts"][0]["checkpoint"]
+        # v0.4.21: attempts[0] is the open-time `opened` attempt — and
+        # by the always-stamp rule's other half it carries no
+        # checkpoint key (nothing executed at open, nothing to stamp).
+        # The HOLD is the append that follows it.
+        opened_attempt = record["attempts"][0]
+        self.assertEqual(opened_attempt["outcome"], "opened")
+        self.assertNotIn("checkpoint", opened_attempt)
+        first_stamp = record["attempts"][1]["checkpoint"]
         self.assertIs(first_stamp["stamp_matched"], True)
         self.assertEqual(
             first_stamp["script"]["sha256"],
@@ -523,8 +530,11 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
         # half, no checkpoint key: nothing executed, so there is
         # nothing to stamp.
         record = self.telemetry_record(sid)
-        self.assertEqual(len(record["attempts"]), 2)
-        rejected_attempt = record["attempts"][1]
+        self.assertEqual(len(record["attempts"]), 3,
+                         msg="opened + held + the rejected refusal — "
+                             "and no second 'opened': a retry's "
+                             "registry re-open appends nothing")
+        rejected_attempt = record["attempts"][2]
         self.assertEqual(rejected_attempt["outcome"], "rejected")
         self.assertEqual(rejected_attempt["command"], "retry")
         self.assertIsNone(rejected_attempt["validation"])
@@ -546,16 +556,19 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
                       msg="the CURRENT (post-edit) base-tree oracle ran "
                           "on the retry")
 
-        # All three attempts accumulated (the §8.9 append semantics):
-        # the HOLD, the rejected divergence refusal, and the admitted
+        # All four attempts accumulated (the §8.9 append semantics on
+        # the v0.4.21 open-time record): the open, the HOLD, the
+        # rejected divergence refusal, and the admitted
         # retry — the validated pair each carrying its own verification
         # result: verified true on the HOLD, admitted false on the
         # retry. The per-attempt stamp is what makes the mid-session
         # divergence auditable later.
         record = self.telemetry_record(sid)
         self.assertEqual(record["outcome"], "applied")
-        self.assertEqual(len(record["attempts"]), 3)
-        held_attempt, _rejected, applied_attempt = record["attempts"]
+        self.assertEqual(len(record["attempts"]), 4)
+        opened_attempt, held_attempt, _rejected, applied_attempt = \
+            record["attempts"]
+        self.assertEqual(opened_attempt["outcome"], "opened")
         self.assertEqual(applied_attempt["command"], "retry")
         self.assertIs(held_attempt["checkpoint"]["stamp_matched"], True)
         retry_stamp = applied_attempt["checkpoint"]

@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -323,9 +324,18 @@ class NothingToCommitTest(AutoSweepBase):
         sid = self.packed_sid()
         # Block the telemetry write: claude/telemetry as a FILE makes
         # write_telemetry_record's mkdir fail (logged, swallowed, None
-        # returned) — the event then wrote nothing this invocation.
+        # returned) — the unlock event then writes nothing this
+        # invocation. Since v0.4.21 pack already created
+        # claude/telemetry/<sid>.json at session open, so the
+        # directory exists and holds the open-time record; assert that
+        # precondition, then replace the whole tree with the blocker
+        # file (the fixture's blocked-write intent, unchanged).
         claude_dir = self.repo / "claude"
-        claude_dir.mkdir()
+        record_path = claude_dir / "telemetry" / f"{sid}.json"
+        self.assertTrue(record_path.is_file(),
+                        msg="v0.4.21: the open-time record exists "
+                            "from pack")
+        shutil.rmtree(claude_dir / "telemetry")
         (claude_dir / "telemetry").write_text("blocker\n",
                                               encoding="utf-8")
         head_before = self.git_out("rev-parse", "HEAD").strip()

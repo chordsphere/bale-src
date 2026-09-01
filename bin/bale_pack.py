@@ -1863,9 +1863,22 @@ def build_request_tarball(
 def persist_pack_session(repo: Path, sid: str, manifest: dict,
                          scope: Optional[list[str]] = None,
                          origin_branch: Optional[str] = None,
-                         command: str = "pack") -> None:
+                         command: str = "pack",
+                         open_telemetry: bool = True) -> None:
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
+
+    `open_telemetry` gates effect 2 below (the v0.4.21 open-time
+    `opened` telemetry attempt). True — the default, and correct for
+    both request-building call sites (pack, handoff) — appends it.
+    False is for re-persist callers that are NOT session opens (bale
+    retry's mid-session registry re-open): the session's record was
+    already created at its one real open, and a second `opened`
+    attempt appended mid-session would contradict the telemetry
+    schema's own enum contract ("'opened' = ... no close or apply
+    event has landed yet") and double-count opens in attempt-level
+    aggregation. The registry-side writes (effect 1, scope) are
+    unaffected either way.
 
     `scope` is the session's resolved write forecast (ADR-0015,
     re-basing ADR-0007's record), recorded
@@ -1935,12 +1948,14 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     if origin_branch and origin_branch != "HEAD":
         (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
     _persist_open_provenance(repo, sid, manifest, scope=scope,
-                             command=command)
+                             command=command,
+                             open_telemetry=open_telemetry)
 
 
 def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
                              scope: Optional[list[str]],
-                             command: str) -> None:
+                             command: str,
+                             open_telemetry: bool = True) -> None:
     """Stamp work_class and packer at session open (v0.4.21, board 63).
 
     Closes the telemetry blind spot where sessions that close without
@@ -2010,6 +2025,12 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
         log(f"open provenance: could not write provenance.json for "
             f"{sid}: {e} — the pack stands; the registry-side stamp "
             f"is lost", force=True)
+
+    if not open_telemetry:
+        log(f"open provenance: telemetry untouched for {sid} — this "
+            f"re-persist is not a session open; the open-time record "
+            f"already carries the 'opened' attempt")
+        return
 
     from bale_report import (  # lazy — see module docstring
         build_telemetry_attempt,

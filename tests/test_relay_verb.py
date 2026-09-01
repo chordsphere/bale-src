@@ -231,11 +231,22 @@ class RelayVerbTest(unittest.TestCase):
         self.assertEqual(self.thread_files(), ["001.json"])
 
     def assert_untouched(self) -> None:
-        """A refusal's invariants: session open, no telemetry, no
+        """A relay's (or its refusal's) invariants: session open, no
+        telemetry EVENT — the record, created at session open
+        (v0.4.21), still holds exactly its one `opened` attempt, so
+        relay appended nothing and mutated no envelope — and no
         bale/<sid> ref."""
         self.assertIn(self.sid, self.open_sids())
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{self.sid}.json").exists())
+        record_path = (self.repo / "claude" / "telemetry"
+                       / f"{self.sid}.json")
+        self.assertTrue(record_path.is_file(),
+                        msg="the open-time record exists from pack")
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="relay appends no telemetry attempt")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened",
+                         msg="relay leaves the envelope untouched")
         r = subprocess.run(["git", "rev-parse", "--verify", "--quiet",
                             f"refs/heads/bale/{self.sid}"],
                            cwd=self.repo, env=self.git_env,

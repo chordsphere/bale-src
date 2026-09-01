@@ -175,9 +175,13 @@ class SupersessionPackTest(unittest.TestCase):
         self.assertIn(f"{UNLOCK_REMEDY} {parent}", combined)
         self.assertEqual(self.open_sids(), [parent],
                          msg="declined supersession must close nothing")
-        # No closure record was written for the parent.
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{parent}.json").is_file())
+        # No closure event was written for the parent: its record
+        # (created at open, v0.4.21) still holds only the `opened`
+        # attempt, envelope outcome untouched.
+        record = self.telemetry_record(parent)
+        self.assertEqual(len(record["attempts"]), 1)
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened")
 
     # -- pinned behavior 2: pty accept -----------------------------------
 
@@ -333,9 +337,17 @@ class SupersessionPackTest(unittest.TestCase):
         self.assertEqual(code, 0, msg=output)
         child = self.open_sids()[0]
         record = self.telemetry_record(parent)
-        self.assertEqual(len(record["attempts"]), 1,
-                         msg="the stamp enriches the closure attempt; "
-                             "it never appends")
+        # v0.4.21: the parent's record was created at ITS open with an
+        # `opened` attempt; the superseded-by-split closure appends as
+        # the second. The stamp enriches that closure attempt — it
+        # never appends a third, and it never lands on the open-time
+        # attempt.
+        self.assertEqual(len(record["attempts"]), 2,
+                         msg="open-time attempt + the closure; the "
+                             "stamp enriches the closure attempt and "
+                             "never appends")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertNotIn("superseded_by", record["attempts"][0])
         latest = record["attempts"][-1]
         self.assertEqual(latest["closure_reason"], "superseded-by-split")
         self.assertEqual(latest["superseded_by"], child)
@@ -344,14 +356,24 @@ class SupersessionPackTest(unittest.TestCase):
                              "the stamp is not a new event")
 
     def test_decline_stamps_nothing(self) -> None:
-        """A declined exchange closes nothing and stamps nothing — no
-        record exists at all for the still-open parent."""
+        """A declined exchange closes nothing and stamps nothing — the
+        still-open parent's record stays exactly its open-time shape
+        (v0.4.21: the record exists from pack, holding only the
+        `opened` attempt; the decline appends no closure and stamps no
+        lineage anywhere in it)."""
         parent = self.open_parent()
         code, _output = self.pack_pty(
             "--supersedes", parent, slug="child", answers="n\n")
         self.assertNotEqual(code, 0)
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{parent}.json").exists())
+        record = self.telemetry_record(parent)
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="the decline appended nothing")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened",
+                         msg="the envelope still mirrors the open — "
+                             "no closure event landed")
+        self.assertNotIn("superseded_by", record["attempts"][0])
+        self.assertIsNone(record["attempts"][0]["closure_reason"])
         self.assertEqual(self.open_sids(), [parent])
 
     def test_idempotent_rerun_restamps_single_key(self) -> None:
