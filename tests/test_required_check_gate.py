@@ -348,9 +348,15 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertIn(REFUSED_STATUS, dry.stdout)
         self.assertIn(DRY_RUN_ROW, dry.stdout)
         self.assertIn("not recorded (dry-run has no outcome)", dry.stdout)
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{sid}.json").exists(),
-            msg="a dry-run refusal records no telemetry")
+        # A dry-run records no telemetry EVENT: the record, created at
+        # session open (v0.4.21), still holds exactly its one `opened`
+        # attempt — the dry-run appended nothing and mutated no
+        # envelope.
+        record = self.telemetry_record(sid)
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="a dry-run refusal appends no attempt")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened")
         self.assert_pre_staging(sid)
 
     # -- the override ----------------------------------------------------

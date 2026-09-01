@@ -2272,8 +2272,13 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # (stays open, exactly the packed/held state the user can act on) —
     # the registry now tells the truth throughout.
     if stamped_manifest is not None:
+        # open_telemetry=False (v0.4.21 rider): this re-persist re-opens
+        # the REGISTRY for the retry; it is not a session open, and the
+        # session's telemetry record already carries its one 'opened'
+        # attempt from pack. Appending another here would contradict the
+        # schema's enum contract and double-count opens.
         persist_pack_session(repo, locked_sid, stamped_manifest,
-                             scope=preserved_scope)
+                             scope=preserved_scope, open_telemetry=False)
     elif preserved_scope is not None:
         persist_session_scope(repo, locked_sid, preserved_scope)
     if preserved_origin is not None:

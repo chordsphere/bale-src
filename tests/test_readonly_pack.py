@@ -437,7 +437,10 @@ class ReadonlyPackTest(unittest.TestCase):
 
     def test_sweep_explicit_decline_keeps_session_open(self) -> None:
         """'n' at the sweep prompt declines: nothing closes, both
-        read-only sessions stay open, no closure record is written."""
+        read-only sessions stay open, no closure event is written —
+        the first session's record (created at its open, v0.4.21)
+        still holds only the `opened` attempt with the empty
+        forecast."""
         first = self.assert_pack_ok(self.pack("--read-only"))
         code, output = self.readonly_pack_pty(slug="session-b",
                                               answers="n\n")
@@ -446,8 +449,12 @@ class ReadonlyPackTest(unittest.TestCase):
         sids = self.open_sids()
         self.assertEqual(len(sids), 2, msg=output)
         self.assertIn(first, sids)
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{first}.json").is_file())
+        record = self.telemetry_record(first)
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="the declined sweep appended nothing")
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["attempts"][0]["scope"], [])
+        self.assertEqual(record["outcome"], "opened")
 
     def test_sweep_piped_declines_without_prompt(self) -> None:
         """Piped stdin declines without a prompt — automation never
@@ -465,8 +472,12 @@ class ReadonlyPackTest(unittest.TestCase):
         sids = self.open_sids()
         self.assertEqual(len(sids), 2)
         self.assertIn(first, sids)
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{first}.json").is_file())
+        # No closure event: the first session's record (created at its
+        # open, v0.4.21) still holds only the `opened` attempt.
+        record = self.telemetry_record(first)
+        self.assertEqual(len(record["attempts"]), 1)
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened")
 
     def test_scoped_pack_never_sweeps(self) -> None:
         """A worker (scoped) pack beside an open read-only session
@@ -497,8 +508,13 @@ class ReadonlyPackTest(unittest.TestCase):
         combined = result.stdout + result.stderr
         self.assertNotIn("read-only sweep", combined)
         self.assertIn(ro_sid, self.open_sids())
-        self.assertFalse(
-            (self.repo / "claude" / "telemetry" / f"{ro_sid}.json").is_file())
+        # The apply wrote no closure event for the read-only sibling:
+        # its record (created at its open, v0.4.21) still holds only
+        # the `opened` attempt.
+        record = self.telemetry_record(ro_sid)
+        self.assertEqual(len(record["attempts"]), 1)
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        self.assertEqual(record["outcome"], "opened")
 
     # -- board 33 (v0.3.21): the open banner names its close-out ---------
 
