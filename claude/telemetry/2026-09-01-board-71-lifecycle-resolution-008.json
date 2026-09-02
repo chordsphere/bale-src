@@ -1,0 +1,440 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-01-board-71-lifecycle-resolution-008",
+  "created_at": "2026-09-01T17:19:37+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-01T17:19:37+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "claude/context/adr/0006-session-registry.md",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-01-board-71-lifecycle-resolution-008.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-02T13:31:44+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-008 (15).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "bin/bale exec bit": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: hold-retry e2e (slow gate open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: amend-checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: apply pre-flight (slow gate open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full discover (default gate)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/VERSION is 0.4.25 and `bale --version` agrees": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: ADR-0006 original bytes intact under the append": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md carries row 37, step 18, held_tarball, and no retry-requires---sid prose": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "bin/bale exec bit": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: hold-retry e2e (slow gate open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: amend-checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: apply pre-flight (slow gate open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full discover (default gate)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/VERSION is 0.4.25 and `bale --version` agrees": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: ADR-0006 original bytes intact under the append": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md carries row 37, step 18, held_tarball, and no retry-requires---sid prose": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "claude/context/adr/0006-session-registry.md",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "claude/context/adr/0006-session-registry.md",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.4.24",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-01-board-71-lifecycle-resolution-008.sh",
+              "sha256": "7bb83e9db64011ebc50312e09569420eb73df25b55f646974b32a7f099eddc2f"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The real project tree carries tests/test_per_sid_checkpoint.py at the path the upload came from (tests/); validation.sh's amend suite imports it from there.",
+            "The real tree's full `unittest discover` is larger than the six-file subset observed here; the per-suite checks are the load-bearing ones."
+          ],
+          "judgment_calls": [
+            "Stamp at .bale/sessions/<sid>/held_tarball, resolved absolute path, written in the HOLD/inspect branch after the lock release (pre-ratified).",
+            "Retry resolves from the artifact even with one session open; all resolution refusals fire before _discard_hold_state (pre-ratified; pinned by assert_hold_intact).",
+            "Closed-vs-unknown naming via telemetry record \u2192 session dir \u2192 neither, with a defensive record read (ruled).",
+            "Row 37 reuses bale_pack.is_bundle_file; sited as \u00a78.1 step 18 beside the generated-artifact check (pre-ratified).",
+            "peek_responds_to exported under a public name with the underscore alias kept; its refusals now name the tarball (apply inherits the wording).",
+            "BALE.md \u00a73.4 also documents the pre-existing staging_path entry beside the new held_tarball one (W4 sweep; flagged in notes.md).",
+            "The --sid mismatch check runs before the open-membership check so a disagreement between operator and artifact is always the named fact."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/test_per_sid_checkpoint.py (arrived as an upload after the clarification; consumed as a fixture dependency, not shipped)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md in full",
+            "TARBALL.md sections 1, 2, 5, 7, 8, 10.1",
+            "README.md (the brief)",
+            "BALE.md \u00a73.4, \u00a75 retry/amend rows, \u00a75.7, \u00a78.1 steps 13/17, \u00a78.8 HOLD prose, \u00a79.5 table, \u00a711 header and rows 20/32\u201336",
+            "DOCS.md \u00a75 (ADR Notes shape)",
+            "ADR-0006 in full",
+            "bin/bale: resolve_open_session, cmd_retry, cmd_amend_checkpoint and its resolver, retry/amend argparse; bin/bale_apply.py: peek/bare-candidate helpers, generated-artifact row, the HOLD/inspect branch, cmd_apply; bale_pack.is_bundle_file",
+            "tests/harness.py, test_hold_retry_e2e.py, test_amend_checkpoint.py, test_apply_preflight.py (fixtures + row 20), test_per_sid_checkpoint.py (fixture class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-71-lifecycle-resolution-008.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-01-board-71-lifecycle-resolution-008.sh",
+          "sha256": "7bb83e9db64011ebc50312e09569420eb73df25b55f646974b32a7f099eddc2f"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-02T13:38:01+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-008 (15).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "bin/bale exec bit": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: hold-retry e2e (slow gate open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: amend-checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: apply pre-flight (slow gate open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full discover (default gate)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/VERSION is 0.4.25 and `bale --version` agrees": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: ADR-0006 original bytes intact under the append": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md carries row 37, step 18, held_tarball, and no retry-requires---sid prose": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "bin/bale exec bit": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: hold-retry e2e (slow gate open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: amend-checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: apply pre-flight (slow gate open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full discover (default gate)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/VERSION is 0.4.25 and `bale --version` agrees": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: ADR-0006 original bytes intact under the append": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md carries row 37, step 18, held_tarball, and no retry-requires---sid prose": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "claude/context/adr/0006-session-registry.md",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "claude/context/adr/0006-session-registry.md",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": null,
+          "provenance": {
+            "bale_version": "0.4.24",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-01-board-71-lifecycle-resolution-008.sh",
+              "sha256": "7bb83e9db64011ebc50312e09569420eb73df25b55f646974b32a7f099eddc2f"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The real project tree carries tests/test_per_sid_checkpoint.py at the path the upload came from (tests/); validation.sh's amend suite imports it from there.",
+            "The real tree's full `unittest discover` is larger than the six-file subset observed here; the per-suite checks are the load-bearing ones."
+          ],
+          "judgment_calls": [
+            "Stamp at .bale/sessions/<sid>/held_tarball, resolved absolute path, written in the HOLD/inspect branch after the lock release (pre-ratified).",
+            "Retry resolves from the artifact even with one session open; all resolution refusals fire before _discard_hold_state (pre-ratified; pinned by assert_hold_intact).",
+            "Closed-vs-unknown naming via telemetry record \u2192 session dir \u2192 neither, with a defensive record read (ruled).",
+            "Row 37 reuses bale_pack.is_bundle_file; sited as \u00a78.1 step 18 beside the generated-artifact check (pre-ratified).",
+            "peek_responds_to exported under a public name with the underscore alias kept; its refusals now name the tarball (apply inherits the wording).",
+            "BALE.md \u00a73.4 also documents the pre-existing staging_path entry beside the new held_tarball one (W4 sweep; flagged in notes.md).",
+            "The --sid mismatch check runs before the open-membership check so a disagreement between operator and artifact is always the named fact."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/test_per_sid_checkpoint.py (arrived as an upload after the clarification; consumed as a fixture dependency, not shipped)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md in full",
+            "TARBALL.md sections 1, 2, 5, 7, 8, 10.1",
+            "README.md (the brief)",
+            "BALE.md \u00a73.4, \u00a75 retry/amend rows, \u00a75.7, \u00a78.1 steps 13/17, \u00a78.8 HOLD prose, \u00a79.5 table, \u00a711 header and rows 20/32\u201336",
+            "DOCS.md \u00a75 (ADR Notes shape)",
+            "ADR-0006 in full",
+            "bin/bale: resolve_open_session, cmd_retry, cmd_amend_checkpoint and its resolver, retry/amend argparse; bin/bale_apply.py: peek/bare-candidate helpers, generated-artifact row, the HOLD/inspect branch, cmd_apply; bale_pack.is_bundle_file",
+            "tests/harness.py, test_hold_retry_e2e.py, test_amend_checkpoint.py, test_apply_preflight.py (fixtures + row 20), test_per_sid_checkpoint.py (fixture class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-01-board-71-lifecycle-resolution-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-01-board-71-lifecycle-resolution-008.sh",
+          "sha256": "5ffdf5395189c73530652ac338c44a465b578ba112b7d7ca40934cff475f1385"
+        },
+        "stamp_matched": false
+      }
+    }
+  ],
+  "updated_at": "2026-09-02T13:38:01+00:00",
+  "outcome": "applied"
+}
