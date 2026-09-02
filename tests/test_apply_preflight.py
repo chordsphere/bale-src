@@ -36,6 +36,10 @@ list was verified against the doc per its own instruction):
       contract; this suite's earlier behavior pin, which documented
       the identical-duplicate acceptance the rider closed, is
       superseded by the row's own test)
+- 37  apply-side bundle backstop (v0.4.25 — the board-71 rider, accepted
+      2026-08-24 from the 49a-i session's Proposals: no changes[] path
+      ends in ``.bale-bundle``; the landing-direction twin of pack's
+      row 33)
 
 Row 8 (dirty-on-target) is an environment-state refusal, not tarball
 malformation, so it lives in its own class below
@@ -75,6 +79,7 @@ import os
 import shutil
 import subprocess
 import tarfile
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +100,10 @@ from harness import (
 
 ORIGINAL_HELLO = "hello\n"
 ORIGINAL_OTHER = "other\n"
+
+# bin/ on sys.path for the pure-helper unit test below (the same
+# sys.path tweak the harness's consumers of bin/ modules use).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bin"))
 
 
 class ApplyPreflightRejectTest(unittest.TestCase):
@@ -488,6 +497,22 @@ class ApplyPreflightRejectTest(unittest.TestCase):
             self.apply(self.tampered_tarball(declare_pyc)),
             "generated artifacts in changes[]", "__pycache__/module.pyc")
 
+    def test_row37_bundle_backstop(self) -> None:
+        """Row 37: a changes[] path ending in .bale-bundle is refused with
+        the offending path named — the self-oracle shape from the
+        landing direction."""
+        def declare_bundle(m, rdir):
+            m["changes"].append({
+                "path": "claude/bundles/board-71.bale-bundle",
+                "action": "created",
+                "reason": "bundle-landing tamper", "size_bytes": 2,
+                "sha256": "0" * 64,
+            })
+        self.assert_rejected(
+            self.apply(self.tampered_tarball(declare_bundle)),
+            "planner bundle in changes[]",
+            "claude/bundles/board-71.bale-bundle", "row 37")
+
     def test_row25_response_kind_shape(self) -> None:
         """Row 25: the non-normal kinds' cross-field rules — a
         clarification with a non-empty change surface, and a normal
@@ -544,6 +569,25 @@ class ApplyPreflightRejectTest(unittest.TestCase):
             self.assert_rejected(
                 self.apply(self.tampered_tarball(duplicate_conflicting)),
                 "duplicate changes[] path", "hello.txt")
+
+
+class BundleChangePathsUnitTest(unittest.TestCase):
+    """The row-37 recognizer is pure and keys on the reserved suffix
+    exactly as pack's row 33 does (bale_pack.is_bundle_file)."""
+
+    def test_suffix_boundary(self) -> None:
+        import bale_apply
+        paths = [
+            "x.bale-bundle",                 # bare, repo root
+            "claude/bundles/y.bale-bundle",  # nested
+            "notes/y.bale-bundle.md",        # a note ABOUT a bundle: fine
+            "src/bale-bundle.py",            # no dot-suffix: fine
+            "X.BALE-BUNDLE",                 # case-sensitive: fine
+        ]
+        self.assertEqual(bale_apply.bundle_change_paths(paths),
+                         ["claude/bundles/y.bale-bundle", "x.bale-bundle"])
+        self.assertEqual(bale_apply.bundle_change_paths([]), [],
+                         msg="empty change surfaces pass vacuously")
 
 
 class ApplyDirtyOnTargetTest(unittest.TestCase):

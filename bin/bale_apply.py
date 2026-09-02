@@ -227,18 +227,24 @@ def prompt_walkthrough_action(state: str, *, no_interact: bool = False,
     return default
 
 
-def _peek_responds_to(tarball_path: Path) -> str:
+def peek_responds_to(tarball_path: Path) -> str:
     """Read `responds_to` from a response tarball's manifest, pre-pipeline.
 
     The multi-open resolution path (ADR-0007): when the registry holds
     more than one open session, cmd_apply needs the response's own
     `responds_to` to know which session log to wire and which sid the
     pipeline runs against — before apply_pipeline extracts anything.
-    This reads exactly one member (response-NNN/manifest.json) from the
-    archive in memory; nothing is extracted to disk, and every check
-    here is re-run in full by the pipeline's own pre-flight. Failures
-    are fatal with the same voice the pipeline would use — a tarball
-    this helper can't read was never going to survive pre-flight.
+    Since board 71 (v0.4.25) `bale retry` resolves from this on every
+    invocation (bin/bale resolve_retry_session), so the helper is
+    exported under its public name; the underscore alias below keeps
+    the older spelling resolvable. This reads exactly one member
+    (response-NNN/manifest.json) from the archive in memory; nothing is
+    extracted to disk, and every check here is re-run in full by the
+    pipeline's own pre-flight. Failures are fatal with the same voice
+    the pipeline would use — a tarball this helper can't read was never
+    going to survive pre-flight — and each names the tarball, since a
+    retry's refusal here is the operator's only clue which file was
+    wrong.
     """
     from __main__ import fail  # lazy — see module docstring
     try:
@@ -252,23 +258,32 @@ def _peek_responds_to(tarball_path: Path) -> str:
                     member = m
                     break
             if member is None:
-                fail("tarball has no response-NNN/manifest.json; cannot "
-                     "resolve which open session it responds to")
+                fail(f"{tarball_path.name} has no response-NNN/"
+                     f"manifest.json; cannot resolve which open session "
+                     f"it responds to.\n  tarball: {tarball_path}")
             extracted = tf.extractfile(member)
             if extracted is None:
-                fail(f"could not read {member.name} from the tarball")
+                fail(f"could not read {member.name} from "
+                     f"{tarball_path.name}.\n  tarball: {tarball_path}")
             raw = extracted.read()
     except (tarfile.TarError, OSError) as e:
-        fail(f"tarball is unreadable: {e}")
+        fail(f"{tarball_path.name} is unreadable as a tarball: {e}\n"
+             f"  tarball: {tarball_path}")
     try:
         manifest = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
-        fail(f"manifest.json in the tarball is not valid JSON: {e}")
+        fail(f"manifest.json in {tarball_path.name} is not valid JSON: "
+             f"{e}\n  tarball: {tarball_path}")
     responds_to = manifest.get("responds_to")
     if not isinstance(responds_to, str) or not responds_to.strip():
-        fail("manifest.responds_to is missing or empty; cannot resolve "
-             "which open session this response answers")
-    return responds_to
+        fail(f"manifest.responds_to in {tarball_path.name} is missing or "
+             f"empty; cannot resolve which open session this response "
+             f"answers.\n  tarball: {tarball_path}")
+    return responds_to.strip()
+
+
+# Pre-board-71 spelling, kept resolvable for any out-of-tree caller.
+_peek_responds_to = peek_responds_to
 
 
 def _peek_bare_candidate(tarball_path: Path) -> tuple[Optional[str], str]:
@@ -941,6 +956,17 @@ GENERATED_ARTIFACT_DIRS = frozenset({
 GENERATED_ARTIFACT_FILE_GLOBS = ("*.pyc", "*.pyo")
 
 
+# The HOLD-time tarball stamp (v0.4.25, board 71): the file under
+# .bale/sessions/<sid>/ that records, as one resolved absolute path, which
+# response tarball the session is currently held on. Written at the HOLD
+# terminal action beside `staging_path`; read by `bale amend-checkpoint`
+# to compose its retry successor without a placeholder. Per-attempt state
+# by construction — retry's _discard_hold_state wipes the session dir and
+# a re-HOLD re-stamps — so a session that never reached HOLD (or was held
+# before this landed) has none, and the reader says so.
+HELD_TARBALL_STAMP = "held_tarball"
+
+
 def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
     """Return the sorted subset of `paths` that name generated artifacts.
 
@@ -961,6 +987,31 @@ def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
                          for pat in GENERATED_ARTIFACT_FILE_GLOBS):
             offending.add(p)
     return sorted(offending)
+
+
+# --- Apply-side bundle backstop (v0.4.25, board 71 rider) ---------------------
+#
+# Accepted 2026-08-24 from the 49a-i session's Proposals: apply's pre-flight
+# rejects any changes[] path ending in .bale-bundle — a worker landing a
+# bundle is the self-oracle shape from the landing direction (pack's row
+# 33 refuses the shipping direction). The recognizer is bale_pack's own
+# is_bundle_file, so both halves key on the one reserved suffix; there is
+# no admission flag, mirroring row 33 — no session legitimately lands a
+# real bundle, and bundle-handling work uses fixtures named outside the
+# suffix. BALE.md §8.1 step 18 / §11 row 37.
+
+def bundle_change_paths(paths: Iterable[str]) -> list[str]:
+    """Return the sorted subset of `paths` that name a planner bundle.
+
+    Pure — the same manifest-only shape as generated_artifact_paths:
+    inputs are changes[].path strings, nothing touches the filesystem,
+    and an empty input (bailout/clarification manifests) returns empty.
+    The suffix test is bale_pack.is_bundle_file (basename tail,
+    case-sensitive): `x.bale-bundle` anywhere in the tree offends,
+    `x.bale-bundle.md` does not.
+    """
+    import bale_pack  # lazy — see module docstring
+    return sorted({p for p in paths if bale_pack.is_bundle_file(p)})
 
 
 # --- Checkpoint provenance stamp (v0.3.28, board 6 session C) -----------------
@@ -1427,7 +1478,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # sid the response names must be an open session. With several
         # sessions open (ADR-0007), cmd_apply already resolved
         # `locked_sid` from the manifest's own responds_to via
-        # _peek_responds_to, so this equality re-checks the full pipeline
+        # peek_responds_to, so this equality re-checks the full pipeline
         # extraction against the peek — defense in depth; with one open
         # session it is the same check it always was.
         if manifest["responds_to"] != locked_sid:
@@ -1759,6 +1810,24 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 f"not generated artifacts (TARBALL.md §5.1) — bytecode, "
                 f"dependency trees, and build output are rebuilt by the "
                 f"project's toolchain. Remove them and repack the response."
+            )
+
+        # 8.1 step 18 / §11 row 37: apply-side bundle backstop (v0.4.25,
+        # board 71 rider). Same manifest-only posture as step 13: pre-
+        # staging, runs under --dry-run, vacuous for the empty change
+        # surfaces, silent on a clean pass. Refuses rather than warns —
+        # a worker landing a planner bundle is the self-oracle shape.
+        bundles = bundle_change_paths(
+            change["path"] for change in manifest.get("changes", []))
+        if bundles:
+            fail(
+                f"[REJECT] planner bundle in changes[]: "
+                f"{', '.join(bundles)}. A response never lands a "
+                f"`.bale-bundle` file — bundles carry the planner's blind "
+                f"checkpoint, and a worker landing one is the self-oracle "
+                f"shape (BALE.md §11 row 37; the pack-side half is row "
+                f"33). Remove it and repack the response; bundle-handling "
+                f"fixtures are named outside the suffix."
             )
 
         # Bailout fork — TARBALL.md §5.6.3. response_kind="bailout" means no
@@ -2772,6 +2841,23 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # state is guarded by the session's registry entry plus the
             # branch itself, not by the lock.
             release_integration_lock(repo)
+            # HOLD-time tarball stamp (v0.4.25, board 71): the resolved
+            # path of the tarball this session is now held on, beside
+            # staging_path, so `bale amend-checkpoint` composes a
+            # placeholder-free successor. Loud-never-fatal: the HOLD's
+            # git work is complete, so a stamp write failure is logged
+            # and the amend side degrades with that reason, rather than
+            # turning a completed HOLD into a failure.
+            stamp_path = sessions_dir / HELD_TARBALL_STAMP
+            try:
+                stamp_path.write_text(
+                    str(tarball_path.resolve()) + "\n", encoding="utf-8")
+                log(f"stamped held tarball {tarball_path.resolve()} at "
+                    f"{stamp_path}")
+            except OSError as e:
+                log(f"could not write the HOLD-time tarball stamp at "
+                    f"{stamp_path} ({e}); `bale amend-checkpoint` will "
+                    f"emit its successor in placeholder form", force=True)
             # Telemetry record (v0.3.9, B2 — BALE.md §8.9). The HOLD attempt
             # is appended now; a later retry appends its own attempt to the
             # same record rather than duplicating the file.
@@ -3130,7 +3216,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     # the resolution is exactly what it always was: the registry's sole
     # entry. With several open (reachable since ADR-0007's pack gate
     # landed), the response itself says which session it answers:
-    # _peek_responds_to reads responds_to from the tarball's manifest, and
+    # peek_responds_to reads responds_to from the tarball's manifest, and
     # membership in the open set is the §11 row 9 registry lookup, made
     # here so the session log wires to the right sid before the pipeline
     # runs. The pipeline re-checks responds_to against the resolved sid
@@ -3141,7 +3227,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if len(open_sids) == 1:
         locked_sid = open_sids[0]
     else:
-        responds_to = _peek_responds_to(tarball_path)
+        responds_to = peek_responds_to(tarball_path)
         if responds_to not in open_sids:
             fail(
                 f"manifest.responds_to={responds_to!r} does not name an "
