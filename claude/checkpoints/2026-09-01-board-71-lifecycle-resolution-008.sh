@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# board-71 blind checkpoint v1 — lifecycle resolution from the
-# artifact in hand. Outcome contracts only; runs at the applied
+# board-71 blind checkpoint v2 — lifecycle resolution from the
+# artifact in hand. (v2 derives from v1: P2 is STRUCK — it asserted
+# the <response-tarball> placeholder was retired everywhere, but the
+# brief's own W2 requires the legacy-HOLD degrade rung to keep the
+# placeholder form loudly; the probe contradicted the spec it served.
+# W2's verification rests on the session's observed amend-suite tests
+# and ratification review. P1/P3/P4 are byte-identical to v1.) Outcome contracts only; runs at the applied
 # tree's root. Exit 0 all pass; 1 HOLD; 2 checkpoint-error.
 set -u
 
@@ -28,12 +33,6 @@ rc=$?
 probe "P1-retry-sid-requirement-retired" \
       "$([ "$rc" -ne 0 ]; echo $?)"
 
-# P2 — the amend successor's placeholder is retired from bin/bale.
-tr -s ' \n' '  ' < bin/bale | grep -q "retry <response-tarball>"
-rc=$?
-probe "P2-successor-placeholder-retired" \
-      "$([ "$rc" -ne 0 ]; echo $?)"
-
 # P3 — ADR-0006 grew by a dated append and only by an append:
 # the base bytes remain a byte-identical prefix.
 BASE_SIZE=5645
@@ -57,5 +56,5 @@ if [ "$fail_count" -gt 0 ]; then
   echo "checkpoint: HOLD ($fail_count probe(s) failed)"
   exit 1
 fi
-echo "checkpoint: PASS (4/4)"
+echo "checkpoint: PASS (3/3)"
 exit 0
