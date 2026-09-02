@@ -32,6 +32,14 @@ comparisons). Coverage, per the board-53 ruling ((b)-as-adjusted):
 - **Read + tree refusals**: missing file, empty file, uncommitted
   working-tree edits at the oracle path, and a config with no
   [validation] base or a literal base.
+- **The composed successor** (board 71, v0.4.25): after a HOLD, the
+  report's last line is fully composed from the HOLD-time
+  ``held_tarball`` stamp — real tarball path, ``--sid <sid>``,
+  ``--accept-checkpoint-change``, zero placeholders — on both the
+  amendment-proper and idempotent-re-run rungs; a session with no
+  stamp (held before the stamp existed, or never held) degrades
+  loudly to the placeholder form with one line saying why, and never
+  omits the successor.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py``; the per-sid fixture base comes from
@@ -52,7 +60,12 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from harness import run_bale, run_checked
+from harness import (
+    build_response_dir,
+    run_bale,
+    run_checked,
+    tar_response_dir,
+)
 from test_per_sid_checkpoint import (
     CP_PATTERN,
     PerSidFixture,
@@ -75,6 +88,10 @@ NO_ORACLE_PHRASE = "no committed blind checkpoint"
 UNCONFIGURED_PHRASE = "pins no [validation] base"
 LITERAL_BASE_PHRASE = "per-session ({sid} bases) only"
 AMEND_SUBJECT_PREFIX = "bale: amend per-session checkpoint for "
+HELD_STAMP = "held_tarball"
+PLACEHOLDER = "<response-tarball>"
+NO_STAMP_PHRASE = "no HOLD-time tarball stamp"
+DEGRADE_WHY_PHRASE = "could not be filled in"
 
 
 def sha256_text_lf(body: str) -> str:
@@ -142,9 +159,9 @@ class AmendFixture(PerSidFixture):
             cwd=self.repo, capture_output=True, text=True)
         return [ln for ln in r.stdout.splitlines() if ln.strip()]
 
-    def assert_successor_is_last_line(self, stdout: str, sid: str) -> None:
+    def assert_successor_is_last_line(self, stdout: str, sid: str) -> str:
         """The board-53 constraint: the report ENDS with the paste-ready
-        retry line — the verb's named successor."""
+        retry line — the verb's named successor. Returns the line."""
         lines = [ln.strip() for ln in stdout.splitlines() if ln.strip()]
         self.assertTrue(lines, msg="expected report output")
         last = lines[-1]
@@ -153,6 +170,31 @@ class AmendFixture(PerSidFixture):
                             f"last line was: {last!r}")
         self.assertIn("--accept-checkpoint-change", last)
         self.assertIn(f"--sid {sid}", last)
+        return last
+
+    def hold_session(self, sid: str, *, name: str) -> Path:
+        """Drive `sid` into HOLD with a response whose validation.sh
+        fails by construction; returns the tarball apply was given."""
+        rdir = build_response_dir(
+            self.tmp / name, sid,
+            summary="amend fixture: rewrite hello.txt; validation fails",
+            entries=[{
+                "path": "hello.txt", "action": "modified",
+                "reason": "the goal's rewrite; held by the failing check",
+                "data": b"held rewrite\n",
+            }],
+            validation_sh=("#!/usr/bin/env bash\n"
+                           "echo \"[FAIL] fixture check\"\n"
+                           "exit 1\n"),
+        )
+        tarball = tar_response_dir(rdir)
+        r = run_bale(self.install, ["apply", str(tarball)],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1,
+                         msg=f"expected HOLD; stdout:\n{r.stdout}\n"
+                             f"stderr:\n{r.stderr}")
+        self.assertIn("[HOLD]", r.stdout)
+        return tarball
 
 
 class AmendCheckpointHappyPathTest(AmendFixture):
@@ -225,6 +267,84 @@ class AmendCheckpointHappyPathTest(AmendFixture):
                          subjects_after_first,
                          msg="the idempotent re-run makes no new commit")
         self.assert_successor_is_last_line(second.stdout, sid)
+
+
+class AmendCheckpointSuccessorTest(AmendFixture):
+    """Board 71: the successor is composed from the HOLD-time stamp on
+    every rung, and degrades loudly — never silently — without one."""
+
+    def test_successor_composed_from_hold_stamp_on_both_rungs(self) -> None:
+        """After a HOLD, the amendment-proper report ends with the
+        composed line (real path, --sid, accept flag, no placeholder);
+        the idempotent re-run ends with the identical line."""
+        sid = self.packed_session("composed")
+        held_tarball = self.hold_session(sid, name="held")
+        stamp = self.repo / ".bale" / "sessions" / sid / HELD_STAMP
+        self.assertEqual(stamp.read_text(encoding="utf-8").strip(),
+                         str(held_tarball.resolve()))
+
+        v1 = checkpoint_script("v1-composed")
+        amendment = self.write_amendment(v1)
+        published = sha256_text_lf(v1)
+        expected = (f"bale retry {held_tarball.resolve()} "
+                    f"--accept-checkpoint-change --sid {sid}")
+
+        first = self.amend(str(amendment), "--sha256", published)
+        self.assertEqual(first.returncode, 0,
+                         msg=f"stdout:\n{first.stdout}\n"
+                             f"stderr:\n{first.stderr}")
+        last = self.assert_successor_is_last_line(first.stdout, sid)
+        self.assertEqual(last, expected)
+        self.assertNotIn("<", first.stdout.splitlines()[-1],
+                         msg="zero placeholders in the composed line")
+        self.assertNotIn(DEGRADE_WHY_PHRASE, first.stdout + first.stderr)
+
+        second = self.amend(str(amendment), "--sha256", published)
+        self.assertEqual(second.returncode, 0,
+                         msg=f"stdout:\n{second.stdout}\n"
+                             f"stderr:\n{second.stderr}")
+        self.assertIn(IDEMPOTENT_PHRASE, second.stdout + second.stderr)
+        self.assertEqual(
+            self.assert_successor_is_last_line(second.stdout, sid), expected,
+            msg="the idempotent re-run composes the same successor")
+
+    def test_legacy_hold_without_stamp_degrades_loudly(self) -> None:
+        """A session held before the stamp existed (simulated by
+        removing it) still ends with the successor — the placeholder
+        form — preceded by one line saying why the path is absent."""
+        sid = self.packed_session("legacy")
+        self.hold_session(sid, name="held-legacy")
+        (self.repo / ".bale" / "sessions" / sid / HELD_STAMP).unlink()
+
+        v1 = checkpoint_script("v1-legacy")
+        amendment = self.write_amendment(v1, name="amend-legacy.sh")
+        r = self.amend(str(amendment), "--sha256", sha256_text_lf(v1))
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        last = self.assert_successor_is_last_line(r.stdout, sid)
+        self.assertIn(PLACEHOLDER, last,
+                      msg="the degrade keeps the placeholder form")
+        lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+        self.assertIn(DEGRADE_WHY_PHRASE, lines[-2],
+                      msg="the line before the successor says why")
+        self.assertIn(NO_STAMP_PHRASE, lines[-2])
+        self.assertIn("FORCE: successor degraded", r.stdout,
+                      msg="the degrade is FORCE-logged, never silent")
+
+    def test_never_held_session_degrades_naming_why(self) -> None:
+        """A packed session that never reached HOLD (nothing to compose
+        from) degrades the same way, naming the pre-flight/never-held
+        reason rather than omitting the successor."""
+        sid = self.packed_session("neverheld")
+        v1 = checkpoint_script("v1-nh")
+        amendment = self.write_amendment(v1, name="amend-nh.sh")
+        r = self.amend(str(amendment), "--sha256", sha256_text_lf(v1))
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        last = self.assert_successor_is_last_line(r.stdout, sid)
+        self.assertIn(PLACEHOLDER, last)
+        self.assertIn(NO_STAMP_PHRASE, r.stdout)
+        self.assertIn("has not reached HOLD", r.stdout)
 
 
 class AmendCheckpointAccountingTest(AmendFixture):

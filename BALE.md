@@ -340,6 +340,16 @@ or a citation-shaped `claude/INDEX.md`) in the five files under
                                # a detached HEAD up front (§7.1
                                # step 4a, §11 rows 23–24) so
                                # neither can skip the stamp
+      staging_path             # the attempt's staging dir, stamped
+                               # at stage (§8.3); read by revert
+      held_tarball             # the response tarball the session
+                               # is held on — one resolved absolute
+                               # path, stamped at the HOLD terminal
+                               # action (§8.8, v0.4.25); read by
+                               # `bale amend-checkpoint` to compose
+                               # its retry successor (§5.7);
+                               # per-attempt: retry's discard wipes
+                               # it and a re-HOLD re-stamps
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
 ```
@@ -355,10 +365,13 @@ session — the most recently opened, repointed to the oldest remaining
 open session when the named one closes. Every command resolves
 sessions through the registry: pack, apply, and status since the
 registry landed, and revert, retry, unlock, and handoff since the
-threading session — the three that target "the" session take an
-optional sid, resolving implicitly when exactly one session is open
-and requiring the sid (listing the candidates) when several are. The
-pointer is therefore informational only; the one operational reader
+threading session. Revert and unlock take an optional sid, resolving
+implicitly when exactly one session is open and requiring the sid
+(listing the candidates) when several are; retry, holding a response
+artifact, resolves from that artifact's own `responds_to` however
+many are open, with `--sid` demoted to a vetting flag (v0.4.25,
+board 71; the retry row in §5). The pointer is therefore
+informational only; the one operational reader
 left is `bale unlock`'s stale-pointer sweep, which clears a non-empty
 pointer with no matching open marker (the benign half-state an
 interrupted pack can leave, §9.3).
@@ -468,8 +481,8 @@ forward-looking entry.
 |---------|---------|-------|
 | `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
-| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The sid resolves implicitly with one session open; `--sid` picks when several are (ADR-0006). Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
-| `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry ... --accept-checkpoint-change` line as its named successor. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
+| `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
+| `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball> --accept-checkpoint-change --sid <sid>` line as its named successor — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs; a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
@@ -905,19 +918,36 @@ A working-tree rung backs the committed one: uncommitted bytes at
 the resolved path matching neither HEAD nor the amendment refuse —
 the verb never clobbers local edits.
 
-**The successor.** The report ends with the paste-ready line
+**The successor.** The report ends with the paste-ready line,
+fully composed (v0.4.25, board 71) — for example
 
 ```
-bale retry <response-tarball> --accept-checkpoint-change --sid <sid>
+bale retry /home/op/Downloads/response-014.tar.gz --accept-checkpoint-change --sid 2026-09-01-board-71-lifecycle-resolution-008
 ```
 
-with `--accept-checkpoint-change` pre-composed deliberately (board
-53): after an amendment the stamp mismatch holds by construction,
-the deliberateness was already spent at this verb's invocation with
-the published hash in hand, and the emitted line is complete so the
-operator pastes rather than reassembles. The recorded
+The tarball path is the HOLD-time stamp apply wrote at
+`.bale/sessions/<sid>/held_tarball` (§3.4, §8.8): the resolved
+absolute path of the response the session is held on, the
+machine-readable home of what the session log carried only as
+prose. `--accept-checkpoint-change` is pre-composed deliberately
+(board 53): after an amendment the stamp mismatch holds by
+construction, the deliberateness was already spent at this verb's
+invocation with the published hash in hand, and the emitted line is
+complete so the operator pastes rather than reassembles. `--sid` is
+filled too, as belt-and-suspenders: retry resolves from the
+tarball's own `responds_to` and `--sid` vets it, so the composed
+line vets rather than depends. The same composed line ends the
+amendment-proper and the idempotent-re-run rungs alike. The recorded
 `stamp_matched: false` at that retry remains the truthful double
 record, alongside the amendment's own commit.
+
+A session with no stamp — held before v0.4.25, or never held since
+pack (a pre-flight rejection leaves none) — degrades loudly: one
+FORCE-logged line and one report line say why the path could not be
+filled in, and the placeholder form
+`bale retry <response-tarball> --accept-checkpoint-change --sid <sid>`
+follows as the last line. The successor is never omitted on any
+rung.
 
 ### 5.8 `bale relay`
 
@@ -2339,8 +2369,22 @@ Pipeline steps:
     a repack, which restamps against the current base by construction.
     Bailout and clarification manifests fork before this gate and
     never reach it (their `changes[]` is empty regardless).
+18. Apply-side bundle backstop (v0.4.25 — the board-71 rider, accepted
+    2026-08-24 from the 49a-i session's Proposals): no `changes[]`
+    path ends in the reserved `.bale-bundle` suffix (§6.7). A worker
+    landing a bundle is the self-oracle shape from the landing
+    direction — the twin of pack's shipping-direction refusal (§7.1
+    step 4c, §11 row 33) — and the recognizer is the same
+    structural suffix test, so the two halves cannot disagree on
+    what a bundle is; `x.bale-bundle.md` (a note about a bundle) is
+    not one. Manifest-only, sited beside step 13: pre-staging, runs
+    under `--dry-run`, vacuous for bailout and clarification
+    manifests, silent on a clean pass. No admission flag on either
+    half — no session legitimately lands a real bundle; bundle-
+    handling work names its fixtures outside the suffix. The
+    refusal names every offending path (§11 row 37).
 
-If any of 1–17 fails: log the failure with a clear `[REJECT] <rule>:
+If any of 1–18 fails: log the failure with a clear `[REJECT] <rule>:
 <detail>` line, clean up the temp directory, exit non-zero. No
 staging branch, no file modifications. (The step-14, step-15, and
 step-17 refusals additionally report through their structured
@@ -2888,7 +2932,14 @@ on EOF.
   committed branch with its diff command (`git diff
   <origin>..bale/<sid>` — checkout untouched) and the preserved
   per-sid staging path — plus the session log and the two ways
-  forward (`bale retry <new-tarball>`, `bale revert <sid>`).
+  forward (`bale retry <new-tarball>`, `bale revert <sid>`). The
+  inspect action also stamps `.bale/sessions/<sid>/held_tarball`
+  (v0.4.25, board 71): the resolved absolute path of the tarball
+  this HOLD was applied from, beside `staging_path`, so `bale
+  amend-checkpoint` composes its retry successor without a
+  placeholder (§5.7). Loud-never-fatal — the HOLD's git work is
+  complete by then, so a stamp write failure is logged and the amend
+  side degrades with that reason.
 - **Revert.** Delete the branch (forcefully), wipe
   `.bale/sessions/<sid>/`, close the session in the registry, release
   the integration lock. Same operation regardless
@@ -3640,8 +3691,10 @@ row reads against a session's registry entry (its
 `current_session` compatibility pointer tracks the registry in
 lockstep (naming the most recently opened session, repointed on
 close — §3.4) but is informational only; every command resolves
-sessions through the registry itself, with revert/retry/unlock taking
-an optional sid that is required only when several sessions are open.
+sessions through the registry itself — revert and unlock taking an
+optional sid that is required only when several sessions are open,
+and retry resolving from its tarball's `responds_to` with `--sid` as
+vetting (v0.4.25, board 71).
 While at most one session is open, the table is observably identical
 to the old single-lock reading; with several open (admitted since
 ADR-0007's gate landed) each session moves through the same states
@@ -3652,7 +3705,7 @@ lock. The three reachable states per session:
 |-------|---------------|--------|-------------------|----------------|
 | Closed | no `open` marker | none | initial, post-merge, post-revert, post-unlock, post-bailout, post-supersession (an accepted `bale pack --supersedes`, §7.2) | `bale pack` |
 | Open, no branch | marker present | none | post-`bale pack` / post-`bale handoff`, before `bale apply` | `bale apply` (any walkthrough path), `bale unlock [sid]`, or closure as superseded-by-split by an accepted `bale pack --supersedes <sid>` (§7.2) |
-| Open, with HOLD branch | marker present | `bale/<sid>` w/ the session commit (checkout untouched — ADR-0008) | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball> [--sid]` with a corrected response, or apply a corrected response (after `bale revert [sid]`) |
+| Open, with HOLD branch | marker present | `bale/<sid>` w/ the session commit (checkout untouched — ADR-0008) | `bale apply` hit validation failure; user chose inspect | `bale revert [sid]`, `bale retry <tarball>` with a corrected response (the session resolves from the tarball's `responds_to`; `--sid` vets), or apply a corrected response (after `bale revert [sid]`) |
 
 Passed-and-kept is not a state. The apply walkthrough resolves
 PASS to either merge (→ empty + `applied/<sid>` tag) or revert
@@ -3779,7 +3832,7 @@ transition path (§9.1 step 3), and read-only queries (`status`,
 ## 11. Bale-enforced contract (full list)
 
 Every check below runs mechanically inside bale. Failure → reject
-before staging (steps 1–17 of section 8.1) or before commit (sections
+before staging (steps 1–18 of section 8.1) or before commit (sections
 8.4 and 8.5). Nothing project-specific.
 
 | # | Check | Phase |
@@ -3820,6 +3873,7 @@ before staging (steps 1–17 of section 8.1) or before commit (sections
 | 34 | Exchange-record shape gate (v0.4.18; contract §8.11): `bale relay` refuses, before preserving anything, an ingest that is not a valid clarification manifest, exchange record, or paste block wrapping either — a paste block whose sha256 trailer disagrees with its body (or whose BEGIN sentinel names another sid), a record failing `exchange-record.schema.json` (closed `from` and `disposition` vocabularies, `record_version` 1, at least one of `questions[]` / `answers[]` non-empty, `created_at` ISO 8601 UTC), a `session_id` other than the named sid, a `round` that is not the thread's next `NNN`, a `from: planner` record as round one, or an `answers[]` row whose `(question_round, question_index)` resolves to no preserved question. The refusal names the failing rule, preserves nothing, and leaves the session suspended with no git side effects. The no-file re-emit form (v0.4.22, §8.11) ingests nothing and adds one refusal of its own: a sid with no recorded rounds refuses loudly, naming the sid — re-emit is read-only and preserves nothing on any path. Appended after row 33 per the appended-row precedent, so rows 1–33 stay stable | relay pre-flight |
 | 35 | Include-group coherence (board 64; §7.2): a half-configured `[pack]` include group (a name without both list keys, or a list without the name) refuses at config read wherever the merged config is consulted; an engaged group whose configured pull path does not exist refuses the pack rather than silently thinning the shipped context; and `--no-include-group` refuses on a name that is not the configured group's exact name, or when no group is configured — the opt-out is loud (FORCE-logged, report row) and a typo cannot silently skip the pull. Engagement itself is read-side only and never widens the recorded write forecast; appended after row 34 per the appended-row precedent, so rows 1–34 stay stable | pack pre-flight |
 | 36 | Base-drift gate (board 41 — the checkpoint provenance verification's pattern one level wider, the lost-update guard the whole-file overlay needs): when the request manifest carries the pack-time `provenance.base_files` stamp (per-file sha256s of the resolved write forecast's committed bytes at the pack-time tip; directory forecast entries enumerated to their committed files at pack — per-file is the ratified granularity, whole-tree hashing rejected at ratification), every `changes[]` path the stamp covers must still hash to its stamped sha256 at the target branch's tip. A mismatch — including a stamped file now missing from the base tree — means the base moved between pack and apply, and the whole-file overlay would silently revert the intervening edits, a breakage validation can pass right over; the gate refuses rather than warns (refuse-not-warn is a ratified default). Comparison covers the changes[]∩stamp intersection only — created files, out-of-forecast admissions, and bases untracked at pack are absent from the stamp and never refuse — and a stampless request (no key: pre-feature or hand-rolled) skips the gate entirely, additive with no retroactive stamping; a repack restamps against the current base by construction. Per-invocation `--accept-base-drift PATH` (repeatable, per-path — the `--allow-out-of-scope` grammar by pinned constraint; no config key, per the ratified override contract; same flag on `bale retry`, re-stated per invocation) admits exactly the named paths — the operator deliberately landing the response's bytes over the moved base — while any other drifted path still refuses. The refusal names every drifted path with stamped and current hashes, keeps the session open pre-staging with no git side effects, records telemetry outcome `base-drift-refused` with admitted paths stamped as `base_drift_overrides`, and in `--json` mode is the one-line report with that outcome and a `base_drift` detail object; `--dry-run` predicts the refusal with no telemetry (§8.1 step 17); appended after row 35 per the appended-row precedent, so rows 1–35 stay stable | apply pre-flight |
+| 37 | Apply-side bundle backstop (v0.4.25 — the board-71 rider, accepted 2026-08-24 from the 49a-i session's Proposals): no `changes[]` path ends in the reserved `.bale-bundle` suffix — a worker landing a bundle is the self-oracle shape from the landing direction, the twin of row 33's shipping-direction refusal, keyed on the same structural suffix test (`x.bale-bundle.md` is not a bundle). No admission flag on either half; bundle-handling fixtures are named outside the suffix. Manifest-only (§8.1 step 18): pre-staging, runs under `--dry-run`, vacuous for bailout and clarification manifests; the rejection names every offending path. Appended after row 36 per the appended-row precedent, so rows 1–36 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
 rules) live in the response's `validation.sh` — Claude includes them

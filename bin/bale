@@ -149,6 +149,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_summary_block,
     format_unlock_json,
     json_mode,
+    telemetry_record_path,
     write_telemetry_record,
     format_stats_json,
     format_stats_report,
@@ -237,8 +238,10 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
 # bale_apply; bale_pack never imports the apply path, and bale_apply never
 # imports bale_pack.
 from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
+    HELD_TARBALL_STAMP,
     apply_pipeline,
     clarifications_dir,
+    peek_responds_to,
     cmd_apply,
     default_staging_dir,
     default_staging_root,
@@ -802,7 +805,9 @@ def resolve_open_session(repo: Path, requested: Optional[str], *,
     """Resolve which open session a command targets (ADR-0006 threading).
 
     The one sid-resolution path for the commands that act on "the"
-    session (revert, retry, unlock): an explicit sid always wins; with
+    session without an artifact in hand (revert, unlock; retry resolved
+    here until board 71 moved it to the tarball's own responds_to —
+    resolve_retry_session): an explicit sid always wins; with
     none given, exactly one open session resolves implicitly — the
     single-session workflow keeps its zero-argument muscle memory —
     and two or more open sessions fail() demanding an explicit sid,
@@ -2134,9 +2139,99 @@ def cmd_revert(args: argparse.Namespace) -> int:
 # `pack` + `apply`, which mints a fresh sid and forces `corrects` to
 # point across sessions even though the intent and goal didn't change.
 # Retry keeps the session open in the registry so the new apply lands in
-# the same session id. Threaded (ADR-0006, v0.3.2): the target resolves
-# through resolve_open_session — implicit with one session open, --sid
-# with several.
+# the same session id. Threaded (ADR-0006, v0.3.2) through
+# resolve_open_session at first; since v0.4.25 (board 71) the target
+# resolves from the artifact in hand — the tarball's own
+# manifest.responds_to — however many sessions are open, and --sid is
+# demoted to a vetting flag (resolve_retry_session below). The demotion is
+# retry-only: revert, unlock, handoff, and amend-checkpoint hold no
+# response artifact and keep their several-open --sid requirement.
+
+
+def describe_non_open_session(repo: Path, sid: str) -> str:
+    """Name what a sid that is NOT open here actually is, for a refusal.
+
+    Board 71: a refusal that says only "not open" leaves the operator
+    guessing between a stale tarball and the wrong repo. Three facts
+    separate the cases, checked cheapest-first: a telemetry record at
+    claude/telemetry/<sid>.json means the session ran here and is
+    closed — its envelope `outcome` is the last recorded event; a
+    session dir with no open marker and no record is a closed session
+    whose record never landed (or a consumed bailout kept for handoff);
+    neither means the sid is unknown to this repo. The record is read
+    defensively — a malformed or outcome-less record still reads as
+    closed, with the reason it could not be read, never a traceback.
+    """
+    record = telemetry_record_path(repo, sid)
+    if record.is_file():
+        try:
+            data = json.loads(record.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            return (f"closed — a telemetry record exists at {record} but "
+                    f"its outcome is unreadable ({e})")
+        outcome = data.get("outcome") if isinstance(data, dict) else None
+        if isinstance(outcome, str) and outcome.strip():
+            return (f"closed — its telemetry record's last outcome is "
+                    f"{outcome!r} ({record})")
+        return (f"closed — a telemetry record exists at {record} but "
+                f"carries no readable outcome")
+    if (sessions_root(repo) / sid).is_dir():
+        return ("closed — session state remains under .bale/sessions/ "
+                "with no open marker, and no telemetry record was found")
+    return ("unknown to this repo — no open marker, no session state, no "
+            "telemetry record: wrong repo, or a stale tarball")
+
+
+def resolve_retry_session(repo: Path, tarball_path: Path,
+                          requested: Optional[str]) -> str:
+    """Resolve which open session `bale retry <tarball>` targets, from
+    the artifact in hand (board 71, v0.4.25).
+
+    The response tarball already names its session — manifest
+    .responds_to — so retry reads it (peek_responds_to: one member,
+    read in memory, refused loudly if the tarball or its manifest is
+    unreadable) and resolves from it however many sessions are open.
+    This runs BEFORE any HOLD state is touched: every refusal here
+    leaves the held branch, staging, and session records exactly as
+    they were, which the pre-board-71 order (resolve, discard, then let
+    the pipeline refuse the mismatch) did not.
+
+    `--sid` survives as a vetting flag: absent, resolution is
+    artifact-borne; present and equal to responds_to, proceed; present
+    and different, refuse naming both sids and the tarball — the
+    operator's belief and the artifact disagree, and neither is silently
+    preferred. A responds_to naming no open session refuses naming what
+    the sid is here (describe_non_open_session: closed with its last
+    outcome, or unknown) alongside the open set. With exactly one
+    session open and a matching tarball the outcome is exactly what it
+    always was.
+    """
+    opens = open_sessions(repo)
+    if not opens:
+        fail("no session is open; nothing to retry. `bale retry` is for "
+             "re-attempting a packed session. If you have a tarball but "
+             "no open session, run `bale pack` first and then `bale "
+             "apply`.")
+    responds_to = peek_responds_to(tarball_path)
+    if requested is not None and requested != responds_to:
+        fail(f"--sid {requested} does not match the tarball: "
+             f"{tarball_path.name} answers session {responds_to} "
+             f"(its manifest.responds_to). `bale retry` resolves the "
+             f"session from the tarball itself; --sid only vets that "
+             f"resolution. Re-run without --sid to retry {responds_to}, "
+             f"or with the tarball that answers {requested}.\n"
+             f"  tarball: {tarball_path}")
+    if responds_to not in opens:
+        fail(f"manifest.responds_to={responds_to!r} in {tarball_path.name} "
+             f"does not name an open session; nothing to retry. That "
+             f"session is {describe_non_open_session(repo, responds_to)}. "
+             f"Open session(s): {', '.join(opens)}.\n"
+             f"  tarball: {tarball_path}")
+    if requested is not None:
+        log(f"--sid {requested} vetted against {tarball_path.name}'s "
+            f"responds_to (match)")
+    return responds_to
+
 
 def cmd_retry(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
@@ -2168,20 +2263,12 @@ def cmd_retry(args: argparse.Namespace) -> int:
     if args.json:
         enable_json_mode()
 
-    # Retry requires an open session, same as apply. Threaded (ADR-0006):
-    # the registry identifies which session this retry is for — implicit
-    # with exactly one open, --sid required with several, and an explicit
-    # --sid must name an open session (retry preserves the open session
-    # and re-runs the pipeline inside it, so a closed sid has nothing to
-    # retry into).
-    locked_sid = resolve_open_session(
-        repo, args.sid, command="retry",
-        none_open_hint=(
-            "`bale retry` is for re-attempting a packed session. If you "
-            "have a tarball but no open session, run `bale pack` first "
-            "and then `bale apply`."
-        ),
-    )
+    # Retry requires an open session, same as apply — and, since board 71,
+    # resolves WHICH one from the tarball's own responds_to (the board-51
+    # machinery bare apply already uses), with --sid vetting rather than
+    # picking. Every refusal fires here, before the HOLD discard below,
+    # so a wrong or unreadable tarball leaves the held state intact.
+    locked_sid = resolve_retry_session(repo, tarball_path, args.sid)
 
     # Wire logging to the same session log apply/revert use.
     set_log_file(repo / ".bale" / "logs" / f"{locked_sid}.log")
@@ -2333,7 +2420,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
 # against the desk-published sha256, commit it at the session's per-sid
 # checkpoint path (bale-prefixed subject, pathspec-limited), and end the
 # report with the paste-ready `bale retry ... --accept-checkpoint-change`
-# line as the named successor. The provenance gate downstream is untouched:
+# line as the named successor — since board 71 (v0.4.25) fully composed
+# from the HOLD-time tarball stamp apply writes, never a placeholder when
+# the stamp exists. The provenance gate downstream is untouched:
 # it still refuses at retry, the accept stays per-invocation, and
 # stamp_matched: false remains the truthful record.
 #
@@ -2471,7 +2560,12 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
        report with the paste-ready retry line: after an amendment the
        stamp mismatch holds by construction, so the successor
        pre-composes --accept-checkpoint-change (the deliberateness was
-       spent here, published hash in hand; ratified board 53).
+       spent here, published hash in hand; ratified board 53). Since
+       board 71 the line is fully composed — the HOLD-time tarball
+       stamp's real path and --sid <sid> — on both the amendment-proper
+       and idempotent-re-run rungs (compose_retry_successor); a
+       session held before the stamp existed degrades loudly to the
+       placeholder form with one line saying why. Never omitted.
     """
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
@@ -2655,7 +2749,12 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
     # successor — the report ends with it, per the board-53 constraint;
     # --accept-checkpoint-change is pre-composed because after an
     # amendment the stamp mismatch holds by construction and the
-    # deliberateness was already spent at this verb's invocation.
+    # deliberateness was already spent at this verb's invocation. Since
+    # board 71 (v0.4.25) the line is fully composed from the HOLD-time
+    # tarball stamp — real path, --sid filled — on both the amendment-
+    # proper and idempotent-re-run rungs; a session with no stamp
+    # degrades loudly to the placeholder form, saying why.
+    successor_lines = compose_retry_successor(repo, sid)
     print(format_summary_block(
         [
             ("session", sid),
@@ -2675,11 +2774,59 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
             "Next step — retry the held response against the amended "
             "oracle (the stamp refusal is expected; the accept is the "
             "deliberate acknowledgment):",
-            f"bale retry <response-tarball> --accept-checkpoint-change "
-            f"--sid {sid}",
+            *successor_lines,
         ],
     ))
     return 0
+
+
+def read_held_tarball_stamp(repo: Path, sid: str) -> tuple[Optional[str], str]:
+    """Return (path, reason): the HOLD-time response tarball stamp for
+    `sid`, or None with the reason it is absent (board 71, v0.4.25).
+
+    Apply writes `.bale/sessions/<sid>/held_tarball` — one resolved
+    absolute path — when a session enters HOLD (bale_apply, the inspect
+    terminal action). It is the machine-readable home of the fact the
+    session log carried only as prose ("applying X against session Y").
+    The reason string is written for the operator: every absence is
+    named, never a silent fall-through.
+    """
+    stamp = sessions_root(repo) / sid / HELD_TARBALL_STAMP
+    if not stamp.is_file():
+        return None, (f"no HOLD-time tarball stamp at {stamp} — the "
+                      f"session was held before v0.4.25 stamped one, or "
+                      f"has not reached HOLD since pack (a pre-flight "
+                      f"rejection leaves no stamp)")
+    try:
+        text = stamp.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        return None, f"the HOLD-time tarball stamp at {stamp} is unreadable ({e})"
+    if not text:
+        return None, f"the HOLD-time tarball stamp at {stamp} is empty"
+    return text, ""
+
+
+def compose_retry_successor(repo: Path, sid: str) -> list[str]:
+    """The amend-checkpoint successor lines, composed from the HOLD-time
+    stamp (board 71). Returns the trailer lines to append: the composed
+    `bale retry <path> --accept-checkpoint-change --sid <sid>` when the
+    stamp is readable; otherwise one line saying why the path is absent
+    and the placeholder form. The report never omits the successor.
+
+    --sid stays in the composed line as belt-and-suspenders: retry
+    resolves from the tarball's own responds_to (resolve_retry_session)
+    and --sid vets it, so the line vets rather than depends.
+    """
+    held, why = read_held_tarball_stamp(repo, sid)
+    if held is not None:
+        log(f"successor composed from the HOLD-time tarball stamp: {held}")
+        return [f"bale retry {shlex.quote(held)} "
+                f"--accept-checkpoint-change --sid {sid}"]
+    log(f"successor degraded to the placeholder form — {why}", force=True)
+    return [f"(the response tarball path could not be filled in: {why}; "
+            f"substitute the held response's path below)",
+            f"bale retry <response-tarball> --accept-checkpoint-change "
+            f"--sid {sid}"]
 
 
 # ---------------------------------------------------------------------------
@@ -5563,10 +5710,14 @@ def build_parser() -> argparse.ArgumentParser:
             "the bale/<sid> branch, wipe the session's staging — and run "
             "the apply pipeline against a new response tarball, keeping "
             "the session open so the new attempt lands in the same "
-            "session id. With exactly one session open it is the target; "
-            "with several open, --sid picks which (ADR-0006). The new "
-            "tarball's manifest.responds_to must match the target session "
-            "(same as `bale apply`). The tarball argument is resolved "
+            "session id. The target session is read from the tarball "
+            "itself — its manifest.responds_to — however many sessions "
+            "are open (board 71; the same resolution bare `bale apply` "
+            "uses); it must name an open session. --sid, when given, "
+            "vets that resolution rather than picking: a --sid that "
+            "disagrees with the tarball refuses naming both. Every "
+            "resolution refusal fires before any HOLD state is "
+            "touched. The tarball argument is resolved "
             "against apply.search_paths in bale.toml the same way `bale "
             "apply` does.\n\n"
             "The per-attempt flags mirror `bale apply`'s (--verbose, "
@@ -5584,9 +5735,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
     p_retry.add_argument(
         "--sid", default=None,
-        help="Session id to retry. Optional with exactly one session "
-             "open (it resolves implicitly); required when several are "
-             "open. Must name an open session.",
+        help="Vetting only (board 71): the session is resolved from the "
+             "tarball's own manifest.responds_to, however many sessions "
+             "are open. When given, --sid must equal that responds_to; "
+             "a mismatch refuses naming both sids and the tarball. Never "
+             "required.",
     )
     p_retry.add_argument(
         "--staging-dir", default=None,
