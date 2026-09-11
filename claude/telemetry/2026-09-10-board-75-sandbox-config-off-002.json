@@ -1,0 +1,941 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-10-board-75-sandbox-config-off-002",
+  "created_at": "2026-09-10T13:32:25+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-10T13:32:25+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_sandbox.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-10-board-75-sandbox-config-off-002.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-11T02:21:18+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (60).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_sandbox.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "exchange round 2 (from: planner) for 2026-09-10-board-75-sandbox-config-off-002 \u2014 all three answers as-recommended"
+          },
+          "provenance": {
+            "bale_version": "0.4.25",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+              "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "sandbox_off_source records 'config' when both escapes are present (ratified in the exchange, restated here because it is a reading the oracle must agree with)",
+            "the bin/bale_staging.py per-script wording change is admissible under the same argument as the ratified bin/bale help-string drift (not asked; argued in notes.md)",
+            "the `bale open` config-off path is correct by construction (compiles, mirrors apply) \u2014 no bundle fixture exists to drive it end to end"
+          ],
+          "judgment_calls": [
+            "config resolved at pipeline start (a separate merged_config read) so the config-off FORCE line sits beside the flag's and precedes any script; one effective sandbox_on threads runs and stamps",
+            "_prompt_bool gained an unset_effective keyword so the wizard never renders an absent default-true key as 'off'",
+            "the config-off E2E tier is deliberately not namespace-gated; the fixture was split into _SandboxApplyFixture because a class-level skipUnless is inherited",
+            "sandbox_escaped's meaning left untouched (flag-only) so existing flag-frequency readers stay correct",
+            "no --sandbox force-on flag added; proposed"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md (META\u2013\u00a711.2 in full)",
+            "TARBALL.md (\u00a71, \u00a72, \u00a75 in full, \u00a77, \u00a75.9, \u00a710.1, \u00a710.3)",
+            "context/BALE.md (\u00a73.6, \u00a75.4 --no-sandbox bullet, \u00a78.3 step 4, \u00a78.5, \u00a78.9, the bale open command row)",
+            "context/bin/bale_config.py (SANDBOX_VALUES, get_sandbox_network, wizard [sandbox] block, renderer, _prompt_bool)",
+            "context/bin/bale_apply.py (apply_pipeline signature/docstring, FORCE line, staging_cfg block, three script runs, three telemetry sites, cmd_apply dispatch)",
+            "context/bin/bale_report.py (build_telemetry_attempt)",
+            "context/bin/bale_validate.py (validate_telemetry_record, _walk_closed_vocabularies, checkers)",
+            "context/bin/bale_sandbox.py (SandboxUnavailableError, verify_confinement, ensure_verified)",
+            "context/bin/bale_open.py (dry_run_checkpoint log line, cmd_open sandbox block)",
+            "context/bin/bale_staging.py (module docstring, three UNCONFINED lines)",
+            "context/bin/bale (three --no-sandbox help strings)",
+            "context/schemas/telemetry-record.schema.json (attempts[] sandbox fields, cost)",
+            "context/schemas/response-manifest.schema.json (feedback block)",
+            "context/tests/harness.py (header, make_install, make_repo, run_bale, build_response_dir)",
+            "context/tests/test_sandbox_wrapper.py (in full)",
+            "context/tests/test_apply_operations.py (header, fixture, delete case)",
+            "context/tests/test_telemetry_extensions.py (header, _minimal_record, vocabulary/corpus/stats classes)",
+            "context/tests/test_telemetry_fields_wave1.py (header, legacy-tolerance class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "build_telemetry_attempt is the only attempts[] writer; the REQUIRED sandbox_confined / sandbox_off_source stamps cannot land without it (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_validate.py",
+              "why": "sandbox_off_source is a closed vocabulary; the S5 discipline enforces such enums record-wide via _walk_closed_vocabularies (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_open.py",
+              "why": "the checkpoint dry-run is the one other confined leg a namespace-less host hits; the goal's intent covers every leg the operator would otherwise flag by hand (ratified, exchange Q2)"
+            },
+            {
+              "path": "bin/bale",
+              "why": "the three --no-sandbox help strings asserted 'deliberately no config key', which this feature falsifies; strings only (ratified, exchange Q3)"
+            },
+            {
+              "path": "bin/bale_staging.py",
+              "why": "the three per-script UNCONFINED lines named --no-sandbox as the source of every unconfined run and would misattribute a config-off run to a flag nobody passed, contradicting the FORCE line in the same log; strings only (argued in notes.md, not pre-ratified)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-10-board-75-sandbox-config-off-002.log"
+    },
+    {
+      "at": "2026-09-11T02:25:17+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (60).tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "tests: sandbox suite (tests/test_sandbox_wrapper.py, slow tier open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: apply operations (tests/test_apply_operations.py, slow tier open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: telemetry extensions (tests/test_telemetry_extensions.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: telemetry fields wave1 (tests/test_telemetry_fields_wave1.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full discovery (python3 -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/VERSION reads 0.4.26": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md documents the literal enabled = false example": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md states the loudness guarantee": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: schema carries sandbox_confined": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: schema carries sandbox_off_source": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: the sandbox escape's 'deliberately no config key' fragments are gone (bin/bale x3, bin/bale_apply.py, BALE.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bale-src's own bale.toml does not gain [sandbox] enabled": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: get_sandbox_enabled semantics (absent=on, false=off, global ignored)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: sandbox suite (tests/test_sandbox_wrapper.py, slow tier open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: apply operations (tests/test_apply_operations.py, slow tier open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: telemetry extensions (tests/test_telemetry_extensions.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: telemetry fields wave1 (tests/test_telemetry_fields_wave1.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full discovery (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "assert: bin/VERSION reads 0.4.26": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md documents the literal enabled = false example": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md states the loudness guarantee": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema carries sandbox_confined": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema carries sandbox_off_source": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: the sandbox escape's 'deliberately no config key' fragments are gone (bin/bale x3, bin/bale_apply.py, BALE.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bale-src's own bale.toml does not gain [sandbox] enabled": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: get_sandbox_enabled semantics (absent=on, false=off, global ignored)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_sandbox.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "overridden_paths": [
+        "bin/bale",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py"
+      ],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "exchange round 2 (from: planner) for 2026-09-10-board-75-sandbox-config-off-002 \u2014 all three answers as-recommended"
+          },
+          "provenance": {
+            "bale_version": "0.4.25",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+              "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "sandbox_off_source records 'config' when both escapes are present (ratified in the exchange, restated here because it is a reading the oracle must agree with)",
+            "the bin/bale_staging.py per-script wording change is admissible under the same argument as the ratified bin/bale help-string drift (not asked; argued in notes.md)",
+            "the `bale open` config-off path is correct by construction (compiles, mirrors apply) \u2014 no bundle fixture exists to drive it end to end"
+          ],
+          "judgment_calls": [
+            "config resolved at pipeline start (a separate merged_config read) so the config-off FORCE line sits beside the flag's and precedes any script; one effective sandbox_on threads runs and stamps",
+            "_prompt_bool gained an unset_effective keyword so the wizard never renders an absent default-true key as 'off'",
+            "the config-off E2E tier is deliberately not namespace-gated; the fixture was split into _SandboxApplyFixture because a class-level skipUnless is inherited",
+            "sandbox_escaped's meaning left untouched (flag-only) so existing flag-frequency readers stay correct",
+            "no --sandbox force-on flag added; proposed"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md (META\u2013\u00a711.2 in full)",
+            "TARBALL.md (\u00a71, \u00a72, \u00a75 in full, \u00a77, \u00a75.9, \u00a710.1, \u00a710.3)",
+            "context/BALE.md (\u00a73.6, \u00a75.4 --no-sandbox bullet, \u00a78.3 step 4, \u00a78.5, \u00a78.9, the bale open command row)",
+            "context/bin/bale_config.py (SANDBOX_VALUES, get_sandbox_network, wizard [sandbox] block, renderer, _prompt_bool)",
+            "context/bin/bale_apply.py (apply_pipeline signature/docstring, FORCE line, staging_cfg block, three script runs, three telemetry sites, cmd_apply dispatch)",
+            "context/bin/bale_report.py (build_telemetry_attempt)",
+            "context/bin/bale_validate.py (validate_telemetry_record, _walk_closed_vocabularies, checkers)",
+            "context/bin/bale_sandbox.py (SandboxUnavailableError, verify_confinement, ensure_verified)",
+            "context/bin/bale_open.py (dry_run_checkpoint log line, cmd_open sandbox block)",
+            "context/bin/bale_staging.py (module docstring, three UNCONFINED lines)",
+            "context/bin/bale (three --no-sandbox help strings)",
+            "context/schemas/telemetry-record.schema.json (attempts[] sandbox fields, cost)",
+            "context/schemas/response-manifest.schema.json (feedback block)",
+            "context/tests/harness.py (header, make_install, make_repo, run_bale, build_response_dir)",
+            "context/tests/test_sandbox_wrapper.py (in full)",
+            "context/tests/test_apply_operations.py (header, fixture, delete case)",
+            "context/tests/test_telemetry_extensions.py (header, _minimal_record, vocabulary/corpus/stats classes)",
+            "context/tests/test_telemetry_fields_wave1.py (header, legacy-tolerance class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "build_telemetry_attempt is the only attempts[] writer; the REQUIRED sandbox_confined / sandbox_off_source stamps cannot land without it (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_validate.py",
+              "why": "sandbox_off_source is a closed vocabulary; the S5 discipline enforces such enums record-wide via _walk_closed_vocabularies (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_open.py",
+              "why": "the checkpoint dry-run is the one other confined leg a namespace-less host hits; the goal's intent covers every leg the operator would otherwise flag by hand (ratified, exchange Q2)"
+            },
+            {
+              "path": "bin/bale",
+              "why": "the three --no-sandbox help strings asserted 'deliberately no config key', which this feature falsifies; strings only (ratified, exchange Q3)"
+            },
+            {
+              "path": "bin/bale_staging.py",
+              "why": "the three per-script UNCONFINED lines named --no-sandbox as the source of every unconfined run and would misattribute a config-off run to a flag nobody passed, contradicting the FORCE line in the same log; strings only (argued in notes.md, not pre-ratified)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-10-board-75-sandbox-config-off-002.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+          "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-11T02:29:08+00:00",
+      "outcome": "scope-drift-refused",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-002-retry.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_sandbox.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "exchange round 2 (from: planner) for 2026-09-10-board-75-sandbox-config-off-002 \u2014 all three answers as-recommended"
+          },
+          "provenance": {
+            "bale_version": "0.4.25",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+              "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "sandbox_off_source records 'config' when both escapes are present (ratified in the exchange, restated here because it is a reading the oracle must agree with)",
+            "the bin/bale_staging.py per-script wording change is admissible under the same argument as the ratified bin/bale help-string drift (not asked; argued in notes.md)",
+            "the `bale open` config-off path is correct by construction (compiles, mirrors apply) \u2014 no bundle fixture exists to drive it end to end"
+          ],
+          "judgment_calls": [
+            "config resolved at pipeline start (a separate merged_config read) so the config-off FORCE line sits beside the flag's and precedes any script; one effective sandbox_on threads runs and stamps",
+            "_prompt_bool gained an unset_effective keyword so the wizard never renders an absent default-true key as 'off'",
+            "the config-off E2E tier is deliberately not namespace-gated; the fixture was split into _SandboxApplyFixture because a class-level skipUnless is inherited",
+            "sandbox_escaped's meaning left untouched (flag-only) so existing flag-frequency readers stay correct",
+            "no --sandbox force-on flag added; proposed",
+            "retry: full-discovery claim downgraded to predicted \u2014 the real repo runs 837 tests, the request shipped four suites; the one rule that failed is now replicated in validation.sh"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/test_global_doc_selfcontainment.py (the suite that HOLDed the first attempt; its rules were recovered by probe)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md (META\u2013\u00a711.2 in full)",
+            "TARBALL.md (\u00a71, \u00a72, \u00a75 in full, \u00a77, \u00a75.9, \u00a710.1, \u00a710.3)",
+            "context/BALE.md (\u00a73.6, \u00a75.4 --no-sandbox bullet, \u00a78.3 step 4, \u00a78.5, \u00a78.9, the bale open command row)",
+            "context/bin/bale_config.py (SANDBOX_VALUES, get_sandbox_network, wizard [sandbox] block, renderer, _prompt_bool)",
+            "context/bin/bale_apply.py (apply_pipeline signature/docstring, FORCE line, staging_cfg block, three script runs, three telemetry sites, cmd_apply dispatch)",
+            "context/bin/bale_report.py (build_telemetry_attempt)",
+            "context/bin/bale_validate.py (validate_telemetry_record, _walk_closed_vocabularies, checkers)",
+            "context/bin/bale_sandbox.py (SandboxUnavailableError, verify_confinement, ensure_verified)",
+            "context/bin/bale_open.py (dry_run_checkpoint log line, cmd_open sandbox block)",
+            "context/bin/bale_staging.py (module docstring, three UNCONFINED lines)",
+            "context/bin/bale (three --no-sandbox help strings)",
+            "context/schemas/telemetry-record.schema.json (attempts[] sandbox fields, cost)",
+            "context/schemas/response-manifest.schema.json (feedback block)",
+            "context/tests/harness.py (header, make_install, make_repo, run_bale, build_response_dir)",
+            "context/tests/test_sandbox_wrapper.py (in full)",
+            "context/tests/test_apply_operations.py (header, fixture, delete case)",
+            "context/tests/test_telemetry_extensions.py (header, _minimal_record, vocabulary/corpus/stats classes)",
+            "context/tests/test_telemetry_fields_wave1.py (header, legacy-tolerance class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "build_telemetry_attempt is the only attempts[] writer; the REQUIRED sandbox_confined / sandbox_off_source stamps cannot land without it (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_validate.py",
+              "why": "sandbox_off_source is a closed vocabulary; the S5 discipline enforces such enums record-wide via _walk_closed_vocabularies (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_open.py",
+              "why": "the checkpoint dry-run is the one other confined leg a namespace-less host hits; the goal's intent covers every leg the operator would otherwise flag by hand (ratified, exchange Q2)"
+            },
+            {
+              "path": "bin/bale",
+              "why": "the three --no-sandbox help strings asserted 'deliberately no config key', which this feature falsifies; strings only (ratified, exchange Q3)"
+            },
+            {
+              "path": "bin/bale_staging.py",
+              "why": "the three per-script UNCONFINED lines named --no-sandbox as the source of every unconfined run and would misattribute a config-off run to a flag nobody passed, contradicting the FORCE line in the same log; strings only (argued in notes.md, not pre-ratified)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-10-board-75-sandbox-config-off-002.log"
+    },
+    {
+      "at": "2026-09-11T02:45:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002-retry.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: sandbox suite (tests/test_sandbox_wrapper.py, slow tier open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: apply operations (tests/test_apply_operations.py, slow tier open)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: telemetry extensions (tests/test_telemetry_extensions.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: telemetry fields wave1 (tests/test_telemetry_fields_wave1.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full discovery (python3 -m unittest discover -s tests)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "assert: bin/VERSION reads 0.4.26": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md documents the literal enabled = false example": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: BALE.md states the loudness guarantee": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: schema carries sandbox_confined": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: schema carries sandbox_off_source": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: the sandbox escape's 'deliberately no config key' fragments are gone (bin/bale x3, bin/bale_apply.py, BALE.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bale-src's own bale.toml does not gain [sandbox] enabled": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: get_sandbox_enabled semantics (absent=on, false=off, global ignored)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: schemas/telemetry-record.schema.json is self-contained (no BALE.md / board-N / sitting-form citations)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: sandbox suite (tests/test_sandbox_wrapper.py, slow tier open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: apply operations (tests/test_apply_operations.py, slow tier open)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: telemetry extensions (tests/test_telemetry_extensions.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: telemetry fields wave1 (tests/test_telemetry_fields_wave1.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full discovery (python3 -m unittest discover -s tests)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/VERSION reads 0.4.26": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md documents the literal enabled = false example": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: BALE.md states the loudness guarantee": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema carries sandbox_confined": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schema carries sandbox_off_source": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: the sandbox escape's 'deliberately no config key' fragments are gone (bin/bale x3, bin/bale_apply.py, BALE.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bale-src's own bale.toml does not gain [sandbox] enabled": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: get_sandbox_enabled semantics (absent=on, false=off, global ignored)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: schemas/telemetry-record.schema.json is self-contained (no BALE.md / board-N / sitting-form citations)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_sandbox.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "overridden_paths": [
+        "bin/bale",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py"
+      ],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_staging.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_operations.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py",
+        "tests/test_telemetry_fields_wave1.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "exchange round 2 (from: planner) for 2026-09-10-board-75-sandbox-config-off-002 \u2014 all three answers as-recommended"
+          },
+          "provenance": {
+            "bale_version": "0.4.25",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+              "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "sandbox_off_source records 'config' when both escapes are present (ratified in the exchange, restated here because it is a reading the oracle must agree with)",
+            "the bin/bale_staging.py per-script wording change is admissible under the same argument as the ratified bin/bale help-string drift (not asked; argued in notes.md)",
+            "the `bale open` config-off path is correct by construction (compiles, mirrors apply) \u2014 no bundle fixture exists to drive it end to end"
+          ],
+          "judgment_calls": [
+            "config resolved at pipeline start (a separate merged_config read) so the config-off FORCE line sits beside the flag's and precedes any script; one effective sandbox_on threads runs and stamps",
+            "_prompt_bool gained an unset_effective keyword so the wizard never renders an absent default-true key as 'off'",
+            "the config-off E2E tier is deliberately not namespace-gated; the fixture was split into _SandboxApplyFixture because a class-level skipUnless is inherited",
+            "sandbox_escaped's meaning left untouched (flag-only) so existing flag-frequency readers stay correct",
+            "no --sandbox force-on flag added; proposed",
+            "retry: full-discovery claim downgraded to predicted \u2014 the real repo runs 837 tests, the request shipped four suites; the one rule that failed is now replicated in validation.sh"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/test_global_doc_selfcontainment.py (the suite that HOLDed the first attempt; its rules were recovered by probe)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md (META\u2013\u00a711.2 in full)",
+            "TARBALL.md (\u00a71, \u00a72, \u00a75 in full, \u00a77, \u00a75.9, \u00a710.1, \u00a710.3)",
+            "context/BALE.md (\u00a73.6, \u00a75.4 --no-sandbox bullet, \u00a78.3 step 4, \u00a78.5, \u00a78.9, the bale open command row)",
+            "context/bin/bale_config.py (SANDBOX_VALUES, get_sandbox_network, wizard [sandbox] block, renderer, _prompt_bool)",
+            "context/bin/bale_apply.py (apply_pipeline signature/docstring, FORCE line, staging_cfg block, three script runs, three telemetry sites, cmd_apply dispatch)",
+            "context/bin/bale_report.py (build_telemetry_attempt)",
+            "context/bin/bale_validate.py (validate_telemetry_record, _walk_closed_vocabularies, checkers)",
+            "context/bin/bale_sandbox.py (SandboxUnavailableError, verify_confinement, ensure_verified)",
+            "context/bin/bale_open.py (dry_run_checkpoint log line, cmd_open sandbox block)",
+            "context/bin/bale_staging.py (module docstring, three UNCONFINED lines)",
+            "context/bin/bale (three --no-sandbox help strings)",
+            "context/schemas/telemetry-record.schema.json (attempts[] sandbox fields, cost)",
+            "context/schemas/response-manifest.schema.json (feedback block)",
+            "context/tests/harness.py (header, make_install, make_repo, run_bale, build_response_dir)",
+            "context/tests/test_sandbox_wrapper.py (in full)",
+            "context/tests/test_apply_operations.py (header, fixture, delete case)",
+            "context/tests/test_telemetry_extensions.py (header, _minimal_record, vocabulary/corpus/stats classes)",
+            "context/tests/test_telemetry_fields_wave1.py (header, legacy-tolerance class)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "build_telemetry_attempt is the only attempts[] writer; the REQUIRED sandbox_confined / sandbox_off_source stamps cannot land without it (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_validate.py",
+              "why": "sandbox_off_source is a closed vocabulary; the S5 discipline enforces such enums record-wide via _walk_closed_vocabularies (ratified, exchange Q1)"
+            },
+            {
+              "path": "bin/bale_open.py",
+              "why": "the checkpoint dry-run is the one other confined leg a namespace-less host hits; the goal's intent covers every leg the operator would otherwise flag by hand (ratified, exchange Q2)"
+            },
+            {
+              "path": "bin/bale",
+              "why": "the three --no-sandbox help strings asserted 'deliberately no config key', which this feature falsifies; strings only (ratified, exchange Q3)"
+            },
+            {
+              "path": "bin/bale_staging.py",
+              "why": "the three per-script UNCONFINED lines named --no-sandbox as the source of every unconfined run and would misattribute a config-off run to a flag nobody passed, contradicting the FORCE line in the same log; strings only (argued in notes.md, not pre-ratified)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-10-board-75-sandbox-config-off-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-10-board-75-sandbox-config-off-002.sh",
+          "sha256": "2d13f24b194ada82055e48139f5a3ca5184379969ee5cf10d6398a85e373c647"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-11T02:45:13+00:00",
+  "outcome": "applied"
+}
