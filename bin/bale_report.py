@@ -2385,6 +2385,19 @@ RECORD_VERSION = 1
 # CLI-accepted from day one and expected to stay empty until a harness
 # produces the events — the vocabulary lands ahead of the mechanics, the
 # closure-vocabulary pattern the cost block follows too (BALE.md §8.9).
+# The sandbox_off_source vocabulary (v0.4.26, board 75): why a validated
+# attempt's response scripts ran unconfined. Exactly two writers exist —
+# bale.toml [sandbox] enabled = false ("config") and the per-invocation
+# --no-sandbox flag ("flag") — and null is the confined reading. The
+# schema's enum at attempts[].sandbox_off_source is the vocabulary's one
+# home; this tuple is the writer-side mirror, and bale_validate's
+# record-wide walk derives its allowed set from the schema, so the parity
+# test pins all three together (the CLOSURE_REASONS posture).
+SANDBOX_OFF_SOURCES = (
+    "config",
+    "flag",
+)
+
 CLOSURE_REASONS = (
     "abandoned",
     "superseded-by-split",
@@ -2472,6 +2485,8 @@ def build_telemetry_attempt(
     checkpoint: Optional[dict] = None,
     sandbox_escaped: bool = False,
     network_grant_exercised: bool = False,
+    sandbox_confined: bool = True,
+    sandbox_off_source: Optional[str] = None,
     cost: Optional[dict] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
@@ -2585,6 +2600,25 @@ def build_telemetry_attempt(
     exercises no grant — nothing confined ran). Write-only this
     session per the ratified deferral: no `bale stats` read side.
 
+    `sandbox_confined` and `sandbox_off_source` (v0.4.26, board 75 —
+    sandbox-off by config) are the posture pair, stamped
+    UNCONDITIONALLY like the two stamps above so key presence is epoch
+    membership: `sandbox_confined` is a boolean whose known-negative
+    form is True (nothing ran unconfined — the reading on unlock/pack/
+    rollback attempts, and on a plain confined apply);
+    `sandbox_off_source` is always present, null when confined, and
+    exactly "config" or "flag" when not. The apply/retry pipeline
+    passes real values on its validated attempts: "config" whenever
+    bale.toml [sandbox] enabled = false disabled confinement — even if
+    --no-sandbox was also typed, since `sandbox_escaped` already
+    carries the flag fact and the run would have been unconfined
+    regardless — and "flag" when only the per-invocation flag did.
+    `sandbox_escaped` keeps its exact pre-board-75 meaning (the flag,
+    and only the flag), so readers counting flag uses stay correct;
+    the four states are readable from the pair plus it. The value
+    vocabulary's one home is the telemetry schema's enum; bale_validate
+    enforces it record-wide (SANDBOX_OFF_SOURCES mirrors it).
+
     `cost` (v0.4.6, board 10 S5 — Addition B's day-one piece;
     orchestration.md §10) is the spend block: tokens_in, tokens_out,
     usd, model_tier, every field nullable. Stamped UNCONDITIONALLY
@@ -2633,6 +2667,12 @@ def build_telemetry_attempt(
         # the semantics) — unconditional, the overridden_paths posture.
         "sandbox_escaped": bool(sandbox_escaped),
         "network_grant_exercised": bool(network_grant_exercised),
+        # The v0.4.26 posture pair (board 75; docstring above owns the
+        # semantics) — unconditional, the overridden_paths posture: True
+        # / null is the known-negative form.
+        "sandbox_confined": bool(sandbox_confined),
+        "sandbox_off_source": (
+            None if sandbox_off_source is None else str(sandbox_off_source)),
         # The v0.4.6 cost block (board 10 S5; docstring above owns the
         # semantics) — unconditional, the sandbox-stamps posture: all-null
         # until a harness passes real values, key presence = epoch

@@ -153,7 +153,10 @@ class SandboxUnavailableError(RuntimeError):
     """The confinement mechanism does not hold in this environment.
 
     Raised by verify_confinement / ensure_verified. The message names
-    the documented bypass (--no-sandbox) so the refusal is actionable.
+    the two documented bypasses — the per-invocation --no-sandbox flag
+    and, since v0.4.26 (board 75), the project-layer bale.toml
+    `[sandbox] enabled = false` for hosts where the mechanism never
+    holds — so the refusal is actionable either way.
     """
 
 
@@ -497,8 +500,9 @@ def verify_confinement(log_path: Path, *, probe_dir: Path) -> None:
     """Run the self-probe once: spin the namespace against `probe_dir`
     as staging and assert the confinement properties hold.
 
-    Raises SandboxUnavailableError — naming --no-sandbox as the
-    documented bypass — when the namespace cannot spin, the prologue's
+    Raises SandboxUnavailableError — naming --no-sandbox and the
+    `[sandbox] enabled = false` config key as the documented bypasses
+    — when the namespace cannot spin, the prologue's
     strict sweep refuses (its per-mount loud failure is this probe's
     substrate: mount-table drift surfaces here, named), or any probed
     property is violated. Never falls back to unconfined execution.
@@ -520,8 +524,10 @@ def verify_confinement(log_path: Path, *, probe_dir: Path) -> None:
             raise SandboxUnavailableError(
                 f"sandbox self-probe could not launch unshare: {e}. "
                 f"Scripts will not run unconfined silently; the "
-                f"documented bypass is --no-sandbox (per invocation, "
-                f"FORCE-logged).")
+                f"documented bypasses are --no-sandbox (per invocation) "
+                f"or bale.toml [sandbox] enabled = false (per project, "
+                f"for hosts without unprivileged user namespaces) — "
+                f"both FORCE-logged on every run.")
     finally:
         os.environ.pop(_PROBE_CANARY, None)
     if result.returncode != 0:
@@ -532,7 +538,10 @@ def verify_confinement(log_path: Path, *, probe_dir: Path) -> None:
             f"confinement mechanism does not hold in this environment:\n"
             f"{detail.strip()}\n"
             f"Scripts will not run unconfined silently; the documented "
-            f"bypass is --no-sandbox (per invocation, FORCE-logged).")
+            f"bypasses are --no-sandbox (per invocation) or bale.toml "
+            f"[sandbox] enabled = false (per project, for hosts without "
+            f"unprivileged user namespaces) — both FORCE-logged on "
+            f"every run.")
 
 
 def ensure_verified(log_path: Path) -> None:
@@ -540,8 +549,8 @@ def ensure_verified(log_path: Path) -> None:
 
     One probe per apply (the pipeline is one process), before the
     first confined script runs — ADR-0016's refusal contract: on
-    failure, a loud SandboxUnavailableError naming the escape flag,
-    never silent unconfined execution. The probe scratch lives under
+    failure, a loud SandboxUnavailableError naming the escape flag and
+    the config key, never silent unconfined execution. The probe scratch lives under
     the log directory (inside `.bale/`, which every reconciliation
     walk skips) and is removed on the way out.
     """

@@ -64,8 +64,11 @@ module owns — the `apply.sh` run in `stage_response`, the checkpoint run
 in `run_blind_checkpoint`, and the worker run in `run_validation_sh` —
 are confined by default through the sibling module `bale_sandbox`
 (namespace confinement: network off, writes limited to staging plus the
-session log, environment scrubbed), with a per-invocation `sandbox=False`
-escape the apply pipeline threads from `--no-sandbox` and FORCE-logs,
+session log, environment scrubbed), with a `sandbox=False` escape the
+apply pipeline threads from either the per-invocation `--no-sandbox` or
+the project-layer `[sandbox] enabled = false` (v0.4.26, board 75) and
+FORCE-logs naming whichever it was — the per-script lines here say
+UNCONFINED and defer to that line for the source,
 and a per-project `network=True` relaxation the pipeline threads from
 bale.toml's [sandbox] network grant (v0.4.5, board 10 S2; ADR-0016
 position 3) — the network leg only, the floor staying off by default.
@@ -577,7 +580,8 @@ def stage_response(repo: Path, response_dir: Path, staging: Path, *,
             network=network,
         )
     else:
-        log("running apply.sh in staging (UNCONFINED — --no-sandbox)...")
+        log("running apply.sh in staging (UNCONFINED — source in the "
+            "FORCE: line above)...")
         result = subprocess.run(
             ["bash", str(apply_sh)],
             cwd=str(staging),
@@ -916,7 +920,7 @@ def run_blind_checkpoint(repo: Path, staging: Path, base_sha: str,
             + ((", confined"
                 + (", network GRANTED — bale.toml [sandbox] network"
                    if network else ""))
-               if sandbox else ", UNCONFINED — --no-sandbox")
+               if sandbox else ", UNCONFINED — source in the FORCE: line above")
             + ")"
             + (" (verbose: streaming live)..." if verbose else "..."))
 
@@ -1077,7 +1081,7 @@ def run_validation_sh(repo: Path, response_dir: Path, staging: Path,
             + ("GRANTED — bale.toml [sandbox] network" if network
                else "off")
             + ", writes limited to staging + session log)")
-           if sandbox else " (UNCONFINED — --no-sandbox)")
+           if sandbox else " (UNCONFINED — source in the FORCE: line above)")
         + (" (verbose: streaming live)..." if verbose else "..."))
 
     log_file = repo / ".bale" / "logs" / f"{sid}.log"

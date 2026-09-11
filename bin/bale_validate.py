@@ -487,6 +487,30 @@ def _walk_closed_vocabularies(value, path: str,
                                       checks, errors)
 
 
+def _sandbox_off_source_check(source_vocab: frozenset):
+    """Closed-vocabulary checker factory for a sandbox_off_source key
+    (v0.4.26, board 75).
+
+    The allowed set is derived from the schema's own
+    attempts[].sandbox_off_source enum so the vocabulary keeps its one
+    home — bin/bale_report's SANDBOX_OFF_SOURCES mirrors the same enum
+    for the writer and the parity test pins the homes together. Null is
+    in the vocabulary (the confined reading), the closure_reason
+    asymmetry rather than claim_basis's: the writer stamps the key
+    unconditionally, so null is a real known-negative, never an
+    invented third value.
+    """
+    def check(v) -> str | None:
+        if v not in source_vocab:
+            allowed = sorted(x for x in source_vocab if x is not None)
+            return (f"{v!r} is not one of {allowed} (or null) — "
+                    f"sandbox_off_source, wherever it appears, names "
+                    f"which escape unconfined the run: the closed "
+                    f"vocabulary has exactly those writers")
+        return None
+    return check
+
+
 def validate_telemetry_record(record: dict) -> list:
     """Validate one telemetry record; [] = valid, else human-readable errors.
 
@@ -513,7 +537,9 @@ def validate_telemetry_record(record: dict) -> list:
     2. **The closed-vocabulary invariants** — the record-wide walk
        (_walk_closed_vocabularies): any claim_basis key at any depth
        must be exactly 'predicted' or 'observed', and any closure_reason
-       key at any depth must be a schema-vocabulary reason or null. This
+       key at any depth must be a schema-vocabulary reason or null, and
+       (v0.4.26) any sandbox_off_source key at any depth must be exactly
+       'config', 'flag', or null. This
        is the strictness the brief demands ('unknown closure reasons and
        unknown claim_basis values must reject') made placement-robust:
        the loose schema constrains the spots it names, and the walk
@@ -539,9 +565,16 @@ def validate_telemetry_record(record: dict) -> list:
     closure_vocab = frozenset(
         schema["properties"]["attempts"]["items"]
               ["properties"]["closure_reason"]["enum"])
+    # Same one-home derivation for the sandbox-off vocabulary (v0.4.26,
+    # board 75): the schema enum at attempts[].sandbox_off_source feeds
+    # the walk, so a spot the schema didn't name gets the same verdict.
+    sandbox_off_vocab = frozenset(
+        schema["properties"]["attempts"]["items"]
+              ["properties"]["sandbox_off_source"]["enum"])
     _walk_closed_vocabularies(record, "", {
         "claim_basis": _claim_basis_check,
         "closure_reason": _closure_reason_check(closure_vocab),
+        "sandbox_off_source": _sandbox_off_source_check(sandbox_off_vocab),
     }, errors)
     return errors
 

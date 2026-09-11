@@ -486,7 +486,7 @@ forward-looking entry.
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
-| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal. Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24) — before any tarball resolution, prompt, or session state; remedy: check out the branch the new session should integrate into, then re-run the handoff. Since v0.3.33 it also runs the checkpoint blindness gate pack runs (§7.1 step 4b, §11 row 30) against its reading-plan scope — pre-sid, one gate implementation shared with pack — refusing a handoff whose scope covers the configured blind checkpoint; `--allow-checkpoint-in-scope` (per-invocation, flag-only, mirroring pack's spelling) admits it, FORCE-logged, with `checkpoint_scope_admitted: true` stamped into the new request's provenance through the shared builder. | v0.0.6 |
 | `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
@@ -607,8 +607,7 @@ The following flags apply across multiple commands:
   sandbox, operator privileges, inherited environment, network on.
   The sandbox is default-on for every apply (§8.5); this escape
   exists for debugging the sandbox itself, not for routine
-  convenience. Per-invocation only — there is deliberately no config
-  key, per the ratified override contract — and every use is logged
+  convenience. Per-invocation only, and every use is logged
   prominently (FORCE: line in the session log). `bale retry` takes
   the same flag and re-states it per invocation, never carrying it
   from a failed attempt; `bale revert` executes no response scripts
@@ -616,7 +615,15 @@ The following flags apply across multiple commands:
   attempt's telemetry entry records `sandbox_escaped: true` (v0.4.5,
   board 10 S2; §8.9), promoting the FORCE line's fact to the
   aggregable record — the escape's use frequency is itself the
-  signal ADR-0016 flagged worth watching.
+  signal ADR-0016 flagged worth watching. The flag's original
+  "deliberately no config key" clause was superseded at v0.4.26
+  (board 75): a host that lacks unprivileged user namespaces sets
+  `bale.toml`'s project-layer `[sandbox] enabled = false` once
+  instead of typing the flag on every apply (§8.5, "Sandbox-off by
+  config"). The flag is one-direction and becomes redundant beside
+  the key — never contradictory, there is no per-invocation
+  force-on — and both escapes FORCE-log naming themselves when both
+  are present.
 - `--json` — swap the command's end-of-run report for one line of
   JSON on stdout, under a shared stream discipline: `[bale] `
   informational lines and the human block go to stderr, stdout
@@ -2456,7 +2463,9 @@ surfaces above; their telemetry attempts record outcomes
      misreport the divergence as undeclared changes.
 3. `cp -r response-NNN/files/. staging/` (overlay the changes).
 4. Run `bash apply.sh` with `cwd=staging/`, confined by the §8.5
-   sandbox (default-on; `--no-sandbox` escapes per invocation). This
+   sandbox (default-on; `--no-sandbox` escapes per invocation, and
+   `[sandbox] enabled = false` per project — either way FORCE-logged
+   naming the source). This
    handles deletes and any non-cp operations. If `apply.sh` exits
    non-zero, bale captures the exit code and output to the session
    log, wipes staging, and rejects the tarball — no git side effects,
@@ -2528,7 +2537,8 @@ and its deliberate absence for the checkpoint are unchanged, and
 an apply, a self-probe verifies the mechanism actually holds (the
 namespace spins, the read-only sweep took, the network is off, the
 environment is scrubbed); on failure the apply refuses loudly, naming
-`--no-sandbox` (§5.4) as the documented bypass — never silent
+`--no-sandbox` (§5.4) and the project-layer `[sandbox] enabled =
+false` key (below) as the documented bypasses — never silent
 unconfined execution. TARBALL.md §7.1's write-location print and §9's
 never-outside-staging line stop being purely self-declared: the
 sandbox is their mechanical backstop.
@@ -2554,7 +2564,44 @@ apply that runs confined scripts with the grant active logs the fact
 and stamps `network_grant_exercised: true` into the attempt's
 telemetry entry (§8.9), the ADR's recorded-whenever-exercised
 requirement; a `--no-sandbox` apply exercises no grant (nothing
-confined ran) and stamps false.
+confined ran) and stamps false — as does a config-off apply (next
+paragraph), for the same reason.
+
+**Sandbox-off by config (v0.4.26, board 75).** Some hosts — the
+motivating one is an operator's work server — lack unprivileged user
+namespaces, so the self-probe above can never pass and every apply
+would need `--no-sandbox` typed by hand. The durable form of the
+same escape is `bale.toml`'s `[sandbox] enabled` — a boolean, default
+true, walked by `bale config init` at the **project layer only** and
+never inherited from the global file (the `network` ruling applied
+again: a global `enabled = false` would silently unconfine every repo
+the install touches, so `merged_config` drops the global section
+entirely and the global wizard never offers the key):
+
+```toml
+[sandbox]
+enabled = false
+```
+
+`enabled = false` makes every confined leg — `apply.sh`, the blind
+checkpoint, `validation.sh`, and `bale open`'s checkpoint dry-run —
+run unconfined exactly as `--no-sandbox` does: operator privileges,
+inherited environment, network on; the self-probe is not run, since
+nothing confined runs. The posture is convenient, never invisible:
+**every run it disables emits a FORCE-class line in the session log
+naming `bale.toml [sandbox] enabled = false` as the source**, and the
+attempt's telemetry entry stamps `sandbox_confined: false` with
+`sandbox_off_source: "config"` (§8.9) — silence is the one forbidden
+outcome, and the `--no-sandbox` line keeps naming the flag whenever
+the flag is typed, redundant or not. The flag is one-direction
+(`store_true`), so there is no per-invocation force-on against a
+config-off project; a debugging session that needs one confined run
+edits the key. `bale retry` inherits the posture structurally (same
+config, same pipeline); `--dry-run` runs no scripts and logs nothing.
+A non-boolean value is fatal at config load, never a silent default
+in either direction. Confinement semantics when enabled — the
+read-only sweep, the environment scrub, the network grant — are
+untouched by this key; it decides only whether they engage.
 
 **Checkpoint syntax fail-fast (the ratified board-10 rider).** The
 `bash -n` pre-flight that has always gated the worker's `apply.sh`
@@ -3019,7 +3066,22 @@ short-lived `.bale/sessions/<sid>/` directory:
   known-negative form (including attempts where no script ran at
   all — unlock, pack, rollback — where nothing executed and so
   nothing escaped or exercised). Write-only at S2 per the ratified
-  deferral: the `bale stats` read side lands when data accrues;
+  deferral: the `bale stats` read side lands when data accrues.
+  Since v0.4.26 (board 75) the **posture pair** rides beside them,
+  stamped the same unconditional way: `attempts[].sandbox_confined`
+  (boolean; `true` is the known-negative form — nothing ran
+  unconfined) and `attempts[].sandbox_off_source` (`"config"` when
+  the project-layer `[sandbox] enabled = false` disabled confinement
+  — recorded as `"config"` even beside a typed `--no-sandbox`, since
+  the run was unconfined regardless and `sandbox_escaped` already
+  carries the flag fact — `"flag"` when only the flag did, `null`
+  when confined). `sandbox_escaped` keeps its exact flag-only
+  meaning, so the three together read every state and older
+  flag-counting readers stay correct. The `sandbox_off_source`
+  vocabulary is closed: its one home is the schema enum,
+  `validate_telemetry_record` enforces it record-wide at any depth
+  (null-tolerant, the `closure_reason` asymmetry), and pre-v0.4.26
+  records without the pair keep validating;
 - the **cost block** (v0.4.6, board 10 S5 — Addition B's day-one
   piece; orchestration.md §10's cost-governance doctrine):
   `attempts[].cost` with `tokens_in`, `tokens_out`, `usd`, and

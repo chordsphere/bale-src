@@ -283,6 +283,23 @@ SANDBOX_VALUES = (
     # active logs it and stamps network_grant_exercised: true into
     # the attempt's telemetry record (BALE.md §8.9).
     "network",
+    # Bool, default true. When false (v0.4.26, board 75), every
+    # response-script execution bale would confine in this repo —
+    # apply.sh, the blind checkpoint, validation.sh, and `bale open`'s
+    # checkpoint dry-run — runs UNCONFINED, exactly as a per-invocation
+    # --no-sandbox does: operator privileges, inherited environment,
+    # network on. The durable form of the escape, for hosts that lack
+    # unprivileged user namespaces (an operator's work server) and
+    # would otherwise need --no-sandbox typed on every apply. The
+    # posture is convenient, never invisible: every run it disables
+    # emits a FORCE-class line naming this key as the source, and the
+    # attempt's telemetry record stamps sandbox_confined: false with
+    # sandbox_off_source: "config" (BALE.md §8.5, §8.9). Project layer
+    # only, like `network`: a global `enabled = false` is ignored, so a
+    # hand-edited global key cannot silently unconfine every repo the
+    # install touches. Absent/true = confined (today's behavior); a
+    # non-bool is fatal, never a silent default (get_sandbox_enabled).
+    "enabled",
 )
 
 # Value-shaped configurables under the [pack] section — the named
@@ -1040,6 +1057,48 @@ def get_sandbox_network(cfg: dict) -> bool:
     return raw
 
 
+def get_sandbox_enabled(cfg: dict) -> bool:
+    """Return [sandbox].enabled from the merged config; absent → True.
+
+    The sandbox-off-by-config posture (v0.4.26, board 75). True or
+    absent is today's behavior: every response-script execution runs
+    confined by default (BALE.md §8.5). False makes the apply pipeline
+    (and `bale open`'s checkpoint dry-run) run those scripts UNCONFINED
+    exactly as a per-invocation --no-sandbox does — the durable form of
+    the escape for namespace-less hosts. Never silent: every run this
+    key disables FORCE-logs the key as its source and the telemetry
+    record stamps sandbox_confined: false / sandbox_off_source: "config"
+    (§8.9). The accessor gates what bale *passes*; run_confined's own
+    behavior is untouched.
+
+    Merged-config note: [sandbox] is project-layer only (SANDBOX_VALUES
+    owns the rationale) — merged_config never carries a global value
+    into this section, so a global `enabled = false` is ignored exactly
+    as a global `network` is, and this accessor reads the project's
+    own key or nothing.
+
+    Bool-shaped like `network`, with the same strict non-bool
+    fatality: a typo must not silently unconfine (or silently confine)
+    untrusted script execution — a string "false" is a typo in TOML
+    terms, not a boolean.
+    """
+    from __main__ import fail
+
+    sandbox_section = cfg.get("sandbox")
+    if sandbox_section is None:
+        return True
+    if not isinstance(sandbox_section, dict):
+        fail(f"{BALE_CONFIG}: [sandbox] must be a table, "
+             f"got {type(sandbox_section).__name__}")
+    raw = sandbox_section.get("enabled")
+    if raw is None:
+        return True
+    if not isinstance(raw, bool):
+        fail(f"{BALE_CONFIG}: sandbox.enabled must be a boolean "
+             f"(true/false), got {type(raw).__name__}")
+    return raw
+
+
 def get_pack_include_group(cfg: dict) -> Optional[dict]:
     """Return the project's named include group, or None if unconfigured.
 
@@ -1230,8 +1289,15 @@ def _prompt_value(label: str, *, current: Optional[str],
 
 def _prompt_bool(label: str, *, current: Optional[bool],
                  inherited: Optional[bool] = None,
-                 description: list[str]) -> Optional[bool]:
+                 description: list[str],
+                 unset_effective: str = "(unset — off)") -> Optional[bool]:
     """Boolean prompt for the wizard, mirroring `_prompt_value` semantics.
+
+    `unset_effective` is the effective-line rendering when no layer
+    sets the key. The default reads "off" because every bool the
+    wizard walked until v0.4.26 defaulted false; a default-true key
+    (sandbox.enabled) passes its own wording so the wizard never tells
+    the operator an absent key means the sandbox is off.
 
     States at this layer:
       - None  — key absent. Inherit if a lower layer sets it; unset otherwise.
@@ -1261,7 +1327,7 @@ def _prompt_bool(label: str, *, current: Optional[bool],
         print(f"  inherited from global: {_show(inherited)}")
 
     effective = current if current is not None else inherited
-    print(f"  effective: {'(unset — off)' if effective is None else _show(effective)}")
+    print(f"  effective: {unset_effective if effective is None else _show(effective)}")
 
     print(f"  Enter to keep. Type true or false to set. Type '-' to clear "
           f"(unset at this layer).")
@@ -1872,6 +1938,41 @@ def walk_configurables(existing: dict, *, layer: str,
         if val_b is not None:
             new.setdefault("sandbox", {})["network"] = val_b
 
+        # ---- [sandbox].enabled (PROJECT LAYER ONLY) ----------------------
+        # Sandbox-off by config (v0.4.26, board 75). Walked only in
+        # project mode, per the same project-only ruling as `network`
+        # (SANDBOX_VALUES): a global `enabled = false` would silently
+        # unconfine every repo the install touches, so the global wizard
+        # never gains this prompt and `inherited` is never consulted.
+        # Default-true key: Enter/absent keeps the sandbox ON; only a
+        # typed `false` disables, and BALE.md §3.6's discoverable-surface
+        # contract is why the wizard walks it at all.
+        raw_cur_e = existing_sandbox.get("enabled")
+        current_e = raw_cur_e if isinstance(raw_cur_e, bool) else None
+
+        val_e = _prompt_bool(
+            "sandbox.enabled",
+            current=current_e,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip (sandbox stays ON — the default).",
+                "false = run this repo's response-script executions",
+                "(apply.sh, the blind checkpoint, validation.sh, and the",
+                "bale open checkpoint dry-run) UNCONFINED, exactly as",
+                "--no-sandbox does per invocation — for hosts without",
+                "unprivileged user namespaces, where every apply would",
+                "otherwise need the flag typed by hand. NEVER silent: every",
+                "run this disables FORCE-logs 'bale.toml [sandbox] enabled",
+                "= false' as its source, and telemetry stamps",
+                "sandbox_confined: false / sandbox_off_source: config",
+                "(BALE.md 8.5, 8.9). Project-layer only — the global wizard",
+                "does not walk this key, and a global value is ignored.",
+            ],
+            unset_effective="(unset — sandbox ON)",
+        )
+        if val_e is not None:
+            new.setdefault("sandbox", {})["enabled"] = val_e
+
         # ---- [pack] include group (PROJECT LAYER ONLY) -------------------
         # The named include/forecast group (board 64). Walked only in
         # project mode, per the project-only ruling recorded on
@@ -2122,8 +2223,9 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
         parts.append("")
 
     # [sandbox] section (v0.4.5, board 10 S2 — the ADR-0016 network
-    # grant). One bool key; json.dumps(True) == "true", a valid TOML
-    # boolean, so the same serializer covers it. Emitted in
+    # grant; v0.4.26, board 75 — `enabled`). Two bool keys;
+    # json.dumps(True) == "true", a valid TOML boolean, so the same
+    # serializer covers both. Emitted in
     # SANDBOX_VALUES order. Project-layer only by walk (the ruling on
     # SANDBOX_VALUES): the global wizard never puts this section in
     # its dict, so a global bale.toml never gains it through this

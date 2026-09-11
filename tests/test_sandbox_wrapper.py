@@ -55,6 +55,36 @@ grant and the sandbox telemetry stamps) ride the same tiers:
   ``sandbox_escaped: true`` with ``network_grant_exercised: false``
   — nothing confined ran, so no grant was exercised.
 
+Board 75 additions (v0.4.26 — sandbox-off by config, ``[sandbox]
+enabled``) ride the same tiers:
+
+- **Unit**: ``[sandbox] enabled`` config semantics (absent = confined,
+  the default; ``false`` disables; a global ``[sandbox] enabled``
+  is never inherited, exactly like ``network``; a non-bool is fatal),
+  the wizard's discoverable-surface contract for the key (project
+  walks it, global never does, an Enter-through re-run preserves a
+  set ``false``), the telemetry builder's unconditional
+  ``sandbox_confined`` / ``sandbox_off_source`` posture pair, the
+  schema carrying both as additive non-required fields with a closed
+  ``sandbox_off_source`` enum, and ``validate_telemetry_record``
+  enforcing that enum record-wide (null-tolerant) while legacy
+  records without the pair keep validating.
+- **E2E, deliberately NOT gated on user namespaces**: a committed
+  ``[sandbox] enabled = false`` makes the apply run ``validation.sh``
+  unconfined (the escape write lands), the session log carries a
+  FORCE line naming ``bale.toml [sandbox] enabled = false`` as the
+  source, and the applied attempt stamps ``sandbox_confined: false``
+  / ``sandbox_off_source: "config"`` with ``sandbox_escaped: false``;
+  the same beside a typed ``--no-sandbox`` prints both FORCE lines
+  and records ``"config"`` with ``sandbox_escaped: true``; and a
+  configured network grant beside config-off is not exercised. This
+  tier runs on the motivating host (no namespaces) by construction —
+  nothing confined runs — which is exactly the point: the
+  namespace-gated E2E class above pins the confined default and the
+  flag path, and gains one case pinning that a default apply stamps
+  the posture pair's known-negative form (``true`` / ``null``) and
+  that ``--no-sandbox`` alone records ``"flag"``.
+
 Behavioral and E2E tiers skip loudly (unittest.skipUnless with a
 named reason) where unprivileged user namespaces are unavailable —
 the mechanism's own refusal contract covers real applies there, and
@@ -523,6 +553,171 @@ class NetworkGrantConfigUnitTest(unittest.TestCase):
                                  f"records without it must validate")
 
 
+class SandboxEnabledConfigUnitTest(NetworkGrantConfigUnitTest):
+    """[sandbox] enabled config semantics + the posture-pair stamps +
+    the schema's additive fields + the validator's closed vocabulary
+    (v0.4.26, board 75). Inherits the hermetic setUp/tearDown (and,
+    harmlessly, the network cases) from the S2 class above — same
+    section, same project-only ruling, same __main__ fail stand-in."""
+
+    def test_absent_key_is_confined_by_default(self) -> None:
+        cfg = bale_config.merged_config(self.repo)
+        self.assertTrue(bale_config.get_sandbox_enabled(cfg))
+
+    def test_absent_section_is_confined_by_default(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            "[apply]\nauto_open = false\n", encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        self.assertTrue(bale_config.get_sandbox_enabled(cfg))
+
+    def test_project_false_disables(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nenabled = false\n", encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        self.assertFalse(bale_config.get_sandbox_enabled(cfg))
+
+    def test_project_true_is_the_explicit_default(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nenabled = true\n", encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        self.assertTrue(bale_config.get_sandbox_enabled(cfg))
+
+    def test_enabled_and_network_coexist(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nnetwork = true\nenabled = false\n",
+            encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        self.assertFalse(bale_config.get_sandbox_enabled(cfg))
+        self.assertTrue(bale_config.get_sandbox_network(cfg))
+
+    def test_non_bool_is_fatal_not_a_silent_default(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            '[sandbox]\nenabled = "false"\n', encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        with self.assertRaises(AssertionError) as ctx:
+            bale_config.get_sandbox_enabled(cfg)
+        self.assertIn("sandbox.enabled", str(ctx.exception))
+
+    def test_global_enabled_false_is_never_inherited(self) -> None:
+        """The project-only ruling applied to the new key: a global
+        `enabled = false` must not silently unconfine every repo the
+        install touches — merged_config drops the section, and the
+        accessor reads confined."""
+        self.global_toml.parent.mkdir(parents=True)
+        self.global_toml.write_text(
+            "[sandbox]\nenabled = false\n", encoding="utf-8")
+        cfg = bale_config.merged_config(self.repo)
+        self.assertNotIn("sandbox", cfg,
+                         msg="a global [sandbox] leaked into the merge")
+        self.assertTrue(bale_config.get_sandbox_enabled(cfg))
+
+    def test_enabled_is_in_sandbox_values(self) -> None:
+        """The trio contract's anchor: the renderer and the wizard both
+        iterate SANDBOX_VALUES, so membership is what makes the key
+        round-trip through `bale config init`."""
+        self.assertIn("enabled", bale_config.SANDBOX_VALUES)
+
+    def test_renderer_emits_the_key(self) -> None:
+        rendered = bale_config.render_bale_toml(
+            {"sandbox": {"network": False, "enabled": False}})
+        self.assertIn("[sandbox]", rendered)
+        self.assertIn("enabled = false", rendered)
+
+    def test_builder_posture_pair_is_unconditional(self) -> None:
+        """build_telemetry_attempt stamps the pair on every attempt: the
+        known-negative form is confined=True / source=None (an unlock
+        attempt, nothing ran); passed values are recorded verbatim."""
+        bale_report = load_bale_report()
+        default = bale_report.build_telemetry_attempt(
+            outcome="unlocked", command="unlock",
+            tarball=None, manifest=None, scope=[],
+            log_path=".bale/logs/x.log")
+        self.assertIs(default.get("sandbox_confined"), True)
+        self.assertIn("sandbox_off_source", default,
+                      msg="the key is present even when null — uniform "
+                          "shape, key presence is epoch membership")
+        self.assertIsNone(default["sandbox_off_source"])
+        for source in ("config", "flag"):
+            stamped = bale_report.build_telemetry_attempt(
+                outcome="applied", command="apply",
+                tarball="t.tar.gz", manifest={"summary": "s"}, scope=[],
+                log_path=".bale/logs/x.log",
+                sandbox_confined=False, sandbox_off_source=source)
+            self.assertIs(stamped["sandbox_confined"], False)
+            self.assertEqual(stamped["sandbox_off_source"], source)
+
+    def test_schema_carries_the_pair_additively(self) -> None:
+        schema = json.loads(
+            (REPO_ROOT / "schemas" / "telemetry-record.schema.json")
+            .read_text(encoding="utf-8"))
+        items = schema["properties"]["attempts"]["items"]
+        props = items["properties"]
+        self.assertEqual(props["sandbox_confined"]["type"], "boolean")
+        self.assertEqual(sorted(x for x in props["sandbox_off_source"]["enum"]
+                                if x is not None), ["config", "flag"])
+        self.assertIn(None, props["sandbox_off_source"]["enum"])
+        for name in ("sandbox_confined", "sandbox_off_source"):
+            self.assertNotIn(name, items.get("required", []),
+                             msg=f"{name} must stay additive")
+
+    def test_writer_tuple_mirrors_the_schema_enum(self) -> None:
+        bale_report = load_bale_report()
+        schema = json.loads(
+            (REPO_ROOT / "schemas" / "telemetry-record.schema.json")
+            .read_text(encoding="utf-8"))
+        enum = (schema["properties"]["attempts"]["items"]["properties"]
+                ["sandbox_off_source"]["enum"])
+        self.assertEqual([v for v in enum if v is not None],
+                         list(bale_report.SANDBOX_OFF_SOURCES))
+
+    def _minimal_record(self, **attempt_extra) -> dict:
+        """A smallest-valid record (the test_telemetry_extensions
+        shape): the required envelope plus one minimal attempt."""
+        attempt = {"at": "2026-09-10T00:00:00+00:00",
+                   "outcome": "applied", "command": "apply"}
+        attempt.update(attempt_extra)
+        return {"record_version": 1,
+                "session_id": "2026-09-10-fx-sbx-001",
+                "created_at": "2026-09-10T00:00:00+00:00",
+                "updated_at": "2026-09-10T00:00:00+00:00",
+                "outcome": "applied",
+                "attempts": [attempt]}
+
+    def test_validator_accepts_the_pair_and_legacy_records(self) -> None:
+        import bale_validate
+        legacy = self._minimal_record()
+        self.assertEqual(bale_validate.validate_telemetry_record(legacy),
+                         [], msg="a pre-v0.4.26 record keeps validating")
+        for confined, source in ((True, None), (False, "config"),
+                                 (False, "flag")):
+            rec = self._minimal_record(sandbox_confined=confined,
+                                       sandbox_off_source=source)
+            self.assertEqual(
+                bale_validate.validate_telemetry_record(rec), [],
+                msg=f"confined={confined} source={source!r} must validate")
+
+    def test_validator_rejects_invented_source_at_any_depth(self) -> None:
+        """The closed-vocabulary walk (the S5 discipline): an invented
+        sandbox_off_source rejects at the named spot AND at a spot the
+        schema never enumerated, so a consumer's placement choice
+        cannot route around the enum."""
+        import bale_validate
+        rec = self._minimal_record(sandbox_confined=False,
+                                   sandbox_off_source="vibes")
+        errors = bale_validate.validate_telemetry_record(rec)
+        self.assertTrue(any("sandbox_off_source" in e for e in errors),
+                        msg=f"named spot must reject: {errors}")
+        rec = self._minimal_record()
+        rec["attempts"][0]["future_sibling"] = {
+            "sandbox_off_source": "operator-said-so"}
+        errors = bale_validate.validate_telemetry_record(rec)
+        self.assertTrue(any("sandbox_off_source" in e for e in errors),
+                        msg="nested invented source must reject")
+        rec = self._minimal_record()
+        rec["sandbox_off_source"] = None  # envelope-level null: tolerated
+        self.assertEqual(bale_validate.validate_telemetry_record(rec), [])
+
+
 class NetworkGrantWizardSurfaceTest(unittest.TestCase):
     """The discoverable-surface contract for sandbox.network (BALE.md
     §3.6): the project wizard walks it and preserves a set key on an
@@ -564,6 +759,42 @@ class NetworkGrantWizardSurfaceTest(unittest.TestCase):
         self.assertNotIn("sandbox.network", output,
                          msg="the global wizard must not offer a "
                              "project-only key")
+        self.assertNotIn("sandbox.enabled", output,
+                         msg="the global wizard must not offer the "
+                             "project-only enabled key either (v0.4.26)")
+
+    def test_project_wizard_walks_and_preserves_enabled(self) -> None:
+        """The v0.4.26 key rides the same contract: walked in project
+        mode (BALE.md §3.6 — an un-walked configurable is a contract
+        violation), an Enter-through re-run preserves a set `false`,
+        and the effective line never tells the operator an absent key
+        means the sandbox is off."""
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nenabled = false\n", encoding="utf-8")
+        code, output = run_bale_pty(
+            self.install, ["config", "init"],
+            cwd=self.repo, env=self.env, answers="\n" * 40)
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn("sandbox.enabled", output)
+        self.assertIn("NEVER silent", output,
+                      msg="the prompt states the loudness guarantee")
+        rendered = (self.repo / "bale.toml").read_text(encoding="utf-8")
+        self.assertIn("enabled = false", rendered,
+                      msg="Enter-through re-runs preserve the disabling "
+                          "value — the renderer-preservation precedent")
+
+    def test_project_wizard_enter_leaves_sandbox_on(self) -> None:
+        """A fresh project pressing Enter through the walk ends with no
+        `enabled` key at all — confined stays the default and the
+        effective line reads ON, not the generic 'off'."""
+        code, output = run_bale_pty(
+            self.install, ["config", "init"],
+            cwd=self.repo, env=self.env, answers="\n" * 40)
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn("(unset — sandbox ON)", output)
+        rendered = (self.repo / "bale.toml").read_text(encoding="utf-8") \
+            if (self.repo / "bale.toml").is_file() else ""
+        self.assertNotIn("enabled", rendered)
 
 
 @unittest.skipUnless(USERNS_AVAILABLE, SKIP_REASON)
@@ -781,9 +1012,14 @@ PYEOF
                              "write landed on the host")
 
 
-@unittest.skipUnless(USERNS_AVAILABLE, SKIP_REASON)
-class SandboxApplyE2ETest(unittest.TestCase):
-    """The default-on sandbox and its escape, through a real apply."""
+class _SandboxApplyFixture(unittest.TestCase):
+    """The shared E2E fixture: a hermetic install + packed repo, the
+    escape-write validation.sh, the grant helper, log and telemetry
+    readers. No tests of its own. Split out of SandboxApplyE2ETest at
+    v0.4.26 so the config-off tier below can reuse it WITHOUT
+    inheriting the namespace gate — a class-level skipUnless is
+    inherited by subclasses, and the config-off cases must run
+    precisely where namespaces are absent."""
 
     ESCAPE_CHECK = "escape write attempt"
 
@@ -899,6 +1135,12 @@ class SandboxApplyE2ETest(unittest.TestCase):
         )
         return tar_response_dir(rdir)
 
+
+
+@unittest.skipUnless(USERNS_AVAILABLE, SKIP_REASON)
+class SandboxApplyE2ETest(_SandboxApplyFixture):
+    """The default-on sandbox and its escape, through a real apply."""
+
     @slow
     def test_default_apply_confines_the_escape_write(self) -> None:
         result = run_bale(
@@ -919,6 +1161,11 @@ class SandboxApplyE2ETest(unittest.TestCase):
         attempt = self._latest_attempt()
         self.assertIs(attempt["sandbox_escaped"], False)
         self.assertIs(attempt["network_grant_exercised"], False)
+        # The v0.4.26 posture pair on a plain confined apply: the
+        # known-negative form, key present.
+        self.assertIs(attempt["sandbox_confined"], True)
+        self.assertIn("sandbox_off_source", attempt)
+        self.assertIsNone(attempt["sandbox_off_source"])
 
     def test_no_sandbox_bypasses_and_force_logs(self) -> None:
         # A configured grant beside the escape pins the interaction:
@@ -946,6 +1193,11 @@ class SandboxApplyE2ETest(unittest.TestCase):
         self.assertIs(attempt["network_grant_exercised"], False,
                       msg="an escaped run exercises no grant — "
                           "nothing confined ran")
+        # The v0.4.26 posture pair: only the flag disabled, so "flag".
+        self.assertIs(attempt["sandbox_confined"], False)
+        self.assertEqual(attempt["sandbox_off_source"], "flag")
+        self.assertNotIn("[sandbox] enabled", log,
+                         msg="no config-off line when config is on")
 
     @slow
     def test_grant_runs_confined_scripts_with_network(self) -> None:
@@ -985,6 +1237,155 @@ class SandboxApplyE2ETest(unittest.TestCase):
         self.assertIs(attempt["sandbox_escaped"], False)
         self.assertIs(attempt["network_grant_exercised"], True,
                       msg="an exercised grant must be recorded (§8.9)")
+
+
+class SandboxOffByConfigE2ETest(_SandboxApplyFixture):
+    """Sandbox-off by config (v0.4.26, board 75) through a real apply.
+
+    Deliberately NOT gated on user namespaces: with `[sandbox] enabled
+    = false` committed nothing confined runs, so this tier exercises
+    on the motivating host — the one without namespaces — exactly as
+    it does here. Verified both ways at authoring time: with
+    namespaces present, and with `unshare` removed from PATH.
+    """
+
+    CONFIG_OFF_LINE = "bale.toml [sandbox] enabled = false"
+
+    def _disable_sandbox(self, *, network: bool = False) -> None:
+        """Commit bale.toml's [sandbox] enabled = false (optionally
+        beside a network grant). Same hand-edit-then-commit path as
+        _grant_network: the wizard is canonical, not exclusive."""
+        body = "[sandbox]\nenabled = false\n"
+        if network:
+            body += "network = true\n"
+        (self.repo / "bale.toml").write_text(body, encoding="utf-8")
+        env = git_env(self.home)
+        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=env)
+        run_checked(["git", "commit", "-m", "disable sandbox by config"],
+                    cwd=self.repo, env=env)
+
+    def test_config_off_runs_unconfined_and_force_logs_the_source(
+            self) -> None:
+        """The core contract: committed enabled = false → the escape
+        write lands (unconfined), the session log carries a FORCE line
+        naming the config key as the source (never silent), and the
+        applied attempt stamps sandbox_confined: false /
+        sandbox_off_source: "config" with sandbox_escaped: false — the
+        flag was never typed."""
+        self._disable_sandbox()
+        result = run_bale(
+            self.install, ["apply", str(self._tarball()), "--no-interact"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertTrue(
+            self.escape.exists(),
+            msg="config-off did not unconfine: the outside write "
+                "should land exactly as under --no-sandbox")
+        log = self._session_log()
+        self.assertIn("FORCE", log)
+        self.assertIn(self.CONFIG_OFF_LINE, log,
+                      msg="every config-off run names its source")
+        self.assertIn("UNCONFINED", log)
+        self.assertNotIn("(--no-sandbox)", log,
+                         msg="the flag line must not print when the "
+                             "flag was not typed")
+        attempt = self._latest_attempt()
+        self.assertIs(attempt["sandbox_confined"], False)
+        self.assertEqual(attempt["sandbox_off_source"], "config")
+        self.assertIs(attempt["sandbox_escaped"], False,
+                      msg="sandbox_escaped keeps its flag-only meaning")
+        self.assertIs(attempt["network_grant_exercised"], False)
+
+    def test_config_off_beside_flag_logs_both_and_records_config(
+            self) -> None:
+        """Both escapes present: both FORCE lines print (neither is
+        silenced by the other), the source records "config" — the run
+        was unconfined regardless — and sandbox_escaped: true carries
+        the flag fact, so the four states stay readable."""
+        self._disable_sandbox()
+        result = run_bale(
+            self.install,
+            ["apply", str(self._tarball()), "--no-interact",
+             "--no-sandbox"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertTrue(self.escape.exists())
+        log = self._session_log()
+        self.assertIn("(--no-sandbox)", log)
+        self.assertIn(self.CONFIG_OFF_LINE, log)
+        self.assertIn("redundant", log,
+                      msg="the config-off line says the flag is redundant")
+        attempt = self._latest_attempt()
+        self.assertIs(attempt["sandbox_confined"], False)
+        self.assertEqual(attempt["sandbox_off_source"], "config")
+        self.assertIs(attempt["sandbox_escaped"], True)
+
+    def test_config_off_does_not_exercise_a_configured_grant(self) -> None:
+        """A network grant beside config-off is not exercised: nothing
+        confined ran, and the note names the config key (not the flag)
+        as what bypassed confinement."""
+        self._disable_sandbox(network=True)
+        result = run_bale(
+            self.install, ["apply", str(self._tarball()), "--no-interact"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        log = self._session_log()
+        self.assertIn(self.CONFIG_OFF_LINE, log)
+        self.assertIn("grant is not exercised", log)
+        self.assertIn("[sandbox] enabled = false bypassed", log)
+        attempt = self._latest_attempt()
+        self.assertIs(attempt["network_grant_exercised"], False)
+        self.assertEqual(attempt["sandbox_off_source"], "config")
+
+    def test_dry_run_under_config_off_is_silent_because_nothing_runs(
+            self) -> None:
+        """--dry-run executes no scripts, so no unconfined run happens
+        and no FORCE line is owed — the same exemption the flag has."""
+        self._disable_sandbox()
+        result = run_bale(
+            self.install, ["apply", str(self._tarball()), "--dry-run"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertFalse(self.escape.exists())
+        self.assertNotIn(self.CONFIG_OFF_LINE, self._session_log())
+
+    def test_global_enabled_false_does_not_unconfine_an_apply(self) -> None:
+        """The project-only ruling end to end: a global bale.toml with
+        enabled = false is ignored — the apply either confines (where
+        namespaces exist) or refuses loudly naming both bypasses (where
+        they do not). It never runs unconfined by a global key."""
+        global_toml = self.install / "user" / "bale.toml"
+        global_toml.parent.mkdir(parents=True, exist_ok=True)
+        global_toml.write_text("[sandbox]\nenabled = false\n",
+                               encoding="utf-8")
+        result = run_bale(
+            self.install, ["apply", str(self._tarball()), "--no-interact"],
+            cwd=self.repo, env=self.env)
+        log = self._session_log()
+        self.assertNotIn("sandbox DISABLED by config", log,
+                         msg="a global enabled = false must never be "
+                             "the named source of an unconfined run")
+        if USERNS_AVAILABLE:
+            self.assertEqual(
+                result.returncode, 0,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+            self.assertFalse(self.escape.exists())
+            self.assertIs(self._latest_attempt()["sandbox_confined"], True)
+        else:
+            self.assertNotEqual(result.returncode, 0,
+                                msg="without namespaces and without a "
+                                    "project key, the apply refuses")
+            self.assertFalse(self.escape.exists())
+            self.assertIn("[sandbox] enabled = false", result.stderr,
+                          msg="the refusal names the config bypass")
 
 
 if __name__ == "__main__":
