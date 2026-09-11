@@ -5667,11 +5667,16 @@ def build_parser() -> argparse.ArgumentParser:
              "environment, network on (v0.4.4, ADR-0016; BALE.md §8.5). "
              "The sandbox is default-on for every apply; this escape "
              "exists for debugging the sandbox itself, not for routine "
-             "convenience. Per-invocation only — deliberately no config "
-             "key, per the ratified override contract — and every use "
-             "is logged prominently (FORCE: line in the session log) "
-             "and stamped sandbox_escaped: true into the attempt's "
-             "telemetry record (v0.4.5, board 10 S2; BALE.md §8.9).",
+             "convenience. Per-invocation only, and every use is logged "
+             "prominently (FORCE: line in the session log) and stamped "
+             "sandbox_escaped: true into the attempt's telemetry record "
+             "(v0.4.5, board 10 S2; BALE.md §8.9). For hosts without "
+             "unprivileged user namespaces the durable form is "
+             "bale.toml's project-layer [sandbox] enabled = false "
+             "(v0.4.26, board 75): same unconfined semantics, FORCE-"
+             "logged naming the key on every run, stamped "
+             "sandbox_confined: false / sandbox_off_source: config; "
+             "this flag is redundant beside it.",
     )
     p_apply.add_argument(
         "--json", action="store_true",
@@ -5826,11 +5831,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-sandbox", action="store_true",
         help="Run the response scripts unconfined for this invocation — "
              "same semantics as `bale apply --no-sandbox` (retry reruns "
-             "the same pipeline). Per-invocation only — no config key, "
-             "and the bypass is never carried forward from a failed "
-             "apply attempt: a retry that needs it re-states it. Every "
-             "use is FORCE-logged in the session log. `bale revert` "
-             "executes no response scripts and takes no such flag.",
+             "the same pipeline). Per-invocation only: the bypass is "
+             "never carried forward from a failed apply attempt — a "
+             "retry that needs it re-states it — while bale.toml's "
+             "project-layer [sandbox] enabled = false (v0.4.26) is the "
+             "durable form retry inherits structurally, same config. "
+             "Every use of either is FORCE-logged in the session log. "
+             "`bale revert` executes no response scripts and takes no "
+             "such flag.",
     )
     p_retry.add_argument(
         "--json", action="store_true",
@@ -6174,8 +6182,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the checkpoint dry-run UNCONFINED for this invocation "
              "(ADR-0016 escape; same semantics as `bale apply "
              "--no-sandbox`, scoped here to the dry-run — the replayed "
-             "pack executes no scripts). Per-invocation only — "
-             "deliberately no config key — and every use is FORCE-logged.",
+             "pack executes no scripts). Per-invocation only, and every "
+             "use is FORCE-logged; bale.toml's project-layer [sandbox] "
+             "enabled = false (v0.4.26) unconfines the dry-run durably, "
+             "FORCE-logged naming the key, and this flag is redundant "
+             "beside it.",
     )
     p_open.set_defaults(func=cmd_open)
 

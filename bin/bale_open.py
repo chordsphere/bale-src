@@ -335,7 +335,7 @@ def dry_run_checkpoint(repo: Path, script_bytes: bytes, member_name: str,
             + ((", confined"
                 + (", network GRANTED — bale.toml [sandbox] network"
                    if network else ""))
-               if sandbox else ", UNCONFINED — --no-sandbox")
+               if sandbox else ", UNCONFINED — source in the FORCE: line above")
             + (" (verbose: streaming live)..." if verbose else "..."))
 
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -412,7 +412,8 @@ def dry_run_checkpoint(repo: Path, script_bytes: bytes, member_name: str,
                       f"{stderr_text.strip().splitlines()[-1]} — this "
                       f"is a confinement failure, not a checkpoint "
                       f"verdict; --no-sandbox is the debugging escape "
-                      f"(ADR-0016)")
+                      f"(ADR-0016) and bale.toml [sandbox] enabled = "
+                      f"false the per-project one (v0.4.26)")
 
         if not verbose:
             _echo_hold_proof(merged + (("\n" + stderr_text)
@@ -542,11 +543,26 @@ def cmd_open(args: argparse.Namespace) -> int:
                      f"`bale config init`), or use a bundle authored "
                      f"for an oracle-less project.")
             network = bale_config.get_sandbox_network(cfg)
-            sandbox = not args.no_sandbox
-            if not sandbox:
+            # Sandbox-off by config (v0.4.26, board 75) honors the same
+            # project-layer key apply does: a namespace-less host runs
+            # `bale open` too, and the dry-run is the one other confined
+            # leg. Same loudness contract — each escape FORCE-logs
+            # naming itself, both when both are present; silence is
+            # the one forbidden outcome.
+            sandbox_enabled = bale_config.get_sandbox_enabled(cfg)
+            sandbox = sandbox_enabled and not args.no_sandbox
+            if args.no_sandbox:
                 log(f"FORCE: --no-sandbox — the checkpoint dry-run "
                     f"executes UNCONFINED for this invocation "
-                    f"(ADR-0016 escape; per-invocation only)",
+                    f"(ADR-0016 escape; per-invocation only)"
+                    + (" (redundant beside bale.toml [sandbox] enabled "
+                       "= false)" if not sandbox_enabled else ""),
+                    force=True)
+            if not sandbox_enabled:
+                log(f"FORCE: bale.toml [sandbox] enabled = false "
+                    f"(project layer) — the checkpoint dry-run executes "
+                    f"UNCONFINED: operator privileges, inherited "
+                    f"environment, network on",
                     force=True)
             log_path = (repo / ".bale" / "logs" /
                         f"open-{bundle_path.stem}.log")

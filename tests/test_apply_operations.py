@@ -177,6 +177,40 @@ class ApplyRealOperationsTest(unittest.TestCase):
             "rename me\n")
 
     @slow
+    def test_delete_lands_unconfined_by_config(self) -> None:
+        """The same delete through the sandbox-off-by-config posture
+        (v0.4.26, board 75): a committed `[sandbox] enabled = false`
+        runs apply.sh unconfined, the operation still lands and
+        reconciles identically, and the session log carries the FORCE
+        line naming the config key — never a silent unconfined run.
+        Runs on hosts without user namespaces by construction."""
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nenabled = false\n", encoding="utf-8")
+        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=self.genv)
+        run_checked(["git", "commit", "-m", "disable sandbox by config"],
+                    cwd=self.repo, env=self.genv)
+        rdir = build_response_dir(
+            self.tmp / "delete-off", self.sid,
+            summary="real-ops fixture: delete data/old.txt (config-off)",
+            entries=[{
+                "path": "data/old.txt", "action": "deleted",
+                "reason": "the delete operation under test, unconfined",
+            }],
+            apply_sh=(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "rm -f data/old.txt\n"),
+        )
+        self.apply_and_expect_merge(tar_response_dir(rdir))
+        self.assertFalse((self.repo / "data" / "old.txt").exists())
+        self.assertEqual(self.git_mode("data/old.txt"), "")
+        log = (self.repo / ".bale" / "logs" / f"{self.sid}.log"
+               ).read_text(encoding="utf-8")
+        self.assertIn("FORCE", log)
+        self.assertIn("bale.toml [sandbox] enabled = false", log)
+        self.assertIn("UNCONFINED", log)
+
+    @slow
     def test_rename_removal_half_lands(self) -> None:
         """A rename decomposed per §5.1.1 — created new path under files/
         plus rm of the old path — lands as exactly that transition: old

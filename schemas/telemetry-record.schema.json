@@ -216,6 +216,16 @@
             "type": "boolean",
             "description": "True when at least one confined script execution on this attempt ran with the project's network grant active — bale.toml [sandbox] network (project layer only), which makes bale pass network=True so the sandbox omits its --net leg while filesystem confinement and the environment scrub stay intact (v0.4.5 — ADR-0016 position 3: planner-granted, per-project, contract-only, recorded whenever exercised). Bale-computed and stamped unconditionally like sandbox_escaped above — key presence is epoch membership, false is the known-negative form. An escaped (--no-sandbox) attempt records false here even when the grant is configured: nothing confined ran, so no grant was exercised (unconfined scripts have network regardless). Write-only per the ratified deferral — the bale stats read side lands when data accrues. Not in required: pre-v0.4.5 records keep validating."
           },
+          "sandbox_confined": {
+            "type": "boolean",
+            "description": "True when every response-script execution this attempt performed (apply.sh, the blind checkpoint, validation.sh) ran inside the namespace sandbox — or when no script ran at all, the known-negative form (v0.4.26 — sandbox-off by config). False exactly when the scripts ran UNCONFINED, whichever of the two escapes did it; sandbox_off_source beside it names which. Bale-computed and stamped unconditionally by build_telemetry_attempt on every post-v0.4.26 attempt of every command — the sandbox_escaped posture: uniform shape, key presence is epoch membership, absent only on pre-v0.4.26 records. sandbox_escaped keeps its exact pre-v0.4.26 meaning (the per-invocation --no-sandbox flag, and only the flag), so this field is the posture and that one is the flag fact; both together read every state. Not in required: pre-v0.4.26 records keep validating.",
+            "$comment": "Loud-every-run contract (v0.4.26): a false here always has a FORCE-class line in the session log naming the same source."
+          },
+          "sandbox_off_source": {
+            "type": ["string", "null"],
+            "enum": ["config", "flag", null],
+            "description": "Why this attempt's response scripts ran unconfined, when sandbox_confined is false (v0.4.26): 'config' when bale.toml's project-layer [sandbox] enabled = false disabled confinement — recorded as 'config' even when --no-sandbox was also typed, since the run would have been unconfined regardless and sandbox_escaped already carries the flag fact — and 'flag' when only the per-invocation --no-sandbox did. Null is the confined reading and the known-negative form. Stamped unconditionally beside sandbox_confined (key always present post-v0.4.26; null on confined and no-script attempts). Closed vocabulary: this enum is its one home, bin/bale_report's SANDBOX_OFF_SOURCES mirrors it for the writer, and validate_telemetry_record (bin/bale_validate.py) enforces it record-wide at any depth, null-tolerant like closure_reason. Not in required: pre-v0.4.26 records keep validating."
+          },
           "cost": {
             "type": ["object", "null"],
             "additionalProperties": true,

@@ -1310,14 +1310,31 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     --no-sandbox) disables the default-on namespace confinement of the
     three response-script executions (apply.sh, the blind checkpoint,
     validation.sh) for this invocation only. The bypass is FORCE-logged
-    at pipeline start; the same ratified override contract as the flags
-    above applies: per-invocation only, deliberately no config key,
-    re-stated on retry, never carried from a prior attempt. It exists
-    for debugging the sandbox itself, not for routine convenience
-    (ADR-0016 position 2). No effect under dry_run, which runs no
-    scripts. Every validated attempt's telemetry entry stamps the
-    bypass as `sandbox_escaped` (v0.4.5, board 10 S2; BALE.md §8.9),
-    beside the FORCE line the session log has carried since S1.
+    at pipeline start; per-invocation only, re-stated on retry, never
+    carried from a prior attempt. It exists for debugging the sandbox
+    itself, not for routine convenience (ADR-0016 position 2). No
+    effect under dry_run, which runs no scripts. Every validated
+    attempt's telemetry entry stamps the bypass as `sandbox_escaped`
+    (v0.4.5, board 10 S2; BALE.md §8.9), beside the FORCE line the
+    session log has carried since S1.
+
+    The flag's "deliberately no config key" clause was superseded at
+    v0.4.26 (board 75): bale.toml's project-layer `[sandbox] enabled =
+    false` is the durable form of the same escape, for hosts without
+    unprivileged user namespaces. The pipeline resolves it from the
+    merged config at the same pipeline-start point as the flag's FORCE
+    line, so the two escapes are logged side by side before any script
+    could run: a config-off run FORCE-logs the config key as its
+    source on every apply (silence is the one forbidden outcome), the
+    flag line keeps naming the flag, and both print when both are
+    present. The flag is one-direction (store_true), so under config-
+    off it is redundant, never contradictory — there is no per-
+    invocation force-on. The validated attempt's telemetry entry stamps
+    the posture as `sandbox_confined` (false) with `sandbox_off_source`
+    ("config" whenever the key disabled, even beside the flag; "flag"
+    when only the flag did); `sandbox_escaped` keeps its flag-only
+    meaning. A global `[sandbox] enabled` is ignored exactly as a
+    global `network` is (bale_config.SANDBOX_VALUES).
 
     The network grant (v0.4.5, board 10 S2 — ADR-0016 position 3) has
     no parameter here on purpose: it is per-project committed config,
@@ -1400,6 +1417,32 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             "apply.sh, the blind checkpoint, and validation.sh will run "
             "unconfined — operator privileges, inherited environment, "
             "network on; sandbox_escaped: true will be recorded",
+            force=True)
+    # Sandbox-off by config (v0.4.26, board 75): the durable form of
+    # the same escape, resolved from the merged config at this same
+    # pre-script point so the two escapes are logged side by side. The
+    # posture is convenient, never invisible — every apply it disables
+    # FORCE-logs the source (the project bale.toml key), dry-run
+    # excepted because nothing runs. `sandbox_on` is the one effective
+    # value the three script runs and the telemetry stamps below all
+    # thread; `sandbox_off_source` records which escape did it —
+    # "config" wins the naming when both are present, since the run
+    # would be unconfined regardless and sandbox_escaped already
+    # carries the flag fact (build_telemetry_attempt's docstring).
+    sandbox_enabled = bale_config.get_sandbox_enabled(
+        bale_config.merged_config(repo))
+    sandbox_on = sandbox_enabled and not no_sandbox
+    sandbox_off_source: Optional[str] = (
+        "config" if not sandbox_enabled
+        else ("flag" if no_sandbox else None))
+    if not sandbox_enabled and not dry_run:
+        log("sandbox DISABLED by config (bale.toml [sandbox] enabled = "
+            "false, project layer): apply.sh, the blind checkpoint, and "
+            "validation.sh will run unconfined — operator privileges, "
+            "inherited environment, network on; sandbox_confined: false "
+            "/ sandbox_off_source: config will be recorded"
+            + (" (--no-sandbox is redundant beside it)" if no_sandbox
+               else ""),
             force=True)
 
     # Extract and validate the tarball into a temp dir.
@@ -2216,20 +2259,25 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # unconfined), and network_grant_exercised is true exactly when
         # confined scripts run with the grant active — an escaped run
         # exercises no grant, since nothing confined ran.
+        # Since v0.4.26 (board 75) the confinement fact is the
+        # effective `sandbox_on` resolved at pipeline start (flag OR
+        # config), not the flag alone: an unconfined run by either
+        # escape exercises no grant.
         sandbox_network = bale_config.get_sandbox_network(staging_cfg)
         sandbox_escaped = bool(no_sandbox)
-        network_grant_exercised = bool(sandbox_network and not no_sandbox)
-        if sandbox_network and not no_sandbox:
+        network_grant_exercised = bool(sandbox_network and sandbox_on)
+        if sandbox_network and sandbox_on:
             log("network grant active (bale.toml [sandbox] network, "
                 "project layer): apply.sh, the blind checkpoint, and "
                 "validation.sh run confined WITH network — filesystem "
                 "confinement and environment scrub unchanged; "
                 "network_grant_exercised: true will be recorded")
         elif sandbox_network:
-            log("note: bale.toml [sandbox] network is set, but "
-                "--no-sandbox bypassed confinement for this invocation "
-                "— nothing confined ran, so the grant is not exercised "
-                "(unconfined scripts have network regardless)")
+            log(f"note: bale.toml [sandbox] network is set, but "
+                f"{'[sandbox] enabled = false' if not sandbox_enabled else '--no-sandbox'} "
+                f"bypassed confinement for this invocation "
+                f"— nothing confined ran, so the grant is not exercised "
+                f"(unconfined scripts have network regardless)")
         # The §8.5 stamp verification's result, threaded into the D4
         # telemetry stamp below (v0.3.28, session C): True on a verified
         # match, False on a divergence admitted by
@@ -2407,7 +2455,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 strategy=staging_strategy,
                 untracked_inputs=staging_untracked,
                 base_sha=base_sha,
-                sandbox=not no_sandbox,
+                sandbox=sandbox_on,
                 log_path=session_log,
                 network=sandbox_network,
             )
@@ -2455,7 +2503,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         if checkpoint_path is not None:
             checkpoint_result = run_blind_checkpoint(
                 repo, staging, base_sha, checkpoint_path,
-                locked_sid, verbose=verbose, sandbox=not no_sandbox,
+                locked_sid, verbose=verbose, sandbox=sandbox_on,
                 network=sandbox_network)
             log(f"blind checkpoint exit code: "
                 f"{checkpoint_result['exit_code']} ({checkpoint_path})")
@@ -2464,7 +2512,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # telemetry record's §7.3 claim/verdict promotion (v0.3.9, B2).
         exit_code, val_output = run_validation_sh(
             repo, response_dir, staging, manifest,
-            locked_sid, verbose=verbose, sandbox=not no_sandbox,
+            locked_sid, verbose=verbose, sandbox=sandbox_on,
             network=sandbox_network)
         log(f"validation.sh exit code: {exit_code}")
 
@@ -2728,6 +2776,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     checkpoint=checkpoint_stamp,
                     sandbox_escaped=sandbox_escaped,
                     network_grant_exercised=network_grant_exercised,
+                    sandbox_confined=sandbox_on,
+                    sandbox_off_source=sandbox_off_source,
                     log_path=f".bale/logs/{locked_sid}.log",
                     clarification=read_clarification_summary(
                         repo, locked_sid),
@@ -2875,6 +2925,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     checkpoint=checkpoint_stamp,
                     sandbox_escaped=sandbox_escaped,
                     network_grant_exercised=network_grant_exercised,
+                    sandbox_confined=sandbox_on,
+                    sandbox_off_source=sandbox_off_source,
                     log_path=f".bale/logs/{locked_sid}.log",
                 ))
             print(format_summary_block(
@@ -2962,6 +3014,8 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 checkpoint=checkpoint_stamp,
                 sandbox_escaped=sandbox_escaped,
                 network_grant_exercised=network_grant_exercised,
+                sandbox_confined=sandbox_on,
+                sandbox_off_source=sandbox_off_source,
                 log_path=f".bale/logs/{locked_sid}.log",
                 clarification=read_clarification_summary(repo, locked_sid),
             ))

@@ -365,5 +365,59 @@ class LegacyToleranceUnchangedElsewhere(unittest.TestCase):
         self.assertNotIn("docs_read", f["self_reported"])
 
 
+class SandboxPosturePairLegacyTolerance(unittest.TestCase):
+    """The v0.4.26 (board 75) telemetry addition on this file's own
+    terms — the per-surface legacy-tolerance assertion: a record from
+    any earlier epoch (no posture pair) and a record from this one
+    (pair present) both validate, and the schema description names
+    the loud-every-run guarantee the pair records. The vocabulary's
+    enforcement lives in test_telemetry_extensions; this is the
+    additive-contract check only."""
+
+    def _record(self, **attempt_extra) -> dict:
+        attempt = {"at": "2026-09-10T00:00:00+00:00",
+                   "outcome": "applied", "command": "apply"}
+        attempt.update(attempt_extra)
+        return {"record_version": 1,
+                "session_id": "2026-09-10-fx-w75-001",
+                "created_at": "2026-09-10T00:00:00+00:00",
+                "updated_at": "2026-09-10T00:00:00+00:00",
+                "outcome": "applied", "attempts": [attempt]}
+
+    def test_pre_v0426_attempt_validates_unchanged(self) -> None:
+        # The S2-epoch shape: sandbox stamps present, no posture pair.
+        rec = self._record(sandbox_escaped=True,
+                           network_grant_exercised=False)
+        self.assertEqual(bale_validate.validate_telemetry_record(rec), [])
+
+    def test_v0426_attempt_validates(self) -> None:
+        rec = self._record(sandbox_escaped=False,
+                           network_grant_exercised=False,
+                           sandbox_confined=False,
+                           sandbox_off_source="config")
+        self.assertEqual(bale_validate.validate_telemetry_record(rec), [])
+
+    def test_record_version_unchanged(self) -> None:
+        """Additive means record_version stays 1 — a record carrying
+        the pair validates at version 1, so consumers need no branch,
+        and the schema's own description records no bump for it."""
+        rec = self._record(sandbox_confined=True, sandbox_off_source=None)
+        self.assertEqual(rec["record_version"], 1)
+        self.assertEqual(bale_validate.validate_telemetry_record(rec), [])
+        description = json.loads(
+            TELEMETRY_SCHEMA_PATH.read_text(encoding="utf-8"))["description"]
+        self.assertIn("record_version stays 1", description)
+
+    def test_description_names_the_loudness_contract(self) -> None:
+        schema = json.loads(
+            TELEMETRY_SCHEMA_PATH.read_text(encoding="utf-8"))
+        props = schema["properties"]["attempts"]["items"]["properties"]
+        text = (props["sandbox_confined"]["description"]
+                + props["sandbox_confined"].get("$comment", ""))
+        self.assertIn("FORCE", text)
+        self.assertIn("config", props["sandbox_off_source"]["description"])
+        self.assertIn("flag", props["sandbox_off_source"]["description"])
+
+
 if __name__ == "__main__":
     unittest.main()

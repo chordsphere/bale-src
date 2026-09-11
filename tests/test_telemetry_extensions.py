@@ -444,5 +444,104 @@ class StatsToleranceTest(unittest.TestCase):
         self.assertEqual(mix.get("malformed_response"), 1)
 
 
+class SandboxOffSourceVocabularyTest(unittest.TestCase):
+    """The v0.4.26 (board 75) closed vocabulary rides the same rails as
+    closure_reason: the schema enum is the one home, the writer tuple
+    mirrors it, the record-wide walk enforces it at any depth
+    (null-tolerant), and legacy records without the posture pair keep
+    validating."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bv = _load_module("bale_validate")
+        cls.br = _load_module("bale_report")
+        cls.schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    def _enum(self) -> list:
+        return (self.schema["properties"]["attempts"]["items"]
+                ["properties"]["sandbox_off_source"]["enum"])
+
+    def test_schema_enum_is_exactly_the_two_writers_plus_null(self) -> None:
+        self.assertEqual(sorted(v for v in self._enum() if v is not None),
+                         ["config", "flag"])
+        self.assertIn(None, self._enum(), msg="null is the confined "
+                                              "reading, in the vocabulary")
+
+    def test_tuple_and_schema_enum_agree(self) -> None:
+        self.assertEqual([v for v in self._enum() if v is not None],
+                         list(self.br.SANDBOX_OFF_SOURCES))
+
+    def test_pair_is_additive_not_required(self) -> None:
+        items = self.schema["properties"]["attempts"]["items"]
+        for name in ("sandbox_confined", "sandbox_off_source"):
+            self.assertIn(name, items["properties"])
+            self.assertNotIn(name, items.get("required", []))
+        self.assertEqual(self.bv.validate_telemetry_record(
+            _minimal_record()), [], msg="a record without the pair "
+                                         "keeps validating")
+
+    def test_known_values_validate_at_the_named_spot(self) -> None:
+        for confined, source in ((True, None), (False, "config"),
+                                 (False, "flag")):
+            rec = _minimal_record(sandbox_confined=confined,
+                                  sandbox_off_source=source)
+            self.assertEqual(self.bv.validate_telemetry_record(rec), [],
+                             msg=f"{confined}/{source!r} must validate")
+
+    def test_invented_value_rejects_at_every_placement(self) -> None:
+        for place in ("named", "envelope", "nested"):
+            rec = _minimal_record()
+            if place == "named":
+                rec["attempts"][0]["sandbox_off_source"] = "operator"
+            elif place == "envelope":
+                rec["sandbox_off_source"] = "operator"
+            else:
+                rec["attempts"][0]["future"] = {
+                    "sandbox_off_source": "operator"}
+            errors = self.bv.validate_telemetry_record(rec)
+            self.assertTrue(any("sandbox_off_source" in e for e in errors),
+                            msg=f"{place}: invented source must reject")
+
+    def test_null_tolerated_at_any_depth(self) -> None:
+        rec = _minimal_record()
+        rec["sandbox_off_source"] = None
+        rec["attempts"][0]["future"] = {"sandbox_off_source": None}
+        self.assertEqual(self.bv.validate_telemetry_record(rec), [])
+
+    def test_builder_stamps_the_pair_unconditionally(self) -> None:
+        default = self.br.build_telemetry_attempt(
+            outcome="unlocked", command="unlock", tarball=None,
+            manifest=None, scope=[], log_path=".bale/logs/x.log")
+        self.assertIs(default["sandbox_confined"], True)
+        self.assertIn("sandbox_off_source", default)
+        self.assertIsNone(default["sandbox_off_source"])
+        stamped = self.br.build_telemetry_attempt(
+            outcome="applied", command="apply", tarball="t.tar.gz",
+            manifest={"summary": "s"}, scope=[], log_path=".bale/logs/x.log",
+            sandbox_confined=False, sandbox_off_source="config")
+        self.assertIs(stamped["sandbox_confined"], False)
+        self.assertEqual(stamped["sandbox_off_source"], "config")
+        rec = _minimal_record()
+        rec["attempts"] = [stamped]
+        self.assertEqual(self.bv.validate_telemetry_record(rec), [],
+                         msg="a builder-stamped attempt validates")
+
+    def test_stats_tolerates_the_pair(self) -> None:
+        """No read side (write-only per the S2 deferral); mere presence
+        must not choke aggregation."""
+        stats = _load_module("bale_stats")
+        rec = _minimal_record(sandbox_confined=False,
+                              sandbox_off_source="config",
+                              sandbox_escaped=False)
+        with tempfile.TemporaryDirectory() as td:
+            tel = Path(td)
+            for src in STATS_CORPUS.glob("*.json"):
+                (tel / src.name).write_bytes(src.read_bytes())
+            (tel / f"{rec['session_id']}.json").write_text(
+                json.dumps(rec), encoding="utf-8")
+            result = stats.compute_stats(tel)
+        self.assertIsInstance(result, dict)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
