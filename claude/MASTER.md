@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-01-sitting-close-deltas-4-004`.
+Last landed by: `2026-09-10-sitting-close-deltas-5-001`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -257,6 +257,13 @@ source):
   defects rather than worker misunderstanding; that clustering
   means authoring practice is the defect, and the fix is at the
   planner's desk, not the workers'.
+  [2026-09-10: FIRED at the 2026-09-01/02 sitting — three desk
+  fixture defects in one sitting (§6 entry 109; entry 95 had set the
+  threshold at a third). The fix landed at the desk as practice, two
+  counters: every probe gets a contradiction pass against the brief's
+  work items before delivery, and rehearsal landings exercise
+  degrade/legacy rungs, not just happy paths. The watch stands
+  re-armed at the same threshold; re-trigger unchanged.]
 - Dead ceremony checkpoint files (`current.sh`,
   `continue-plan-005.sh`, `restoration-006.sh`, `core-001.sh`
   under `claude/checkpoints/`) are inert clutter. Cleanup may ride
@@ -267,6 +274,10 @@ source):
   read as oracle overrides in HOLD-clustering stats. Re-trigger:
   any HOLD-clustering read over the amendment stamps. (Routed from
   the improvement sitting's opening README, item 3.)
+  [2026-09-10: two more deliberate accepts on record —
+  `2026-09-01-board-70-doc-reachability-007` (v2→v3) and
+  `2026-09-01-board-71-lifecycle-resolution-008` (v1→v2); both
+  retries PASSed; the prose records are on rows 70 and 71.]
 - `claude/INDEX.md` substring-pin false positives: the guard test's
   deny-list entry was accepted 2026-08-14/15 with its
   self-announcing false-positive profile — if
@@ -443,6 +454,8 @@ with the unverifiable ones carried verbatim and marked):
   **Scope hints:** `bin/bale` cmd_handoff (one kwarg), plus one
   assertion in `tests/test_handoff_happy.py`. Trivial rider for
   the next session touching that surface."
+  [2026-09-10: carrier named — board row 73 (handoff
+  fix-or-retire) consumes this rider when it touches the surface.]
 - Negation-refusal wording split — "Name the pattern's source in
   the negation refusal", rides the next bin/bale_pack.py touch
   (carrier restated 2026-08-14; its former co-rider, the
@@ -507,6 +520,9 @@ with the unverifiable ones carried verbatim and marked):
   shape from the landing direction. Rides the next bin/bale_apply.py
   touch; independent of 49a-ii. (Source:
   `2026-08-24-board-49a-i-bundle-format-003`'s Proposals.)
+  [2026-09-10: consumed — landed at board row 71
+  (`2026-09-01-board-71-lifecycle-resolution-008`) as BALE.md §11
+  row 37 / step 18, reusing `is_bundle_file`.]
 - Supersession writes its closure record BEFORE the sweep (or
   inside the sweep's commit set), plus one test pinning
   tree-clean-after-supersession. Evidence: in both of the
@@ -650,6 +666,12 @@ with the unverifiable ones carried verbatim and marked):
   line, and `--json` parity for the verb is accepted need-gated (if
   it turns out to be scripted against). Both fold here; neither is
   queued as its own item.]
+  [2026-09-10: the bare-retry motivator is consumed — row 71's
+  stamp-fed, placeholder-free composed retry successor obsoletes
+  it. The entry's other parts (the opener as a structured key in
+  `format_pack_json`, opener emission on handoff's report, the bare
+  handoff form) stand. Handoff's `--sid` generalization, raised at
+  71, rides board row 73 rather than here.]
 - The bin/-sanction docstring line — one rationale line in
   tests/test_global_doc_selfcontainment.py's guard docstring
   recording the injected-surface bin/ sanction (§5, the 2026-08-31
@@ -657,6 +679,9 @@ with the unverifiable ones carried verbatim and marked):
   file rather than warranting its own touch. (Ratified 2026-08-31
   at the fold-in/purge review; landed by
   `2026-08-31-sitting-close-deltas-006`.)
+  [2026-09-10: consumed — landed at board row 70
+  (`2026-09-01-board-70-doc-reachability-007`) in the guard's
+  module docstring, self-standing.]
 - BALE.md §7.5/§7.7 one-line group mention — rides any future
   BALE.md touch. Text verbatim from
   `2026-08-31-board-64-release-surface-group-009`'s Proposals:
@@ -767,6 +792,11 @@ with the unverifiable ones carried verbatim and marked):
   one-line INSTALL_SCHEMAS addition here; only after this session
   lands, to avoid forecast collision on the guard file." (Accepted
   2026-08-31 at the continue-plan-012 sitting's wave-3 close.)
+  [2026-09-10: annotated from board row 70 — whether the
+  pointer-class deny (the wrap-tolerant "design documentation"
+  pattern the guard gained at 70) joins the schema group's table is
+  now part of this standing convergence question; rides the next
+  guard-touching sitting. Worker proposal accepted at the desk.]
 - Promote validation_will_run and corrects into the telemetry
   attempt — two one-line write-side additions; unlocks the literal
   empty-claims cut and live corrects lineage. Rides the next
@@ -807,7 +837,11 @@ with the unverifiable ones carried verbatim and marked):
   this response even as admitted drift. **Scope hints:** bin/bale
   (the stats subcommand's argparse and dispatch),
   tests/test_stats_drilldown.py (E2E extension); only after the
-  sibling session holding bin/bale closes." (Accepted 2026-08-31
+  sibling session holding bin/bale closes." [2026-09-10:
+  deliberately NOT folded into board row 71 at the 2026-09-01/02
+  sitting — desk decision, recorded so the entry stays queued
+  rather than lost; still rides the next bin/bale stats touch.]
+  (Accepted 2026-08-31
   at the continue-plan-012 sitting's wave-3 close.)
 - Release-surface include group, candidate extension: pull tools/
   along with the group (specimen: 002's includes_missing —
@@ -1627,6 +1661,47 @@ what has no row home; close recorded by
   68–69 opened in §4; the release-surface include-group extension
   in the registry above.
 
+Landed 2026-09-01→09-02, the continue-plan-005 sitting (master
+`2026-09-01-continue-plan-005`; opened read-only to continue the
+plan, then commandeered twice on explicit architect authority — the
+§3-override rule's fourth exercise: first to the shipped-doc
+reachability gap, then to the operator's HOLD-friction outline).
+Rows 70 and 71 closed on their board brackets — facts of record, the
+version, ratifications, and retry stories live there; this block
+carries only what has no row home; close recorded by
+`2026-09-10-sitting-close-deltas-5-001`, landed 2026-09-10 or later
+— eight-plus days after the sitting, so the row brackets carry the
+sitting's dates and the bracket stamps carry the close's:
+
+- Wave record: the sitting spawned 007 (row 70, opened and landed
+  in-sitting) and 008 (row 71, opened and landed in-sitting). The
+  planned wave (68, 56+57, 69, 37) deliberately did not run and
+  remains queued. Row 75 was spawned beside this close, after the
+  sitting, and is in flight (facts on its row).
+- Sitting-open record: close-004's eight flagged calls ratified
+  wholesale by the architect at this sitting's open.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md and row 75's notes.md are NOT ratified by the retiring
+  desk — both queue to the next sitting's open.
+- Board deltas of the close: rows 70–71 DONE, 72 born resolved,
+  73–77 opened in §4; boards 47 and 68 grown on their rows; the
+  registry strikes above (the bin/-sanction line consumed at 70;
+  the apply-side bundle backstop consumed at 71; the
+  successor-surface parity entry's bare-retry motivator consumed;
+  the stats-dossier wiring rider deliberately held back from 71);
+  evidence entries 107–112 in §6; the version landmark 0.4.25 and
+  the standing desk emission rules in §7; the checkpoint-thinness
+  watch above marked FIRED; the amendment-accept watch above grown
+  by two stamps.
+- Sequencing for the next desk (replaces the pre-commandeering
+  plan): row 75 (if not already landed) → row 73 (reproduce-first)
+  → board 47 (row 74 riding its doc touch) → the held wave: 68,
+  then 56+57 beside it, then 69, then 37 (69 and 37 serialize on
+  the crafter) → board 43 with its compare-with-architect step →
+  45 before any harness autonomy → S6 last. Boards 9, 10 (S6
+  residual), 11, 35's residuals, 38, 39, 54, 55 stand as
+  previously recorded.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2313,6 +2388,17 @@ and §8, so done items keep their numbers as one-line pointers.
     tool. The happy path gains a desk-facing block too: notes.md +
     verdict + admissions, pre-assembled for the ratification relay.
     Ratified 2026-08-18.]
+    [2026-09-10: grown at the 2026-09-01/02 sitting's close, the
+    existing ratified cargo kept. Three additions: the retry line on
+    the HOLD banner is the stamp-fed composed retry row — the data
+    is on disk at render time since row 71's `held_tarball` stamp;
+    the banner's successor fork is rendered per ruling class —
+    fixture-defect vs work-defect — each line complete (the §7 desk
+    emission rules, applied by the tool); and row 74's three
+    emission-contract micros ride this row's TARBALL.md touch.
+    Interim operator rule until this row lands: HOLD material
+    routes to the planner first, never the worker — the addressed
+    blocks land that routing mechanically here.]
 
 48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
     into board 49 (the `bale open` dry-run leg); whether the
@@ -2691,6 +2777,10 @@ and §8, so done items keep their numbers as one-line pointers.
     sweep in validation — the sweep extension above executed as
     ratified). Deny-shapes guard proposal routed per the §3 wave-2
     dispositions block.]
+    [2026-09-10: the unnamed-form call is repaired at row 70 —
+    ratified record that resolving BALE.md pointers to an unnamed
+    form converted a nameable dangle into an undiagnosable one; the
+    durable rule is re-pointing at surfaces that ship.]
 
 67. **Suite repair (the 17 stale tests) — DONE at birth**
     2026-09-01 at the 026 sitting (lineage: spawned from 027's
@@ -2721,6 +2811,15 @@ and §8, so done items keep their numbers as one-line pointers.
     before the disjointness gate refused on arg-inspectable
     grounds (§6 entry 102). Carrier note: the registry's
     release-surface tools/ extension rides this row's bin/ touch.
+    [2026-09-10: grown at the 2026-09-01/02 sitting's close: open and
+    pack refusals name the resolved project root and the config
+    files they judged. Live specimen: a `bale open` run from
+    `~/yt-mp3` refused on a missing `[validation]` base, and the
+    refusal's "this project" cost a probe round that a named path
+    would have prevented (§6 entry 111). Supersedes the
+    momentarily-queued "committed-vs-dirt config pre-check" idea —
+    obsoleted by diagnosis: the dirty file was the master's own
+    open-time telemetry record, normal in-flight state.]
 
 69. **tools pair** — queued 2026-09-01 (one micro session, both
     halves from the 026 sitting): (a) a bare-string claims-value
@@ -2738,6 +2837,158 @@ and §8, so done items keep their numbers as one-line pointers.
     deferred on. Scope hints: tools/craft_response.py (and its
     embed-parity tests if the skeleton is asserted anywhere); only
     after this session lands."
+
+70. **shipped-doc reachability — DONE** 2026-09-01 at the
+    continue-plan-005 sitting (opened in-sitting under the first
+    commandeering; mixed class):
+    `2026-09-01-board-70-doc-reachability-007`, applied
+    2026-09-01. Six ratified inventory sites plus two
+    out-of-inventory "design documentation" tombstone pointers
+    (the TARBALL.md §5.6.3/§5.9.3 tombstones, per the worker's
+    record) found and fixed by the worker under an in-scope
+    deviation, ratified as shipped (goal text plus the
+    never-cites-a-doc-that-does-not-ship constraint read as
+    authority; deny shape widened with an optional `design`
+    alternative to pin it). CLAUDE.md gained the reachability
+    paragraph; the self-containment guard denies the pointer class
+    wrap-tolerantly. No version bump — ratified as a reading of the
+    doc-only exemption's own rationale (no shipped-tool behavior
+    change), recorded as a reading, not a new exemption class.
+    Worker proposal accepted: whether the pointer-class deny joins
+    the schema group's table — annotated onto the guard tables'
+    standing convergence question (the §3 registry), rides the
+    next guard-touching sitting. Mid-arc the spawn materials were
+    re-issued with neutralized vocabulary (r1 stem
+    `…injection-reachability` superseded by r2
+    `…doc-reachability`) after the word "injection" primed a
+    worker's safety heuristics in a foreign project — §6 entry
+    108. Retry story: HOLD on a desk fixture defect (P5 pinned a
+    deny pattern's spelling — mechanism over outcome), amended
+    v2→v3 with an implementation-agnostic plant-and-red probe;
+    then one gate-refused retry (accept flag omitted; the refusal
+    named it), then the accepted retry — the predicted sequence.
+    The retry's stamp mismatch was accepted deliberately, and this
+    sentence is its prose record (telemetry: `stamp_matched:
+    false`, PASS, 2026-09-01). Repair of record carried on row 66:
+    the purge's unnamed-form resolution converted a nameable
+    dangle into an undiagnosable one; re-point at surfaces that
+    ship. Registry strike: the bin/-sanction docstring line,
+    consumed here.
+
+71. **lifecycle resolution from the artifact in hand — DONE**
+    2026-09-02 at the continue-plan-005 sitting (opened 2026-09-01
+    in-sitting under the second commandeering, the operator's
+    HOLD-friction outline; code class):
+    `2026-09-01-board-71-lifecycle-resolution-008`, applied
+    2026-09-02 at 0.4.25. Retry resolves its session from the
+    tarball's own `responds_to`; `--sid` demoted to a vetting flag
+    (mismatch refuses naming both sids and the tarball);
+    resolve-before-wipe — every retry refusal now leaves HOLD
+    state byte-identical, pinned by `assert_hold_intact` (an
+    ordering improvement over the old wipe-then-refuse, explicitly
+    desk-wanted and ratified); `bale amend-checkpoint` emits a
+    fully composed placeholder-free retry successor from a
+    HOLD-time `.bale/sessions/<sid>/held_tarball` stamp (legacy
+    HOLDs degrade loudly to the placeholder form); non-open sids
+    refuse as closed-naming-last-outcome (defensive telemetry
+    read) vs unknown-to-this-repo; the apply-side bundle backstop
+    rider landed as §11 row 37 / step 18 (BALE.md; the worker's
+    record sites the step at §8.1) reusing `is_bundle_file`;
+    ADR-0006 gained the dated artifact-borne-resolution Notes
+    append; BALE.md trued up (including documenting the
+    previously-undocumented `staging_path` — kept at
+    ratification). `peek_responds_to` is the public spelling;
+    alias retained. Worker proposals dispositioned: the stamp-fed
+    composed retry row on the HOLD banner — accepted onto board 47
+    (grown cargo); handoff/open `--sid` generalization — accepted,
+    absorbed into new row 73; the response-manifest echo schema
+    gap — accepted as new row 76, with the worker's
+    drop-`base_files`-to-validate call ratified as the interim
+    reading (the echo is verbatim-minus-the-stamp) until 76 lands.
+    In-flight correction (telemetry, trued up): the amend suite's
+    fixture dependency `tests/test_per_sid_checkpoint.py` did not
+    ship and arrived as an upload after an informal ask — the
+    record carries it under includes_missing and zero exchange
+    rounds (§6 entries 110, 112). Retry story: HOLD on a desk
+    fixture defect (P2 contradicted the brief's own W2), amended
+    v1→v2 by STRIKING the probe — the first probe-deletion
+    amendment; the retry's stamp mismatch was accepted
+    deliberately, and this sentence is its prose record
+    (telemetry: `stamp_matched: false`, PASS, 2026-09-02).
+    Registry: the apply-side bundle backstop consumed here; the
+    stats-dossier wiring rider deliberately not folded in.
+
+72. **clarification auto-close — RESOLVED, not a defect** (born
+    resolved 2026-09-10, at the sitting's close): the operator
+    determined the close was working-as-intended — a default-Y
+    close prompt on the previous pack was glossed under triage.
+    Recorded with its trail in case it recurs; no code change. The
+    surviving half of the report became row 74's dual-transport
+    rule.
+
+73. **handoff: fix-or-retire, reproduce-first** — opened
+    2026-09-10 (decision-shaped; bin/ + tests/): an operator's
+    foreign-project session invoked handoff and it failed — apply
+    trouble, no adherence to forecast disjointness, apparently old
+    syntax. Original logs lost; the investigation reproduces on a
+    harness fixture instead (tests/test_handoff_happy.py exists
+    and passes, so the break is in a path the happy test doesn't
+    walk — that gap is itself evidence). The surface visibly
+    predates the modern gate era. Decision: modernize fully
+    (gates, provenance, current argv) or formally retire with a
+    tombstone so sessions stop invoking it. Absorbs row 71's
+    handoff/open `--sid` generalization question; consumes the
+    registry's `gather_files_for_pack` verbose-kwarg rider when
+    touched. Sequenced second, after row 75 (§3 close block).
+
+74. **emission contract micros (doc lane)** — opened 2026-09-10,
+    riding board 47's TARBALL.md touch: three one-sentence rules
+    for the request-carried docs. (1) Emitted commands are single
+    physical lines, never backslash-continued — continuations do
+    not survive chat copy-paste (live specimen: a foreign-project
+    pack line mangled by `\ ` sequences). (2) Formal asks always
+    ship BOTH transports — the tarball and the paste-block text —
+    so the chat route stays first-class (operator-requested; the
+    surviving half of row 72's report). (3) TARBALL.md §10.1's
+    checklist gains a step naming the crafter's `--emit-block`
+    exchange emission as the blocking-ask path — today the
+    checklist's own step 1 models informal asking (§6 entry 112).
+
+75. **sandbox-off by config** — IN FLIGHT, spawned beside the
+    sitting's close (2026-09-10; bundle stem
+    `2026-09-10-board-75-sandbox-config-off`, opened as
+    `2026-09-10-board-75-sandbox-config-off-002`; mid-build at
+    this landing — a round-1 exchange record from its worker was
+    answered by the desk 2026-09-10): `[sandbox] enabled = false`
+    at the project layer for hosts without namespace privileges;
+    loud on every unconfined run naming the config source; posture
+    recorded in telemetry. Mid-flight the desk ratified forecast
+    drift onto bin/bale_report.py, bin/bale_validate.py,
+    bin/bale_open.py, and bin/bale's help strings (telemetry
+    write-sites, the open dry-run leg, and three falsified help
+    sentences) — the operator admits these per path at apply.
+    Landing facts (date, version, ratified calls) true up at the
+    next sitting; its notes.md queues for ratification at that
+    sitting's open, beside close-001's (§3).
+
+76. **response-manifest echo schema** — opened 2026-09-10 (micro:
+    one schema line plus one sentence; from row 71's Proposals):
+    the request-side provenance grew `base_files` (board 41); the
+    response-side `feedback.mechanical.provenance` echo never
+    admitted it, so TARBALL.md §5.2.2's "echoed verbatim" cannot
+    be followed literally. Either the echo schema gains
+    `base_files` or §5.2.2 says echo-minus-the-stamp. Interim
+    reading, ratified at row 71: workers drop `base_files` to
+    validate — the echo is verbatim-minus-the-stamp — until this
+    lands.
+
+77. **vocabulary rename — CANDIDATE** — opened 2026-09-10 (a real
+    session, not a tweak: constant rename, guard patterns, doc
+    sweep): sweep bale's own "inject/injected/injection"
+    vocabulary (the `INJECTED_TOOLS` constant included) toward
+    carry/ship terms; the collision with security vocabulary
+    primes cautious workers in every foreign project (live
+    specimen at row 70; §6 entry 108).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -4383,6 +4634,70 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     answer's guard-print-your-probe instruction became 002's
     shipped behavior.
 
+107. **Stranded-session specimen.** A foreign-project session
+    correctly refused to hand-build a bundle against an unreadable
+    format and fell back to the documented `--checkpoint-file` path
+    — discipline holding — but could not tell
+    unreachable-by-design from packing gap. Motivated row 70; the
+    diagnosis-ambiguity lesson is the durable part.
+
+108. **Vocabulary collision cost.** Jargon that collides with a
+    safety-relevant term ("injection") is a specification-friction
+    tax on every worker that reads it: row 70's r1 spawn materials
+    primed a worker's safety heuristics in a foreign project and
+    were re-issued as r2 with neutralized vocabulary. Candidate fix:
+    row 77.
+
+109. **Desk fixture-defect cluster; the thinness watch FIRED.**
+    Three in one sitting: a pre-delivery rehearsal catch (an
+    imagined `### INDEX` anchor); board 70's P5 (the probe pinned a
+    deny pattern's spelling — mechanism over outcome — amended
+    v2→v3 with an implementation-agnostic plant-and-red probe);
+    board 71's P2 (the probe contradicted the brief's own W2, which
+    required the legacy rung to keep the placeholder — a
+    spec-contradiction subclass, new to the miss catalog; amended
+    by STRIKING the probe, the first probe-deletion amendment,
+    precedent noted). Entry 95 set the threshold at a third; the
+    third arrived, and the §3 watch is marked FIRED. Two practice
+    counters adopted at the desk: every probe gets a contradiction
+    pass against the brief's work items before delivery; rehearsal
+    landings must exercise degrade/legacy rungs, not just happy
+    paths. Also recorded: the desk's own sweep initially
+    undercounted its inventory by wrap-blind, variant-blind
+    grepping (6 sites, not 3) — entry 93's lesson recurring at the
+    desk.
+
+110. **Frame-vs-content respawn boundary.** Mid-flight defects in
+    stamped, gate-enforced surfaces (forecast, manifest
+    constraints, checkpoint) mean the session's frame is wrong —
+    respawn. Prose-level brief defects and read-side context gaps
+    are correctable in flight through rulings, uploads, and relay
+    — the desk-side rhyme of the fixture/work fork. Exercised at
+    row 71: a missing transitive test dependency uploaded; a brief
+    sentence that specified while claiming to describe, corrected
+    by relayed ruling.
+
+111. **Probe-before-remedy, retraction on record.** The desk
+    advised commit-or-stash on an unread dirty file; then a
+    wrong-cwd open refusal surfaced; the probe found the pin
+    intact, the cwd at fault, and the "dirt" was the master's own
+    telemetry record. A stash would have hidden a live record.
+    Advice retracted; the remedy-before-probe instinct is what the
+    probe discipline checks. The refusal's unnamed "this project"
+    is board 68's grown cargo.
+
+112. **Exchange adoption gap.** The formal blocking-ask channel
+    exists end-to-end (crafter `--emit-block`, `bale relay`, the
+    schema), but TARBALL.md §10.1's checklist never names it and
+    its step 1 models informal asking — a well-formed worker
+    followed the checklist (row 71's record: zero exchange rounds,
+    the fixture dependency arriving by upload). A doc-placement
+    gap; the fix rides row 74. Include-list authoring lesson beside
+    it: chase test-file imports (the amend suite's fixture
+    dependency did not ship); candidate mechanization — pack warns
+    when an included test imports a repo test module outside the
+    include set.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -4445,9 +4760,11 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.24 at
-  `2026-09-01-board-42-telemetry-fields-003` (0.4.23 rode
-  `2026-08-31-board-41-base-drift-027`); the
+  still governs. bin/bale VERSION 0.4.25 at
+  `2026-09-01-board-71-lifecycle-resolution-008` (0.4.24 rode
+  `2026-09-01-board-42-telemetry-fields-003`; board 70 landed
+  between them with no bump, ratified as a reading of the doc-only
+  exemption); the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
@@ -4467,6 +4784,11 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   narrative lives in v3, in git). Worker packs are now authored
   with explicit `--write` forecasts; includes are weighed as
   context, not locks (ADR-0015).
+  Desk emission rules, standing (recorded at the 2026-09-01/02
+  sitting's close): every desk-emitted command is fully composed —
+  sid included, real filenames quoted, zero placeholders, a single
+  physical line (board 47 renders the tool-side successors to the
+  same rule; row 74 carries the single-line rule into the docs).
   Session references in this doc use the full sid, or NNN
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
