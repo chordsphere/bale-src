@@ -1,0 +1,251 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-board-73b-handoff-modernize-007",
+  "created_at": "2026-09-14T21:43:53+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T21:43:53+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "tests/test_handoff_checkpoint_gates.py",
+        "tests/test_handoff_fixture.py",
+        "tests/test_handoff_forecast.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_handoff_registry_gate.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-board-73b-handoff-modernize-007.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T22:14:14+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-board-73b-handoff-modernize-007-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "no stale ADR-0007 handoff comments": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no expectedFailure remains in the handoff suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "handoff suites (5 files, no expected failures, no unexpected successes)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "checkpoint-adjacent suites (readonly_pack, blind_checkpoint, checkpoint_file_flag, per_sid_checkpoint)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "no stale ADR-0007 handoff comments": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no expectedFailure remains in the handoff suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "handoff suites (5 files, no expected failures, no unexpected successes)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "checkpoint-adjacent suites (readonly_pack, blind_checkpoint, checkpoint_file_flag, per_sid_checkpoint)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "tests/test_handoff_checkpoint_gates.py",
+        "tests/test_handoff_fixture.py",
+        "tests/test_handoff_forecast.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_handoff_registry_gate.py"
+      ],
+      "overridden_paths": [
+        "bin/bale_report.py"
+      ],
+      "overridden_path_sources": {
+        "bin/bale_report.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_handoff_checkpoint_gates.py",
+        "tests/test_handoff_fixture.py",
+        "tests/test_handoff_forecast.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_handoff_registry_gate.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.27",
+            "contract_docs": {
+              "CLAUDE.md": "1c3556f467aa0621253bd3977f8c719cd367eafef5d8a383780204e73c50ca3b",
+              "TARBALL.md": "0df6257eec1933e48ee407d049bd96dd9eab0227705debdca8a4fb177002ef2a",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "7f9cc5713bee8f1464a3740332083089023573e0fa613626eb90d84739cfab0c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-board-73b-handoff-modernize-007.sh",
+              "sha256": "b6e4c42c3237d8753f0056fc3a27ede1ea0d146918b773cbab160fb3158e17a7"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "BALE.md": "7be7c619ccc11923c12c49bcab0f77f00593eeae815a38a3c6ab4a49fd0b38db",
+              "bin/VERSION": "1c98727d2e1c0362944734a145d900bd6b61b59436e87c4dc44253dbf3749814",
+              "bin/bale": "dbf8b503212a4a75a5a427fb1632c43d5d8339252b887ea581b5fe889f6d9dbd",
+              "bin/bale_pack.py": "97973d3aa99c3a4071a9b6135410087ecbe3115f74d53a0a0909af3417dd1b6c",
+              "tests/test_handoff_checkpoint_gates.py": "7d29c2412f1b35419d28a672c13f3112c4162674140978757d652963ee937ac2",
+              "tests/test_handoff_fixture.py": "701a34a449ec7d51c88840d5f470f22b4da182117c7d2be7ee9fdb887e295e6a",
+              "tests/test_handoff_forecast.py": "a74b640c6fa9582679407ed15263d3e90fb63244e980a1e9d8a5e92364e28370",
+              "tests/test_handoff_happy.py": "89f6f3524b8e1b2e188b2dffe3f136749d14e88361109fcc2f959adfb25f926f",
+              "tests/test_handoff_registry_gate.py": "0784104fca7f19babf15cfdee4c6fb506f0d3402d76e19f89c22f7be5328ec6f"
+            },
+            "model_identity": "Claude Fable 5.1 (self-reported, unverifiable)"
+          },
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "2026-09-14-board-73b-handoff-modernize-007"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Full test discovery (~800 tests) passes with these changes; only the 95 tests in the eight shipped suites were observed (predicted claim, gated behind --slow).",
+            "The desk's Python is 3.12+ or the fixture-defines-no-tests check's exit-code independence makes it moot either way."
+          ],
+          "judgment_calls": [
+            "An inherited forecast is passed to the blindness gate as declared (conservative: a parent's --allow-checkpoint-in-scope admission is never renewed silently); the residue for include-set-default parents covering the oracle is named in notes.md.",
+            "run_forecast_disjointness_gate lifted to module level with pack's refusal text byte-identical and a handoff-worded variant, rather than a second guard in bin/bale.",
+            "The acceptance test test_resumed_work_lands_on_the_parent_forecast had its record assertion moved ahead of the apply (a PASS merge wipes the session dir); every other body rewrite follows the round-2 answers and is enumerated in notes.md."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "the caller='handoff' narrowing-remedy sentence in format_checkpoint_scope_refusal told the operator to re-bail with a different reading plan, which no longer moves a handoff's forecast once it is inherited; one sentence plus its docstring paragraph, ratified in the clarification thread (round 2, question 2)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-14-board-73b-handoff-modernize-007.log",
+      "clarification": {
+        "rounds": 2,
+        "records": [
+          {
+            "n": 1,
+            "at": "2026-09-14T21:51:57+00:00",
+            "blocking_questions": 3,
+            "from": "worker",
+            "answers": null
+          },
+          {
+            "n": 2,
+            "at": "2026-09-14T21:53:40+00:00",
+            "blocking_questions": 0,
+            "from": "planner",
+            "answers": 3
+          }
+        ]
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-board-73b-handoff-modernize-007.sh",
+          "sha256": "b6e4c42c3237d8753f0056fc3a27ede1ea0d146918b773cbab160fb3158e17a7"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T22:14:14+00:00",
+  "outcome": "applied"
+}
