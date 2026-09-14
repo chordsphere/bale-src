@@ -1,0 +1,200 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-bundle-delivery-doctrine-003",
+  "created_at": "2026-09-14T20:21:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T20:21:47+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-bundle-delivery-doctrine-003.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T20:27:49+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-003 (50).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "python3 -m unittest tests.test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "python3 -m unittest tests.test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "ruling landed byte-exact in PLANNER.md 2": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section numbering unchanged in both docs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "added sentences and pointers in place": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changes[] stays inside the forecast": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "python3 -m unittest tests.test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "python3 -m unittest tests.test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ruling landed byte-exact in PLANNER.md 2": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section numbering unchanged in both docs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "added sentences and pointers in place": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changes[] stays inside the forecast": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.26",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "8a2ec831dd3042ebb66a7fae87aae9308c7a9d4f571f753581bd27438a2c538b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-bundle-delivery-doctrine-003.sh",
+              "sha256": "9e8a87ed2ac82e55a56bdea467811b2c55dd8ca45a8857b90f3af3d4adf46b62"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "docs/CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "docs/PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat surface; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The ruling's 'in every project' scope and the brief's checkpoint-gated \u00a711.2 sentence are reconciled as the brief states: a rescope offer in a non-checkpoint project is worker-emitted content the planner re-derives from (TARBALL.md \u00a73.4), not a planner-authored pack, so the bundle attaches when the planner authors from it; in a checkpoint-configured project the offering session is the planner (PLANNER.md \u00a720) and delivers bundled.",
+            "CLAUDE.md \u00a73's brief sentence covers a brief authored for a new request; the --readme-file path is kept as the named crafter-unreachable fallback rather than removed, per the ruling's fallback clause."
+          ],
+          "judgment_calls": [
+            "The \u00a711.2 sentence was appended to item 2 (the brief's stated site) rather than to the following role-transition paragraph, keeping item 2's bare command as the content and the fenced-block rule intact.",
+            "PLANNER.md \u00a74's back-pointer is an in-place extension of the existing 'In a checkpoint-pinning project' sentence, not a new sentence, so the checkpoint-specific detail stays where it was.",
+            "validation.sh asserts the landed ruling byte-exact against the wrapped bullet as shipped (PLANNER.md \u00a72's verbatim-content rule), and separately pins both docs' numbered-heading sequences (DOCS.md \u00a76.4)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "forecast_departures": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-14-bundle-delivery-doctrine-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-bundle-delivery-doctrine-003.sh",
+          "sha256": "9e8a87ed2ac82e55a56bdea467811b2c55dd8ca45a8857b90f3af3d4adf46b62"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T20:27:49+00:00",
+  "outcome": "applied"
+}
