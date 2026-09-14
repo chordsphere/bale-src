@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
-"""`bale handoff` beside an open sibling session (board 73, session A,
+"""`bale handoff` beside an open sibling session (board 73: session A's
 lead 1 — the desk's leading hypothesis for "no adherence to forecast
-disjointness").
+disjointness"; session B's modernization at 0.4.28).
 
-What this suite establishes, observed against bin/ at 0.4.26:
+The contract these tests pin:
 
-- ``cmd_handoff`` refuses while ANY session is open — it reads the
-  ADR-0006 registry and fails on a non-empty list, before the bailout
-  tarball is even opened. It never consults the open sessions'
-  recorded forecasts. The refusal text names the open sid and points
-  at ``bale apply`` / ``bale unlock``; it never mentions forecasts,
-  ``--write``, or ADR-0015, so an operator has no signal that the
-  refusal is a design-era gap rather than a real conflict.
-- ``cmd_pack`` on the identical forecast is admitted beside the same
-  open session by the ADR-0015 forecast-disjointness gate. The
-  controls here pin that parity gap from pack's side.
-- The consequence in the modern orchestration shape: a read-only
-  master (empty forecast, conflicts with nothing) is always open, so
-  handoff can never run under it.
+- ``cmd_handoff`` runs the same ADR-0015 forecast-disjointness gate
+  ``cmd_pack`` runs — one implementation, ``run_forecast_disjointness_gate``
+  in ``bale_pack``, lifted to module level for the purpose — against
+  the forecast it inherits from the bailed-on session. A handoff
+  forecasting hello.txt is admitted beside a read-only master (empty
+  forecast) and beside a worker forecasting other.txt, and the passed
+  line is journaled naming the open sids, exactly as pack's is.
+- On an intersection it refuses pre-sid, naming the colliding session
+  and the colliding pair, and its remedies are handoff's: narrow with
+  ``--write``, apply the open session's response, or unlock it. No
+  ``--supersedes`` — handoff never supersedes.
+- Until 0.4.27 handoff refused while ANY session was open, before the
+  bailout tarball was even opened and without reading a forecast —
+  under the modern orchestration shape (a read-only master always
+  open) that made the command mechanically unreachable, and the
+  refusal named apply/unlock rather than the gap.
 
-Each break ships ``@unittest.expectedFailure`` asserting the pack-parity
-expectation (handoff admitted beside a forecast-disjoint session), so
-discovery stays green and the reproduction flips to an unexpected
-success the day the gate is re-based. The controls are plain passing
-tests. The desk's fix-or-retire ruling is session B's; nothing here
-proposes one.
+Session A's two ``@unittest.expectedFailure`` reproductions are the
+acceptance tests; both decorators came off at 0.4.28 with their bodies
+as written. A's diagnosis pin of the old refusal text was rewritten to
+pin the collision refusal.
 
 Run directly::
 
@@ -41,6 +42,9 @@ from test_handoff_fixture import HandoffFixture
 
 OPEN_REFUSAL_MARKER = "a session is already open"
 PACK_GATE_MARKER = "forecast-disjointness gate passed"
+HANDOFF_GATE_MARKER = ("forecast-disjointness gate passed (ADR-0015): "
+                       "handoff write forecast")
+COLLISION_MARKER = "handoff write forecast intersects"
 SIBLING_FILE = "other.txt"
 
 
@@ -101,16 +105,16 @@ class HandoffRegistryGateTest(HandoffFixture):
 
     # -- the reproductions -----------------------------------------------
 
-    @unittest.expectedFailure
     def test_handoff_admitted_beside_read_only_master(self) -> None:
-        """Lead 1, the modern orchestration shape: a bailout is applied
-        (its session closes), a read-only master is open, and the
-        handoff — forecasting hello.txt, disjoint from the master's
-        empty forecast — should be admitted the way pack is.
+        """Lead 1 (path 1, acceptance test), the modern orchestration
+        shape: a bailout is applied (its session closes), a read-only
+        master is open, and the handoff — forecasting hello.txt,
+        disjoint from the master's empty forecast — is admitted the
+        way pack is.
 
         Observed at 0.4.26: refused pre-tarball by the registry guard,
-        naming the master sid and pointing at apply/unlock. No session
-        state is created."""
+        naming the master sid and pointing at apply/unlock. Session B:
+        decorator stripped, body as A wrote it."""
         bailed_sid, tarball = self.packed_and_bailed(
             reading_plan_paths=["hello.txt"])
         master = self.open_read_only_master()
@@ -124,14 +128,14 @@ class HandoffRegistryGateTest(HandoffFixture):
         self.assertNotEqual(new_sid, bailed_sid)
         self.assertEqual(self.recorded_scope(new_sid), ["hello.txt"])
 
-    @unittest.expectedFailure
     def test_handoff_admitted_beside_scope_disjoint_worker(self) -> None:
-        """Lead 1 against a sibling with a non-empty forecast: the
-        handoff's forecast (hello.txt) is disjoint from the worker's
-        (other.txt); pack's gate admits this pair, handoff should too.
+        """Lead 1 (path 1, acceptance test) against a sibling with a
+        non-empty forecast: the handoff's forecast (hello.txt) is
+        disjoint from the worker's (other.txt); pack's gate admits
+        this pair, handoff does too.
 
         Observed at 0.4.26: the same registry refusal, naming the
-        worker sid. The worker's recorded forecast is never read."""
+        worker sid. Session B: decorator stripped, body as A wrote it."""
         bailed_sid, tarball = self.packed_and_bailed(
             reading_plan_paths=["hello.txt"])
         worker = self.open_disjoint_worker()
@@ -145,31 +149,63 @@ class HandoffRegistryGateTest(HandoffFixture):
         self.assertNotEqual(new_sid, bailed_sid)
         self.assertEqual(self.recorded_scope(new_sid), ["hello.txt"])
 
-    def test_refusal_is_the_registry_guard_not_a_forecast_collision(self):
-        """Diagnosis pin (plain, passing): when handoff refuses beside
-        an open session today, the refusal is the pre-tarball registry
-        guard — it names the open sid and the apply/unlock remedies,
-        burns no NNN, opens no session — and says nothing about
-        forecasts. This is the line the operator saw; it is what makes
-        the failure read as "apply trouble" rather than a gate."""
+    def test_admission_is_journaled_like_packs(self) -> None:
+        """Pin: the passed gate is journaled into the new session's log
+        with handoff's wording, naming the open sid it was disjoint
+        from, plus the ADR-0006 several-open note — the same two lines
+        pack writes."""
         bailed_sid, tarball = self.packed_and_bailed(
             reading_plan_paths=["hello.txt"])
         master = self.open_read_only_master()
+
+        result = self.handoff(tarball)
+        self.assert_ok(result, "handoff beside the read-only master")
+        self.assertIn(HANDOFF_GATE_MARKER, result.stdout)
+        self.assertIn(f"1 open session(s): {master}", result.stdout)
+        new_sid = [s for s in self.open_sids() if s != master][0]
+        journal = (self.repo / ".bale" / "logs" / f"{new_sid}.log").read_text()
+        self.assertIn(HANDOFF_GATE_MARKER, journal)
+        self.assertIn("sid disambiguation for them is deferred (ADR-0006)",
+                      journal)
+
+    def test_refusal_is_a_forecast_collision(self) -> None:
+        """Pin (rewritten at 0.4.28 from the registry-guard pin): a
+        handoff whose inherited forecast intersects an open session's
+        refuses at the ADR-0015 gate — naming the open sid, the
+        colliding pair, and handoff's own remedies (--write, apply,
+        unlock; never --supersedes) — pre-sid, burning no NNN and
+        opening no session. The old refusal text is gone."""
+        bailed_sid, tarball = self.packed_and_bailed(
+            reading_plan_paths=["hello.txt"])
+        # A worker forecasting the very file the handoff inherits.
+        r = self.pack(slug="colliding-worker",
+                      goal="colliding worker session (fixture)")
+        self.assert_ok(r, "colliding worker pack")
+        worker = self.open_sids()[0]
+        self.assertEqual(self.recorded_scope(worker), ["hello.txt"])
         peek = self.peeked_sid()
 
         combined = self.assert_refused(self.handoff(tarball),
-                                       "handoff beside an open session")
-        self.assertIn(OPEN_REFUSAL_MARKER, combined)
-        self.assertIn(master, combined)
-        self.assertIn("bale unlock", combined)
-        for absent in ("forecast", "ADR-0015", "disjoint", "--write"):
-            self.assertNotIn(absent, combined,
-                             msg=f"the refusal must not mention {absent!r}: "
-                                 f"the guard never looked at forecasts")
+                                       "handoff beside a colliding session")
+        self.assertIn(COLLISION_MARKER, combined)
+        self.assertIn(worker, combined)
+        self.assertIn("hello.txt ~ hello.txt", combined)
+        self.assertIn("ADR-0015", combined)
+        self.assertIn("Narrow this handoff's forecast with --write", combined)
+        self.assertIn("inherits the bailed-on session's recorded forecast",
+                      combined)
+        self.assertNotIn("--supersedes", combined)
+        self.assertNotIn(OPEN_REFUSAL_MARKER, combined)
         # Nothing consumed: the same sid is still the next allocation
-        # and only the master is open.
+        # and only the worker is open.
         self.assertEqual(self.peeked_sid(), peek)
-        self.assertEqual(self.open_sids(), [master])
+        self.assertEqual(self.open_sids(), [worker])
+
+        # --write is the named remedy: a disjoint declaration is admitted.
+        self.commit_file(SIBLING_FILE, "other\n")
+        r = self.handoff(tarball, "--write", SIBLING_FILE)
+        self.assert_ok(r, "handoff narrowed past the collision")
+        self.assertEqual(len(self.open_sids()), 2)
 
 
 if __name__ == "__main__":

@@ -196,13 +196,19 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
     build_provenance_block,
     build_request_manifest,
     build_request_tarball,
+    BUNDLE_SUFFIX,
+    bundle_named_entries,
     checkpoint_blindness_preflight,
+    checkpoint_file_base_or_refuse,
     checkpoint_resolved_preflight,
     cmd_pack,
     format_bytes,
     gather_files_for_pack,
+    install_checkpoint_file,
+    locate_and_read_checkpoint_file,
     normalize_crlf,
     persist_pack_session,
+    run_forecast_disjointness_gate,
 )
 
 # The apply path — the ADR-0008 pre-flight helpers, the bailout /
@@ -1204,29 +1210,47 @@ def read_session_scope(repo: Path, sid: str) -> list[str]:
     for scopes the gates cannot READ; a scope that was deliberately
     recorded empty is read exactly as recorded.
     """
+    recorded, reason = read_recorded_scope(repo, sid)
+    if recorded is None:
+        log(f"{reason}; treating its scope as the whole tree (conservative)")
+        return ["."]
+    return recorded
+
+
+def read_recorded_scope(repo: Path, sid: str,
+                        ) -> tuple[Optional[list[str]], Optional[str]]:
+    """Read `sid`'s recorded scope WITHOUT the whole-tree degradation:
+    `(scope, None)` when a record exists and parses — `[]` for the
+    read-only shape, the resolved list otherwise — and `(None, reason)`
+    when it is missing, unreadable, or malformed, `reason` being the
+    human phrase read_session_scope logs before degrading.
+
+    The one parser under both readers (v0.4.28, board 73). The gates
+    want the degraded form — a scope they cannot read must widen to
+    "collides with everything" (read_session_scope). `bale handoff`
+    wants the distinction: it inherits the bailed-on session's
+    forecast exactly as recorded, and a record it cannot read is the
+    signal to fall back to its reading-plan forecast as an undeclared
+    one rather than to inherit a whole-tree forecast the parent never
+    declared (cmd_handoff). Logs nothing itself: each caller names its
+    own consequence beside the reason.
+    """
     p = scope_file_path(repo, sid)
     if not p.exists():
-        log(f"session {sid} has no recorded scope; treating its scope "
-            f"as the whole tree (conservative)")
-        return ["."]
+        return None, f"session {sid} has no recorded scope"
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
-        log(f"session {sid}'s scope.json is unreadable ({e}); treating "
-            f"its scope as the whole tree (conservative)")
-        return ["."]
+        return None, f"session {sid}'s scope.json is unreadable ({e})"
     if (not isinstance(data, list)
             or not all(isinstance(x, str) and x.strip() for x in data)):
-        log(f"session {sid}'s scope.json is malformed (expected a "
-            f"list of paths); treating its scope as the "
-            f"whole tree (conservative)")
-        return ["."]
+        return None, (f"session {sid}'s scope.json is malformed (expected a "
+                      f"list of paths)")
     if not data:
-        # Valid empty scope — the read-only session shape. No log line:
-        # this is a recorded state read back as recorded, not a
-        # degradation the operator needs flagged.
-        return []
-    return resolved_scope(data)
+        # Valid empty scope — the read-only session shape. Read back as
+        # recorded, not a degradation the operator needs flagged.
+        return [], None
+    return resolved_scope(data), None
 
 
 # --- Integration lock (ADR-0006) ---------------------------------------------
@@ -3397,6 +3421,27 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
 
+    # The forecast flag family's contradictions (v0.4.28, board 73 —
+    # ADR-0015's grammar mirrored from cmd_pack, same wording, same
+    # fail-fast site before any tarball resolution or prompt): the
+    # empty forecast has exactly one spelling, and a read-only handoff
+    # waives the per-session checkpoint (v0.4.9), leaving nothing for
+    # --checkpoint-file to install. (--write with zero paths never
+    # reaches here: argparse's nargs="+" already refuses it.)
+    if args.write and args.read_only:
+        fail(
+            "--write and --read-only are contradictory: one declares a "
+            "non-empty write forecast, the other declares the empty one "
+            "(the read-only session shape). Drop one."
+        )
+    if args.checkpoint_file is not None and args.read_only:
+        fail(
+            "--checkpoint-file and --read-only are contradictory: the "
+            "read-only shape waives the per-session checkpoint (an "
+            "empty forecast lands nothing, so no oracle is required — "
+            "v0.4.9), leaving nothing to install. Drop one."
+        )
+
     repo = repo_root(cwd)
     if repo is None:
         fail("not in a git repo. `bale handoff` requires the project repo.")
@@ -3435,30 +3480,60 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
-    # Handoff opens a new session; refuse while any session is open.
-    # Threaded (ADR-0006): the guard reads the registry rather than the
-    # compatibility pointer, so with several sessions open it names them
-    # all instead of whichever one the pointer happened to record. The
-    # refusal itself is unchanged — `bale apply` on the bailout already
-    # closed its session, so the normal workflow doesn't trip this; a
-    # user who skipped apply and invoked handoff directly does, and the
-    # failure message points at the right next step. (Admitting a
-    # handoff beside a scope-disjoint open session — pack's ADR-0007
-    # gate — is deliberately not extended here; see this session's
-    # notes.)
-    opens = open_sessions(repo)
-    if opens:
-        if len(opens) == 1:
+    # --checkpoint-file (v0.4.28, board 73 path 2): the same front-loaded
+    # read and base-shape gate cmd_pack runs, sited pre-tarball so a
+    # missing or empty file refuses before anything is extracted. The
+    # install itself waits for the peeked sid, below, exactly as pack's
+    # does — the resolved path does not exist until the sid is known.
+    checkpoint_file_path: Optional[Path] = None
+    checkpoint_file_bytes: Optional[bytes] = None
+    if args.checkpoint_file is not None:
+        checkpoint_file_base_or_refuse(repo)
+        cf_path, cf_data, cf_err = locate_and_read_checkpoint_file(
+            args.checkpoint_file, repo, cwd)
+        if cf_err is not None:
+            fail(cf_err)
+        checkpoint_file_path = cf_path
+        checkpoint_file_bytes = cf_data
+
+    # --write existence and bundle-blindness checks (v0.4.28): the
+    # same two rules cmd_pack holds on its forecast surface (ADR-0014's
+    # existing-paths rule; BALE.md §6.7's bundle refusal), sited
+    # pre-tarball beside the flag grammar above. The forecast itself is
+    # resolved after the bailout is opened, next to the inheritance it
+    # overrides.
+    for wpath in args.write:
+        if not (repo / wpath).exists():
             fail(
-                f"a session is already open: {opens[0]}. "
-                f"Apply its response with `bale apply <tarball>`, or run "
-                f"`bale unlock` if the session was abandoned."
+                f"--write path does not exist: {wpath}. Forecast "
+                f"entries name existing files or directories "
+                f"(ADR-0014's rule, held on the forecast surface); "
+                f"to forecast new files, name the directory they "
+                f"will land under."
             )
+    bundle_offenders = bundle_named_entries(list(args.write))
+    if bundle_offenders:
+        rendered = "; ".join(f"--write {entry}" for entry in bundle_offenders)
         fail(
-            f"{len(opens)} sessions are already open: {', '.join(opens)}. "
-            f"Apply their responses with `bale apply <tarball>`, or run "
-            f"`bale unlock <sid>` for any that were abandoned."
+            f"planner-bundle blindness: {rendered} explicitly names a "
+            f"planner bundle ({BUNDLE_SUFFIX} is the reserved bundle "
+            f"suffix, BALE.md \u00a76.7). Bundles carry the planner's "
+            f"blind checkpoint and never take landed changes from the "
+            f"worker they grade; there is no admission flag. Drop the "
+            f"naming entry (a broader directory entry is fine)."
         )
+
+    # No registry guard here any more (v0.4.28, board 73 path 1). Until
+    # 0.4.27 handoff refused while ANY session was open — a pre-ADR-0007
+    # guard that, under the modern orchestration shape (a read-only
+    # master always open), made the command mechanically unreachable
+    # and named apply/unlock as the remedy without ever reading a
+    # forecast. Handoff now runs the same ADR-0015 forecast-disjointness
+    # gate pack runs, below, once its forecast is resolved — which
+    # moves the gate from pre-tarball to post-extraction. Everything
+    # between here and there (the .gitignore guard, the extraction, the
+    # inheritance) is side-effect-free apart from the .gitignore
+    # auto-commit, which pack also performs pre-gate.
 
     # Same .bale/ gitignore guard `bale pack` runs. handoff writes under
     # .bale/ before there's any session id, so the directory must already
@@ -3575,6 +3650,29 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         if args.edit_goal:
             inherited_goal = edit_goal_in_editor(inherited_goal)
 
+        # Inherit the bailed-on session's write forecast (v0.4.28, board
+        # 73 path 5; ADR-0015). Under the separation the forecast is the
+        # ask — what the session was declared to land — and a handoff
+        # continues the same goal under the same ask, so the child's
+        # forecast is the parent's recorded one, exactly: a recorded
+        # `[]` (a read-only parent that bailed) resumes read-only, since
+        # a session that could land nothing cannot have bailed on landed
+        # work. Until 0.4.27 handoff forecast its reading plan's file
+        # set instead — ADR-0007's read-set-is-scope conflation, which
+        # ADR-0015 retired for pack at v0.4.1 and never reached this
+        # path — so a parent packed `--write other.txt` whose bailout
+        # said "read hello.txt next" handed off a session forecasting
+        # hello.txt, and the resumed work refused at apply as drift.
+        # `--write` / `--read-only` override the inheritance (the case
+        # where the bailing worker's handoff.md argues the ask changed);
+        # a missing or unreadable record falls back to the reading-plan
+        # set as an UNDECLARED forecast, below. Read strictly, never via
+        # read_session_scope: its whole-tree degradation is right for a
+        # gate and wrong here, where it would inherit a forecast the
+        # parent never declared.
+        parent_forecast, parent_forecast_reason = read_recorded_scope(
+            repo, responds_to_sid)
+
         # Pre-pack source files from handoff.md's `## Reading plan for the
         # next session` section (TARBALL.md §5.7). The bailing Claude's
         # reading plan typically names the files the next session should
@@ -3589,7 +3687,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         #   2. If a cited path doesn't resolve to a tracked file (typo,
         #      since-renamed, ignored by .gitignore), gather_files_for_pack
         #      silently drops it. The dropped list is logged so the
-        #      architect can audit without the handoff failing.
+        #      architect can audit without the handoff failing; with
+        #      --verbose the per-file drop REASON streams too (v0.4.28).
         #   3. If a cited path is unsafe (escape, .git/, .bale/) or matches
         #      a baked-in secret pattern, the same filters drop it. Same
         #      cleanup contract — bale never refuses a handoff over a
@@ -3597,7 +3696,10 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         #
         # Done before sid allocation so a (hypothetical) error doesn't
         # burn an NNN. The implementation only logs and reads; it cannot
-        # fail() at this point.
+        # fail() at this point. This is the READ set only — what ships in
+        # context/ — and since v0.4.28 it participates in no gate beyond
+        # the blindness gate's read-side check (ADR-0015: includes gate
+        # nothing).
         try:
             handoff_text = handoff_path.read_text(encoding="utf-8")
         except OSError as e:
@@ -3605,51 +3707,118 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         plan_text = reading_plan_section(handoff_text)
         extracted_paths = extract_paths_from_reading_plan(plan_text)
         if extracted_paths:
-            included_paths = gather_files_for_pack(repo, extracted_paths)
+            included_paths = gather_files_for_pack(
+                repo, extracted_paths, verbose=args.verbose)
         else:
             included_paths = []
 
         # The session's recorded write forecast (ADR-0015), computed
-        # here — before the blindness gate below and before sid
-        # allocation — so the gate, the manifest stamp, and the
-        # registry record at persist all share one value (board 33,
-        # v0.3.21): the resolved set of reading-plan files pre-packed
-        # above; ["."] (whole tree) when the plan cited none. On the
-        # handoff path the read set and the forecast coincide by
-        # construction — the reading-plan files are exactly what ships
-        # AND the conservative forecast of where the resumed work
-        # lands (an over-forecast in the usual case, the safe
-        # direction) — so the blindness gate's read-side check below
-        # is covered by the same value and no separate include set is
-        # passed.
-        handoff_scope = resolved_scope(included_paths)
+        # here — before the gates below and before sid allocation — so
+        # the gates, the manifest stamp, and the registry record at
+        # persist all share one value (board 33, v0.3.21). Resolution,
+        # first match wins:
+        #
+        #   --read-only          -> []            declared
+        #   --write PATH...      -> resolved set  declared (overrides
+        #                                         the inheritance)
+        #   parent record read   -> as recorded   declared (the parent's
+        #                                         declaration, renewed —
+        #                                         not silently re-admitted
+        #                                         past the blindness gate)
+        #   no readable record   -> reading-plan  UNDECLARED: the
+        #                           set, or ["."] include-set-compatibility
+        #                           when it cites  shape, which takes the
+        #                           nothing        bare-pack rule (v0.4.9;
+        #                                          board 73 path 4)
+        #
+        # `forecast_declared` feeds the blindness gate exactly as pack's
+        # `bool(args.write) or args.read_only` does; the fallback is the
+        # one branch that is a default rather than a declaration. The
+        # branch taken is logged (post-sid, into the session journal)
+        # and rendered on the summary's `inherited:` row.
+        if args.read_only:
+            handoff_scope = []
+            forecast_declared = True
+            forecast_branch = "read-only"
+            forecast_note = "forecast declared empty by --read-only"
+        elif args.write:
+            handoff_scope = resolved_scope(list(args.write))
+            forecast_declared = True
+            forecast_branch = "write"
+            forecast_note = (f"forecast overridden by --write "
+                             f"({', '.join(handoff_scope)})")
+        elif parent_forecast is not None:
+            handoff_scope = parent_forecast
+            forecast_declared = True
+            forecast_branch = "inherited"
+            forecast_note = (
+                f"forecast from {responds_to_sid} "
+                f"({', '.join(handoff_scope) if handoff_scope else 'empty: read-only'})")
+        else:
+            handoff_scope = resolved_scope(included_paths)
+            forecast_declared = False
+            forecast_branch = "fallback"
+            forecast_note = (
+                f"forecast: {parent_forecast_reason}; fell back to the "
+                f"reading-plan file set ({', '.join(handoff_scope)}), "
+                f"undeclared")
 
         # Checkpoint blindness pre-flight (v0.3.33; BALE.md §11 row 30)
-        # — the pack-time covering refusal run against the handoff's
-        # reading-plan scope, same gate implementation, second caller.
-        # A handoff whose reading plan covers the configured blind
-        # checkpoint re-opens the self-oracle hole the pack-side gate
-        # closes (a bailed session with the oracle in scope was
+        # — the pack-time covering refusal, same gate implementation,
+        # second caller. A handoff whose forecast covers the configured
+        # blind checkpoint re-opens the self-oracle hole the pack-side
+        # gate closes (a bailed session with the oracle in scope was
         # admitted once by pack's flag; the handoff must not renew
         # that admission silently). Sited pre-sid, mirroring pack's
         # pre-sid refusal, so a refused handoff burns no NNN and
-        # leaves no session state; sited after the reading-plan
-        # resolution because the scope does not exist before it. Note
-        # the ["."] fallback above: a plan citing no files resolves to
-        # whole-tree scope, which covers any configured checkpoint —
-        # such a handoff refuses without the flag, the same way a
-        # default whole-tree pack does.
+        # leaves no session state. Since v0.4.28 the forecast and the
+        # read set are two values (ADR-0015): the read set goes in as
+        # `read_includes`, where explicit naming of the oracle refuses
+        # and incidental coverage does not; the fallback forecast goes
+        # in undeclared, so a plan-less handoff with no parent record
+        # passes on the whole-tree include-set default exactly as a
+        # bare `bale pack` does (v0.4.9).
         checkpoint_scope_admitted = checkpoint_blindness_preflight(
             repo, handoff_scope, allow=args.allow_checkpoint_in_scope,
-            caller="handoff")
+            caller="handoff",
+            read_includes=list(included_paths),
+            forecast_declared=forecast_declared)
+
+        # Forecast-disjointness gate (v0.4.28, board 73 path 1; BALE.md
+        # §7.1 step 5): the ADR-0015 gate cmd_pack runs, one
+        # implementation, second caller — admitted beside open sessions
+        # exactly when this handoff's forecast is disjoint from every
+        # open session's recorded forecast. Sited after the blindness
+        # gate (pack's order) and pre-sid, so a refusal consumes
+        # nothing. The passed line is journaled post-sid, below.
+        admitted_alongside = run_forecast_disjointness_gate(
+            repo, handoff_scope, caller="handoff")
 
         # Per-sid resolved-existence pre-flight (v0.4.8, board 10 S7):
         # same gate cmd_pack runs immediately before allocation — when
         # [validation] base carries {sid}, resolve against the sid this
         # handoff is about to allocate (peeked, not consumed) and
         # refuse a resolved path absent from HEAD while nothing is
-        # burned. A literal or unconfigured base is a no-op.
-        checkpoint_resolved_preflight(repo, peek_session_id(repo, slug))
+        # burned. A literal or unconfigured base is a no-op; an
+        # inherited or declared empty forecast waives it (v0.4.9). The
+        # one-command checkpoint install (v0.4.10 on pack; v0.4.28
+        # here) runs first against the SAME peeked sid, so the
+        # pre-flight then passes and the refusal's first-named remedy —
+        # `--checkpoint-file` — is a remedy this command accepts.
+        peeked_sid = peek_session_id(repo, slug)
+        checkpoint_echo_path: Optional[str] = None
+        checkpoint_echo_sha256: Optional[str] = None
+        if checkpoint_file_bytes is not None:
+            _cf_base = checkpoint_file_base_or_refuse(repo)
+            install_checkpoint_file(
+                repo, peeked_sid, _cf_base,
+                checkpoint_file_path, checkpoint_file_bytes)
+            checkpoint_echo_path = str(checkpoint_file_path)
+            checkpoint_echo_sha256 = hashlib.sha256(
+                checkpoint_file_bytes).hexdigest()
+        checkpoint_resolved_preflight(repo, peeked_sid,
+                                      forecast=handoff_scope,
+                                      caller="handoff")
 
         # Allocate the new session id NOW (after all the validation
         # gates) so the per-day counter doesn't burn an NNN on a pack
@@ -3659,6 +3828,24 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         set_log_file(repo / ".bale" / "logs" / f"{new_sid}.log")
         log(f"handoff from bailout {bailout_sid} -> new session {new_sid}")
         log(f"inherited goal from request {responds_to_sid}")
+        # Forecast provenance (v0.4.28): which branch of the resolution
+        # above produced the recorded forecast, journaled so an
+        # architect reading the session log later sees whether the
+        # forecast was inherited, overridden, or fell back.
+        log(f"write forecast ({forecast_branch}): {forecast_note}")
+        if admitted_alongside is not None:
+            gate_scope, gate_open_sids = admitted_alongside
+            log(f"forecast-disjointness gate passed (ADR-0015): handoff "
+                f"write forecast ({', '.join(gate_scope) or 'empty'}) is "
+                f"disjoint from {len(gate_open_sids)} open session(s): "
+                f"{', '.join(gate_open_sids)}")
+            log("note: revert/retry/unlock/handoff resolve the session the "
+                "compatibility pointer names (the most recently opened) "
+                "while several are open; sid disambiguation for them is "
+                "deferred (ADR-0006)")
+        if checkpoint_echo_path is not None:
+            log(f"--checkpoint-file: {checkpoint_echo_path} "
+                f"(sha256 {checkpoint_echo_sha256})")
         # Reading-plan pre-pack accounting goes to the session log so an
         # architect investigating later can see exactly which candidates
         # came out of handoff.md and which survived the filter. Logged
@@ -3692,11 +3879,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # populates previous_response, which is what makes the lineage
         # chase reliable. Constraints/out_of_scope reset to empty; the
         # architect can re-add via a future `bale pack` if needed (no
-        # CLI surface for them on handoff yet, deliberately — keeping
-        # the command's surface narrow until the use case argues for
-        # more).
-        # (handoff_scope was computed above the blindness gate — one
-        # value shared by the gate, the manifest stamp below, and the
+        # CLI surface for them on handoff — the forecast flags landed
+        # at v0.4.28 because paths 2 and 5 of board 73 needed them;
+        # --constraint / --out-of-scope / --include / --readme-file
+        # still wait for a use case).
+        # (handoff_scope was computed above the gates — one value
+        # shared by the gates, the manifest stamp below, and the
         # registry record at persist.)
         new_manifest = build_request_manifest(
             sid=new_sid,
@@ -3711,21 +3899,22 @@ def cmd_handoff(args: argparse.Namespace) -> int:
                 "previous_probe": None,
             },
             # Handoff is the second request-building path, so it stamps
-            # provenance too (v0.3.8, B1) — same identity resolution,
-            # with a deliberately narrow flag surface (like
-            # constraints/out_of_scope above): packer from [identity].
-            # packer, work_class at its "mixed" default. The one
-            # mirrored flag is --allow-checkpoint-in-scope (v0.3.33),
-            # whose admission from the blindness gate above stamps
-            # through the shared builder exactly as pack's does.
+            # provenance too (v0.3.8, B1) — same identity resolution:
+            # packer from [identity].packer, work_class at its "mixed"
+            # default. --allow-checkpoint-in-scope's admission from the
+            # blindness gate above stamps through the shared builder
+            # exactly as pack's does, and so does the read-only
+            # checkpoint waiver (v0.4.9) for an inherited or declared
+            # empty forecast.
             provenance=build_provenance_block(
                 repo,
                 sid=new_sid,
                 checkpoint_scope_admitted=checkpoint_scope_admitted,
+                checkpoint_waived=not handoff_scope,
                 # The base-drift stamp (board 41): handoff is the second
                 # request-building path, so it stamps the same way pack
-                # does — against its reading-plan forecast, the same
-                # value the registry records at persist.
+                # does — against its write forecast, the same value the
+                # registry records at persist.
                 forecast=handoff_scope,
             ),
             # Board-33 scope stamp (v0.3.21): the same value persisted
@@ -3767,19 +3956,17 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             fail(f"failed to build request tarball: {e}")
         log(f"wrote {tarball_out}")
 
-        # Persist the new session — with its scope (ADR-0007, v0.3.2) —
-        # and open it in the registry, the same persist-then-open
-        # ordering `bale pack` uses. The session's scope is the resolved
-        # set of reading-plan files pre-packed above: the handoff
-        # analogue of pack's include set, since those files are what the
-        # next session is shown. A plan that cited no files resolves to
-        # ["."] (whole tree) — conservative, exactly what a missing
-        # scope.json would have read as, so pre-v0.3.2 bailout tarballs
-        # degrade to the old behavior rather than to a permissive gate.
-        # The session opened here is for the new sid; the bailout's own
-        # session was closed by `bale apply`'s bailout branch.
-        # (handoff_scope was computed above the manifest build so the
-        # board-33 stamp and this registry record share one value.)
+        # Persist the new session — with its write forecast (ADR-0015;
+        # the scope record since ADR-0007, v0.3.2) — and open it in the
+        # registry, the same persist-then-open ordering `bale pack`
+        # uses. The recorded value is the one resolved above the gates:
+        # inherited from the bailed-on session, overridden by --write /
+        # --read-only, or the reading-plan fallback when the parent's
+        # record could not be read. The session opened here is for the
+        # new sid; the bailout's own session was closed by `bale
+        # apply`'s bailout branch. (handoff_scope was computed above the
+        # manifest build so the board-33 stamp and this registry record
+        # share one value.)
         persist_pack_session(repo, new_sid, new_manifest,
                              scope=handoff_scope,
                              origin_branch=current_branch(repo),
@@ -3809,15 +3996,25 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         else:
             context_val = "handoff.md (no reading-plan files extracted)"
 
+        summary_rows = [
+            ("session id", new_sid),
+            ("tarball", str(tarball_out)),
+            # The forecast rides on the inherited: row beside the goal
+            # (v0.4.28): the two things a handoff carries forward are
+            # the ask's text and the ask's landing paths, and the row
+            # names which branch produced the second.
+            ("inherited", f"goal from {responds_to_sid} "
+                          + ("(edited)" if args.edit_goal else "(verbatim)")
+                          + f"; {forecast_note}"),
+            ("context", context_val),
+            ("depends_on", f"previous_response = {bailout_sid}"),
+        ]
+        if checkpoint_echo_path is not None:
+            summary_rows.append(
+                ("checkpoint", f"{checkpoint_echo_path} "
+                               f"(sha256 {checkpoint_echo_sha256[:12]})"))
         print(format_summary_block(
-            [
-                ("session id", new_sid),
-                ("tarball", str(tarball_out)),
-                ("inherited", f"goal from {responds_to_sid} "
-                              + ("(edited)" if args.edit_goal else "(verbatim)")),
-                ("context", context_val),
-                ("depends_on", f"previous_response = {bailout_sid}"),
-            ],
+            summary_rows,
             trailer=[
                 "Send the tarball to Claude. When the response comes back,",
                 "run: bale apply <response-tarball>",
@@ -6274,10 +6471,18 @@ def build_parser() -> argparse.ArgumentParser:
             "TARBALL.md §5.6.3) and build a new request tarball that "
             "ships its handoff.md plus the source files its reading "
             "plan cites as the context entries, inheriting "
-            "the original session's goal verbatim. The new session id "
-            "keeps the slug and bumps the date/counter. Refuses while "
-            "any session is open in the registry (apply or unlock them "
-            "first). Warns — but proceeds — if the bailout's predecessor "
+            "the original session's goal verbatim and its recorded write "
+            "forecast exactly (ADR-0015; v0.4.28) — a read-only parent "
+            "resumes read-only; with no readable parent record the "
+            "forecast falls back to the reading plan's file set as an "
+            "undeclared forecast. --write / --read-only override the "
+            "inheritance, with pack's grammar. The new session id keeps "
+            "the slug and bumps the date/counter. Runs the same "
+            "ADR-0015 forecast-disjointness gate as pack: admitted "
+            "beside open sessions whose forecasts are disjoint, refused "
+            "on any intersection (narrow with --write, apply the open "
+            "session's response, or unlock it). Warns — but proceeds — "
+            "if the bailout's predecessor "
             "was also a bailout; chained handoffs are a smell, and the "
             "warning is informational only (no flag suppresses or escalates "
             "it). With --edit-goal, opens $EDITOR on the inherited goal "
@@ -6318,11 +6523,49 @@ def build_parser() -> argparse.ArgumentParser:
              "whole trail.",
     )
     p_handoff.add_argument(
+        "--write", action="extend", nargs="+", default=[], metavar="PATH",
+        help="Override the inherited write forecast (ADR-0015; v0.4.28): "
+             "the paths the resumed session is expected to land changes "
+             "under, for the case where the bailing worker's handoff.md "
+             "argues the ask changed. Same grammar as `bale pack "
+             "--write` — multiple paths per flag, repeatable, directory "
+             "entries cover their subtrees, entries must name existing "
+             "paths (forecast the directory for new files, ADR-0014). "
+             "Absent --write the handoff inherits the bailed-on "
+             "session's recorded forecast exactly, including an empty "
+             "one; with no readable parent record it forecasts the "
+             "reading plan's file set (the whole tree when the plan "
+             "cites none) as an undeclared forecast. Requires at least "
+             "one path; the empty forecast is spelled --read-only, and "
+             "combining the two is refused as contradictory.",
+    )
+    p_handoff.add_argument(
+        "--read-only", action="store_true", dest="read_only",
+        help="Declare the resumed session read-only — the empty write "
+             "forecast (ADR-0015 clause 5), overriding the inheritance: "
+             "locks nothing, may land nothing, waives the per-session "
+             "checkpoint (v0.4.9). Contradictory with --write and with "
+             "--checkpoint-file, exactly as on `bale pack`.",
+    )
+    p_handoff.add_argument(
+        "--checkpoint-file", default=None, metavar="PATH",
+        dest="checkpoint_file",
+        help="Commit PATH's bytes as the resumed session's per-sid blind "
+             "checkpoint and hand off in the same invocation (v0.4.28; "
+             "pack has carried the flag since v0.4.10) — the remedy the "
+             "resolved-existence refusal names first, now accepted on "
+             "this command too. Resolution, refusals, and the "
+             "identical-bytes idempotent re-run are `bale pack "
+             "--checkpoint-file`'s, and it requires a {sid}-bearing "
+             "[validation] base the same way.",
+    )
+    p_handoff.add_argument(
         "--allow-checkpoint-in-scope", action="store_true",
         dest="allow_checkpoint_in_scope",
-        help="Admit a handoff whose reading-plan scope — the resolved "
-             "set of files the bailout's reading plan pre-packs, or "
-             "the whole tree when the plan cites none — covers the "
+        help="Admit a handoff whose write forecast — inherited from the "
+             "bailed-on session, declared by --write, or the "
+             "reading-plan fallback when no parent record is readable — "
+             "covers the "
              "project's blind checkpoint path ([validation] base in "
              "bale.toml), past the blindness refusal the gate shares "
              "with `bale pack` (v0.3.33; BALE.md §11 row 30). Without "
