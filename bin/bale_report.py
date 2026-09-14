@@ -676,10 +676,58 @@ def format_dry_run_report(manifest: dict, sid: str, *, response_kind: str) -> st
     return "\n".join(lines)
 
 
+def format_sandbox_unavailable_refusal(*, sid: str, detail: str,
+                                       remedy: str,
+                                       declined_at_prompt: bool = False,
+                                       ) -> str:
+    """Render the sandbox-unavailable refusal (v0.4.27, board 78): the
+    self-probe (bin/bale_sandbox.py verify_confinement) found the
+    namespace mechanism does not hold on this host, and the operator
+    did not — or, on a non-TTY, could not — admit an unconfined run at
+    the y/N. `detail` is the SandboxUnavailableError's own text (the
+    probe's finding, verbatim); `remedy` is the composed
+    `--no-sandbox` re-run from compose_admission_command — the same
+    line on the TTY-declined face and every non-TTY face — followed by
+    the per-project key for hosts where the mechanism never works.
+
+    Pure-string assembler like its drift sibling: builds, prints
+    nothing. The caller (bale_apply) routes it through fail(), so the
+    attempt records outcome `rejected` with no script having run —
+    sandbox_confined true, sandbox_off_source null, the known-negative
+    form.
+    """
+    rows: list[tuple[str, str]] = [
+        ("sandbox", "unavailable on this host — the self-probe refused"),
+        ("scripts run", "none (nothing was staged; the session stays open)"),
+    ]
+    if declined_at_prompt:
+        rows.append(("admission prompt", "declined — run stays confined, "
+                                         "so it cannot run at all"))
+    trailer = [
+        detail.rstrip(),
+        "",
+        "Scripts never run unconfined silently (ADR-0016). Either:",
+        "  - run this attempt unconfined deliberately by pasting this "
+        "line (FORCE-logged; sandbox_off_source: flag is recorded):",
+        f"      {remedy}",
+        "  - or, for a host where the mechanism never works, set "
+        "bale.toml [sandbox] enabled = false at the project layer "
+        "(FORCE-logged on every apply; sandbox_off_source: config).",
+    ]
+    return format_summary_block(
+        rows,
+        status="SANDBOX-UNAVAILABLE",
+        sid=sid,
+        trailer=trailer,
+    )
+
+
 def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
                                overridden: list,
                                telemetry: Optional[str],
-                               dry_run: bool = False) -> str:
+                               dry_run: bool = False,
+                               remedy: Optional[str] = None,
+                               declined_at_prompt: bool = False) -> str:
     """Render the own-forecast drift refusal (BALE.md §8.1 step 14, §11
     row 22; forecast vocabulary per ADR-0015, board 13 session B).
 
@@ -711,6 +759,19 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     inside; the operator either overrides per path, knowing exactly
     that they are landing changes from a session packed to land none,
     or repacks a session shaped to land the work.
+
+    `remedy` (v0.4.27, board 78) is the composed re-run from
+    compose_admission_command — the real tarball filename quoted, one
+    --allow-out-of-scope per drifted path (every one, admitted and
+    refused alike, so the operator deletes rather than remembers), every
+    admission flag the invocation already carried, zero placeholders —
+    rendered as the first trailer bullet in place of the pre-v0.4.27
+    `<tarball> ... <path>` template. It is the same line on the
+    TTY-declined face and every non-TTY face; `declined_at_prompt`
+    adds the row that says a y/N was answered no (so the log reader
+    can tell a declined prompt from an un-prompted refusal). When
+    `remedy` is None (a caller without the tarball name) the trailer
+    falls back to the template form.
     """
     read_only = not scope
     rows: list[tuple[str, str]] = [
@@ -721,6 +782,9 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
     ]
     if overridden:
         rows.append(("admitted by flag", ", ".join(overridden)))
+    if declined_at_prompt:
+        rows.append(("admission prompt", "declined — nothing admitted, "
+                                         "nothing lands partially"))
     if dry_run:
         rows.append(("dry-run", "a real apply would refuse the same way"))
         rows.append(("telemetry", "not recorded (dry-run has no outcome)"))
@@ -728,14 +792,31 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
         rows.append(("telemetry",
                      f"recorded {telemetry}" if telemetry
                      else "write failed — see log"))
+    # The admission bullet: the composed line when the caller supplied
+    # one (every drifted path already spelled, paste as-is; delete a
+    # flag to admit less), else the pre-v0.4.27 template.
+    if remedy is not None:
+        admit_ro = (f"  - admit every drifted path deliberately, knowing "
+                    f"they land from a read-only session, by pasting "
+                    f"this line (delete a flag to admit less):")
+        admit = (f"  - admit every drifted path deliberately by pasting "
+                 f"this line (delete a flag to admit less):")
+        admit_lines = [f"      {remedy}"]
+    else:
+        admit_ro = ("  - admit specific paths deliberately, knowing they "
+                    "land from a read-only session: `bale apply <tarball> "
+                    "--allow-out-of-scope <path>` (repeat per path),")
+        admit = ("  - admit specific paths deliberately: `bale apply "
+                 "<tarball> --allow-out-of-scope <path>` (repeat per "
+                 "path),")
+        admit_lines = []
     if read_only:
         trailer = [
             f"Session {sid} was packed read-only: its empty forecast "
             f"lands nothing by design. Nothing was staged or committed, "
             f"and the session stays open. Either:",
-            "  - admit specific paths deliberately, knowing they land "
-            "from a read-only session: `bale apply <tarball> "
-            "--allow-out-of-scope <path>` (repeat per path),",
+            admit_ro,
+            *admit_lines,
             f"  - or land the work from a session shaped to land it: "
             f"`bale unlock {sid}` and re-pack without --read-only, with "
             f"a forecast covering the work.",
@@ -746,8 +827,8 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
             "Out-of-forecast work is worker judgment past the ask "
             "(ADR-0015): check the response's notes.md for its "
             "enumeration, then either:",
-            "  - admit specific paths deliberately: `bale apply <tarball> "
-            "--allow-out-of-scope <path>` (repeat per path),",
+            admit,
+            *admit_lines,
             "  - regenerate the response inside the forecast and "
             "re-run `bale apply`,",
             f"  - or reforecast: `bale unlock {sid}` and re-pack with a "
@@ -2396,7 +2477,87 @@ RECORD_VERSION = 1
 SANDBOX_OFF_SOURCES = (
     "config",
     "flag",
+    "prompt",
 )
+
+# The scope-admission source vocabulary (v0.4.27, board 78): how each
+# out-of-forecast path an attempt admitted past the own-forecast drift
+# gate was admitted — "flag" for a typed --allow-out-of-scope, "prompt"
+# for a y/N answered at the TTY refusal. The row-75 posture applied a
+# second time: the schema's enum under attempts[].overridden_path_sources
+# is the vocabulary's one home, this tuple is the writer-side mirror,
+# and bale_validate's record-wide walk derives its allowed set from the
+# schema; the parity test pins all three together. The same session
+# added "prompt" to SANDBOX_OFF_SOURCES above (the sandbox-unavailable
+# y/N), so both admission surfaces name a prompt the same way.
+SCOPE_ADMISSION_SOURCES = (
+    "flag",
+    "prompt",
+)
+
+
+def _always_quoted(token: str) -> str:
+    """Single-quote a shell token unconditionally (the desk rule says the
+    tarball filename is quoted, not quoted-when-needed): shlex.quote
+    leaves a safe token bare, so this wraps every token so the composed
+    line reads as one deliberate shape. An embedded single quote takes
+    shlex's own '"'"' splice, so any filename or path still pastes."""
+    if not token:
+        return "''"
+    return "'" + token.replace("'", "'\"'\"'") + "'"
+
+
+def compose_admission_command(*, verb: str, tarball_name: str,
+                              allow_out_of_scope=(),
+                              accept_base_drift=(),
+                              allow_missing_required_check=(),
+                              accept_checkpoint_change: bool = False,
+                              no_sandbox: bool = False) -> str:
+    """Compose the one-line, paste-ready re-run that a refusal's remedy
+    names (v0.4.27, board 78): the standing desk emission rule applied
+    tool-side — one physical line, the real tarball filename quoted,
+    zero placeholders.
+
+    `verb` is "apply" or "retry" (the pipeline's `invoked_by`), so a
+    refusal reached through `bale retry` composes the verb the operator
+    actually used. The tarball is named by filename, not path: apply's
+    inbound resolution finds a bare filename through the configured
+    search paths, so the filename is the shortest form that re-resolves
+    to the same file from the same cwd.
+
+    Every per-invocation admission flag the operator typed is carried
+    verbatim — --allow-out-of-scope, --accept-base-drift,
+    --allow-missing-required-check, --accept-checkpoint-change,
+    --no-sandbox — because a composed line that drops a flag already
+    typed sends the operator back through a gate they had cleared.
+    Nothing else is carried (no --verbose, no --json): those are not
+    admissions. Repeatable flags render one occurrence per value, in
+    the order given, deduplicated; every value is shell-quoted so a
+    path with a space still pastes.
+    """
+    if verb not in ("apply", "retry"):
+        raise ValueError(f"compose_admission_command: verb must be "
+                         f"'apply' or 'retry', got {verb!r}")
+    parts = ["bale", verb, _always_quoted(tarball_name)]
+
+    def _extend(flag: str, values) -> None:
+        seen: set[str] = set()
+        for v in values or ():
+            v = str(v)
+            if v in seen:
+                continue
+            seen.add(v)
+            parts.append(flag)
+            parts.append(_always_quoted(v))
+
+    _extend("--allow-out-of-scope", allow_out_of_scope)
+    _extend("--accept-base-drift", accept_base_drift)
+    _extend("--allow-missing-required-check", allow_missing_required_check)
+    if accept_checkpoint_change:
+        parts.append("--accept-checkpoint-change")
+    if no_sandbox:
+        parts.append("--no-sandbox")
+    return " ".join(parts)
 
 CLOSURE_REASONS = (
     "abandoned",
@@ -2477,6 +2638,7 @@ def build_telemetry_attempt(
     validation_output: Optional[str] = None,
     log_path: Optional[str] = None,
     overridden_paths: Optional[list] = None,
+    overridden_path_sources: Optional[dict] = None,
     required_check_overrides: Optional[list] = None,
     base_drift_overrides: Optional[list] = None,
     closure_reason: Optional[str] = None,
@@ -2523,6 +2685,18 @@ def build_telemetry_attempt(
     override admitted while other drift still refused; the refused paths
     themselves are recoverable from scope vs change_paths, both already
     recorded raw.
+
+    `overridden_path_sources` (v0.4.27, board 78) is the per-path
+    admission source beside `overridden_paths`: a map from each
+    admitted path to "flag" (a typed --allow-out-of-scope) or "prompt"
+    (a y/N answered at the TTY refusal) — the SCOPE_ADMISSION_SOURCES
+    vocabulary, closed like sandbox_off_source's. Always present as a
+    dict post-v0.4.27, empty when nothing was admitted, and with
+    exactly the keys of `overridden_paths` when something was: a path
+    missing from the map is a writer bug, so the writer fills any gap
+    with "flag" (the only source that existed before the prompt) and
+    never invents a third value. Absent on pre-v0.4.27 records, which
+    read as pre-epoch unknown — nothing retroactive.
 
     `required_check_overrides` (board 6 session B) is the
     overridden_paths mirror for the step-15 required-check gate: the
@@ -2618,6 +2792,11 @@ def build_telemetry_attempt(
     the four states are readable from the pair plus it. The value
     vocabulary's one home is the telemetry schema's enum; bale_validate
     enforces it record-wide (SANDBOX_OFF_SOURCES mirrors it).
+    Since v0.4.27 (board 78) a third writer exists: "prompt", the
+    sandbox-unavailable y/N admitted at a TTY refusal — the run is
+    unconfined by the operator's per-invocation answer, so
+    sandbox_escaped stays false (flag-only meaning) and
+    sandbox_confined is false with this source naming the prompt.
 
     `cost` (v0.4.6, board 10 S5 — Addition B's day-one piece;
     orchestration.md §10) is the spend block: tokens_in, tokens_out,
@@ -2659,6 +2838,13 @@ def build_telemetry_attempt(
         "scope_kind": "write-forecast",
         "scope": list(scope or []),
         "overridden_paths": list(overridden_paths or []),
+        # The v0.4.27 per-path admission source (board 78; docstring
+        # above owns the semantics) — unconditional, keyed exactly by
+        # overridden_paths, gap-filled with "flag" never a third value.
+        "overridden_path_sources": {
+            str(path): str((overridden_path_sources or {}).get(path, "flag"))
+            for path in (overridden_paths or [])
+        },
         "required_check_overrides": list(required_check_overrides or []),
         # The board-41 base-drift override stamp (docstring above owns
         # the semantics) — unconditional, the overridden_paths posture.

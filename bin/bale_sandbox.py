@@ -156,7 +156,12 @@ class SandboxUnavailableError(RuntimeError):
     the two documented bypasses — the per-invocation --no-sandbox flag
     and, since v0.4.26 (board 75), the project-layer bale.toml
     `[sandbox] enabled = false` for hosts where the mechanism never
-    holds — so the refusal is actionable either way.
+    holds — so the refusal is actionable either way. The message stays
+    generic on purpose: this module does not know the tarball or the
+    verb, so the composed re-run line (v0.4.27, board 78) and the y/N
+    that offers the same escape on a TTY are the apply pipeline's to
+    render at its catch (bin/bale_apply.py, the pre-staging probe site),
+    where both are known.
     """
 
 
@@ -550,7 +555,11 @@ def ensure_verified(log_path: Path) -> None:
     One probe per apply (the pipeline is one process), before the
     first confined script runs — ADR-0016's refusal contract: on
     failure, a loud SandboxUnavailableError naming the escape flag and
-    the config key, never silent unconfined execution. The probe scratch lives under
+    the config key, never silent unconfined execution. Since v0.4.27
+    (board 78) the apply pipeline calls this once at its pre-staging
+    probe site, so the per-script calls from bale_staging are the
+    cached no-op in an apply; `bale open`'s checkpoint dry-run still
+    reaches the probe through its own first call. The probe scratch lives under
     the log directory (inside `.bale/`, which every reconciliation
     walk skips) and is removed on the way out.
     """

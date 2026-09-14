@@ -86,6 +86,14 @@ BALE_CONFIG = "bale.toml"
 GLOBAL_USER_DIR_NAME = "user"
 GLOBAL_USER_DIR = INSTALL_ROOT / GLOBAL_USER_DIR_NAME
 GLOBAL_CONFIG_PATH = GLOBAL_USER_DIR / BALE_CONFIG
+# The hook acceptance store (v0.4.27, board 78): the install's memory of
+# which project-layer / configured hook scripts the operator has accepted
+# at the confirmation prompt, by the sha256 of the script's bytes. Lives
+# beside the global config under <install>/user/ — user-owned, never
+# committed, and its absence reads as "nothing accepted yet". See
+# HOOK_ACCEPTANCES_NAME's accessor trio below.
+HOOK_ACCEPTANCES_NAME = "hook-acceptances.json"
+HOOK_ACCEPTANCES_PATH = GLOBAL_USER_DIR / HOOK_ACCEPTANCES_NAME
 
 # Hooks bale knows how to invoke. Sessions adding a new hook extend this
 # tuple AND walk_configurables() AND render_bale_toml() in the same
@@ -566,6 +574,112 @@ def merged_config(repo: Path) -> dict:
         merged["pack"] = out_pack
 
     return merged
+
+
+# ---------------------------------------------------------------------------
+# Hook acceptance store (v0.4.27, board 78)
+# ---------------------------------------------------------------------------
+#
+# Trust by layer, then by bytes. A global-layer hook (under <install>/user/)
+# is the operator's own script and defaults accept at the prompt. A
+# project-layer or `configured` (neither-layer) hook defaults decline
+# until the operator has accepted that exact script — identified by the
+# sha256 of its bytes — once; the acceptance is remembered here, and
+# thereafter that script defaults accept. Changed bytes are a new key and
+# ask again with the decline default. This is trust-on-first-accept: a
+# cloned repo's committed hook can never ride a default (board 45's
+# threat model), and the operator's own post_apply_pass stops asking
+# after one look. The store is a prompt DEFAULT, never a bypass:
+# --no-interact and apply.hook_auto_accept keep their exact semantics,
+# and neither writes here — a bypassed prompt is not an operator reading
+# the bytes, so it earns no memory.
+#
+# File shape (JSON object, keyed by sha256 hex; every value an object):
+#
+#   {
+#     "<sha256>": {
+#       "script": "/abs/path/as/configured",
+#       "hook": "post_apply_pass",
+#       "layer": "project",
+#       "accepted_at": "2026-09-14T20:05:46+00:00"
+#     }
+#   }
+#
+# Path, hook name, layer label and timestamp ride beside the hash so a
+# human reading the file can audit what was accepted; the hash alone is
+# the identity. An unreadable or malformed store is treated as empty
+# with a logged warning (silent skips are bugs) — the worst outcome is
+# an extra prompt, never a silent accept.
+
+_ACCEPTANCE_KEYS = ("script", "hook", "layer", "accepted_at")
+
+
+def hook_script_sha256(script_path: Path) -> str:
+    """The identity of a hook script for the acceptance store: sha256 of
+    its bytes as they are on disk at prompt time. Raises OSError when
+    unreadable; run_hook has already checked the file exists and is
+    executable, so a raise here is a real read failure, not a missing
+    file."""
+    import hashlib
+    return hashlib.sha256(Path(script_path).read_bytes()).hexdigest()
+
+
+def load_hook_acceptances(path: Optional[Path] = None) -> dict:
+    """Read the acceptance store. Absent → {} silently (the documented
+    "nothing accepted yet" reading). Unreadable or malformed → {} with
+    a logged warning naming the file, so an operator who hand-edited it
+    learns why every hook is asking again."""
+    from __main__ import log  # lazy — see module docstring
+    store = HOOK_ACCEPTANCES_PATH if path is None else Path(path)
+    if not store.is_file():
+        return {}
+    try:
+        data = json.loads(store.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        log(f"hook acceptance store {store} is unreadable or malformed "
+            f"({e}); treating it as empty — every project hook will ask "
+            f"again until it is fixed or removed")
+        return {}
+    if not isinstance(data, dict):
+        log(f"hook acceptance store {store} is not a JSON object; "
+            f"treating it as empty — every project hook will ask again "
+            f"until it is fixed or removed")
+        return {}
+    return data
+
+
+def hook_previously_accepted(script_sha256: str,
+                             path: Optional[Path] = None) -> bool:
+    """True when the store remembers an interactive accept of exactly
+    these bytes."""
+    return script_sha256 in load_hook_acceptances(path)
+
+
+def record_hook_acceptance(*, script_sha256: str, script_path: Path,
+                           hook: str, layer: str,
+                           path: Optional[Path] = None) -> Path:
+    """Remember an interactive accept of a project/configured hook.
+    Rewrites the store atomically (temp file + rename) so a crash mid-
+    write leaves the old store intact. Returns the store path. Raises
+    OSError on a write failure — the caller logs and continues, since
+    the hook the operator just accepted still runs; only the memory is
+    lost."""
+    from datetime import datetime, timezone
+    store = HOOK_ACCEPTANCES_PATH if path is None else Path(path)
+    data = load_hook_acceptances(store)
+    data[script_sha256] = {
+        "script": str(script_path),
+        "hook": str(hook),
+        "layer": str(layer),
+        "accepted_at": datetime.now(timezone.utc).isoformat(
+            timespec="seconds"),
+    }
+    store.parent.mkdir(parents=True, exist_ok=True)
+    tmp = store.with_name(store.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n",
+                   encoding="utf-8")
+    os.replace(tmp, store)
+    return store
 
 
 def get_hook(cfg: dict, name: str) -> Optional[str]:

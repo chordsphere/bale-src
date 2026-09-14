@@ -3872,12 +3872,27 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
 
     `no_interact` (BALE.md §5.4 / §8.7) replaces the prompt with a configured
     decision: apply.hook_auto_accept = true accepts; anything else declines,
-    matching the prompt's decline default (default_no=True). Either way the
+    matching the prompt's historical decline default. Either way the
     bypassed prompt logs the decision taken and its source — the mode source
     in `no_interact_source` plus where the hook_auto_accept value came from
     (config layer, or the built-in default when unset). The apply pipeline is
     the only caller that passes the mode; pack- and handoff-side post_pack
     invocations keep the interactive contract unchanged.
+
+    The prompt's DEFAULT (v0.4.27, board 78) is trust by layer, then by
+    bytes: a global-layer hook (the operator's own script under
+    <install>/user/) defaults accept ([Y/n]); a project-layer or
+    `configured` hook defaults decline ([y/N]) until the operator has
+    accepted that exact script's bytes (sha256) once at this prompt,
+    remembered in the install's acceptance store
+    (bale_config.HOOK_ACCEPTANCES_PATH), after which it defaults accept;
+    changed bytes are a new key and ask again with the decline default.
+    Only an interactive accept of a project/configured hook is recorded
+    — never a global-layer default, never a hook_auto_accept bypass — so
+    the memory is exactly "an operator read these bytes and said yes".
+    The prompt line names the default's basis so the operator can see why
+    Enter would do what it does. EOF/^C still decline regardless of the
+    default (confirm_yn).
     """
     script = bale_config.get_hook(cfg, name)
     if script is None:
@@ -3918,6 +3933,32 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
         except ValueError:
             pass
 
+    # Resolve the prompt default (trust by layer, then by bytes). The
+    # sha256 is computed once, here, and reused for the record on accept
+    # so the remembered identity is exactly the bytes the operator saw.
+    script_sha256: Optional[str] = None
+    if source_label == "global":
+        default_accept = True
+        default_basis = "global-layer hook — your own script"
+    else:
+        try:
+            script_sha256 = bale_config.hook_script_sha256(script_path)
+        except OSError as e:
+            log(f"[hook {name}] could not hash {script_path} ({e}); "
+                f"the prompt defaults to decline")
+        if script_sha256 and bale_config.hook_previously_accepted(
+                script_sha256):
+            default_accept = True
+            default_basis = (f"these exact bytes were accepted before "
+                             f"(sha256 {script_sha256[:12]}…, remembered in "
+                             f"{bale_config.HOOK_ACCEPTANCES_PATH})")
+        else:
+            default_accept = False
+            default_basis = (f"{source_label}-layer hook not yet accepted "
+                             f"at this install"
+                             + (f" (sha256 {script_sha256[:12]}…)"
+                                if script_sha256 else ""))
+
     print()
     print(f"  hook:   {name} ({source_label})")
     print(f"  script: {script_path}")
@@ -3949,9 +3990,28 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
             log(f"[hook {name}] prompt skipped ({no_interact_source}): "
                 f"declined per {reason}; not invoking.")
             return
-    elif not confirm_yn("  run this hook?", default_no=True):
-        log(f"[hook {name}] declined; not invoking.")
-        return
+    else:
+        print(f"  default: {'accept' if default_accept else 'decline'} — "
+              f"{default_basis}")
+        if not confirm_yn("  run this hook?", default_no=not default_accept):
+            log(f"[hook {name}] declined; not invoking.")
+            return
+        if source_label != "global" and script_sha256 and not default_accept:
+            # First interactive accept of these bytes: remember it so
+            # the next run defaults accept. A write failure loses only
+            # the memory (the hook still runs) and is logged, never
+            # swallowed.
+            try:
+                store = bale_config.record_hook_acceptance(
+                    script_sha256=script_sha256, script_path=script_path,
+                    hook=name, layer=source_label)
+                log(f"[hook {name}] accepted; remembered sha256 "
+                    f"{script_sha256[:12]}… in {store} — this exact script "
+                    f"defaults accept from now on (changed bytes ask again)")
+            except OSError as e:
+                log(f"[hook {name}] accepted, but could not record it in "
+                    f"{bale_config.HOOK_ACCEPTANCES_PATH} ({e}); it will "
+                    f"ask again next time")
 
     env = {
         **os.environ,
@@ -5607,7 +5667,10 @@ def build_parser() -> argparse.ArgumentParser:
              "only — there is deliberately no config key. Every use is "
              "logged prominently (FORCE: line in the session log) and the "
              "admitted paths are stamped into the session's telemetry "
-             "record.",
+             "record. On a TTY the refusal also offers the same admission "
+             "as a per-path y/N (default decline; v0.4.27) — the typed "
+             "flag is the non-interactive form, and every refusal prints "
+             "a composed re-run line carrying one flag per drifted path.",
     )
     p_apply.add_argument(
         "--allow-missing-required-check", action="append", default=None,
@@ -5676,7 +5739,11 @@ def build_parser() -> argparse.ArgumentParser:
              "(v0.4.26, board 75): same unconfined semantics, FORCE-"
              "logged naming the key on every run, stamped "
              "sandbox_confined: false / sandbox_off_source: config; "
-             "this flag is redundant beside it.",
+             "this flag is redundant beside it. On a TTY, a host where "
+             "the sandbox self-probe refuses offers the same escape as a "
+             "y/N (default decline, FORCE-logged, sandbox_off_source: "
+             "prompt; v0.4.27) — this flag is the non-interactive form, "
+             "and the refusal prints a composed re-run line carrying it.",
     )
     p_apply.add_argument(
         "--json", action="store_true",
@@ -5782,7 +5849,10 @@ def build_parser() -> argparse.ArgumentParser:
              "retry that needs it re-states it. Every use is logged "
              "prominently (FORCE: line in the session log) and the "
              "admitted paths are stamped into the session's telemetry "
-             "record.",
+             "record. On a TTY the refusal offers the same admission as a "
+             "per-path y/N (default decline; v0.4.27), and prints a "
+             "composed `bale retry` re-run line carrying one flag per "
+             "drifted path.",
     )
     p_retry.add_argument(
         "--allow-missing-required-check", action="append", default=None,
@@ -5837,6 +5907,8 @@ def build_parser() -> argparse.ArgumentParser:
              "project-layer [sandbox] enabled = false (v0.4.26) is the "
              "durable form retry inherits structurally, same config. "
              "Every use of either is FORCE-logged in the session log. "
+             "On a TTY a refusing self-probe offers the same escape as a "
+             "y/N (v0.4.27; sandbox_off_source: prompt). "
              "`bale revert` executes no response scripts and takes no "
              "such flag.",
     )

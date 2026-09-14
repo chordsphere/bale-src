@@ -1195,6 +1195,51 @@ def base_tree_sha256(repo: Path, base_sha: str, path: str) -> Optional[str]:
 # 2. Apply: pipeline
 # ---------------------------------------------------------------------------
 
+def admission_prompt_allowed(*, dry_run: bool, no_interact: bool,
+                             no_interact_source: str = "",
+                             json_output: bool,
+                             stdin_isatty: Optional[bool] = None,
+                             ) -> tuple[bool, str]:
+    """Decide whether an apply-time admission y/N may be offered
+    (v0.4.27, board 78): the own-forecast drift prompt and the
+    sandbox-unavailable prompt share this one gate so the two never
+    drift apart.
+
+    Returns (allowed, reason). `reason` names the first closed door
+    when not allowed — the log line the refusal prints so an operator
+    reading a CI capture knows why no prompt appeared — and is empty
+    when allowed. The doors, in the order they are checked:
+
+    - `--dry-run`: predicts, never admits (nothing lands, so nothing
+      to admit).
+    - `--no-interact` (flag or apply.no_interact config; the source is
+      named): the mode's whole point is that no prompt engages.
+    - `--json`: stdout is a one-line report for an orchestrator; a
+      prompt on that channel is noise, and an orchestrator never
+      admits.
+    - piped stdin: the `--supersedes` precedent (bin/bale_pack.py) —
+      automation never admits silently; the decline default applies
+      without a prompt.
+
+    Every non-TTY path therefore declines, and the composed remedy
+    line the refusal prints is the same one a TTY decline prints, so
+    the operator's next move is a paste either way. `stdin_isatty` is
+    injectable for tests; None reads sys.stdin.
+    """
+    if dry_run:
+        return False, "--dry-run predicts, never admits"
+    if no_interact:
+        src = f" ({no_interact_source})" if no_interact_source else ""
+        return False, f"non-interactive mode{src}"
+    if json_output:
+        return False, "--json output mode"
+    isatty = (sys.stdin.isatty() if stdin_isatty is None
+              else bool(stdin_isatty))
+    if not isatty:
+        return False, "stdin is not a TTY"
+    return True, ""
+
+
 def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     staging_override: Optional[str], *,
                     dry_run: bool = False, verbose: bool = False,
@@ -1318,6 +1363,18 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     (v0.4.5, board 10 S2; BALE.md §8.9), beside the FORCE line the
     session log has carried since S1.
 
+    Admission prompts (v0.4.27, board 78). Two refusals in this pipeline
+    offer their per-invocation admission as a y/N on a TTY, through the
+    one gate `admission_prompt_allowed`: the own-forecast drift gate
+    (per path, default decline — see the gate) and the sandbox
+    self-probe (sited pre-staging, after the manifest-only gates; a `y`
+    sets `sandbox_on` False with `sandbox_off_source` "prompt" before
+    any script runs). Every non-TTY path — `dry_run`, `no_interact`,
+    json mode, piped stdin — declines without prompting, and every
+    refusal face prints the composed re-run line
+    (bale_report.compose_admission_command) that carries every
+    admission flag this signature received plus the one being offered.
+
     The flag's "deliberately no config key" clause was superseded at
     v0.4.26 (board 75): bale.toml's project-layer `[sandbox] enabled =
     false` is the durable form of the same escape, for hosts without
@@ -1362,6 +1419,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         _discard_hold_state,
         acquire_integration_lock,
         close_session,
+        confirm_yn,
         current_branch,
         fail,
         git,
@@ -1389,12 +1447,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     from bale_validate import validate_response_manifest  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
         build_telemetry_attempt,
+        compose_admission_command,
         emit_json_line,
         format_apply_json,
         format_base_drift_refusal,
         format_checkpoint_stamp_refusal,
         format_dry_run_report,
         format_required_check_refusal,
+        format_sandbox_unavailable_refusal,
         format_scope_drift_refusal,
         format_staging_row,
         format_summary_block,
@@ -1617,8 +1677,29 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             if not scope_covers_path(session_scope, change["path"])
         })
         overridden_paths = [p for p in drift_paths if p in allow_norm]
+        # Per-path admission source (v0.4.27, board 78): every path
+        # admitted by a typed flag is "flag"; the prompt below adds
+        # "prompt" entries. Stamped beside overridden_paths on every
+        # attempt (build_telemetry_attempt fills the map).
+        overridden_path_sources: dict[str, str] = {
+            p: "flag" for p in overridden_paths}
         refused_paths = [p for p in drift_paths if p not in allow_norm]
         unused_allow = [p for p in allow_norm if p not in drift_paths]
+        # The composed re-run every refusal below prints (v0.4.27): the
+        # real filename, one --allow-out-of-scope per drifted path —
+        # admitted and refused alike, so the operator deletes a flag
+        # rather than remembers one — and every admission flag this
+        # invocation already carried. Built once so the TTY-declined
+        # face and the non-TTY face print the identical line.
+        drift_remedy = compose_admission_command(
+            verb=invoked_by, tarball_name=tarball_path.name,
+            allow_out_of_scope=drift_paths,
+            accept_base_drift=accept_base_drift or (),
+            allow_missing_required_check=allow_missing_required_check or (),
+            accept_checkpoint_change=accept_checkpoint_change,
+            no_sandbox=no_sandbox,
+        )
+        declined_at_prompt = False
         if unused_allow:
             # Named but not drifting: harmless (inside the forecast or
             # not in the change set at all), but say so — a silently
@@ -1627,6 +1708,65 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             log(f"--allow-out-of-scope named path(s) with no matching "
                 f"out-of-forecast change: {', '.join(unused_allow)} "
                 f"(no effect)")
+        if refused_paths:
+            # The admission prompt (v0.4.27, board 78; BALE.md §8.1 step
+            # 14). Everything that reaches here is own-forecast drift —
+            # the one kind an admission may cross (step 7 already
+            # refused any sibling-claimed path) — and the gate is
+            # pre-staging with nothing consumed, so a y/N here is
+            # exactly the typed-flag admission offered in the same
+            # invocation. Per path, never blanket (ADR-0015): each
+            # still-refused path is shown with the forecast and the
+            # worker's changes[] reason, default decline. All accepted
+            # proceeds as if the flags had been typed, one FORCE line
+            # per path; any declined refuses as before, nothing lands
+            # partially. Non-TTY paths take the decline without a
+            # prompt (admission_prompt_allowed names which door).
+            prompt_ok, prompt_closed = admission_prompt_allowed(
+                dry_run=dry_run, no_interact=no_interact,
+                no_interact_source=no_interact_source,
+                json_output=json_mode())
+            if prompt_ok:
+                reasons = {
+                    scope_path(change["path"]): str(change.get("reason", ""))
+                    for change in manifest.get("changes", []) or []
+                }
+                scope_shown = (", ".join(session_scope) if session_scope
+                               else "(read-only session — empty forecast; "
+                                    "lands nothing)")
+                print()
+                print(f"  {len(refused_paths)} changes[] path(s) lie "
+                      f"outside session {locked_sid}'s write forecast. "
+                      f"Out-of-forecast work is worker judgment past the "
+                      f"ask (ADR-0015); admit each path or decline.")
+                print(f"  write forecast: {scope_shown}")
+                accepted: list[str] = []
+                for path in refused_paths:
+                    print()
+                    print(f"  path:     {path}")
+                    print(f"  reason:   {reasons.get(path) or '(none given)'}")
+                    if confirm_yn(f"  admit {path}?", default_no=True):
+                        accepted.append(path)
+                    else:
+                        break
+                if len(accepted) == len(refused_paths):
+                    for path in accepted:
+                        log(f"own-forecast drift admitted at the "
+                            f"admission prompt: {path} (write forecast: "
+                            f"{scope_shown}; overridden_path_sources: "
+                            f"prompt will be recorded)", force=True)
+                        overridden_path_sources[path] = "prompt"
+                    overridden_paths = [p for p in drift_paths
+                                        if p in overridden_path_sources]
+                    refused_paths = []
+                else:
+                    declined_at_prompt = True
+                    log(f"admission prompt declined at {refused_paths[len(accepted)]}; "
+                        f"nothing admitted at the prompt, nothing lands "
+                        f"partially")
+            else:
+                log(f"admission prompt not offered ({prompt_closed}): "
+                    f"the decline default applies to every drifted path")
         if refused_paths:
             scope_rendered = (", ".join(session_scope) if session_scope
                               else "(read-only session — empty forecast; "
@@ -1652,6 +1792,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         tarball=tarball_path.name, manifest=manifest,
                         scope=session_scope,
                         overridden_paths=overridden_paths,
+                        overridden_path_sources=overridden_path_sources,
                         log_path=f".bale/logs/{locked_sid}.log",
                     ))
             print(format_scope_drift_refusal(
@@ -1661,11 +1802,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 overridden=overridden_paths,
                 telemetry=telemetry_rel,
                 dry_run=dry_run,
+                remedy=drift_remedy,
+                declined_at_prompt=declined_at_prompt,
             ))
             if json_mode():
                 # Emitted on this exit-1 path deliberately, like held/
                 # reverted: an orchestrating operator dispatches on the
-                # outcome key instead of parsing prose.
+                # outcome key instead of parsing prose. `remedy` is the
+                # same composed line the human face printed (v0.4.27).
                 emit_json_line(format_apply_json(
                     outcome="scope-drift-refused", sid=locked_sid,
                     log_path=session_log,
@@ -1674,10 +1818,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         "out_of_scope_paths": refused_paths,
                         "session_scope": session_scope,
                         "overridden_paths": overridden_paths,
+                        "overridden_path_sources": overridden_path_sources,
+                        "remedy": drift_remedy,
                     },
                 ))
             return 1
-        if overridden_paths:
+        flag_admitted = [p for p in overridden_paths
+                         if overridden_path_sources.get(p) == "flag"]
+        if flag_admitted:
             # force=True: an admitted out-of-scope path is an override
             # event of the same species as the --force bypasses — the
             # FORCE: journal line is the audit trail the session log
@@ -1691,7 +1839,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                                "override lands changes from a session "
                                "packed to land none")
             log(f"own-forecast drift admitted by --allow-out-of-scope: "
-                f"{', '.join(overridden_paths)} (write forecast: "
+                f"{', '.join(flag_admitted)} (write forecast: "
                 f"{scope_note})", force=True)
         # No pass-path log line beyond the reads above: like the
         # generated-artifact denial below, a clean pass adds no output,
@@ -1793,6 +1941,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             tarball=tarball_path.name, manifest=manifest,
                             scope=session_scope,
                             overridden_paths=overridden_paths,
+                            overridden_path_sources=overridden_path_sources,
                             required_check_overrides=(
                                 required_check_overridden),
                             log_path=f".bale/logs/{locked_sid}.log",
@@ -2041,6 +2190,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             tarball=tarball_path.name, manifest=manifest,
                             scope=session_scope,
                             overridden_paths=overridden_paths,
+                            overridden_path_sources=overridden_path_sources,
                             required_check_overrides=(
                                 required_check_overridden),
                             base_drift_overrides=base_drift_overridden,
@@ -2186,6 +2336,91 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 ))
             return 0
 
+        # Sandbox self-probe site (v0.4.27, board 78; BALE.md §8.5's
+        # sandbox-escape paragraph): pulled forward from first script use to this
+        # pre-staging seam — after every manifest-only gate (own-
+        # forecast drift, base drift, required check: cheap,
+        # arg-inspectable refusals go before anything that prompts, and
+        # an operator who answered the sandbox y/N should not then hit
+        # a drift refusal and answer it again) and before the session
+        # stamp and staging (nothing consumed, session stays open).
+        # Row 75's rules hold at this site: one read, one effective
+        # `sandbox_on` for all three script runs and the stamps, and
+        # the FORCE line before any script. On a host where the
+        # mechanism does not hold, the operator may admit an unconfined
+        # run at a y/N (default decline, FORCE-logged as source
+        # "prompt"); every non-TTY path declines without prompting and
+        # the refusal carries the composed --no-sandbox re-run. Decline
+        # rides fail() so the attempt records outcome `rejected` with
+        # no script having run — sandbox_confined true,
+        # sandbox_off_source null, the known-negative form. The later
+        # per-script ensure_verified calls become cached no-ops. Dry-run
+        # returned above: it neither probes nor prompts.
+        if sandbox_on:
+            import bale_sandbox  # lazy — sibling module, standalone by design
+            try:
+                bale_sandbox.ensure_verified(session_log)
+            except bale_sandbox.SandboxUnavailableError as probe_err:
+                probe_detail = str(probe_err)
+                log(f"sandbox self-probe refused: "
+                    f"{probe_detail.splitlines()[0] if probe_detail else 'no detail'}")
+                prompt_ok, prompt_closed = admission_prompt_allowed(
+                    dry_run=dry_run, no_interact=no_interact,
+                    no_interact_source=no_interact_source,
+                    json_output=json_mode())
+                admitted_unconfined = False
+                if prompt_ok:
+                    print()
+                    print("  The sandbox is unavailable on this host — the "
+                          "self-probe could not confine a script:")
+                    for line in probe_detail.splitlines():
+                        print(f"    {line}")
+                    print("  Admitting runs apply.sh, the blind checkpoint, "
+                          "and validation.sh UNCONFINED — operator "
+                          "privileges, inherited environment, network on "
+                          "— for this invocation only (FORCE-logged; "
+                          "sandbox_off_source: prompt is recorded).")
+                    admitted_unconfined = confirm_yn(
+                        "  run this attempt unconfined?", default_no=True)
+                else:
+                    log(f"sandbox admission prompt not offered "
+                        f"({prompt_closed}): the decline default applies")
+                if admitted_unconfined:
+                    sandbox_on = False
+                    sandbox_off_source = "prompt"
+                    log("sandbox DISABLED for this invocation (admitted at "
+                        "the sandbox-unavailable prompt): apply.sh, the "
+                        "blind checkpoint, and validation.sh will run "
+                        "unconfined — operator privileges, inherited "
+                        "environment, network on; sandbox_confined: false "
+                        "/ sandbox_off_source: prompt will be recorded",
+                        force=True)
+                else:
+                    if prompt_ok:
+                        log("sandbox admission prompt declined; nothing "
+                            "staged, nothing ran")
+                    sandbox_remedy = compose_admission_command(
+                        verb=invoked_by, tarball_name=tarball_path.name,
+                        allow_out_of_scope=overridden_paths,
+                        accept_base_drift=accept_base_drift or (),
+                        allow_missing_required_check=(
+                            allow_missing_required_check or ()),
+                        accept_checkpoint_change=accept_checkpoint_change,
+                        no_sandbox=True,
+                    )
+                    print(format_sandbox_unavailable_refusal(
+                        sid=locked_sid, detail=probe_detail,
+                        remedy=sandbox_remedy,
+                        declined_at_prompt=prompt_ok,
+                    ))
+                    fail(f"sandbox unavailable on this host and no "
+                         f"unconfined run was admitted; nothing staged. "
+                         f"Re-run unconfined deliberately: "
+                         f"{sandbox_remedy} — or, for a host where the "
+                         f"mechanism never works, set bale.toml "
+                         f"[sandbox] enabled = false at the project "
+                         f"layer (both FORCE-logged on every run).")
+
         # 8.2 stamp session. The integration target is the session's own
         # (ADR-0008): resolve_target_branch reads the required pack-time
         # origin_branch stamp — a missing or empty stamp was already a
@@ -2273,8 +2508,16 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 "confinement and environment scrub unchanged; "
                 "network_grant_exercised: true will be recorded")
         elif sandbox_network:
+            # Name whichever escape actually bypassed (three since
+            # v0.4.27: config key, flag, or the sandbox-unavailable
+            # prompt) — sandbox_off_source is the one resolved source.
+            escape_named = {
+                "config": "[sandbox] enabled = false",
+                "flag": "--no-sandbox",
+                "prompt": "the sandbox-unavailable prompt",
+            }.get(sandbox_off_source, str(sandbox_off_source))
             log(f"note: bale.toml [sandbox] network is set, but "
-                f"{'[sandbox] enabled = false' if not sandbox_enabled else '--no-sandbox'} "
+                f"{escape_named} "
                 f"bypassed confinement for this invocation "
                 f"— nothing confined ran, so the grant is not exercised "
                 f"(unconfined scripts have network regardless)")
@@ -2768,6 +3011,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     tarball=tarball_path.name, manifest=manifest,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
+                    overridden_path_sources=overridden_path_sources,
                     required_check_overrides=required_check_overridden,
                     base_drift_overrides=base_drift_overridden,
                     validation_state=state,
@@ -2917,6 +3161,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     tarball=tarball_path.name, manifest=manifest,
                     scope=session_scope,
                     overridden_paths=overridden_paths,
+                    overridden_path_sources=overridden_path_sources,
                     required_check_overrides=required_check_overridden,
                     base_drift_overrides=base_drift_overridden,
                     validation_state=state,
@@ -3006,6 +3251,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 tarball=tarball_path.name, manifest=manifest,
                 scope=session_scope,
                 overridden_paths=overridden_paths,
+                overridden_path_sources=overridden_path_sources,
                 required_check_overrides=required_check_overridden,
                 base_drift_overrides=base_drift_overridden,
                 validation_state=state,

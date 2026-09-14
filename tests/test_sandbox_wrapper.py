@@ -653,8 +653,11 @@ class SandboxEnabledConfigUnitTest(NetworkGrantConfigUnitTest):
         items = schema["properties"]["attempts"]["items"]
         props = items["properties"]
         self.assertEqual(props["sandbox_confined"]["type"], "boolean")
+        # Three writers since v0.4.27 (board 78): the sandbox-
+        # unavailable y/N joined the config key and the flag.
         self.assertEqual(sorted(x for x in props["sandbox_off_source"]["enum"]
-                                if x is not None), ["config", "flag"])
+                                if x is not None),
+                         ["config", "flag", "prompt"])
         self.assertIn(None, props["sandbox_off_source"]["enum"])
         for name in ("sandbox_confined", "sandbox_off_source"):
             self.assertNotIn(name, items.get("required", []),
