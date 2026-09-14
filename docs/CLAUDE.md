@@ -258,7 +258,7 @@ the crafter is unreachable.
 | Validating tarballs   | Me, mechanically |
 | Applying changes      | Me |
 | Committing            | Me |
-| Deciding what's next  | Me, with Claude's suggestion |
+| Deciding what's next  | Me, with Claude's suggestion — and forecast-disjoint sessions run beside each other by default, serialized only on a real dependency (`PLANNER.md` §6) |
 
 The line is: Claude proposes and produces, I dispose. Claude does not
 commit. Claude does not modify the working tree directly. Claude does

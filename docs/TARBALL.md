@@ -1203,7 +1203,9 @@ isn't relevant — pull only the sections touched by the session, and
 name the extract in `manifest.context_included` so the omission is
 visible.
 
-Tar with: `tar -czf request-NNN.tar.gz request-NNN/`
+Tar with: `tar -czf request-<sid>.tar.gz request-NNN/` — the
+filename carries the full session id, as `bale pack` emits it, while
+the directory inside stays `request-NNN/`.
 
 ### 3.2 manifest.json
 
@@ -1873,7 +1875,11 @@ mechanical checks won't catch them.
     (§7.3), so this self-check is the one place a stray claims key is
     caught before it surfaces as an unpairable line in the §7.3
     reconciliation.
-11. Tar: `tar -czf response-NNN.tar.gz response-NNN/`.
+11. Tar: `tar -czf response-<sid>.tar.gz response-NNN/`. The
+    filename carries the full session id — the `responds_to` value —
+    while the directory inside stays `response-NNN/`: the directory
+    is wire format that `bale apply` peeks for, and it does not
+    change.
 
 ### 10.2 Returning a probe instead
 
