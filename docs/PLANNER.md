@@ -83,7 +83,9 @@ wins; this file wins on authoring practice.
 The planner authors five artifact kinds, and each has one governing
 practice section here:
 
-- **Pack commands** (§2) — the runnable `bale pack` line. The flag
+- **Pack commands** (§2) — the runnable `bale pack` line, delivered
+  as a crafter-emitted bundle beside its `bale open` line (§2 states
+  the rule). The flag
   surface and the solicited/unsolicited line live in `TARBALL.md`
   §3.4; this doc does not restate them.
 - **Request briefs** (§3) — the prose context a request ships as its
@@ -122,6 +124,17 @@ practice of exercising the planner's half well.
   a byte-exact assertion wherever it lands** — the worker that lands
   a must-be-verbatim line adds a byte-exact self-check on the landed
   line in its validation.
+- **The bundle is the delivery form of every planner-authored pack,
+  in every project.** A planner-authored pack — solicited, or the
+  rescope offer's children under the sub-master transition — is
+  delivered as one crafter-emitted bundle
+  (`tools/craft_response.py --bundle`) beside its emitted `bale open`
+  line: the brief as a member, the pack argv stored, and the
+  checkpoint member present when the project pins a `[validation]`
+  base and an explicit null when it does not. The bare `bale pack`
+  line with a `--readme-file` file is the fallback only when the
+  crafter is unreachable, and the planner says so when it falls
+  back.
 - **Commands are single-line and space-tolerant.** One line, no
   continuations, pasteable as-is (`TARBALL.md` §3.4 states the
   form); authored so that incidental whitespace differences don't
@@ -274,7 +287,9 @@ of it, the authoring craft:
   delivery publishes the file's sha256; and the delivering planner
   compares the tool's echoed hash against the published one before
   proceeding. One file, one identity, verified at both ends. In a
-  checkpoint-pinning project, spawn materials are delivered as one
+  checkpoint-pinning project, the bundle §2 makes every pack's
+  delivery form carries the checkpoint member too: spawn materials
+  are delivered as one
   crafter-emitted bundle — brief, blind checkpoint, and pack argv
   with published hashes — beside its emitted `bale open` line, so
   the desk hand-composes neither: the request-carried crafter

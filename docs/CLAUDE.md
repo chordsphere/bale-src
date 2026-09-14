@@ -236,8 +236,10 @@ mode; let me re-read `TARBALL.md` before producing"*) and pauses for
 the request tarball. The design conversation may inform the new
 request's `README.md` — a shared prose-context tool authored by
 either party: the planner directly, or the worker on request,
-delivered as a downloadable file and shipped via `--readme-file`
-(`TARBALL.md` §3.4).
+delivered as a member of the crafter bundle emitted beside the new
+request's `bale open` line (`PLANNER.md` §2), and shipped as a
+downloadable file via `--readme-file` (`TARBALL.md` §3.4) only when
+the crafter is unreachable.
 
 ---
 
@@ -250,7 +252,7 @@ delivered as a downloadable file and shipped via `--readme-file`
 | Writing scaffolding   | Claude |
 | Exploratory commands  | Claude (via probe) |
 | Intent questions      | Claude, via the exchange (`TARBALL.md` §5.9) |
-| Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4) |
+| Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4); delivered as a crafter bundle beside its `bale open` line (`PLANNER.md` §2) |
 | Architectural choices | Me, with Claude's input |
 | Reviewing changes     | Me |
 | Validating tarballs   | Me, mechanically |
@@ -522,7 +524,12 @@ in chat:
    typically the very session being split — the command carries
    `--supersedes <parent-sid>` per `TARBALL.md` §3.4's
    split-supersession flow. Framing goes in the prose around the
-   command, never inside the fenced block.
+   command, never inside the fenced block. In a checkpoint-configured
+   project the offering session delivers that command bundled — as
+   the stored pack argv of a crafter bundle emitted beside its
+   `bale open` line — per `PLANNER.md` §20 and §2; the bare line
+   stays the offer's content, which the planner re-derives from
+   (`TARBALL.md` §3.4).
 
 In a checkpoint-configured project the split is also a role
 transition: the offering session, as sub-master for its subtree,
