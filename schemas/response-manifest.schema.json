@@ -264,6 +264,11 @@
                   "type": "boolean",
                   "description": "Echo of the request's provenance.checkpoint_scope_admitted stamp (v0.3.28): whether the planner admitted a checkpoint-covering pack scope with --allow-checkpoint-in-scope. Optional so echoes of pre-v0.3.28 requests stay valid."
                 },
+                "base_files": {
+                  "type": "object",
+                  "additionalProperties": {"type": "string", "minLength": 1},
+                  "description": "Echo of the request's provenance.base_files stamp (v0.4.23) — the base-drift map, per-file sha256 (hex) of the write forecast's committed bytes at pack time, keyed by repo-relative path; {} for an empty (read-only) forecast. Optional so echoes of pre-v0.4.23 requests (which carry no key) stay valid; the block is echoed verbatim, so the key rides through exactly when the request carried it, and the echo shape must admit it because additionalProperties is false here. Mirrors the request schema's definition (request-manifest.schema.json)."
+                },
                 "checkpoint_waived": {
                   "type": "string",
                   "enum": ["read-only"],
