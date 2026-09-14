@@ -1,0 +1,218 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-doc-lane-87-88-009",
+  "created_at": "2026-09-14T22:06:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T22:06:47+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-doc-lane-87-88-009.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T22:14:48+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-doc-lane-87-88-009.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim passages": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "retired strings absent": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changes[] paths under docs/": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim passages": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "retired strings absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changes[] paths under docs/": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.27",
+            "contract_docs": {
+              "CLAUDE.md": "1c3556f467aa0621253bd3977f8c719cd367eafef5d8a383780204e73c50ca3b",
+              "TARBALL.md": "0df6257eec1933e48ee407d049bd96dd9eab0227705debdca8a4fb177002ef2a",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "7f9cc5713bee8f1464a3740332083089023573e0fa613626eb90d84739cfab0c"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-doc-lane-87-88-009.sh",
+              "sha256": "a6425e6e58e13eb704b1a2ace5b9fae849f6ea0d3f8d2cafa008970e463e6c7a"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "docs/CLAUDE.md": "1c3556f467aa0621253bd3977f8c719cd367eafef5d8a383780204e73c50ca3b",
+              "docs/PLANNER.md": "7f9cc5713bee8f1464a3740332083089023573e0fa613626eb90d84739cfab0c",
+              "docs/TARBALL.md": "0df6257eec1933e48ee407d049bd96dd9eab0227705debdca8a4fb177002ef2a"
+            },
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverifiable"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Edit 5's 'in the same style' was read as: mirror step 11's sid/NNN spelling and its one-clause filename-vs-directory note on the request-side line, not a bare command swap",
+            "validation.sh runs with cwd at the staging root (where .bale-manifest.json is placed per TARBALL.md 7.3) and the project's tests/ directory is present there"
+          ],
+          "judgment_calls": [
+            "PLANNER.md 6: the new bullet sits second, directly after 'One master per sitting' \u2014 the desk authors, then how it runs what it authored \u2014 rather than at the end of the list",
+            "PLANNER.md 6: the bold lead is 'Disjoint sessions run beside each other'; the live-traffic lesson behind the VERBATIM sentence's second clause is stated self-standingly (no board or session citation, per the self-containment guard)",
+            "PLANNER.md 2: new lead 'Concurrent sessions forecast narrowly'; the opening names both origins ('split-born or desk-born alike') so the generalization is explicit, and the bullet gains a one-clause pointer at section 6 so the authoring form and the sitting practice cite each other",
+            "CLAUDE.md 4: the row extension restates the practice in one clause before the section 6 pointer rather than pointing bare, since the row is in the every-read core and the pointer alone would not teach a worker what the practice is",
+            "Claims cover all six checks including the three session-specific assertions, per TARBALL.md 5.3's rule that claimed session assertions reconcile too; every claim_basis is observed from a local staging run",
+            "No doc-pin suite needed an update, so changes[] is exactly the three-file forecast and no drift is enumerated"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "CLAUDE.md META through 11.2 (core), plus 11.3-11.6",
+            "DOCS.md in full",
+            "TARBALL.md sections 1, 2, 5, 7 (core); 3.1, 3.4, 8, 10.1 (triggered)",
+            "PLANNER.md META, INDEX, 2, 6, 7, 13",
+            "tests/test_sanctioned_pairs.py, tests/test_doc_crossrefs.py, tests/test_global_doc_selfcontainment.py",
+            "schemas/response-manifest.schema.json (feedback block)",
+            "tools/craft_response.py --help, tools/response_lint.py --help"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-doc-lane-87-88-009.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-doc-lane-87-88-009.sh",
+          "sha256": "a6425e6e58e13eb704b1a2ace5b9fae849f6ea0d3f8d2cafa008970e463e6c7a"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T22:14:48+00:00",
+  "outcome": "applied"
+}
