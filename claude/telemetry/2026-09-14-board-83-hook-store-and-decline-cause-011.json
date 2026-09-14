@@ -1,0 +1,401 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-board-83-hook-store-and-decline-cause-011",
+  "created_at": "2026-09-14T22:21:22+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T22:21:22+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-board-83-hook-store-and-decline-cause-011.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T23:30:47+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-board-83-hook-store-and-decline-cause-011.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_hook_acceptance": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_hook_acceptance": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "2026-09-14-board-83-hook-store-and-decline-cause-011"
+          },
+          "provenance": {
+            "bale_version": "0.4.28",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "90f346e492359708c4b5b9c6afcb77083b778c182136803e1e90241e0ff8cb3b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-board-83-hook-store-and-decline-cause-011.sh",
+              "sha256": "7b7407da42ee33288856bca2e53749e523995d9d9b07e34dcef6bb7783ec72ff"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "bin/bale": "778ee5d3c65598eed82171ce4d70afc61c5514a761c0ce905d662d80d63130bf",
+              "bin/bale_config.py": "0ac44f3e13a1ca1ad709f8e061b794bd59a5aa6a4e916d47850379b9e5fd9cf6",
+              "tests/test_hook_acceptance.py": "c272b61e626db8a7bebd48b6cbcdfe3da8ae59398ec966f43df715c74d9714c4"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat interface"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validate.sh's one failure here (README.md present) is a request-packing absence, not a regression; it passes in the real tree",
+            "no suite outside the three shipped pins the bare `declined; not invoking` line"
+          ],
+          "judgment_calls": [
+            "confirm_yn keeps its bool return; confirm_yn_decision() carries the cause and only run_hook reads it",
+            "--forget does not prompt; it prints the removed entry and the survivors",
+            "prefix resolution: case-insensitive hex 1\u201364 chars, no minimum length, non-hex refuses as a typo not as missing",
+            "listing is oldest-first by accepted_at; non-object entries are displayed as malformed and are forgettable",
+            "format_config_hooks_json lives in bale_config because bale_report is a sibling session's forecast this sitting",
+            "the response-NNN/ error message at bin/bale:3583 is the directory name, not one of the two help strings; left alone",
+            "no README.md on this response; notes.md carries the color"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "BALE.md (hook section could name the verb; proposed, not made)",
+            "README.md at the install root (validate.sh checks its presence)",
+            "the remaining tests/ suites (full-discovery claim is predicted over 69 tests seen here)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (the brief)",
+            "claude/responses/2026-09-14-board-78-admission-prompts-001/notes.md",
+            "TARBALL.md sections 1, 2, 5 (incl. 5.9), 7, 10.1, 10.3",
+            "PLANNER.md section 15",
+            "bin/bale (confirm_yn, run_hook, log/fail, config parser, help/completion header)",
+            "bin/bale_config.py (store trio, cmd_config_init, module docstring)",
+            "bin/bale_report.py (enable_json_mode/json_mode/emit_json_line, format_status_json, format_unlock_json headers)",
+            "bin/bale_pack.py (the confirm_yn call sites)",
+            "tests/test_hook_acceptance.py",
+            "tests/harness.py",
+            "validate.sh",
+            "schemas/response-manifest.schema.json (questions, feedback)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-board-83-hook-store-and-decline-cause-011.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-board-83-hook-store-and-decline-cause-011.sh",
+          "sha256": "7b7407da42ee33288856bca2e53749e523995d9d9b07e34dcef6bb7783ec72ff"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-14T23:37:09+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-board-83-hook-store-and-decline-cause-011-retry.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: test_hook_acceptance": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: test_hook_acceptance": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_hook_acceptance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "clarification",
+            "point": "pre-build",
+            "depends_on": "2026-09-14-board-83-hook-store-and-decline-cause-011"
+          },
+          "provenance": {
+            "bale_version": "0.4.28",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "90f346e492359708c4b5b9c6afcb77083b778c182136803e1e90241e0ff8cb3b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-board-83-hook-store-and-decline-cause-011.sh",
+              "sha256": "7b7407da42ee33288856bca2e53749e523995d9d9b07e34dcef6bb7783ec72ff"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "bin/bale": "778ee5d3c65598eed82171ce4d70afc61c5514a761c0ce905d662d80d63130bf",
+              "bin/bale_config.py": "0ac44f3e13a1ca1ad709f8e061b794bd59a5aa6a4e916d47850379b9e5fd9cf6",
+              "tests/test_hook_acceptance.py": "c272b61e626db8a7bebd48b6cbcdfe3da8ae59398ec966f43df715c74d9714c4"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat interface"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validate.sh's one failure here (README.md present) is a request-packing absence, not a regression; it passes in the real tree",
+            "no suite outside the three shipped pins the bare `declined; not invoking` line"
+          ],
+          "judgment_calls": [
+            "confirm_yn keeps its bool return; confirm_yn_decision() reports the decline branch and only run_hook reads it, rendering from the three literal HOOK_DECLINE_LINES",
+            "--forget does not prompt; it prints the removed entry and the survivors",
+            "prefix resolution: case-insensitive hex 1\u201364 chars, no minimum length, non-hex refuses as a typo not as missing",
+            "listing is oldest-first by accepted_at; non-object entries are displayed as malformed and are forgettable",
+            "format_config_hooks_json lives in bale_config because bale_report is a sibling session's forecast this sitting",
+            "the response-NNN/ error message at bin/bale:3583 is the directory name, not one of the two help strings; left alone",
+            "no README.md on this response; notes.md carries the color"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "BALE.md (hook section could name the verb; proposed, not made)",
+            "README.md at the install root (validate.sh checks its presence)",
+            "the remaining tests/ suites (full-discovery claim is predicted over 69 tests seen here)"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (the brief)",
+            "claude/responses/2026-09-14-board-78-admission-prompts-001/notes.md",
+            "TARBALL.md sections 1, 2, 5 (incl. 5.9), 7, 10.1, 10.3",
+            "PLANNER.md section 15",
+            "bin/bale (confirm_yn, run_hook, log/fail, config parser, help/completion header)",
+            "bin/bale_config.py (store trio, cmd_config_init, module docstring)",
+            "bin/bale_report.py (enable_json_mode/json_mode/emit_json_line, format_status_json, format_unlock_json headers)",
+            "bin/bale_pack.py (the confirm_yn call sites)",
+            "tests/test_hook_acceptance.py",
+            "tests/harness.py",
+            "validate.sh",
+            "schemas/response-manifest.schema.json (questions, feedback)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-board-83-hook-store-and-decline-cause-011.log",
+      "clarification": {
+        "rounds": 2,
+        "records": [
+          {
+            "n": 1,
+            "at": "2026-09-14T22:31:06+00:00",
+            "blocking_questions": 2,
+            "from": "worker",
+            "answers": null
+          },
+          {
+            "n": 2,
+            "at": "2026-09-14T22:31:43+00:00",
+            "blocking_questions": 0,
+            "from": "planner",
+            "answers": 2
+          }
+        ]
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-board-83-hook-store-and-decline-cause-011.sh",
+          "sha256": "7b7407da42ee33288856bca2e53749e523995d9d9b07e34dcef6bb7783ec72ff"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T23:37:09+00:00",
+  "outcome": "applied"
+}
