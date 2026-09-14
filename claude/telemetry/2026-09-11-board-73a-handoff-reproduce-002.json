@@ -1,0 +1,189 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-11-board-73a-handoff-reproduce-002",
+  "created_at": "2026-09-11T03:57:01+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-11T03:57:01+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-11-board-73a-handoff-reproduce-002.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T19:51:35+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-002 (61).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "handoff suites (discover -p test_handoff_*.py): 20 tests, 6 expected failures, 0 unexpected": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "handoff suites run directly (python3 tests/<suite>.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "test_handoff_fixture.py collects 0 tests": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no class-level unittest decorator in the shipped files": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full test discovery (python3 -m unittest discover -s tests) [--slow]": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "handoff suites (discover -p test_handoff_*.py): 20 tests, 6 expected failures, 0 unexpected": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "handoff suites run directly (python3 tests/<suite>.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test_handoff_fixture.py collects 0 tests": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no class-level unittest decorator in the shipped files": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full test discovery (python3 -m unittest discover -s tests) [--slow]": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/test_handoff_checkpoint_gates.py",
+        "tests/test_handoff_fixture.py",
+        "tests/test_handoff_forecast.py",
+        "tests/test_handoff_registry_gate.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.26",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-11-board-73a-handoff-reproduce-002.sh",
+              "sha256": "be47e527b8ed661f05dc2ddf0226b2a1e2613a2938b26819927db44567422fb7"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5.1 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the operator's project shape (checkpoint-configured or not, {sid} or literal base) is unknown; every path was reproduced on the harness fixture in both shapes rather than guessed at",
+            "a bailing worker's reading plan names files to READ, not where work lands \u2014 the shape TARBALL.md 5.7's section name implies; path 5 depends on it"
+          ],
+          "judgment_calls": [
+            "each break is pinned as an expectedFailure asserting pack parity (the modern expectation), with a plain passing pack-side control beside it, so a fixture regression fails loud instead of hiding behind the decorator",
+            "the shared fixture lives in a test_handoff_-prefixed module with no tests, so direct runs resolve the bare import the way discovery does (precedent: test_checkpoint_file_flag importing test_per_sid_checkpoint)",
+            "test_handoff_happy.py left byte-identical; no refactor onto the shared fixture",
+            "recommendation is modernize, argued from the shared-gate structure of every break; the retire case is stated and turns on telemetry the request did not ship"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/test_per_sid_checkpoint.py"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-11-board-73a-handoff-reproduce-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-11-board-73a-handoff-reproduce-002.sh",
+          "sha256": "be47e527b8ed661f05dc2ddf0226b2a1e2613a2938b26819927db44567422fb7"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T19:51:35+00:00",
+  "outcome": "applied"
+}
