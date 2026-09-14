@@ -553,16 +553,34 @@ The following flags apply across multiple commands:
   --no-interact`, also enable-able per config via `apply.no_interact`
   in bale.toml; wiring it across the other commands listed here is
   future work. In this mode the pre-hook confirmation resolves from
-  `apply.hook_auto_accept` — unset/false takes the prompt's decline
-  default — and every bypassed prompt logs the decision taken and its
-  source to the terminal and the session log.)
+  `apply.hook_auto_accept` — unset/false declines — and every bypassed
+  prompt logs the decision taken and its source to the terminal and
+  the session log.) The interactive hook confirmation's default is
+  trust by layer, then by bytes (v0.4.27, board 78): a global-layer
+  hook (under `<install>/user/`, the operator's own script) defaults
+  accept (`[Y/n]`); a project-layer or `configured` hook defaults
+  decline (`[y/N]`) until the operator has accepted that exact
+  script's bytes once, after which it defaults accept, and changed
+  bytes ask again with the decline default. The acceptance store is
+  `<install>/user/hook-acceptances.json` — never committed, absent
+  means nothing accepted yet — keyed by the script's sha256 with the
+  configured path, hook name, layer label, and accept timestamp
+  beside it so a human can audit it; only an interactive accept of a
+  project/configured hook is recorded, never a global-layer default
+  and never a `hook_auto_accept` bypass, and the remembered accept is
+  a prompt default, never a bypass: `--no-interact` and
+  `apply.hook_auto_accept` keep their exact semantics.
 - `--allow-out-of-scope <path>` — apply-scoped, repeatable (one path
   per flag): admit exactly the named `changes[]` path(s) past the
   own-scope drift gate (§8.1 step 14, §11 row 22); any other
   out-of-scope path still refuses. Per-invocation only — there is
   deliberately no config key, so an override never becomes standing
   policy — and every use is logged prominently and stamped into the
-  session's telemetry record (§8.9). `bale retry` takes the same flag
+  session's telemetry record (§8.9). On a TTY the refusal offers the
+  same per-path admission as a y/N (v0.4.27, board 78; §8.1 step 14),
+  and every refusal prints a composed re-run line carrying one flag
+  per drifted path, so the typed flag is the non-interactive form of
+  the same admission. `bale retry` takes the same flag
   (v0.3.14): a retry attempt runs the same drift gate, and the
   override is never carried forward from the failed apply attempt —
   the operator re-states it at retry, so an overridden apply that
@@ -2260,7 +2278,20 @@ Pipeline steps:
     the named paths past the gate while any *other* drift still
     refuses; every use is logged prominently (a FORCE: session-log
     line) and the admitted paths are stamped into the session's
-    telemetry record (§8.9). In `--json` mode the refusal is the
+    telemetry record (§8.9). Since v0.4.27 (board 78) the refusal on
+    a TTY first offers the same admission as a per-path y/N — each
+    still-refused path shown with the write forecast and the worker's
+    `changes[].reason`, default decline, never a blanket yes; all
+    accepted proceeds exactly as if the flags had been typed (one
+    FORCE line per path, `overridden_path_sources: "prompt"` stamped
+    beside `overridden_paths`), any declined refuses with nothing
+    landing partially. Every non-TTY path — piped stdin, `--json`,
+    `--dry-run`, `--no-interact` — declines without prompting, and
+    every refusal face closes with a composed re-run: the real tarball
+    filename quoted, one `--allow-out-of-scope` per drifted path
+    (admitted and refused alike), every admission flag the invocation
+    already carried, one physical line, zero placeholders (the json
+    `drift.remedy` key carries the same line). In `--json` mode the refusal is the
     one-line report with outcome `scope-drift-refused` and a `drift`
     detail object — emitted on the exit-1 path like held/reverted, so
     an orchestrating operator dispatches on the key instead of parsing
@@ -2539,7 +2570,20 @@ namespace spins, the read-only sweep took, the network is off, the
 environment is scrubbed); on failure the apply refuses loudly, naming
 `--no-sandbox` (§5.4) and the project-layer `[sandbox] enabled =
 false` key (below) as the documented bypasses — never silent
-unconfined execution. TARBALL.md §7.1's write-location print and §9's
+unconfined execution. Since v0.4.27 (board 78) the probe runs at one
+pre-staging site in the apply pipeline — after the manifest-only
+gates (drift, base drift, required check), before the session stamp
+and staging, so nothing is consumed and the session stays open — and
+on a TTY the refusal offers the escape as a y/N: run this attempt
+unconfined, default decline, FORCE-logged naming the prompt as the
+source and stamped `sandbox_off_source: "prompt"` (`sandbox_escaped`
+keeps its flag-only meaning), one value for all three scripts. Every
+non-TTY path declines without prompting, the refusal closes with a
+composed `--no-sandbox` re-run line (real filename quoted, admission
+flags carried, zero placeholders), and the declined attempt records
+outcome `rejected` with `sandbox_confined: true` /
+`sandbox_off_source: null` — no script ran. `--dry-run` neither
+probes nor prompts. TARBALL.md §7.1's write-location print and §9's
 never-outside-staging line stop being purely self-declared: the
 sandbox is their mechanical backstop.
 
@@ -2898,11 +2942,13 @@ exit non-zero with the branch held for inspection.
 In `--no-interact` mode (per invocation, or per config via
 `apply.no_interact = true`) the post-apply hook confirmation is
 likewise not prompted: it resolves from `apply.hook_auto_accept` in
-bale.toml (unset or false = decline, the prompt's default), and every
+bale.toml (unset or false = decline), and every
 bypassed prompt — walkthrough and hook alike — logs the decision taken
 and its source. Plain non-TTY without the mode keeps the pre-existing
 behavior: walkthrough defaults taken silently, hook prompts declined
-on EOF.
+on EOF. The interactive hook prompt's default is trust by layer, then
+by bytes (v0.4.27; §5.4's `--no-interact` bullet documents the
+acceptance store).
 
 ### 8.8 Terminal actions
 
@@ -3081,7 +3127,16 @@ short-lived `.bale/sessions/<sid>/` directory:
   vocabulary is closed: its one home is the schema enum,
   `validate_telemetry_record` enforces it record-wide at any depth
   (null-tolerant, the `closure_reason` asymmetry), and pre-v0.4.26
-  records without the pair keep validating;
+  records without the pair keep validating. v0.4.27 (board 78) adds
+  `"prompt"` to that vocabulary — the sandbox-unavailable y/N admitted
+  on a TTY (§8.5) — and stamps `attempts[].overridden_path_sources`
+  beside `overridden_paths`: a map from each admitted path to
+  `"flag"` (typed `--allow-out-of-scope`) or `"prompt"` (the drift
+  refusal's per-path y/N, §8.1 step 14), unconditional and empty when
+  nothing was admitted, its own closed vocabulary with the same three
+  homes (schema enum, `SCOPE_ADMISSION_SOURCES` writer mirror, the
+  record-wide walk); pre-v0.4.27 records without the key keep
+  validating and read as pre-epoch unknown;
 - the **cost block** (v0.4.6, board 10 S5 — Addition B's day-one
   piece; orchestration.md §10's cost-governance doctrine):
   `attempts[].cost` with `tokens_in`, `tokens_out`, `usd`, and
@@ -3920,7 +3975,7 @@ before staging (steps 1–18 of section 8.1) or before commit (sections
 | 19 | Cross-session forecast collision (ADR-0007, re-based onto write forecasts by ADR-0015): no `changes[]` path intersects another open session's recorded forecast — the apply-time guard against the whole-file clobber, and the one mechanical refusal the ADR-0015 model reserves; no override, since admission never crosses a sibling's forecast (§8.1 step 7; listed here out of phase order to keep rows 5–18 stable) | apply pre-flight |
 | 20 | No `changes[]` path names a generated artifact — no `__pycache__` / `node_modules` / `dist` / `build` directory component, no `*.pyc` / `*.pyo` basename; conservative deny-list, rejection names the offending paths (§8.1 step 13; `TARBALL.md` §5.1 carries the builder-side rule) | apply pre-flight |
 | 21 | Declared-input violations fail the stage loudly (target-base strategy): every `staging.untracked_inputs` entry must exist in the working tree and be untracked at the target tip at stage time — a missing or tracked entry stops the stage rather than being silently skipped | apply stage |
-| 22 | Own-forecast drift (v0.3.10; forecast vocabulary and doctrine per ADR-0015): every `changes[]` path lies inside the session's **own** recorded write forecast (`sessions/<sid>/scope.json`; created paths refused the same as modified). An out-of-forecast edit is worker judgment past the ask — shipped, enumerated in `notes.md`, admitted per path: per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses, and an admitted path still refuses at row 19 if a sibling's forecast claims it. The refusal names every offending path and the write forecast, keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
+| 22 | Own-forecast drift (v0.3.10; forecast vocabulary and doctrine per ADR-0015): every `changes[]` path lies inside the session's **own** recorded write forecast (`sessions/<sid>/scope.json`; created paths refused the same as modified). An out-of-forecast edit is worker judgment past the ask — shipped, enumerated in `notes.md`, admitted per path: per-invocation `--allow-out-of-scope PATH` (repeatable; no config key) admits exactly the named paths — any other drift still refuses, and an admitted path still refuses at row 19 if a sibling's forecast claims it. Since v0.4.27 (board 78) a TTY refusal offers the same per-path admission as a y/N (default decline; non-TTY paths decline without prompting), stamped per path as `overridden_path_sources` flag/prompt. The refusal names every offending path and the write forecast, closes with a composed re-run line (real filename, one flag per drifted path, zero placeholders), keeps the session open with no git side effects, records telemetry outcome `scope-drift-refused`, and in `--json` mode is the one-line report with that outcome (§8.1 step 14) | apply pre-flight |
 | 23 | Detached-HEAD refusal: `bale pack` refuses when the repo's HEAD is detached, before any prompt, tarball, or session state — the integration-target stamp requires a real branch (§7.1 step 4a; the apply-side stamp requirement is row 8's resolution step, §8.1 step 5); listed here out of phase order to keep rows 4–22 stable | pack pre-flight |
 | 24 | Detached-HEAD refusal, handoff side: `bale handoff` refuses when the repo's HEAD is detached, before any tarball resolution, prompt, or session state — the new session's integration-target stamp requires a real branch, the same requirement as row 23's pack side (§7.1 step 4a applied to handoff's pre-flight; the stamp itself per §7.6); appended after row 23 per the appended-row precedent of rows 19–23, so rows 1–23 stay stable | handoff pre-flight |
 | 25 | Non-normal response-kind shape (ADR-0011, v0.2.10): apply forks on `response_kind` before staging, and the manifest's cross-field rules are enforced there — on a `"clarification"`, every change surface is empty (`changes`, `deferred`, `validation_will_run`, `claims`) and `questions[]` is required non-empty; on every other kind `questions[]` is forbidden (or empty); a `"bailout"` carries the same empty change surfaces (TARBALL.md §5.6.2, §5.9.2; apply-time behavior §8.10). Appended after row 24 per the same appended-row precedent, so rows 1–24 stay stable | apply pre-flight |

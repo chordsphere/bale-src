@@ -461,9 +461,11 @@ class SandboxOffSourceVocabularyTest(unittest.TestCase):
         return (self.schema["properties"]["attempts"]["items"]
                 ["properties"]["sandbox_off_source"]["enum"])
 
-    def test_schema_enum_is_exactly_the_two_writers_plus_null(self) -> None:
+    def test_schema_enum_is_exactly_the_three_writers_plus_null(self) -> None:
+        # config (v0.4.26), flag (v0.4.5), prompt (v0.4.27, board 78: the
+        # sandbox-unavailable y/N admitted on a TTY).
         self.assertEqual(sorted(v for v in self._enum() if v is not None),
-                         ["config", "flag"])
+                         ["config", "flag", "prompt"])
         self.assertIn(None, self._enum(), msg="null is the confined "
                                               "reading, in the vocabulary")
 

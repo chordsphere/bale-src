@@ -511,6 +511,44 @@ def _sandbox_off_source_check(source_vocab: frozenset):
     return check
 
 
+def _overridden_path_sources_check(source_vocab: frozenset):
+    """Closed-vocabulary checker factory for an overridden_path_sources
+    key (v0.4.27, board 78).
+
+    The key's value is a MAP (path -> source), not a scalar, so the
+    checker validates the container: it must be an object, and every
+    value must be in the vocabulary the schema's
+    attempts[].overridden_path_sources additionalProperties enum names
+    — bin/bale_report's SCOPE_ADMISSION_SOURCES mirrors it for the
+    writer and the parity test pins the homes together. Null is NOT in
+    the vocabulary and the map is never null: the writer stamps an
+    empty map when nothing was admitted (claim_basis's asymmetry, not
+    closure_reason's — an unknown source is spelled by omitting the
+    key, which only pre-epoch records do). The generic walk would step
+    into the map and check each value by key name, but the keys here
+    are PATHS, so the walk cannot match them; this container-level
+    check is what gives every value the record-wide verdict.
+    """
+    allowed = sorted(x for x in source_vocab if x is not None)
+
+    def check(v) -> str | None:
+        if not isinstance(v, dict):
+            return (f"{_describe_json_value(v)} is not an object — "
+                    f"overridden_path_sources, wherever it appears, maps "
+                    f"each admitted path to how it was admitted "
+                    f"({', '.join(allowed)})")
+        bad = {k: val for k, val in v.items() if val not in source_vocab
+               or val is None}
+        if bad:
+            shown = ", ".join(f"{k!r}: {val!r}" for k, val in bad.items())
+            return (f"{shown} — not one of {allowed}; "
+                    f"overridden_path_sources names how each path was "
+                    f"admitted past the own-forecast drift gate, and the "
+                    f"closed vocabulary has exactly those writers")
+        return None
+    return check
+
+
 def validate_telemetry_record(record: dict) -> list:
     """Validate one telemetry record; [] = valid, else human-readable errors.
 
@@ -539,7 +577,9 @@ def validate_telemetry_record(record: dict) -> list:
        must be exactly 'predicted' or 'observed', and any closure_reason
        key at any depth must be a schema-vocabulary reason or null, and
        (v0.4.26) any sandbox_off_source key at any depth must be exactly
-       'config', 'flag', or null. This
+       'config', 'flag', 'prompt' (v0.4.27), or null, and (v0.4.27) any
+       overridden_path_sources key at any depth must be an object whose
+       every value is exactly 'flag' or 'prompt'. This
        is the strictness the brief demands ('unknown closure reasons and
        unknown claim_basis values must reject') made placement-robust:
        the loose schema constrains the spots it names, and the walk
@@ -571,10 +611,19 @@ def validate_telemetry_record(record: dict) -> list:
     sandbox_off_vocab = frozenset(
         schema["properties"]["attempts"]["items"]
               ["properties"]["sandbox_off_source"]["enum"])
+    # Same one-home derivation for the scope-admission vocabulary
+    # (v0.4.27, board 78): the schema's per-value enum under
+    # attempts[].overridden_path_sources feeds the container check.
+    admission_vocab = frozenset(
+        schema["properties"]["attempts"]["items"]
+              ["properties"]["overridden_path_sources"]
+              ["additionalProperties"]["enum"])
     _walk_closed_vocabularies(record, "", {
         "claim_basis": _claim_basis_check,
         "closure_reason": _closure_reason_check(closure_vocab),
         "sandbox_off_source": _sandbox_off_source_check(sandbox_off_vocab),
+        "overridden_path_sources":
+            _overridden_path_sources_check(admission_vocab),
     }, errors)
     return errors
 

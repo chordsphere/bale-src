@@ -196,7 +196,13 @@
           "overridden_paths": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Out-of-scope changes[] paths a per-invocation `bale apply --allow-out-of-scope` admitted past the own-scope drift gate on this attempt (v0.3.10, additive field). Bale-computed, always a list: empty means no override was in play (including every pre-v0.3.10 attempt, where the key is absent). On a scope-drift-refused attempt it carries what a PARTIAL override admitted while other drift still refused; the refused paths are recoverable from scope vs change_paths, both recorded raw."
+            "description": "Out-of-scope changes[] paths a per-invocation `bale apply --allow-out-of-scope` admitted past the own-scope drift gate on this attempt (v0.3.10, additive field). Bale-computed, always a list: empty means no override was in play (including every pre-v0.3.10 attempt, where the key is absent). On a scope-drift-refused attempt it carries what a PARTIAL override admitted while other drift still refused; the refused paths are recoverable from scope vs change_paths, both recorded raw. Since v0.4.27 a path here may also have been admitted at the TTY y/N rather than by a typed flag; overridden_path_sources beside it names which, per path."
+          },
+          "overridden_path_sources": {
+            "type": "object",
+            "additionalProperties": { "type": "string", "enum": ["flag", "prompt"] },
+            "description": "Per-path admission source for every path in overridden_paths (v0.4.27, additive field): 'flag' when a typed per-invocation --allow-out-of-scope admitted the path, 'prompt' when the operator answered y at the own-forecast drift refusal's per-path prompt on a TTY. Bale-computed and stamped unconditionally by build_telemetry_attempt on every post-v0.4.27 attempt of every command — the overridden_paths posture: always a map, empty when nothing was admitted, keyed by exactly the paths overridden_paths lists when something was. Closed vocabulary: this enum is its one home, bin/bale_report's SCOPE_ADMISSION_SOURCES mirrors it for the writer, and validate_telemetry_record (bin/bale_validate.py) enforces it record-wide at any depth (every value under any overridden_path_sources key, wherever it appears). Absent on pre-v0.4.27 records, which keep validating and read as pre-epoch unknown — nothing retroactive.",
+            "$comment": "Loud-every-run contract (v0.4.27): a 'prompt' value here always has a FORCE-class line in the session log naming the path and the prompt as its source, the same line a typed flag gets."
           },
           "required_check_overrides": {
             "type": "array",
@@ -223,8 +229,8 @@
           },
           "sandbox_off_source": {
             "type": ["string", "null"],
-            "enum": ["config", "flag", null],
-            "description": "Why this attempt's response scripts ran unconfined, when sandbox_confined is false (v0.4.26): 'config' when bale.toml's project-layer [sandbox] enabled = false disabled confinement — recorded as 'config' even when --no-sandbox was also typed, since the run would have been unconfined regardless and sandbox_escaped already carries the flag fact — and 'flag' when only the per-invocation --no-sandbox did. Null is the confined reading and the known-negative form. Stamped unconditionally beside sandbox_confined (key always present post-v0.4.26; null on confined and no-script attempts). Closed vocabulary: this enum is its one home, bin/bale_report's SANDBOX_OFF_SOURCES mirrors it for the writer, and validate_telemetry_record (bin/bale_validate.py) enforces it record-wide at any depth, null-tolerant like closure_reason. Not in required: pre-v0.4.26 records keep validating."
+            "enum": ["config", "flag", "prompt", null],
+            "description": "Why this attempt's response scripts ran unconfined, when sandbox_confined is false (v0.4.26): 'config' when bale.toml's project-layer [sandbox] enabled = false disabled confinement — recorded as 'config' even when --no-sandbox was also typed, since the run would have been unconfined regardless and sandbox_escaped already carries the flag fact — 'flag' when only the per-invocation --no-sandbox did, and (v0.4.27) 'prompt' when the operator admitted the unconfined run at the sandbox-unavailable y/N on a TTY (sandbox_escaped stays false: that field is the flag fact only). Null is the confined reading and the known-negative form. Stamped unconditionally beside sandbox_confined (key always present post-v0.4.26; null on confined and no-script attempts). Closed vocabulary: this enum is its one home, bin/bale_report's SANDBOX_OFF_SOURCES mirrors it for the writer, and validate_telemetry_record (bin/bale_validate.py) enforces it record-wide at any depth, null-tolerant like closure_reason. Not in required: pre-v0.4.26 records keep validating."
           },
           "cost": {
             "type": ["object", "null"],
