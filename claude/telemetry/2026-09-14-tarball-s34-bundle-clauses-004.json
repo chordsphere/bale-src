@@ -1,0 +1,178 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-tarball-s34-bundle-clauses-004",
+  "created_at": "2026-09-14T20:39:51+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T20:39:51+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-tarball-s34-bundle-clauses-004.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T20:44:59+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-tarball-s34-bundle-clauses-004.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: sanctioned-pair pins (tests/test_sanctioned_pairs.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: doc cross-references (tests/test_doc_crossrefs.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: global-doc self-containment (tests/test_global_doc_selfcontainment.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: 3.4 bundle clauses landed byte-exact around the untouched pin": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: sanctioned-pair pins (tests/test_sanctioned_pairs.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: doc cross-references (tests/test_doc_crossrefs.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: global-doc self-containment (tests/test_global_doc_selfcontainment.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: 3.4 bundle clauses landed byte-exact around the untouched pin": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.27",
+            "contract_docs": {
+              "CLAUDE.md": "1c3556f467aa0621253bd3977f8c719cd367eafef5d8a383780204e73c50ca3b",
+              "TARBALL.md": "8a2ec831dd3042ebb66a7fae87aae9308c7a9d4f571f753581bd27438a2c538b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "7f9cc5713bee8f1464a3740332083089023573e0fa613626eb90d84739cfab0c"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-tarball-s34-bundle-clauses-004.sh",
+              "sha256": "19663e3a996ad2ec8ed47f3cef9a7ff8e5b79711eb8f38c056217770a9693064"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "docs/TARBALL.md": "8a2ec831dd3042ebb66a7fae87aae9308c7a9d4f571f753581bd27438a2c538b"
+            },
+            "model_identity": "Claude Fable 5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The operator's environment has python3 on PATH so the three doc suites run in staging; validation.sh prints [SKIP] with a reason otherwise."
+          ],
+          "judgment_calls": [
+            "Clause 1's sentence wording (the brief delegated it); wrapped so the `PLANNER.md` \u00a72 pointer stays on one physical line for the crossref suite's per-line scan.",
+            "Clause 2's insertion point \u2014 directly after 'its full pack invocation' \u2014 rewrapped two lines of that same sentence.",
+            "validation.sh runs the three shipped doc suites as three separately claimed checks rather than one."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-14-tarball-s34-bundle-clauses-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-tarball-s34-bundle-clauses-004.sh",
+          "sha256": "19663e3a996ad2ec8ed47f3cef9a7ff8e5b79711eb8f38c056217770a9693064"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T20:44:59+00:00",
+  "outcome": "applied"
+}
