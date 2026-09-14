@@ -32,7 +32,14 @@ Covers the D8 session-B assertion set against the documented contract
 - the sanctioned session-A rider: `bale apply --dry-run` predicts the
   dangling-checkpoint refusal by resolving the target base read-only,
   while a committed checkpoint and an unconfigured project dry-run
-  clean.
+  clean;
+- the composed remedy (board 81, v0.4.29): the refusal closes with the
+  one-line re-run from `compose_admission_command` — the verb used, the
+  real tarball filename quoted, every admission flag already typed
+  carried, one `--allow-missing-required-check` per missing name —
+  never the `bale apply <tarball> --allow-missing-required-check <name>`
+  template; the line pasted back admits exactly the missing names; and
+  no y/N is offered at the gate (desk ruling).
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring.
@@ -48,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -55,6 +63,7 @@ import unittest
 from pathlib import Path
 
 from harness import (
+    _load_module,
     bale_env,
     git_env,
     make_install,
@@ -78,6 +87,10 @@ DANGLING_PHRASE = "blind checkpoint missing at the base tree"
 DRY_RUN_ROW = "a real apply would refuse the same way"
 
 NEW_CONTENT = "hello from the required-check fixture response\n"
+# The pre-v0.4.29 template closing; its absence is the board-81 pin.
+TEMPLATE_REMEDY = ("`bale apply <tarball> --allow-missing-required-check "
+                   "<name>`")
+COMPOSED_LEAD = "by pasting this line"
 
 
 class RequiredCheckGateE2ETest(unittest.TestCase):
@@ -216,6 +229,19 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
             (self.repo / ".bale" / "staging" / sid).exists(),
             msg="a pre-staging refusal stages nothing")
 
+    def composed_line(self, output: str) -> str:
+        """The single physical line carrying the composed re-run: the
+        first line in `output` that starts with `bale ` once stripped.
+        Exactly one must exist — a remedy split across lines, or
+        printed twice, is a bug either way."""
+        lines = [ln.strip() for ln in output.splitlines()
+                 if ln.strip().startswith("bale ")]
+        self.assertEqual(
+            len(lines), 1,
+            msg=f"expected exactly one composed line; found {lines!r} "
+                f"in:\n{output}")
+        return lines[0]
+
     # -- the refusal -----------------------------------------------------
 
     def test_refusal_names_both_sets_and_is_pre_staging(self) -> None:
@@ -242,6 +268,15 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertIn("tests", refused.stdout,
                       msg="the declared list renders so a near-miss "
                           "is visible")
+        # The remedy is the composed line, never the template (board 81).
+        self.assertNotIn(TEMPLATE_REMEDY, refused.stdout)
+        self.assertNotIn("<tarball>", refused.stdout)
+        self.assertNotIn("<name>", refused.stdout)
+        self.assertIn(COMPOSED_LEAD, refused.stdout)
+        self.assertEqual(
+            self.composed_line(refused.stdout),
+            f"bale apply '{tarball.name}' "
+            f"--allow-missing-required-check 'lint'")
         self.assert_pre_staging(sid)
         self.assertIn(REJECT_LINE, self.session_log(sid))
 
@@ -377,6 +412,13 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(refused.returncode, 1)
         self.assertIn(REFUSED_STATUS, refused.stdout)
         self.assertIn("admitted by flag", refused.stdout)
+        # The composed line keeps the typed admission and appends the
+        # refused name, one flag per name — paste as-is to admit both.
+        self.assertEqual(
+            self.composed_line(refused.stdout),
+            f"bale apply '{tarball.name}' "
+            f"--allow-missing-required-check 'tests' "
+            f"--allow-missing-required-check 'lint'")
         attempt = self.telemetry_record(sid)["attempts"][-1]
         self.assertEqual(attempt["outcome"], "required-check-refused")
         self.assertEqual(attempt["required_check_overrides"], ["tests"])
@@ -428,6 +470,11 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(bare_retry.returncode, 1,
                          msg="the override is never carried forward")
         self.assertIn(REFUSED_STATUS, bare_retry.stdout)
+        # A refusal reached through retry composes the verb used.
+        self.assertEqual(
+            self.composed_line(bare_retry.stdout),
+            f"bale retry '{tarball.name}' "
+            f"--allow-missing-required-check 'tests'")
         self.assertEqual(
             self.telemetry_record(sid)["attempts"][-1]["command"], "retry")
 
@@ -443,6 +490,109 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(attempt["outcome"], "applied")
         self.assertEqual(attempt["command"], "retry")
         self.assertEqual(attempt["required_check_overrides"], ["tests"])
+
+    # -- the composed remedy (board 81, v0.4.29) ------------------------
+
+    def test_composed_line_carries_typed_sibling_flags(self) -> None:
+        """Every admission flag already typed rides the line —
+        --accept-base-drift (even with nothing drifting), --no-sandbox,
+        --accept-checkpoint-change — while --verbose is not carried;
+        the missing names come last, one flag each, in config order."""
+        self.configure_required(["tests", "lint", "typecheck"])
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(
+            sid, name="siblings", validation_will_run=["lint"])
+        refused = run_bale(
+            self.install,
+            ["apply", str(tarball), "--verbose",
+             "--accept-base-drift", "hello.txt",
+             "--accept-checkpoint-change", "--no-sandbox"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(refused.returncode, 1, msg=refused.stdout)
+        self.assertIn(REFUSED_STATUS, refused.stdout)
+        line = self.composed_line(refused.stdout)
+        self.assertEqual(
+            line,
+            f"bale apply '{tarball.name}' --accept-base-drift 'hello.txt' "
+            f"--allow-missing-required-check 'tests' "
+            f"--allow-missing-required-check 'typecheck' "
+            f"--accept-checkpoint-change --no-sandbox")
+        self.assertNotIn("--verbose", line)
+
+    def test_dry_run_and_json_faces_carry_the_same_line(self) -> None:
+        """--dry-run and --json both print the human block (stderr
+        under --json) with the identical composed line; neither
+        --dry-run nor --json is an admission flag, so neither rides
+        it."""
+        self.configure_required(["tests"])
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(
+            sid, name="faces", validation_will_run=[])
+        expected = (f"bale apply '{tarball.name}' "
+                    f"--allow-missing-required-check 'tests'")
+        dry = run_bale(self.install, ["apply", str(tarball), "--dry-run"],
+                       cwd=self.repo, env=self.env)
+        self.assertEqual(dry.returncode, 1, msg=dry.stdout)
+        self.assertIn(DRY_RUN_ROW, dry.stdout)
+        self.assertEqual(self.composed_line(dry.stdout), expected)
+        js = run_bale(self.install, ["apply", str(tarball), "--json"],
+                      cwd=self.repo, env=self.env)
+        self.assertEqual(js.returncode, 1, msg=js.stdout + js.stderr)
+        self.assertEqual(self.composed_line(js.stderr), expected)
+        self.assertNotIn("bale apply", js.stdout,
+                         msg="stdout is the one-line json report only")
+
+    def test_no_prompt_at_the_gate_under_a_tty(self) -> None:
+        """Desk ruling: the required-check gate offers no y/N. Under a
+        pty with `y` queued, the refusal still lands and nothing is
+        admitted — the composed line is the only door."""
+        self.configure_required(["tests"])
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(
+            sid, name="noprompt", validation_will_run=[])
+        exit_code, output = run_bale_pty(
+            self.install, ["apply", str(tarball)],
+            cwd=self.repo, env=self.env, answers="y\ny\n")
+        self.assertEqual(exit_code, 1, msg=output)
+        self.assertIn(REFUSED_STATUS, output)
+        self.assertNotIn("[y/N]", output)
+        self.assertNotIn("admission prompt", output)
+        self.assert_pre_staging(sid)
+        attempt = self.telemetry_record(sid)["attempts"][-1]
+        self.assertEqual(attempt["outcome"], "required-check-refused")
+        self.assertEqual(attempt["required_check_overrides"], [])
+
+    @slow
+    def test_pasted_line_admits_exactly_the_missing_names(self) -> None:
+        """The round trip the line exists for: with the tarball's
+        directory on apply.search_paths (so the bare filename
+        re-resolves from the project), split the refusal's own line by
+        the shell's rules and run it — the apply proceeds and stamps
+        every missing name as admitted."""
+        self.configure_required(["tests", "lint"])
+        sid = self.packed_sid()
+        tarball = self.build_response_tarball(
+            sid, name="roundtrip", validation_will_run=[])
+        (self.repo / "bale.toml").write_text(
+            "[validation]\nrequired = [\"tests\", \"lint\"]\n"
+            "[apply]\n"
+            f"search_paths = [{json.dumps(str(tarball.parent))}]\n",
+            encoding="utf-8")
+        first = run_bale(self.install, ["apply", str(tarball)],
+                         cwd=self.repo, env=self.env)
+        self.assertEqual(first.returncode, 1, msg=first.stdout)
+        argv = shlex.split(self.composed_line(first.stdout))
+        self.assertEqual(argv[:3], ["bale", "apply", tarball.name])
+        second = run_bale(self.install, argv[1:],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            second.returncode, 0,
+            msg=f"stdout:\n{second.stdout}\nstderr:\n{second.stderr}")
+        self.assertIn(FORCE_LINE, self.session_log(sid))
+        attempt = self.telemetry_record(sid)["attempts"][-1]
+        self.assertEqual(attempt["outcome"], "applied")
+        self.assertEqual(attempt["required_check_overrides"],
+                         ["tests", "lint"])
 
     # -- stats membership (the D3 coordination rider) --------------------
 
@@ -573,6 +723,50 @@ class RequiredCheckGateE2ETest(unittest.TestCase):
         self.assertEqual(dry.returncode, 0,
                          msg=f"stdout:\n{dry.stdout}\n"
                              f"stderr:\n{dry.stderr}")
+
+
+class RequiredCheckRendererTest(unittest.TestCase):
+    """format_required_check_refusal renders the composed line verbatim
+    as its own physical line and carries no placeholder; `remedy` is
+    required, since this gate has no other admission door."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.br = _load_module("bale_report")
+
+    def _render(self, **kw) -> str:
+        base = dict(sid="s", required=["tests", "lint"],
+                    declared=["tests"], missing=["lint"], overridden=[],
+                    telemetry="claude/telemetry/s.json")
+        base.update(kw)
+        return self.br.format_required_check_refusal(**base)
+
+    def test_composed_line_is_its_own_physical_line(self) -> None:
+        remedy = ("bale apply 'r.tar.gz' --allow-missing-required-check "
+                  "'lint' --no-sandbox")
+        out = self._render(remedy=remedy)
+        self.assertIn(remedy, out)
+        self.assertTrue(any(line.strip() == remedy
+                            for line in out.splitlines()),
+                        msg="the composed line is its own physical line")
+        self.assertNotIn("<tarball>", out)
+        self.assertNotIn("<name>", out)
+        self.assertNotIn("repeat per name", out)
+        self.assertIn(COMPOSED_LEAD, out)
+        # The other two remedies survive around it.
+        self.assertIn("regenerate the response", out)
+        self.assertIn("bale config init", out)
+
+    def test_dry_run_face_carries_it_too(self) -> None:
+        remedy = "bale retry 'r.tar.gz' --allow-missing-required-check 'x'"
+        out = self._render(remedy=remedy, telemetry=None, dry_run=True)
+        self.assertIn(remedy, out)
+        self.assertIn(DRY_RUN_ROW, out)
+        self.assertNotIn("<tarball>", out)
+
+    def test_remedy_is_required(self) -> None:
+        with self.assertRaises(TypeError):
+            self._render()
 
 
 if __name__ == "__main__":
