@@ -1,0 +1,257 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-board-80-tests-only-pins-008",
+  "created_at": "2026-09-14T21:43:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T21:43:58+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/harness.py",
+        "tests/test_admission_prompts.py",
+        "tests/test_apply_operations.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-board-80-tests-only-pins-008.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T21:55:45+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-board-80-tests-only-pins-008.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_slow_gate": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_telemetry_extensions": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_admission_prompts": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_apply_operations": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_apply_operations (BALE_TEST_SLOW=1) [--slow]": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: full discovery (BALE_TEST_SLOW=1) [--slow]": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "tests: test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_slow_gate": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_telemetry_extensions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_admission_prompts": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_apply_operations": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_apply_operations (BALE_TEST_SLOW=1) [--slow]": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "tests: full discovery (BALE_TEST_SLOW=1) [--slow]": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/harness.py",
+        "tests/test_admission_prompts.py",
+        "tests/test_apply_operations.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/harness.py",
+        "tests/test_admission_prompts.py",
+        "tests/test_apply_operations.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_schema_embeds.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.27",
+            "contract_docs": {
+              "CLAUDE.md": "1c3556f467aa0621253bd3977f8c719cd367eafef5d8a383780204e73c50ca3b",
+              "TARBALL.md": "0df6257eec1933e48ee407d049bd96dd9eab0227705debdca8a4fb177002ef2a",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "7f9cc5713bee8f1464a3740332083089023573e0fa613626eb90d84739cfab0c"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-board-80-tests-only-pins-008.sh",
+              "sha256": "9acdd68e4eaf8e3a1f15458266b0e14482ef45ba60ba55aecd6055028b5489e5"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "tests/harness.py": "8bf624158a306d9eff8a15aeb8a4e4732a9f5d02519a0402b0e898f37b0804a0",
+              "tests/test_admission_prompts.py": "cb22eb708a5392f769db13f1cf8dd8fe6d37c9935d30d220cb5afa931fe924c2",
+              "tests/test_apply_operations.py": "2803a7eb4003379cdc23b2f3508d4b03960d8ed228500ed06b0861d4a69c88f8",
+              "tests/test_doc_crossrefs.py": "79c2670bfca434f8552214dd003a00284220dc664e16cfed24e3660e5072e704",
+              "tests/test_sanctioned_pairs.py": "41d0e0e44e34ebeea655f84fddbd51c99ac498c1fd5071c0d4c3c2390e22b300",
+              "tests/test_schema_embeds.py": "70e70792ac9caa0d01753962bb81375d35a3a1be68878df7970ac259c6f21863",
+              "tests/test_telemetry_extensions.py": "93fbd2e2794d559169147cc20420a6df3b0383345091fbfb546ff8978b6adee3"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat surface; self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "test_admission_prompts.py's cases do not depend on _minimal_record's outcome/date envelope (read every call site; the schema has no conditional on outcome; could not run the suite here \u2014 bin/ not shipped)",
+            "test_forgotten_chmod_is_caught_by_assertion is green at the default tier on the namespace-less host, as the brief states; left untouched on that basis"
+          ],
+          "judgment_calls": [
+            "test_sanctioned_pairs: the len(PAIRS)==5 pin now counts distinct doc pairs (the key's trailing parenthetical) so the new bundled-delivery key can ride the already-enumerated CLAUDE.md 11.2 / TARBALL.md 3.4 pair without misstating DOCS.md 9's five",
+            "harness _load_module took the admission-prompts form (bin/ on sys.path, registered under the bare name); harness _minimal_record took the telemetry envelope (unlocked/unlock) because StatsToleranceTest reads closure_mix['unlocked']",
+            "host gate: config-off fixture via commit_sandbox_off_config() on the three confined @slow cases, not a namespace skip \u2014 this suite no longer exercises a confined apply.sh run"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "CLAUDE.md",
+            "TARBALL.md (sections 1, 2, 5, 7, 10.1)",
+            "README.md (row-80 brief)",
+            "context/claude/context/adr/0005-test-hermeticity.md",
+            "docs/DOCS.md 9 (the sanctioned-pair enumeration only)",
+            "docs/PLANNER.md 2, CLAUDE.md 11.2, TARBALL.md 3.4 (pin extraction only)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-board-80-tests-only-pins-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-board-80-tests-only-pins-008.sh",
+          "sha256": "9acdd68e4eaf8e3a1f15458266b0e14482ef45ba60ba55aecd6055028b5489e5"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T21:55:45+00:00",
+  "outcome": "applied"
+}
