@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-10-sitting-close-deltas-5-001`.
+Last landed by: `2026-09-14-sitting-close-deltas-6-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -310,6 +310,19 @@ source):
   slightly above code's (12/51) — below any action threshold, worth
   an eye; no action attached. (From the 2026-08-31 meta-specific
   sitting.)
+- Admission prompts for `--accept-base-drift` and
+  `--allow-missing-required-check`: row 78 landed per-path y/N at
+  the scope-drift and sandbox refusals only; the base-drift and
+  required-check refusals gain composed remedy lines at row 81
+  with no prompts, by desk ruling. Re-trigger: the composed line
+  of row 81 still being copied to the desk. (Opened 2026-09-14 at
+  the 2026-09-10→14 sitting's close.)
+- Exchange adoption (§6 entry 112; specimens two and three at
+  entry 115): a doc remedy has landed (row 74) and a mechanical
+  remedy is queued (row 85, the exchange-carried-outside-relay
+  self-report). Re-trigger: a fourth `clarification.rounds: 0`
+  against a real round after both have landed. (Opened 2026-09-14
+  at the 2026-09-10→14 sitting's close.)
 
 **Ruling queue** (desk rulings awaiting a future sitting —
 decisions, not work rows; a ruling becomes a doc delta only if it
@@ -456,6 +469,11 @@ with the unverifiable ones carried verbatim and marked):
   the next session touching that surface."
   [2026-09-10: carrier named — board row 73 (handoff
   fix-or-retire) consumes this rider when it touches the surface.]
+  [2026-09-14: premise corrected by 73A's analysis —
+  `gather_files_for_pack` has no `verbose` kwarg today (only
+  `walk_for_pack` does), so the rider is a three-line threading,
+  not a one-kwarg call; the desk ruling on row 73 carries it into
+  session B.]
 - Negation-refusal wording split — "Name the pattern's source in
   the negation refusal", rides the next bin/bale_pack.py touch
   (carrier restated 2026-08-14; its former co-rider, the
@@ -672,6 +690,10 @@ with the unverifiable ones carried verbatim and marked):
   `format_pack_json`, opener emission on handoff's report, the bare
   handoff form) stand. Handoff's `--sid` generalization, raised at
   71, rides board row 73 rather than here.]
+  [2026-09-14: the `--sid` question is disposed — deferred by
+  73A's analysis (a vetting-only `--sid` adds nothing to handoff
+  or `bale open` until several bailouts sit in the inbox at once);
+  consumed from this entry, its record on row 73.]
 - The bin/-sanction docstring line — one rationale line in
   tests/test_global_doc_selfcontainment.py's guard docstring
   recording the injected-surface bin/ sanction (§5, the 2026-08-31
@@ -1702,6 +1724,59 @@ sitting's dates and the bracket stamps carry the close's:
   residual), 11, 35's residuals, 38, 39, 54, 55 stand as
   previously recorded.
 
+Landed 2026-09-10→14, the continue-plan-001 sitting (master
+`2026-09-11-continue-plan-001`, read-only; opened 2026-09-10 on
+the goal "let's continue the plan in claude/MASTER.md"; the sitting
+ran across four calendar days, so 09-11 and 09-14 sids over a
+09-10 open are expected provenance). Rows 73 (session A), 74, 75,
+76, 78, and 79 closed on their board brackets — facts of record,
+versions, ratifications, and attempt stories live there; this
+block carries only what has no row home; close recorded by
+`2026-09-14-sitting-close-deltas-6-005`:
+
+- Wave record: the sitting spawned 73A, 74–76 (one session), 79,
+  78, and the s34 rider — five sessions, all landed, up to three
+  open beside the desk at once (78, the doc lane, 79 —
+  forecast-disjoint by construction; the read-staleness watch was
+  probed, not fired: the desk ran the three doc-pin suites on the
+  applied tree mid-sitting, green). Zero HOLDs across five
+  sessions — a datum for the checkpoint-thinness watch above
+  (thin, preserved-token oracles held).
+- Sitting-open record: close-5's notes.md ratified in full at this
+  open (the VERBATIM-parenthetical question resolved KEEP; the
+  version-header override correctly recorded as the retiring
+  brief's defect). Row 75's notes.md ratified in full,
+  approvingly: the un-asked `bin/bale_staging.py` string drift,
+  the `unset_effective` kwarg with its pin, the one-direction
+  flag, the pipeline-start resolution point, the fixture
+  extraction, the retry's observed→predicted correction, the
+  `includes_missing` self-report. The sitting-open version check
+  was satisfied by the request's provenance stamp, 0.4.26.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open. Every other notes.md
+  of the sitting was ratified in-sitting.
+- Board deltas of the close: row 75 DONE; row 73 session A DONE
+  with session B queued; rows 74 and 76 DONE; rows 78 and 79
+  opened and DONE in-sitting; rows 80–88 opened in §4; row 47's
+  carrier clause struck; the registry strikes above (the `--sid`
+  question consumed at 73; the `gather_files_for_pack` rider's
+  premise corrected); evidence entries 113–122 in §6; six
+  contracts dated 2026-09-14 in §5; the version landmark 0.4.27,
+  the four include-authoring rules, the extended desk emission
+  rule, the bundled-spawn working-style clause, and the hook
+  acceptance store in §7; two watches opened above.
+- Sequencing for the next desk: row 73 session B (from A's
+  archived notes; order 5, 1, 4, 2, 6) → row 80 (tests-only,
+  beside B if forecasts allow — B holds the four handoff suites,
+  80 holds the doc-pin suites and the harness; check
+  `tests/harness.py` isn't both) → 81 and 88 beside → 87 → then
+  the held wave as previously recorded: 68, 56+57, 69, 37 → 43 →
+  45 → S6.
+- Watches opened at this close, both above: prompts for
+  `--accept-base-drift` and `--allow-missing-required-check`; the
+  exchange-adoption watch, now with a mechanical remedy queued
+  (85) and a doc remedy landed (74).
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2399,6 +2474,11 @@ and §8, so done items keep their numbers as one-line pointers.
     Interim operator rule until this row lands: HOLD material
     routes to the planner first, never the worker — the addressed
     blocks land that routing mechanically here.]
+    [2026-09-14: the "row 74's three emission-contract micros ride
+    this row's TARBALL.md touch" clause above is struck — row 74
+    landed independently at `2026-09-14-doc-lane-74-76-002` by
+    desk ruling this sitting, decoupled from this row's touch; the
+    rest of the 2026-09-10 cargo stands.]
 
 48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
     into board 49 (the `bale open` dry-run leg); whether the
@@ -2488,6 +2568,9 @@ and §8, so done items keep their numbers as one-line pointers.
     [2026-08-25: DONE — `2026-08-25-board-51-bare-apply-007`, bumpless
     per the hot-file ruling. Flagged ambiguity interpretation, ratified:
     ambiguity means two candidates the newest-rule **cannot separate**, not any two candidates — the stricter reading would make "resolves the newest" dead text.]
+    [2026-09-14: row 87 opened — the naming variance between
+    `response-NNN.tar.gz` and `response-<sid>.tar.gz` is what
+    defeats this row's matching; the resolver check rides 87.]
 
 52. **Pack output emits the chat-opening preamble** — queued
     2026-08-18 (small): the pack report ends with the
@@ -2820,6 +2903,10 @@ and §8, so done items keep their numbers as one-line pointers.
     momentarily-queued "committed-vs-dirt config pre-check" idea —
     obsoleted by diagnosis: the dirty file was the master's own
     open-time telemetry record, normal in-flight state.]
+    [2026-09-14: this row's principle — cheap gates before
+    expensive ones — applied at row 78 to a prompt: drift refuses
+    before the sandbox prompt (§6 entry 122). The `bale open`
+    reorder itself is still queued here.]
 
 69. **tools pair** — queued 2026-09-01 (one micro session, both
     halves from the 026 sitting): (a) a bare-string claims-value
@@ -2940,6 +3027,44 @@ and §8, so done items keep their numbers as one-line pointers.
     handoff/open `--sid` generalization question; consumes the
     registry's `gather_files_for_pack` verbose-kwarg rider when
     touched. Sequenced second, after row 75 (§3 close block).
+    [2026-09-14: session A DONE, session B queued. Session A
+    `2026-09-11-board-73a-handoff-reproduce-002` (reproduce-first;
+    code class; pack, brief, and blind checkpoint desk-authored as
+    a crafter bundle — the first bundle-delivered spawn of the
+    sitting), opened 2026-09-11, applied 2026-09-14 at 0.4.26
+    (telemetry; tests-only, no bump). Four new suites, seventeen
+    tests, six `expectedFailure` reproductions, discovery green;
+    checkpoint PASS on first apply, `stamp_matched: true`.
+    Findings, one line each, the worker's numbering: (1) handoff
+    refuses on *any* open session where pack runs the ADR-0007
+    disjointness gate — reproduced; (2) `{sid}` checkpoint base:
+    the resolved-existence refusal names `--checkpoint-file` as
+    its first remedy and handoff's argparse rejects the flag — a
+    remedy-text defect on top of a design-era gate; (3) literal
+    base with a cited plan — not reproduced; (4) a plan-less
+    handoff refuses on `forecast_declared=True` where a bare pack
+    passes since v0.4.9 — unpredicted; (5) **the forecast swap**:
+    handoff records the reading-plan set as the forecast and never
+    reads the parent's `scope.json`, so the resumed session is
+    graded against a forecast nobody declared — unpredicted, and
+    the best fit to the original report; (6) the argv surface
+    rejects every pack delivery flag — confirmed; (7) the manifest
+    is modern (`base_files` stamped), the argv is old. **Desk
+    ruling (2026-09-14): modernize**, in the worker's order 5, 1,
+    4, 2, 6, plus the cheap `caller` kwarg on the
+    resolved-existence refusal and the three-line
+    `gather_files_for_pack` verbose rider (the registry entry's
+    premise corrected: no `verbose` kwarg exists on that function
+    today); the `--sid` generalization stays deferred (registry
+    entry consumed). Session B's brief must say the six
+    `expectedFailure`s are its acceptance tests (strip a decorator
+    per fix) and that the diagnosis pins asserting today's refusal
+    text flip by design. `includes_missing:
+    tests/test_per_sid_checkpoint.py` — the desk's authoring
+    defect, not the worker's (§6 entry 116). The two unpredicted
+    classes trace to one sentence in `cmd_handoff` (§6 entry 117).
+    Session A's notes.md ratified in-sitting. Sequenced first for
+    the next desk (§3 close block).]
 
 74. **emission contract micros (doc lane)** — opened 2026-09-10,
     riding board 47's TARBALL.md touch: three one-sentence rules
@@ -2953,8 +3078,18 @@ and §8, so done items keep their numbers as one-line pointers.
     checklist gains a step naming the crafter's `--emit-block`
     exchange emission as the blocking-ask path — today the
     checklist's own step 1 models informal asking (§6 entry 112).
+    [2026-09-14: DONE — `2026-09-14-doc-lane-74-76-002`
+    (contract-doc class, bumpless per the doc-only reading; one
+    session with row 76), decoupled from board 47's TARBALL.md
+    touch by desk ruling this sitting (row 47's carrier clause
+    struck). Landed: the single-line rule widened in place in §3.4
+    with a §1 Conventions pointer; both transports in §5.9.2 and
+    §10.3 step 4 ("either" → "both"; "Never in chat" → "Never
+    as a chat aside"); the blocking-ask path as §10.1 step 2's
+    second sentence (step count 11 before and after). Notes.md
+    ratified in-sitting.]
 
-75. **sandbox-off by config** — IN FLIGHT, spawned beside the
+75. **sandbox-off by config** — DONE 2026-09-11, spawned beside the
     sitting's close (2026-09-10; bundle stem
     `2026-09-10-board-75-sandbox-config-off`, opened as
     `2026-09-10-board-75-sandbox-config-off-002`; mid-build at
@@ -2970,6 +3105,30 @@ and §8, so done items keep their numbers as one-line pointers.
     Landing facts (date, version, ratified calls) true up at the
     next sitting; its notes.md queues for ratification at that
     sitting's open, beside close-001's (§3).
+    [2026-09-14: DONE — `2026-09-10-board-75-sandbox-config-off-002`
+    (code class), opened 2026-09-10T13:32Z, applied
+    2026-09-11T02:45Z, 0.4.25 → 0.4.26 (telemetry: the request
+    stamp 0.4.25; the `bin/VERSION reads 0.4.26` assertion PASS).
+    Attempt story: first apply `scope-drift-refused` (admission
+    flags omitted; the refusal named them) → `held` with
+    checkpoint PASS 3/3 and validation.sh HOLD on full discovery
+    (board 70's self-containment guard catching two schema
+    citations, §6 entry 114) → `retry` `scope-drift-refused` once
+    → the retry tarball's apply `applied`. `stamp_matched: true`
+    on both graded attempts — no amendment. The applied attempt
+    carries `clarification.rounds: 0` against a real exchange
+    round: the operator carried the round by copy-paste, `bale
+    relay` never ran (§6 entry 115). Five paths admitted beyond
+    the forecast, the un-asked `bin/bale_staging.py` string drift
+    among them; notes.md ratified in full at the sitting's open,
+    approvingly (the §3 close block carries the list). Ruling
+    supersession, VERBATIM from the worker's notes, recorded as a
+    ruling repair (§5, this date): "this feature supersedes the
+    'deliberately no config key' clause of the ratified override
+    contract as it applied to the sandbox escape (ADR-0016
+    position 2). The clause still holds for every other
+    per-invocation flag". The class-decorator inheritance trap the
+    fixture extraction caught is §6 entry 113.]
 
 76. **response-manifest echo schema** — opened 2026-09-10 (micro:
     one schema line plus one sentence; from row 71's Proposals):
@@ -2981,6 +3140,15 @@ and §8, so done items keep their numbers as one-line pointers.
     reading, ratified at row 71: workers drop `base_files` to
     validate — the echo is verbatim-minus-the-stamp — until this
     lands.
+    [2026-09-14: DONE — `2026-09-14-doc-lane-74-76-002` (with row
+    74). Desk ruling: the echo schema gains `base_files`
+    (verbatim-echo doctrine stands; the doc-side patch would have
+    moved the lag). Not required; the lint's schema embed
+    refreshed byte-identical; TARBALL.md §5.2.2 gains one clause.
+    The session's own echo omitted the key — the one-apply-behind
+    bootstrap case, named in its notes (§6 entry 121); from the
+    next response on, echoes carry it, and the interim reading
+    above is retired. Row 80 pins the key parity.]
 
 77. **vocabulary rename — CANDIDATE** — opened 2026-09-10 (a real
     session, not a tweak: constant rename, guard patterns, doc
@@ -2989,6 +3157,160 @@ and §8, so done items keep their numbers as one-line pointers.
     carry/ship terms; the collision with security vocabulary
     primes cautious workers in every foreign project (live
     specimen at row 70; §6 entry 108).
+
+78. **admission prompts, composed remedies, hook default — DONE**
+    2026-09-14, opened and landed in-sitting
+    (`2026-09-14-board-78-admission-prompts-001`, code class,
+    opened 2026-09-14T20:05Z, applied 2026-09-14T20:38Z at 0.4.27 —
+    telemetry: the request stamp 0.4.26 with `bin/VERSION` in the
+    change set, and this landing's own request stamps 0.4.27).
+    Born from operator friction (VERBATIM): "Every time I get a
+    scope drift warning, I end up copying it and pasting to the
+    claude session even when I expect it, because it's just faster
+    than typing every --allow-out-of-scope file myself." Landed:
+    composed remedy lines on the scope-drift and
+    sandbox-unavailable refusals (real tarball filename, one flag
+    per path, every typed admission flag carried, single physical
+    line, zero placeholders); per-path y/N at both refusals in the
+    same invocation, default decline,
+    non-TTY/`--json`/`--dry-run`/`--no-interact` decline without
+    prompting; `overridden_path_sources` (map, `flag|prompt`) and
+    `sandbox_off_source` gaining `prompt`; the sandbox self-probe
+    moved from post-staging to the seam after every manifest-only
+    gate (ordering pinned: drift refuses before the sandbox prompt
+    — §6 entry 122); hook confirmation default by layer then by
+    bytes — global-layer `[Y/n]`, project and `configured` hooks
+    `[y/N]` until one interactive accept of those exact bytes,
+    remembered in `<install>/user/hook-acceptances.json` (sha256 →
+    script, hook, layer, accepted_at; malformed → warn and decline;
+    §7). Ratified as shipped at the desk: unconditional
+    single-quoting, normalized path form on the composed line,
+    prompt-admitted drift riding the sandbox remedy, all-or-nothing
+    at the prompt with the `admission prompt: declined` row, no new
+    telemetry outcome. `--accept-checkpoint-change` stays a typed
+    flag by desk ruling. Checkpoint PASS on first apply,
+    `stamp_matched: true`; `clarification.rounds: 0` against a
+    pre-flight asked in chat (§6 entry 115). One-apply-behind: the
+    apply that landed this tarball ran the old code; everything
+    above is live from the next apply. Verification note (the
+    operator's "the global post apply script to have the same
+    conditional switch to Y/n as the post pack script" ask, no
+    row): covered by the layer default — any global-layer hook is
+    `[Y/n]`; the project-layer `post_apply_pass` asked once at the
+    s34 apply and is remembered. If a remembered hook still asks
+    `[y/N]` at this landing's apply, open a defect row. Proposals
+    dispositioned onto rows 80, 81, and 83. Notes.md ratified
+    in-sitting.
+
+79. **bundle-delivery doctrine — DONE** 2026-09-14, opened and
+    landed in-sitting (`2026-09-14-bundle-delivery-doctrine-003`,
+    contract-doc class, bumpless). Born from the operator's report
+    (VERBATIM): "I've never had a desk session emit bundles except
+    for this project regardless of config." Desk trace:
+    `CLAUDE.md` named neither "bundle" nor `bale open`; the only
+    planner-facing instruction was one `PLANNER.md` §4 sentence
+    gated on a checkpoint-pinning project and on reading §4; the
+    practice lived in this document's §7. Ruling (§5, this date):
+    the bundle is the delivery form of every planner-authored pack
+    in every project; checkpoint member present when the project
+    pins a `[validation]` base, explicit null otherwise; the bare
+    pack line with `--readme-file` is the fallback only when the
+    crafter is unreachable. Landed in `PLANNER.md` §2 (verbatim)
+    and §4 (back-pointer), `CLAUDE.md` §3, §4, §11.2 (§11.2's
+    sentence gated on checkpoint-configured, ratified as consistent
+    with §20). Rider DONE: `2026-09-14-tarball-s34-bundle-clauses-004`
+    landed the DOCS.md §9 sanctioned-pair twin in `TARBALL.md` §3.4
+    as a new sentence after the pinned one (the pin includes the
+    period, §6 entry 120) plus the optional-checkpoint-member
+    parenthetical. A rephrase rider for the §4 splice is queued to
+    the next `PLANNER.md` touch. Same gap class as row 88 (§6
+    entry 118). Both sessions' notes.md ratified in-sitting.
+
+80. **tests-only pin micro** — queued 2026-09-14 (tests/; after 78
+    closed — it has): the echo/request provenance key-parity test
+    (`request keys ⊆ echo keys` across the two schemas); the
+    durable pin on `PLANNER.md` §2's ruling bullet and
+    `CLAUDE.md`'s `bale open` mention; the new sanctioned-pair
+    extract (CLAUDE §11.2 "delivers that command bundled…" ↔ the
+    new §3.4 sentence); `_minimal_record`/`_load_module` moved
+    into `tests/harness.py`; `test_apply_operations.py`
+    namespace-gated or given the config-off fixture. Sources:
+    74-76's, 79's, s34's, and 78's Proposals. Sequenced beside row
+    73 session B if forecasts allow (§3 close block).
+
+81. **composed remedies for the base-drift and required-check
+    refusals** — queued 2026-09-14 (small; bin/):
+    `compose_admission_command` already renders both flags;
+    `format_base_drift_refusal` and `format_required_check_refusal`
+    still close with templates. No prompts (desk ruling; the §3
+    watch on those two prompts names its re-trigger). From 78's
+    Proposals.
+
+82. **crafter seeds the provenance echo** — queued 2026-09-14
+    (tools/): from the request manifest (`--request`),
+    `model_identity` empty — mechanizing "echoed verbatim".
+    Unblocked now that the echo schema has applied (row 76). From
+    74-76's Proposals.
+
+83. **`bale config` view of the hook acceptance store** — queued
+    2026-09-14 (small; bin/): list, forget-one. Today "forget" is
+    hand-editing the JSON (§7). From 78's Proposals.
+
+84. **pack warns when an included test imports a repo test module
+    outside the include set** — queued 2026-09-14 (bin/): promoted
+    from evidence 112's candidate by two live specimens (73A, and
+    this desk's own violation — §6 entry 116).
+
+85. **exchange-carried-outside-relay self-report** — queued
+    2026-09-14 (schema + docs + lint): a worker-side field in the
+    response manifest recording rounds carried by paste, so
+    telemetry stops reading a real round as zero (VERBATIM,
+    operator: "There should be a way to note that when the worker
+    packs the final tarball"). Three specimens this sitting (§6
+    entry 115). The mechanical half of the §3 exchange-adoption
+    watch.
+
+86. **stats drill-down row for handoff-origin sessions** — queued
+    2026-09-14 (small; bin/bale_stats): `command == "handoff"` at
+    persist. From 73A's Proposals; the corpus in this sitting's
+    context had zero such sessions.
+
+87. **response tarball naming standardization + row 51 resolver
+    check** — queued 2026-09-14 (tools/ + bin/ + docs). Operator,
+    VERBATIM: "I'd like to standardize the response tarball naming
+    convention. Sometimes I just get \"response-004.tar.gz\" and
+    sometimes I get the convention
+    \"response-2026-09-14-tarball-s34-bundle-clauses-004.tar.gz\".
+    I'd prefer the former for transparency purposes, but I'd like
+    to move up the board item that makes a bare \"bale apply\"
+    search through the search paths and see the most recent tarball
+    to apply and a y/N wizard option can confirm it." Corrected by
+    the operator at the desk, VERBATIM: "you're right, I meant
+    \"latter\" not former." So the standard is the sid-bearing form,
+    `response-<sid>.tar.gz`. Desk notes: row 51 is DONE and already
+    does the search-and-y/N; the naming variance is what defeats
+    its matching; `TARBALL.md` §10.1 step 11 says
+    `response-NNN.tar.gz` and is the first thing the row changes;
+    then the crafter's tar step and 51's resolver align on the
+    sid-bearing form.
+
+88. **disjoint packing as standing practice in the global docs** —
+    queued 2026-09-14 (contract-doc: PLANNER.md + CLAUDE.md).
+    Operator, VERBATIM: "I want to double check and make sure that
+    disjoint packing is clearly outlined as an option in the global
+    docs. I've had some sessions really lean into disjoint packing
+    and some ignore it entirely so I'm worried the docs are
+    inconsistent like with the \"bale open\" issue." Desk trace:
+    `CLAUDE.md` one clause (§11.2), `PLANNER.md` core one bullet
+    conditioned on splits, `DOCS.md` none; `TARBALL.md` §3.4's
+    scope-planning paragraph is the fullest and is read only at
+    pack authoring; `PLANNER.md` §13 is past the core. The practice
+    — a sitting runs forecast-disjoint sessions beside each other
+    by default and serializes only on a real dependency — is this
+    document's alone. Fix: `PLANNER.md` §6 gains it as sitting
+    practice, §2's bullet drops its conditional, `CLAUDE.md` §4's
+    "deciding what's next" row points at it. Same gap class as row
+    79 (§6 entry 118).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -3594,6 +3916,25 @@ the text of record, verbatim, disposing the §3 ruling-queue item):
   emphasis shift, if any wording follows, is board 37's session's
   cargo. Queue disposition annotated in §3; the reshape bracketed
   on row 37.
+
+New, ratified 2026-09-14 (the continue-plan-001 sitting,
+2026-09-10→14; each a ruling of record with one home):
+
+- **The bundle is the delivery form of every planner-authored pack, in every project; the checkpoint member is present when the project pins a `[validation]` base and an explicit null otherwise; the bare pack line with `--readme-file` is the fallback only when the crafter is unreachable.**
+  Row 79's ruling, landed verbatim in `PLANNER.md` §2; this
+  document's §7 working-style clause follows it.
+- **The response-manifest provenance echo admits every key the request block can carry; a request-side stamp lands with its echo.**
+  Row 76; row 80 pins the key parity.
+- **Admission at a refusal is per path, never blanket; every non-TTY path declines without prompting; the refusal's remedy line is fully composed.**
+  Row 78.
+- **Hook confirmation trusts by layer, then by bytes.**
+  Row 78; the store is a §7 fact.
+- **ADR-0016's "deliberately no config key" clause is superseded for the sandbox escape only; a prompt is a per-invocation admission and needs no further supersession.**
+  Row 75's ruling repair (the worker's VERBATIM text is on its
+  row); the clause still holds for every other per-invocation
+  flag.
+- **Row 73: modernize, not retire.**
+  The desk ruling of 2026-09-14; order and riders on row 73.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -4698,6 +5039,74 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     when an included test imports a repo test module outside the
     include set.
 
+113. **`@skipUnless` class-decorator inheritance.** A class-level
+    `@skipUnless` is inherited by subclasses and silently skips a
+    subclass suite everywhere — row 75's first config-off class
+    vanished this way. Caught at the fixture extraction: the
+    shared fixture now carries no tests and no class-level
+    decorators, and 73A's validation asserts the same shape on its
+    own fixture module.
+
+114. **Cross-session guard catch, nine days late.** Board 70's
+    self-containment guard caught board 75's schema citations (a
+    `$comment` citing `BALE.md §8.5`; "board 75" in two
+    descriptions) at 75's first apply — a suite the request did
+    not ship, HOLDing a session that could not have run it. Fixed
+    by version-anchoring only; `includes_missing` named the suite,
+    and the third include-authoring rule (§7) is the standing
+    answer.
+
+115. **Exchange adoption gap, specimens two and three.** Row 75's
+    round carried by paste (`clarification.rounds: 0` against a
+    real round); row 78's pre-flight asked in chat from a worker
+    whose own brief named `--emit-block`. Row 74 landed the doc
+    fix; row 85 is the mechanical one; the §3 watch names the
+    fourth specimen as its re-trigger.
+
+116. **Desk include-authoring: adopted and violated in one
+    sitting.** "Chase test-file imports" adopted at this sitting's
+    open and violated by the desk within the hour (73A's
+    `includes_missing: tests/test_per_sid_checkpoint.py`); "chase
+    what pins a doc" missed twice and survived by luck (neither
+    doc session was shipped `test_sanctioned_pairs.py`; the desk
+    probed the applied tree afterwards, green). Four rules now
+    (§7).
+
+117. **One stale sentence, two failure classes.** Row 73A: the two
+    unpredicted failure classes both trace to one sentence in
+    `cmd_handoff` ("the read set and the forecast coincide by
+    construction") — true of ADR-0007, false since ADR-0015; and
+    the forecast swap corrupts the ledger silently — the finding
+    the desk weighted above the worker's own ranking.
+
+118. **The reachable-docs gap class** (rows 79, 88). A desk
+    practice that lives only in the project doc never reaches
+    another project; the operator's "never anywhere else" report
+    was the docs working as written. Test: grep the five injected
+    docs for the practice's verb before assuming it travels.
+
+119. **Blind-checkpoint rehearsal catching imagined surfaces.**
+    Twice in one sitting the desk's oracle asserted a surface that
+    did not exist (a global-layer path keyed off the wrong root; a
+    stub anchored on unwrapped text) — the `PLANNER.md` §4
+    rehearsal rule paying for itself before either oracle shipped.
+
+120. **A sanctioned-pair pin protecting an in-flight edit.** The
+    TARBALL.md §3.4 extract includes its terminal period, so the
+    proposed em-dash extension would have broken the pin under a
+    sibling's `tests/` forecast; the brief routed the clause to a
+    new sentence.
+
+121. **One-apply-behind, schema form.** The session that admits a
+    key in the response schema must itself omit the key (the
+    installed schema validates the response). Named by 74-76's
+    worker; rows 71, 75, and 73A dropped the key for the same
+    reason without saying so.
+
+122. **Cheap gates before prompts.** Row 78's ordering pin (drift
+    refuses before the sandbox prompt) — board 68's principle
+    applied to a prompt.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -4760,11 +5169,12 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.25 at
-  `2026-09-01-board-71-lifecycle-resolution-008` (0.4.24 rode
-  `2026-09-01-board-42-telemetry-fields-003`; board 70 landed
-  between them with no bump, ratified as a reading of the doc-only
-  exemption); the
+  still governs. bin/bale VERSION 0.4.27 at
+  `2026-09-14-board-78-admission-prompts-001` (0.4.26 rode
+  `2026-09-10-board-75-sandbox-config-off-002`; 0.4.25 rode
+  `2026-09-01-board-71-lifecycle-resolution-008`; the four
+  doc/contract-doc sessions of the 2026-09-10→14 sitting landed
+  bumpless per the doc-only reading); the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
@@ -4783,12 +5193,19 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   post-merge (rationale: a v2-era relayed-notes loose end; the
   narrative lives in v3, in git). Worker packs are now authored
   with explicit `--write` forecasts; includes are weighed as
-  context, not locks (ADR-0015).
+  context, not locks (ADR-0015). Spawn materials are crafter
+  bundles (`--bundle`) opened with `bale open`, the brief riding as
+  a bundle member — `--readme-file` is the fallback only when the
+  crafter is unreachable (§5, 2026-09-14; row 79); the
+  2026-09-10→14 sitting's five spawns all traveled so.
   Desk emission rules, standing (recorded at the 2026-09-01/02
   sitting's close): every desk-emitted command is fully composed —
   sid included, real filenames quoted, zero placeholders, a single
   physical line (board 47 renders the tool-side successors to the
   same rule; row 74 carries the single-line rule into the docs).
+  Extended 2026-09-14: the tool now renders composed remedies at
+  the scope-drift and sandbox refusals (row 78); the desk composes
+  only what the tool does not yet.
   Session references in this doc use the full sid, or NNN
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
@@ -4805,6 +5222,16 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
 - One-apply-behind (meta-sessions §2): the apply that lands a change
   to apply-path code runs the OLD code one final time. Recurred four
   times in the v2 sitting; workers now flag it unprompted.
+- Include-authoring rules, standing, now four (recorded at the
+  2026-09-10→14 sitting's close; §6 entries 112 and 116): chase
+  test-file imports; chase REQUIRED-key write-sites; a forecast
+  touching `schemas/` ships the self-containment guard; a forecast
+  touching a global doc ships the four doc-pin suites
+  (`test_sanctioned_pairs`, `test_doc_crossrefs`,
+  `test_global_doc_selfcontainment`, `test_schema_embeds`) to run.
+- Hook acceptance store: `<install>/user/hook-acceptances.json`
+  (row 78; keyed by sha256 → script, hook, layer, accepted_at),
+  never committed; malformed → warn and decline.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
