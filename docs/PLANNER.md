@@ -164,10 +164,12 @@ practice of exercising the planner's half well.
   session costs a round-trip. Ratified at the desk, 2026-08-18; the
   split the default produces is a role transition, and §20 carries
   what the offering session then authors.
-- **Concurrent splits forecast narrowly.** When split sessions are
-  meant to run concurrently, each pack carries a narrow `--write`
-  forecast — the declared forecasts are the decomposition's
-  disjointness proof, and a default forecast intersects everything.
+- **Concurrent sessions forecast narrowly.** Any sessions meant to
+  run concurrently — split-born or desk-born alike — each carry a
+  narrow `--write` forecast: the declared forecasts are the
+  decomposition's disjointness proof, and a default forecast
+  intersects everything. The sitting-side practice this authors
+  for is §6's.
 - **Hooks never carry load-bearing protocol behavior.** They are
   for environment-local conveniences. Verification, telemetry, and
   refusal surfaces integrate into the tool or they don't exist — an
@@ -367,6 +369,22 @@ is orchestration doctrine, §14.
   compounding misses — an artifact hand-written by the wrong role
   because a refusal's wording pointed at the wrong actor. The corollary
   binds tooling: refusals name their real actor.
+- **Disjoint sessions run beside each other.** A sitting runs
+  forecast-disjoint sessions beside each other by default and
+  serializes only on a real dependency; disjointness is a property
+  of the write forecasts alone, so each session still ships every
+  read it needs — includes gate nothing, and a suite ships with the
+  modules it imports. The second clause is earned from live traffic:
+  a desk left `bin/` out of a tests-only pack to make it look
+  disjoint from a sibling, and three of its seven suites could not
+  run in the worker's context — the pack had narrowed its reads when
+  only its forecast needed narrowing. The pack-flag end of the same
+  rule is `TARBALL.md` §3.4's scope-planning paragraph (a narrow
+  `--write` along file-disjoint seams, however generous the
+  includes); §2's concurrent-sessions bullet is its authoring
+  form. The gates that enforce the disjointness, and the two rules
+  earned on them — predicted refusals are control flow, and queues
+  go stale under concurrency — are §13, past the core banner.
 - **End at milestones.** Masters end sittings at natural milestones
   rather than resolving open questions on a tired context — the
   sitting-level form of `CLAUDE.md` §11's bail-early discipline.
