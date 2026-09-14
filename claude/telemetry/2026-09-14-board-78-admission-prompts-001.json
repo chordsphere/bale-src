@@ -1,0 +1,214 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-board-78-admission-prompts-001",
+  "created_at": "2026-09-14T20:05:47+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T20:05:47+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-board-78-admission-prompts-001.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T20:38:14+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-001 (56).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "unittest: touched and new suites (BALE_TEST_SLOW=1)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "session assertions: admission prompts (board 78)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched and new suites (BALE_TEST_SLOW=1)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "session assertions: admission prompts (board 78)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "bin/bale_sandbox.py",
+        "bin/bale_validate.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_admission_prompts.py",
+        "tests/test_admission_prompts_e2e.py",
+        "tests/test_hook_acceptance.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.26",
+            "contract_docs": {
+              "CLAUDE.md": "447d546a8292ff0b58e62c8524d4c8600f9501ae0b9e9ad1446d57ab116718df",
+              "TARBALL.md": "ac7ba46073965a26b6c16a3808c4ea86c76b79eda50d169eb5d5ac11e6aa07c1",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "1b620e84dd5df1d89dca9bdd09f96ac6231b2db849db7e2987c068274da13bd9"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-board-78-admission-prompts-001.sh",
+              "sha256": "863863b5261e2200294cbe9cfbda691948b392b6556ee21ee88ab11330134c3c"
+            },
+            "checkpoint_scope_admitted": false,
+            "model_identity": "Claude Fable 5.1 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The desk's Q1 phrase 'before extraction and staging' means the staging copy; the tarball's own extraction into a temp dir must precede the manifest-only gates the probe now follows.",
+            "'Carried verbatim' for admission flags tolerates the gate's normalized path spelling (scope_path), not the raw argv characters.",
+            "'Nothing lands partially' means a partial y sequence stamps no prompt admissions on the refused attempt."
+          ],
+          "judgment_calls": [
+            "Every token on the composed line is single-quoted unconditionally, not quoted-when-needed.",
+            "Drift admitted at its prompt rides the later sandbox refusal's composed --no-sandbox line so the paste is one re-run.",
+            "The hook acceptance store records only a first interactive accept of a project/configured hook; a remembered [Y/n] Enter does not rewrite the entry; malformed store reads empty with a logged warning.",
+            "The sandbox refusal keeps riding fail() (outcome rejected); no new telemetry outcome or BALE.md row.",
+            "The drift and hook E2E fixtures commit [sandbox] enabled = false and the sandbox E2E uses an unshare shim, so all three new suites are host-independent."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "tests/fixtures/stats_corpus/ (test_stats_fixture_corpus_validates_clean cannot run without it; listed in base_files)",
+            "README.md (validate.sh's 'README.md present' check fails in the shipped copy)",
+            "tests/test_forecast_ledger.py, tests/test_required_check_gate.py, tests/test_stats_drilldown.py (named by the brief as pinning the drift gate; unrunnable here)",
+            "tests/test_hold_retry_e2e.py (the only way to observe the composed line's retry verb end to end)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-board-78-admission-prompts-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-board-78-admission-prompts-001.sh",
+          "sha256": "863863b5261e2200294cbe9cfbda691948b392b6556ee21ee88ab11330134c3c"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T20:38:14+00:00",
+  "outcome": "applied"
+}
