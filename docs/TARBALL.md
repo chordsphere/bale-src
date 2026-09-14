@@ -1446,13 +1446,17 @@ that contract, and this section does not restate it. A split's
 child sessions each need their own checkpoint, re-derived for the
 narrowed scope; the offering session authors them as
 sub-master (PLANNER.md carries the doctrine), and the operator
-delivers, never authors.
+delivers, never authors. Each child's command is delivered as one
+crafter bundle emitted beside its `bale open` line
+(`PLANNER.md` §2).
 
 **Planner bundles are oracle-bearing and never ship.** A planner
 bundle is a single planner-emitted file — reserved filename suffix
 `.bale-bundle` — packaging a session's brief, its blind checkpoint
-(§7), and its full pack invocation, so the operator saves one file
-and pastes one emitted line; the format's mechanical home is
+(§7), and its full pack invocation (the checkpoint member present
+when the project pins a `[validation]` base, an explicit null
+otherwise), so the operator saves one file and pastes one emitted
+line; the format's mechanical home is
 `schemas/bundle-manifest.schema.json` (shipped with every install),
 its emitter is the request-carried crafter
 (`tools/craft_response.py --bundle`), and `bale open` validates the
