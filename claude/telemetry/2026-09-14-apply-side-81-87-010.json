@@ -1,0 +1,380 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-14-apply-side-81-87-010",
+  "created_at": "2026-09-14T22:21:17+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-14T22:21:17+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_base_drift.py",
+        "tests/test_required_check_gate.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-14-apply-side-81-87-010.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-14T22:52:44+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-apply-side-81-87-010.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_base_drift.py",
+        "tests/test_required_check_gate.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_base_drift.py",
+        "tests/test_required_check_gate.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.28",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "90f346e492359708c4b5b9c6afcb77083b778c182136803e1e90241e0ff8cb3b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-apply-side-81-87-010.sh",
+              "sha256": "9f626adb6d7e8ee84047880ba5367e7ba37e1cd63e5d6db377e03eb173f6aed7"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "bin/VERSION": "528e6f9e867bd412b8e69662965d5a534798373abaebfc54a526624796f55e0c",
+              "bin/bale_apply.py": "7a5fc5897aa4fbb28acac3aa8daec34bc957583c1752eb354fc512aff8ef3c50",
+              "bin/bale_report.py": "b712f1de5dda30702e371cccc0841ff883c65c288d50c264254fc6f1fe6326c3",
+              "tests/test_apply_preflight.py": "2e0964c7724e8ab32fbecbfb22dc6bcb4a1a17849d221d2aaa770e5248debcc5",
+              "tests/test_base_drift.py": "a5d88ca81626b754f12c991a4c0db6970062ac6ae8bd667fafe9959bd8a963c2",
+              "tests/test_required_check_gate.py": "44d602872ba4862bf6e65f7be4f2b7e08e515738591019829a75c9d53545eeff"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief's 'every admission flag already typed carried' applies to the offered flag too: typed --accept-base-drift / --allow-missing-required-check values are kept (no-effect ones included) and the refused values appended, rather than composing from the drifted/missing set alone as the board-78 drift line does",
+            "'The two template closings must not survive' means the renderers take a required remedy with no template fallback, unlike format_scope_drift_refusal's optional-with-fallback shape",
+            "The real tree's validate.sh finds README.md present (not shipped in the request), so the install-sanity claim is pass"
+          ],
+          "judgment_calls": [
+            "Tie refusal names each tied path's session ((answers <sid>)) now that tied candidates can answer different sessions",
+            "Echo and no-candidate faces keep the single-open wording byte-for-byte and add a multi-open variant listing every open sid, rather than one wording for both",
+            "Typed base-drift paths ride the composed line normalized via scope_path (board 78's ruling for the drift line); required-check names ride verbatim",
+            "Drift admissions ride both new lines as the gate resolved them (typed or prompt-admitted), the sandbox remedy's shape, so a prompt-admitted path is never re-asked",
+            "Round-trip tests re-resolve the composed line's bare filename through apply.search_paths from the project, the shape compose_admission_command's docstring promises"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "README.md (validate.sh's 'README.md present' check fails in rehearsal for its absence, as at board 78)",
+            "tests/test_admission_prompts.py's RefusalRendererTest sibling coverage lives in an out-of-scope file; the equivalent unit pins for the two new renderers were added to the two in-scope suites instead"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md META through 11.2",
+            "TARBALL.md sections 1, 2, 5, 7, 8, 10.1",
+            "claude/responses/2026-08-25-board-51-bare-apply-007/notes.md",
+            "claude/responses/2026-09-14-board-78-admission-prompts-001/notes.md",
+            "schemas/response-manifest.schema.json (feedback block)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-apply-side-81-87-010.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-apply-side-81-87-010.sh",
+          "sha256": "9f626adb6d7e8ee84047880ba5367e7ba37e1cd63e5d6db377e03eb173f6aed7"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-14T22:55:45+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-14-apply-side-81-87-010 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_base_drift.py",
+        "tests/test_required_check_gate.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_base_drift.py",
+        "tests/test_required_check_gate.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.28",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "90f346e492359708c4b5b9c6afcb77083b778c182136803e1e90241e0ff8cb3b",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-14-apply-side-81-87-010.sh",
+              "sha256": "9f626adb6d7e8ee84047880ba5367e7ba37e1cd63e5d6db377e03eb173f6aed7"
+            },
+            "checkpoint_scope_admitted": false,
+            "base_files": {
+              "bin/VERSION": "528e6f9e867bd412b8e69662965d5a534798373abaebfc54a526624796f55e0c",
+              "bin/bale_apply.py": "7a5fc5897aa4fbb28acac3aa8daec34bc957583c1752eb354fc512aff8ef3c50",
+              "bin/bale_report.py": "b712f1de5dda30702e371cccc0841ff883c65c288d50c264254fc6f1fe6326c3",
+              "tests/test_apply_preflight.py": "2e0964c7724e8ab32fbecbfb22dc6bcb4a1a17849d221d2aaa770e5248debcc5",
+              "tests/test_base_drift.py": "a5d88ca81626b754f12c991a4c0db6970062ac6ae8bd667fafe9959bd8a963c2",
+              "tests/test_required_check_gate.py": "44d602872ba4862bf6e65f7be4f2b7e08e515738591019829a75c9d53545eeff"
+            },
+            "model_identity": "Claude (Anthropic), claude.ai chat session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The brief's 'every admission flag already typed carried' applies to the offered flag too: typed --accept-base-drift / --allow-missing-required-check values are kept (no-effect ones included) and the refused values appended, rather than composing from the drifted/missing set alone as the board-78 drift line does",
+            "'The two template closings must not survive' means the renderers take a required remedy with no template fallback, unlike format_scope_drift_refusal's optional-with-fallback shape",
+            "The real tree's validate.sh finds README.md present (not shipped in the request), so the install-sanity claim is pass"
+          ],
+          "judgment_calls": [
+            "Tie refusal names each tied path's session ((answers <sid>)) now that tied candidates can answer different sessions",
+            "Echo and no-candidate faces keep the single-open wording byte-for-byte and add a multi-open variant listing every open sid, rather than one wording for both",
+            "Typed base-drift paths ride the composed line normalized via scope_path (board 78's ruling for the drift line); required-check names ride verbatim",
+            "Drift admissions ride both new lines as the gate resolved them (typed or prompt-admitted), the sandbox remedy's shape, so a prompt-admitted path is never re-asked",
+            "Round-trip tests re-resolve the composed line's bare filename through apply.search_paths from the project, the shape compose_admission_command's docstring promises",
+            "Re-attempt (corrects the held first attempt): dropped validation.sh's bash -n on apply.sh/validation.sh, which are not in the staging tree and are already syntax-checked by bale's pre-flight"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "README.md (validate.sh's 'README.md present' check fails in rehearsal for its absence, as at board 78)",
+            "tests/test_admission_prompts.py's RefusalRendererTest sibling coverage lives in an out-of-scope file; the equivalent unit pins for the two new renderers were added to the two in-scope suites instead"
+          ],
+          "docs_read": [
+            "manifest.json",
+            "README.md",
+            "CLAUDE.md META through 11.2",
+            "TARBALL.md sections 1, 2, 5, 7, 8, 10.1",
+            "claude/responses/2026-08-25-board-51-bare-apply-007/notes.md",
+            "claude/responses/2026-09-14-board-78-admission-prompts-001/notes.md",
+            "schemas/response-manifest.schema.json (feedback block)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-14-apply-side-81-87-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-14-apply-side-81-87-010.sh",
+          "sha256": "9f626adb6d7e8ee84047880ba5367e7ba37e1cd63e5d6db377e03eb173f6aed7"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-14T22:55:45+00:00",
+  "outcome": "applied"
+}
