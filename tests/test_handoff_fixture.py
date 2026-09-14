@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Shared fixture for the `bale handoff` reproduction suites (board 73,
-session A).
+"""Shared fixture for the `bale handoff` suites (board 73: session A
+wrote the reproductions against 0.4.26; session B modernized the
+command at 0.4.28 and re-pointed the suites at the ADR-0015 contract).
 
 ``tests/test_handoff_happy.py`` pins the paths handoff walks cleanly.
 The three suites that import from here — ``test_handoff_registry_gate``,
 ``test_handoff_checkpoint_gates``, ``test_handoff_forecast`` — walk the
 paths it does not: an open sibling session, a checkpoint-configured
-project, a parent session with its own write forecast, and the modern
-pack flag surface. This module carries the fixture they share so the
-pack → bailout → apply setup lives once.
+project, a parent session with its own write forecast, and the
+forecast flag family. This module carries the fixture they share so
+the pack → bailout → apply setup lives once.
+
+Since 0.4.28 a handoff inherits the bailed-on session's recorded
+forecast exactly, and the ``["."]`` reading-plan fallback fires only
+when that record is missing or unreadable. Every parent this fixture
+packs goes through bale, so its record always exists; ``drop_parent_record``
+is the knob that removes it, so the fallback branch can be exercised
+deliberately rather than by accident.
 
 The happy test's inline fixture is deliberately left untouched (its
 three cases are a pinned baseline, and a refactor is not this
@@ -226,6 +234,16 @@ class HandoffFixture(unittest.TestCase):
     def handoff(self, tarball: Path, *extra_args: str):
         return run_bale(self.install, ["handoff", str(tarball), *extra_args],
                         cwd=self.repo, env=self.env)
+
+    def drop_parent_record(self, sid: str) -> None:
+        """Delete `sid`'s recorded forecast (``scope.json``) so a handoff
+        against its bailout takes the no-readable-record fallback:
+        the reading-plan file set, or ["."] when the plan cites
+        nothing, as an UNDECLARED forecast (v0.4.28). The shape a
+        pre-v0.3.2 parent or a cleaned-up record presents."""
+        p = self.repo / ".bale" / "sessions" / sid / "scope.json"
+        self.assertTrue(p.is_file(), msg=f"no scope.json to drop at {p}")
+        p.unlink()
 
     def apply_normal_response(self, sid: str, *, path: str, data: bytes,
                               tag: str = "resp", extra_args: tuple = ()):

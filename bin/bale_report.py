@@ -1023,17 +1023,20 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
     no session, no override.
 
     `caller` (v0.3.34) picks the narrowing-remedy sentence only —
-    "pack" (default) or "handoff" (a handoff's forecast is the reading
-    plan's resolved cite set, so neither --write nor --include is its
-    lever). Within a side, the diagnosis, the
+    "pack" (default) or "handoff" (since v0.4.28 a handoff's forecast
+    is inherited from the bailed-on session or declared by its own
+    --write, so --write is its lever and the reading plan is not).
+    Within a side, the diagnosis, the
     sanctioned-ordinary-path reminder, and the flag-successor lines
     stay byte-shared between callers by ratified constraint — only the
     one sentence swaps.
     """
     rendered_scope = ", ".join(scope) if scope else "(empty)"
     if caller == "handoff":
-        narrowing_remedy = ("re-bail with a reading plan that does not "
-                            "cite the checkpoint")
+        narrowing_remedy = ("re-run this handoff with --write paths that "
+                            "do not cover the checkpoint (a handoff "
+                            "without --write inherits the bailed-on "
+                            "session's recorded forecast)")
     elif side == "read":
         narrowing_remedy = ("drop the --include entry that names the "
                             "checkpoint (a broader include is fine — "

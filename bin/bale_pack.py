@@ -446,7 +446,8 @@ def build_pack_matcher(
 
 
 
-def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
+def gather_files_for_pack(repo: Path, includes: list[str], *,
+                          verbose: bool = False) -> list[str]:
     """Return repo-relative paths that should land in the request's context/,
     with no threshold caps engaged. Thin wrapper over walk_for_pack — kept
     as a named entry point because the filter chain (BALE.md sections 6.4
@@ -454,6 +455,13 @@ def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
     and a future caller (e.g. a `bale debug filter` introspection command)
     will want just the list, not the projection. cmd_pack itself uses
     walk_for_pack directly so it gets the projection in the same pass.
+
+    `verbose` (v0.4.28) threads straight through to walk_for_pack's
+    per-file drop trail, so a caller that wants the *reason* each
+    candidate was dropped — typo, untracked, secret pattern, unsafe
+    path — can stream it; `bale handoff --verbose` is the caller
+    (its reading-plan candidates were previously auditable only by
+    subtracting the included list from the candidate list).
 
     Honors `.baleignore` at the repo root (build_pack_matcher loads it) but
     has no surface for session-scoped excludes — those are wizard/CLI-driven
@@ -463,6 +471,7 @@ def gather_files_for_pack(repo: Path, includes: list[str]) -> list[str]:
     matcher = build_pack_matcher(repo, [])
     return walk_for_pack(
         repo, includes, caps=PackCaps(), force=True, matcher=matcher,
+        verbose=verbose,
     ).files
 
 
@@ -996,7 +1005,8 @@ def build_provenance_block(
       refusal via --allow-checkpoint-in-scope; false otherwise. Both
       request-building paths carry the flag and pass their own gate's
       admission through this parameter — pack against its resolved
-      include set (v0.3.28), handoff against its reading-plan scope
+      include set (v0.3.28), handoff against its write forecast —
+      inherited, declared, or the reading-plan fallback since v0.4.28
       (the mirroring flag, v0.3.33).
       Stamped unconditionally so bale-built blocks keep a uniform
       shape (the superseded_session precedent), and echoed into
@@ -1212,6 +1222,106 @@ def build_provenance_block(
     return block
 
 
+def run_forecast_disjointness_gate(repo: Path, pack_scope: list, *,
+                                   caller: str = "pack",
+                                   declined_supersession: Optional[str] = None,
+                                   ) -> Optional[tuple]:
+    """The pack-time forecast-disjointness gate (BALE.md §7.1 step 5;
+    ADR-0015 re-basing ADR-0007's pack-time gate), read from the
+    ADR-0006 session registry.
+
+    A request-building command is admitted alongside open sessions
+    exactly when its resolved write forecast is disjoint from every
+    open session's recorded forecast; read includes participate in
+    nothing. Refuses (via fail(), pre-sid on both callers, so nothing
+    is consumed) on any intersection, naming every colliding session
+    and the pairs that collide. Returns the `(forecast, open_sids)`
+    journal tuple when admitted alongside open sessions and None when
+    nothing was open — the caller journals the passed line once its
+    session log is open, since an informational line logged here would
+    reach stdout but never the session journal.
+
+    Lifted to module level at v0.4.28 (board 73, session B) so `bale
+    handoff` runs the identical implementation instead of the
+    pre-ADR-0007 refuse-while-anything-is-open guard it carried until
+    then — under the modern orchestration shape (a read-only master
+    always open) that guard made handoff mechanically unreachable.
+    `caller` names the command in the refusal ("pack" or "handoff")
+    and swaps the two caller-specific remedy fragments: the
+    `--supersedes` remedy is pack's alone (handoff never supersedes),
+    and the "without --write" note names each command's own default
+    forecast (pack: the resolved include set; handoff: the bailed-on
+    session's recorded forecast). The pack-side text is byte-identical
+    to the pre-lift closure. `declined_supersession` is pack's
+    declined-prompt note, appended when set.
+    """
+    from __main__ import (  # lazy — see module docstring
+        fail, open_sessions, read_session_scope, scope_intersection,
+    )
+
+    open_sids = open_sessions(repo)
+    if not open_sids:
+        return None
+    conflicts: list[tuple[str, list[tuple[str, str]]]] = []
+    for open_sid in open_sids:
+        pairs = scope_intersection(
+            pack_scope, read_session_scope(repo, open_sid))
+        if pairs:
+            conflicts.append((open_sid, pairs))
+    if conflicts:
+        detail = "; ".join(
+            f"{osid} ({', '.join(sorted({f'{a} ~ {b}' for a, b in pairs}))})"
+            for osid, pairs in conflicts
+        )
+        declined_note = ""
+        if declined_supersession is not None:
+            declined_note = (
+                f" The supersession of {declined_supersession} was "
+                f"declined at the prompt, so it stays open; re-run "
+                f"and accept the prompt to close it as "
+                f"superseded-by-split, or `bale unlock "
+                f"{declined_supersession}` to close it by hand."
+            )
+        if caller == "handoff":
+            supersedes_remedy = ""
+            default_note = (
+                f"Note: a handoff without --write inherits the bailed-on "
+                f"session's recorded forecast (or, with no record, "
+                f"forecasts its reading-plan file set — the whole tree "
+                f"when the plan cites none) and conflicts with every "
+                f"open session that forecast intersects; "
+            )
+        else:
+            supersedes_remedy = (
+                f", or re-run with `--supersedes "
+                f"<sid>` if this pack splits and supersedes an open "
+                f"session (BALE.md §7.2)"
+            )
+            default_note = (
+                f"Note: a pack without --write "
+                f"forecasts its resolved include set — the whole tree "
+                f"when --include is also absent — and conflicts with "
+                f"every open session; "
+            )
+        fail(
+            f"{caller} write forecast intersects {len(conflicts)} open "
+            f"session(s): {detail}. Concurrent sessions require "
+            f"disjoint write forecasts (ADR-0015). Narrow this "
+            f"{caller}'s forecast with --write paths disjoint from the "
+            f"open forecast(s), apply "
+            f"the open session's response first, run `bale unlock` "
+            f"if it was abandoned"
+            f"{supersedes_remedy}. "
+            f"{default_note}"
+            f"a read-only {caller} (--read-only, "
+            f"empty forecast) conflicts with none. An open session "
+            f"packed before the separation reads its include set "
+            f"as its forecast (conservative) until it closes."
+            + declined_note
+        )
+    return (pack_scope, list(open_sids))
+
+
 def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
                                    *, allow: bool,
                                    caller: str = "pack",
@@ -1269,9 +1379,9 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
       an entry equal to the checkpoint path, equal to the static
       prefix, or strictly under it — an explicit ask to ship the
       oracle. Checked against `read_includes` (pack passes its
-      resolved include set; handoff passes nothing, because its
-      reading-plan forecast IS its read set and the forecast half
-      above already covered it). Under `allow`, admission keys on
+      resolved include set; handoff passes its reading-plan file set
+      since v0.4.28, now that its forecast is inherited rather than
+      derived from the plan). Under `allow`, admission keys on
       containment — would the bytes actually ship with auto-exclusion
       disabled? — so a broad-include maintenance pack stamps its
       admission exactly as before. The one shape that keeps the old
@@ -1282,8 +1392,9 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
 
     `forecast_declared` (v0.4.9) scopes the forecast half to a
     forecast someone actually declared: pack passes True only when
-    `--write` was typed (or wizard-collected); handoff's reading-plan
-    forecast is a declaration and keeps the default True. When False
+    `--write` was typed (or wizard-collected); handoff passes True for
+    an inherited or --write/--read-only forecast and False for its
+    no-parent-record reading-plan fallback (v0.4.28). When False
     — the include-set compatibility default — the forecast half is
     skipped, because that defaulted forecast IS the include set and
     the read-side explicit-naming rule above already governs it;
@@ -1306,7 +1417,7 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
     cmd_pack's gate paths, so a blindness refusal precedes any
     forecast-collision conversation. cmd_handoff (v0.3.33; BALE.md §11
     row 30) is the second caller: same gate, run pre-sid against the
-    handoff's reading-plan-derived forecast, with the mirroring
+    handoff's write forecast (inherited since v0.4.28), with the mirroring
     --allow-checkpoint-in-scope flag feeding `allow` — one
     implementation, so the two request-building paths cannot drift on
     what "in forecast" means. `caller` (v0.3.34) names which command
@@ -1448,6 +1559,7 @@ def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
 
 def checkpoint_resolved_preflight(repo: Path, sid: str,
                                   *, forecast: Optional[list] = None,
+                                  caller: str = "pack",
                                   ) -> None:
     """The per-sid resolved-existence gate (v0.4.8, board 10 S7).
 
@@ -1479,10 +1591,17 @@ def checkpoint_resolved_preflight(repo: Path, sid: str,
     The waiver is loud (logged here, and stamped as
     `provenance.checkpoint_waived` by build_provenance_block, so the
     ledger can distinguish waived from unconfigured). None — the
-    default, kept for callers whose forecast is always a declaration
-    (handoff's reading-plan forecast is never empty by construction:
-    a plan citing no files resolves to the whole tree) — means "no
-    waiver": the gate probes exactly as at v0.4.8.
+    default — means "no waiver": the gate probes exactly as at v0.4.8.
+    Both request-building paths pass their forecast since v0.4.28:
+    a handoff that inherits a read-only parent's recorded `[]` waives
+    exactly as a read-only pack does.
+
+    `caller` (v0.4.28, board 73) names which command is refusing —
+    "pack" (default) or "handoff" — and swaps only the verb in the
+    remedy sentence, so the refusal names a re-run of the command the
+    operator actually typed (the pre-v0.4.28 text told a handoff
+    operator to "re-run this pack"). Both commands carry
+    --checkpoint-file, so the named remedy is accepted on both.
     """
     from __main__ import fail, log  # lazy — see module docstring
     import bale_config  # lazy — see module docstring
@@ -1515,11 +1634,11 @@ def checkpoint_resolved_preflight(repo: Path, sid: str,
              f"{resolved!r} for this session, but HEAD has no committed "
              f"file at that path. Checkpoints are deliberate — a "
              f"placeholder resolving to nothing would be a hole in the "
-             f"oracle. Remedies: re-run this pack with --checkpoint-file "
+             f"oracle. Remedies: re-run this {caller} with --checkpoint-file "
              f"<file> pointing at the planner's checkpoint (bale commits "
              f"it at {resolved!r} and packs in the same run), or commit "
              f"the planner-authored checkpoint at {resolved!r} by hand "
-             f"and re-run the same pack. Either way the session counter "
+             f"and re-run the same {caller}. Either way the session counter "
              f"was not consumed, so the same session id — and the same "
              f"resolved path — will be allocated.")
     log(f"per-session checkpoint resolved: {base} -> {resolved} "
@@ -1885,7 +2004,8 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     via persist_session_scope so the disjointness gates can read it.
     Both request-building call sites pass one since v0.3.2 — pack its
     resolved --write set (defaulting to the resolved include set when
-    the flag is absent), handoff its resolved reading-plan file set.
+    the flag is absent), handoff the forecast it inherited from the
+    bailed-on session (or its --write / fallback value, v0.4.28).
     The reinterpretation is the caller's (what is HANDED to this
     function changed, not the record's shape or the helpers): same
     file, same JSON form, and an open session recorded pre-separation
@@ -3659,52 +3779,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
     def _run_scope_gate(pack_scope: list) -> Optional[tuple]:
         """Refuse on intersection with any open session's recorded
         forecast; return the (forecast, open_sids) journal tuple when
-        admitted alongside open sessions, None when nothing was open."""
-        open_sids = open_sessions(repo)
-        if not open_sids:
-            return None
-        conflicts: list[tuple[str, list[tuple[str, str]]]] = []
-        for open_sid in open_sids:
-            pairs = scope_intersection(
-                pack_scope, read_session_scope(repo, open_sid))
-            if pairs:
-                conflicts.append((open_sid, pairs))
-        if conflicts:
-            detail = "; ".join(
-                f"{osid} ({', '.join(sorted({f'{a} ~ {b}' for a, b in pairs}))})"
-                for osid, pairs in conflicts
-            )
-            declined_note = ""
-            if declined_supersession is not None:
-                declined_note = (
-                    f" The supersession of {declined_supersession} was "
-                    f"declined at the prompt, so it stays open; re-run "
-                    f"and accept the prompt to close it as "
-                    f"superseded-by-split, or `bale unlock "
-                    f"{declined_supersession}` to close it by hand."
-                )
-            fail(
-                f"pack write forecast intersects {len(conflicts)} open "
-                f"session(s): {detail}. Concurrent sessions require "
-                f"disjoint write forecasts (ADR-0015). Narrow this "
-                f"pack's forecast with --write paths disjoint from the "
-                f"open forecast(s), apply "
-                f"the open session's response first, run `bale unlock` "
-                f"if it was abandoned, or re-run with `--supersedes "
-                f"<sid>` if this pack splits and supersedes an open "
-                f"session (BALE.md §7.2). Note: a pack without --write "
-                f"forecasts its resolved include set — the whole tree "
-                f"when --include is also absent — and conflicts with "
-                f"every open session; a read-only pack (--read-only, "
-                f"empty forecast) conflicts with none. An open session "
-                f"packed before the separation reads its include set "
-                f"as its forecast (conservative) until it closes."
-                + declined_note
-            )
-        # Journaled below, once the session log is open (sid allocation
-        # happens further down; an informational line logged here would
-        # reach stdout but never the session journal).
-        return (pack_scope, list(open_sids))
+        admitted alongside open sessions, None when nothing was open.
+        The gate itself is run_forecast_disjointness_gate (module
+        level since v0.4.28, so `bale handoff` runs the identical
+        implementation); this closure only binds the pack-side
+        declined-supersession note."""
+        return run_forecast_disjointness_gate(
+            repo, pack_scope, caller="pack",
+            declined_supersession=declined_supersession)
 
     # Wizard engagement is decided before the gate runs (v0.3.15): the
     # wizard's session-shape question can turn the pack read-only, and

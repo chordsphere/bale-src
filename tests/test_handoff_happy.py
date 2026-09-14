@@ -17,13 +17,15 @@ request — was unpinned. This file covers it:
   out_of_scope reset to empty, ``expects_probe`` at its
   claude-decides default — all pinned against what ``cmd_handoff``
   ships today.
-- Reading-plan-to-scope resolution as shipped: a plan citing files
-  pre-packs them into ``context/`` and records them as the session's
-  write forecast; a plan-less handoff resolves to whole-tree scope
-  (``["."]``). The whole-tree fallback is pinned AS-IS — there is a
-  standing watch on the refusal friction it creates in
-  checkpoint-configured projects, and this suite deliberately does
-  not remedy it.
+- Reading-plan and forecast, two values (ADR-0015; re-based on this
+  path at v0.4.28, board 73): a plan citing files pre-packs them into
+  ``context/`` as the READ set, and the session's write forecast is
+  inherited from the bailed-on session's record — here the parent's
+  include-set default, ``hello.txt``, so the two coincide; a plan-less
+  handoff ships ``handoff.md`` only and inherits the same forecast.
+  The whole-tree fallback that used to fire for a plan-less handoff
+  now fires only when the parent's record is unreadable; the board-73
+  suites pin it behind their fixture's ``drop_parent_record``.
 - The ``--verbose`` flag (v0.4.3, the accepted 005 fold-in): default
   off leaves the build byte-quiet — no ``verbose:`` lines anywhere on
   the default run — and with the flag the ``build_request_tarball``
@@ -261,27 +263,32 @@ class HandoffHappyPathTest(unittest.TestCase):
             shipped = tf.extractfile(f"{prefix}/context/handoff.md").read()
         self.assertIn(GOAL.encode("utf-8"), shipped)
 
-    def test_planless_handoff_resolves_whole_tree(self) -> None:
+    def test_planless_handoff_inherits_the_parent_forecast(self) -> None:
         """A reading plan citing no files degrades to handoff.md-only
-        context — and the session's forecast resolves to ["."], the
-        whole tree. Pinned AS-IS per the standing watch: current
-        behavior, not a remedy."""
+        context — and the session's forecast is the parent's recorded
+        one (hello.txt, the parent pack's include-set default), not
+        the whole tree. Rewritten at 0.4.28 from the pinned-AS-IS
+        whole-tree fallback, which now fires only without a readable
+        parent record (test_handoff_forecast.py pins that)."""
         bailed_sid, tarball = self.packed_and_bailed(reading_plan_paths=None)
+        parent_scope = self.recorded_scope(bailed_sid)
+        self.assertEqual(parent_scope, ["hello.txt"])
 
         result = self.handoff(tarball)
         self.assertEqual(
             result.returncode, 0,
             msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn(f"forecast from {bailed_sid} (hello.txt)", result.stdout)
 
         new_sid = self.sole_new_open_sid(bailed_sid)
         manifest = self.request_manifest(new_sid)
         self.assertEqual(manifest["context_included"],
                          ["context/handoff.md"],
                          msg="plan-less handoff ships handoff.md only")
-        self.assertEqual(manifest["resolved_scope"], ["."],
-                         msg="a plan citing no files resolves to "
-                             "whole-tree scope (the shipped fallback)")
-        self.assertEqual(self.recorded_scope(new_sid), ["."])
+        self.assertEqual(manifest["resolved_scope"], parent_scope,
+                         msg="a plan citing no files inherits the "
+                             "parent's forecast (ADR-0015)")
+        self.assertEqual(self.recorded_scope(new_sid), parent_scope)
         with tarfile.open(self.outbox_tarball(new_sid)) as tf:
             context_members = [
                 m.name for m in tf.getmembers()
