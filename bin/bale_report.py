@@ -845,9 +845,10 @@ def format_scope_drift_refusal(*, sid: str, scope: list, refused: list,
 def format_base_drift_refusal(*, sid: str, drifted: list,
                               overridden: list,
                               telemetry: Optional[str],
+                              remedy: str,
                               dry_run: bool = False) -> str:
     """Render the base-drift refusal (BALE.md §8.1 step 17, §11 row 36;
-    board 41).
+    board 41; composed remedy at board 81, v0.4.29).
 
     The human face of the lost-update guard: the request's pack-time
     `provenance.base_files` stamp no longer matches the base-tree bytes
@@ -873,6 +874,17 @@ def format_base_drift_refusal(*, sid: str, drifted: list,
     `base_drift` key, not this renderer. Under `dry_run` the telemetry
     row reports that no record was written (a dry-run has no outcome —
     BALE.md §8.9) and a row notes the prediction.
+
+    `remedy` (v0.4.29, board 81) is the composed re-run from
+    compose_admission_command — the real tarball filename quoted, the
+    verb the operator used, every admission flag the invocation already
+    carried, and one --accept-base-drift per drifted path, zero
+    placeholders — rendered as its own trailer line in place of the
+    pre-v0.4.29 `<tarball> ... <path>` template, the shape the
+    scope-drift renderer took at board 78. It is required: this gate
+    offers no prompt (desk ruling), so the composed line is the only
+    admission door the refusal opens, and a caller always has the
+    tarball name to compose it from.
     """
     rows: list[tuple[str, str]] = []
     for entry in drifted:
@@ -906,8 +918,8 @@ def format_base_drift_refusal(*, sid: str, drifted: list,
         "recommended when the intervening edits must survive,",
         "  - or land the response's bytes over the moved base "
         "deliberately, superseding those edits for exactly the named "
-        "paths: `bale apply <tarball> --accept-base-drift <path>` "
-        "(repeat per path; same flag on `bale retry`).",
+        "paths, by pasting this line (delete a flag to admit less):",
+        f"      {remedy}",
     ]
     return format_summary_block(
         rows,
@@ -921,9 +933,10 @@ def format_required_check_refusal(*, sid: str, required: list,
                                   declared: list, missing: list,
                                   overridden: list,
                                   telemetry: Optional[str],
+                                  remedy: str,
                                   dry_run: bool = False) -> str:
     """Render the required-check superset refusal (BALE.md §8.1 step 15,
-    §11 row 26; board 6 session B).
+    §11 row 26; board 6 session B; composed remedy at board 81, v0.4.29).
 
     The human face of the declaration-side gate, mirroring
     format_scope_drift_refusal above: the response's
@@ -944,6 +957,16 @@ def format_required_check_refusal(*, sid: str, required: list,
     `required_checks` key, not this renderer. Under `dry_run` the
     telemetry row reports that no record was written (a dry-run has no
     outcome — BALE.md §8.9) and a row notes the prediction.
+
+    `remedy` (v0.4.29, board 81) is the composed re-run from
+    compose_admission_command — the real tarball filename quoted, the
+    verb the operator used, every admission flag the invocation already
+    carried, and one --allow-missing-required-check per missing name,
+    zero placeholders — rendered as its own trailer line in place of
+    the pre-v0.4.29 `<tarball> ... <name>` template, the shape the
+    scope-drift renderer took at board 78. Required, for the same
+    reason as format_base_drift_refusal's: no prompt at this gate (desk
+    ruling), so the line is the refusal's one admission door.
     """
     rows: list[tuple[str, str]] = [
         ("missing required", ", ".join(missing)),
@@ -967,8 +990,9 @@ def format_required_check_refusal(*, sid: str, required: list,
         "  - regenerate the response with the required checks declared "
         "in validation_will_run — a declared check may still [SKIP] "
         "with a reason at runtime,",
-        "  - admit specific names deliberately: `bale apply <tarball> "
-        "--allow-missing-required-check <name>` (repeat per name),",
+        "  - admit every missing name deliberately by pasting this "
+        "line (delete a flag to admit less):",
+        f"      {remedy}",
         "  - or change the project's required set via `bale config "
         "init` (planner action).",
     ]

@@ -339,11 +339,23 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
                                search_paths: list[str]) -> Path:
     """Resolve bare `bale apply` (no tarball argument) to a tarball path.
 
-    Board 51's contract: resolve the newest response tarball matching an
-    open session across cwd plus apply.search_paths, echo its identity,
-    and take a y/N; ambiguity refuses loudly, never guesses. Every
-    refusal exits through fail() with a remedy-naming message — the bare
-    spelling is a real command path, never an argparse usage error.
+    Board 51's contract, widened at board 87 (v0.4.29): resolve the
+    newest response tarball answering *any* open session across cwd plus
+    apply.search_paths, echo its identity — the resolved session
+    included — and take a y/N; ambiguity refuses loudly, never guesses.
+    Every refusal exits through fail() with a remedy-naming message —
+    the bare spelling is a real command path, never an argparse usage
+    error.
+
+    Board 51 keyed candidacy on *the single* open session and refused
+    when more than one was open. That refusal fired on every sitting,
+    because the master's own read-only session is always open beside
+    the worker, so the bare form never worked at the desk. Board 87's
+    reading, which is the contract: a response tarball's `responds_to`
+    is one string, so one file answers one session; the only genuine
+    "more than one" is board 51's exact-mtime tie, which still refuses.
+    The multi-open refusal is retired — the set of open sessions is the
+    match surface, not a precondition.
 
     Semantics, in refusal order:
 
@@ -351,31 +363,37 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
       the echoed-identity y/N is the guard that makes bare resolution
       safe, so a mode whose whole point is skipping prompts contradicts
       the bare form. The explicit form is the non-interactive spelling.
-    - Zero open sessions refuses (nothing to match); two or more refuse
-      (which session's response is wanted is a guess — the argumented
-      form disambiguates via the manifest's own responds_to).
+    - Zero open sessions refuses (nothing to match). Any number of open
+      sessions otherwise proceeds to the scan.
     - Candidates are the *.tar.gz files directly in cwd and each
       configured search directory (non-recursive, the same surface the
       argumented form's relative-name resolution searches) whose peeked
-      responds_to equals the open sid. Non-candidates are skipped with a
-      reason — logged per file under --verbose, always summarized in
-      aggregate — never fatal (see _peek_bare_candidate).
+      responds_to names one of the open sids. Non-candidates are skipped
+      with a reason — logged per file under --verbose, always summarized
+      in aggregate — never fatal (see _peek_bare_candidate).
     - "Newest" is file modification time at nanosecond stat granularity
-      (st_mtime_ns): the download that arrived last wins, which is the
+      (st_mtime_ns) across every candidate, whichever session each
+      answers: the download that arrived last wins, which is the
       re-delivery case the feature exists for. An exact tie refuses and
-      names every tied path — the contract's never-guess rule; there is
-      deliberately no secondary tie-break.
-    - The winner's identity — path, matched sid, content sha256 of the
-      tarball bytes, mtime — is echoed *before* the y/N, so the operator
-      confirms what resolution picked before anything applies. The
-      prompt follows the decline-default precedent (--supersedes, v0.3.17):
-      on a TTY, y/N with decline as the default; piped stdin takes the
-      decline without a prompt and refuses with the explicit-form remedy,
-      so automation never applies a guessed tarball silently.
+      names every tied path with the session it answers — the contract's
+      never-guess rule; there is deliberately no secondary tie-break.
+    - A candidate answering an open session that is read-only (recorded
+      forecast `[]`) is not special-cased: it resolves, echoes, and the
+      pipeline's own gates decide — the forecast model already covers it.
+    - The winner's identity — path, the session it answers, content
+      sha256 of the tarball bytes, mtime — is echoed *before* the y/N,
+      and the y/N names that session, so the operator confirms what
+      resolution picked before anything applies. The prompt follows the
+      decline-default precedent (--supersedes, v0.3.17): on a TTY, y/N
+      with decline as the default; piped stdin takes the decline without
+      a prompt and refuses with the explicit-form remedy, so automation
+      never applies a guessed tarball silently.
 
     On confirmation, returns the resolved path; cmd_apply proceeds
     exactly as if the user had typed it — the argumented form's behavior
-    downstream is untouched.
+    downstream is untouched, including its multi-open branch, which
+    re-peeks the tarball's responds_to to pick the session log and the
+    locked sid (defense in depth: the same fact this scan matched on).
     """
     from __main__ import confirm_yn, fail, log, open_sessions
 
@@ -388,7 +406,7 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             f"and y/N confirmation are what make argument-less resolution "
             f"safe, and non-interactive mode exists to skip prompts. Name "
             f"the tarball explicitly instead: "
-            f"bale apply <response-NNN.tar.gz>."
+            f"bale apply <response-<sid>.tar.gz>."
         )
 
     open_sids = open_sessions(repo)
@@ -397,17 +415,18 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             "bare `bale apply` resolves the newest response tarball "
             "answering an open session, and no session is open. Run "
             "`bale pack` to open one, or name the tarball explicitly: "
-            "bale apply <response-NNN.tar.gz>."
+            "bale apply <response-<sid>.tar.gz>."
         )
-    if len(open_sids) > 1:
-        fail(
-            f"bare `bale apply` is ambiguous with more than one session "
-            f"open — resolution never guesses which session's response "
-            f"you meant. Open sessions: {', '.join(open_sids)}. Name the "
-            f"tarball explicitly (its manifest's responds_to selects the "
-            f"session): bale apply <response-NNN.tar.gz>."
-        )
-    sid = open_sids[0]
+    open_set = set(open_sids)
+    # The open sessions as the refusal and echo faces name them: the
+    # single-open case reads exactly as it did under board 51; the
+    # multi-open case lists every sid so the operator sees the whole
+    # match surface the scan ran against.
+    if len(open_sids) == 1:
+        open_desc = f"open session {open_sids[0]}"
+    else:
+        open_desc = (f"any open session ({len(open_sids)} open: "
+                     f"{', '.join(open_sids)})")
 
     # The scan surface: cwd first, then each configured directory, the
     # same order resolve_inbound_path searches. Directories deduped by
@@ -425,7 +444,10 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
         seen_dirs.add(key)
         directories.append(d)
 
-    candidates: list[tuple[Path, int]] = []
+    # Each candidate carries the session it answers beside its path and
+    # mtime: the tie refusal names it per path, and the winner's is the
+    # session the echo and y/N name.
+    candidates: list[tuple[Path, int, str]] = []
     skipped: list[tuple[Path, str]] = []
     seen_files: set = set()
     for d in directories:
@@ -447,12 +469,12 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             if responds_to is None:
                 skipped.append((p, reason))
                 continue
-            if responds_to != sid:
+            if responds_to not in open_set:
                 skipped.append(
-                    (p, f"responds_to={responds_to} is not the open "
+                    (p, f"responds_to={responds_to} is not an open "
                         f"session"))
                 continue
-            candidates.append((resolved, mtime_ns))
+            candidates.append((resolved, mtime_ns, responds_to))
 
     # Skips are reported, never silent: per-file under --verbose (a
     # Downloads directory full of old request tarballs would otherwise
@@ -466,8 +488,8 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
 
     if not candidates:
         lines = [
-            f"bare `bale apply` found no response tarball answering open "
-            f"session {sid}.",
+            f"bare `bale apply` found no response tarball answering "
+            f"{open_desc}.",
             "  searched (*.tar.gz, non-recursive):",
             f"    {cwd}  (cwd)",
         ]
@@ -483,7 +505,7 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             "  Download the response tarball into one of these "
             "directories, add its directory to apply.search_paths "
             "(`bale config init`), or name the path explicitly: "
-            "bale apply <response-NNN.tar.gz>."
+            "bale apply <response-<sid>.tar.gz>."
         )
         fail("\n".join(lines))
 
@@ -493,19 +515,26 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             + ("" if args.verbose else " (--verbose lists each with its "
                                       "reason)"))
 
-    newest_ns = max(m for _, m in candidates)
-    newest = sorted(p for p, m in candidates if m == newest_ns)
+    newest_ns = max(m for _, m, _ in candidates)
+    newest = sorted((p, answers) for p, m, answers in candidates
+                    if m == newest_ns)
     if len(newest) > 1:
-        listing = "\n".join(f"    {p}" for p in newest)
+        # Tied paths may answer different sessions now that every open
+        # session is on the match surface; naming each path's session
+        # is what lets the operator pick by intent rather than by name.
+        listing = "\n".join(f"    {p}  (answers {answers})"
+                            for p, answers in newest)
         fail(
             f"bare `bale apply` is ambiguous: {len(newest)} candidates "
             f"share the newest modification time, and resolution never "
             f"guesses between them. Tied candidates:\n{listing}\n"
             f"  Name the one you meant explicitly: bale apply <path>."
         )
-    tarball_path = newest[0]
+    tarball_path, sid = newest[0]
 
-    # The identity echo, before the prompt: path, the sid it matched, a
+    # The identity echo, before the prompt: path, the session the
+    # tarball answers (its own responds_to — one of the open sessions,
+    # named so a multi-open sitting sees which one resolution picked), a
     # content identity (sha256 of the tarball bytes), and the mtime that
     # won the resolution. The operator confirms this, not a guess.
     digest = hashlib.sha256()
@@ -520,11 +549,15 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
     ).isoformat(timespec="seconds")
     log("bare apply resolved a response tarball:")
     log(f"  path:        {tarball_path}")
-    log(f"  responds_to: {sid} (the open session)")
+    if len(open_sids) == 1:
+        log(f"  responds_to: {sid} (the open session)")
+    else:
+        log(f"  responds_to: {sid} (one of {len(open_sids)} open "
+            f"sessions: {', '.join(open_sids)})")
     log(f"  sha256:      {digest.hexdigest()}")
     log(f"  modified:    {mtime_iso}")
     if len(candidates) > 1:
-        log(f"  ({len(candidates)} candidates matched the session; "
+        log(f"  ({len(candidates)} candidates answered an open session; "
             f"newest modification time won)")
 
     if not sys.stdin.isatty():
@@ -1374,6 +1407,11 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     refusal face prints the composed re-run line
     (bale_report.compose_admission_command) that carries every
     admission flag this signature received plus the one being offered.
+    The base-drift (step 17) and required-check (step 15) refusals
+    print the same composed shape since v0.4.29 (board 81) — every
+    carried flag plus theirs, one value per drifted path or missing
+    name — but offer no prompt, by desk ruling: their admission door is
+    the pasted line only.
 
     The flag's "deliberately no config key" clause was superseded at
     v0.4.26 (board 75): bale.toml's project-layer `[sandbox] enabled =
@@ -1946,6 +1984,25 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                                 required_check_overridden),
                             log_path=f".bale/logs/{locked_sid}.log",
                         ))
+                # The composed re-run this refusal prints (v0.4.29,
+                # board 81): the verb used, the real filename, every
+                # admission flag this invocation already carried —
+                # drift admissions as the gate resolved them (typed or
+                # prompted, so a prompt-admitted path rides the line
+                # rather than being re-asked), the base-drift and
+                # checkpoint/sandbox flags verbatim — with this flag's
+                # typed names kept and the refused names appended, one
+                # per name. No prompt at this gate (desk ruling): the
+                # line is the one admission door.
+                required_check_remedy = compose_admission_command(
+                    verb=invoked_by, tarball_name=tarball_path.name,
+                    allow_out_of_scope=overridden_paths,
+                    accept_base_drift=accept_base_drift or (),
+                    allow_missing_required_check=(
+                        [*allow_names, *refused_names]),
+                    accept_checkpoint_change=accept_checkpoint_change,
+                    no_sandbox=no_sandbox,
+                )
                 print(format_required_check_refusal(
                     sid=locked_sid,
                     required=required_checks,
@@ -1953,6 +2010,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     missing=refused_names,
                     overridden=required_check_overridden,
                     telemetry=telemetry_rel,
+                    remedy=required_check_remedy,
                     dry_run=dry_run,
                 ))
                 if json_mode():
@@ -2196,11 +2254,28 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             base_drift_overrides=base_drift_overridden,
                             log_path=f".bale/logs/{locked_sid}.log",
                         ))
+                # The composed re-run this refusal prints (v0.4.29,
+                # board 81) — the step-15 line's twin: drift admissions
+                # as resolved, the required-check and checkpoint/sandbox
+                # flags verbatim, this flag's typed paths (normalized,
+                # as the gate compared them) kept and the refused paths
+                # appended, one per path. No prompt at this gate (desk
+                # ruling).
+                base_drift_remedy = compose_admission_command(
+                    verb=invoked_by, tarball_name=tarball_path.name,
+                    allow_out_of_scope=overridden_paths,
+                    accept_base_drift=[*base_accept_norm, *base_refused],
+                    allow_missing_required_check=(
+                        allow_missing_required_check or ()),
+                    accept_checkpoint_change=accept_checkpoint_change,
+                    no_sandbox=no_sandbox,
+                )
                 print(format_base_drift_refusal(
                     sid=locked_sid,
                     drifted=refused_detail,
                     overridden=base_drift_overridden,
                     telemetry=telemetry_rel,
+                    remedy=base_drift_remedy,
                     dry_run=dry_run,
                 ))
                 if json_mode():
@@ -3482,7 +3557,7 @@ def cmd_apply(args: argparse.Namespace) -> int:
                 "named: inspection works without an open session, and "
                 "bare resolution is keyed on the open session, so the "
                 "two don't compose. Name the tarball explicitly: "
-                "bale apply <response-NNN.tar.gz> --show-validator."
+                "bale apply <response-<sid>.tar.gz> --show-validator."
             )
         return inspect_response_scripts(
             tarball_path,
@@ -3500,10 +3575,12 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if args.json:
         enable_json_mode()
 
-    # Bare form: resolve the newest matching response tarball against the
-    # single open session, echo its identity, take the y/N. Every refusal
-    # inside is a fail() with a remedy; on return, the resolved path flows
-    # into exactly the code the argumented form runs.
+    # Bare form: resolve the newest response tarball answering any open
+    # session (board 87), echo its identity — the resolved session
+    # included — and take the y/N. Every refusal inside is a fail() with
+    # a remedy; on return, the resolved path flows into exactly the code
+    # the argumented form runs, whose multi-open branch below re-peeks
+    # responds_to to pick the locked sid.
     if tarball_path is None:
         tarball_path = resolve_bare_apply_tarball(
             repo, cwd, cfg, args, search_paths)

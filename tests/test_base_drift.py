@@ -29,6 +29,13 @@ Pins the feature's load-bearing claims end to end:
   absent from the stamp, and never refuses.
 - **Retry-side flag parity**: `bale retry --accept-base-drift` exists
   with the same per-path, repeatable shape (pinned constraint).
+- **The composed remedy** (board 81, v0.4.29): the refusal closes with
+  the one-line re-run from `compose_admission_command` — the verb the
+  operator used, the real tarball filename quoted, every admission flag
+  already typed carried, one `--accept-base-drift` per drifted path —
+  never the `bale apply <tarball> --accept-base-drift <path>` template;
+  and the line, pasted back, is exactly what admits the drift. No
+  prompt is offered at this gate (desk ruling).
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring. Responses
@@ -50,11 +57,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 import tempfile
 import unittest
 from pathlib import Path
 
 from harness import (
+    _load_module,
     bale_env,
     build_response_dir,
     git_env,
@@ -62,6 +71,7 @@ from harness import (
     make_repo,
     make_sandbox_home,
     run_bale,
+    run_bale_pty,
     run_checked,
     slow,
     tar_response_dir,
@@ -74,6 +84,9 @@ STAMP_LOG_MARKER = "base-drift stamp covers"
 STAMPLESS_LOG_MARKER = "no base-drift provenance stamp"
 FORCE_ADMIT_PHRASE = "base drift admitted by --accept-base-drift"
 NO_EFFECT_PHRASE = "--accept-base-drift named path(s) with no matching"
+# The pre-v0.4.29 template closing; its absence is the board-81 pin.
+TEMPLATE_REMEDY = "`bale apply <tarball> --accept-base-drift <path>`"
+COMPOSED_LEAD = "by pasting this line"
 
 
 def sha256_hex(data: bytes) -> str:
@@ -165,6 +178,19 @@ class BaseDriftBase(unittest.TestCase):
                     cwd=self.repo, env=self.genv)
         return data
 
+    def composed_line(self, output: str) -> str:
+        """The single physical line carrying the composed re-run: the
+        first line in `output` that starts with `bale ` after being
+        stripped. Asserts exactly one such line exists — a remedy split
+        across lines, or printed twice, is a bug in either case."""
+        lines = [ln.strip() for ln in output.splitlines()
+                 if ln.strip().startswith("bale ")]
+        self.assertEqual(
+            len(lines), 1,
+            msg=f"expected exactly one composed line; found {lines!r} "
+                f"in:\n{output}")
+        return lines[0]
+
     def response_tarball(self, sid: str, *, path: str = "src/a.txt",
                          action: str = "modified",
                          data: bytes = None) -> Path:
@@ -253,6 +279,14 @@ class BaseDriftGateTest(BaseDriftBase):
         )
         self.assertEqual(result.returncode, 1, msg=result.stdout)
         self.assertIn(REFUSAL_MARKER, result.stdout)
+        # The remedy is the composed line, never the template (board 81).
+        self.assertNotIn(TEMPLATE_REMEDY, result.stdout)
+        self.assertNotIn("<tarball>", result.stdout)
+        self.assertNotIn("<path>", result.stdout)
+        self.assertIn(COMPOSED_LEAD, result.stdout)
+        self.assertEqual(
+            self.composed_line(result.stdout),
+            f"bale apply '{tarball.name}' --accept-base-drift 'src/a.txt'")
         # The hazard did not fire: the intervening edit survives in the
         # working tree and at the target tip.
         self.assertEqual((self.repo / "src" / "a.txt").read_bytes(), moved)
@@ -380,6 +414,12 @@ class BaseDriftOverrideTest(BaseDriftBase):
         self.assertIn("src/b.txt", result.stdout)
         self.assertIn("src/a.txt", result.stdout,
                       msg="the partial admission is reported")
+        # The composed line carries the typed admission and appends the
+        # refused path, one flag per path — paste as-is to admit both.
+        self.assertEqual(
+            self.composed_line(result.stdout),
+            f"bale apply '{tarball.name}' --accept-base-drift 'src/a.txt' "
+            f"--accept-base-drift 'src/b.txt'")
         # The refused attempt records what the partial override admitted.
         record = self.telemetry_record(sid)
         refused = [a for a in record["attempts"]
@@ -430,6 +470,188 @@ class BaseDriftOverrideTest(BaseDriftBase):
         self.assertTrue(applied, msg="no applied attempt recorded")
         self.assertEqual(applied[-1].get("base_drift_overrides"),
                          ["src/a.txt"])
+
+
+class BaseDriftComposedRemedyTest(BaseDriftBase):
+    """The board-81 closing: the refusal's remedy is the composed
+    re-run, it carries every admission flag already typed, it names the
+    verb actually used, pasting it back admits exactly the drift, and
+    no y/N is offered at the gate."""
+
+    def _sid_with_moved_base(self) -> str:
+        sid = self.assert_pack_ok(self.pack())
+        self.move_base()
+        return sid
+
+    def test_composed_line_carries_typed_flags_and_the_verb(self) -> None:
+        """A refusal reached through `bale retry` with sibling
+        admission flags typed composes `bale retry ...` carrying those
+        flags verbatim (an unused --allow-missing-required-check and a
+        --no-sandbox alike), then the drifted path; non-admission flags
+        (--verbose, --json) are not carried."""
+        sid = self._sid_with_moved_base()
+        tarball = self.response_tarball(sid)
+        result = run_bale(
+            self.install,
+            ["retry", str(tarball), "--verbose", "--no-sandbox",
+             "--allow-missing-required-check", "lint"],
+            cwd=self.repo, env=self.env,
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stdout)
+        self.assertIn(REFUSAL_MARKER, result.stdout)
+        self.assertEqual(
+            self.composed_line(result.stdout),
+            f"bale retry '{tarball.name}' --accept-base-drift 'src/a.txt' "
+            f"--allow-missing-required-check 'lint' --no-sandbox")
+        self.assertNotIn("--verbose", self.composed_line(result.stdout))
+
+    def test_typed_path_is_normalized_on_the_composed_line(self) -> None:
+        """A typed `./src/a.txt` comes back as `src/a.txt` — the gate's
+        own comparison form (board 78's ruling for the drift line),
+        so the pasted line admits the same path the operator meant."""
+        sid = self.assert_pack_ok(self.pack())
+        self.move_base("src/a.txt")
+        self.move_base("src/b.txt", b"b moved too\n")
+        rdir = build_response_dir(
+            self.tmp / "resp-norm", sid,
+            summary="base-drift fixture: normalized typed path",
+            entries=[
+                {"path": "src/a.txt", "action": "modified",
+                 "reason": "fixture change on the admitted path",
+                 "data": b"response a\n"},
+                {"path": "src/b.txt", "action": "modified",
+                 "reason": "fixture change on the refused path",
+                 "data": b"response b\n"},
+            ],
+        )
+        tarball = tar_response_dir(rdir)
+        result = run_bale(
+            self.install,
+            ["apply", str(tarball), "--accept-base-drift", "./src/a.txt"],
+            cwd=self.repo, env=self.env,
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stdout)
+        self.assertEqual(
+            self.composed_line(result.stdout),
+            f"bale apply '{tarball.name}' --accept-base-drift 'src/a.txt' "
+            f"--accept-base-drift 'src/b.txt'")
+
+    def test_dry_run_face_carries_the_same_line(self) -> None:
+        """--dry-run predicts the refusal with the same composed line —
+        minus nothing, since --dry-run is not an admission flag and a
+        real re-run is what the line is for."""
+        sid = self._sid_with_moved_base()
+        tarball = self.response_tarball(sid)
+        result = run_bale(
+            self.install, [
+                "apply", str(tarball), "--dry-run"],
+            cwd=self.repo, env=self.env,
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stdout)
+        self.assertEqual(
+            self.composed_line(result.stdout),
+            f"bale apply '{tarball.name}' --accept-base-drift 'src/a.txt'")
+        self.assertNotIn("--dry-run", result.stdout.split("bale apply")[-1])
+
+    def test_no_prompt_at_the_gate_under_a_tty(self) -> None:
+        """Desk ruling: the base-drift gate offers no y/N. Under a pty
+        with `y` queued, the refusal still lands and nothing is
+        admitted — the composed line is the only door."""
+        sid = self._sid_with_moved_base()
+        tarball = self.response_tarball(sid)
+        exit_code, output = run_bale_pty(
+            self.install, ["apply", str(tarball)],
+            cwd=self.repo, env=self.env, answers="y\ny\n")
+        self.assertEqual(exit_code, 1, msg=output)
+        self.assertIn(REFUSAL_MARKER, output)
+        self.assertNotIn("[y/N]", output)
+        self.assertNotIn("admission prompt", output)
+        self.assertIn(sid, self.open_sids())
+        record = self.telemetry_record(sid)
+        refused = [a for a in record["attempts"]
+                   if a.get("outcome") == "base-drift-refused"][-1]
+        self.assertEqual(refused.get("base_drift_overrides"), [])
+
+    @slow
+    def test_pasted_line_admits_exactly_the_drift(self) -> None:
+        """The round trip the composed line exists for: paste the
+        refusal's own line back (split by the shell's rules, run from
+        the project with the tarball's directory on apply.search_paths
+        so the bare filename re-resolves) and the apply proceeds,
+        stamping the admission."""
+        sid = self._sid_with_moved_base()
+        response_bytes = f"rewritten by {sid}\n".encode("utf-8")
+        tarball = self.response_tarball(sid, data=response_bytes)
+        # Untracked bale.toml: never blocks (ADR-0008 narrow rule).
+        (self.repo / "bale.toml").write_text(
+            "[apply]\n"
+            f"search_paths = [{json.dumps(str(tarball.parent))}]\n",
+            encoding="utf-8")
+        first = run_bale(
+            self.install, ["apply", str(tarball), "--no-interact"],
+            cwd=self.repo, env=self.env,
+        )
+        self.assertEqual(first.returncode, 1, msg=first.stdout)
+        line = self.composed_line(first.stdout)
+        argv = shlex.split(line)
+        self.assertEqual(argv[:3], ["bale", "apply", tarball.name])
+        second = run_bale(
+            self.install, [*argv[1:], "--no-interact"],
+            cwd=self.repo, env=self.env,
+        )
+        self.assertEqual(
+            second.returncode, 0,
+            msg=f"stdout:\n{second.stdout}\nstderr:\n{second.stderr}")
+        self.assertIn(FORCE_ADMIT_PHRASE, second.stdout + second.stderr)
+        self.assertEqual((self.repo / "src" / "a.txt").read_bytes(),
+                         response_bytes)
+        applied = [a for a in self.telemetry_record(sid)["attempts"]
+                   if a.get("outcome") == "applied"]
+        self.assertEqual(applied[-1].get("base_drift_overrides"),
+                         ["src/a.txt"])
+
+
+class BaseDriftRendererTest(unittest.TestCase):
+    """format_base_drift_refusal renders the composed line verbatim as
+    its own physical line and carries no placeholder; `remedy` is
+    required, since this gate has no other admission door."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.br = _load_module("bale_report")
+
+    def _render(self, **kw) -> str:
+        base = dict(
+            sid="s",
+            drifted=[{"path": "src/a.txt", "stamped_sha256": "a" * 64,
+                      "current_sha256": "b" * 64}],
+            overridden=[], telemetry="claude/telemetry/s.json")
+        base.update(kw)
+        return self.br.format_base_drift_refusal(**base)
+
+    def test_composed_line_is_its_own_physical_line(self) -> None:
+        remedy = ("bale apply 'r.tar.gz' --accept-base-drift 'src/a.txt' "
+                  "--no-sandbox")
+        out = self._render(remedy=remedy)
+        self.assertIn(remedy, out)
+        self.assertTrue(any(line.strip() == remedy
+                            for line in out.splitlines()),
+                        msg="the composed line is its own physical line")
+        self.assertNotIn("<tarball>", out)
+        self.assertNotIn("<path>", out)
+        self.assertNotIn("repeat per path", out)
+        self.assertIn(COMPOSED_LEAD, out)
+
+    def test_dry_run_face_carries_it_too(self) -> None:
+        remedy = "bale retry 'r.tar.gz' --accept-base-drift 'x'"
+        out = self._render(remedy=remedy, telemetry=None, dry_run=True)
+        self.assertIn(remedy, out)
+        self.assertIn("a real apply would refuse the same way", out)
+        self.assertNotIn("<tarball>", out)
+
+    def test_remedy_is_required(self) -> None:
+        with self.assertRaises(TypeError):
+            self._render()
 
 
 class RetryFlagParityTest(BaseDriftBase):

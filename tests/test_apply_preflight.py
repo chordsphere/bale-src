@@ -752,17 +752,24 @@ class ApplyDirtyOnTargetTest(unittest.TestCase):
 
 
 class BareApplyResolutionTest(unittest.TestCase):
-    """Bare `bale apply` (board 51): argument-less resolution.
+    """Bare `bale apply` (board 51; widened at board 87): argument-less
+    resolution.
 
     The ratified contract: apply with no argument resolves the newest
-    response tarball matching an open session across the search paths,
-    echoes its identity, and takes a y/N; ambiguity — a candidate tie, or
-    two open sessions — refuses loudly, never guesses. Refusals exit
-    through the bale refusal convention (exit 1, remedy-naming stderr),
-    never an argparse usage error. Piped stdin takes the confirmation's
-    decline default without a prompt (the --supersedes precedent), so the
-    piped runner exercises the refusal surface and the pty runner
-    exercises the resolution happy path and the interactive decline.
+    response tarball answering *any* open session across the search
+    paths, echoes its identity — the resolved session included — and
+    takes a y/N naming that session; ambiguity — a candidate mtime tie
+    — refuses loudly, never guesses. Board 51's multi-open refusal is
+    retired at board 87: a response's responds_to is one string, so one
+    file answers one session, and the open set is the match surface
+    rather than a precondition (the master's read-only session is
+    always open beside the worker at a sitting, which is exactly where
+    the old refusal fired). Refusals exit through the bale refusal
+    convention (exit 1, remedy-naming stderr), never an argparse usage
+    error. Piped stdin takes the confirmation's decline default without
+    a prompt (the --supersedes precedent), so the piped runner exercises
+    the refusal surface and the pty runner exercises the resolution
+    happy path and the interactive decline.
     """
 
     def setUp(self) -> None:
@@ -774,7 +781,7 @@ class BareApplyResolutionTest(unittest.TestCase):
         self.env = bale_env(self.home, self.tmp)
         self.genv = git_env(self.home)
         # A second committed file so a disjoint --write pair of sessions
-        # can be open at once (the two-open-sessions ambiguity case).
+        # can be open at once (the multi-open resolution cases).
         (self.repo / "other.txt").write_text("other\n", encoding="utf-8")
         run_checked(["git", "add", "other.txt"], cwd=self.repo,
                     env=self.genv)
@@ -926,16 +933,107 @@ class BareApplyResolutionTest(unittest.TestCase):
         self.assert_refused(result, "no session is open", "bale pack",
                             "name the tarball explicitly")
 
-    def test_bare_two_open_sessions(self) -> None:
-        sid_a = self.pack_session("bare-two-a",
+    # -- multi-open resolution (board 87) ---------------------------------
+
+    @slow
+    def test_bare_resolves_across_open_sessions_at_a_sitting(self) -> None:
+        """The desk's own shape: the master's read-only session and a
+        scoped worker session both open, one response answering the
+        scoped one. Bare apply resolves it, names the session in the
+        echo and the y/N, and a `y` applies — the sitting where board
+        51's multi-open refusal used to fire on every run."""
+        master = self.pack_session("bare-master", ["--read-only"])
+        worker = self.pack_session("bare-worker",
+                                   ["--write", "hello.txt"])
+        delivered = self.deliver_response(worker, "for-worker",
+                                          b"worker content\n")
+        exit_code, output = run_bale_pty(
+            self.install, ["apply"], cwd=self.repo, env=self.env,
+            answers="y\n\n")
+        self.assertEqual(exit_code, 0,
+                         msg=f"bare apply should resolve across the open "
+                             f"set and merge; output:\n{output}")
+        self.assertNotIn("more than one session open", output)
+        # The echo names the path and the resolved session, and says
+        # which open sessions were on the match surface.
+        self.assertIn(str(delivered), output)
+        self.assertIn(f"responds_to: {worker}", output)
+        self.assertIn("2 open sessions", output)
+        self.assertIn(master, output)
+        # The y/N asks about the resolved session by name.
+        self.assertIn(f"against session {worker}?", output)
+        self.assertEqual(
+            (self.repo / "hello.txt").read_text(encoding="utf-8"),
+            "worker content\n")
+        run_checked(["git", "rev-parse", "--verify",
+                     f"refs/tags/applied/{worker}"],
+                    cwd=self.repo, env=self.genv)
+        # The master session it did not answer stays open, untouched.
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / master / "open").is_file())
+
+    def test_bare_multi_open_newest_wins_whichever_session(self) -> None:
+        """Two scoped sessions open, a response for each: newest by
+        st_mtime_ns wins regardless of which session it answers, and
+        the echo names that session. Piped, so the decline default
+        refuses after the echo — the resolution itself is what this
+        pins."""
+        sid_a = self.pack_session("bare-multi-a",
                                   ["--write", "hello.txt"])
-        sid_b = self.pack_session("bare-two-b",
+        sid_b = self.pack_session("bare-multi-b",
                                   ["--write", "other.txt"])
-        self.deliver_response(sid_a, "for-a", b"for session a\n")
+        base = 1_700_000_000_000_000_000
+        self.deliver_response(sid_a, "for-a-older", b"for session a\n",
+                              mtime_ns=base)
+        newest = self.deliver_response(sid_b, "for-b-newer",
+                                       b"for session b\n",
+                                       mtime_ns=base + 10 * 10**9)
         result = self.bare_apply_piped()
-        self.assert_refused(result, "more than one session open",
-                            "never guesses", sid_a, sid_b,
-                            "responds_to")
+        self.assert_refused(result, "not a TTY", str(newest))
+        self.assertNotIn("more than one session open",
+                         result.stdout + result.stderr)
+        self.assertIn(str(newest), result.stdout)
+        self.assertIn(f"responds_to: {sid_b}", result.stdout)
+        self.assertIn("2 candidates answered an open session",
+                      result.stdout)
+        self.assert_nothing_applied(sid_a)
+        self.assertTrue(
+            (self.repo / ".bale" / "sessions" / sid_b / "open").is_file())
+
+    def test_bare_multi_open_tie_names_each_session(self) -> None:
+        """An exact mtime tie across sessions still refuses (board 51's
+        never-guess rule stands), and the tie listing names the session
+        each tied path answers so the operator can pick by intent."""
+        sid_a = self.pack_session("bare-tie-a",
+                                  ["--write", "hello.txt"])
+        sid_b = self.pack_session("bare-tie-b",
+                                  ["--write", "other.txt"])
+        base = 1_700_000_000_000_000_000
+        first = self.deliver_response(sid_a, "tie-a", b"tie a\n",
+                                      mtime_ns=base)
+        second = self.deliver_response(sid_b, "tie-b", b"tie b\n",
+                                       mtime_ns=base)
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "share the newest modification time",
+                            "never guesses", str(first), str(second),
+                            f"(answers {sid_a})", f"(answers {sid_b})")
+        self.assert_nothing_applied(sid_a)
+
+    def test_bare_multi_open_no_candidates_names_every_session(self) -> None:
+        """With several sessions open and nothing answering any of
+        them, the refusal names the whole match surface."""
+        sid_a = self.pack_session("bare-nocand-a",
+                                  ["--write", "hello.txt"])
+        sid_b = self.pack_session("bare-nocand-b",
+                                  ["--write", "other.txt"])
+        self.deliver_response("2020-01-01-stale-001", "stale-response",
+                              b"stale\n")
+        result = self.bare_apply_piped()
+        self.assert_refused(
+            result,
+            "no response tarball answering any open session",
+            "2 open", sid_a, sid_b,
+            "name the path explicitly")
         self.assert_nothing_applied(sid_a)
 
     def test_bare_no_candidates_and_request_never_a_candidate(self) -> None:
