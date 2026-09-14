@@ -8,47 +8,20 @@ namespace-less sandbox refusal) lives in
 tests/test_admission_prompts_e2e.py; the hook default and acceptance
 store are tests/test_hook_acceptance.py. This file needs no scratch
 install: bin/ is importable directly (the checkpoint-import posture
-test_telemetry_extensions.py pins).
+test_telemetry_extensions.py pins), through the ``_load_module`` /
+``_minimal_record`` helpers both suites share from tests/harness.py
+(moved there at board 80).
 """
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import shlex
-import sys
 import unittest
-from pathlib import Path
 
-from harness import REPO_ROOT
+from harness import REPO_ROOT, _load_module, _minimal_record
 
 SCHEMA_PATH = REPO_ROOT / "schemas" / "telemetry-record.schema.json"
-
-
-def _load_module(name: str):
-    """Import bin/<name>.py by path without bin/bale's __main__."""
-    bin_dir = REPO_ROOT / "bin"
-    if str(bin_dir) not in sys.path:
-        sys.path.insert(0, str(bin_dir))
-    spec = importlib.util.spec_from_file_location(name, bin_dir / f"{name}.py")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _minimal_record(**attempt_overrides) -> dict:
-    attempt = {"at": "2026-09-14T00:00:00+00:00",
-               "outcome": "applied", "command": "apply"}
-    attempt.update(attempt_overrides)
-    return {
-        "record_version": 1,
-        "session_id": "2026-09-14-fx-min-001",
-        "created_at": "2026-09-14T00:00:00+00:00",
-        "updated_at": "2026-09-14T00:00:00+00:00",
-        "outcome": "applied",
-        "attempts": [attempt],
-    }
 
 
 class ComposedCommandTest(unittest.TestCase):

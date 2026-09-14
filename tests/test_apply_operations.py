@@ -27,6 +27,16 @@ walkthrough headline), never a golden byte comparison.
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring.
 
+Host posture (board 80): every apply-shaped case commits the
+``[sandbox] enabled = false`` config-off fixture first, so the suite
+runs on hosts without user namespaces. The subject here is the
+apply.sh operation landing, not the confinement it lands under —
+the sandbox wrapper has its own suite — and a confined run on a
+namespace-less host would refuse before the operation could be
+observed, failing for a reason unrelated to what these cases test.
+The board-75 case additionally asserts the config-off run announces
+itself in the session log.
+
 Run directly::
 
     python3 tests/test_apply_operations.py
@@ -139,6 +149,17 @@ class ApplyRealOperationsTest(unittest.TestCase):
                          msg="a merged apply closes the session")
         return result
 
+    def commit_sandbox_off_config(self) -> None:
+        """Commit the config-off fixture (``[sandbox] enabled = false``,
+        the shape tests/test_hook_acceptance.py uses) so apply.sh runs
+        unconfined — the host gate every apply-shaped case here takes
+        (module docstring)."""
+        (self.repo / "bale.toml").write_text(
+            "[sandbox]\nenabled = false\n", encoding="utf-8")
+        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=self.genv)
+        run_checked(["git", "commit", "-m", "disable sandbox by config"],
+                    cwd=self.repo, env=self.genv)
+
     def git_mode(self, path: str) -> str:
         """The committed file mode on the merged tree ('' when untracked)."""
         out = subprocess.run(
@@ -153,6 +174,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
     def test_delete_lands(self) -> None:
         """A deleted entry (rm in apply.sh) is gone from both the working
         tree and the merged commit's index."""
+        self.commit_sandbox_off_config()
         rdir = build_response_dir(
             self.tmp / "delete", self.sid,
             summary="real-ops fixture: delete data/old.txt",
@@ -183,12 +205,9 @@ class ApplyRealOperationsTest(unittest.TestCase):
         runs apply.sh unconfined, the operation still lands and
         reconciles identically, and the session log carries the FORCE
         line naming the config key — never a silent unconfined run.
-        Runs on hosts without user namespaces by construction."""
-        (self.repo / "bale.toml").write_text(
-            "[sandbox]\nenabled = false\n", encoding="utf-8")
-        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=self.genv)
-        run_checked(["git", "commit", "-m", "disable sandbox by config"],
-                    cwd=self.repo, env=self.genv)
+        Since board 80 every case here takes the config-off posture;
+        this one keeps the log assertions that make it announced."""
+        self.commit_sandbox_off_config()
         rdir = build_response_dir(
             self.tmp / "delete-off", self.sid,
             summary="real-ops fixture: delete data/old.txt (config-off)",
@@ -215,6 +234,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
         """A rename decomposed per §5.1.1 — created new path under files/
         plus rm of the old path — lands as exactly that transition: old
         gone, new present with the shipped bytes."""
+        self.commit_sandbox_off_config()
         body = b"rename me\n"
         rdir = build_response_dir(
             self.tmp / "rename", self.sid,
@@ -245,6 +265,7 @@ class ApplyRealOperationsTest(unittest.TestCase):
     def test_exec_bit_restore_lands_with_assertion(self) -> None:
         """The overlay strips mode; apply.sh's chmod +x restores it, the
         §7.7 assertion passes, and the merged tree records 100755."""
+        self.commit_sandbox_off_config()
         rdir = build_response_dir(
             self.tmp / "execbit", self.sid,
             summary="real-ops fixture: ship an executable with the "
