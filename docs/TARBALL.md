@@ -83,6 +83,10 @@ if it doesn't describe this session, the section stays unread.
 - **Examples are examples.** Schemas below reference Vue/Vite/etc. to
   make shapes concrete. They are illustrative, not normative.
   Substitute the project's actual stack.
+- **Emitted commands are single physical lines.** Every command a
+  request-carried doc or tool emits — a `bale pack` line, a `bale
+  open` line, a probe's paste line, a remedy line — is one line with
+  no backslash continuations; §3.4 carries the rule and its reason.
 
 ---
 
@@ -396,7 +400,9 @@ ADR-0013):
   request's provenance block echoed verbatim plus `model_identity`,
   which is self-reported and unverifiable today — recorded for
   aggregation, read with that caveat; null when the request carried
-  no provenance).
+  no provenance — and the echo's schema admits every key the
+  request's provenance block can carry, `base_files` included, so
+  verbatim is followable without dropping a stamp).
 - **`self_reported`** — worker-authored judgment the lint cannot
   check: `assumptions` proceeded on without confirmation (the §3.3 /
   §5.9.1 recoverable-risk posture), `judgment_calls` the planner
@@ -877,7 +883,11 @@ a filled clarification manifest, which is rendered in its `from:
 worker` reading — `round` from `--round` (an integer at least 1,
 default 1, valid only with `--emit-block`), `created_at` stamped at
 emission, `session_id` and `questions[]` its own — or a filled
-worker exchange record, rendered as it stands once it validates.
+worker exchange record, rendered as it stands once it validates. A
+formal ask ships both transports: the worker delivers the
+clarification tarball **and** the `--emit-block` rendering of the
+same manifest, so the operator chooses the courier at carry time and
+the paste route stays first-class rather than a fallback.
 The record is validated before anything is rendered, and a
 `from: planner` record refuses: the crafter emits the worker's side,
 and the planner's side is emitted by `bale relay`, which has the
@@ -1492,7 +1502,12 @@ the wizard's y/N prompt > omit.
 architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
 §11.2) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
-the same line; they do not wrap.
+the same line; they do not wrap. The same rule binds every command
+the request-carried docs and tools emit — the `bale open` line the
+crafter prints for a bundle, a probe's paste line, a `bale relay`
+line, any remedy line — because backslash continuations do not
+survive a chat copy-paste: a continued line arrives with its
+continuation sequences mangled, and the pasted command breaks.
 
 **No backticks in the goal string.** The goal is a double-quoted shell
 argument, and double quotes do not protect backticks: the shell runs
@@ -1802,7 +1817,15 @@ mechanical checks won't catch them.
    are the minimum
    for building a response — pause and ask if either is missing.
 2. Plan: list every file that will change, decide deferrals up front,
-   decide what to claim for each project-level check.
+   decide what to claim for each project-level check. If the plan
+   cannot be made without an answer only the planner can give — a
+   blocking intent gap (§5.9.1) — stop here and take §10.3's path:
+   `tools/craft_response.py --kind clarification`, then
+   `--emit-block` for the paste courier, with the round carried by
+   `bale relay`; asking in chat instead leaves the exchange
+   unrecorded — the session's telemetry `clarification.rounds`
+   (`schemas/telemetry-record.schema.json`) reads zero against real
+   rounds.
 3. Build `files/` mirroring the project tree (when there are
    created/modified entries). Build the mirror by copying the shipped
    originals and editing in place with tools — never retype large
@@ -1879,10 +1902,12 @@ mechanical checks won't catch them.
 3. Ship no `files/`, a no-op `apply.sh`, and a no-op
    `validation.sh`. `notes.md` is optional, addressed to the
    planner.
-4. Deliver by either courier — the tarball, or the same manifest
+4. Deliver both couriers — the tarball, and the same manifest
    wrapped in a `BALE EXCHANGE BEGIN <sid>` / `BALE EXCHANGE END`
-   paste block with its purpose header and sha256 trailer (§5.9.2).
-   Never in chat.
+   paste block with its purpose header and sha256 trailer, rendered
+   by `tools/craft_response.py --emit-block` (§5.9.2) — so the
+   operator picks the route at carry time. Never as a chat aside
+   (§5.9.1).
 5. Stop. The answers arrive as an exchange record's paste block,
    emitted by `bale relay` (§5.9.4); verify its trailer before
    reading it. The session stays suspended and continues to a
