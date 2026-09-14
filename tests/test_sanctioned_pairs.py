@@ -126,6 +126,21 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "doctrine), and the operator delivers, never "
                        "authors."),
     ],
+    # The bundle-delivery rider on the same CLAUDE.md §11.2 /
+    # TARBALL.md §3.4 pair (board 80, from session
+    # 2026-09-14-tarball-s34-bundle-clauses-004): the offered command
+    # travels as a crafter bundle beside its `bale open` line, stated
+    # from both ends. A second pin group over an already-enumerated
+    # pair, not a sixth pair — see test_pairs_match_the_docs_enumeration.
+    "bundled delivery (CLAUDE.md 11.2 / TARBALL.md 3.4)": [
+        ("CLAUDE.md", "In a checkpoint-configured project the offering "
+                      "session delivers that command bundled — as the "
+                      "stored pack argv of a crafter bundle emitted "
+                      "beside its `bale open` line"),
+        ("TARBALL.md", "Each child's command is delivered as one "
+                       "crafter bundle emitted beside its `bale open` "
+                       "line (`PLANNER.md` §2)."),
+    ],
     # DOCS.md §9's fifth pair: PLANNER.md §10's four-controls floor
     # with the project-side planning record that ratified it. The pin
     # is one-sided by construction: this suite reads docs/ only, so
@@ -166,12 +181,20 @@ class SanctionedPairPins(unittest.TestCase):
         exist; this table must not silently cover fewer. The count is
         pinned rather than parsed — the enumeration is one prose
         sentence, and a parser for it would be more fragile than the
-        pin."""
+        pin.
+
+        What is counted is doc pairs, not table keys: a key's trailing
+        parenthetical names its pair, and one pair may carry several
+        pin groups (the rescope offer and its bundled-delivery rider
+        both pin CLAUDE.md 11.2 / TARBALL.md 3.4, since board 80). Two
+        keys over the same pair are two groups, one pair."""
+        doc_pairs = {key[key.rindex("("):] for key in PAIRS}
         self.assertEqual(
-            len(PAIRS), 5,
-            "the PAIRS table no longer covers DOCS.md 9's five "
-            "sanctioned pairs — re-read the enumeration there and "
-            "bring the table back in step with it")
+            len(doc_pairs), 5,
+            f"the PAIRS table covers {len(doc_pairs)} doc pairs "
+            f"({sorted(doc_pairs)}), not DOCS.md 9's five sanctioned "
+            "pairs — re-read the enumeration there and bring the table "
+            "back in step with it")
 
     def test_every_pin_holds(self):
         for pair, extracts in PAIRS.items():

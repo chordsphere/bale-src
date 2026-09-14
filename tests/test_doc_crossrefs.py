@@ -22,6 +22,19 @@ Deliberately NOT parsed, to keep false positives at zero:
   with grammar heuristics that would misfire; the §-form carries the
   load-bearing cross-doc references.
 
+Since board 80 the suite also carries two prose-content pins for the
+bundle-delivery ruling (session 2026-09-14-bundle-delivery-doctrine-003
+proposed them): docs/PLANNER.md §2 leads its bundle bullet with the
+bold phrase "The bundle is the delivery form of every planner-authored
+pack" and states it before the "Commands are single-line" bullet, and
+docs/CLAUDE.md mentions `bale open` at least once. Neither the
+cross-reference scan above nor test_sanctioned_pairs reads that
+content, so a doc session that rewrapped §2 or pruned the bullet would
+pass both — and the operator's original report ("no project other than
+bale-src has ever emitted a planner bundle") was exactly a
+docs-as-written outcome. Matching is whitespace-normalized, the same
+rewrapping tolerance the sanctioned-pair pins use.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -60,6 +73,31 @@ def load_docs() -> dict[str, str]:
         for name in GLOBAL_DOCS
         if (DOCS_DIR / name).is_file()
     }
+
+
+def normalize(text: str) -> str:
+    """Collapse all whitespace runs to single spaces — the rewrapping
+    tolerance: prose pins match words, never line breaks."""
+    return " ".join(text.split())
+
+
+def top_level_section(text: str, number: int) -> str:
+    """The body of `## N. …` up to the next `## ` heading, or '' when
+    no such heading exists (the caller asserts on that)."""
+    m = re.search(rf"^##\s+{number}\.\s.*$", text, re.M)
+    if m is None:
+        return ""
+    rest = text[m.end():]
+    nxt = re.search(r"^##\s", rest, re.M)
+    return rest if nxt is None else rest[:nxt.start()]
+
+
+# The bundle-delivery ruling's lead phrase (PLANNER.md §2) and the
+# bullet it must precede. Both pinned whitespace-normalized; the lead
+# phrase is a prefix of the bold sentence, so a later clause edit
+# ("in every project") does not trip it.
+BUNDLE_RULING_LEAD = "**The bundle is the delivery form of every planner-authored pack"
+SINGLE_LINE_BULLET = "**Commands are single-line"
 
 
 class DocCrossReferences(unittest.TestCase):
@@ -118,6 +156,48 @@ class DocCrossReferences(unittest.TestCase):
                             "numbers are stable and relocations leave "
                             "a tombstone heading (DOCS.md 6.4):\n"
                             f"  {line.strip()}")
+
+
+class BundleRulingPins(unittest.TestCase):
+    """The bundle-delivery ruling stays stated where the docs say it
+    is (board 80, item 2)."""
+
+    def setUp(self):
+        self.docs = load_docs()
+
+    def test_planner_bundle_ruling_bullet_precedes_single_line(self):
+        self.assertIn("PLANNER.md", self.docs, "docs/PLANNER.md is missing")
+        section = normalize(top_level_section(self.docs["PLANNER.md"], 2))
+        self.assertTrue(
+            section,
+            "docs/PLANNER.md has no `## 2.` heading — the ruling's home "
+            "section moved; section numbers are stable (DOCS.md 6.4)")
+        lead_at = section.find(normalize(BUNDLE_RULING_LEAD))
+        self.assertNotEqual(
+            lead_at, -1,
+            "docs/PLANNER.md 2 no longer opens a bullet with the bold "
+            f"phrase {BUNDLE_RULING_LEAD!r} — the bundle-delivery ruling "
+            "was pruned or reworded (session 2026-09-14-003's doctrine)")
+        single_at = section.find(normalize(SINGLE_LINE_BULLET))
+        self.assertNotEqual(
+            single_at, -1,
+            "docs/PLANNER.md 2 no longer carries the "
+            f"{SINGLE_LINE_BULLET!r} bullet the ruling is ordered before")
+        self.assertLess(
+            lead_at, single_at,
+            "docs/PLANNER.md 2 states the bundle-delivery ruling after "
+            "the single-line-commands bullet — the ruling leads; the "
+            "command form follows it")
+
+    def test_claude_mentions_bale_open(self):
+        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
+        # assertTrue, not assertIn: the haystack is the whole doc and
+        # would drown the message.
+        self.assertTrue(
+            "`bale open`" in self.docs["CLAUDE.md"],
+            "docs/CLAUDE.md no longer mentions `bale open` — the bundle "
+            "is delivered beside its `bale open` line (PLANNER.md 2), "
+            "and CLAUDE.md is where the worker learns that verb exists")
 
 
 if __name__ == "__main__":

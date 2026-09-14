@@ -39,6 +39,12 @@ Oracle doctrine per ADR-0002: observable-state assertions against the
 documented contract (schema files, returned error lists, the stats
 dict), never against private internals.
 
+The ``_load_module`` / ``_minimal_record`` helpers this suite grew up
+with moved to tests/harness.py at board 80, when
+test_admission_prompts.py became their second copy; the module loader
+is the library-import posture (bin/ siblings by path, no bin/bale
+``__main__``) that S5 relies on.
+
 Hermetic and schema-cheap: everything here is in-process module work
 over this repo's own files — no sandbox spin-up, no git, no
 subprocess-driven bale runs beyond the one bare-python import check.
@@ -50,7 +56,6 @@ Run:  python3 -m unittest tests.test_telemetry_extensions -v
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import subprocess
 import sys
@@ -58,38 +63,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from harness import REPO_ROOT, _load_module, _minimal_record
+
 BIN = REPO_ROOT / "bin"
 SCHEMA_PATH = REPO_ROOT / "schemas" / "telemetry-record.schema.json"
 TELEMETRY_DIR = REPO_ROOT / "claude" / "telemetry"
 STATS_CORPUS = REPO_ROOT / "tests" / "fixtures" / "stats_corpus"
-
-
-def _load_module(name: str):
-    """Load a bin/ sibling by path, unregistered — the modules import
-    nothing from __main__ at module scope, which is exactly the
-    library-import property S5 relies on."""
-    spec = importlib.util.spec_from_file_location(
-        f"{name}_under_test", BIN / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _minimal_record(**attempt_overrides) -> dict:
-    """A smallest-valid record: the required envelope plus one minimal
-    attempt, with per-test attempt overrides."""
-    attempt = {"at": "2026-08-13T00:00:00+00:00",
-               "outcome": "unlocked", "command": "unlock"}
-    attempt.update(attempt_overrides)
-    return {
-        "record_version": 1,
-        "session_id": "2026-08-13-fx-min-001",
-        "created_at": "2026-08-13T00:00:00+00:00",
-        "updated_at": "2026-08-13T00:00:00+00:00",
-        "outcome": "unlocked",
-        "attempts": [attempt],
-    }
 
 
 class ValidatorEntryPointTest(unittest.TestCase):

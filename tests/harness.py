@@ -23,8 +23,11 @@ form (ADR-0005, fully hermetic):
 Besides the sandbox makers and runners, the module carries the shared
 response-tarball fixture builder (``build_response_dir`` /
 ``tar_response_dir``, extracted from test_hold_retry_e2e.py at board
-35 when the apply suites became its second and third consumers) — see
-the banner section at the bottom.
+35 when the apply suites became its second and third consumers) and,
+since board 80, the two in-process unit helpers ``_load_module`` /
+``_minimal_record`` (extracted from test_telemetry_extensions.py when
+test_admission_prompts.py became their second copy) — see the banner
+sections at the bottom.
 
 The suites import from here (``from harness import ...``); both direct
 execution (``python3 tests/<suite>.py``) and discovery
@@ -34,6 +37,7 @@ execution (``python3 tests/<suite>.py``) and discovery
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -348,3 +352,67 @@ def tar_response_dir(rdir: Path) -> Path:
     with tarfile.open(tarball, "w:gz") as tf:
         tf.add(str(rdir), arcname=rdir.name)
     return tarball
+
+
+# ---------------------------------------------------------------------------
+# In-process bin/ module loader and the smallest-valid telemetry record
+# ---------------------------------------------------------------------------
+#
+# Extracted from tests/test_telemetry_extensions.py at board 80, when
+# tests/test_admission_prompts.py landed as the second copy of both —
+# the same one-harness doctrine as everything above. The two copies had
+# drifted slightly and this is the reconciled form:
+#
+# - ``_load_module`` puts bin/ on sys.path and registers the module
+#   under its bare name (the admission-prompts form). The telemetry
+#   copy loaded unregistered under a ``_under_test`` alias, which was
+#   enough for bale_validate / bale_report / bale_stats (no sibling
+#   imports at module scope) but not for bale_apply, whose sibling
+#   imports need bin/ importable. The superset serves both suites; the
+#   library-import property the checkpoint contract relies on — a bin/
+#   sibling imports nothing from __main__ at module scope — is what
+#   makes loading by path possible at all, and is unchanged.
+# - ``_minimal_record`` keeps the telemetry copy's envelope (an
+#   ``unlocked`` / ``unlock`` attempt): test_telemetry_extensions'
+#   stats-tolerance case reads the ``unlocked`` closure-mix bucket the
+#   record lands in, while nothing in test_admission_prompts depends on
+#   the ``applied`` / ``apply`` envelope its copy used.
+#
+# tests/test_escalation_schemas.py carries its own ``_load_module`` and
+# tests/test_sandbox_wrapper.py a method-form ``_minimal_record``; both
+# were out of the board-80 row and stand as-is.
+
+BIN_DIR = REPO_ROOT / "bin"
+
+
+def _load_module(name: str):
+    """Import bin/<name>.py by path without bin/bale's __main__.
+
+    bin/ goes on sys.path (once) so a loaded module's own sibling
+    imports resolve, and the module is registered under its bare
+    name so a later sibling import finds this instance rather than
+    loading a second copy.
+    """
+    if str(BIN_DIR) not in sys.path:
+        sys.path.insert(0, str(BIN_DIR))
+    spec = importlib.util.spec_from_file_location(name, BIN_DIR / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _minimal_record(**attempt_overrides) -> dict:
+    """A smallest-valid telemetry record: the required envelope plus one
+    minimal attempt, with per-test attempt overrides."""
+    attempt = {"at": "2026-08-13T00:00:00+00:00",
+               "outcome": "unlocked", "command": "unlock"}
+    attempt.update(attempt_overrides)
+    return {
+        "record_version": 1,
+        "session_id": "2026-08-13-fx-min-001",
+        "created_at": "2026-08-13T00:00:00+00:00",
+        "updated_at": "2026-08-13T00:00:00+00:00",
+        "outcome": "unlocked",
+        "attempts": [attempt],
+    }

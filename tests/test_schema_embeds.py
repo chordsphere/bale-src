@@ -13,6 +13,16 @@ free to differ, content is not. The comparison direction is
 symmetric — the test names the pair, not a winner; whichever side
 drifted is the fix.
 
+A second guard rides here since board 80 (proposed by the doc-lane
+session 2026-09-14-002): request/response provenance key parity.
+The request manifest's ``provenance`` block is echoed verbatim into
+the response manifest's ``feedback.mechanical.provenance`` (TARBALL.md
+§5.2.2), so every key the request side can carry must be admissible
+on the echo side — otherwise the next request-side stamp lands
+without its echo and the verbatim copy starts dropping fields. The
+echo may carry *more* (``model_identity`` is echo-only); the request
+side may never carry a key the echo lacks.
+
 Hermetic and stdlib-only: the lint module is loaded by file path (it
 imports nothing beyond the stdlib and executes nothing at import
 time), and the schema files are read from this repo.
@@ -69,6 +79,51 @@ class SchemaEmbedEquality(unittest.TestCase):
         self.assert_embed_equals_source(
             self.lint.RESPONSE_MANIFEST_SCHEMA_JSON,
             "response-manifest.schema.json")
+
+
+def load_schema(filename: str) -> dict:
+    return json.loads((SCHEMAS / filename).read_text(encoding="utf-8"))
+
+
+class ProvenanceKeyParity(unittest.TestCase):
+    """The request manifest's provenance keys are a subset of the
+    response echo's (board 80, item 1)."""
+
+    @classmethod
+    def setUpClass(cls):
+        request = load_schema("request-manifest.schema.json")
+        response = load_schema("response-manifest.schema.json")
+        cls.request_provenance = request["properties"]["provenance"]
+        cls.echo_provenance = (
+            response["properties"]["feedback"]["properties"]["mechanical"]
+            ["properties"]["provenance"])
+
+    def test_both_provenance_blocks_are_closed_objects(self):
+        """Parity is only meaningful between two closed key sets: if
+        either side opened up (``additionalProperties`` no longer
+        false) the subset check below would pass vacuously while the
+        real contract went unpinned, so the closedness is asserted
+        first, by name."""
+        for side, block in (("request provenance", self.request_provenance),
+                            ("response echo", self.echo_provenance)):
+            with self.subTest(side=side):
+                self.assertIs(
+                    block.get("additionalProperties"), False,
+                    f"the {side} block is no longer a closed object "
+                    "(additionalProperties: false) — key parity can't be "
+                    "pinned against an open key set")
+
+    def test_request_provenance_keys_subset_of_echo(self):
+        request_keys = set(self.request_provenance["properties"])
+        echo_keys = set(self.echo_provenance["properties"])
+        self.assertTrue(
+            request_keys <= echo_keys,
+            "request-manifest.schema.json's provenance carries keys the "
+            "response echo (feedback.mechanical.provenance in "
+            "response-manifest.schema.json) cannot admit: "
+            f"{sorted(request_keys - echo_keys)} — a request-side "
+            "provenance stamp lands with its echo in the same session "
+            "(TARBALL.md 5.2.2: the echo is verbatim)")
 
 
 if __name__ == "__main__":
