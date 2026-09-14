@@ -28,12 +28,17 @@ Sections:
   1. Imports + constants                              (~line  60)
   2. Configurables: load and merge                    (~line 140)
   3. `bale config init` wizard                        (~line 430)
+  4. `bale config hooks` — the acceptance store view  (end of file)
 
 Constants exported for `bin/bale`'s use (referenced by `run_hook` for
 layer detection, and by `build_parser` for command dispatch):
   - GLOBAL_USER_DIR — absolute path to <install>/user/, the user-owned
     subtree where global config and global hook scripts live.
+  - HOOK_ACCEPTANCES_NAME / HOOK_ACCEPTANCES_PATH — the acceptance
+    store's file name and absolute path (section 2's store trio).
   - cmd_config_init — argparse-bound entry point for `bale config init`.
+  - cmd_config_hooks — argparse-bound entry point for `bale config
+    hooks` (v0.4.29, board 83; section 4).
 """
 
 from __future__ import annotations
@@ -674,12 +679,83 @@ def record_hook_acceptance(*, script_sha256: str, script_path: Path,
         "accepted_at": datetime.now(timezone.utc).isoformat(
             timespec="seconds"),
     }
+    write_hook_acceptances(data, store)
+    return store
+
+
+def write_hook_acceptances(data: dict, path: Optional[Path] = None) -> Path:
+    """Rewrite the whole store atomically (temp file + rename) so a crash
+    mid-write leaves the old store intact. The one writer both the
+    prompt's record path and `bale config hooks --forget` share, so the
+    on-disk shape (sorted keys, two-space indent, trailing newline) has
+    one home. Creates the user/ dir on first write. Raises OSError."""
+    store = HOOK_ACCEPTANCES_PATH if path is None else Path(path)
     store.parent.mkdir(parents=True, exist_ok=True)
     tmp = store.with_name(store.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n",
                    encoding="utf-8")
     os.replace(tmp, store)
     return store
+
+
+class HookAcceptanceLookupError(LookupError):
+    """A sha256-or-prefix did not resolve to exactly one store entry.
+
+    `kind` is "missing" (no entry starts with the prefix) or "ambiguous"
+    (more than one does); `matches` carries the full keys that did match,
+    so the caller can name them. Raised rather than returned so the two
+    refusals cannot be mistaken for an empty result."""
+
+    def __init__(self, kind: str, prefix: str, matches: list[str]):
+        self.kind = kind
+        self.prefix = prefix
+        self.matches = matches
+        super().__init__(f"{kind}: {prefix!r} matched {len(matches)} entries")
+
+
+_SHA256_PREFIX_RE = re.compile(r"^[0-9a-f]{1,64}$")
+
+
+def resolve_hook_acceptance_key(prefix: str, data: dict) -> str:
+    """Resolve a full sha256 or a unique prefix to the store key it names.
+
+    Hex is case-insensitive on input (the store's keys are lowercase
+    hexdigests). A string that is not 1–64 hex characters can match
+    nothing and raises ValueError, so a typo is refused as a typo rather
+    than reported as a missing key. Exactly one match returns the full
+    key; zero or several raise HookAcceptanceLookupError."""
+    needle = prefix.strip().lower()
+    if not _SHA256_PREFIX_RE.match(needle):
+        raise ValueError(
+            f"{prefix!r} is not a sha256 or a prefix of one (expected 1–64 "
+            f"hex characters)")
+    matches = sorted(k for k in data if isinstance(k, str)
+                     and k.startswith(needle))
+    if not matches:
+        raise HookAcceptanceLookupError("missing", needle, matches)
+    if len(matches) > 1:
+        raise HookAcceptanceLookupError("ambiguous", needle, matches)
+    return matches[0]
+
+
+def forget_hook_acceptance(prefix: str,
+                           path: Optional[Path] = None) -> tuple[str, dict]:
+    """Remove the one entry `prefix` names and rewrite the store.
+
+    Returns (full_key, removed_entry). The removed entry is whatever the
+    store held under the key — normally the four documented fields, but
+    a hand-edited store's value is returned as found, so what the verb
+    reports back is what was actually there. Propagates the resolver's
+    ValueError / HookAcceptanceLookupError unchanged, and OSError from
+    the write. A malformed store reads as empty here exactly as it does
+    for the prompt (load_hook_acceptances logs the warning), so the
+    forget then refuses as "missing" beneath that warning."""
+    store = HOOK_ACCEPTANCES_PATH if path is None else Path(path)
+    data = load_hook_acceptances(store)
+    key = resolve_hook_acceptance_key(prefix, data)
+    removed = data.pop(key)
+    write_hook_acceptances(data, store)
+    return key, removed
 
 
 def get_hook(cfg: dict, name: str) -> Optional[str]:
@@ -2675,4 +2751,192 @@ def _cmd_config_init_global() -> int:
     print(f"  config:       {cfg_path} ({'updated' if is_existing else 'created'})")
     print(f"  scripts dir:  {GLOBAL_USER_DIR / 'scripts'} (place global hook scripts here)")
     print("  Re-run `bale config init --global` any time to review or change.")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 4. `bale config hooks` — the acceptance store view (v0.4.29, board 83)
+# ---------------------------------------------------------------------------
+#
+# The store (section 2's trio) was auditable — a JSON file a human can
+# read — but not operable: "forget this script" meant hand-editing JSON.
+# This verb is the operable face. Bare, it lists every entry; --forget
+# removes exactly one and says what it removed. No --forget-all, by
+# desk ruling: forgetting is per-script, and deleting the file is the
+# honest spelling of "forget everything".
+#
+# --json follows the process-wide stream discipline bale_report owns
+# (enable_json_mode / emit_json_line): stdout carries exactly the one
+# report line, everything else — the `[bale] ` trail and the human block
+# — goes to stderr. The renderer lives here rather than beside its
+# siblings in bale_report because that module is another open session's
+# forecast this sitting; the key vocabulary matches theirs (outcome
+# first, then version) and follows the same stability rule: existing
+# keys are never renamed or removed, new keys may be added.
+
+# Outcome vocabulary for the --json report, and for the human block's
+# verb. Error paths exit through fail() (stderr, non-zero, nothing on
+# stdout), like status.
+CONFIG_HOOKS_OUTCOME_LISTED = "listed"
+CONFIG_HOOKS_OUTCOME_FORGOTTEN = "forgotten"
+
+
+def _acceptance_entry_view(key: str, value) -> dict:
+    """One store entry as the report and the listing see it: the full
+    sha256 plus the four documented fields, each None when a hand-edited
+    store lacks it or holds a non-string, and a `malformed` flag when the
+    value is not even an object — displayed, never dropped, so the
+    listing shows what the file actually contains."""
+    view = {"sha256": key}
+    if isinstance(value, dict):
+        for field_name in _ACCEPTANCE_KEYS:
+            raw = value.get(field_name)
+            view[field_name] = raw if isinstance(raw, str) else None
+        view["malformed"] = False
+    else:
+        for field_name in _ACCEPTANCE_KEYS:
+            view[field_name] = None
+        view["malformed"] = True
+    return view
+
+
+def _acceptance_entries_sorted(data: dict) -> list[dict]:
+    """Every entry, oldest acceptance first (ties and missing timestamps
+    fall back to key order), so the listing reads as a history."""
+    views = [_acceptance_entry_view(k, v) for k, v in data.items()]
+    views.sort(key=lambda e: (e["accepted_at"] or "", e["sha256"]))
+    return views
+
+
+def format_config_hooks_json(*, outcome: str, version: str, store: Path,
+                             entries: list[dict],
+                             forgotten: Optional[dict]) -> str:
+    """Render the `bale config hooks --json` report as ONE line of JSON.
+
+      outcome    "listed" or "forgotten" (see the constants above).
+      version    the bale VERSION string.
+      store      absolute path of the acceptance store file.
+      exists     whether the file was present (false reads as "nothing
+                 accepted yet"; a malformed file is exists=true with
+                 entries=[] and a `[bale] ` warning on stderr).
+      entries    every entry the store holds AFTER this run — the whole
+                 store on a list, the survivors on a forget — each an
+                 object: sha256, script, hook, layer, accepted_at (null
+                 when the field is absent), malformed (bool).
+      forgotten  null on a list; on a forget, the removed entry in the
+                 same object shape.
+    """
+    payload = {
+        "outcome": outcome,
+        "version": version,
+        "store": str(store),
+        "exists": store.is_file(),
+        "entries": entries,
+        "forgotten": forgotten,
+    }
+    return json.dumps(payload)
+
+
+def _print_acceptance_listing(store: Path, entries: list[dict]) -> None:
+    """The human block: one entry per two lines — identity row, then the
+    script path indented beneath it — so a long absolute path never
+    pushes the hook/layer/time columns off the terminal."""
+    n = len(entries)
+    if not store.is_file():
+        print(f"  no hook acceptances remembered at {store}")
+        print("  (nothing accepted yet — the file is created by the first "
+              "interactive accept of a project or configured hook)")
+        return
+    if n == 0:
+        print(f"  no hook acceptances remembered at {store}")
+        print("  (the file exists but holds no entries — if a `[bale] ` "
+              "warning printed above, it is malformed and the prompt is "
+              "treating it as empty too)")
+        return
+    print(f"  {n} hook acceptance{'s' if n != 1 else ''} remembered at "
+          f"{store}")
+    print(f"  {'sha256 (prefix)':<16} {'hook':<18} {'layer':<11} accepted at")
+    for e in entries:
+        if e["malformed"]:
+            print(f"  {e['sha256'][:12]}…    (malformed entry — not an "
+                  f"object; fix or --forget it)")
+            continue
+        print(f"  {e['sha256'][:12]}…    {e['hook'] or '?':<18} "
+              f"{e['layer'] or '?':<11} {e['accepted_at'] or '?'}")
+        print(f"      {e['script'] or '? (no script path recorded)'}")
+
+
+def cmd_config_hooks(args: argparse.Namespace) -> int:
+    """`bale config hooks [--forget SHA256-OR-PREFIX] [--json]`.
+
+    Needs no git repo: the store is install-level. Refuses system dirs
+    for cwd parity with `config init --global`. Every refusal goes
+    through fail() — stderr, exit 1, nothing on stdout — so a --json
+    consumer never has to parse a half-report.
+    """
+    from __main__ import VERSION, fail, log, refuse_system_dir
+    import bale_report  # sibling on sys.path (bin/), like _bale_toml
+
+    if getattr(args, "json", False):
+        # Stream discipline first, before any line can print (matches
+        # cmd_status / cmd_unlock): the swap routes every print() and
+        # log() below to stderr; emit_json_line reaches the real stdout.
+        bale_report.enable_json_mode()
+
+    cwd = Path.cwd().resolve()
+    refuse_system_dir(cwd)
+
+    store = HOOK_ACCEPTANCES_PATH
+    forgotten: Optional[dict] = None
+    prefix = getattr(args, "forget", None)
+    if prefix is not None:
+        try:
+            key, removed = forget_hook_acceptance(prefix, store)
+        except ValueError as e:
+            fail(f"config hooks --forget: {e}")
+        except HookAcceptanceLookupError as e:
+            if e.kind == "ambiguous":
+                data = load_hook_acceptances(store)
+                lines = "\n".join(
+                    f"  {k}  ({_acceptance_entry_view(k, data[k])['hook'] or '?'}"
+                    f", {_acceptance_entry_view(k, data[k])['script'] or '?'})"
+                    for k in e.matches)
+                fail(f"config hooks --forget: prefix {e.prefix!r} is "
+                     f"ambiguous — it starts {len(e.matches)} remembered "
+                     f"sha256s:\n{lines}\nGive more characters, or the full "
+                     f"sha256.")
+            fail(f"config hooks --forget: no remembered hook acceptance "
+                 f"starts with {e.prefix!r} in {store}. `bale config hooks` "
+                 f"lists what is remembered.")
+        except OSError as e:
+            fail(f"config hooks --forget: could not rewrite {store} ({e}); "
+                 f"nothing was removed.")
+        forgotten = _acceptance_entry_view(key, removed)
+        log(f"config hooks: forgot sha256 {key[:12]}… "
+            f"({forgotten['hook'] or '?'}, {forgotten['layer'] or '?'}, "
+            f"{forgotten['script'] or '?'}) from {store} — that script's "
+            f"prompt defaults decline again until accepted anew")
+
+    data = load_hook_acceptances(store)
+    entries = _acceptance_entries_sorted(data)
+
+    print()
+    if forgotten is not None:
+        print("bale config hooks --forget — done")
+        print(f"  forgot:  {forgotten['sha256']}")
+        print(f"           hook {forgotten['hook'] or '?'}, layer "
+              f"{forgotten['layer'] or '?'}, accepted "
+              f"{forgotten['accepted_at'] or '?'}")
+        print(f"           {forgotten['script'] or '? (no script path recorded)'}")
+        print("  remaining:")
+    else:
+        print("bale config hooks")
+    _print_acceptance_listing(store, entries)
+
+    if getattr(args, "json", False):
+        bale_report.emit_json_line(format_config_hooks_json(
+            outcome=(CONFIG_HOOKS_OUTCOME_FORGOTTEN if forgotten is not None
+                     else CONFIG_HOOKS_OUTCOME_LISTED),
+            version=VERSION, store=store, entries=entries,
+            forgotten=forgotten))
     return 0

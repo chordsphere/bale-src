@@ -4032,25 +4032,103 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 # the repo, install software, or perform any action its author chose, and
 # bale can't know which. A non-zero exit from the hook is logged but does
 # NOT fail the primary bale operation — by the time a hook runs, the
-# operation that triggered it has already succeeded. Decline is silent
-# (logged but not an error).
+# operation that triggered it has already succeeded. Decline is not an
+# error, but it is never silent about WHY (v0.4.29, board 83): the logged
+# line names which branch of the prompt declined — stdin closed, an empty
+# answer at a decline default, or the literal answer typed — so an
+# operator reading "I pressed Enter and it did not run" can tell the
+# three apart from the log alone (CLAUDE.md §6: a check that cannot say
+# why it declined is a silent skip).
 
-def confirm_yn(prompt: str, *, default_no: bool = True) -> bool:
-    """Interactive y/N prompt. Returns True on y/yes, False otherwise.
+# The three ways a confirm_yn prompt can decline, named so a caller can
+# phrase its own log line per branch (run_hook's three lines are
+# HOOK_DECLINE_LINES below). `answered` is the only branch with an
+# operator answer to quote.
+CONFIRM_BRANCH_STDIN_CLOSED = "stdin_closed"
+CONFIRM_BRANCH_EMPTY_AT_DECLINE_DEFAULT = "empty_at_decline_default"
+CONFIRM_BRANCH_ANSWERED = "answered"
+
+# run_hook's decline line per branch, VERBATIM from the board-83 brief —
+# the operator reads these in a terminal, so the wording is fixed here
+# and the lines appear literally in this file (the blind checkpoint
+# greps for them). The third is a template over the operator's
+# stripped, lowercased answer. run_hook prefixes `[hook <name>] `.
+HOOK_DECLINE_LINES = {
+    CONFIRM_BRANCH_STDIN_CLOSED:
+        "declined (stdin closed or interrupted); not invoking.",
+    CONFIRM_BRANCH_EMPTY_AT_DECLINE_DEFAULT:
+        "declined (empty answer at a decline default); not invoking.",
+    CONFIRM_BRANCH_ANSWERED:
+        "declined (answered '{answer}'); not invoking.",
+}
+
+
+@dataclass(frozen=True)
+class ConfirmDecision:
+    """What a confirm_yn prompt decided, and on which branch.
+
+    `accepted` is the bool every caller has always consumed. The rest is
+    the cause: `answer` is the operator's stripped, lowercased reply
+    (empty for an empty line, and empty for EOF/^C, where no line was
+    read), and `stdin_closed` is True only on the EOF/^C branch — the
+    two empty-answer cases are distinguished by that flag, not by the
+    answer text. `decline_branch` names which of the three CONFIRM_BRANCH_*
+    declined, or None on an accept, since an accept has nothing to
+    explain; a caller renders its own line from that (run_hook:
+    HOOK_DECLINE_LINES).
+    """
+    accepted: bool
+    answer: str = ""
+    stdin_closed: bool = False
+    default_no: bool = True
+
+    @property
+    def decline_branch(self) -> Optional[str]:
+        if self.accepted:
+            return None
+        if self.stdin_closed:
+            return CONFIRM_BRANCH_STDIN_CLOSED
+        if not self.answer:
+            # An empty answer only declines at a decline default; at an
+            # accept default it would have accepted above.
+            return CONFIRM_BRANCH_EMPTY_AT_DECLINE_DEFAULT
+        return CONFIRM_BRANCH_ANSWERED
+
+
+def confirm_yn_decision(prompt: str, *,
+                        default_no: bool = True) -> ConfirmDecision:
+    """Interactive y/N prompt that reports its decision AND its cause.
 
     default_no=True biases toward declining — appropriate for hooks since
     they may have arbitrary side effects. EOF and ^C are treated as
-    decline.
+    decline. Every branch is a distinct ConfirmDecision so a caller can
+    log why the prompt declined; confirm_yn below is the bool projection
+    for callers that only need the verdict.
     """
     suffix = " [y/N]" if default_no else " [Y/n]"
     try:
         ans = input(f"{prompt}{suffix} ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
-        return False
+        return ConfirmDecision(accepted=False, stdin_closed=True,
+                               default_no=default_no)
     if not ans:
-        return not default_no
-    return ans in ("y", "yes")
+        return ConfirmDecision(accepted=not default_no, answer="",
+                               default_no=default_no)
+    return ConfirmDecision(accepted=ans in ("y", "yes"), answer=ans,
+                           default_no=default_no)
+
+
+def confirm_yn(prompt: str, *, default_no: bool = True) -> bool:
+    """Interactive y/N prompt. Returns True on y/yes, False otherwise.
+
+    The bool projection of confirm_yn_decision, unchanged in behavior for
+    every existing caller (the bare-apply confirmation, drift admission,
+    the supersession and read-only-sweep y/N, the pack wizard). Callers
+    that want to log WHY a decline happened use confirm_yn_decision and
+    read `.decline_branch`; run_hook is the first.
+    """
+    return confirm_yn_decision(prompt, default_no=default_no).accepted
 
 
 def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
@@ -4089,7 +4167,8 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
     the memory is exactly "an operator read these bytes and said yes".
     The prompt line names the default's basis so the operator can see why
     Enter would do what it does. EOF/^C still decline regardless of the
-    default (confirm_yn).
+    default (confirm_yn_decision), and every decline's log line names its
+    cause (v0.4.29, board 83).
     """
     script = bale_config.get_hook(cfg, name)
     if script is None:
@@ -4190,8 +4269,15 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
     else:
         print(f"  default: {'accept' if default_accept else 'decline'} — "
               f"{default_basis}")
-        if not confirm_yn("  run this hook?", default_no=not default_accept):
-            log(f"[hook {name}] declined; not invoking.")
+        decision = confirm_yn_decision("  run this hook?",
+                                       default_no=not default_accept)
+        if not decision.accepted:
+            # One of three fixed lines (HOOK_DECLINE_LINES): an operator
+            # who reports "Enter did not accept" can be answered from
+            # this line alone.
+            line = HOOK_DECLINE_LINES[decision.decline_branch].format(
+                answer=decision.answer)
+            log(f"[hook {name}] {line}")
             return
         if source_label != "global" and script_sha256 and not default_accept:
             # First interactive accept of these bytes: remember it so
@@ -5801,7 +5887,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_apply.add_argument(
         "tarball", nargs="?", default=None,
-        help="Path to response-NNN.tar.gz. Omit it (bare `bale apply`) to "
+        help="Path to response-<sid>.tar.gz. Omit it (bare `bale apply`) to "
              "resolve the newest response tarball answering the open "
              "session across cwd and apply.search_paths, with an identity "
              "echo and a decline-default y/N before anything applies; "
@@ -6001,7 +6087,7 @@ def build_parser() -> argparse.ArgumentParser:
             "not."
         ),
     )
-    p_retry.add_argument("tarball", help="Path to the new response-NNN.tar.gz.")
+    p_retry.add_argument("tarball", help="Path to the new response-<sid>.tar.gz.")
     p_retry.add_argument(
         "--sid", default=None,
         help="Vetting only (board 71): the session is resolved from the "
@@ -6615,6 +6701,49 @@ def build_parser() -> argparse.ArgumentParser:
              "require a git repo.",
     )
     p_config_init.set_defaults(func=bale_config.cmd_config_init)
+
+    # config hooks (v0.4.29, board 83) — the operable face of the hook
+    # acceptance store at <install>/user/hook-acceptances.json. Bare, it
+    # lists every remembered entry; --forget removes one by sha256 or a
+    # unique prefix. There is deliberately no --forget-all: forgetting is
+    # a per-script decision, and wiping the file by hand is the honest
+    # spelling of "forget everything". Needs no git repo — the store is
+    # install-level, like `config init --global`.
+    p_config_hooks = config_sub.add_parser(
+        "hooks",
+        help="List the hook acceptance store (project/configured hook "
+             "scripts accepted at the prompt, by sha256), or --forget "
+             "one entry.",
+        description=(
+            "View the install's hook acceptance store at "
+            f"<install>/user/{bale_config.HOOK_ACCEPTANCES_NAME}: the "
+            "project-layer and configured hook scripts whose bytes the "
+            "operator accepted once at the confirmation prompt, keyed by "
+            "sha256, each with its script path, hook name, layer, and "
+            "accepted-at time. Bare, lists every remembered entry. "
+            "--forget removes exactly one entry (its hook asks again with "
+            "the decline default next time) and says what it removed; an "
+            "ambiguous prefix or a missing key refuses loudly. There is "
+            "no forget-all. A malformed store reads as empty with a "
+            "logged warning, the same posture the prompt takes. Needs no "
+            "git repo."
+        ),
+    )
+    p_config_hooks.add_argument(
+        "--forget", metavar="SHA256-OR-PREFIX", default=None,
+        help="Remove the one entry whose sha256 equals, or uniquely "
+             "starts with, this hex string; refuses an ambiguous prefix "
+             "or a missing key. Prints what it removed.",
+    )
+    p_config_hooks.add_argument(
+        "--json", action="store_true",
+        help="Emit the end-of-run report as one line of JSON on stdout "
+             "(outcome listed|forgotten, the store path, every entry, "
+             "and the forgotten entry or null). Stream discipline matches "
+             "status --json: '[bale] ' lines and the human block go to "
+             "stderr; stdout carries exactly the one JSON line.",
+    )
+    p_config_hooks.set_defaults(func=bale_config.cmd_config_hooks)
 
     # help — inline discovery (BALE.md §5.1). Renders argparse's own
     # format_help() at the right level after walking the parser to the
