@@ -46,6 +46,7 @@ if it doesn't describe this session, the section stays unread.
 | An environment fact the response depends on is missing, stale, or unclear — returning a probe instead of building | Sections 1, 2, 4 |
 | The goal won't fit this session's context budget (`CLAUDE.md` §11 triggered) — returning a bailout | Sections 1, 2, 5.6, 5.7, 5.8 |
 | A blocking intent gap in the request prevents trustworthy work — returning a clarification | Sections 1, 2, 5.9 |
+| A short, non-blocking question set — at most three, each with a one-word default — returning a light question block | Section 5.10 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
 | Writing or debugging `apply.sh` — a delete, a rename's removal half, or an exec-bit restore is in play | Section 5.1.1 |
 | Unsure whether something is a violation, or which enforcement layer (bale, `validation.sh`, review) catches it | Section 8 |
@@ -116,7 +117,9 @@ clarification manifest opens it and the planner's answer continues
 it, each round preserved by bale under the session (§5.9.2), and
 each carried by a courier of the operator's choosing — a tarball or
 a paste block (§5.9.2). Chat carries conversation and never a
-blocking ask (§5.9.1).
+blocking ask (§5.9.1); the one ask it does carry is the light
+question block (§5.10) — a shape, not conversation, whose trail is
+the eventual response rather than a thread.
 
 ---
 
@@ -178,13 +181,14 @@ chat as a preview or as a courtesy copy (rationale: ADR-0013).
 
 This rule is narrow on purpose. Tarball mode does not mean *only*
 tarballs come out of it: a probe (section 4) is the right response
-to a missing, stale, or unclear environment fact; a conversational
-reply is the right response to a scope question, a concern, or a
-quick clarification — and when such an intent gap is *blocking*,
-the clarification response (§5.9) is that ask given a durable wire
-shape. The constraint is on the *deliverable's shape*: when code is
-the response, the tarball is the response, without a parallel copy
-in chat.
+to a missing, stale, or unclear environment fact; a light question
+block (§5.10) is the right response to a short, non-blocking
+question set — and when an intent gap is *blocking*, the
+clarification response (§5.9) is that ask given a durable wire
+shape. A concern or a scope observation that asks nothing is said
+in prose; an ask is never prose. The constraint is on the
+*deliverable's shape*: when code is the response, the tarball is the
+response, without a parallel copy in chat.
 
 A **bailout** response (§5.6) has a distinct shape: no `files/`,
 no-op `apply.sh` and `validation.sh`, plus mandatory `handoff.md`
@@ -815,11 +819,14 @@ asking beats guessing. `expects_probe: no` does **not** forbid a
 clarification — that flag governs probes against the environment
 (§3.2), not questions about the request. For a gap that does not
 block — a nice-to-know, a preference the work can proceed without —
-the lightweight paths stand: a question in chat as conversation, or
+two lightweight paths stand, and neither is prose: the light
+question block (§5.10), when the set passes its count test, or
 proceeding on the most plausible assumption named explicitly in
 `notes.md` and flagged for review, the same recoverable-risk
 posture §3.3 takes. The test is *blocking*, not *size*: a small
-question that blocks trustworthy work is still the artifact.
+question that blocks trustworthy work is still the artifact, and a
+non-blocking set is admitted to the light tier by its count, never
+by how small it looks.
 
 #### 5.9.2 Shape and manifest specifics
 
@@ -963,6 +970,86 @@ answers and needs to ask back does both in one record. The artifact
 is identical whoever holds the planner and courier roles; only the
 holder changes. If the gap invalidates the request's framing, the
 recourse is `bale unlock` and a repack — the planner's call.
+
+### 5.10 The light question block
+
+The light question block is the one ask chat carries, and it is a
+shape, not conversation. Every turn the worker ends in tarball mode
+takes one machine-recognizable shape — a response tarball, a probe
+block (§4.2), a light question block, or a clarification response
+(§5.9); a question asked as prose is not a shape. The light tier
+exists because a sufficiently short question set is faster to read
+and answer in chat than to relay through the exchange, and its
+audit trail is the eventual response, not the thread. The block is
+specified here format-first so a worker can author it by hand
+today; a mechanized render is a convenience over this shape, never
+its home.
+
+**Admission is a count, not a judgment.** A question set is
+admitted to the light tier when it holds at most three questions,
+none multi-tiered, and each carries a default the packer can ratify
+with a word or an answer that fits on one line; the worker counts,
+never judges. *Multi-tiered* means options that need explaining, or
+a `why_blocked` that needs a paragraph. Anything else — a fourth
+question, a tiered one, a default with no one-word ratification —
+is a clarification response (§5.9), however non-blocking the set
+feels; and a question that *blocks* trustworthy work is a
+clarification response however short it reads (§5.9.1). Size never
+admits. The count does.
+
+**The block.** Sentinel-bracketed and human-readable, one numbered
+entry per question. The sentinels are `=== LIGHT BEGIN <sid> ===`
+and `=== LIGHT END <sid> ===`, on the probe block's model (§4.2's
+`=== PROBE BEGIN <slug> ===` / `=== PROBE END <slug> ===`), with the
+session id in place of the slug so the block names the session it
+suspends. Each entry renders the four question-row fields of a
+clarification manifest (§5.9.2) under four fixed labels — `[n]
+question` / `while doing` / `would assume` / `why blocked` — which
+map in order onto `question`, `context`, `default_assumption`, and
+`why_blocked`. The rows are the same rows a clarification carries,
+so one question row feeds either courier: a light block the packer
+sends formal becomes a clarification with no rewriting.
+
+```
+=== LIGHT BEGIN 2026-05-12-vue-scaffold-001 ===
+[1] question:     Debounce in the composable or the component?
+    while doing:  wiring useDebouncedRef into SearchBox.vue
+    would assume: the composable; the component stays presentational
+    why blocked:  the brief names both files, neither as owner
+[2] question:     Keep the prototype's 300 ms delay?
+    while doing:  setting the default in the composable's signature
+    would assume: yes, 300 ms
+    why blocked:  the prototype's value may have been a placeholder
+Reply: answer inline, "as assumed", or "formal".
+=== LIGHT END 2026-05-12-vue-scaffold-001 ===
+```
+
+The block ends with the packer's three replies, every time. The
+packer replies in one of three ways: answer inline; "as assumed" to
+ratify every default at once; or "formal" to have the same questions
+returned as a clarification response. An inline answer may mix the
+first two — "[1] the component; [2] as assumed" ratifies one default
+and answers the other. "Formal" moves the same rows onto the thread:
+the worker re-emits them through §10.3's path as round one of a
+clarification, and from there the exchange record (§5.9.2) is the
+trail.
+
+**The trail is the eventual response, not the thread.** A light
+block opens no exchange record and makes no telemetry attempt; the
+session's `clarification.rounds` stays zero, correctly. Instead the
+eventual response's `notes.md` names each question and its answer —
+the same provenance rule §4.5 applies to a probe's output, and the
+rule §5.9.1 falls back on for a breach, here as the sanctioned path.
+A light block answered "as assumed" is recorded the same way, each
+default noted as ratified; silence in `notes.md` about an emitted
+block is the tell of a lost answer.
+
+**The worker does not idle.** With a light block emitted, the turn
+ends; nothing is built ahead of the reply, and the session resumes
+on the packer's answer exactly as a clarification suspends and
+resumes (§5.9.4) — same session id, same request, the normal
+response still owed. A packer who has not replied has not answered;
+the worker does not read silence as "as assumed".
 
 ---
 
@@ -1199,7 +1286,7 @@ context/
   INDEX.md             # the project's doc map
   charter-brief.md
   STATE.md             # current snapshot, if relevant
-  decisions/           # ADRs I think are in play
+  context/adr/         # ADRs I think are in play
   sessions/            # prior response notes, if directly relevant
   probe-output/        # if a prior probe ran
   ...
@@ -1343,8 +1430,12 @@ If the request forbids probing but the worker finds an environment-
 specific gap documentation can't fill, the worker does not probe and
 does not silently guess. The worker either:
 
-1. **Stops and asks in chat** — if the gap is small enough to resolve
-   inline.
+1. **Returns a light question block** (§5.10) — if the gap does not
+   block and the question set passes §5.10's count test: at most
+   three questions, none multi-tiered, each carrying a default the
+   packer can ratify in a word. The count admits, never the gap's
+   size; a gap that blocks trustworthy work takes item 2 however
+   short its question reads.
 2. **Returns a clarification response** (§5.9) — if the gap is
    blocking and the ask should ride the durable shape (the
    orchestrated default, §5.9.1). Environment questions are
@@ -1582,10 +1673,11 @@ Two boundaries keep the default-to-ask posture from sprawling:
 - **Conceptual and scope gaps are not probes.** If the question is
   what the goal means, which option the planner prefers, or whether
   something is in scope, no script against the environment can answer
-  it. Quick, non-blocking questions resolve in chat; a gap of this
-  kind that *blocks* trustworthy work takes the clarification response
-  (§5.9) — the intent-gap sibling of the probe, same default-to-ask
-  doctrine, different recourse.
+  it. A short, non-blocking set takes the light question block
+  (§5.10), admitted by its count; a gap of this kind that *blocks*
+  trustworthy work takes the clarification response (§5.9) — the
+  intent-gap sibling of the probe, same default-to-ask doctrine,
+  different recourse. Neither is a question asked as prose.
 - **`expects_probe: no` still forbids probing** (§3.3). The doctrine
   sets the default; the manifest overrides it per session, and the
   collision path in §3.3 is unchanged.
@@ -1937,3 +2029,20 @@ mechanical checks won't catch them.
    reading it. The session stays suspended and continues to a
    normal response against the same request. Do not guess ahead of
    the answers.
+
+### 10.4 Returning a light question block instead
+
+1. Confirm the set is non-blocking — the work could proceed on the
+   named defaults — and count it against §5.10: at most three
+   questions, none multi-tiered, each with a default the packer can
+   ratify in a word. A set that fails the count is §10.3's path; a
+   blocking question is §10.3's path at any count.
+2. Author the block by hand per §5.10: `=== LIGHT BEGIN <sid> ===`,
+   one `[n]` entry per question with its four labeled rows, the
+   three-reply line, `=== LIGHT END <sid> ===`.
+3. Stop. The turn ends on the block; nothing is built ahead of the
+   reply, and no exchange record or telemetry is written.
+4. On the reply, continue under the same session: an inline answer
+   or "as assumed" resumes the work, and the eventual response's
+   `notes.md` names each question and its answer; "formal" re-emits
+   the same rows as a clarification response through §10.3.

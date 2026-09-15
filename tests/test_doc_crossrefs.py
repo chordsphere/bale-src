@@ -35,6 +35,21 @@ bale-src has ever emitted a planner bundle") was exactly a
 docs-as-written outcome. Matching is whitespace-normalized, the same
 rewrapping tolerance the sanctioned-pair pins use.
 
+Since the terminal-shapes ruling (session
+2026-09-15-board-96-doc-97-terminal-shapes-013) the suite also pins
+that ruling's text of record: every tarball-mode turn ends in a
+machine-recognizable shape, and the light question block is one of
+them. Two sentences land byte-exact in docs/TARBALL.md §5.10 (the
+count-not-judgment admission test and the packer's three replies),
+docs/CLAUDE.md §3 states the every-turn-ends-in-a-shape rule beside
+its shapes paragraph, and four chat-invitation phrases the ruling
+struck stay absent from the docs they lived in. The cross-reference
+scan resolves `TARBALL.md` §5.10 as a pointer but cannot see whether
+the section still says what the ruling said, and the struck phrases
+are exactly the kind of prose a rewrap-tolerant scan never reads;
+these pins are that content check. Matching is whitespace-normalized
+like every other prose pin here.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -98,6 +113,38 @@ def top_level_section(text: str, number: int) -> str:
 # ("in every project") does not trip it.
 BUNDLE_RULING_LEAD = "**The bundle is the delivery form of every planner-authored pack"
 SINGLE_LINE_BULLET = "**Commands are single-line"
+
+# The terminal-shapes ruling's text of record. The two TARBALL.md
+# sentences are verbatim-marked in the ruling and land byte-exact
+# (whitespace collapsed, since the docs wrap at 70); the CLAUDE.md
+# sentence agrees with the session opener's closing sentence that
+# bale emits. Keep these narrow — a sentence each — so unrelated
+# edits nearby never trip them.
+LIGHT_ADMISSION_SENTENCE = (
+    "A question set is admitted to the light tier when it holds at "
+    "most three questions, none multi-tiered, and each carries a "
+    "default the packer can ratify with a word or an answer that fits "
+    "on one line; the worker counts, never judges.")
+LIGHT_REPLIES_SENTENCE = (
+    "The packer replies in one of three ways: answer inline; "
+    "\"as assumed\" to ratify every default at once; or \"formal\" to "
+    "have the same questions returned as a clarification response.")
+EVERY_TURN_SENTENCE = (
+    "Every turn Claude ends in tarball mode takes one "
+    "machine-recognizable shape: a response tarball, a probe block, a "
+    "light question block, or a clarification response; a question "
+    "asked as prose is not a shape.")
+
+# The chat-invitation phrases the ruling struck, by the doc each lived
+# in. A phrase reappearing is the drift this pin exists to catch: a
+# worker choosing between a doc that says "not size" and a doc that
+# says "ask in chat" picks the invitation.
+STRUCK_PHRASES = (
+    ("TARBALL.md", "small enough to resolve"),
+    ("TARBALL.md", "a question in chat as conversation"),
+    ("CLAUDE.md", "Claude asks, in one sentence"),
+    ("CLAUDE.md", "brief paused question in chat"),
+)
 
 
 class DocCrossReferences(unittest.TestCase):
@@ -198,6 +245,62 @@ class BundleRulingPins(unittest.TestCase):
             "docs/CLAUDE.md no longer mentions `bale open` — the bundle "
             "is delivered beside its `bale open` line (PLANNER.md 2), "
             "and CLAUDE.md is where the worker learns that verb exists")
+
+
+class TerminalShapePins(unittest.TestCase):
+    """The terminal-shapes ruling stays stated where the docs say it
+    is: the light question block's text of record in TARBALL.md
+    5.10, the every-turn rule in CLAUDE.md 3, and the struck chat
+    invitations absent."""
+
+    def setUp(self):
+        self.docs = load_docs()
+        self.normalized = {name: normalize(text)
+                           for name, text in self.docs.items()}
+
+    def test_tarball_has_light_question_block_section(self):
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        self.assertIsNotNone(
+            re.search(r"^### 5\.10\s", self.docs["TARBALL.md"], re.M),
+            "docs/TARBALL.md has no `### 5.10` heading — the light "
+            "question block's home moved; section numbers are stable "
+            "(DOCS.md 6.4)")
+
+    def test_light_tier_sentences_verbatim(self):
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        for label, sentence in (("admission", LIGHT_ADMISSION_SENTENCE),
+                                ("three replies", LIGHT_REPLIES_SENTENCE)):
+            with self.subTest(sentence=label):
+                # assertTrue, not assertIn: the haystack is the whole
+                # doc and would drown the message.
+                self.assertTrue(
+                    normalize(sentence) in self.normalized["TARBALL.md"],
+                    f"docs/TARBALL.md no longer carries the light tier's "
+                    f"{label} sentence byte-exact (whitespace aside) — "
+                    "the ruling marked it verbatim; restore it rather "
+                    f"than paraphrase it:\n  {sentence}")
+
+    def test_claude_states_every_turn_rule(self):
+        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
+        self.assertTrue(
+            normalize(EVERY_TURN_SENTENCE) in self.normalized["CLAUDE.md"],
+            "docs/CLAUDE.md no longer states the every-turn-ends-in-a-"
+            "shape rule beside its tarball-mode shapes — the sentence "
+            "must agree with the session opener bale emits:\n  "
+            f"{EVERY_TURN_SENTENCE}")
+
+    def test_struck_chat_invitations_stay_absent(self):
+        for doc, phrase in STRUCK_PHRASES:
+            with self.subTest(doc=doc, phrase=phrase):
+                self.assertIn(doc, self.docs, f"docs/{doc} is missing")
+                self.assertFalse(
+                    normalize(phrase) in self.normalized[doc],
+                    f"docs/{doc} carries the struck chat invitation "
+                    f"{phrase!r} again — the terminal-shapes ruling "
+                    "removed it: a non-blocking ask is a light question "
+                    "block (TARBALL.md 5.10), a blocking one a "
+                    "clarification (TARBALL.md 5.9), and a question "
+                    "asked as prose is not a shape")
 
 
 if __name__ == "__main__":
