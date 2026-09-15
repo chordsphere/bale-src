@@ -2137,28 +2137,37 @@ stages, runs the response's `apply.sh` and `validation.sh`, commits
 or holds, and walks the user through the result.
 
 **The bare form** (board 51, v0.4.16; the resolver widened at board
-87, v0.4.29). A bare `bale apply` scans cwd, then each configured
-`apply.search_paths` directory (non-recursive, the surface the
-argumented form's relative-name resolution searches), discriminates
-candidates by content — a request tarball is never a candidate,
-whatever its name — and takes the open set as the match surface.
+87, v0.4.29; bounded at board 101, v0.4.32). A bare `bale apply`
+lists the files named `response-*.tar.gz` in cwd, then in each
+configured `apply.search_paths` directory (non-recursive, the surface
+the argumented form's relative-name resolution searches) — the name
+is the pre-filter: a request tarball or anything else is never a
+candidate whatever it contains, and is never opened — orders them by
+`st_mtime_ns`, examines only the two newest (a fixed cap, no config
+key, plus any file sharing the second's exact mtime so the tie rule
+holds), discriminates the examined files by content, and takes the
+open set as the match surface.
 The ruling of record: Candidates answer any open session; newest by
 `st_mtime_ns` wins; an exact tie refuses; the echo names the
-resolved session and the open set. The echo — path, the session the
-tarball answers (`the open session` when one is open; `one of N open
-sessions: …` listing them all otherwise), sha256, mtime — sits behind
-a decline-default y/N that names that session, so the operator
-confirms what resolution picked before the pipeline engages. Every
-non-resolving outcome refuses with a remedy rather than guessing: no
-candidate, an exact mtime tie (each tied path listed with the session
-it answers), no open session, and non-interactive stdin (the decline
-default, taken without a prompt) each name what to do instead —
-typically the explicit `bale apply <response-tarball>` form, which
-the bare sugar leaves untouched. Several open sessions is not a
-refusal: a response's `responds_to` is one string, so each candidate
-answers exactly one of them, and the only genuine ambiguity is the
-tie — which is what lets the bare form work at a desk whose read-only
-master is always open beside the worker.
+resolved session and the open set. Resolution is among the examined
+files only — an older candidate is never found. The echo — path, the
+session the tarball answers (`the open session` when one is open;
+`one of N open sessions: …` listing them all otherwise), sha256,
+mtime — sits behind a decline-default y/N that names that session,
+so the operator confirms what resolution picked before the pipeline
+engages. Every non-resolving outcome refuses with a remedy rather
+than guessing: no candidate (the refusal names each examined file
+with why it was rejected, beside the directories searched, so a
+stale download never goes silent), an exact mtime tie (each tied
+path listed with the session it answers), no open session, and
+non-interactive stdin (the decline default, taken without a prompt)
+each name what to do instead — typically the explicit `bale apply
+<response-tarball>` form, which the bare sugar leaves untouched.
+Several open sessions is not a refusal: a response's `responds_to`
+is one string, so each candidate answers exactly one of them, and
+the only genuine ambiguity is the tie — which is what lets the bare
+form work at a desk whose read-only master is always open beside the
+worker.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never

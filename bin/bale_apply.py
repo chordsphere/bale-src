@@ -46,6 +46,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import shlex
 import shutil
 import subprocess
 import sys
@@ -295,16 +296,21 @@ def _peek_bare_candidate(tarball_path: Path) -> tuple[Optional[str], str]:
     otherwise. The sibling of `_peek_responds_to`, split rather than
     parameterized because the two callers want opposite failure postures:
     the argumented multi-open path holds exactly the tarball the user
-    named, so an unreadable one is fatal there; the bare scan walks every
-    *.tar.gz in the search directories, where a stray request tarball or
-    a corrupt download is a skip with a reason, never an exit — dying on
-    the first non-candidate in ~/Downloads would make the feature unusable
-    beside ordinary clutter. This is also the response/request
-    discriminator: a request tarball's single top-level directory is
-    request-NNN/, so it has no response-*/manifest.json member and returns
-    (None, ...) here — request tarballs are structurally never candidates.
-    Every check this peek performs is re-run in full by the pipeline's own
-    pre-flight; candidacy is a scan filter, not a validation.
+    named, so an unreadable one is fatal there; the bare scan opens the
+    two newest response-*.tar.gz files in the search directories (board
+    101's bound), where a corrupt download or a mis-named request
+    tarball is a skip with a reason, never an exit — dying on a
+    non-candidate in ~/Downloads would make the feature unusable beside
+    ordinary clutter. This is also the response/request discriminator
+    for anything that passed the name pre-filter: a request tarball's
+    single top-level directory is request-NNN/, so it has no
+    response-*/manifest.json member and returns (None, ...) here —
+    request content is structurally never a candidate, whatever the
+    file is called. Note the cost: getmembers() decompresses the whole
+    gzip stream, which is why the caller bounds how many files reach
+    this peek. Every check this peek performs is re-run in full by the
+    pipeline's own pre-flight; candidacy is a scan filter, not a
+    validation.
     """
     try:
         with tarfile.open(tarball_path, "r:gz") as tf:
@@ -334,18 +340,56 @@ def _peek_bare_candidate(tarball_path: Path) -> tuple[Optional[str], str]:
     return responds_to.strip(), ""
 
 
+# Bare-apply examination cap (v0.4.32, board 101): the number of newest
+# response-*.tar.gz files the bare scan opens, fixed at two by operator
+# ruling at the 2026-09-15 sitting — deliberately not a bale.toml key.
+# Files sharing the second-newest's exact mtime are examined too, so the
+# tie rule is unchanged (see resolve_bare_apply_tarball).
+BARE_APPLY_EXAMINE_CAP = 2
+
+
 def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
                                args: argparse.Namespace,
                                search_paths: list[str]) -> Path:
     """Resolve bare `bale apply` (no tarball argument) to a tarball path.
 
-    Board 51's contract, widened at board 87 (v0.4.29): resolve the
-    newest response tarball answering *any* open session across cwd plus
-    apply.search_paths, echo its identity — the resolved session
-    included — and take a y/N; ambiguity refuses loudly, never guesses.
-    Every refusal exits through fail() with a remedy-naming message —
-    the bare spelling is a real command path, never an argparse usage
-    error.
+    Board 51's contract, widened at board 87 (v0.4.29) and bounded at
+    board 101 (v0.4.32): resolve the newest response tarball answering
+    *any* open session across cwd plus apply.search_paths — examining
+    only the two newest `response-*.tar.gz` files by mtime — echo its
+    identity, the resolved session included, and take a y/N; ambiguity
+    refuses loudly, never guesses. Every refusal exits through fail()
+    with a remedy-naming message — the bare spelling is a real command
+    path, never an argparse usage error.
+
+    Board 101's bound, ratified 2026-09-15 (BALE.md §8). Before it the
+    scan opened EVERY *.tar.gz in the search directories, and the peek
+    reads a gzip stream to the end to find manifest.json, so a bare run
+    cost the total bytes of every tarball in ~/Downloads. The
+    operator's rule: only the latest or second-latest conventionally
+    named tarball is ever bare-applied, so nothing else needs opening.
+    Three rules, preserving board 87's:
+
+    1. **Name is the pre-filter.** Only files named `response-*.tar.gz`
+       are ever opened; a request tarball, a browser's `junk.tar.gz`,
+       anything else — is never a candidate whatever it contains, and
+       is never read (it is not stat'ed, listed, or counted either:
+       the scan surface is the named files). The legacy
+       `response-NNN.tar.gz` passes the prefix; `response-<sid>.tar.gz`
+       (TARBALL.md §1, §10.1) is the convention.
+    2. **Order by mtime, then peek only the two newest.** The named
+       files are sorted by st_mtime_ns descending (stat only) and the
+       two newest are opened — a fixed cap, no config key — plus any
+       file sharing the second's exact mtime, so the tie rule below is
+       unchanged. Resolution is among the examined files only: the
+       newest examined file wins if it answers an open session, else
+       the second, else refuse. An older candidate is never found.
+    3. **The refusal names what it examined.** When neither examined
+       file answers an open session, the no-candidate refusal lists
+       each examined filename with why it was rejected (not a response
+       tarball / answers a session that is not open), beside the
+       directories searched and a count of the older named files it
+       did not open — a stale download never goes silent.
 
     Board 51 keyed candidacy on *the single* open session and refused
     when more than one was open. That refusal fired on every sitting,
@@ -365,15 +409,16 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
       the bare form. The explicit form is the non-interactive spelling.
     - Zero open sessions refuses (nothing to match). Any number of open
       sessions otherwise proceeds to the scan.
-    - Candidates are the *.tar.gz files directly in cwd and each
-      configured search directory (non-recursive, the same surface the
-      argumented form's relative-name resolution searches) whose peeked
-      responds_to names one of the open sids. Non-candidates are skipped
-      with a reason — logged per file under --verbose, always summarized
-      in aggregate — never fatal (see _peek_bare_candidate).
+    - Candidates are the examined `response-*.tar.gz` files directly in
+      cwd and each configured search directory (non-recursive, the same
+      surface the argumented form's relative-name resolution searches)
+      whose peeked responds_to names one of the open sids. Examined
+      non-candidates are skipped with a reason — logged per file under
+      --verbose, always named in the refusal — never fatal (see
+      _peek_bare_candidate).
     - "Newest" is file modification time at nanosecond stat granularity
-      (st_mtime_ns) across every candidate, whichever session each
-      answers: the download that arrived last wins, which is the
+      (st_mtime_ns) across the examined candidates, whichever session
+      each answers: the download that arrived last wins, which is the
       re-delivery case the feature exists for. An exact tie refuses and
       names every tied path with the session it answers — the contract's
       never-guess rule; there is deliberately no secondary tie-break.
@@ -445,45 +490,76 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
         seen_dirs.add(key)
         directories.append(d)
 
-    # Each candidate carries the session it answers beside its path and
-    # mtime: the tie refusal names it per path, and the winner's is the
-    # session the echo and y/N name.
-    candidates: list[tuple[Path, int, str]] = []
-    skipped: list[tuple[Path, str]] = []
+    # Rule 1 — the name pre-filter. Only response-*.tar.gz files are
+    # listed; nothing else in the directory is stat'ed or opened. Each
+    # survivor carries its mtime (stat only — no archive is read yet)
+    # so rule 2 can order the whole surface before any peek. Deduped
+    # by resolved path (a symlinked twin is one delivery, not two).
+    named: list[tuple[Path, int]] = []
+    unreadable: list[tuple[Path, str]] = []
     seen_files: set = set()
     for d in directories:
         if not d.is_dir():
             continue
-        for p in sorted(d.glob("*.tar.gz")):
+        for p in sorted(d.glob("response-*.tar.gz")):
             if not p.is_file():
                 continue
             try:
                 resolved = p.resolve()
                 mtime_ns = p.stat().st_mtime_ns
             except OSError as e:
-                skipped.append((p, f"unreadable path ({e})"))
+                unreadable.append((p, f"unreadable path ({e})"))
                 continue
             if resolved in seen_files:
                 continue
             seen_files.add(resolved)
-            responds_to, reason = _peek_bare_candidate(p)
-            if responds_to is None:
-                skipped.append((p, reason))
-                continue
-            if responds_to not in open_set:
-                skipped.append(
-                    (p, f"responds_to={responds_to} is not an open "
-                        f"session"))
-                continue
-            candidates.append((resolved, mtime_ns, responds_to))
+            named.append((resolved, mtime_ns))
 
-    # Skips are reported, never silent: per-file under --verbose (a
-    # Downloads directory full of old request tarballs would otherwise
-    # drown the terminal on every bare run), in aggregate always — as a
-    # log line when resolution proceeds, and folded into the refusal
-    # itself when nothing was a candidate, so the stderr message alone
-    # says both what was searched and what was seen-but-rejected.
-    if skipped and args.verbose:
+    # Rule 2 — order by mtime, examine only the two newest. The cap is
+    # fixed at two (operator ruling; no config key). "Sharing the
+    # second's exact mtime" folds in as one cutoff: every file whose
+    # mtime is at least the second-newest's is examined, so an exact
+    # tie at either rank is seen in full and refuses exactly as it did
+    # under board 87. Everything older is never opened — and never
+    # found, by contract — but it is counted, so the refusal can say
+    # that older named files exist without having read them.
+    named.sort(key=lambda t: (-t[1], str(t[0])))
+    if len(named) >= BARE_APPLY_EXAMINE_CAP:
+        cutoff_ns = named[BARE_APPLY_EXAMINE_CAP - 1][1]
+        examined = [t for t in named if t[1] >= cutoff_ns]
+    else:
+        examined = list(named)
+    not_examined = len(named) - len(examined)
+
+    # Each candidate carries the session it answers beside its path and
+    # mtime: the tie refusal names it per path, and the winner's is the
+    # session the echo and y/N name. Examined non-candidates keep their
+    # reason: rule 3 puts every one of them in the refusal by name.
+    candidates: list[tuple[Path, int, str]] = []
+    skipped: list[tuple[Path, str]] = list(unreadable)
+    for resolved, mtime_ns in examined:
+        responds_to, reason = _peek_bare_candidate(resolved)
+        if responds_to is None:
+            skipped.append((resolved, f"not a candidate: {reason}"))
+            continue
+        if responds_to not in open_set:
+            skipped.append(
+                (resolved, f"answers {responds_to}, which is not an "
+                           f"open session"))
+            continue
+        candidates.append((resolved, mtime_ns, responds_to))
+
+    # Skips are reported, never silent: per-file under --verbose, as a
+    # count on the log line when resolution proceeds, and by name
+    # inside the refusal itself when nothing was a candidate (rule 3),
+    # so the stderr message alone says what was searched, what was
+    # opened, why each opened file was rejected, and how many older
+    # named files were left unopened.
+    if args.verbose:
+        log(f"bare apply: {len(named)} response-*.tar.gz file(s) found; "
+            f"examined the {len(examined)} newest by modification time"
+            + (f" ({not_examined} older not opened)" if not_examined
+               else ""))
         for p, reason in skipped:
             log(f"bare apply: skipped {p} — {reason}")
 
@@ -491,17 +567,23 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
         lines = [
             f"bare `bale apply` found no response tarball answering "
             f"{open_desc}.",
-            "  searched (*.tar.gz, non-recursive):",
+            "  searched (response-*.tar.gz, non-recursive; only the two "
+            "newest by modification time are examined):",
             f"    {cwd}  (cwd)",
         ]
         for sp in search_paths:
             lines.append(f"    {sp}")
-        if skipped:
+        if examined:
+            lines.append("  examined and rejected:")
+            for p, reason in skipped:
+                lines.append(f"    {p}  — {reason}")
+        else:
+            lines.append("  examined: nothing — no response-*.tar.gz "
+                         "file in these directories.")
+        if not_examined:
             lines.append(
-                f"  {len(skipped)} tarball(s) were scanned and are not "
-                f"candidates"
-                + ("." if args.verbose
-                   else " (--verbose lists each with its reason)."))
+                f"  {not_examined} older response-*.tar.gz file(s) "
+                f"not examined: bare apply opens only the two newest.")
         lines.append(
             "  Download the response tarball into one of these "
             "directories, add its directory to apply.search_paths "
@@ -511,7 +593,7 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
         fail("\n".join(lines))
 
     if skipped:
-        log(f"bare apply: {len(skipped)} tarball(s) scanned and not "
+        log(f"bare apply: {len(skipped)} examined tarball(s) not "
             f"candidates"
             + ("" if args.verbose else " (--verbose lists each with its "
                                       "reason)"))
@@ -573,8 +655,23 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
         f"Apply this tarball against session {sid}?")
     if not decision.accepted:
         # One of three fixed lines (BARE_APPLY_DECLINE_LINES), through
-        # fail() as before: the cause is the only addition.
-        fail(format_decline_line(BARE_APPLY_DECLINE_LINES, decision))
+        # fail() as before: the cause is the only addition to the line
+        # itself. Board 101: the resolver now knows the other examined
+        # file, so when it too answered an open session the remedy's
+        # `<path>` placeholder is followed by that file as a concrete
+        # alternative — one command per line, quoted for a Downloads
+        # path with spaces. The table line stays byte-exact (it is
+        # held literally and pinned); the alternative rides beneath it.
+        message = format_decline_line(BARE_APPLY_DECLINE_LINES, decision)
+        others = [(p, answers) for p, _, answers in candidates
+                  if p != tarball_path]
+        if others:
+            message += ("\n  The other examined file also answers an open "
+                        "session:")
+            for p, answers in others:
+                message += (f"\n    bale apply {shlex.quote(str(p))}"
+                            f"  (answers {answers})")
+        fail(message)
     return tarball_path
 
 

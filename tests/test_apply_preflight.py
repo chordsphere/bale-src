@@ -772,8 +772,8 @@ class ApplyDirtyOnTargetTest(unittest.TestCase):
 
 
 class BareApplyResolutionTest(unittest.TestCase):
-    """Bare `bale apply` (board 51; widened at board 87): argument-less
-    resolution.
+    """Bare `bale apply` (board 51; widened at board 87; bounded at
+    board 101): argument-less resolution.
 
     The ratified contract: apply with no argument resolves the newest
     response tarball answering *any* open session across the search
@@ -784,10 +784,15 @@ class BareApplyResolutionTest(unittest.TestCase):
     file answers one session, and the open set is the match surface
     rather than a precondition (the master's read-only session is
     always open beside the worker at a sitting, which is exactly where
-    the old refusal fired). Refusals exit through the bale refusal
-    convention (exit 1, remedy-naming stderr), never an argparse usage
-    error. Piped stdin takes the confirmation's decline default without
-    a prompt (the --supersedes precedent), so the piped runner exercises
+    the old refusal fired). Board 101 (v0.4.32) bounds the scan: only
+    files named `response-*.tar.gz` are ever opened, only the two
+    newest by st_mtime_ns (plus any file sharing the second's exact
+    mtime) are examined, resolution is among the examined files only,
+    and the no-candidate refusal names each examined file with why it
+    was rejected. Refusals exit through the bale refusal convention
+    (exit 1, remedy-naming stderr), never an argparse usage error.
+    Piped stdin takes the confirmation's decline default without a
+    prompt (the --supersedes precedent), so the piped runner exercises
     the refusal surface and the pty runner exercises the resolution
     happy path and the interactive decline.
     """
@@ -838,11 +843,16 @@ class BareApplyResolutionTest(unittest.TestCase):
         return sids[-1]
 
     def deliver_response(self, sid: str, name: str, data: bytes,
-                         mtime_ns: int = None) -> Path:
+                         mtime_ns: int = None, *,
+                         raw_name: bool = False) -> Path:
         """Build a valid response tarball answering `sid`, drop it into
-        the downloads dir under an arbitrary filename (discrimination is
-        content-based, so browser-mangled names must not matter), and
-        optionally pin its mtime."""
+        the downloads dir, and optionally pin its mtime. The filename is
+        `response-<name>.tar.gz` by default — since board 101 the name
+        is the pre-filter, so only response-named files are ever opened
+        (the rest of the name is arbitrary: a browser's `(1)` suffix
+        passes). `raw_name=True` drops the prefix, for the pins that
+        prove an un-named file is never a candidate however new it is
+        and whatever it contains."""
         self._fixture_counter += 1
         rdir = build_response_dir(
             self.tmp / f"bare-fixture-{self._fixture_counter}", sid,
@@ -853,15 +863,18 @@ class BareApplyResolutionTest(unittest.TestCase):
                 "data": data,
             }])
         tarball = tar_response_dir(rdir)
-        dest = self.downloads / f"{name}.tar.gz"
+        filename = f"{name}.tar.gz" if raw_name else f"response-{name}.tar.gz"
+        dest = self.downloads / filename
         shutil.move(str(tarball), str(dest))
         if mtime_ns is not None:
             os.utime(dest, ns=(mtime_ns, mtime_ns))
         return dest
 
     def deliver_request_shaped(self, name: str, mtime_ns: int = None) -> Path:
-        """A request-shaped tarball (top-level request-NNN/) in downloads:
-        must never be a candidate, however new it is."""
+        """A request-shaped tarball (top-level request-NNN/) in downloads
+        under exactly the name given: must never be a candidate, however
+        new it is — un-named, it is never opened (board 101); named
+        `response-*`, its content rejects it at the peek (board 51)."""
         rdir = self.tmp / f"reqshape-{name}" / "request-999"
         rdir.mkdir(parents=True)
         (rdir / "manifest.json").write_text(
@@ -912,7 +925,8 @@ class BareApplyResolutionTest(unittest.TestCase):
         newest = self.deliver_response(sid, "newer-delivery",
                                        b"newer content\n",
                                        mtime_ns=base + 10 * 10**9)
-        # A request-shaped tarball newer than both: never a candidate.
+        # A request-shaped tarball newer than both: never a candidate
+        # (and, un-named, never opened).
         self.deliver_request_shaped("request-newest",
                                     mtime_ns=base + 20 * 10**9)
         exit_code, output = run_bale_pty(
@@ -968,6 +982,9 @@ class BareApplyResolutionTest(unittest.TestCase):
                       "resolution picked the wrong file: bale apply <path>.",
                       output)
         self.assertNotIn(BARE_DECLINE_CAUSELESS, output)
+        # One delivery: nothing else was examined, so no alternative is
+        # named beneath the placeholder remedy (board 101).
+        self.assertNotIn("The other examined file", output)
         self.assert_nothing_applied(sid)
         return output
 
@@ -1099,23 +1116,45 @@ class BareApplyResolutionTest(unittest.TestCase):
 
     def test_bare_no_candidates_and_request_never_a_candidate(self) -> None:
         sid = self.pack_session("bare-nocand")
-        # Everything present is a non-candidate: a request-shaped tarball,
-        # a response answering a session that is not open, and raw junk.
+        # Everything present is a non-candidate: a request-shaped tarball
+        # and raw junk (both un-named, so never opened — board 101) and
+        # a response-named tarball answering a session that is not open
+        # (opened, rejected by content, named in the refusal).
         self.deliver_request_shaped("request-only")
-        self.deliver_response("2020-01-01-stale-001", "stale-response",
-                              b"stale\n")
+        stale = self.deliver_response("2020-01-01-stale-001",
+                                      "stale-response", b"stale\n")
         junk = self.downloads / "junk.tar.gz"
         junk.write_bytes(b"not a gzip stream")
         result = self.bare_apply_piped()
         self.assert_refused(
             result,
             f"no response tarball answering open session {sid}",
+            "searched (response-*.tar.gz, non-recursive",
             str(self.downloads),
             "(cwd)",
+            "examined and rejected:",
+            f"{stale}  — answers 2020-01-01-stale-001, which is not an "
+            f"open session",
             "name the path explicitly")
-        # The skips were reported in aggregate, inside the refusal.
-        self.assertIn("3 tarball(s) were scanned and are not candidates",
-                      result.stderr)
+        # The un-named files are not part of the scan at all: not
+        # examined, not counted, not mentioned.
+        self.assertNotIn("request-only", result.stdout + result.stderr)
+        self.assertNotIn("junk.tar.gz", result.stdout + result.stderr)
+        self.assertNotIn("not examined", result.stderr)
+        self.assert_nothing_applied(sid)
+
+    def test_bare_no_named_files_says_so(self) -> None:
+        """Nothing named response-*.tar.gz anywhere: the refusal says the
+        examined set was empty rather than listing nothing."""
+        sid = self.pack_session("bare-nonamed")
+        self.deliver_request_shaped("request-only")
+        result = self.bare_apply_piped()
+        self.assert_refused(
+            result,
+            f"no response tarball answering open session {sid}",
+            "examined: nothing — no response-*.tar.gz file",
+            "name the path explicitly")
+        self.assertNotIn("examined and rejected", result.stderr)
         self.assert_nothing_applied(sid)
 
     def test_bare_mtime_tie_refuses(self) -> None:
@@ -1128,6 +1167,175 @@ class BareApplyResolutionTest(unittest.TestCase):
         result = self.bare_apply_piped()
         self.assert_refused(result, "share the newest modification time",
                             "never guesses", str(first), str(second))
+        self.assert_nothing_applied(sid)
+
+    # -- the bounded scan (board 101, v0.4.32) ----------------------------
+
+    def test_bare_name_prefilter_never_opens_unnamed_files(self) -> None:
+        """Rule 1: only response-*.tar.gz files are opened. The proof is
+        behavioral, in both directions: a `junk.tar.gz` and a
+        `request-*.tar.gz` newer than the real delivery each carry VALID
+        response content answering the open session — if either were
+        opened it would be a candidate and, being newest, would win and
+        be echoed. A third un-named file is unreadable — if it were
+        opened, --verbose would print a skip line naming it. None of the
+        three appears anywhere in the output; the response-named file
+        resolves; the --verbose count says one named file was found."""
+        sid = self.pack_session("bare-prefilter")
+        base = 1_700_000_000_000_000_000
+        real = self.deliver_response(sid, "real", b"real content\n",
+                                     mtime_ns=base)
+        junk = self.deliver_response(sid, "junk", b"junk content\n",
+                                     mtime_ns=base + 10 * 10**9,
+                                     raw_name=True)
+        misnamed = self.deliver_response(
+            sid, "request-2026-01-01-misnamed-001", b"misnamed content\n",
+            mtime_ns=base + 20 * 10**9, raw_name=True)
+        unreadable = self.downloads / "unreadable.tar.gz"
+        unreadable.write_bytes(b"not a gzip stream")
+        os.utime(unreadable, ns=(base + 30 * 10**9, base + 30 * 10**9))
+        unreadable.chmod(0)
+        try:
+            result = self.bare_apply_piped("--verbose")
+        finally:
+            unreadable.chmod(0o644)
+        self.assert_refused(result, "not a TTY", str(real))
+        combined = result.stdout + result.stderr
+        self.assertIn(str(real), result.stdout)
+        self.assertIn(f"responds_to: {sid}", result.stdout)
+        self.assertIn("1 response-*.tar.gz file(s) found; examined the 1 "
+                      "newest", result.stdout)
+        for never_opened in (junk, misnamed, unreadable):
+            self.assertNotIn(never_opened.name, combined,
+                             msg=f"{never_opened.name} is not named "
+                                 f"response-*.tar.gz and must never be "
+                                 f"opened, listed, or counted")
+        self.assert_nothing_applied(sid)
+
+    def test_bare_cap_examines_two_newest_and_names_both(self) -> None:
+        """Rule 2 and rule 3 together: three response-named files, the
+        two newest non-candidates (one answers a closed session, one is
+        request content under a response name) and the oldest a real
+        candidate. The oldest is never opened — resolution refuses —
+        and the refusal names both examined files with the reason each
+        was rejected, plus the count of older named files it left
+        unopened, so the stale download does not go silent."""
+        sid = self.pack_session("bare-cap")
+        base = 1_700_000_000_000_000_000
+        oldest = self.deliver_response(sid, "oldest-real", b"real\n",
+                                       mtime_ns=base)
+        stale = self.deliver_response("2020-01-01-stale-001", "stale",
+                                      b"stale\n",
+                                      mtime_ns=base + 10 * 10**9)
+        misnamed = self.deliver_request_shaped(
+            "response-2026-01-01-actually-a-request-001",
+            mtime_ns=base + 20 * 10**9)
+        result = self.bare_apply_piped()
+        self.assert_refused(
+            result,
+            f"no response tarball answering open session {sid}",
+            "examined and rejected:",
+            f"{misnamed}  — not a candidate: no response-NNN/manifest.json "
+            f"member (not a response tarball)",
+            f"{stale}  — answers 2020-01-01-stale-001, which is not an "
+            f"open session",
+            "1 older response-*.tar.gz file(s) not examined: bare apply "
+            "opens only the two newest",
+            "name the path explicitly")
+        self.assertNotIn(str(oldest), result.stdout + result.stderr,
+                         msg="the third-newest file is never opened, so "
+                             "it is never named as examined")
+        self.assert_nothing_applied(sid)
+
+    def test_bare_second_newest_wins_when_newest_is_not_a_candidate(self) -> None:
+        """Rule 2's resolution order: the newest examined file answers a
+        closed session, the second answers the open one — the second
+        wins, and the echo names it. Piped, so the decline default
+        refuses after the echo; the resolution is what this pins."""
+        sid = self.pack_session("bare-second")
+        base = 1_700_000_000_000_000_000
+        second = self.deliver_response(sid, "second", b"second\n",
+                                       mtime_ns=base)
+        newest = self.deliver_response("2020-01-01-stale-001", "newest",
+                                       b"stale\n",
+                                       mtime_ns=base + 10 * 10**9)
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "not a TTY", str(second))
+        self.assertIn(str(second), result.stdout)
+        self.assertIn(f"responds_to: {sid}", result.stdout)
+        self.assertIn("1 examined tarball(s) not candidates", result.stdout)
+        self.assertNotIn("newest modification time won", result.stdout,
+                         msg="one candidate: nothing competed")
+        self.assertNotIn(str(newest), result.stdout)
+        self.assert_nothing_applied(sid)
+
+    def test_bare_tie_at_second_rank_still_refuses(self) -> None:
+        """The tie rule survives the cap: the newest examined file is a
+        non-candidate and the next two share an exact mtime and both
+        answer the open session — both are examined (a file sharing the
+        second's mtime is in the examined set) and the tie refuses,
+        naming each."""
+        sid = self.pack_session("bare-tie2")
+        base = 1_700_000_000_000_000_000
+        tie_a = self.deliver_response(sid, "tie-a", b"tie a\n",
+                                      mtime_ns=base)
+        tie_b = self.deliver_response(sid, "tie-b", b"tie b\n",
+                                      mtime_ns=base)
+        self.deliver_response("2020-01-01-stale-001", "newest-stale",
+                              b"stale\n", mtime_ns=base + 10 * 10**9)
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "share the newest modification time",
+                            "never guesses", str(tie_a), str(tie_b))
+        self.assert_nothing_applied(sid)
+
+    def test_bare_verbose_lists_each_examined_skip(self) -> None:
+        """--verbose keeps its per-file skip lines for the examined
+        files, and says how many named files were found, examined, and
+        left unopened."""
+        sid = self.pack_session("bare-verbose")
+        base = 1_700_000_000_000_000_000
+        self.deliver_response(sid, "oldest-real", b"real\n", mtime_ns=base)
+        stale = self.deliver_response("2020-01-01-stale-001", "stale",
+                                      b"stale\n",
+                                      mtime_ns=base + 10 * 10**9)
+        misnamed = self.deliver_request_shaped(
+            "response-2026-01-01-actually-a-request-001",
+            mtime_ns=base + 20 * 10**9)
+        result = self.bare_apply_piped("--verbose")
+        self.assert_refused(result, "examined and rejected:")
+        self.assertIn("3 response-*.tar.gz file(s) found; examined the 2 "
+                      "newest by modification time (1 older not opened)",
+                      result.stdout)
+        self.assertIn(f"bare apply: skipped {stale} — answers "
+                      f"2020-01-01-stale-001, which is not an open session",
+                      result.stdout)
+        self.assertIn(f"bare apply: skipped {misnamed} — not a candidate: "
+                      f"no response-NNN/manifest.json member",
+                      result.stdout)
+        self.assertNotIn("--verbose lists each", result.stderr)
+
+    def test_bare_decline_names_the_other_candidate(self) -> None:
+        """The row-89 decline remedy's `<path>` placeholder gains a
+        concrete alternative when the other examined file also answered
+        an open session: one `bale apply <second>` line beneath the
+        byte-exact table line, naming the session it answers."""
+        sid = self.pack_session("bare-alt")
+        base = 1_700_000_000_000_000_000
+        second = self.deliver_response(sid, "second", b"second\n",
+                                       mtime_ns=base)
+        newest = self.deliver_response(sid, "newest", b"newest\n",
+                                       mtime_ns=base + 10 * 10**9)
+        exit_code, output = run_bale_pty(
+            self.install, ["apply"], cwd=self.repo, env=self.env,
+            answers="n\n")
+        self.assertEqual(exit_code, 1,
+                         msg=f"decline must refuse; output:\n{output}")
+        self.assertIn(str(newest), output)
+        self.assertIn(bare_decline_answered("n"), output)
+        self.assertIn("bale apply <path>.", output)
+        self.assertIn("The other examined file also answers an open "
+                      "session:", output)
+        self.assertIn(f"bale apply {second}  (answers {sid})", output)
         self.assert_nothing_applied(sid)
 
     def test_bare_piped_stdin_declines_without_prompt(self) -> None:

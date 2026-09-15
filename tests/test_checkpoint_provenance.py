@@ -84,6 +84,13 @@ CHECKPOINT_PATH = "scripts/validation.base.sh"
 # Sentinels for the surfaces this file pins.
 SCOPE_REFUSAL_PHRASE = "write forecast covers the blind checkpoint"
 READ_NAME_PHRASE = "pack includes name the blind checkpoint explicitly"
+BLINDNESS_PASSED_PHRASE = "checkpoint blindness gate passed"
+# The handoff's read-side remedy (v0.4.32, board 101): the reading plan
+# is the lever, never --write; the forecast-side handoff remedy below
+# must not leak onto a read-side refusal.
+HANDOFF_READ_REMEDY = "re-bail with a reading plan that does not name the checkpoint"
+HANDOFF_WRITE_REMEDY = ("re-run this handoff with --write paths that "
+                        "do not cover the checkpoint")
 AUTO_EXCLUDE_PHRASE = "never ships incidentally"
 PACK_DANGLING_PHRASE = "blind checkpoint missing at the pack-time tip"
 DIVERGENCE_PHRASE = "blind checkpoint changed since pack"
@@ -618,15 +625,21 @@ class CheckpointProvenanceE2ETest(unittest.TestCase):
 
 
 class HandoffBlindnessGateTest(unittest.TestCase):
-    """The handoff-side covering refusal (v0.3.33, BALE.md §11 row 30):
-    the same gate implementation as pack's, run pre-sid against the
-    handoff's reading-plan scope, with the mirroring per-invocation
-    admission flag stamping through the shared provenance builder.
+    """The handoff-side blindness refusal (v0.3.33, BALE.md §11 row 30):
+    the same gate implementation as pack's, run pre-sid, with the
+    mirroring per-invocation admission flag stamping through the shared
+    provenance builder. Since v0.4.28 (board 73) the handoff's forecast
+    is INHERITED from the bailed-on session's record and its reading
+    plan goes to the gate as read includes, so a plan that names the
+    checkpoint fires the read side of the gate, not the forecast side,
+    and an empty plan changes nothing about the forecast. The two pins
+    that predated that change were trued up at board 101 (v0.4.32).
 
-    Fixture flow per test: pack an ordinary in-scope session, apply a
-    bailout response whose handoff.md reading plan cites a chosen file
-    set (closing the session — handoff refuses while any is open), then
-    run `bale handoff` against the bailout tarball."""
+    Fixture flow per test: pack an ordinary in-scope session (its
+    recorded forecast is the include set, hello.txt), apply a bailout
+    response whose handoff.md reading plan cites a chosen file set
+    (closing the session), then run `bale handoff` against the bailout
+    tarball."""
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-cpho-")
@@ -758,10 +771,12 @@ class HandoffBlindnessGateTest(unittest.TestCase):
     # -- the E2Es --------------------------------------------------------
 
     def test_handoff_refuses_covering_reading_plan(self) -> None:
-        """A reading plan citing the checkpoint path resolves to a
-        covering scope: handoff refuses pre-sid — remedy text present,
-        the flag named as successor, no new session state of any
-        kind."""
+        """A reading plan that names the checkpoint path goes to the
+        gate as read includes (v0.4.28): handoff refuses pre-sid on the
+        READ side — the read-includes diagnosis, the read-side remedy
+        (a reading plan that does not name the oracle) and the flag as
+        successor, never the forecast side's --write lever — and no new
+        session state of any kind."""
         self.commit_checkpoint()
         self.configure_checkpoint()
         bailed_sid, tarball = self.packed_and_bailed_sid(
@@ -770,18 +785,25 @@ class HandoffBlindnessGateTest(unittest.TestCase):
         refused = self.handoff(tarball)
         self.assertNotEqual(refused.returncode, 0)
         combined = refused.stdout + refused.stderr
-        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertIn(READ_NAME_PHRASE, combined)
+        self.assertNotIn(SCOPE_REFUSAL_PHRASE, combined,
+                         msg="the reading plan is not the forecast; the "
+                             "forecast-side diagnosis must not fire")
         self.assertIn("--allow-checkpoint-in-scope", combined,
                       msg="the refusal names its override successor")
-        # The caller-aware remedy sentence (v0.3.34): the handoff
-        # refusal swaps only the narrowing remedy — a handoff's scope
-        # is the reading plan's resolved cite set, so --include is not
-        # its lever; the diagnosis and flag lines above stay byte-shared
-        # with pack's.
-        self.assertIn("re-bail with a reading plan that does not cite "
-                      "the checkpoint", combined)
-        self.assertNotIn("narrow this pack with --include paths",
-                         combined)
+        # The caller-and-side-aware remedy sentence (v0.4.32, board
+        # 101): the handoff refusal swaps only the narrowing remedy,
+        # and on the read side that remedy is the reading plan — the
+        # read set IS the bailout's plan, and --write moves the
+        # forecast, not the reads. The diagnosis and flag lines above
+        # stay byte-shared with pack's.
+        self.assertIn(HANDOFF_READ_REMEDY, combined)
+        self.assertNotIn(HANDOFF_WRITE_REMEDY, combined,
+                         msg="--write is the forecast-side lever and must "
+                             "not be offered for a read-side refusal")
+        self.assertNotIn("drop the --include entry", combined,
+                         msg="pack's read-side remedy names a flag "
+                             "handoff does not take")
         self.assertEqual(self.open_sids(), [],
                          msg="the refusal is pre-sid — no session opened")
         self.assertEqual(
@@ -832,24 +854,41 @@ class HandoffBlindnessGateTest(unittest.TestCase):
         self.assertEqual(provenance["checkpoint"],
                          {"path": CHECKPOINT_PATH, "sha256": sha})
 
-    def test_handoff_empty_plan_whole_tree_refuses(self) -> None:
-        """A reading plan citing no files resolves to ["."] — the
-        conservative whole-tree fallback — which covers any configured
-        checkpoint: the handoff refuses the same way a default
-        whole-tree pack does, and the flag remains the admission
-        path."""
-        self.commit_checkpoint()
+    def test_handoff_empty_plan_inherits_the_parent_forecast(self) -> None:
+        """A reading plan citing no files no longer widens anything: a
+        handoff inherits the parent's recorded forecast exactly
+        (v0.4.28, board 73; the §5 contract), and this parent's —
+        hello.txt, its include set — does not cover the checkpoint. So
+        the handoff opens, the blindness gate passes without the flag,
+        the new session's record shows the inherited forecast, and the
+        provenance stamps checkpoint_scope_admitted: false. (Until
+        0.4.27 an empty plan fell to the ["."] whole-tree fallback and
+        refused here; that pin described retired behavior.)"""
+        sha = self.commit_checkpoint()
         self.configure_checkpoint()
         bailed_sid, tarball = self.packed_and_bailed_sid(
             reading_plan_paths=None)
 
-        refused = self.handoff(tarball)
-        self.assertNotEqual(refused.returncode, 0)
-        combined = refused.stdout + refused.stderr
-        self.assertIn(SCOPE_REFUSAL_PHRASE, combined)
-        self.assertEqual(self.open_sids(), [],
-                         msg="the refusal is pre-sid — no session opened")
-        self.assertEqual(self.session_dirs(), {bailed_sid})
+        opened = self.handoff(tarball)
+        self.assertEqual(
+            opened.returncode, 0,
+            msg=f"stdout:\n{opened.stdout}\nstderr:\n{opened.stderr}")
+        combined = opened.stdout + opened.stderr
+        self.assertIn(BLINDNESS_PASSED_PHRASE, combined)
+        self.assertNotIn(SCOPE_REFUSAL_PHRASE, combined)
+        self.assertNotIn(READ_NAME_PHRASE, combined)
+        manifest = self.new_session_request_manifest(bailed_sid)
+        new_sid = manifest["session_id"]
+        scope_file = self.repo / ".bale" / "sessions" / new_sid / "scope.json"
+        self.assertEqual(
+            json.loads(scope_file.read_text(encoding="utf-8")),
+            ["hello.txt"],
+            msg="the plan-less handoff inherits the parent's forecast, "
+                "not the whole tree")
+        provenance = manifest["provenance"]
+        self.assertIs(provenance["checkpoint_scope_admitted"], False)
+        self.assertEqual(provenance["checkpoint"],
+                         {"path": CHECKPOINT_PATH, "sha256": sha})
 
 
 if __name__ == "__main__":
