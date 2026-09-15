@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-14-sitting-close-deltas-7-012`.
+Last landed by: `2026-09-15-sitting-close-deltas-8-003`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -1907,6 +1907,81 @@ row home; close recorded by
   Rows 92 and 93 stand until pack's `--verbose` or the ledger
   brings them forward.
 
+Landed 2026-09-15, the continue-plan-001 sitting (master
+`2026-09-15-continue-plan-001`, read-only; opened 2026-09-15 UTC —
+2026-09-14 on the architect's chat — on "continue the plan, and fix
+the date confusion a Sonnet worker kept hitting"; the previous master
+`2026-09-14-continue-plan-006` closed at close-7 per the retiring
+brief). Row 94 opened, spawned, and applied in one sitting; its
+bracket carries the facts of record; this block carries only what has
+no row home; close recorded by
+`2026-09-15-sitting-close-deltas-8-003`:
+
+- Wave record: one session,
+  `2026-09-15-board-94-clock-discipline-002`, 0.4.30, one
+  clarification round (round 1 three questions, pre-build; round 2 the
+  desk's answers through `bale relay`; telemetry
+  `clarification.rounds: 2`), blind checkpoint seven of seven on the
+  applied tree, applied 2026-09-15. No second attempt. The desk
+  rehearsed the oracle both ways before emission (HOLD on the
+  unmodified tree, six of seven; PASS on a scratch tree with the
+  outcomes stubbed from the brief's own bytes) and struck one
+  imagined-surface probe at rehearsal (§6 entry 132).
+- Sitting-open record: close-7's notes.md ratified wholesale at this
+  close (the open deferred it to land the clock row first — the
+  deferral is recorded, not repeated); its two backslash strikes in
+  the registry's `persist_pack_session` entry ratified as landed. The
+  sitting-open version check was satisfied by the request's provenance
+  stamp, 0.4.29. Board 94's notes.md ratified in-sitting, the calls
+  named on its row.
+- The clock finding, for the record: three clocks — `date.today()` for
+  session ids and their counters, UTC for every ISO stamp, the
+  architect's Eastern wall clock on the chat — and no anchor (no pack
+  timestamp in the manifest, "per-day" in TARBALL.md §1 without a day,
+  no rule for which date a worker writes). The specimen was this
+  sitting's own request: sid `2026-09-15-…-001`, packed 00:20Z, chat
+  date 09-14. The pack machine (WSL) runs on UTC — `date` and
+  `date -u` agree, verified by the architect 2026-09-15 — so the
+  machine's local date is the UTC date and the skew is
+  chat-versus-bale, four hours a night. Ruled UTC, one clock
+  everywhere (§5). This block's own dates are UTC under the ruling.
+- The structured-output discussion, held at this sitting and ruled
+  (§5): every worker turn in tarball mode ends in one
+  machine-recognizable shape — a response tarball, a probe block, a
+  light question block, or a formal clarification; prose that asks is
+  not a shape. The light tier exists because a sufficiently short
+  question set is faster to read and answer in chat than to relay, and
+  its audit trail is the eventual response, not the thread. Lands at
+  row 96, after row 91.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open.
+- Board deltas of the close: row 94 opened and DONE; rows 95–98 opened
+  in §4; row 91 grown (board 94 re-found the gap and names the
+  crafter's embedded copy); row 84 grown a fourth specimen; evidence
+  entries 132–135 in §6; two contracts dated 2026-09-15 in §5; the
+  version landmark 0.4.30, the UTC-machine fact, the fixture-consumer
+  include rule, and the "applied" report convention in §7.
+- Registry deltas of the close: two riders whose ride condition board
+  94 satisfied and the desk did not surface — `persist_pack_session`'s
+  stale docstring (rides the next `bale_pack.py` touch) and
+  `normalize()` into `tests/harness.py` (rides the next forecast
+  holding it) — stand unconsumed, and the miss is §6 entry 135; the
+  desk consults the registry at dispatch from here on. Proposals
+  consumed this sitting: board 94's ADR-location defect became row 97;
+  its stats read-side normalization became row 98; its `origin` parity
+  finding grew row 91; its crafter bundle-stem clock line rides row 96
+  (the crafter is in 96's forecast); its handoff-gate test failures
+  became row 95; its midnight-straddle journal line stands as shipped,
+  no entry.
+- Sequencing for the next desk: rows 89 and 90 beside each other as
+  previously recorded → 91 and 95 beside each other (91 holds
+  `schemas/` and a pin; 95 holds
+  `tests/test_checkpoint_provenance.py`, and `bin/bale_pack.py` only
+  if the gate order rather than the tests is wrong — in which case 95
+  follows 89) → 96 → 97 → the held wave: 68, then 56+57 beside it,
+  then 69, then 37 (69 and 37 serialize on the crafter) → 43 → 45 →
+  S6. Rows 92, 93, and 98 stand until brought forward.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -3532,6 +3607,12 @@ and §8, so done items keep their numbers as one-line pointers.
     `[]`, so the ledger does not carry this one. Disjointness is a
     forecast property; includes gate nothing (§6 entry 126; the doc
     lane landed the sentence in `PLANNER.md` §6).]
+    Fourth specimen 2026-09-15: board 94's `includes_missing` named
+    the `HandoffFixture` consumer suites (`test_handoff_forecast`,
+    `test_handoff_registry_gate`, `test_handoff_checkpoint_gates`,
+    `test_handoff_happy`) — the desk chased test imports but not
+    fixture consumers, so the `peeked_sid` edit shipped with one test
+    exercising it (§7 include rule, §6 entry 133).
 
 85. **exchange-carried-outside-relay self-report** — queued
     2026-09-14 (schema + docs + lint): a worker-side field in the
@@ -3688,6 +3769,14 @@ and §8, so done items keep their numbers as one-line pointers.
     tests; one line plus a pin; a forecast touching `schemas/`
     ships the self-containment guard. From 73B's and 83's
     Proposals. Sequenced after 89/90 (§3 close block).
+    Grown 2026-09-15: board 94 re-found the gap from the other side —
+    the response schema admits the v0.4.24 `origin` key, the
+    exchange-record schema and the crafter's `--emit-block` embedded
+    copy do not, so an `origin`-tagged clarification is tarball-valid
+    and paste-block-refused; board 94's round-1 questions shipped
+    without the key. Scope grows by the crafter's embedded copy and
+    `test_schema_embeds` extended to the pair. Sequenced before row
+    96, which makes the paste block the light tier's courier.
 
 92. **`walk_for_pack --verbose` names untracked drops** — queued
     2026-09-14 (bin/). From 73B's Proposals, VERBATIM: "**What:** in
@@ -3715,6 +3804,123 @@ and §8, so done items keep their numbers as one-line pointers.
     pack undeclared, and its plan-less handoff refuses at the
     blindness gate. Gated on the ledger showing it; stands until
     then (§3 close block).
+
+94. **Clock discipline + the `context/` prefix** — DONE. Opened,
+    spawned, and applied 2026-09-15 at the continue-plan-001 sitting
+    (`2026-09-15-board-94-clock-discipline-002`, 0.4.30, one
+    clarification round). **What landed:** `utc_today()` in
+    `bin/bale`, `next_session_id`/`peek_session_id` defaulting to it;
+    both request-building paths (`cmd_pack`, `bale handoff`;
+    `bale open` replays through `cmd_pack`) read one UTC instant and
+    pass it to allocation and the stamp, so
+    `sid[:10] == packed_at[:10]` holds by construction;
+    `provenance.packed_at` stamped unconditionally, admitted never
+    required on the request schema, admitted on the response echo, the
+    lint's embedded schema refreshed, no telemetry schema edit
+    (`attempts[].provenance` is open); the opener carries
+    `Packed at <packed_at> (UTC).` and the VERBATIM clock sentence as
+    two emitted lines between identity and goal; TARBALL.md §1 names
+    the UTC day and carries the clock sentence, §3.1 carries the
+    mapping sentence, `context_included` loses "typically"; the lint
+    gains a non-gating warning tier (`warnings[]`, `[WARN]`, invisible
+    to `ok`, the exit code, and the mechanical block) and two checks —
+    `context-prefix` (a `changes[]` path under `context/` is a
+    finding; a `docs_read` token under it a warning) and
+    `dated-artifacts` (content-keyed on a `- **Date:** YYYY-MM-DD`
+    header in the first 20 lines, path-agnostic; created: date equals
+    the sid's date or a finding; modified: only a dated line later
+    than the sid's date, the header being byte-stable under DOCS.md
+    §5's sanctioned shapes); tests predicting sids moved to the UTC
+    date; `test_clock_discipline.py` (5) and
+    `test_lint_clock_and_prefix.py` (12). **Rulings, round 2:**
+    modified-ADR dates as above, with the earlier-but-re-dated case
+    deliberately left to the crafter's ADR doc-assertion (the lint has
+    no base bytes); content-keyed recognition; the bundle-stem check
+    struck — a bundle never rides in a response (TARBALL.md §3.4), the
+    brief over-reached (§6 entry 132). **Validation facts of record:**
+    two `test_checkpoint_provenance.py` handoff-gate tests fail on the
+    unmodified shipped bytes (row 95); `includes_missing` named the
+    `HandoffFixture` consumer suites (row 84, §7); the
+    self-containment guard caught "board 94" citations in injected
+    surfaces, removed. Ratified in-sitting; the two desk brief defects
+    recorded at §6 entry 132.
+
+95. **Handoff-gate tests fail on shipped bytes** — queued 2026-09-15
+    (tests/, possibly bin/bale_pack.py). From board 94's validation
+    facts, VERBATIM: "`tests/test_checkpoint_provenance.py`
+    `HandoffBlindnessGateTest.test_handoff_empty_plan_whole_tree_refuses`
+    and `test_handoff_refuses_covering_reading_plan` fail on the
+    unmodified shipped bytes: the handoff's include-set refusal ("pack
+    includes name the blind checkpoint explicitly") fires before the
+    forecast refusal wording the tests assert
+    (`SCOPE_REFUSAL_PHRASE`), and the empty-plan case now succeeds
+    where the test expects a refusal." **Why:** a latent regression no
+    prior validation caught — the suite did not ship with the sessions
+    that touched the gate (§6 entry 126's class). **Scope hints:**
+    read 73B's telemetry for the suite's status at its landing first;
+    if the include-set-before-forecast order is intended (73B's
+    blindness gate), the tests are stale and this is tests-only; if
+    not, the order is the defect and the row follows 89 for
+    `bin/bale_pack.py`. Desk guess, labelled: the order is intended.
+
+96. **Terminal shapes: the light question tier, and the chat
+    invitations struck** — queued 2026-09-15 (docs/CLAUDE.md,
+    docs/TARBALL.md, docs/PLANNER.md, bin/bale_pack.py one line,
+    tools/craft_response.py, schemas/ additive; after 91). **What:**
+    the §5 ruling of 2026-09-15 lands. Strike or rewrite the four
+    sanctioned chat invitations — TARBALL.md §3.3 item 1 ("small
+    enough to resolve inline", which contradicts §5.9.1's not-size
+    test), §5.9.1's "a question in chat as conversation", CLAUDE.md
+    §3's one-sentence mode ask (dead since 0.4.16: a bale-emitted
+    opener with a sid is tarball mode) and §9's "brief paused question
+    in chat"; the opener's closing line becomes the shape rule. New
+    TARBALL.md §5.10, the light question block: admitted when the set
+    holds at most three questions, none multi-tiered (no options that
+    need explaining, no `why_blocked` that needs a paragraph), each
+    with a default the packer can ratify by a word or an answer that
+    fits on one line — the worker counts, never judges; the block is
+    sentinel-bracketed, human-readable in the apply walkthrough's
+    `[n] question / while doing / would assume / why blocked` render,
+    and ends with the packer's three replies every time: answer
+    inline, "as assumed" to ratify every default, "formal" to have the
+    same questions returned as a clarification. Its trail is the
+    eventual response: notes.md names each question and its answer,
+    and an additive `feedback.self_reported` count makes the tier
+    visible to stats; no thread record, no telemetry attempt. A pack
+    flag on the `expects_probe` pattern lets the packer force formal
+    for a session (a harness sets it); the mechanical rule is the
+    default and the flag overrides one way only. PLANNER.md §15 gains
+    the packer's side. The crafter's `--emit-block` grows the human
+    render beside the JSON one so one question row feeds either
+    courier, and its `--bundle` docstring names the stem's clock
+    (board 94's proposal: the UTC date, i.e. the authoring session's
+    own sid date). **Why:** two chat-first breaches on the board-94
+    spawn alone; a worker choosing between "the docs say not size" and
+    the opener's "ask me if anything is unclear" picks the opener (§6
+    entry 134). The harness property — every ending parses — falls out
+    of the same rule. **Scope hints:** a contract-doc row with two
+    code touches; the four doc-pin suites and the self-containment
+    guard ship; sequenced after 91 because an `origin`-tagged question
+    is paste-block-refused until 91 lands.
+
+97. **Where ADRs live: one spelling** — queued 2026-09-15 (docs/,
+    after 96). From board 94's Proposals, VERBATIM: "Three injected
+    docs disagree on where ADRs live: DOCS.md §2's table and §5 say
+    `claude/context/adr/NNNN-*.md`; CLAUDE.md's INDEX table says
+    `adr/NNNN-*.md`; TARBALL.md §3.1's `context/` example shows
+    `decisions/`. The lint's content-keyed recognizer sidesteps it,
+    but the desk should queue a doc row so one spelling wins." **Scope
+    hints:** the three sites; the doc-pin suites ship; ratify the
+    spelling at the desk before dispatch (the desk's read: DOCS.md's,
+    since it is the doc that defines the ADR).
+
+98. **Stats read-side `context/` normalization** — queued 2026-09-15
+    (bin/bale_stats.py; low). From board 94's Proposals, VERBATIM:
+    "Strip a leading `context/` from `docs_read` tokens at read time
+    in `bale_stats.py` so the three historical records aggregate with
+    the repo spelling, without editing them." Additive doctrine: no
+    retroactive record edits. Stands until a stats session brings it
+    forward.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -4371,6 +4577,29 @@ ruling of record with one home):
   Row 88's `PLANNER.md` §6 sentence, VERBATIM in the doc — cited
   here, not re-quoted; `CLAUDE.md` §4's "deciding what's next" row
   points at it.
+- **One clock (2026-09-15, this sitting).** Every date bale mints —
+  the session id, its per-day counter, a handoff re-mint — and every
+  timestamp it writes are UTC; a session dates what it writes from the
+  session id, never from the date its chat shows. Landed at row 94 as
+  the VERBATIM TARBALL.md §1 sentence and the opener line. The pack
+  machine's local date is the UTC date (§7). Not re-litigated by a
+  chat that shows a different day: the chat is a day behind, by
+  design.
+- **Terminal shapes (2026-09-15, this sitting; lands at row 96).** A
+  worker turn in tarball mode ends in exactly one machine-recognizable
+  shape: a response tarball, a probe block, a light question block, or
+  a formal clarification. Prose that asks is not a shape. The
+  discriminator is where the answer lives — in the environment and
+  readable by script, a probe, even when the packer could answer from
+  memory; in the packer's intent, a question; both, a probe first.
+  Blocking asks are asked; non-blocking gaps are notes.md Proposals or
+  named assumptions, unchanged. The light tier is a counted admission,
+  not a judgment: at most three questions, none multi-tiered, each
+  one-line-answerable or ratifiable by a word; its trail is the
+  eventual response, not the thread; the packer's choice to escalate
+  to formal rides on every block, and a request-side flag can force
+  formal for a session. The formal clarification is unchanged for
+  everything the light tier does not admit.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -5599,6 +5828,38 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     fixture-defines-no-tests assertion must key on the `Ran 0
     tests` line, not the exit code. (73B.)
 
+132. **A surface named from memory, twice in one sitting.** Board 94's
+    desk imagined that `response_lint.py` embeds the request schema
+    (it embeds the response and diagnostics schemas) — caught at
+    oracle rehearsal, one probe struck; and named "a bundle stem" as a
+    dated artifact a response authors (a bundle never rides in a
+    response, TARBALL.md §3.4) — caught by the worker, one check
+    struck at round 2. Same class as entry 125's: a claim about a
+    surface is read or omitted. (Desk-side, row 94.)
+
+133. **Test imports chased, fixture consumers not.** The include rule
+    reached the module a suite imports and stopped; the suites that
+    consume a shared fixture the forecast touched did not ship, and an
+    edit to that fixture landed exercised by one test. Fourth
+    `includes_missing` specimen, the first the ledger carries (row
+    84). (Row 94.)
+
+134. **Four invitations, one rule.** The doctrine said "chat is never
+    a surface for a blocking ask" while four sanctioned surfaces said
+    the opposite — §3.3's "small enough", §5.9.1's own conversational
+    clause, CLAUDE.md §3's mode ask, and the opener's "ask me if
+    anything is unclear", the most-read sentence in the system. A
+    worker resolves that conflict in favour of the invitation nearest
+    its eyes. Strike the invitations, not the worker. (Two chat-first
+    breaches on the row-94 spawn; row 96.)
+
+135. **The registry consulted at close, not at dispatch.** Two riders
+    whose ride condition board 94's forecast satisfied went
+    unmentioned in its brief and unconsumed in its response; the desk
+    read the registry to write this close, after the session that
+    should have carried them. The registry is a dispatch-time read.
+    (Desk-side, this sitting.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -5748,6 +6009,25 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   mirrors the *checkout* into the install and apply is
   checkout-free (ADR-0008), so the install tracks the working tree,
   not the merge.
+- Version landmark 0.4.30 (row 94, 2026-09-15).
+- The pack machine's clock: the architect's WSL host runs on UTC —
+  `date` and `date -u` agree (verified 2026-09-15). A chat date behind
+  a session id by one day, from about 20:00 Eastern, is the expected
+  skew, not a defect; the opener says so since 0.4.30.
+- Include-authoring rule, accreted 2026-09-15: when a forecast holds a
+  shared test fixture module (`tests/harness.py` and its fixture
+  classes), the suites that consume that fixture ship with it, found
+  by grepping the fixture's class names across `tests/`, not by
+  chasing imports (row 84's fourth specimen).
+- The "applied" report convention, recorded once: the architect's
+  paste of a landed session's notes.md followed by the word "applied"
+  is the apply report. A session that lands has passed its blind
+  checkpoint and the apply gates by definition; no separate report is
+  asked for.
+- Registry riders are a dispatch-time read (§6 entry 135): before
+  emitting any bundle, the desk checks the §3 registry for entries
+  whose ride condition the forecast satisfies and names them in the
+  brief.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
