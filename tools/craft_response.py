@@ -2,15 +2,15 @@
 """craft_response.py — mechanical scaffolder for a bale response directory.
 
 Sections:
-  1. Imports + constants                                                   (~line 244)
-  2. Shared helpers (slug, log, exit)                                      (~line 517)
-  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 551)
-  4. Planner-bundle emission (--bundle)                                    (~line 635)
-  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 800)
-  6. Path handling                                                         (~line 1347)
-  7. Skeleton construction                                                 (~line 1408)
-  8. Doc-contract assertions (--doc-assertions)                            (~line 1573)
-  9. CLI                                                                   (~line 1915)
+  1. Imports + constants                                                   (~line 272)
+  2. Shared helpers (slug, log, exit)                                      (~line 545)
+  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 579)
+  4. Planner-bundle emission (--bundle)                                    (~line 663)
+  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 828)
+  6. Path handling                                                         (~line 1392)
+  7. Skeleton construction                                                 (~line 1453)
+  8. Doc-contract assertions (--doc-assertions)                            (~line 1730)
+  9. CLI                                                                   (~line 2072)
 
 A WORKER runs this against its own response-NNN/ directory while
 building a response, without bale installed. It mechanizes the
@@ -31,6 +31,27 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   nothing needs it, otherwise `rm -f` lines for deletions and
   per-path `chmod +x` lines for files the worker names with
   `--executable`;
+- (any kind, §5.2.2) `--request <request manifest.json>` seeds the
+  skeleton's `feedback` block: `feedback.mechanical.provenance` is
+  the request's provenance block echoed VERBATIM — same keys, same
+  order, same values — plus `model_identity: ""`, so "echoed
+  verbatim" is mechanized rather than hand-copied; null when the
+  request carried no provenance (the echo schema's own case). The
+  rest of the block is scaffolded so the lint's
+  `--emit-feedback-mechanical` composes with it in ONE pass: the
+  four lint-computable members are present and schema-valid
+  (`response_kind` from `--kind`; the three verdicts seeded false as
+  the pessimistic placeholder, which the lint's feedback-block check
+  flags as mismatches until the emitter's output is pasted over
+  them), and `self_reported` carries its required keys with two
+  schema-invalid sentinels (`budget_pressure: ""`,
+  `compaction_occurred: {}`) so an unfilled block cannot pass. The
+  worker fills `model_identity` and `self_reported` BEFORE running
+  the emitter — a schema gap at emit time would poison the emitted
+  `schema_valid` — then pastes the emitter's four values in. The
+  request's `session_id` must equal `--sid` (a wrong-session echo
+  has no downstream catch); without the flag the skeleton is
+  byte-identical to what it was before the flag existed;
 - (bailout, §5.6) emits the manifest skeleton with the §5.6.2 empty
   change surfaces, and under `--write` the full artifact set: the
   no-op `apply.sh` and `validation.sh`, the `handoff.md` scaffold
@@ -157,7 +178,8 @@ judges. An unfilled skeleton is deliberately lint-invalid (empty
 `action`, `reason`, `summary`), so it cannot pass review by accident.
 
 Usage:
-    craft_response.py <response-dir> --sid SESSION_ID [options]
+    craft_response.py <response-dir> --sid SESSION_ID [--request FILE]
+                      [options]
     craft_response.py --probe SLUG
     craft_response.py --bundle STEM --pack-arg TOKEN...
                       (--brief FILE | --no-brief) [--checkpoint FILE]
@@ -230,6 +252,11 @@ Options:
                         path (repeatable)
     --sid SESSION_ID    session id for session_id and responds_to;
                         required except under --changes-only/--apply-only
+    --request FILE      the request's manifest.json; seeds the feedback
+                        block (provenance echoed verbatim plus an empty
+                        model_identity) into the emitted manifest. Only
+                        with the manifest-emitting modes (default /
+                        --write); FILE's session_id must equal --sid
 
 Exit codes:
     0  success
@@ -873,11 +900,21 @@ ANSWER_REQUIRED_KEYS = ("question_round", "question_index", "answer",
                         "disposition")
 ANSWER_OPTIONAL_KEYS = ("amendment_target",)
 
-# The question row: the four legacy fields plus the three v0.4.7 additive
-# ones. QUESTION_STUB_KEYS above is the required half — the seeded stub's
-# home — and this is the full permitted set, so the two cannot disagree
-# about what a filled row may carry.
-QUESTION_OPTIONAL_KEYS = ("options", "recommendation", "priority")
+# The clarification-origin vocabulary (v0.4.24) — re-declared from
+# bale_validate.CLARIFICATION_ORIGINS: which gap class put a question on
+# the clarification path (an intent gap, or an environment gap asked here
+# because the request forbade probing). Closed, like priority; an
+# invented class refuses wherever the key appears.
+QUESTION_ORIGINS = ("intent-gap", "probe-forbidden-environment")
+
+# The question row: the four legacy fields, the three v0.4.7 additive
+# ones, and the v0.4.24 origin tag. QUESTION_STUB_KEYS above is the
+# required half — the seeded stub's home — and this is the full permitted
+# set, so the two cannot disagree about what a filled row may carry. The
+# set's home of record is response-manifest.schema.json's questions.items;
+# tests/test_schema_embeds.py pins this tuple (and the two vocabularies)
+# against it.
+QUESTION_OPTIONAL_KEYS = ("options", "recommendation", "priority", "origin")
 
 CLARIFICATION_KIND = "clarification"
 
@@ -1066,11 +1103,12 @@ def question_row_problems(rows) -> list[str]:
     same rules from response-manifest.schema.json's questions.items. The
     row shape is the four required fields (QUESTION_STUB_KEYS — the
     seeded stub's home, reused here so the tool cannot seed a stub its
-    own check would reject), the three additive v0.4.7 fields, and no
-    others (additionalProperties: false at the row level). `options`,
-    when present, is a non-empty array of non-empty strings; `priority`
-    is the closed two-class vocabulary, enforced here at its named spot
-    AND row-wide by the walk, matching the library's discipline.
+    own check would reject), the three additive v0.4.7 fields, the
+    v0.4.24 `origin` tag, and no others (additionalProperties: false at
+    the row level). `options`, when present, is a non-empty array of
+    non-empty strings; `priority` and `origin` are closed vocabularies,
+    each enforced here at its named spot AND row-wide by the walk,
+    matching the library's discipline.
 
     Messages are the crafter's own; only the VERDICT is pinned against
     the library, over the corpus in tests/test_craft_response.py.
@@ -1110,10 +1148,14 @@ def question_row_problems(rows) -> list[str]:
                             "string")
         if "priority" in row and not isinstance(row["priority"], str):
             problems.append(f"{at}.priority: expected a string")
+        if "origin" in row and not isinstance(row["origin"], str):
+            problems.append(f"{at}.origin: expected a string")
     _walk_closed_vocabularies(
         rows, "questions",
         {"priority": _vocabulary_check(QUESTION_PRIORITIES,
-                                       "question priority")},
+                                       "question priority"),
+         "origin": _vocabulary_check(QUESTION_ORIGINS,
+                                     "clarification origin")},
         problems)
     return problems
 
@@ -1441,8 +1483,116 @@ def build_changes(files_root: Path | None, deleted: list[str]) -> list[dict]:
     return entries
 
 
+def read_request_provenance(path_str: str) -> tuple[dict | None, str | None] | str:
+    """Read the request manifest.json named by --request and return
+    (provenance, session_id), or an error message string.
+
+    `provenance` is the block exactly as parsed (key order preserved —
+    json.load keeps it, json.dumps writes it back), or None when the
+    request carries no provenance (a pre-0.3.8 pack — the echo's
+    schema names null for that case). `session_id` is the request's own
+    when present, for the sid cross-check the caller does: seeding
+    another request's stamps into this response is exactly the mistake
+    the flag exists to prevent, so it refuses rather than echoes.
+
+    Argument hygiene only: the file must parse as a JSON object and the
+    provenance slot, when present, must be an object (nothing else can
+    be echoed verbatim with a key added). What the block CONTAINS is
+    never judged here — the lint validates the echo against
+    response-manifest.schema.json after the worker fills model_identity.
+    """
+    src = Path(path_str)
+    if not src.is_file():
+        return f"--request: file not found: {src}"
+    try:
+        text = src.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return f"--request: could not read {src}: {exc}"
+    try:
+        manifest = json.loads(text)
+    except json.JSONDecodeError as exc:
+        return f"--request: {src} is not valid JSON: {exc}"
+    if not isinstance(manifest, dict):
+        return (f"--request: {src} is not a JSON object (got "
+                f"{type(manifest).__name__}) — expected a request "
+                "manifest.json")
+    provenance = manifest.get("provenance")
+    if provenance is not None and not isinstance(provenance, dict):
+        return (f"--request: {src} carries a provenance that is not an "
+                f"object (got {type(provenance).__name__}) — the echo is "
+                "the block verbatim plus model_identity, which only an "
+                "object can carry")
+    sid = manifest.get("session_id")
+    return (provenance, sid if isinstance(sid, str) else None)
+
+
+# The seeded feedback block's judgment placeholders. The self_reported
+# stream has no lint-checkable content ("[] asserts none arose" — the
+# lint checks shape only), so two of its slots are seeded schema-INVALID
+# on purpose — `budget_pressure` off-enum, `compaction_occurred` missing
+# its required key — the diagnostics.json `bail_trigger: ""` posture:
+# a block the worker never filled cannot pass the lint by accident.
+FEEDBACK_SELF_REPORTED_STUB = {
+    "assumptions": [],           # worker fills; [] is the honest empty
+    "judgment_calls": [],        # worker fills; [] is the honest empty
+    "budget_pressure": "",       # worker fills: none | tight | bailed
+    "includes_missing": [],      # worker fills; [] is the honest empty
+    "compaction_occurred": {},   # worker fills: {"occurred": bool, ...}
+}
+
+
+def build_feedback(kind: str, provenance: dict | None) -> dict:
+    """The `feedback` block seeded from a request manifest (TARBALL.md
+    §5.2.2), shaped so the lint's `--emit-feedback-mechanical` still
+    composes with it in one pass.
+
+    mechanical.provenance is the request's provenance block VERBATIM —
+    same keys, same order, same values — plus `model_identity: ""`, the
+    one echo-only key, left empty because it is self-reported judgment
+    (minLength 1 in the schema, so the unfilled seed is deliberately
+    lint-invalid until the worker names its model). None when the
+    request carried no provenance: the echo schema's own null case.
+
+    The four lint-computable members of `mechanical` are present and
+    schema-VALID on purpose: the lint's emitter recomputes
+    `schema_valid` from the manifest as it stands, so a missing key or a
+    null placeholder here would poison the emitted value (false, against
+    a manifest that is valid once pasted) and cost a second round.
+    `response_kind` is the crafter's own --kind (the same value it
+    writes at the top level); the three verdicts are seeded false — the
+    pessimistic placeholder — so that on a clean response the lint's
+    feedback-block check flags every one as a mismatch until the worker
+    pastes the emitter's output over them. Unfilled-cannot-pass, by the
+    mismatch check rather than the schema check. `linkage` is not
+    seeded: it applies only to a session that went through a probe or
+    clarification round, which the crafter cannot know.
+
+    Key order within `mechanical` follows the lint's emission (the four
+    computed keys, then provenance) so the paste is a key-for-key
+    overwrite the worker can do by eye.
+    """
+    echo: dict | None = None
+    if provenance is not None:
+        echo = dict(provenance)
+        echo["model_identity"] = ""      # worker fills: self-reported
+    return {
+        "mechanical": {
+            "response_kind": kind,
+            "schema_valid": False,        # lint fills (--emit-feedback-mechanical)
+            "mirror_agreement": {
+                "changes_to_files": False,  # lint fills
+                "files_to_changes": False,  # lint fills
+            },
+            "claims_subset": False,       # lint fills
+            "provenance": echo,
+        },
+        "self_reported": dict(FEEDBACK_SELF_REPORTED_STUB),
+    }
+
+
 def build_manifest(sid: str, kind: str, changes: list[dict],
-                   n_questions: int = 0) -> dict:
+                   n_questions: int = 0,
+                   feedback: dict | None = None) -> dict:
     """The manifest skeleton per TARBALL.md §5.2 (normal), §5.6.2
     (bailout), or §5.9.2 (clarification): computed and mechanical fields
     filled, judgment fields present but empty.
@@ -1450,7 +1600,9 @@ def build_manifest(sid: str, kind: str, changes: list[dict],
     The two non-normal kinds carry the empty change surfaces their
     sections require; a clarification additionally seeds `questions[]`
     with all-empty four-field entry stubs (unfilled-cannot-pass: the
-    lint rejects the empty strings).
+    lint rejects the empty strings). `feedback`, when given (--request),
+    is appended last; absent, the skeleton is exactly what it was
+    before the flag existed.
     """
     manifest = {
         "session_id": sid,
@@ -1468,6 +1620,8 @@ def build_manifest(sid: str, kind: str, changes: list[dict],
             {k: "" for k in QUESTION_STUB_KEYS}  # worker fills all four
             for _ in range(n_questions)
         ]
+    if feedback is not None:
+        manifest["feedback"] = feedback
     return manifest
 
 
@@ -1987,6 +2141,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "than rewrites")
     ap.add_argument("--sid", default=None,
                     help="session id (fills session_id and responds_to)")
+    ap.add_argument("--request", default=None, metavar="FILE",
+                    dest="request",
+                    help="path to the request's manifest.json; seeds the "
+                         "manifest skeleton's feedback block with its "
+                         "provenance echoed verbatim plus an empty "
+                         "model_identity (TARBALL.md 5.2.2). Only with the "
+                         "manifest-emitting modes (default / --write); the "
+                         "request's session_id must equal --sid")
     ap.add_argument("--kind", choices=KINDS, default=None,
                     help="response kind to scaffold (default: normal)")
     ap.add_argument("--questions", type=int, default=None, metavar="N",
@@ -2076,6 +2238,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--prune-reasons", args.prune_reasons),
             ("--index-header", bool(args.index_header)),
             ("--sid", args.sid is not None),
+            ("--request", args.request is not None),
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
             ("--executable", bool(args.executable)),
@@ -2141,6 +2304,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--prune-reasons", args.prune_reasons),
             ("--index-header", bool(args.index_header)),
             ("--sid", args.sid is not None),
+            ("--request", args.request is not None),
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
             ("--executable", bool(args.executable)),
@@ -2278,6 +2442,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--prune-reasons", args.prune_reasons),
             ("--index-header", bool(args.index_header)),
             ("--sid", args.sid is not None),
+            ("--request", args.request is not None),
             ("--questions", args.questions is not None),
             ("--deleted", bool(args.deleted)),
             ("--executable", bool(args.executable)),
@@ -2429,6 +2594,52 @@ def main(argv: list[str] | None = None) -> int:
                    "--changes-only / --apply-only / --validation-epilogue "
                    "run without it)")
 
+    # --request seeds the feedback block into the manifest skeleton, so
+    # it means nothing in a mode that emits no manifest — refuse rather
+    # than silently ignore, like every other stray flag on this surface.
+    # The request's own session_id must match --sid: the echo carries
+    # THIS request's stamps, and seeding another request's would land a
+    # wrong provenance in the telemetry record with no check downstream
+    # (the lint verifies the echo's shape, not which request it came
+    # from).
+    feedback: dict | None = None
+    if args.request is not None:
+        no_manifest = [flag for flag, given in (
+            ("--changes-only", args.changes_only),
+            ("--apply-only", args.apply_only),
+            ("--validation-epilogue", args.validation_epilogue),
+            ("--doc-assertions", args.doc_assertions),
+        ) if given]
+        if no_manifest:
+            return die(f"--request: only meaningful when a manifest is "
+                       f"emitted (the default mode or --write) — "
+                       f"{', '.join(no_manifest)} prints no manifest for "
+                       "the feedback block to ride in")
+        got = read_request_provenance(args.request)
+        if isinstance(got, str):
+            return die(got)
+        provenance, request_sid = got
+        if request_sid is not None and request_sid != sid:
+            return die(f"--request: {args.request} is the manifest of "
+                       f"session {request_sid!r}, but --sid is {sid!r} — "
+                       "the provenance echo is this request's stamps and "
+                       "no downstream check catches a wrong-session echo; "
+                       "name the request this response answers")
+        feedback = build_feedback(kind, provenance)
+        if provenance is None:
+            log(f"--request: {args.request} carries no provenance block "
+                "(a pre-0.3.8 pack) — feedback.mechanical.provenance "
+                "seeded null, the echo schema's own case for it")
+        else:
+            log(f"--request: feedback.mechanical.provenance seeded "
+                f"verbatim from {args.request} ({len(provenance)} key(s), "
+                "bale_version "
+                f"{provenance.get('bale_version', '?')}) plus an empty "
+                "model_identity — fill model_identity (self-reported) and "
+                "self_reported before running the lint's "
+                "--emit-feedback-mechanical, then paste its four values "
+                "over the seeded placeholders")
+
     # Worker-supplied path sanity. This is argument hygiene, not response
     # validation: a typo'd flag scaffolding a wrong rm/chmod line is the
     # failure it prevents. Judging the finished response stays the lint's.
@@ -2541,7 +2752,7 @@ def main(argv: list[str] | None = None) -> int:
         log("apply.sh scaffold emitted")
         return EXIT_OK
 
-    manifest = build_manifest(sid, kind, changes, n_questions)
+    manifest = build_manifest(sid, kind, changes, n_questions, feedback)
 
     # The kind's artifact set for --write. The normal kind never gets a
     # validation.sh from this tool (worker's hypothesis test, §7); the
@@ -2581,6 +2792,10 @@ def main(argv: list[str] | None = None) -> int:
             "clarification": "fill summary and all four fields of every "
                              "questions[] entry",
         }[kind]
+        if feedback is not None:
+            fill += (", plus feedback.mechanical.provenance.model_identity "
+                     "and the self_reported stream (before the lint's "
+                     "--emit-feedback-mechanical)")
         log(f"wrote {names} — {fill}, then run tools/response_lint.py")
         return EXIT_OK
 

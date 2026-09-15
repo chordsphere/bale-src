@@ -23,9 +23,20 @@ without its echo and the verbatim copy starts dropping fields. The
 echo may carry *more* (``model_identity`` is echo-only); the request
 side may never carry a key the echo lacks.
 
-Hermetic and stdlib-only: the lint module is loaded by file path (it
-imports nothing beyond the stdlib and executes nothing at import
-time), and the schema files are read from this repo.
+A third guard rides here since board 91: the crafter's question-row
+key set and vocabularies against the response schema's
+``questions.items`` — the same one-home rule, applied to the second
+tool that re-declares the row. tools/craft_response.py cannot read
+the schema (a worker session has no install), so QUESTION_STUB_KEYS
++ QUESTION_OPTIONAL_KEYS re-declare the row's permitted key set and
+QUESTION_PRIORITIES / QUESTION_ORIGINS its two closed vocabularies;
+this guard is what keeps the next additive row key (the ``origin``
+precedent: admitted by bale in v0.4.24, refused by the crafter until
+board 91) from landing on one side only.
+
+Hermetic and stdlib-only: the lint and crafter modules are loaded by
+file path (both import nothing beyond the stdlib and execute nothing
+at import time), and the schema files are read from this repo.
 
 Run:  python3 -m unittest tests.test_schema_embeds -v
   or: python3 -m unittest discover -s tests -p 'test_schema_embeds.py'
@@ -40,17 +51,21 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 LINT = REPO / "tools" / "response_lint.py"
+CRAFT = REPO / "tools" / "craft_response.py"
 SCHEMAS = REPO / "schemas"
 
 
-def load_lint_module():
-    """Load tools/response_lint.py by path, unregistered — the test
-    needs its two embed constants, not an importable package."""
-    spec = importlib.util.spec_from_file_location("response_lint_under_test",
-                                                  LINT)
+def load_module_by_path(name: str, path: Path):
+    """Load a tools/ module by path, unregistered — the tests need a
+    few constants, not an importable package."""
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_lint_module():
+    return load_module_by_path("response_lint_under_test", LINT)
 
 
 class SchemaEmbedEquality(unittest.TestCase):
@@ -124,6 +139,71 @@ class ProvenanceKeyParity(unittest.TestCase):
             f"{sorted(request_keys - echo_keys)} — a request-side "
             "provenance stamp lands with its echo in the same session "
             "(TARBALL.md 5.2.2: the echo is verbatim)")
+
+
+class QuestionRowKeyParity(unittest.TestCase):
+    """The crafter's question-row key set and vocabularies equal the
+    response schema's ``questions.items`` (board 91).
+
+    The row has one home — response-manifest.schema.json's
+    questions.items, which bale's validate_clarification_questions
+    derives from and exchange-record.schema.json reaches by $ref. The
+    crafter re-declares the row (QUESTION_STUB_KEYS is the required
+    half, QUESTION_OPTIONAL_KEYS the additive half, the two vocabulary
+    tuples the closed enums) because a worker session has no schema to
+    read; this class is what holds the re-declaration to the home.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.craft = load_module_by_path("craft_response_under_test", CRAFT)
+        response = load_schema("response-manifest.schema.json")
+        cls.row = response["properties"]["questions"]["items"]
+
+    def test_row_is_a_closed_object(self):
+        """Parity between key sets is only meaningful when the schema's
+        side is closed; asserted first, by name, like the provenance
+        guard above."""
+        self.assertIs(self.row.get("additionalProperties"), False,
+                      "questions.items is no longer a closed object — "
+                      "the crafter's unknown-key refusal would have "
+                      "nothing to be in parity with")
+
+    def test_stub_keys_are_the_schema_required_set(self):
+        self.assertEqual(
+            set(self.craft.QUESTION_STUB_KEYS), set(self.row["required"]),
+            "tools/craft_response.py's QUESTION_STUB_KEYS is not the "
+            "schema's required question-row set — fix whichever side "
+            "drifted (the seeded stub and the required half share a "
+            "home)")
+
+    def test_permitted_keys_are_the_schema_property_set(self):
+        permitted = (set(self.craft.QUESTION_STUB_KEYS)
+                     | set(self.craft.QUESTION_OPTIONAL_KEYS))
+        self.assertEqual(
+            permitted, set(self.row["properties"]),
+            "tools/craft_response.py's permitted question-row keys "
+            "(QUESTION_STUB_KEYS + QUESTION_OPTIONAL_KEYS) are not the "
+            "schema's questions.items properties: "
+            f"crafter-only {sorted(permitted - set(self.row['properties']))}, "
+            f"schema-only {sorted(set(self.row['properties']) - permitted)} "
+            "— an additive row key lands on both sides in one session "
+            "(the board-91 origin precedent)")
+        self.assertFalse(
+            set(self.craft.QUESTION_STUB_KEYS)
+            & set(self.craft.QUESTION_OPTIONAL_KEYS),
+            "a key is required or optional, never both")
+
+    def test_vocabularies_are_the_schema_enums(self):
+        for constant, key in (("QUESTION_PRIORITIES", "priority"),
+                              ("QUESTION_ORIGINS", "origin")):
+            with self.subTest(key=key):
+                self.assertEqual(
+                    tuple(getattr(self.craft, constant)),
+                    tuple(self.row["properties"][key]["enum"]),
+                    f"tools/craft_response.py's {constant} is not the "
+                    f"schema's questions.items.{key} enum — the "
+                    "vocabulary is closed and has one home")
 
 
 if __name__ == "__main__":

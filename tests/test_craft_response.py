@@ -104,6 +104,27 @@ than against pinned strings — the request's parity rule: a fixture
 string would pin today's layout twice instead of pinning the two
 implementations to each other.
 
+Session 2026-09-15-board-91-82-crafter-pair-011 lands two rows on the
+crafter. Board 91: the `origin` question-row key (v0.4.24) passes
+--emit-block — the crafter's QUESTION_OPTIONAL_KEYS and a re-declared
+QUESTION_ORIGINS vocabulary now match bale's; CraftEmitBlock gains the
+CLI outcome (a valid origin renders with the key in the body, an
+invented class refuses), ExchangeBlockParity's corpora gain origin
+rows on both the ok and bad sides plus the vocabulary pin against
+bale_validate.CLARIFICATION_ORIGINS, and tests/test_schema_embeds.py
+pins the crafter's permitted key set and both vocabularies against
+the schema's questions.items (the one-home rule). Board 82: --request
+seeds the provenance echo; CraftRequestProvenance proves the verbatim
+echo plus empty model_identity, byte-identity without the flag, the
+one-pass composition with the lint's --emit-feedback-mechanical, the
+unfilled-cannot-pass posture, the seeded key sets against the schema,
+and the refusals. Two registry riders ride the same touch: the last
+"bin/bale section 29" string literal is retired from
+test_rendering_is_byte_identical's message, and the two test ids
+that named the extracted section by number are renamed to name their
+contract's current home (bin/bale_relay.py) — a grep of the shipped
+tree found no consumer selecting them by name.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -811,6 +832,293 @@ class SchemaDriftBridge(unittest.TestCase):
         self.assertEqual(set(stub), set(entry_required),
                          "questions[] stub keys must equal the schema's "
                          "required entry set — fix whichever side drifted")
+
+
+def request_manifest(sid: str, provenance: dict | None = "default") -> dict:
+    """A request manifest.json as `bale pack` stamps it (the fields
+    --request reads: session_id and provenance; the rest is inert here).
+    provenance=None omits the block — the pre-0.3.8 pack."""
+    manifest = {"session_id": sid, "project": "fixture", "goal": "g"}
+    if provenance == "default":
+        provenance = {
+            "bale_version": "0.4.32",
+            "contract_docs": {"CLAUDE.md": "a" * 64, "TARBALL.md": "b" * 64,
+                              "DOCS.md": "c" * 64, "CODE.md": "d" * 64,
+                              "PLANNER.md": "e" * 64},
+            "packer": "fixture",
+            "work_class": "code",
+            "checkpoint": {"path": "claude/checkpoints/x.sh",
+                           "sha256": "f" * 64},
+            "checkpoint_scope_admitted": False,
+            "packed_at": "2026-09-15T18:24:42+00:00",
+            "base_files": {"tools/craft_response.py": "0" * 64},
+        }
+    if provenance is not None:
+        manifest["provenance"] = provenance
+    return manifest
+
+
+class CraftRequestProvenance(unittest.TestCase):
+    """--request: the crafter seeds the provenance echo (board 82, the
+    doc-lane 2026-09-14-002 proposal mechanized).
+
+    Proves the pinned outcome — feedback.mechanical.provenance equals
+    the request manifest's provenance block VERBATIM (keys, order,
+    values) plus model_identity: "" — and that without the flag the
+    skeleton is byte-identical to the flagless emission. The rest of
+    the class is the mechanism's contract: the seeded block composes
+    with the lint's --emit-feedback-mechanical in ONE pass (fill the
+    judgment slots, emit, paste, clean), the unfilled seed cannot pass
+    the lint, the seeded key sets equal the schema's required sets
+    (the SchemaDriftBridge posture — the crafter embeds no schema), the
+    null echo for a provenance-less request, and the refusals: a
+    request whose session_id is not --sid, an unreadable or malformed
+    file, a non-object provenance, the flag on a manifest-less mode,
+    and the three no-response-dir modes.
+    """
+
+    SID = "2026-09-15-fixture-011"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = make_response_dir(self.tmp, {"a.txt": b"alpha\n"})
+        self.request = self.tmp / "request-011" / "manifest.json"
+        self.request.parent.mkdir()
+        self._write_request(request_manifest(self.SID))
+
+    def _write_request(self, payload) -> None:
+        self.request.write_text(json.dumps(payload, indent=2) + "\n",
+                                encoding="utf-8")
+
+    def _craft(self, *extra: str, kind: str | None = None
+               ) -> subprocess.CompletedProcess:
+        argv = [str(self.rdir), "--sid", self.SID, "--request",
+                str(self.request), *extra]
+        if kind is not None:
+            argv += ["--kind", kind]
+        return run_craft(*argv)
+
+    # -- the pinned outcome --------------------------------------------
+
+    def test_provenance_is_echoed_verbatim_plus_empty_model_identity(self):
+        cp = self._craft()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        manifest = json.loads(cp.stdout)
+        echo = manifest["feedback"]["mechanical"]["provenance"]
+        stamped = json.loads(self.request.read_text())["provenance"]
+        self.assertEqual(list(echo), [*stamped, "model_identity"],
+                         "same keys, same ORDER, model_identity last")
+        self.assertEqual({k: v for k, v in echo.items()
+                          if k != "model_identity"}, stamped,
+                         "every stamped value rides through unchanged — "
+                         "base_files and packed_at included")
+        self.assertEqual(echo["model_identity"], "",
+                         "self-reported; the worker names its model")
+        self.assertIn("seeded verbatim", cp.stderr)
+
+    def test_without_the_flag_the_skeleton_is_byte_identical(self):
+        with_flag = self._craft()
+        without = run_craft(str(self.rdir), "--sid", self.SID)
+        self.assertEqual(without.returncode, 0, without.stderr)
+        self.assertNotIn("feedback", json.loads(without.stdout),
+                         "no feedback block unless --request names a "
+                         "request")
+        manifest = json.loads(with_flag.stdout)
+        self.assertEqual(list(manifest)[-1], "feedback",
+                         "the block is appended last")
+        del manifest["feedback"]
+        self.assertEqual(json.dumps(manifest, indent=2) + "\n",
+                         without.stdout,
+                         "--request adds the feedback block and changes "
+                         "nothing else")
+
+    def test_write_lands_the_block_in_manifest_json(self):
+        cp = self._craft("--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        manifest = json.loads((self.rdir / "manifest.json").read_text())
+        self.assertIn("provenance", manifest["feedback"]["mechanical"])
+        self.assertIn("model_identity", cp.stderr,
+                      "the fill hint names the seeded judgment slot")
+
+    def test_every_kind_takes_the_seed(self):
+        for kind in ("normal", "bailout", "clarification"):
+            with self.subTest(kind=kind):
+                rdir = self.tmp / f"response-{kind}"
+                rdir.mkdir()
+                cp = run_craft(str(rdir), "--sid", self.SID, "--request",
+                               str(self.request), "--kind", kind)
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                mech = json.loads(cp.stdout)["feedback"]["mechanical"]
+                self.assertEqual(mech["response_kind"], kind,
+                                 "the echo of the kind is the crafter's "
+                                 "own --kind")
+                self.assertIn("provenance", mech)
+
+    def test_provenance_less_request_seeds_null(self):
+        """The echo schema's own case: null when the request carried no
+        provenance (a pre-0.3.8 pack)."""
+        self._write_request(request_manifest(self.SID, provenance=None))
+        cp = self._craft()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        mech = json.loads(cp.stdout)["feedback"]["mechanical"]
+        self.assertIsNone(mech["provenance"])
+        self.assertIn("seeded null", cp.stderr)
+
+    # -- the mechanism: composes with the lint's emitter in one pass ---
+
+    def _finished_response(self) -> dict:
+        """--write the seed, then fill the judgment fields the way the
+        stderr hint says: the change entries, summary, claims, and the
+        seeded self-reported slots — everything but the lint's four."""
+        cp = self._craft("--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        manifest = json.loads((self.rdir / "manifest.json").read_text())
+        manifest["summary"] = "fixture"
+        for entry in manifest["changes"]:
+            entry["action"] = "created"
+            entry["reason"] = "fixture"
+        manifest["validation_will_run"] = ["tests"]
+        manifest["claims"] = {"tests": "pass"}
+        (self.rdir / "validation.sh").write_text(
+            "#!/usr/bin/env bash\nexit 0\n")
+        return manifest
+
+    def _save(self, manifest: dict) -> None:
+        (self.rdir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    def _fill_self_reported(self, manifest: dict) -> None:
+        manifest["feedback"]["mechanical"]["provenance"][
+            "model_identity"] = "fixture-model"
+        manifest["feedback"]["self_reported"].update(
+            budget_pressure="none",
+            compaction_occurred={"occurred": False, "disclosure_ref": None})
+
+    def test_unfilled_seed_cannot_pass_the_lint(self):
+        """Judgment filled, the seed untouched: the empty model_identity
+        and the two self_reported sentinels are schema findings, and the
+        three false placeholders are feedback-block mismatches."""
+        manifest = self._finished_response()
+        self._save(manifest)
+        cp = run_lint(self.rdir)
+        self.assertEqual(cp.returncode, 1, cp.stdout)
+        self.assertIn("model_identity", cp.stdout)
+        self.assertIn("budget_pressure", cp.stdout)
+        self.assertIn("compaction_occurred", cp.stdout)
+        self.assertIn("FEEDBACK_MECHANICAL_MISMATCH", cp.stdout)
+
+    def test_seed_composes_with_the_emitter_in_one_pass(self):
+        """TARBALL.md 5.2.2's workflow against the seeded block: fill
+        the judgment slots, run --emit-feedback-mechanical once, paste
+        its object over the four placeholders, re-lint — clean, with
+        the provenance still beside the pasted values. The emitted
+        schema_valid is true on the first run, which is exactly what
+        the schema-valid placeholders buy: a null or missing member
+        would have poisoned it to false and cost a second round."""
+        manifest = self._finished_response()
+        self._fill_self_reported(manifest)
+        self._save(manifest)
+        emit = subprocess.run(
+            [sys.executable, str(LINT), str(self.rdir),
+             "--emit-feedback-mechanical"],
+            capture_output=True, text=True)
+        emitted = json.loads(emit.stdout)
+        self.assertTrue(emitted["schema_valid"],
+                        "the seeded block is schema-valid once the "
+                        "judgment slots are filled, so the emitter's "
+                        "first run already says so")
+        self.assertEqual(
+            set(emitted),
+            set(manifest["feedback"]["mechanical"]) - {"provenance"},
+            "the emitter's keys are exactly the seeded placeholders — "
+            "a key-for-key paste, provenance untouched beside them")
+        manifest["feedback"]["mechanical"].update(emitted)
+        self._save(manifest)
+        cp = run_lint(self.rdir)
+        self.assertEqual(cp.returncode, 0, cp.stdout)
+        self.assertIn("result: CLEAN", cp.stdout)
+        final = json.loads((self.rdir / "manifest.json").read_text())
+        self.assertEqual(
+            list(final["feedback"]["mechanical"]),
+            ["response_kind", "schema_valid", "mirror_agreement",
+             "claims_subset", "provenance"])
+
+    def test_seeded_key_sets_match_the_schema(self):
+        """The drift bridge for the seed: the crafter embeds no schema,
+        so the suite holds the seeded key sets and
+        response-manifest.schema.json's required sets together."""
+        schema = load_schema("response-manifest.schema.json")
+        feedback = schema["properties"]["feedback"]
+        cp = self._craft()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        seeded = json.loads(cp.stdout)["feedback"]
+        self.assertEqual(set(seeded), set(feedback["required"]))
+        mech = feedback["properties"]["mechanical"]
+        self.assertEqual(set(seeded["mechanical"]),
+                         set(mech["required"]) | {"provenance"},
+                         "the four lint-computable members plus the "
+                         "echo; linkage is the session's to add")
+        self.assertEqual(
+            set(seeded["mechanical"]["mirror_agreement"]),
+            set(mech["properties"]["mirror_agreement"]["required"]))
+        self.assertEqual(
+            set(seeded["self_reported"]),
+            set(feedback["properties"]["self_reported"]["required"]))
+        echo = mech["properties"]["provenance"]
+        self.assertTrue(
+            set(seeded["mechanical"]["provenance"]) <= set(echo["properties"]),
+            "every seeded echo key is one the echo schema admits")
+        self.assertEqual(seeded["mechanical"]["response_kind"], "normal")
+
+    # -- refusals -------------------------------------------------------
+
+    def test_wrong_session_request_refuses(self):
+        self._write_request(request_manifest("2026-09-15-other-001"))
+        cp = self._craft()
+        self.assertEqual(cp.returncode, 2, cp.stdout)
+        self.assertEqual(cp.stdout, "", "a refusal emits no skeleton")
+        self.assertIn("2026-09-15-other-001", cp.stderr)
+        self.assertIn(self.SID, cp.stderr)
+
+    def test_unreadable_or_malformed_request_refuses(self):
+        for label, prepare in (
+            ("missing", lambda: self.request.unlink()),
+            ("not json", lambda: self.request.write_text("{nope")),
+            ("not an object", lambda: self.request.write_text("[]")),
+            ("provenance not an object", lambda: self._write_request(
+                request_manifest(self.SID, provenance="0.4.32"))),
+        ):
+            with self.subTest(label):
+                prepare()
+                cp = self._craft()
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "")
+                self.assertIn("--request", cp.stderr)
+
+    def test_manifest_less_modes_refuse_the_flag(self):
+        for mode in (["--changes-only"], ["--apply-only"],
+                     ["--validation-epilogue"],
+                     ["--doc-assertions", "--prune-reasons"]):
+            with self.subTest(mode=mode[0]):
+                cp = self._craft(*mode)
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "")
+                self.assertIn("--request: only meaningful", cp.stderr)
+                self.assertIn(mode[0], cp.stderr)
+
+    def test_no_response_dir_modes_exclude_the_flag(self):
+        for other in (["--probe", "some-slug"],
+                      ["--bundle", "2026-09-15-x", "--no-brief",
+                       "--pack-arg", "Goal"],
+                      ["--emit-block", str(self.request)]):
+            with self.subTest(other=other[0]):
+                cp = run_craft(*other, "--request", str(self.request))
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "")
+                self.assertIn("--request", cp.stderr)
+                self.assertIn("mutually exclusive", cp.stderr)
 
 
 class CraftValidationEpilogue(unittest.TestCase):
@@ -2107,6 +2415,33 @@ class CraftEmitBlock(unittest.TestCase):
                 self.assertEqual(cp.stdout, "",
                                  "a refusal emits no partial block")
 
+    def test_origin_row_renders_and_invented_origin_refuses(self):
+        """Board 91: a clarification manifest whose question row carries
+        a valid `origin` renders through --emit-block with the key in
+        the body (bale's validator admitted it since v0.4.24; the
+        crafter's refusal was the only one left), and an invented class
+        still refuses — the vocabulary is closed, in parity with
+        validate_clarification_questions."""
+        for origin in ("intent-gap", "probe-forbidden-environment"):
+            with self.subTest(origin=origin):
+                row = {**QUESTION_ROW, "origin": origin}
+                path = self._write("clar.json",
+                                   clarification_manifest(self.SID, [row]))
+                cp = run_craft("--emit-block", str(path))
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                body = self._body_of(cp.stdout)
+                self.assertEqual(body["questions"], [row],
+                                 "the origin key rides the body verbatim")
+        for bad in ("environment-gap", "", None, 7):
+            with self.subTest(bad=bad):
+                row = {**QUESTION_ROW, "origin": bad}
+                path = self._write("bad.json",
+                                   clarification_manifest(self.SID, [row]))
+                cp = run_craft("--emit-block", str(path))
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "", "a refusal emits no block")
+                self.assertIn("questions[0].origin", cp.stderr)
+
     def test_input_shape_refusals(self):
         neither = self._write("neither.json", {"hello": "world"})
         cp = run_craft("--emit-block", str(neither))
@@ -2144,7 +2479,8 @@ class CraftEmitBlock(unittest.TestCase):
                       ["--force"],
                       ["--pack-arg", "Goal"],
                       ["--no-brief"],
-                      ["--out-dir", "."]):
+                      ["--out-dir", "."],
+                      ["--request", "manifest.json"]):
             with self.subTest(extra=extra[0]):
                 cp = run_craft("--emit-block", str(path), *extra)
                 self.assertEqual(cp.returncode, 2, cp.stdout)
@@ -2246,6 +2582,9 @@ class ExchangeBlockParity(unittest.TestCase):
             "d-extended-question-row": worker_record(self.SID, 1, questions=[
                 {**QUESTION_ROW, "options": ["root", "per-package"],
                  "recommendation": "root", "priority": "blocking"}]),
+            "d2-origin-question-row": worker_record(self.SID, 1, questions=[
+                {**QUESTION_ROW, "priority": "blocking",
+                 "origin": "probe-forbidden-environment"}]),
             "e-planner-direction": planner,
             "f-planner-asking-back": planner_asking_back,
         }
@@ -2256,10 +2595,10 @@ class ExchangeBlockParity(unittest.TestCase):
                 self.assertEqual(
                     self.craft.format_exchange_block(self.SID, record),
                     self.bale.format_exchange_block(self.SID, record),
-                    "the crafter's rendering has drifted from bin/bale "
-                    "section 29's — the trailer's sha256 is computed "
-                    "over the body, so a divergence here is a refused "
-                    "paste on ingest")
+                    "the crafter's rendering has drifted from "
+                    "bin/bale_relay.py's — the trailer's sha256 is "
+                    "computed over the body, so a divergence here is a "
+                    "refused paste on ingest")
 
     def test_body_serialization_is_byte_identical(self):
         for label, record in self._corpus().items():
@@ -2281,10 +2620,9 @@ class ExchangeBlockParity(unittest.TestCase):
             self.craft.format_exchange_block(self.SID, record),
             self.bale.format_exchange_block(self.SID, record))
 
-    def test_constants_match_section_29(self):
-        """The section-29 contract now lives in bin/bale_relay.py; the
-        id keeps the historical name, and bin/bale's re-export is what
-        this reads it through."""
+    def test_constants_match_bale_relay(self):
+        """The wire constants bin/bale_relay.py declares, read through
+        bin/bale's re-export."""
         self.assertEqual(self.craft.EXCHANGE_BLOCK_BEGIN,
                          self.bale.EXCHANGE_BLOCK_BEGIN)
         self.assertEqual(self.craft.EXCHANGE_BLOCK_END,
@@ -2303,13 +2641,12 @@ class ExchangeBlockParity(unittest.TestCase):
                          tuple(self.lib.ANSWER_DISPOSITIONS))
         self.assertEqual(tuple(self.craft.QUESTION_PRIORITIES),
                          tuple(self.lib.ESCALATION_PRIORITIES))
+        self.assertEqual(tuple(self.craft.QUESTION_ORIGINS),
+                         tuple(self.lib.CLARIFICATION_ORIGINS))
 
-    def test_normalization_matches_section_29(self):
+    def test_normalization_matches_bale_relay(self):
         """Same keys, same ORDER — json.dumps preserves insertion order,
-        so the key order is part of the body's bytes.
-
-        The section-29 contract now lives in bin/bale_relay.py; the id
-        keeps the historical name."""
+        so the key order is part of the body's bytes."""
         manifest = clarification_manifest(self.SID)
         stamp = "2026-08-29T14:03:00+00:00"
         mine = self.craft.normalize_manifest_to_record(
@@ -2411,6 +2748,14 @@ class ExchangeBlockParity(unittest.TestCase):
             "bad-priority-invented": rec(questions=[
                 {**row, "priority": "urgent"}]),
             "bad-priority-null": rec(questions=[{**row, "priority": None}]),
+            "ok-origin-intent-gap": rec(questions=[
+                {**row, "origin": "intent-gap"}]),
+            "ok-origin-probe-forbidden": rec(questions=[
+                {**row, "origin": "probe-forbidden-environment"}]),
+            "bad-origin-invented": rec(questions=[
+                {**row, "origin": "budget-gap"}]),
+            "bad-origin-null": rec(questions=[{**row, "origin": None}]),
+            "bad-origin-empty": rec(questions=[{**row, "origin": ""}]),
             "bad-answer-not-object": rec(answers=["x"]),
             "bad-answer-missing-key": rec(answers=[drop(ans, "disposition")]),
             "bad-answer-unknown-key": rec(answers=[{**ans, "nope": 1}]),
@@ -2464,6 +2809,16 @@ class ExchangeBlockParity(unittest.TestCase):
             "bad-options-empty": [{**row, "options": []}],
             "bad-row-not-object": [42],
             "bad-second-row-bad": [dict(row), {**row, "priority": "nope"}],
+            "ok-origin-both-classes": [{**row, "origin": "intent-gap"},
+                                       {**row, "origin":
+                                        "probe-forbidden-environment"}],
+            "ok-origin-with-every-other-key": [
+                {**row, "options": ["a"], "recommendation": "a",
+                 "priority": "batched", "origin": "intent-gap"}],
+            "bad-origin-invented": [{**row, "origin": "environment"}],
+            "bad-origin-not-string": [{**row, "origin": 3}],
+            "bad-origin-second-row": [{**row, "origin": "intent-gap"},
+                                      {**row, "origin": "nope"}],
         }
         for label, rows in corpus.items():
             expect_refused = label.startswith("bad-")
