@@ -2168,6 +2168,7 @@ is one string, so each candidate answers exactly one of them, and
 the only genuine ambiguity is the tie — which is what lets the bare
 form work at a desk whose read-only master is always open beside the
 worker.
+On a miss, apply and retry list every near-name candidate in the searched directories — the typed name minus its .tar.gz suffix as a prefix — as complete quoted command lines, newest first.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never

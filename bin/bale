@@ -1431,7 +1431,8 @@ def is_path_safe(rel: str) -> bool:
 
 
 def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
-                         *, kind: str = "tarball") -> Path:
+                         *, kind: str = "tarball",
+                         verb: Optional[str] = None) -> Path:
     """Resolve a CLI file argument against the configured inbound
     directories (`apply.search_paths`).
 
@@ -1444,6 +1445,16 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     it changes wording only, never semantics. Renamed from
     resolve_tarball_path when the pack consumer landed — one resolver so
     the two surfaces can't drift.
+
+    `verb` (v0.4.33, board 102) is the bale verb the caller is serving
+    ("apply", "retry", "handoff"). When given, the search-miss refusal
+    additionally lists every near-name candidate in the consulted
+    directories — see near_name_candidates — each as a complete,
+    paste-ready `bale <verb> <quoted path>` line, so a browser's
+    `<name> (1).tar.gz` twin or a `response-<sid>-*.tar.gz` variant is
+    one paste away instead of a `ls` away. Callers with no verb to
+    render (pack's --readme-file, open's bundle) leave it None and keep
+    the bare refusal; a verb with zero candidates keeps it too.
 
     The semantics are layered so that a user with no search_paths
     configured sees identical behavior to the pre-search-paths era:
@@ -1484,7 +1495,82 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     lines.append(f"    {cwd}  (cwd)")
     for sp in search_paths:
         lines.append(f"    {sp}")
+    if verb is not None:
+        # Board 102: the typed name minus its .tar.gz suffix is the
+        # prefix; each hit renders as the whole command line for the
+        # verb the user typed, quoted so a Downloads twin with a space
+        # and parens pastes back intact. Zero hits adds nothing — the
+        # refusal above is byte-identical to the pre-listing form.
+        candidates = near_name_candidates(arg, cwd, search_paths)
+        if candidates:
+            lines.append("  near-name candidates (newest first):")
+            for candidate in candidates:
+                lines.append(f"    bale {verb} {shlex.quote(str(candidate))}")
     fail("\n".join(lines))
+
+
+NEAR_NAME_SUFFIX = ".tar.gz"
+
+
+def near_name_candidates(arg: str, cwd: Path,
+                         search_paths: list[str]) -> list[Path]:
+    """The near-name candidates for a relative name that resolved nowhere
+    (v0.4.33, board 102): every regular `*.tar.gz` file, in the same
+    directories locate_inbound_path consulted, whose name starts with
+    the typed name's basename minus its `.tar.gz` suffix. Absolute
+    paths, newest first by st_mtime_ns (name breaks a tie, so the
+    order is stable), deduplicated by resolved path — cwd is often
+    also a configured search path.
+
+    The prefix rule is what catches the two real cases: a browser's
+    second download of the same name (`response-<sid> (1).tar.gz`)
+    and a `response-<sid>-*.tar.gz` variant the worker named. A typed
+    name that already lacks the suffix is its own prefix, so
+    `bale apply response-<sid>` lists `response-<sid>.tar.gz` too.
+    A directory component in the typed name narrows the scan to that
+    subdirectory of each consulted directory, exactly where the exact
+    match would have been looked for. An empty prefix (the typed name
+    is `.tar.gz` itself) matches nothing rather than everything.
+
+    Pure with respect to bale state: reads directory listings and
+    stats, never opens a file, never fails — an unreadable directory
+    contributes no candidates, the same as an absent one.
+    """
+    typed = Path(arg)
+    name = typed.name
+    if name.endswith(NEAR_NAME_SUFFIX):
+        prefix = name[:-len(NEAR_NAME_SUFFIX)]
+    else:
+        prefix = name
+    if not prefix:
+        return []
+    consulted = [cwd, *(Path(sp) for sp in search_paths)]
+    seen: set[Path] = set()
+    hits: list[tuple[int, str, Path]] = []
+    for base in consulted:
+        directory = base / typed.parent
+        try:
+            entries = list(directory.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if not entry.name.endswith(NEAR_NAME_SUFFIX):
+                continue
+            if not entry.name.startswith(prefix):
+                continue
+            try:
+                if not entry.is_file():
+                    continue
+                resolved = entry.resolve()
+                mtime_ns = entry.stat().st_mtime_ns
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            hits.append((mtime_ns, resolved.name, resolved))
+    hits.sort(key=lambda h: (-h[0], h[1]))
+    return [p for _, _, p in hits]
 
 
 def locate_inbound_path(arg: str, cwd: Path,
@@ -2290,7 +2376,8 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # global+project config.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
+    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
+                                        verb="retry")
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 
@@ -3495,7 +3582,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     # the muscle memory.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
-    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
+    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
+                                        verb="handoff")
     if not tarball_path.is_file():
         fail(f"tarball not found: {tarball_path}")
 

@@ -30,9 +30,11 @@ same idiom every other sibling uses. Sibling-owned entry points
 apply-side renderers, telemetry, and json-mode state) are imported lazily
 from their owning modules instead — `bin/bale` has already loaded them,
 so the imports resolve from sys.modules. Dependency direction is one-way:
-`bin/bale` imports this module; `bale_pack` never imports the apply path,
-and this module never imports `bale_pack` (the per-response
-`validation.sh` asserts the pack-side direction).
+`bin/bale` imports this module; `bale_pack` never imports the apply path
+(the per-response `validation.sh` asserts that direction), and this
+module imports `bale_pack` only lazily, inside `bundle_change_paths`
+(for the bundle-suffix recognizer, `is_bundle_file`) — never at module
+scope.
 
 Sections:
   1. Apply: helpers                                      (~line    55)
@@ -649,7 +651,8 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             f"default applies without a prompt (nothing applied) — the "
             f"--supersedes precedent: automation never accepts a "
             f"resolution guess silently. Name the tarball explicitly to "
-            f"apply without the prompt: bale apply {tarball_path}"
+            f"apply without the prompt: "
+            f"bale apply {shlex.quote(str(tarball_path))}"
         )
     decision = confirm_yn_decision(
         f"Apply this tarball against session {sid}?")
@@ -3717,7 +3720,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
     if args.tarball is not None:
-        tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths)
+        tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
+                                            verb="apply")
         if not tarball_path.is_file():
             # Only reachable for the absolute-path branch (relative + search
             # paths configured already fails inside the helper); the empty-
