@@ -1,0 +1,250 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-68-open-gate-order-012",
+  "created_at": "2026-09-15T18:24:53+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T18:24:53+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bale.toml",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "tests/test_bundle_manifest.py",
+        "tests/test_include_group.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-68-open-gate-order-012.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T19:38:51+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-68-open-gate-order-012.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: in-scope suites (open_verb, pack_guards, include_group, bundle_manifest)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: refusal-text pinning suites (pack_opener, write_forecast, supersession_pack, handoff_registry_gate, handoff_forecast, checkpoint_file_flag, amend_checkpoint, checkpoint_provenance, readonly_pack)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "opener closing sentence byte-exact (in-process + emitted pack)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "open refuses arg-inspectable gates before the dry-run (e2e specimen)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "one implementation per gate (grep)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "single FORCE prefix in bale_open.py (grep)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "release-surface pulls tools and every pull exists": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/VERSION untouched (0.4.32)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: in-scope suites (open_verb, pack_guards, include_group, bundle_manifest)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: refusal-text pinning suites (pack_opener, write_forecast, supersession_pack, handoff_registry_gate, handoff_forecast, checkpoint_file_flag, amend_checkpoint, checkpoint_provenance, readonly_pack)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "opener closing sentence byte-exact (in-process + emitted pack)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "open refuses arg-inspectable gates before the dry-run (e2e specimen)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "one implementation per gate (grep)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "single FORCE prefix in bale_open.py (grep)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "release-surface pulls tools and every pull exists": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION untouched (0.4.32)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bale.toml",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "tests/test_bundle_manifest.py",
+        "tests/test_include_group.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bale.toml",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "tests/test_include_group.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.32",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "ceba9f8f7764a0c2ab38cbf3fac4e87a36df29a70fa7e7f3df2d96eb581166cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-68-open-gate-order-012.sh",
+              "sha256": "0ca107725429b935c495d400737035e545100d7f0cb515e1bdf0eaef2c900723"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T18:24:53+00:00",
+            "base_files": {
+              "bale.toml": "ee8a7658316a88bd2fbfd9f7d09d1c8446dd8d8ff14d45659b304ce685c6fc4a",
+              "bin/bale_open.py": "3271b1b347583292caf6dd5eaa0b66ab9e8fa38426c50f3e565051ea49e8eebf",
+              "bin/bale_pack.py": "622c2203d8fac95e26fb72328254586b2982d522b9b528b9cca906edf0cfa325",
+              "tests/test_bundle_manifest.py": "4b1605d20917a49eaad48a5c8418c33264355dcb6d171a1ea7ada27dd2aa90d8",
+              "tests/test_include_group.py": "243661af6c46d046d064aeaf88b9eb875f44d024a94005c96d3d58b4a8e5f32f",
+              "tests/test_open_verb.py": "9c7afa82875341f5f8f8eda96cab44dddcfc4149e0415b96b0b6621d854b270c",
+              "tests/test_pack_guards.py": "f8e15fe07f9a964933377b3f7033532b08f0190b5a57fda565691185b335278a"
+            },
+            "model_identity": "Claude Fable 5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the 'config-judging refusal family' is every refusal whose judgment is about [validation] base \u2014 five sites (notes.md); the brief's '[validation] base \u2026 not resolved' phrase matches a log line, not a refusal",
+            "inside the pre-flight, the existence gate runs before the disjointness gate (cmd_pack's fully-specified path runs them the other way round); admit/refuse is identical, only the refusal text for a bundle failing both differs",
+            "the opener shape-sentence pin homes in tests/test_pack_guards.py (in forecast) rather than tests/test_pack_opener.py (the suite that pins the opener today, outside the forecast)"
+          ],
+          "judgment_calls": [
+            "added pending_supersession to run_forecast_disjointness_gate so open's pre-flight never falsely refuses a split-supersession bundle (the parent closes inside the replay's exchange); the replay's gate stays authoritative",
+            "argparse now runs before the dry-run, so an unparseable stored argv refuses with no oracle spent (pinned)",
+            "the whole-tree remedy lead applies to the handoff caller too, since the gate is shared; handoff's partial-overlap pin is unaffected"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-68-open-gate-order-012.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-68-open-gate-order-012.sh",
+          "sha256": "0ca107725429b935c495d400737035e545100d7f0cb515e1bdf0eaef2c900723"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T19:38:51+00:00",
+  "outcome": "applied"
+}
