@@ -814,6 +814,22 @@ implement rather than restating their fields.
   `blocking` is suspended the way a clarification already suspends a
   session — the schedule routes around it. Non-blocking mid-work
   inquiry is not a thread; the `batched` doctrine stands as written.
+- **The light tier, from the packer's side.** A non-blocking set of
+  at most three one-line questions arrives as a light question
+  block in chat (`TARBALL.md` §5.10), not as a thread — the worker
+  admits it by count, never by judgment, and ends its turn on it.
+  The packer replies in one of three ways: answer inline; "as
+  assumed" to ratify every default at once; or "formal" to have the
+  same questions returned as a clarification response. "As assumed"
+  is the cheapest answer and the usual one — the worker already
+  named each default — and it is recorded in the worker's
+  `notes.md` beside each question, never as an exchange record;
+  the block writes no round and no telemetry. A packer who wants
+  the durable thread answers "formal", and the same rows come back
+  as round one of a clarification, where the exchange record and
+  the answer path above take over. The reply is the packer's; a
+  block left unanswered leaves the session suspended, exactly as an
+  unanswered clarification does.
 - **The answer-fatigue guard.** Answer-latency telemetry measures
   what the queue costs the planner who answers; question classes
   whose answers have become predictable are retired into autonomy —

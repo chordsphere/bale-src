@@ -75,7 +75,7 @@ The minimum context for the task. Default at every threshold:
 | Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
-| Task touches a past decision | + relevant `adr/NNNN-*.md` |
+| Task touches a past decision | + relevant `claude/context/adr/NNNN-*.md` |
 | Task touches a schema or API | + relevant schema sections (not the whole file) |
 | Task modifies source files | + those files (named in the request) |
 | Code is meant to land in the project | Re-read `TARBALL.md` per its INDEX read-paths before producing |
@@ -84,6 +84,7 @@ The minimum context for the task. Default at every threshold:
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | A blocking intent gap in the request | Open the exchange thread with a clarification response — the artifact, never a chat aside — and continue under the same session when the planner's answer arrives via `bale relay`; see `TARBALL.md` §5.9 |
+| A short, non-blocking question set — at most three, each with a one-word default | End the turn on a light question block, authored by hand per `TARBALL.md` §5.10 — admitted by count, never by size — and continue on the packer's reply; the trail is the eventual response's `notes.md` |
 | Budget running thin mid-session, or a bailout is on the table | §11.3–§11.5 — bail triggers, the bailout response, and the bailout-discipline rule |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
@@ -192,20 +193,31 @@ response.** `TARBALL.md` is always
 present (bale injects it), but the act of re-engaging with the
 contract before producing matters — drill-down beats recall.
 
-Within tarball mode, four response shapes are possible: a full
+Within tarball mode, five response shapes are possible: a full
 response tarball (the default, when work landed), a probe
 (`TARBALL.md` section 4, when an environment gap blocks the work),
 a clarification response (`TARBALL.md` §5.9, when a blocking intent
 gap in the request prevents trustworthy work — it opens an exchange
 thread: the planner answers as an exchange record, `bale relay`
 carries each round, and the session continues to a normal response
-under the same id), and a bailout response (§11, when the budget
-won't carry the work through).
+under the same id), a light question block (`TARBALL.md` §5.10,
+when a non-blocking set of at most three one-line questions is
+faster answered in chat than relayed — admitted by count, never by
+size; the packer answers inline, ratifies every default with "as
+assumed", or sends it "formal" to the exchange; the trail is the
+eventual response's `notes.md`, not a thread), and a bailout
+response (§11, when the budget won't carry the work through). Every
+turn Claude ends in tarball mode takes one machine-recognizable
+shape: a response tarball, a probe block, a light question block, or
+a clarification response; a question asked as prose is not a shape.
 
 ### When Claude is unsure which mode
 
-Claude asks, in one sentence. Default lean: conversational. It's
-cheaper to upgrade to a tarball than to over-formalize a chat.
+Since 0.4.16 the opener settles it: a bale-emitted session opener
+carrying a session id is tarball mode, and the manifest it names is
+the scope. Claude does not ask which mode it is in. A conversation
+with no sid and no manifest is conversational mode, and it stays
+there until a request tarball arrives — the transition below.
 
 ### When the chat preamble and the manifest goal disagree
 
@@ -218,9 +230,9 @@ session and the architect retyped intent without repacking.
 ends with a paste-ready opener carrying the sid and goal from the
 manifest — so preamble/manifest drift shrinks to the stale-paste
 case.) If the architect wants the manifest's framing overridden
-mid-conversation, the right move is a fresh `bale pack` (or a brief
-paused question in chat) — not riding a stale manifest forward with
-new instructions in the preamble. Until that fresh request exists, Claude works to what
+mid-conversation, the right move is a fresh `bale pack` — not
+riding a stale manifest forward with new instructions in the
+preamble. Until that fresh request exists, Claude works to what
 the manifest says.
 
 The architect can override this rule by saying so explicitly ("accept
@@ -251,7 +263,7 @@ the crafter is unreachable.
 | Writing tests         | Claude |
 | Writing scaffolding   | Claude |
 | Exploratory commands  | Claude (via probe) |
-| Intent questions      | Claude, via the exchange (`TARBALL.md` §5.9) |
+| Intent questions      | Claude, via the exchange (`TARBALL.md` §5.9) or, for a short non-blocking set, the light question block (`TARBALL.md` §5.10) |
 | Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4); delivered as a crafter bundle beside its `bale open` line (`PLANNER.md` §2) |
 | Architectural choices | Me, with Claude's input |
 | Reviewing changes     | Me |
@@ -432,9 +444,11 @@ the conversation doesn't have to.
 - **Typo and one-line fixes** — still a tarball, still a manifest,
   still validation. The floor is the floor; the cost is minutes.
 - **Mid-session pivots** — if I redirect mid-build, Claude stops
-  cleanly, notes where it stopped in `notes.md`, and asks. It does
-  not silently rework toward the new target while the old one is
-  half-built.
+  cleanly, notes where it stopped in `notes.md`, and asks through a
+  shape: a light question block if the redirect resolves in a word
+  (`TARBALL.md` §5.10), a clarification response if it does not
+  (`TARBALL.md` §5.9). It does not silently rework toward the new
+  target while the old one is half-built.
 - **Real emergencies** — debugging production on fire,
   answer-in-30-seconds situations — the protocol pauses. I'll say so
   explicitly. Default assumption: no emergency.
