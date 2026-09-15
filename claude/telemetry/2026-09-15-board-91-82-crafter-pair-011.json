@@ -1,0 +1,233 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-91-82-crafter-pair-011",
+  "created_at": "2026-09-15T18:24:42+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T18:24:42+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "schemas/exchange-record.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_exchange_record.py",
+        "tests/test_relay_verb.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-91-82-crafter-pair-011.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T19:35:08+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-91-82-crafter-pair-011.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_exchange_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_relay_verb": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_exchange_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_relay_verb": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "schemas/exchange-record.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_exchange_record.py",
+        "tests/test_relay_verb.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/test_craft_response.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.32",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "ceba9f8f7764a0c2ab38cbf3fac4e87a36df29a70fa7e7f3df2d96eb581166cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-91-82-crafter-pair-011.sh",
+              "sha256": "2c14acc6e1f73844128c68f158a6947079e2d0eecd2f407efc9403a9dd692bae"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T18:24:42+00:00",
+            "base_files": {
+              "schemas/exchange-record.schema.json": "c9c291899103c4a73768ef930697722b89c5c3ef8f5b388c78c36741316cddc8",
+              "tests/test_craft_response.py": "6c76553b94ab8e6db1f3e3edfb9aaee76b9603bd9970fe182d62aba664376ebc",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_relay_verb.py": "809d41078576afd642993e9c8d3d990f1d3afd377d599202143f7cfc28813c6a",
+              "tests/test_schema_embeds.py": "f94349caeef0851c614fe2ed2e888de0376bff50108231b59c0b015399305059",
+              "tools/craft_response.py": "0eb53ef029d0a68f8179d523a0ee02274918ce16866a4b0c6b50cb6530ae4801"
+            },
+            "model_identity": "Claude Fable 5.1 (claude.ai)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "--request is admitted on all three kinds, not only normal: the schema and lint place no kind restriction on feedback, and a bailout is telemetry-persisted too",
+            "the exchange-record schema's existing $ref/description is the whole statement of the question row's home; no description sentence naming `origin` was added there",
+            "the two historical 'section 29 until the v0.4.21 extraction' docstring mentions are accurate history, not the stale citation rider 1 names, and stay"
+          ],
+          "judgment_calls": [
+            "seeded feedback block is fully shaped and schema-valid except for two deliberate self_reported sentinels and the empty model_identity \u2014 required so the lint's --emit-feedback-mechanical composes in one pass (notes.md)",
+            "the three lint-owned verdicts are seeded false (pessimistic placeholders the feedback-block check flags), not null (which would poison the emitter's schema_valid)",
+            "--request refuses a request whose session_id differs from --sid (argument hygiene; no downstream check catches a wrong-session echo)",
+            "both registry riders consumed: no name-selecting consumer for the two test ids exists in the shipped tree",
+            "this response's skeleton was crafted with the SHIPPED-IN-RESPONSE crafter (--request dogfooded), not the request-carried one; the changes[] computation path is unchanged code"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "CLAUDE.md",
+            "TARBALL.md",
+            "README.md"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": []
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-91-82-crafter-pair-011.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-91-82-crafter-pair-011.sh",
+          "sha256": "2c14acc6e1f73844128c68f158a6947079e2d0eecd2f407efc9403a9dd692bae"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T19:35:08+00:00",
+  "outcome": "applied"
+}
