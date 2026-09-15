@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-14-sitting-close-deltas-6-005`.
+Last landed by: `2026-09-14-sitting-close-deltas-7-012`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -264,6 +264,14 @@ source):
   work items before delivery, and rehearsal landings exercise
   degrade/legacy rungs, not just happy paths. The watch stands
   re-armed at the same threshold; re-trigger unchanged.]
+  [2026-09-14: two HOLDs in five sessions at the continue-plan-006
+  sitting — one worker-side (the apply-side's first attempt: a
+  `bash -n` against scripts bale runs from outside staging; §6
+  entry 130), one oracle-shaped (row 83's checkpoint pinned
+  `bin/bale` source bytes for an output contract; §6 entry 128).
+  One planner-fixture HOLD, no clustering; the watch stands at the
+  same threshold. Three fixture defects were caught by dry-running
+  before either oracle shipped (§6 entry 129).]
 - Dead ceremony checkpoint files (`current.sh`,
   `continue-plan-005.sh`, `restoration-006.sh`, `core-001.sh`
   under `claude/checkpoints/`) are inert clutter. Cleanup may ride
@@ -317,12 +325,22 @@ source):
   with no prompts, by desk ruling. Re-trigger: the composed line
   of row 81 still being copied to the desk. (Opened 2026-09-14 at
   the 2026-09-10→14 sitting's close.)
+  [2026-09-14: NOT fired — row 81 landed composed lines at both
+  refusals with no prompt, pinned under a pty with `y` queued
+  (`overrides` stays `[]`); `2026-09-14-apply-side-81-87-010`.
+  Re-trigger unchanged.]
 - Exchange adoption (§6 entry 112; specimens two and three at
   entry 115): a doc remedy has landed (row 74) and a mechanical
   remedy is queued (row 85, the exchange-carried-outside-relay
   self-report). Re-trigger: a fourth `clarification.rounds: 0`
   against a real round after both have landed. (Opened 2026-09-14
   at the 2026-09-10→14 sitting's close.)
+  [2026-09-14: two rounds through `bale relay` at the
+  continue-plan-006 sitting (73B and 83, both pre-build; telemetry
+  `clarification.rounds: 2` on each — the ask and the answer); one
+  chat-first breach, self-reported and corrected into the relayed
+  round (83; §6 entry 127). Re-trigger unchanged; row 85 still
+  queued.]
 
 **Ruling queue** (desk rulings awaiting a future sitting —
 decisions, not work rows; a ruling becomes a doc delta only if it
@@ -474,6 +492,11 @@ with the unverifiable ones carried verbatim and marked):
   `walk_for_pack` does), so the rider is a three-line threading,
   not a one-kwarg call; the desk ruling on row 73 carries it into
   session B.]
+  [2026-09-14: consumed at session B —
+  `2026-09-14-board-73b-handoff-modernize-007` threaded
+  `walk_for_pack(…, verbose=)` and handoff passes `args.verbose`;
+  a tracked candidate the walk skips now prints its reason. The
+  residue (an untracked include entry produces no line) is row 92.]
 - Negation-refusal wording split — "Name the pattern's source in
   the negation refusal", rides the next bin/bale_pack.py touch
   (carrier restated 2026-08-14; its former co-rider, the
@@ -741,8 +764,8 @@ with the unverifiable ones carried verbatim and marked):
   `2026-08-31-bin-bale-tidy-020`'s Proposals: "**What:** One-line
   docstring touch-up in `bale_pack.py`'s `persist_pack_session`:
   the `command` paragraph still reads "cmd_handoff passing
-  \"handoff\" is proposed but not yet wired (bin/bale is out of
-  the board-63 session's scope), so handoff opens stamp \"pack\"
+  "handoff" is proposed but not yet wired (bin/bale is out of
+  the board-63 session's scope), so handoff opens stamp "pack"
   until that one-word change lands" — stale the moment this
   response merges. **Why:** The docstring is the parameter's
   contract of record; a reader tracing a `"handoff"` stamp back to
@@ -871,6 +894,16 @@ with the unverifiable ones carried verbatim and marked):
   67 pack didn't ship it). Rides row 68's bin/ touch or the next
   release-surface touch. (Accepted 2026-08-31/09-01 at the
   continue-plan sitting, session 026.)
+- `normalize()` from the two doc-pin suites into `tests/harness.py`
+  — rides the next session whose forecast holds `tests/harness.py`.
+  Text verbatim from `2026-09-14-board-80-tests-only-pins-008`'s
+  Proposals: "**What:** Move `normalize()` (the whitespace-collapse
+  used by both doc-pin suites) into `tests/harness.py`. **Why:** Two
+  identical copies as of this row; the harness's own doctrine is
+  one home per helper. **Scope hints:** `tests/harness.py`,
+  `tests/test_doc_crossrefs.py`, `tests/test_sanctioned_pairs.py`;
+  trivial, any time." (Accepted 2026-09-14 at the continue-plan-006
+  sitting's close.)
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -1777,6 +1810,103 @@ block carries only what has no row home; close recorded by
   exchange-adoption watch, now with a mechanical remedy queued
   (85) and a doc remedy landed (74).
 
+Landed 2026-09-14, the continue-plan-006 sitting (master
+`2026-09-14-continue-plan-006`, read-only; opened 2026-09-14 on
+"refer to the attached readme" — continue the plan; the previous
+master `2026-09-11-continue-plan-001` closed `closed-read-only` at
+this session's pack, per the retiring brief — its record did not
+ship). Rows 73 (session B), 80, 81, 83, 87, and 88 closed on their
+board brackets — facts of record, versions, ratifications, and
+attempt stories live there; this block carries only what has no
+row home; close recorded by
+`2026-09-14-sitting-close-deltas-7-012`:
+
+- Wave record: the sitting spawned, in landing order, row 80
+  (`2026-09-14-board-80-tests-only-pins-008`, tests-only, bumpless
+  at 0.4.27), 73B (`2026-09-14-board-73b-handoff-modernize-007`,
+  0.4.28), the doc lane (`2026-09-14-doc-lane-87-88-009`, rows 88
+  and 87's naming half, bumpless at 0.4.28), the apply-side
+  session (`2026-09-14-apply-side-81-87-010`, rows 81 and 87's
+  resolver half, 0.4.29), and 83
+  (`2026-09-14-board-83-hook-store-and-decline-cause-011`,
+  bumpless under 0.4.29) — five sessions, five landings, up to two
+  open beside the desk at a time (telemetry: 80 and 73B opened
+  within five seconds of each other; the doc lane beside 73B; the
+  apply-side and 83 together). Two second attempts: the
+  apply-side's first attempt HELD on its own `validation.sh` (a
+  `bash -n` against `apply.sh`/`validation.sh`, which bale runs
+  from outside staging; the blind checkpoint PASSed both attempts;
+  the change set byte-identical), and 83's first attempt HELD on
+  the blind checkpoint (three of seven assertions grepped
+  `bin/bale` for the rendered decline lines the first shape
+  assembled at runtime; worker validation PASSed). Two relayed
+  exchange rounds (73B's and 83's, each round 1 → 2 through `bale
+  relay`, both pre-build; telemetry `clarification.rounds: 2` on
+  each); 83's preceded by a chat-first breach the worker
+  self-reports (§6 entry 127).
+- Sitting-open record: close-6's notes.md ratified wholesale at
+  this open, with one strike — its VERBATIM handling kept the
+  retiring brief's backslash-escaped quotes on rows 87 and 88;
+  those are a close brief's rendering artifact, not keystrokes,
+  struck at this close (board deltas below). Every other notes.md
+  of the sitting (80, 73B, the doc lane, the apply-side, 83)
+  ratified in-sitting, the calls named on their rows. The
+  sitting-open version check was satisfied by the request's
+  provenance stamp, 0.4.27 (the master's own record carries no
+  version; recorded as the retiring brief states it).
+- Two desk findings with no row home. **The hook decline event:**
+  at close-6's apply the operator's Enter declined a `[Y/n]` hook
+  prompt; the prompt waited; the installed `confirm_yn` was
+  verified to be the source (`grep -c 'return not default_no'
+  "$(command -v bale)"` → 1). The event stays unexplained; row
+  83's cause line is the remedy that makes the next one explain
+  itself. **Bare apply at the desk:** the master's own read-only
+  session counts as open, so board 51's multi-open refusal fired
+  at every sitting — the bare form had never worked during a
+  sitting until row 87's resolver half (§6 entry 123; §7).
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open — including the two
+  backslash strikes in the registry's `persist_pack_session`
+  entry, flagged there.
+- Board deltas of the close: row 73 DONE (session B); rows 80, 81,
+  83, 87 (both halves), and 88 DONE; row 87's desk note corrected
+  in its bracket (the "naming variance" clause struck — the
+  resolver is content-based and naming never defeated it; the
+  multi-open refusal was the whole defect); row 84 grown a third
+  specimen; row 51's bracket grown (the multi-open clause
+  superseded by the operator's ruling; its 2026-09-14 pointer
+  corrected); rows 89–93 opened in §4; the backslash-escaped
+  quotes struck on rows 87 and 88 (five) and in the registry above
+  (two — the same artifact class); evidence entries 123–131 in
+  §6; six contracts dated 2026-09-14 (this sitting) in §5; the
+  version landmark 0.4.29, the operable hook store, bare apply
+  beside an open master, the row-81 extension of the desk emission
+  rule, and the install-tracks-the-checkout fact in §7; the three
+  watches above stamped (two-prompts NOT fired; exchange-adoption
+  two rounds and one breach; checkpoint-thinness two HOLDs).
+- Registry deltas of the close: one entry opened — `normalize()`
+  from the two doc-pin suites into `tests/harness.py` (row 80's
+  proposal), riding the next session whose forecast holds
+  `tests/harness.py`; the `gather_files_for_pack` verbose rider
+  marked consumed at 73B. Proposals consumed this sitting, none of
+  which had a registry entry (they rode rows 78 and 80): board
+  78's three (81, 83, and the harness move — all landed); s34's
+  pair proposal and 74–76's parity pin (landed at 80); 73A's
+  proposal 1 (the `caller` kwarg, landed at 73B) and proposal 3
+  (ship `test_per_sid_checkpoint.py` beside
+  `test_checkpoint_file_flag.py` — desk practice, exercised at
+  73B); 73A's proposal 2 is row 86, unchanged. 73B's three
+  proposals became rows 92, 93, and 91; the apply-side's and 83's
+  became rows 89 and 90; the doc lane's rides row 90.
+- Sequencing for the next desk: rows 89 and 90 beside each other
+  (89 holds `bin/bale_apply.py`, `bin/bale_pack.py`,
+  `bin/bale_report.py`, `bin/bale_config.py`; 90 holds `BALE.md`,
+  `docs/TARBALL.md`, and one string in `bin/bale`) → 91 → the held
+  wave as previously recorded: 68, then 56+57 beside it, then 69,
+  then 37 (69 and 37 serialize on the crafter) → 43 → 45 → S6.
+  Rows 92 and 93 stand until pack's `--verbose` or the ledger
+  brings them forward.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2571,6 +2701,18 @@ and §8, so done items keep their numbers as one-line pointers.
     [2026-09-14: row 87 opened — the naming variance between
     `response-NNN.tar.gz` and `response-<sid>.tar.gz` is what
     defeats this row's matching; the resolver check rides 87.]
+    [2026-09-14, at the close: the multi-open-refuses clause ("or
+    two open sessions — refuses loudly") is superseded by the
+    operator's ruling of this date (§5: bare apply resolves across
+    the open set — candidates answer any open session, newest by
+    `st_mtime_ns` wins, an exact tie refuses, the echo names the
+    resolved session and the open set; landed by
+    `2026-09-14-apply-side-81-87-010`, row 87's resolver half).
+    Tie refusal, content discrimination, and the non-TTY decline
+    stand. The pointer above is corrected: naming variance never
+    defeated this row's matching — the resolver is content-based;
+    the master's own read-only session counting as open did (§6
+    entry 123).]
 
 52. **Pack output emits the chat-opening preamble** — queued
     2026-08-18 (small): the pack report ends with the
@@ -3065,6 +3207,52 @@ and §8, so done items keep their numbers as one-line pointers.
     classes trace to one sentence in `cmd_handoff` (§6 entry 117).
     Session A's notes.md ratified in-sitting. Sequenced first for
     the next desk (§3 close block).]
+    [2026-09-14: session B DONE — row DONE.
+    `2026-09-14-board-73b-handoff-modernize-007` (code class;
+    crafter bundle), opened 2026-09-14T21:43Z, applied 22:14Z at
+    0.4.28 (`bin/VERSION` in the change set; the apply-side
+    request's provenance stamps 0.4.28). Checkpoint PASS on first
+    apply, `stamp_matched: true`, after one relayed exchange round
+    (round 1 → 2 through `bale relay`, pre-build, three questions;
+    telemetry `clarification.rounds: 2`); one enumerated drift
+    admitted at apply by prompt — `bin/bale_report.py`, the
+    `caller == "handoff"` remedy sentence in
+    `format_checkpoint_scope_refusal` and its docstring paragraph
+    (ratified in the thread, round 2, question 2). Modernized in
+    the desk's order 5, 1, 4, 2, 6: handoff reads the parent's
+    `scope.json` and inherits its recorded forecast exactly (`[]`
+    included), `--write` overrides, a missing record falls back to
+    the reading-plan set undeclared (§5); the registry guard is
+    gone — pack's gate is `run_forecast_disjointness_gate` at
+    module level in `bale_pack.py`, pack's refusal byte-identical,
+    handoff's variant offering `--write` / apply / unlock and never
+    `--supersedes`; `forecast_declared` false on the fallback
+    branch only; `checkpoint_resolved_preflight` gains `caller=`
+    and an inherited or declared `[]` waives (`checkpoint_waived:
+    "read-only"`), `--checkpoint-file` on handoff running pack's
+    sequence; `--write`, `--read-only`, `--checkpoint-file`
+    admitted, the other pack flags still rejected. Riders landed:
+    the `caller` kwarg (73A's proposal 1); the `walk_for_pack`
+    verbose threading (registry entry consumed); the three
+    ADR-0007 sentences deleted, five `bale_pack.py` docstring
+    sentences corrected; `BALE.md`'s handoff row rewritten with
+    re-basing clauses on the `scope.json` tree comment, the §8.5
+    waiver paragraph, and ledger row 30. All six `expectedFailure`s
+    stripped (one acceptance test's record assertion moved ahead
+    of the apply — a PASS merge wipes the session directory, so
+    the body as written could never pass); every test-body rewrite
+    is enumerated in its notes. Calls ratified: an inherited
+    forecast is *declared* to the blindness gate (conservative — no
+    silent renewal of an admission; the residue case gates row
+    93); two `bale_pack.py` refusal texts mirrored into `bin/bale`
+    rather than lifted; the pre-install
+    `checkpoint_file_base_or_refuse` retained once. Surprises of
+    record: the plan-less tests and the inheritance rule never met
+    in the fixture — the clarification (§6 entry 124); `unittest`
+    exits 5 on "NO TESTS RAN" (§6 entry 131);
+    `exchange-record.schema.json` lacks the `origin` key (row 91).
+    Proposals became rows 92, 93, and 91. Notes.md ratified
+    in-sitting.]
 
 74. **emission contract micros (doc lane)** — opened 2026-09-10,
     riding board 47's TARBALL.md touch: three one-sentence rules
@@ -3237,6 +3425,28 @@ and §8, so done items keep their numbers as one-line pointers.
     namespace-gated or given the config-off fixture. Sources:
     74-76's, 79's, s34's, and 78's Proposals. Sequenced beside row
     73 session B if forecasts allow (§3 close block).
+    [2026-09-14: DONE — `2026-09-14-board-80-tests-only-pins-008`
+    (code class, tests-only), opened 2026-09-14T21:43Z beside 73B,
+    applied 21:55Z, bumpless at 0.4.27; checkpoint PASS on first
+    apply, `stamp_matched: true`, `clarification.rounds: 0`;
+    `changes[]` = the seven-file forecast. Two calls ratified: the
+    `len(PAIRS) == 5` pin now counts distinct doc-pair
+    parentheticals, so the new bundled-delivery key rides the
+    already-enumerated CLAUDE.md 11.2 / TARBALL.md 3.4 pair (the
+    brief's "no existing pin needs to move" was wrong — §6 entry
+    125); the harness took the superset `_load_module` (`bin/` on
+    `sys.path`, bare-name registration) and telemetry's
+    `_minimal_record` envelope (`StatsToleranceTest` reads
+    `closure_mix["unlocked"]`). Coverage move accepted: the
+    config-off fixture (`commit_sandbox_off_config()`) on the three
+    confined `@slow` cases, so the suite no longer exercises a
+    confined `apply.sh` (`test_sandbox_wrapper.py` owns
+    confinement). The desk left `bin/` out of the includes to look
+    disjoint from 73B; three of seven suites could not run in the
+    worker's context and shipped `predicted`, all graded `agree` —
+    row 84's third specimen, §6 entry 126. Proposal (`normalize()`
+    into `tests/harness.py`) accepted onto the §3 registry.
+    Notes.md ratified in-sitting.]
 
 81. **composed remedies for the base-drift and required-check
     refusals** — queued 2026-09-14 (small; bin/):
@@ -3245,6 +3455,23 @@ and §8, so done items keep their numbers as one-line pointers.
     still close with templates. No prompts (desk ruling; the §3
     watch on those two prompts names its re-trigger). From 78's
     Proposals.
+    [2026-09-14: DONE — landed by `2026-09-14-apply-side-81-87-010`
+    with row 87's resolver half (attempt story and version on row
+    87's bracket). Both renderers take a required `remedy` — no
+    template fallback; `TypeError` on omission pinned. On the
+    offered flag every typed value is carried, no-effect ones
+    included, then the refused values appended; typed base-drift
+    paths ride normalized (`scope_path`), required-check names
+    verbatim; drift admissions ride as the gate resolved them
+    (typed or prompt-admitted), so an admitted path is never
+    re-asked; the required-check line carries `--accept-base-drift`
+    only as typed, since its gate sits before the base-drift gate.
+    No prompt at either gate, pinned under a pty with `y` queued —
+    the §3 two-prompts watch NOT fired. Round-trip tests paste the
+    composed line back through `apply.search_paths`. The parity
+    question (the board-78 drift line drops a no-effect typed path;
+    the two new lines keep it) is ruled on row 89: one rule for all
+    three lines. Notes.md ratified in-sitting.]
 
 82. **crafter seeds the provenance echo** — queued 2026-09-14
     (tools/): from the request manifest (`--request`),
@@ -3255,11 +3482,56 @@ and §8, so done items keep their numbers as one-line pointers.
 83. **`bale config` view of the hook acceptance store** — queued
     2026-09-14 (small; bin/): list, forget-one. Today "forget" is
     hand-editing the JSON (§7). From 78's Proposals.
+    [2026-09-14: DONE —
+    `2026-09-14-board-83-hook-store-and-decline-cause-011` (code
+    class), opened 2026-09-14T22:21Z beside the apply-side session,
+    applied 23:37Z on the second attempt, bumpless under 0.4.29.
+    First attempt HELD at 23:30Z on the blind checkpoint (worker
+    validation PASS; checkpoint exit 1): three of seven assertions
+    grepped `bin/bale` for the rendered decline lines, and the
+    first shape assembled them at runtime from constants — the
+    terminal output was already correct and pinned (§6 entries 128
+    and 130). Retry: the three lines held literally in
+    `HOOK_DECLINE_LINES`, keyed by branch, rendered by `run_hook`;
+    `bin/bale_config.py` and the suite byte-identical to the held
+    response. One relayed exchange round (pre-build, two questions;
+    telemetry `clarification.rounds: 2`), preceded by a chat-first
+    breach the worker self-reports (§6 entry 127): the desk
+    answered `--json` free-text — ship it, one stdout line,
+    status-shaped — and the test home as-recommended (extend
+    `test_hook_acceptance.py`). Calls ratified: `confirm_yn` keeps
+    `bool` beside a new `confirm_yn_decision` returning a frozen
+    `ConfirmDecision` whose `.decline_branch` names one of three
+    `CONFIRM_BRANCH_*`; EOF and Enter split by the `stdin_closed`
+    flag, not the text; `--forget` prompt-free, printing the
+    removed entry and the survivors; prefix rules (case-insensitive
+    hex, 1–64 chars, no minimum, non-hex refuses as a typo,
+    ambiguity names every match, both via `fail()`); listing
+    oldest-first by `accepted_at`; malformed entries displayed and
+    forgettable, a malformed file keeping the read path's posture;
+    `--json` status-shaped (`outcome`, `version`, `store`, `exists`,
+    `entries`, `forgotten`) with the renderer
+    `format_config_hooks_json` in `bale_config.py` for now (row 89
+    moves it); the atomic writer factored to
+    `write_hook_acceptances`; no git repo required. Proposals
+    dispositioned onto rows 89, 90, and 91. Notes.md ratified
+    in-sitting.]
 
 84. **pack warns when an included test imports a repo test module
     outside the include set** — queued 2026-09-14 (bin/): promoted
     from evidence 112's candidate by two live specimens (73A, and
     this desk's own violation — §6 entry 116).
+    [2026-09-14: third specimen — row 80. The desk left `bin/` out
+    of the includes to make the pack look disjoint from 73B; three
+    of seven suites (`test_telemetry_extensions`,
+    `test_admission_prompts`, `test_apply_operations`) could not run
+    in the worker's context and shipped `predicted`. Same shape as
+    73A's and the board-75 retry's, with one difference of record:
+    the worker named the gap in its notes ("rightly — it's in row
+    73B's forecast") and its telemetry `includes_missing` reads
+    `[]`, so the ledger does not carry this one. Disjointness is a
+    forecast property; includes gate nothing (§6 entry 126; the doc
+    lane landed the sentence in `PLANNER.md` §6).]
 
 85. **exchange-carried-outside-relay self-report** — queued
     2026-09-14 (schema + docs + lint): a worker-side field in the
@@ -3278,21 +3550,54 @@ and §8, so done items keep their numbers as one-line pointers.
 87. **response tarball naming standardization + row 51 resolver
     check** — queued 2026-09-14 (tools/ + bin/ + docs). Operator,
     VERBATIM: "I'd like to standardize the response tarball naming
-    convention. Sometimes I just get \"response-004.tar.gz\" and
+    convention. Sometimes I just get "response-004.tar.gz" and
     sometimes I get the convention
-    \"response-2026-09-14-tarball-s34-bundle-clauses-004.tar.gz\".
+    "response-2026-09-14-tarball-s34-bundle-clauses-004.tar.gz".
     I'd prefer the former for transparency purposes, but I'd like
-    to move up the board item that makes a bare \"bale apply\"
+    to move up the board item that makes a bare "bale apply"
     search through the search paths and see the most recent tarball
     to apply and a y/N wizard option can confirm it." Corrected by
     the operator at the desk, VERBATIM: "you're right, I meant
-    \"latter\" not former." So the standard is the sid-bearing form,
+    "latter" not former." So the standard is the sid-bearing form,
     `response-<sid>.tar.gz`. Desk notes: row 51 is DONE and already
-    does the search-and-y/N; the naming variance is what defeats
-    its matching; `TARBALL.md` §10.1 step 11 says
+    does the search-and-y/N; `TARBALL.md` §10.1 step 11 says
     `response-NNN.tar.gz` and is the first thing the row changes;
     then the crafter's tar step and 51's resolver align on the
     sid-bearing form.
+    [2026-09-14: DONE, both halves. Naming half by
+    `2026-09-14-doc-lane-87-88-009` (with row 88; attempt story on
+    88's bracket): `TARBALL.md` §10.1 step 11 spells
+    `response-<sid>.tar.gz` with its directory-stays-`NNN` note,
+    and the request-side line mirrors it (edit 5). Resolver half by
+    `2026-09-14-apply-side-81-87-010` (with row 81; code class),
+    opened 2026-09-14T22:21Z; first attempt HELD at 22:52Z on its
+    own `validation.sh` — a `bash -n apply.sh validation.sh` inside
+    staging, where neither exists (bale runs them from the response
+    directory and syntax-checks both itself); the rehearsal had
+    copied them in (§6 entry 130); the blind checkpoint PASSed both
+    attempts, `stamp_matched: true`, the change set byte-identical
+    (`corrects` names the first, held at commit b1dc247) — retry
+    applied 22:55Z at 0.4.29 (`bin/VERSION` in the change set; this
+    close's request stamps 0.4.29), `clarification.rounds: 0`,
+    `changes[]` = forecast. `resolve_bare_apply_tarball` now treats
+    the open set as the match surface: a candidate is any tarball
+    whose `responds_to` names any open sid (cwd, then each
+    `apply.search_paths` directory, content-discriminated as board
+    51 built it); newest by `st_mtime_ns` wins; an exact tie
+    refuses and the listing names each path's session; the echo
+    names the resolved session and the open set; the multi-open
+    refusal text is gone. The read-only master is not special-cased
+    — a response answering it resolves, echoes, and meets the drift
+    gate as the argumented form would. Desk-note correction: the
+    "naming variance defeats matching" clause is struck above — the
+    resolver is content-based and naming never defeated it; the
+    multi-open refusal was the whole defect (the
+    master's own read-only session counts as open — §6 entry 123).
+    One-apply-behind: this tarball was applied by name; bare apply
+    works beside an open master from the next apply. The five
+    backslash-escaped quotes in the VERBATIM text above are struck
+    at this close (a brief's rendering artifact, not keystrokes).
+    Doc residue on row 90. Notes.md ratified in-sitting.]
 
 88. **disjoint packing as standing practice in the global docs** —
     queued 2026-09-14 (contract-doc: PLANNER.md + CLAUDE.md).
@@ -3300,7 +3605,7 @@ and §8, so done items keep their numbers as one-line pointers.
     disjoint packing is clearly outlined as an option in the global
     docs. I've had some sessions really lean into disjoint packing
     and some ignore it entirely so I'm worried the docs are
-    inconsistent like with the \"bale open\" issue." Desk trace:
+    inconsistent like with the "bale open" issue." Desk trace:
     `CLAUDE.md` one clause (§11.2), `PLANNER.md` core one bullet
     conditioned on splits, `DOCS.md` none; `TARBALL.md` §3.4's
     scope-planning paragraph is the fullest and is read only at
@@ -3311,6 +3616,105 @@ and §8, so done items keep their numbers as one-line pointers.
     practice, §2's bullet drops its conditional, `CLAUDE.md` §4's
     "deciding what's next" row points at it. Same gap class as row
     79 (§6 entry 118).
+    [2026-09-14: DONE — `2026-09-14-doc-lane-87-88-009`
+    (contract-doc class; with row 87's naming half), opened
+    2026-09-14T22:06Z beside 73B, applied 22:14Z, bumpless at
+    0.4.28; checkpoint PASS on first apply, `stamp_matched: true`,
+    `clarification.rounds: 0`; `changes[]` = the three-file
+    forecast (`docs/CLAUDE.md`, `docs/PLANNER.md`,
+    `docs/TARBALL.md`); the three doc-pin suites untouched and
+    green. Calls ratified: the `PLANNER.md` §6 bullet placed
+    second, after "One master per sitting"; its lead "Disjoint
+    sessions run beside each other."; the two-sentence
+    live-traffic anecdote stays in the core, self-standing; §2's
+    rewrite names both origins ("split-born or desk-born alike")
+    with a pointer at §6; `CLAUDE.md` §4's row restates the
+    practice in one clause before the pointer. The practice is a
+    §5 contract of this date (cited there, not re-quoted).
+    Proposal (`TARBALL.md` §1's "Artifact directories" bullet gains
+    the filename convention) rides row 90. The backslash-escaped
+    quote in the VERBATIM text above is struck at this close.
+    Notes.md ratified in-sitting.]
+
+89. **Decline cause on every prompt, one composed-line rule, and
+    the JSON renderer's home** — queued 2026-09-14 (small; bin/):
+    three riders from 83's and the apply-side's Proposals. Switch
+    the other `confirm_yn` callers — the bare-apply confirmation,
+    drift admission, the supersession y/N, the read-only sweep
+    (`bin/bale_apply.py` ×3, `bin/bale_pack.py` ×2) — to
+    `confirm_yn_decision` with a line per `.decline_branch`. Adopt
+    the carry-every-typed-value rule on the board-78 drift line
+    (desk ruled: one rule for all three composed lines — a dropped
+    flag re-sends the operator through a cleared gate). Move
+    `format_config_hooks_json` beside `format_status_json`.
+    **Why:** the operator's "Enter did nothing" report is not
+    hook-specific — every prompt has the same three silent
+    branches; the drift line drops a no-effect typed path where the
+    two row-81 lines keep it; the renderers are one family with one
+    stability rule, and `bale_config` holds one only because
+    `bale_report` was a sibling's forecast this sitting. **Scope
+    hints:** `bin/bale_apply.py`, `bin/bale_pack.py`,
+    `bin/bale_report.py`, `bin/bale_config.py`; small. Sequenced
+    first, beside row 90 (§3 close block).
+
+90. **Doc residue of rows 83 and 87** — queued 2026-09-14 (doc lane
+    with a one-string code rider): `BALE.md`'s apply section still
+    describes bare apply as keyed on the single open session and
+    refusing under multi-open (board 51's queued pair-close rider
+    line, now superseded by the §5 ruling) and its hook section
+    still describes a file to hand-edit (the store is operable:
+    `bale config hooks`, `--forget`); the `bin/bale` apply parser
+    description still says "the single open session";
+    `TARBALL.md` §1's "Artifact directories" bullet gains the
+    filename convention beside the directory one. **Why:** the doc
+    lane landed the naming half and the apply-side session changed
+    the behavior half; a worker reading only the core meets the
+    filename rule only in the triggered §10 checklist. **Scope
+    hints:** `BALE.md`, `bin/bale` (one string), `docs/TARBALL.md`;
+    ships the doc-pin suites per the include-authoring rules. From
+    the apply-side's, 83's, and the doc lane's Proposals. Sequenced
+    beside row 89 (§3 close block).
+
+91. **Exchange-record schema parity** — queued 2026-09-14 (schemas/
+    + tests/): admit in `exchange-record.schema.json` the optional
+    `origin` question-row key that `response-manifest.schema.json`
+    admits (or strip it in the crafter's clarification
+    normalizer). **Why:** found by 73B, confirmed by 83 — a
+    clarification manifest that fills `origin` cannot
+    `--emit-block`, so both workers dropped the key to keep one
+    manifest feeding both couriers; the two schemas should admit
+    the same row. **Scope hints:**
+    `schemas/exchange-record.schema.json`, crafter/relay parity
+    tests; one line plus a pin; a forecast touching `schemas/`
+    ships the self-containment guard. From 73B's and 83's
+    Proposals. Sequenced after 89/90 (§3 close block).
+
+92. **`walk_for_pack --verbose` names untracked drops** — queued
+    2026-09-14 (bin/). From 73B's Proposals, VERBATIM: "**What:** in
+    `walk_for_pack --verbose`, print a `verbose: drop <path> (not
+    tracked)` line for each include entry that matched no `git
+    ls-files` path. **Why:** it is the one drop reason the rider
+    cannot surface, and for a handoff it is the common one (a typo
+    in a bailing worker's reading plan). **Scope hints:**
+    `bin/bale_pack.py`, the walk; pack's `--verbose` suites."
+    Stands until pack's `--verbose` brings it forward (§3 close
+    block).
+
+93. **Record a forecast's declaration status beside `scope.json`**
+    — queued 2026-09-14 (bin/; gated). From 73B's Proposals,
+    VERBATIM: "**What:** record the forecast's declaration status
+    beside `scope.json` (or in the session's provenance record) so
+    a handoff can inherit *declared-ness* as well as the value.
+    **Why:** removes the residue named under judgment calls without
+    weakening the no-silent-renewal rule. **Scope hints:**
+    `persist_pack_session`, the registry readers, both
+    request-building paths; after the ledger shows the case
+    occurring." The residue case, from 73B's ratified call (an
+    inherited forecast is declared): a parent whose
+    include-set-default forecast covered the oracle was admitted at
+    pack undeclared, and its plan-less handoff refuses at the
+    blindness gate. Gated on the ledger showing it; stands until
+    then (§3 close block).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -3935,6 +4339,38 @@ New, ratified 2026-09-14 (the continue-plan-001 sitting,
   flag.
 - **Row 73: modernize, not retire.**
   The desk ruling of 2026-09-14; order and riders on row 73.
+
+New, ratified 2026-09-14 (the continue-plan-006 sitting; each a
+ruling of record with one home):
+
+- **Bare apply resolves across the open set.**
+  Candidates answer any open session; newest by `st_mtime_ns` wins;
+  an exact tie refuses; the echo names the resolved session and the
+  open set. Operator's ruling, VERBATIM from the desk: "what's the
+  harm in just seeing if the most recent tarball applies to ANY of
+  the open sessions, and if for some reason it's more than one (it
+  shouldn't ever be more than one right?) then it can refuse or
+  provide a wizard option". Supersedes board 51's multi-open
+  refusal only; landed at row 87's resolver half.
+- **Handoff inherits the parent's recorded forecast exactly**,
+  including `[]`; `--write` overrides; a missing record falls back
+  to the reading-plan set as an undeclared forecast; an inherited
+  forecast is declared.
+  Row 73 session B; the read-only-parent decision session A asked
+  for.
+- **No template closings on admission refusals.**
+  Every refusal that names a re-run composes it: real filename, the
+  verb used, every typed admission carried, refused values
+  appended. Row 81; extends the board-78 rule to all three gates.
+- **A prompt's decline names its cause.**
+  Three branches, three lines — on the hook prompt now (row 83) and
+  every prompt via row 89.
+- **`bale config hooks`: bare list, `--forget <sha256|unique prefix>`, no forget-all, `--json` status-shaped.**
+  Row 83; the store is a §7 fact.
+- **Disjoint by default is standing sitting practice.**
+  Row 88's `PLANNER.md` §6 sentence, VERBATIM in the doc — cited
+  here, not re-quoted; `CLAUDE.md` §4's "deciding what's next" row
+  points at it.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -5107,6 +5543,62 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     refuses before the sandbox prompt) — board 68's principle
     applied to a prompt.
 
+123. **The master's own session hides a structural refusal.** Bare
+    apply was contract-complete for weeks (board 51, 2026-08-25)
+    and never worked at the desk, because the desk's read-only
+    session counts as open and the multi-open refusal fired at
+    every sitting. A feature exercised only between sittings is
+    untested at the desk. (Row 87's resolver half; the §5 ruling.)
+
+124. **A ruling the fixture cannot reach.** The desk ruled the
+    `["."]` fallback fires only on a missing parent record; every
+    fixture parent had a record, so the plan-less tests and the
+    inheritance rule never met. The worker stopped (relay round) —
+    correctly. Imagined surfaces apply to briefs, not just oracles
+    (entry 119's rule, brief-side). (73B.)
+
+125. **Verbatim transport is for decisions, not claims about
+    files.** "No existing pin needs to move" travelled from s34's
+    proposal into a desk instruction unverified; `len(PAIRS) == 5`
+    was waiting in `test_sanctioned_pairs.py`. A claim about bytes
+    is verified or omitted. (Row 80.)
+
+126. **Includes narrowed to look disjoint.** Row 80 shipped without
+    `bin/`; three suites could not run and shipped `predicted`.
+    Disjointness is a forecast property; includes gate nothing.
+    Third `includes_missing` specimen (row 84) — the one the ledger
+    does not carry, since the worker reported it in prose.
+
+127. **"Your call" costs a round trip.** Three desk-handed choices
+    this sitting (73B's fallback — real; 83's `--json` and test
+    home — not) became two relay rounds and one chat-first breach.
+    When the desk has a preference, the brief states it. (73B, 83.)
+
+128. **An oracle that pins source bytes for an output contract.**
+    Row 83's checkpoint grepped `bin/bale` for the rendered decline
+    lines; the first response rendered them correctly at runtime
+    from constants and was held. Pin what the operator sees when
+    the contract is what the operator sees. (83's first attempt.)
+
+129. **Three fixture defects caught by dry-running, none by
+    reading.** The dotted-module runner form (no `sys.path` for
+    `harness`), a wrapped-phrase grep that passed vacuously, and a
+    bumpless probe that would have coupled to apply order.
+    `PLANNER.md` §4's rehearsal rule, earned three times in one
+    sitting. (Desk-side, this sitting.)
+
+130. **Worker rehearsal that masks its own validation.** The
+    apply-side's first attempt copied `apply.sh`/`validation.sh`
+    into its staging-shaped copy and passed a `bash -n` that the
+    real staging cannot; 83's rehearsal passed a `validation.sh`
+    written to its own reading of the brief. The blind checkpoint
+    is the second reader for exactly this. (Both HOLDs of the
+    sitting.)
+
+131. **`unittest` exits 5 on "NO TESTS RAN" (Python 3.12+).** A
+    fixture-defines-no-tests assertion must key on the `Ran 0
+    tests` line, not the exit code. (73B.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -5169,12 +5661,15 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   bale_staging, bale_rollback; the 8b/8c sessions refined the
   sibling lazy-import idiom, so re-verify the current set before
   scoping any include set that must execute bin/bale — evidence 13
-  still governs. bin/bale VERSION 0.4.27 at
-  `2026-09-14-board-78-admission-prompts-001` (0.4.26 rode
+  still governs. bin/bale VERSION 0.4.29 at
+  `2026-09-14-apply-side-81-87-010` (0.4.28 rode
+  `2026-09-14-board-73b-handoff-modernize-007`; 0.4.27 rode
+  `2026-09-14-board-78-admission-prompts-001`; 0.4.26 rode
   `2026-09-10-board-75-sandbox-config-off-002`; 0.4.25 rode
   `2026-09-01-board-71-lifecycle-resolution-008`; the four
   doc/contract-doc sessions of the 2026-09-10→14 sitting landed
-  bumpless per the doc-only reading); the
+  bumpless per the doc-only reading, as did the continue-plan-006
+  sitting's row 80 (tests-only), doc lane, and row 83); the
   per-bump trail — every bump's sid and the doc-only / tests-only /
   hot-file bump exemptions — lives in git (prior versions of this
   doc) and in the sessions' telemetry records.
@@ -5206,6 +5701,9 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   Extended 2026-09-14: the tool now renders composed remedies at
   the scope-drift and sandbox refusals (row 78); the desk composes
   only what the tool does not yet.
+  Extended again 2026-09-14 (the continue-plan-006 sitting): the
+  base-drift and required-check refusals render composed lines too
+  (row 81) — every admission refusal's remedy is tool-composed.
   Session references in this doc use the full sid, or NNN
   qualified by sitting — bare NNN collides across same-day
   sittings (009's proposal, accepted 2026-07-31; going forward
@@ -5231,7 +5729,25 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   `test_global_doc_selfcontainment`, `test_schema_embeds`) to run.
 - Hook acceptance store: `<install>/user/hook-acceptances.json`
   (row 78; keyed by sha256 → script, hook, layer, accepted_at),
-  never committed; malformed → warn and decline.
+  never committed; malformed → warn and decline. Operable from
+  `2026-09-14-board-83-hook-store-and-decline-cause-011`: `bale
+  config hooks` lists (oldest-first), `--forget <sha256|unique
+  prefix>` removes one (prompt-free; no forget-all), `--json` is
+  status-shaped; the hook prompt's decline line names its cause
+  (stdin closed, Enter at a decline default, or the answer given).
+- Bare `bale apply` works beside an open master from 0.4.29
+  (`2026-09-14-apply-side-81-87-010`, row 87's resolver half):
+  candidates answer any open session, newest by `st_mtime_ns`
+  wins, an exact tie refuses, the echo names the resolved session
+  and the open set (§5, 2026-09-14). Before this the master's own
+  read-only session tripped board 51's multi-open refusal at every
+  sitting (§6 entry 123).
+- Environment: the installed `bin/bale` was verified against source
+  at 0.4.27 by `grep -c 'return not default_no' "$(command -v
+  bale)"` → 1 (the close-6 hook decline event, §3). `reinstall.sh`
+  mirrors the *checkout* into the install and apply is
+  checkout-free (ADR-0008), so the install tracks the working tree,
+  not the merge.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
