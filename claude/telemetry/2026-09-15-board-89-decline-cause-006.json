@@ -1,0 +1,256 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-89-decline-cause-006",
+  "created_at": "2026-09-15T12:24:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T12:24:36+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-89-decline-cause-006.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T14:34:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-89-decline-cause-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py"
+      ],
+      "overridden_paths": [
+        "tests/test_admission_prompts.py",
+        "tests/test_admission_prompts_e2e.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hook_acceptance.py",
+        "tests/test_pre_answered_intents.py",
+        "tests/test_readonly_pack.py",
+        "tests/test_supersession_pack.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_admission_prompts.py": "prompt",
+        "tests/test_admission_prompts_e2e.py": "prompt",
+        "tests/test_apply_preflight.py": "prompt",
+        "tests/test_hook_acceptance.py": "prompt",
+        "tests/test_pre_answered_intents.py": "prompt",
+        "tests/test_readonly_pack.py": "prompt",
+        "tests/test_supersession_pack.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "tests/test_admission_prompts.py",
+        "tests/test_admission_prompts_e2e.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hook_acceptance.py",
+        "tests/test_pre_answered_intents.py",
+        "tests/test_readonly_pack.py",
+        "tests/test_supersession_pack.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.30",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "6e3971eaa272e8485f809653c157a55996897f79ad0542af62cf293047055c62",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-89-decline-cause-006.sh",
+              "sha256": "b269b4d1daba4d9ed880528b464baa81738355b2c7c950335ce4c95a8b83ac29"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T12:24:36+00:00",
+            "base_files": {
+              "bin/VERSION": "6028dc76386f65f57a4e92607c78ea99f5fa4085426ee6f3c7fe0564dc2b2485",
+              "bin/bale_apply.py": "efd0a29b0d83c455197fd675616fd8e5eba3d33b9abe99fdae018415d5cf1bf4",
+              "bin/bale_config.py": "3cbbcc10aff774cd72ca9c6492ebf078944309e6fa3094e73bd6b0a6e58a0846",
+              "bin/bale_pack.py": "b87232d52cdb3f91c898a9ae60b6d671a8fdc7eb81e6a8b0e42a608be8cf4775",
+              "bin/bale_report.py": "7dbfe22d2bb2fc4dfdbde777ca51b991cad27b97f4beddf9c5239004ff7f5d44"
+            },
+            "model_identity": "Claude (Anthropic) \u2014 self-reported, unverified"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The two HandoffBlindnessGateTest failures in tests/test_checkpoint_provenance.py are pre-existing in the operator's tree (they fail on the untouched context/ tree); validation.sh's --slow tier allowlists exactly those two by name.",
+            "The sandbox-unavailable decline carries its cause on the [bale] log line only; the fail() text that follows is unchanged (asked in chat, answered 'go' with no preference)."
+          ],
+          "judgment_calls": [
+            "Per-prompt tables of three FULL literal lines (the row-83 retry shape) keyed by branch-name string literals, since a bin/ sibling cannot import CONFIRM_BRANCH_* from __main__ at module scope; parity pinned by an ast read of bin/bale in the unit tier and in validation.sh.",
+            "One shared renderer, bale_report.format_decline_line, raising ValueError on an accepted decision or a missing branch.",
+            "The read-only sweep's table holds the unreachable empty-answer line (accept default) so every table covers the full vocabulary.",
+            "The piped --supersedes path keeps its cause-less 'declined; nothing closed' line beneath its no-prompt line; the TTY path's cause line replaces it.",
+            "The bare-apply decline remedy keeps 'bale apply <path>' (the brief's 'remedy text unchanged'); proposed for review.",
+            "The pack wizard's two confirm_yn flow prompts left as they are.",
+            "Whole-tree discovery gated behind --slow (about 3 minutes with BALE_TEST_SLOW=1); the default tier runs the seven touched suites, one discovery per file because unittest's -p is not repeatable."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "manifest.json",
+            "README.md (the brief)",
+            "CLAUDE.md in full (META through 11.2)",
+            "TARBALL.md sections 1, 2, 5, 7, 6, 8, 10.1",
+            "claude/responses/2026-09-14-board-83-hook-store-and-decline-cause-011/notes.md",
+            "claude/responses/2026-09-14-apply-side-81-87-010/notes.md",
+            "schemas/response-manifest.schema.json (feedback block)",
+            "bin/bale (confirm_yn_decision, ConfirmDecision, HOOK_DECLINE_LINES, run_hook's prompt, log/fail)",
+            "bin/bale_apply.py, bin/bale_pack.py, bin/bale_config.py, bin/bale_report.py (the touched regions)",
+            "tests/harness.py, test_admission_prompts.py, test_admission_prompts_e2e.py, test_hook_acceptance.py, test_apply_preflight.py, test_readonly_pack.py, test_supersession_pack.py, test_pre_answered_intents.py"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_admission_prompts.py",
+              "why": "unit tier for the new renderer and the five line tables; the brief names this suite for composed-line pins"
+            },
+            {
+              "path": "tests/test_admission_prompts_e2e.py",
+              "why": "pins the drift line's typed-value carry and the decline causes at the drift and sandbox prompts; the brief names this suite"
+            },
+            {
+              "path": "tests/test_apply_preflight.py",
+              "why": "pins the bare-apply confirmation's decline causes in BareApplyResolutionTest; the brief names this suite"
+            },
+            {
+              "path": "tests/test_supersession_pack.py",
+              "why": "pins the --supersedes exchange's decline causes; the brief names this suite"
+            },
+            {
+              "path": "tests/test_readonly_pack.py",
+              "why": "pins the read-only sweep's decline causes; the brief names this suite"
+            },
+            {
+              "path": "tests/test_hook_acceptance.py",
+              "why": "test_json_report_shape loaded the renderer from bale_config; the move breaks it as shipped, so the repoint rides with the move"
+            },
+            {
+              "path": "tests/test_pre_answered_intents.py",
+              "why": "its __main__ stub supplied confirm_yn; the supersession resolver now imports confirm_yn_decision, so six cases error without the stub rename"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-89-decline-cause-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-89-decline-cause-006.sh",
+          "sha256": "b269b4d1daba4d9ed880528b464baa81738355b2c7c950335ce4c95a8b83ac29"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T14:34:13+00:00",
+  "outcome": "applied"
+}
