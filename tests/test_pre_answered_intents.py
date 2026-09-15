@@ -33,7 +33,7 @@ Stub discipline: bale_pack resolves shared helpers lazily via
 ``from __main__ import ...``, so the tests install stubs as
 attributes on the real ``__main__`` module in setUp and restore or
 remove every one in tearDown — novel names only (log, fail,
-confirm_yn, git, session_is_open, close_session_with_record), so a
+confirm_yn_decision, git, session_is_open, close_session_with_record), so a
 discovery run's own ``__main__`` is left exactly as found.
 bale_report is the real module; the idempotent case writes a real
 telemetry record under the temp repo for it to read.
@@ -148,8 +148,8 @@ class ConsumeIntentTest(unittest.TestCase):
 class ResolverExchangeTest(unittest.TestCase):
     """_resolve_supersession with pre_answered: through, never around."""
 
-    STUB_NAMES = ("log", "fail", "confirm_yn", "git", "session_is_open",
-                  "close_session_with_record")
+    STUB_NAMES = ("log", "fail", "confirm_yn_decision", "git",
+                  "session_is_open", "close_session_with_record")
 
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-intents-")
@@ -173,9 +173,15 @@ class ResolverExchangeTest(unittest.TestCase):
         def _fail(msg, code=1):
             raise _Fail(msg)
 
-        def _confirm_yn(prompt, *, default_no=True):
+        def _confirm_yn_decision(prompt, *, default_no=True):
+            # The resolver reads a ConfirmDecision since v0.4.31
+            # (board 89); every case here runs piped, so the prompt
+            # is never reached and a recorded call is itself the bug.
             self.prompted.append(prompt)
-            return False
+            return SimpleNamespace(accepted=False, answer="n",
+                                   stdin_closed=False,
+                                   default_no=default_no,
+                                   decline_branch="answered")
 
         def _git(argv, cwd=None, check=True):
             return SimpleNamespace(
@@ -191,7 +197,7 @@ class ResolverExchangeTest(unittest.TestCase):
 
         main.log = _log
         main.fail = _fail
-        main.confirm_yn = _confirm_yn
+        main.confirm_yn_decision = _confirm_yn_decision
         main.git = _git
         main.session_is_open = _session_is_open
         main.close_session_with_record = _close

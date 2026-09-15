@@ -68,7 +68,9 @@ in a fixed order (§5.6.3 / §5.9.3) that no caller should have to
 re-derive.
 
 The json renderers (`format_pack_json`, `format_apply_json`,
-`format_status_json`) sit outside
+`format_status_json`, and since v0.4.31 `format_config_hooks_json` — the
+`bale config hooks --json` line, moved beside its siblings from
+bale_config.py) sit outside
 that rule because for a machine consumer the verdict is the whole report:
 each renders its command's outcome as ONE line of JSON whose keys are a
 stable contract for downstream tooling (see their docstrings). Since v0.2.8
@@ -1980,6 +1982,47 @@ def format_status_json(report) -> str:
     return json.dumps(payload)
 
 
+def format_config_hooks_json(*, outcome: str, version: str, store: Path,
+                             entries: list[dict],
+                             forgotten: Optional[dict]) -> str:
+    """Render the `bale config hooks --json` report as ONE line of JSON.
+
+    The config-hooks sibling of format_pack_json / format_apply_json /
+    format_status_json (v0.4.29, board 83; moved here from
+    bale_config.py at v0.4.31, board 89 — it had lived there only
+    because this module was a sibling session's forecast the sitting it
+    landed): same stability rules (existing keys are never renamed or
+    removed; new keys may be added), same one-compact-line shape, same
+    emission path (bale_config.cmd_config_hooks emits it via
+    emit_json_line so it reaches the real stdout under json mode's
+    stream discipline — module docstring). The key set:
+
+      outcome    "listed" or "forgotten" (bale_config's
+                 CONFIG_HOOKS_OUTCOME_* constants, the vocabulary's
+                 home).
+      version    the bale VERSION string.
+      store      absolute path of the acceptance store file.
+      exists     whether the file was present (false reads as "nothing
+                 accepted yet"; a malformed file is exists=true with
+                 entries=[] and a `[bale] ` warning on stderr).
+      entries    every entry the store holds AFTER this run — the whole
+                 store on a list, the survivors on a forget — each an
+                 object: sha256, script, hook, layer, accepted_at (null
+                 when the field is absent), malformed (bool).
+      forgotten  null on a list; on a forget, the removed entry in the
+                 same object shape.
+    """
+    payload = {
+        "outcome": outcome,
+        "version": version,
+        "store": str(store),
+        "exists": store.is_file(),
+        "entries": entries,
+        "forgotten": forgotten,
+    }
+    return json.dumps(payload)
+
+
 def format_unlock_json(
     *,
     outcome: str,
@@ -2585,6 +2628,54 @@ def compose_admission_command(*, verb: str, tarball_name: str,
     if no_sandbox:
         parts.append("--no-sandbox")
     return " ".join(parts)
+
+
+# The three decline branches of a confirm_yn_decision prompt (v0.4.29,
+# board 83), by name. bin/bale owns the vocabulary (CONFIRM_BRANCH_*)
+# and its ConfirmDecision.decline_branch returns exactly these values;
+# they are mirrored here because a bin/ sibling imports nothing from
+# __main__ at module scope, and the per-prompt line tables in
+# bale_apply / bale_pack are module-level constants keyed by them. The
+# parity test in tests/test_admission_prompts.py pins this tuple against
+# bin/bale's constants so a rename fails loud, not with a KeyError at
+# the one moment an operator is reading the terminal.
+CONFIRM_DECLINE_BRANCHES = (
+    "stdin_closed",
+    "empty_at_decline_default",
+    "answered",
+)
+
+
+def format_decline_line(lines: dict, decision, **fields) -> str:
+    """Render the one decline line a prompt prints for the branch it
+    declined on (v0.4.31, board 89).
+
+    `lines` is the prompt's table: one full, literal line per branch in
+    CONFIRM_DECLINE_BRANCHES (the HOOK_DECLINE_LINES shape from
+    bin/bale's run_hook — the lines are held verbatim, never assembled
+    from a cause phrase at runtime, so each appears literally in the
+    file that prints it). `decision` is the ConfirmDecision the prompt
+    returned; its `answer` fills the `{answer}` slot of the answered
+    branch's template, and any other `{name}` slots come from `fields`
+    (a sid, a path). The answer is the operator's stripped, lowercased
+    reply, rendered inside explicit single quotes by the templates —
+    not !r, which would switch to double quotes on an answer containing
+    a quote.
+
+    Raises ValueError on an accepted decision (there is no decline line
+    to render) or on a table missing the branch — both are caller bugs,
+    surfaced rather than swallowed.
+    """
+    branch = decision.decline_branch
+    if branch is None:
+        raise ValueError("format_decline_line: the decision accepted; "
+                         "nothing to render")
+    template = lines.get(branch)
+    if template is None:
+        raise ValueError(f"format_decline_line: no line for decline "
+                         f"branch {branch!r} (table has "
+                         f"{sorted(lines)})")
+    return template.format(answer=decision.answer, **fields)
 
 CLOSURE_REASONS = (
     "abandoned",

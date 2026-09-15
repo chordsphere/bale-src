@@ -11,17 +11,29 @@ install: bin/ is importable directly (the checkpoint-import posture
 test_telemetry_extensions.py pins), through the ``_load_module`` /
 ``_minimal_record`` helpers both suites share from tests/harness.py
 (moved there at board 80).
+
+Since v0.4.31 (board 89) the decline-cause surface lives here too:
+``format_decline_line`` and ``CONFIRM_DECLINE_BRANCHES`` in
+bale_report, and the five per-prompt line tables in bale_apply and
+bale_pack — DeclineLineTableTest pins the branch vocabulary against
+bin/bale's CONFIRM_BRANCH_* constants (three homes, one test) and the
+renderer's contract. The prompts themselves are driven end-to-end in
+each prompt's own suite.
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import shlex
 import unittest
+from dataclasses import dataclass
+from typing import Optional
 
 from harness import REPO_ROOT, _load_module, _minimal_record
 
 SCHEMA_PATH = REPO_ROOT / "schemas" / "telemetry-record.schema.json"
+BALE_SCRIPT = REPO_ROOT / "bin" / "bale"
 
 
 class ComposedCommandTest(unittest.TestCase):
@@ -229,6 +241,128 @@ class RefusalRendererTest(unittest.TestCase):
         out2 = self.br.format_sandbox_unavailable_refusal(
             sid="s", detail="d", remedy=remedy, declined_at_prompt=True)
         self.assertIn("admission prompt", out2)
+
+
+def _bin_bale_confirm_branches() -> dict:
+    """The CONFIRM_BRANCH_* string constants as bin/bale assigns them,
+    read from its source with ast — bin/bale is a script, not an
+    importable module, and the vocabulary is what this test exists to
+    compare against, so it is read from the one home, never retyped."""
+    tree = ast.parse(BALE_SCRIPT.read_text(encoding="utf-8"))
+    found = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if (isinstance(target, ast.Name)
+                and target.id.startswith("CONFIRM_BRANCH_")
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            found[target.id] = node.value.value
+    return found
+
+
+@dataclass(frozen=True)
+class _FakeDecision:
+    """The slice of bin/bale's ConfirmDecision format_decline_line
+    reads: `decline_branch` and `answer`."""
+    decline_branch: Optional[str]
+    answer: str = ""
+
+
+class DeclineLineTableTest(unittest.TestCase):
+    """v0.4.31 (board 89): every admission prompt names its decline
+    cause from a per-prompt table of three literal lines, keyed by the
+    branch names bin/bale's ConfirmDecision reports."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.br = _load_module("bale_report")
+        cls.ba = _load_module("bale_apply")
+        cls.bp = _load_module("bale_pack")
+        cls.tables = {
+            "bale_apply.BARE_APPLY_DECLINE_LINES":
+                cls.ba.BARE_APPLY_DECLINE_LINES,
+            "bale_apply.DRIFT_ADMISSION_DECLINE_LINES":
+                cls.ba.DRIFT_ADMISSION_DECLINE_LINES,
+            "bale_apply.SANDBOX_ADMISSION_DECLINE_LINES":
+                cls.ba.SANDBOX_ADMISSION_DECLINE_LINES,
+            "bale_pack.SUPERSESSION_DECLINE_LINES":
+                cls.bp.SUPERSESSION_DECLINE_LINES,
+            "bale_pack.READONLY_SWEEP_DECLINE_LINES":
+                cls.bp.READONLY_SWEEP_DECLINE_LINES,
+        }
+
+    def test_branch_vocabulary_has_three_homes_that_agree(self) -> None:
+        """bin/bale's CONFIRM_BRANCH_* values, bale_report's mirror
+        tuple, and every table's key set are the same three names."""
+        from_bale = _bin_bale_confirm_branches()
+        self.assertEqual(len(from_bale), 3, msg=from_bale)
+        self.assertEqual(sorted(from_bale.values()),
+                         sorted(self.br.CONFIRM_DECLINE_BRANCHES))
+        for name, table in self.tables.items():
+            self.assertEqual(sorted(table), sorted(from_bale.values()),
+                             msg=f"{name} keys drifted from bin/bale")
+
+    def test_every_line_is_literal_and_names_its_cause(self) -> None:
+        """Each line carries its cause phrase verbatim and the answered
+        line quotes the answer in single quotes — the row-83 shape."""
+        for name, table in self.tables.items():
+            self.assertIn("stdin closed or interrupted",
+                          table["stdin_closed"], msg=name)
+            self.assertIn("empty answer at a decline default",
+                          table["empty_at_decline_default"], msg=name)
+            self.assertIn("(answered '{answer}')", table["answered"],
+                          msg=name)
+            for branch, line in table.items():
+                self.assertIn("declined", line, msg=f"{name}[{branch}]")
+                self.assertNotIn("\n", line, msg=f"{name}[{branch}]")
+
+    def test_renderer_fills_each_branch(self) -> None:
+        lines = {"stdin_closed": "closed {sid}",
+                 "empty_at_decline_default": "empty {sid}",
+                 "answered": "said '{answer}' about {sid}"}
+        f = self.br.format_decline_line
+        self.assertEqual(f(lines, _FakeDecision("stdin_closed"), sid="s"),
+                         "closed s")
+        self.assertEqual(f(lines, _FakeDecision("empty_at_decline_default"),
+                           sid="s"), "empty s")
+        self.assertEqual(f(lines, _FakeDecision("answered", "no"), sid="s"),
+                         "said 'no' about s")
+
+    def test_renderer_keeps_single_quotes_on_a_quoted_answer(self) -> None:
+        """Explicit quotes in the template, not !r: an answer holding a
+        quote still renders inside single quotes."""
+        out = self.br.format_decline_line(
+            self.ba.BARE_APPLY_DECLINE_LINES,
+            _FakeDecision("answered", "don't"))
+        self.assertIn("(answered 'don't')", out)
+
+    def test_renderer_refuses_an_accept_and_a_missing_branch(self) -> None:
+        with self.assertRaises(ValueError):
+            self.br.format_decline_line(self.ba.BARE_APPLY_DECLINE_LINES,
+                                        _FakeDecision(None))
+        with self.assertRaises(ValueError):
+            self.br.format_decline_line({"stdin_closed": "x"},
+                                        _FakeDecision("answered", "n"))
+
+    def test_bare_apply_lines_keep_the_explicit_form_remedy(self) -> None:
+        for line in self.ba.BARE_APPLY_DECLINE_LINES.values():
+            self.assertIn("nothing applied", line)
+            self.assertIn("bale apply <path>", line)
+
+    def test_drift_lines_keep_the_partial_landing_tail(self) -> None:
+        for line in self.ba.DRIFT_ADMISSION_DECLINE_LINES.values():
+            self.assertIn("{path}", line)
+            self.assertIn("nothing admitted at the prompt, nothing lands "
+                          "partially", line)
+
+    def test_pack_lines_name_the_session(self) -> None:
+        for line in self.bp.SUPERSESSION_DECLINE_LINES.values():
+            self.assertIn("{sid}", line)
+            self.assertIn("nothing closed", line)
+        for line in self.bp.READONLY_SWEEP_DECLINE_LINES.values():
+            self.assertIn("`bale unlock {sid}`", line)
 
 
 class PromptGateTest(unittest.TestCase):
