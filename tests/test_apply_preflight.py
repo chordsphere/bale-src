@@ -1350,6 +1350,21 @@ class BareApplyResolutionTest(unittest.TestCase):
         self.assertIn("sha256", result.stdout)
         self.assert_nothing_applied(sid)
 
+    def test_bare_piped_remedy_line_is_quoted(self) -> None:
+        """Board 102 (the board-101 rider): the non-TTY refusal's
+        `bale apply <path>` remedy is shlex-quoted, matching the decline
+        line's alternative a few lines below it in the source. A
+        browser's `(1)` twin carries a space and parens, so the unquoted
+        line was a paste that never worked; the quoted one is."""
+        sid = self.pack_session("bare-piped-quoted")
+        twin = self.deliver_response(sid, "twin (1)", b"twin content\n")
+        self.assertIn(" ", twin.name)
+        result = self.bare_apply_piped()
+        self.assert_refused(result, "not a TTY", "decline default",
+                            f"bale apply '{twin}'")
+        self.assertNotIn(f"prompt: bale apply {twin}", result.stderr)
+        self.assert_nothing_applied(sid)
+
     def test_bare_with_inspection_flag_refuses(self) -> None:
         sid = self.pack_session("bare-inspect")
         self.deliver_response(sid, "inspectable", b"inspect\n")
@@ -1383,6 +1398,179 @@ class BareApplyResolutionTest(unittest.TestCase):
         self.assertEqual(
             (self.repo / "hello.txt").read_text(encoding="utf-8"),
             "named content\n")
+
+
+class ExplicitNameMissTest(unittest.TestCase):
+    """The explicit-name miss surface (board 102, v0.4.33).
+
+    `bale apply <name>`, `bale retry <name>` and `bale handoff <name>`
+    resolve a relative name through cwd and then each configured
+    `apply.search_paths` directory (bin/bale's resolve_inbound_path);
+    a miss refuses naming every directory consulted. Board 102 adds the
+    near-name listing to that refusal: every `*.tar.gz` file in the
+    consulted directories whose name starts with the typed name minus
+    its `.tar.gz` suffix, rendered as a complete `bale <verb> <path>`
+    command line for the verb the user typed — absolute, shlex-quoted
+    (a path with a space or parens gets single quotes: the
+    load-bearing part, since a browser's second download of the same
+    name is `<name> (1).tar.gz`), newest first by mtime. With zero
+    candidates the refusal is byte-identical to the pre-listing form.
+
+    The resolver never opens a candidate — the listing is a directory
+    scan and a stat — so the fixtures are empty files with pinned
+    mtimes; nothing here needs an open session, and every verb refuses
+    at resolution before any session state is touched.
+    """
+
+    PREFIX = "response-2026-09-15-near-001"
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-nearname-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+        self.downloads = self.tmp / "downloads"
+        self.downloads.mkdir()
+        (self.repo / "bale.toml").write_text(
+            "[apply]\n"
+            f"search_paths = [\"{self.downloads}\"]\n",
+            encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    # -- helpers ---------------------------------------------------------
+
+    def drop(self, name: str, *, where: Path = None,
+             mtime_ns: int = None) -> Path:
+        """An empty file under `where` (downloads by default) with a
+        pinned mtime — content is irrelevant, the resolver only lists."""
+        dest = (where or self.downloads) / name
+        dest.write_bytes(b"")
+        if mtime_ns is not None:
+            os.utime(dest, ns=(mtime_ns, mtime_ns))
+        return dest
+
+    def miss(self, verb: str, typed: str):
+        result = run_bale(self.install, [verb, typed],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 1,
+            msg=f"expected the not-found refusal (exit 1); "
+                f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn(f"tarball not found: {typed}", result.stderr)
+        self.assertIn("  searched:", result.stderr)
+        self.assertIn(f"    {self.downloads}", result.stderr)
+        return result
+
+    @staticmethod
+    def listing_lines(stderr: str) -> list:
+        """The `bale <verb> <path>` lines under the near-name header,
+        in emitted order; empty when the header is absent."""
+        lines = stderr.splitlines()
+        for i, line in enumerate(lines):
+            if line.strip() == "near-name candidates (newest first):":
+                return [l.strip() for l in lines[i + 1:]
+                        if l.startswith("    bale ")]
+        return []
+
+    # -- the listing -----------------------------------------------------
+
+    def test_apply_miss_lists_near_names_newest_first(self) -> None:
+        base = 1_700_000_000_000_000_000
+        older = self.drop(f"{self.PREFIX}-older.tar.gz", mtime_ns=base)
+        newest = self.drop(f"{self.PREFIX}-newest.tar.gz",
+                           mtime_ns=base + 20 * 10**9)
+        middle = self.drop(f"{self.PREFIX}-middle.tar.gz",
+                           mtime_ns=base + 10 * 10**9)
+        result = self.miss("apply", f"{self.PREFIX}.tar.gz")
+        self.assertEqual(
+            self.listing_lines(result.stderr),
+            [f"bale apply {newest}", f"bale apply {middle}",
+             f"bale apply {older}"])
+
+    def test_retry_miss_renders_the_retry_verb(self) -> None:
+        twin = self.drop(f"{self.PREFIX}-v2.tar.gz")
+        result = self.miss("retry", f"{self.PREFIX}.tar.gz")
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale retry {twin}"])
+        self.assertNotIn("bale apply ", result.stderr)
+
+    def test_handoff_miss_renders_the_handoff_verb(self) -> None:
+        twin = self.drop(f"{self.PREFIX}-v2.tar.gz")
+        result = self.miss("handoff", f"{self.PREFIX}.tar.gz")
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale handoff {twin}"])
+
+    def test_space_and_parens_are_single_quoted(self) -> None:
+        """The load-bearing case: the browser's `(1)` twin pastes back
+        as one argument. A candidate without shell metacharacters stays
+        bare, so the two lines differ only where quoting is needed."""
+        twin = self.drop(f"{self.PREFIX} (1).tar.gz")
+        plain = self.drop(f"{self.PREFIX}-plain.tar.gz")
+        for verb in ("apply", "retry"):
+            with self.subTest(verb=verb):
+                result = self.miss(verb, f"{self.PREFIX}.tar.gz")
+                lines = self.listing_lines(result.stderr)
+                self.assertIn(f"bale {verb} '{twin}'", lines)
+                self.assertIn(f"bale {verb} {plain}", lines)
+                self.assertNotIn(f"bale {verb} {twin}", lines)
+
+    def test_prefix_is_the_typed_name_minus_suffix(self) -> None:
+        """Only names starting with the typed name's stem are near: a
+        different sid, a name that merely contains the stem, and a
+        non-.tar.gz file sharing the stem are all silent."""
+        near = self.drop(f"{self.PREFIX}-near.tar.gz")
+        self.drop("response-2026-09-15-other-001.tar.gz")
+        self.drop(f"prefix-{self.PREFIX}.tar.gz")
+        self.drop(f"{self.PREFIX}.tar.gz.part")
+        self.drop(f"{self.PREFIX}.md")
+        result = self.miss("apply", f"{self.PREFIX}.tar.gz")
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale apply {near}"])
+
+    def test_typed_name_without_suffix_is_its_own_prefix(self) -> None:
+        exact = self.drop(f"{self.PREFIX}.tar.gz")
+        result = self.miss("apply", self.PREFIX)
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale apply {exact}"])
+
+    def test_cwd_candidates_are_listed_too(self) -> None:
+        """cwd is consulted before the configured directories for the
+        exact match, so its near-names are candidates as well; a file
+        reachable from both cwd and a search path lists once."""
+        base = 1_700_000_000_000_000_000
+        in_cwd = self.drop(f"{self.PREFIX}-here.tar.gz", where=self.repo,
+                           mtime_ns=base + 10 * 10**9)
+        in_dl = self.drop(f"{self.PREFIX}-there.tar.gz", mtime_ns=base)
+        result = self.miss("apply", f"{self.PREFIX}.tar.gz")
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale apply {in_cwd.resolve()}",
+                          f"bale apply {in_dl}"])
+        # Dedupe: cwd doubling as a configured search path.
+        (self.repo / "bale.toml").write_text(
+            "[apply]\n"
+            f"search_paths = [\"{self.repo}\", \"{self.downloads}\"]\n",
+            encoding="utf-8")
+        result = self.miss("apply", f"{self.PREFIX}.tar.gz")
+        lines = self.listing_lines(result.stderr)
+        self.assertEqual(lines.count(f"bale apply {in_cwd.resolve()}"), 1)
+
+    def test_zero_candidates_leaves_the_refusal_unchanged(self) -> None:
+        self.drop("response-2026-09-15-other-001.tar.gz")
+        for verb in ("apply", "retry", "handoff"):
+            with self.subTest(verb=verb):
+                result = self.miss(verb, f"{self.PREFIX}.tar.gz")
+                self.assertNotIn("near-name", result.stderr)
+                self.assertNotIn(f"bale {verb} ", result.stderr)
+                # The refusal ends at the searched list: nothing after
+                # the last consulted directory.
+                self.assertTrue(
+                    result.stderr.rstrip().endswith(str(self.downloads)),
+                    msg=f"unexpected trailer after the searched list:"
+                        f"\n{result.stderr}")
 
 
 if __name__ == "__main__":
