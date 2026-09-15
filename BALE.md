@@ -570,7 +570,13 @@ The following flags apply across multiple commands:
   project/configured hook is recorded, never a global-layer default
   and never a `hook_auto_accept` bypass, and the remembered accept is
   a prompt default, never a bypass: `--no-interact` and
-  `apply.hook_auto_accept` keep their exact semantics.
+  `apply.hook_auto_accept` keep their exact semantics. The store is
+  operable, not hand-edited (board 83): `bale config hooks` lists
+  every remembered entry oldest-first, `bale config hooks --forget
+  <sha256 or unique prefix>` removes exactly one — prompt-free,
+  saying what it removed, refusing an ambiguous prefix or a missing
+  key; there is no forget-all — and `--json` renders either run
+  status-shaped, one line on stdout.
 - `--allow-out-of-scope <path>` — apply-scoped, repeatable (one path
   per flag): admit exactly the named `changes[]` path(s) past the
   own-scope drift gate (§8.1 step 14, §11 row 22); any other
@@ -2130,19 +2136,29 @@ echo deliberately does not duplicate).
 stages, runs the response's `apply.sh` and `validation.sh`, commits
 or holds, and walks the user through the result.
 
-**The bare form** (board 51, v0.4.16).
-A bare `bale apply` resolves the newest response tarball answering the single open session
-— the candidate scan walks cwd plus every configured
-`apply.search_paths` directory, discriminates candidates by content
-(a request tarball is never a candidate, whatever its name), and
-echoes the resolved pick — path, sid, sha256, mtime — behind a
-decline-default y/N before the pipeline engages. Every non-resolving
-outcome refuses with a remedy rather than guessing: no candidate, an
-mtime tie, no open session, multiple open sessions, and
-non-interactive stdin (the decline default, taken without a prompt)
-each name what to do instead — typically the explicit
-`bale apply <response-tarball>` form, which the bare sugar leaves
-untouched.
+**The bare form** (board 51, v0.4.16; the resolver widened at board
+87, v0.4.29). A bare `bale apply` scans cwd, then each configured
+`apply.search_paths` directory (non-recursive, the surface the
+argumented form's relative-name resolution searches), discriminates
+candidates by content — a request tarball is never a candidate,
+whatever its name — and takes the open set as the match surface.
+The ruling of record: Candidates answer any open session; newest by
+`st_mtime_ns` wins; an exact tie refuses; the echo names the
+resolved session and the open set. The echo — path, the session the
+tarball answers (`the open session` when one is open; `one of N open
+sessions: …` listing them all otherwise), sha256, mtime — sits behind
+a decline-default y/N that names that session, so the operator
+confirms what resolution picked before the pipeline engages. Every
+non-resolving outcome refuses with a remedy rather than guessing: no
+candidate, an exact mtime tie (each tied path listed with the session
+it answers), no open session, and non-interactive stdin (the decline
+default, taken without a prompt) each name what to do instead —
+typically the explicit `bale apply <response-tarball>` form, which
+the bare sugar leaves untouched. Several open sessions is not a
+refusal: a response's `responds_to` is one string, so each candidate
+answers exactly one of them, and the only genuine ambiguity is the
+tie — which is what lets the bare form work at a desk whose read-only
+master is always open beside the worker.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never
