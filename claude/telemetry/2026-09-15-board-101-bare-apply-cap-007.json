@@ -1,0 +1,553 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-101-bare-apply-cap-007",
+  "created_at": "2026-09-15T14:40:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T14:40:36+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-101-bare-apply-cap-007.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T16:14:43+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-101-bare-apply-cap-007.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests"
+      ],
+      "overridden_paths": [
+        "bin/bale_report.py"
+      ],
+      "overridden_path_sources": {
+        "bin/bale_report.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_checkpoint_provenance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.31",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "ceba9f8f7764a0c2ab38cbf3fac4e87a36df29a70fa7e7f3df2d96eb581166cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-101-bare-apply-cap-007.sh",
+              "sha256": "c68e60ef72edb30d968ea0eaa88e2a894cef9934878821c16d72556ccbb56535"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T14:40:35+00:00",
+            "base_files": {
+              "BALE.md": "4acb2f4079a5936ba83ee6a492b33c6c3d9136834a890cbfbcde2171f043d34d",
+              "bin/VERSION": "d03897ae78b6351d05a3491c29e362eea73d9bd8d2a53ad38a4e3fda3ef6b9ee",
+              "bin/bale": "11c10b8a0c8f80eca76ead0397691a16bd3106edc12c8b2d5c9229bd5deb06eb",
+              "bin/bale_apply.py": "2d0a50bfce63fa184a8ace996ff1491e9af4e93c5cf4a86db6a475e6800b2788",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "4b615cfa2c4ce3733df7cb6ab7f6826209f85d90a84b4a27f444024426a49c2d",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "f92e350764ac1cf2f6ff2d64eaee5304c7074730376c72fa4789f74bdcd443d2",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "55aef4eed73d5b134949ed1d49bb24ce1b259686da24e1348cceb0f406b41720",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4b1605d20917a49eaad48a5c8418c33264355dcb6d171a1ea7ada27dd2aa90d8",
+              "tests/test_checkpoint_file_flag.py": "124b7f75ad2f479dacce4e81c7366f3a60b4e26cc2392b5b13a6a1a4591de394",
+              "tests/test_checkpoint_provenance.py": "3e7dead0389d58179af204f1b00bdaafaab9118c25b835b796d54d2caf02bb24",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_clock_discipline.py": "578106c0db3255d4ba8f44f8d1c75843b5b277901de35635bc33d7451ea5120a",
+              "tests/test_closure_telemetry.py": "a07b0966b739861528182465586c25ebf924fb6309eb5b97eb4310751479801c",
+              "tests/test_craft_response.py": "6c76553b94ab8e6db1f3e3edfb9aaee76b9603bd9970fe182d62aba664376ebc",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "492e81b398d16af90497d048bc5f8f3e1b1c7128620dd45ceb8cd97a0929c5a6",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "a25a9fde13d0191ba531ddb89c687ef7bcc0313b3fd08d4d93b9be1019936e6c",
+              "tests/test_global_doc_selfcontainment.py": "1c92cc64c48c8d1f3068f34dcb09ea1b6bfeb10052f8046e50f84aa1e4f07749",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "442aae10cd436198412127770317efcaa9a4c20e347d9a427a660a3a93689731",
+              "tests/test_handoff_happy.py": "ca926c81d0639f5104b67807bb2853d99e1b507a5f6d71637b10d28587de24ae",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_hold_retry_e2e.py": "683e1c2511ba2866fa941927f010bcd365ab36ac5e074966a7706e1661c87ff1",
+              "tests/test_hook_acceptance.py": "a0c63f4a575d94fc92e9882f26b6bdf96462a466e1dd4ce38232a7bc63bf8299",
+              "tests/test_include_group.py": "243661af6c46d046d064aeaf88b9eb875f44d024a94005c96d3d58b4a8e5f32f",
+              "tests/test_install_precheck.py": "be11f2c334512e06333eb34ac6da090d7202bf5115c21333325e0d944c6f61a3",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_verb.py": "9c7afa82875341f5f8f8eda96cab44dddcfc4149e0415b96b0b6621d854b270c",
+              "tests/test_pack_guards.py": "f8e15fe07f9a964933377b3f7033532b08f0190b5a57fda565691185b335278a",
+              "tests/test_pack_opener.py": "bad8d85cf0265580f4ac765a7148f45348a5bd2ac0b7cf25216d5f50e8c8d8e2",
+              "tests/test_per_sid_checkpoint.py": "9562f22259f89e7b6d69d86027e1398f3570f11d44096da40229b2480ba2042c",
+              "tests/test_planner_admission.py": "343efd7b7a5136867d1eec5f8dac890587a15344a22110805049e3b3c4679e7b",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_provenance_at_open.py": "0fdf880c1106d708a121ac23cf691ae99b470b66f9b4bdc6034426e384f322fa",
+              "tests/test_readme_identity.py": "041b5dbf4a488c607e45d024d241e37cfc9ce76d4c2662e1090edd14dce5d0de",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_relay_verb.py": "809d41078576afd642993e9c8d3d990f1d3afd377d599202143f7cfc28813c6a",
+              "tests/test_release_packaging.py": "958401f310d33886d0d689b7fb9dc3543c372c87f9e3497339813e9dbe72bb45",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "75e6105430d25f43427900a2989337e9d4d1b273c8fc832f6381a7848eb8a404",
+              "tests/test_revert_json.py": "bc27e13b1234963e33244f4e1d9e3895078a2c3bf88538ae970efa6fa9dc063c",
+              "tests/test_rollback_telemetry.py": "6adfcd2ffcd0ff1d42c789762595510c0eeb6c789dabbe866e7878435652d9f7",
+              "tests/test_sanctioned_pairs.py": "1313687175d80bf11daba1ccc37c3d2d1792cfa65830366a44c614730f222ee9",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f94349caeef0851c614fe2ed2e888de0376bff50108231b59c0b015399305059",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "8276c0ac7965667424266841f0de1b9fc8e110bdda43ea629c1546d483606171",
+              "tests/test_stats_drilldown.py": "815c7f2a98ad2fafa011870dd36174b28f51bdca54983b89f252f0f3fca44b23",
+              "tests/test_stats_linkage.py": "47e319560c4679a9a5783685c844aca6a8aaa9b1bfdde1e1ff4a85971e46817f",
+              "tests/test_supersession_pack.py": "412e4ec1c8e2285358b03d53fb123c865a59edc64da18a23de5fb7937ba06073",
+              "tests/test_telemetry_extensions.py": "e0ba22850127fa9e09b485748be56f896896576943d9b64f1dfb4ef81564cfe4",
+              "tests/test_telemetry_fields_wave1.py": "d9fe9098fede01f58c92b1e761188271e7c32684fd49fc728beb94d6c00e93a0",
+              "tests/test_telemetry_promotion.py": "83e1d6c47bcb0ebc87631db1f8398458205eeba7da5af1cc13a86fef25b78f23",
+              "tests/test_thread_status.py": "d0076c3c00dfb8befe973cc2cab3393d627f5bf72b14f2867ef579865766935d",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "014da4e11e891c1a312bc8636fb9cd2a922dc8b6ab7c69ab8af22eed5189b16b",
+              "tests/test_verbose_thread.py": "4d8f9d16413886cf7bf3e2ae3abec49bd75c75944d466e998418beb87d15c520",
+              "tests/test_write_forecast.py": "93e3c9bd931591aa60c9ab3f9097c0e459a80a100f191a515a49120a669b664f"
+            },
+            "model_identity": "Claude (worker session, claude.ai)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Un-named tarballs (not response-*.tar.gz) are outside the scan surface entirely: not stat'ed, not counted, not mentioned in the refusal \u2014 rule 1's 'never read' taken literally.",
+            "The read-side diagnosis text ('pack includes name the blind checkpoint explicitly') stays byte-shared across callers on a handoff, per the ratified constraint; only the remedy sentence splits."
+          ],
+          "judgment_calls": [
+            "The decline remedy names the other examined candidate beneath the byte-exact table line (a separate `bale apply <path>` line, shlex-quoted) rather than inside it \u2014 the parity suite pins the three lines literal and single-line.",
+            "The examined set is 'every named file whose st_mtime_ns >= the second-newest's' \u2014 one cutoff that folds in the brief's 'plus any file sharing the second's exact mtime' and keeps board 87's tie refusal byte-identical.",
+            "bin/bale_report.py is touched out of forecast (one branch) because the desk's remedy ruling cannot be met in bin/bale; enumerated in notes.md.",
+            "The 'never opened' pins are behavioral (valid-content un-named files that would win if opened; an unreadable one that would print a --verbose skip line) rather than a tarfile.open monkeypatch, since the resolver runs in a subprocess."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "format_checkpoint_scope_refusal's handoff remedy branch is where the read-side remedy is rendered; the desk's ruling (remedies name the read-side fix and the flag, not --write) cannot be met inside the forecast. Same branch row 73b touched as ratified drift."
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-101-bare-apply-cap-007.log",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-101-bare-apply-cap-007.sh",
+          "sha256": "c68e60ef72edb30d968ea0eaa88e2a894cef9934878821c16d72556ccbb56535"
+        },
+        "stamp_matched": true
+      }
+    },
+    {
+      "at": "2026-09-15T16:17:43+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-101-bare-apply-cap-007 (2).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh (install sanity)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh (install sanity)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests"
+      ],
+      "overridden_paths": [
+        "bin/bale_report.py"
+      ],
+      "overridden_path_sources": {
+        "bin/bale_report.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_checkpoint_provenance.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.31",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "ceba9f8f7764a0c2ab38cbf3fac4e87a36df29a70fa7e7f3df2d96eb581166cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-101-bare-apply-cap-007.sh",
+              "sha256": "c68e60ef72edb30d968ea0eaa88e2a894cef9934878821c16d72556ccbb56535"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T14:40:35+00:00",
+            "base_files": {
+              "BALE.md": "4acb2f4079a5936ba83ee6a492b33c6c3d9136834a890cbfbcde2171f043d34d",
+              "bin/VERSION": "d03897ae78b6351d05a3491c29e362eea73d9bd8d2a53ad38a4e3fda3ef6b9ee",
+              "bin/bale": "11c10b8a0c8f80eca76ead0397691a16bd3106edc12c8b2d5c9229bd5deb06eb",
+              "bin/bale_apply.py": "2d0a50bfce63fa184a8ace996ff1491e9af4e93c5cf4a86db6a475e6800b2788",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "4b615cfa2c4ce3733df7cb6ab7f6826209f85d90a84b4a27f444024426a49c2d",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "f92e350764ac1cf2f6ff2d64eaee5304c7074730376c72fa4789f74bdcd443d2",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "55aef4eed73d5b134949ed1d49bb24ce1b259686da24e1348cceb0f406b41720",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4b1605d20917a49eaad48a5c8418c33264355dcb6d171a1ea7ada27dd2aa90d8",
+              "tests/test_checkpoint_file_flag.py": "124b7f75ad2f479dacce4e81c7366f3a60b4e26cc2392b5b13a6a1a4591de394",
+              "tests/test_checkpoint_provenance.py": "3e7dead0389d58179af204f1b00bdaafaab9118c25b835b796d54d2caf02bb24",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_clock_discipline.py": "578106c0db3255d4ba8f44f8d1c75843b5b277901de35635bc33d7451ea5120a",
+              "tests/test_closure_telemetry.py": "a07b0966b739861528182465586c25ebf924fb6309eb5b97eb4310751479801c",
+              "tests/test_craft_response.py": "6c76553b94ab8e6db1f3e3edfb9aaee76b9603bd9970fe182d62aba664376ebc",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "492e81b398d16af90497d048bc5f8f3e1b1c7128620dd45ceb8cd97a0929c5a6",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "a25a9fde13d0191ba531ddb89c687ef7bcc0313b3fd08d4d93b9be1019936e6c",
+              "tests/test_global_doc_selfcontainment.py": "1c92cc64c48c8d1f3068f34dcb09ea1b6bfeb10052f8046e50f84aa1e4f07749",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "442aae10cd436198412127770317efcaa9a4c20e347d9a427a660a3a93689731",
+              "tests/test_handoff_happy.py": "ca926c81d0639f5104b67807bb2853d99e1b507a5f6d71637b10d28587de24ae",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_hold_retry_e2e.py": "683e1c2511ba2866fa941927f010bcd365ab36ac5e074966a7706e1661c87ff1",
+              "tests/test_hook_acceptance.py": "a0c63f4a575d94fc92e9882f26b6bdf96462a466e1dd4ce38232a7bc63bf8299",
+              "tests/test_include_group.py": "243661af6c46d046d064aeaf88b9eb875f44d024a94005c96d3d58b4a8e5f32f",
+              "tests/test_install_precheck.py": "be11f2c334512e06333eb34ac6da090d7202bf5115c21333325e0d944c6f61a3",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_verb.py": "9c7afa82875341f5f8f8eda96cab44dddcfc4149e0415b96b0b6621d854b270c",
+              "tests/test_pack_guards.py": "f8e15fe07f9a964933377b3f7033532b08f0190b5a57fda565691185b335278a",
+              "tests/test_pack_opener.py": "bad8d85cf0265580f4ac765a7148f45348a5bd2ac0b7cf25216d5f50e8c8d8e2",
+              "tests/test_per_sid_checkpoint.py": "9562f22259f89e7b6d69d86027e1398f3570f11d44096da40229b2480ba2042c",
+              "tests/test_planner_admission.py": "343efd7b7a5136867d1eec5f8dac890587a15344a22110805049e3b3c4679e7b",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_provenance_at_open.py": "0fdf880c1106d708a121ac23cf691ae99b470b66f9b4bdc6034426e384f322fa",
+              "tests/test_readme_identity.py": "041b5dbf4a488c607e45d024d241e37cfc9ce76d4c2662e1090edd14dce5d0de",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_relay_verb.py": "809d41078576afd642993e9c8d3d990f1d3afd377d599202143f7cfc28813c6a",
+              "tests/test_release_packaging.py": "958401f310d33886d0d689b7fb9dc3543c372c87f9e3497339813e9dbe72bb45",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "75e6105430d25f43427900a2989337e9d4d1b273c8fc832f6381a7848eb8a404",
+              "tests/test_revert_json.py": "bc27e13b1234963e33244f4e1d9e3895078a2c3bf88538ae970efa6fa9dc063c",
+              "tests/test_rollback_telemetry.py": "6adfcd2ffcd0ff1d42c789762595510c0eeb6c789dabbe866e7878435652d9f7",
+              "tests/test_sanctioned_pairs.py": "1313687175d80bf11daba1ccc37c3d2d1792cfa65830366a44c614730f222ee9",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f94349caeef0851c614fe2ed2e888de0376bff50108231b59c0b015399305059",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "8276c0ac7965667424266841f0de1b9fc8e110bdda43ea629c1546d483606171",
+              "tests/test_stats_drilldown.py": "815c7f2a98ad2fafa011870dd36174b28f51bdca54983b89f252f0f3fca44b23",
+              "tests/test_stats_linkage.py": "47e319560c4679a9a5783685c844aca6a8aaa9b1bfdde1e1ff4a85971e46817f",
+              "tests/test_supersession_pack.py": "412e4ec1c8e2285358b03d53fb123c865a59edc64da18a23de5fb7937ba06073",
+              "tests/test_telemetry_extensions.py": "e0ba22850127fa9e09b485748be56f896896576943d9b64f1dfb4ef81564cfe4",
+              "tests/test_telemetry_fields_wave1.py": "d9fe9098fede01f58c92b1e761188271e7c32684fd49fc728beb94d6c00e93a0",
+              "tests/test_telemetry_promotion.py": "83e1d6c47bcb0ebc87631db1f8398458205eeba7da5af1cc13a86fef25b78f23",
+              "tests/test_thread_status.py": "d0076c3c00dfb8befe973cc2cab3393d627f5bf72b14f2867ef579865766935d",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "014da4e11e891c1a312bc8636fb9cd2a922dc8b6ab7c69ab8af22eed5189b16b",
+              "tests/test_verbose_thread.py": "4d8f9d16413886cf7bf3e2ae3abec49bd75c75944d466e998418beb87d15c520",
+              "tests/test_write_forecast.py": "93e3c9bd931591aa60c9ab3f9097c0e459a80a100f191a515a49120a669b664f"
+            },
+            "model_identity": "Claude (worker session, claude.ai)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Un-named tarballs (not response-*.tar.gz) are outside the scan surface entirely: not stat'ed, not counted, not mentioned in the refusal \u2014 rule 1's 'never read' taken literally.",
+            "The read-side diagnosis text ('pack includes name the blind checkpoint explicitly') stays byte-shared across callers on a handoff, per the ratified constraint; only the remedy sentence splits."
+          ],
+          "judgment_calls": [
+            "The decline remedy names the other examined candidate beneath the byte-exact table line (a separate `bale apply <path>` line, shlex-quoted) rather than inside it \u2014 the parity suite pins the three lines literal and single-line.",
+            "The examined set is 'every named file whose st_mtime_ns >= the second-newest's' \u2014 one cutoff that folds in the brief's 'plus any file sharing the second's exact mtime' and keeps board 87's tie refusal byte-identical.",
+            "bin/bale_report.py is touched out of forecast (one branch) because the desk's remedy ruling cannot be met in bin/bale; enumerated in notes.md.",
+            "The 'never opened' pins are behavioral (valid-content un-named files that would win if opened; an unreadable one that would print a --verbose skip line) rather than a tarfile.open monkeypatch, since the resolver runs in a subprocess.",
+            "Re-attempt (corrects the held first attempt): validation.sh step 5 grepped for `result: PASSED`, which validate.sh never prints (its pass line is `result: OK \u2014 N checks passed`); the sandbox never exposed it because README.md is not shipped there. Only validation.sh changed; files/ and apply.sh are byte-identical."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "forecast_departures": [
+            {
+              "path": "bin/bale_report.py",
+              "why": "format_checkpoint_scope_refusal's handoff remedy branch is where the read-side remedy is rendered; the desk's ruling (remedies name the read-side fix and the flag, not --write) cannot be met inside the forecast. Same branch row 73b touched as ratified drift."
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-101-bare-apply-cap-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-101-bare-apply-cap-007.sh",
+          "sha256": "c68e60ef72edb30d968ea0eaa88e2a894cef9934878821c16d72556ccbb56535"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T16:17:43+00:00",
+  "outcome": "applied"
+}
