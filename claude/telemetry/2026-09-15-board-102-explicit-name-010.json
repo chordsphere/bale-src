@@ -1,0 +1,218 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-102-explicit-name-010",
+  "created_at": "2026-09-15T18:24:29+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T18:24:29+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_apply_operations.py",
+        "tests/test_apply_preflight.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-102-explicit-name-010.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T19:42:23+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-102-explicit-name-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "BALE.md sentence landed verbatim": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "near-miss listing behavior (scratch repo)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_apply_preflight.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_apply_operations.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest discover -s tests (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "BALE.md sentence landed verbatim": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "near-miss listing behavior (scratch repo)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_apply_preflight.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_apply_operations.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest discover -s tests (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_apply_operations.py",
+        "tests/test_apply_preflight.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "tests/test_apply_preflight.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.32",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "ceba9f8f7764a0c2ab38cbf3fac4e87a36df29a70fa7e7f3df2d96eb581166cf",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-102-explicit-name-010.sh",
+              "sha256": "d492cea68ee6979c74f3086c6aa7f9a9de5967527ae2d60340278d56bae0f813"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T18:24:29+00:00",
+            "base_files": {
+              "BALE.md": "cea843822636501088e550a320fde72797fda2be387fddf40af7dd90c81cbe1f",
+              "bin/VERSION": "3ef61d7b0f5aee9bd2d086657890fe0315f1c836954db4a6858e648bc611eee7",
+              "bin/bale": "a84c107b9fd7bf57b9bdfabb5ab862271c1c6a032d499787e52f12f8ce99aa6a",
+              "bin/bale_apply.py": "03f2f1b3e4705e95a4ac6e3e233ed6aa8caa2487486a16b32724182cb3a6fa04",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "f871a5a0ee853c0a765a65a60a7062951ff97978d337482216370d8914e0b077"
+            },
+            "model_identity": "Claude Fable 5.1 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "listing header wording and indentation mirror the existing `searched:` block; nothing outside this session's tests pins them",
+            "the BALE.md sentence belongs at the end of the \u00a78 bare-form paragraph (\u00a78 has no standalone apply-argument paragraph)"
+          ],
+          "judgment_calls": [
+            "handoff gained the listing too (one kwarg per caller); the desk's BALE.md sentence names apply and retry only and was left verbatim",
+            "absolute-path and no-search-paths misses left unchanged; proposed as follow-up in notes.md",
+            "all new tests placed in test_apply_preflight.py beside the downloads fixture; test_apply_operations.py untouched though forecast",
+            "full default suite (~150s here) gated behind validation.sh --slow; the two apply suites run by default"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "forecast_departures": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "README.md (the brief)",
+            "CLAUDE.md META through 11.2",
+            "TARBALL.md sections 1, 2, 5, 7, 3.2, 8, 10.1",
+            "BALE.md \u00a73 deployment step 3, \u00a77 --readme-file paragraph, \u00a78 opening and 8.1 (placement search only)",
+            "bin/bale resolver + cmd_retry/cmd_handoff call sites; bin/bale_apply.py docstring, bare-apply resolver, cmd_apply; tests/harness.py; tests/test_apply_preflight.py; tests/test_apply_operations.py (structure)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-102-explicit-name-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-102-explicit-name-010.sh",
+          "sha256": "d492cea68ee6979c74f3086c6aa7f9a9de5967527ae2d60340278d56bae0f813"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T19:42:23+00:00",
+  "outcome": "applied"
+}
