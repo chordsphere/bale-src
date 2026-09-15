@@ -52,6 +52,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -957,6 +958,7 @@ def build_provenance_block(
     repo: Path,
     *,
     sid: str,
+    packed_at: Optional[datetime] = None,
     packer_flag: Optional[str] = None,
     work_class: str = "mixed",
     checkpoint_scope_admitted: bool = False,
@@ -965,7 +967,20 @@ def build_provenance_block(
 ) -> dict:
     """Assemble the request manifest's provenance block (v0.3.8, B1).
 
-    Stamps six facts about the pack, per request-manifest.schema.json:
+    Stamps the pack's facts, per request-manifest.schema.json:
+
+    - `packed_at` (board 94, v0.4.30) — the pack instant, ISO 8601 UTC
+      with offset at seconds precision (the `created_at` shape
+      bin/bale_validate.py already accepts). Both request-building
+      paths pass the instant they allocated the sid from, so the stamp's
+      date and the sid's date agree by construction; a caller passing
+      none is stamped from the clock now. Stamped unconditionally on
+      every bale-built block (the checkpoint_scope_admitted precedent:
+      uniform shape), admitted-never-required by the request schema and
+      admitted on the response echo, so pre-stamp manifests validate
+      unchanged and the response to the stamping session itself echoes
+      a block without it (one-apply-behind). The opener names the same
+      instant so the worker sees the pack time in its first message.
 
     - `bale_version` — this install's VERSION constant.
     - `contract_docs` — sha256 of each injected global doc, hashed from
@@ -1156,6 +1171,8 @@ def build_provenance_block(
             + (f" [resolved from {checkpoint_base}]"
                if checkpoint_path != checkpoint_base else ""))
 
+    if packed_at is None:
+        packed_at = datetime.now(timezone.utc)
     block = {
         "bale_version": VERSION,
         "contract_docs": contract_docs,
@@ -1163,7 +1180,19 @@ def build_provenance_block(
         "work_class": work_class,
         "checkpoint": checkpoint_stamp,
         "checkpoint_scope_admitted": bool(checkpoint_scope_admitted),
+        "packed_at": packed_at.astimezone(timezone.utc).isoformat(
+            timespec="seconds"),
     }
+    if block["packed_at"][:10] != sid[:10]:
+        # Both request-building paths pass the allocation instant, so
+        # this fires only for a caller that let the default clock run
+        # across a UTC midnight after allocating. Loud, not fatal: the
+        # sid is the anchor the worker dates from (TARBALL.md §1) and
+        # the stamp is the pack-time record; a disagreement is worth a
+        # journal line, not a refusal of a pack that already allocated.
+        log(f"provenance: packed_at {block['packed_at']} falls on a "
+            f"different UTC date than session {sid} — the sid's date is "
+            f"the one the worker dates from")
     # The base-drift stamp (board 41; docstring above owns the
     # semantics). Enumeration and bytes both come from HEAD via git —
     # `ls-tree -r` per forecast entry resolves a file entry to itself
@@ -3339,7 +3368,20 @@ OPENER_BEGIN = "--8<-- session opener (copy everything between the scissor lines
 OPENER_END = "--8<-- end session opener --8<--"
 
 
-def session_opener_block(sid: str, goal: str, *, read_only: bool) -> list:
+# The clock sentence the opener carries (board 94, v0.4.30). VERBATIM:
+# one emitted line, no placeholder inside it — the worker reads it in
+# the very message that opens the session, which is the only surface
+# every session sees. TARBALL.md §1 carries the contract's twin
+# sentence; this one is the chat-facing wording.
+OPENER_CLOCK_SENTENCE = (
+    "Session ids and every bale timestamp are UTC and may run a day "
+    "ahead of the date this chat shows; date anything you write from "
+    "the session id, never from the chat."
+)
+
+
+def session_opener_block(sid: str, goal: str, *, read_only: bool,
+                         packed_at: str) -> list:
     """The session-opening chat paragraph, as report lines (board 52).
 
     Pack's end-of-run report ends with this block on every pack shape —
@@ -3360,6 +3402,16 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool) -> list:
     - The read-only shape's opener names the session read-only, so the
       fresh session knows from its first line that nothing lands.
 
+    Two more lines ride after the identity (board 94, v0.4.30): the pack
+    time — `packed_at`, the same string the request manifest's
+    provenance.packed_at stamps, ISO 8601 UTC — on its own line, and the
+    VERBATIM clock sentence (OPENER_CLOCK_SENTENCE) on its own line.
+    Together they pre-empt the chat interface's own date: the worker's
+    chat may show the operator's local calendar day while the sid and
+    every bale timestamp are UTC, and without an anchor a worker dating
+    an ADR or a note from the chat writes yesterday's date. The goal
+    line's single-line verbatim carriage is untouched.
+
     Pure: builds the lines, prints nothing. The caller decides the
     surface (trailer vs post-JSON print).
     """
@@ -3379,6 +3431,8 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool) -> list:
         OPENER_BEGIN,
         "I'm using \"bale\", a CLI that packaged the attached request tarball.",
         *identity,
+        f"Packed at {packed_at} (UTC).",
+        OPENER_CLOCK_SENTENCE,
         f"Goal, verbatim from the request manifest: {goal}",
         "Please examine the tarball contents, starting with CLAUDE.md and",
         "manifest.json, and go from there. Ask me if anything is unclear",
@@ -4342,10 +4396,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # refuse_system_dir / the threshold check above into the new log file,
     # so the session journal has the override events even though they
     # preceded sid allocation.
-    sid = next_session_id(repo, args.slug)
+    # One clock instant per request (board 94, v0.4.30): the sid's date
+    # and the provenance.packed_at stamp below are read from the same
+    # UTC instant, so the two can never straddle a UTC midnight.
+    pack_clock = datetime.now(timezone.utc)
+    sid = next_session_id(repo, args.slug, today=pack_clock.date())
     log_path = repo / ".bale" / "logs" / f"{sid}.log"
     set_log_file(log_path)
     log(f"session id: {sid}")
+    log(f"pack clock: {pack_clock.isoformat(timespec='seconds')} "
+        f"(UTC; the sid's date is this instant's date)")
     if admitted_alongside is not None:
         gate_scope, gate_open_sids = admitted_alongside
         log(f"forecast-disjointness gate passed (ADR-0015): pack write "
@@ -4411,7 +4471,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
             "session ships). Close-out (board 33): the next read-only "
             "pack offers to close this session, or run `bale unlock` now")
     provenance = build_provenance_block(
-        repo, sid=sid, packer_flag=args.packer, work_class=work_class,
+        repo, sid=sid, packed_at=pack_clock,
+        packer_flag=args.packer, work_class=work_class,
         checkpoint_scope_admitted=checkpoint_scope_admitted,
         # v0.4.9: an empty forecast waives the per-session checkpoint;
         # the builder scopes the stamp to {sid} bases itself.
@@ -4423,7 +4484,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     )
     log(f"provenance: packer={provenance['packer']!r} "
         f"work_class={provenance['work_class']!r} "
-        f"bale_version={provenance['bale_version']}")
+        f"bale_version={provenance['bale_version']} "
+        f"packed_at={provenance['packed_at']}")
     manifest = build_request_manifest(
         sid=sid,
         project_name=repo.name,
@@ -4534,7 +4596,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # JSON report needs a format_pack_json change in
         # bale_report.py — proposed, not made; see notes.md.)
         print("\n".join(
-            session_opener_block(sid, goal, read_only=args.read_only)))
+            session_opener_block(sid, goal, read_only=args.read_only,
+                                 packed_at=provenance["packed_at"])))
     else:
         rows = [
             ("session id", sid),
@@ -4594,7 +4657,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # trailer lines verbatim and never wraps them, which is what
         # keeps the sid and the goal line intact.
         trailer += session_opener_block(
-            sid, goal, read_only=args.read_only)
+            sid, goal, read_only=args.read_only,
+            packed_at=provenance["packed_at"])
         print(format_summary_block(
             rows,
             trailer=trailer,

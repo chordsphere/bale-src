@@ -26,9 +26,23 @@ against — never a transcription. The optional self-reported members
 when they apply.
 
 Exit codes:
-    0  clean — every check passed
+    0  clean — every check passed (warnings, if any, are printed but
+       never flip the exit code or the report's `ok`)
     1  findings — at least one contract violation, all of them named
     2  the lint itself errored (bad usage, unreadable dir)
+
+Two checks guard the self-check against the request's own layout and
+clock (v0.4.30; TARBALL.md §1 and §3.1): `context-prefix`
+flags a changes[] path carrying the tarball-layout `context/` prefix
+(a finding — bale would land it at the wrong place) and a
+feedback.self_reported.docs_read entry carrying it (a warning — the
+stats read side sees two spellings of one path); `dated-artifacts`
+flags a dated artifact the response authors whose date is not the
+session id's date — a created .md carrying DOCS.md §5's
+`- **Date:** YYYY-MM-DD` header must carry the sid's date, and a
+modified one must carry no dated line later than it. Warnings are a
+separate tier: reported as [WARN] with their own `warnings[]` in the
+JSON report, never counted as findings.
 
 Output:
     Default: human-readable report on stdout, every failure named
@@ -54,8 +68,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 EXIT_CLEAN = 0
@@ -344,6 +360,11 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   "type": "string",
                   "enum": ["read-only"],
                   "description": "Echo of the request's provenance.checkpoint_waived stamp (v0.4.9): present when the request waived the per-session checkpoint for the empty-forecast (read-only) shape. Optional — the block is echoed verbatim, so the key rides through exactly when the request carried it; the echo shape must admit it because additionalProperties is false here."
+                },
+                "packed_at": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Echo of the request's provenance.packed_at stamp (v0.4.30) — the pack instant, ISO 8601 UTC with offset at seconds precision; its date equals the session id's date. Optional so echoes of pre-v0.4.30 requests (which carry no key) stay valid; the block is echoed verbatim, so the key rides through exactly when the request carried it, and the echo shape must admit it because additionalProperties is false here. Mirrors the request schema's definition (request-manifest.schema.json)."
                 },
                 "model_identity": {
                   "type": "string",
@@ -637,15 +658,30 @@ def _schema_walk(instance, schema: dict, loc: str, errors: list[str]) -> None:
 # Findings
 # ---------------------------------------------------------------------------
 
-def finding(code: str, path, expected, got, message: str) -> dict:
-    """One named failure: stable code + path + expected + got + prose."""
+def finding(code: str, path, expected, got, message: str, *,
+            severity: str = "error") -> dict:
+    """One named failure: stable code + path + expected + got + prose.
+
+    `severity` is "error" (a finding: counts against `ok`, exit 1) or
+    "warning" (reported, never gating — the runner routes it to the
+    report's warnings[] instead of findings[]). Every check before v0.4.30
+    filed errors only; the tier exists for the docs_read prefix case,
+    where the self-report is advisory and a refusal would be
+    disproportionate.
+    """
     return {
         "code": code,
         "path": str(path),
         "expected": expected,
         "got": got,
         "message": message,
+        "severity": severity,
     }
+
+
+def warning(code: str, path, expected, got, message: str) -> dict:
+    """A warning-tier finding (see `finding`)."""
+    return finding(code, path, expected, got, message, severity="warning")
 
 
 def _sha256_of(path: Path) -> str:
@@ -1096,6 +1132,204 @@ def check_next_prompt_retired(ctx: dict) -> list[dict]:
     return []
 
 
+# ---------------------------------------------------------------------------
+# v0.4.30: the request's own layout and clock, guarded at the
+# self-check. TARBALL.md §3.1: a request path context/<p> is the repo
+# path <p>; nothing in a response carries the prefix. TARBALL.md §1:
+# every date bale mints is UTC, and a session dates what it writes from
+# the session id, never from the date its chat shows.
+# ---------------------------------------------------------------------------
+
+CONTEXT_PREFIX = "context/"
+
+
+def _carries_context_prefix(path_str: str) -> bool:
+    """True when a repo-relative path was written tarball-relative —
+    `context/<p>` or bare `context` — the §3.1 mapping applied backwards."""
+    norm = path_str.replace("\\", "/")
+    return norm == "context" or norm.startswith(CONTEXT_PREFIX)
+
+
+def _context_prefixed_tokens(entry: str) -> list[str]:
+    """The whitespace-delimited tokens of a free-text docs_read entry
+    that begin with the context/ prefix (surrounding punctuation
+    stripped, so `(context/bin/bale)` and `context/docs/X,` both count)."""
+    out = []
+    for raw in entry.split():
+        tok = raw.strip("()[]{}<>'\"`,;:")
+        if tok.startswith(CONTEXT_PREFIX):
+            out.append(tok)
+    return out
+
+
+def check_context_prefix(ctx: dict) -> list[dict]:
+    """No changes[] path and no docs_read entry carries the tarball-layout
+    context/ prefix (TARBALL.md §3.1).
+
+    A changes[] path is a finding: `files/` mirrors the repo root, so a
+    path shipped as context/<p> lands at <repo>/context/<p> — a wrong
+    place, silently, and against the wrong forecast entry. A
+    feedback.self_reported.docs_read entry is a warning: the self-report
+    is advisory, but the stats read side sees two spellings of one path,
+    so it is named rather than let through.
+    """
+    manifest = ctx["manifest"]
+    out = []
+    changes = manifest.get("changes")
+    if isinstance(changes, list):
+        for i, ch in enumerate(changes):
+            p = ch.get("path") if isinstance(ch, dict) else None
+            if not isinstance(p, str) or not p:
+                continue  # schema check already filed these
+            if _carries_context_prefix(p):
+                stripped = p.replace("\\", "/")[len(CONTEXT_PREFIX):] \
+                    if p.replace("\\", "/").startswith(CONTEXT_PREFIX) \
+                    else ""
+                out.append(finding(
+                    "CONTEXT_PREFIXED_PATH", p,
+                    "a repo-relative path (a request path context/<p> is "
+                    "the repo path <p>; the prefix is tarball layout)",
+                    p,
+                    f"changes[{i}] carries the request tarball's context/ "
+                    f"prefix — files/ mirrors the repo root, so bale would "
+                    f"land it at the wrong place (TARBALL.md section 3.1)"
+                    + (f"; the repo path is {stripped!r}" if stripped
+                       else ""),
+                ))
+    fb = manifest.get("feedback")
+    sr = fb.get("self_reported") if isinstance(fb, dict) else None
+    docs_read = sr.get("docs_read") if isinstance(sr, dict) else None
+    if isinstance(docs_read, list):
+        for i, entry in enumerate(docs_read):
+            if not isinstance(entry, str):
+                continue  # schema check already filed it
+            toks = _context_prefixed_tokens(entry)
+            if toks:
+                out.append(warning(
+                    "CONTEXT_PREFIXED_DOCS_READ",
+                    f"manifest.json:$.feedback.self_reported.docs_read[{i}]",
+                    "doc references written repo-relative (no context/ "
+                    "prefix)", entry,
+                    f"docs_read[{i}] names {', '.join(repr(t) for t in toks)} "
+                    f"with the request tarball's context/ prefix — the "
+                    f"prefix is tarball layout, and the stats read side "
+                    f"would see two spellings of one path (TARBALL.md "
+                    f"section 3.1); strip it to the repo path",
+                ))
+    return out
+
+
+# DOCS.md §5's standard ADR header line, `- **Date:** YYYY-MM-DD`; the
+# recognizer is content-keyed and path-agnostic (a planner ruling at the
+# clarification round that shaped this check): projects place ADRs under claude/context/adr/,
+# adr/, or decisions/, and any .md the response authors with this header
+# is a dated artifact whether or not it is an ADR by path.
+ADR_DATE_HEADER = re.compile(r"^\s*-\s+\*\*Date:\*\*\s+(\d{4}-\d{2}-\d{2})\b")
+ADR_HEADER_WINDOW = 20  # lines scanned for the Date: header
+# Any line that opens with a date — a landing note appended by the
+# ratification flip, the one dated line a sanctioned ADR modification may
+# add (DOCS.md §5). Mirrors DATED in tools/craft_response.py's ADR
+# doc-assertion, restated here so the lint stays standalone.
+DATED_LINE = re.compile(r"^(?:[-*]\s*)?(\d{4}-\d{2}-\d{2})[:\s]")
+
+
+def _iso_date_or_none(text: str):
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def check_dated_artifacts(ctx: dict) -> list[dict]:
+    """Every dated artifact the response authors is dated from the session
+    id, never from the chat's clock (TARBALL.md §1).
+
+    Scope: created and modified .md entries in changes[] whose files/
+    copy carries DOCS.md §5's `- **Date:** YYYY-MM-DD` header within
+    its first 20 lines. A created one must carry the sid's date
+    exactly. A modified one keeps its original header (DOCS.md §5
+    confines a modification to the two sanctioned diff shapes, which
+    the crafter's ADR doc-assertion proves by reverse transform), so the
+    lint never judges it — it flags only a dated line whose date is
+    LATER than the sid's date, which is wrong under every clock. An
+    earlier-but-re-dated line is deliberately outside this check's
+    reach: the lint has no base bytes, and the doc-assertion is the
+    gate that catches it.
+    """
+    manifest = ctx["manifest"]
+    sid = manifest.get("session_id")
+    sid_date = _iso_date_or_none(sid[:10]) if isinstance(sid, str) else None
+    if sid_date is None:
+        return [warning(
+            "SID_DATE_UNPARSEABLE", "manifest.json:$.session_id",
+            "a session id opening with an ISO date (YYYY-MM-DD-<slug>-NNN, "
+            "TARBALL.md section 1)", repr(sid),
+            "the session id's date could not be read, so the "
+            "dated-artifacts check did not run (bale's apply refuses a "
+            "session id that does not match the locked session anyway)",
+        )]
+    changes = manifest.get("changes")
+    if not isinstance(changes, list):
+        return []
+    files_root: Path = ctx["rdir"] / "files"
+    out = []
+    for i, ch in enumerate(changes):
+        if not isinstance(ch, dict):
+            continue
+        p, action = ch.get("path"), ch.get("action")
+        if (not isinstance(p, str) or not p or action not in
+                ("created", "modified") or not p.lower().endswith(".md")):
+            continue
+        if _is_unsafe_relpath(p):
+            continue  # changes-mirror filed it
+        fpath = files_root / p
+        if not fpath.is_file():
+            continue  # changes-mirror filed the absent mirror file
+        try:
+            lines = fpath.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue  # not a text artifact this check can read
+        header_date = None
+        for ln in lines[:ADR_HEADER_WINDOW]:
+            m = ADR_DATE_HEADER.match(ln)
+            if m:
+                header_date = m.group(1)
+                break
+        if header_date is None:
+            continue  # not a dated artifact
+        if action == "created":
+            if header_date != sid_date.isoformat():
+                out.append(finding(
+                    "WRONG_CLOCK_DATE", p,
+                    f"- **Date:** {sid_date.isoformat()} (the session id's "
+                    f"date)", f"- **Date:** {header_date}",
+                    f"changes[{i}] is a created dated artifact whose Date: "
+                    f"line is not the session id's date — session ids and "
+                    f"every bale timestamp are UTC and may run a day ahead "
+                    f"of the date the chat shows; date what you write from "
+                    f"the session id, never from the chat (TARBALL.md "
+                    f"section 1)",
+                ))
+            continue
+        # modified: only a date from the future is wrong under every clock
+        for lineno, ln in enumerate(lines, start=1):
+            m = DATED_LINE.match(ln.strip())
+            if not m:
+                continue
+            d = _iso_date_or_none(m.group(1))
+            if d is not None and d > sid_date:
+                out.append(finding(
+                    "WRONG_CLOCK_DATE", f"{p}:{lineno}",
+                    f"no dated line later than {sid_date.isoformat()} (the "
+                    f"session id's date)", ln.strip(),
+                    f"changes[{i}] is a modified dated artifact carrying a "
+                    f"line dated after the session id's date — a date from "
+                    f"the future is wrong under every clock; date what you "
+                    f"write from the session id (TARBALL.md section 1)",
+                ))
+    return out
+
+
 def _recompute_mechanical(manifest: dict, findings: list[dict]) -> dict:
     """The lint-computable feedback.mechanical values, derived from this
     run's manifest and accumulated findings.
@@ -1237,6 +1471,14 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
     ("next-prompt-retired",
      "no next-prompt.md in the response (retired, TARBALL.md 5.5)",
      check_next_prompt_retired),
+    ("context-prefix",
+     "no changes[] path or docs_read entry carries the request tarball's "
+     "context/ prefix (TARBALL.md 3.1)",
+     check_context_prefix),
+    ("dated-artifacts",
+     "dated artifacts the response authors are dated from the session id "
+     "(TARBALL.md 1)",
+     check_dated_artifacts),
     ("feedback-block",
      "feedback.mechanical agrees with this run's recomputed results "
      "(response_kind, schema_valid, mirror_agreement, claims_subset)",
@@ -1253,6 +1495,7 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
     """Run every check; return the full report dict."""
     checks_report = []
     findings: list[dict] = []
+    warnings: list[dict] = []
     ctx = {
         "rdir": rdir,
         "manifest": None,
@@ -1274,11 +1517,21 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
         got = fn(ctx)
         for f in got:
             f["check"] = check_id
-        findings.extend(got)
+            f.setdefault("severity", "error")
+        errors = [f for f in got if f["severity"] != "warning"]
+        warns = [f for f in got if f["severity"] == "warning"]
+        findings.extend(errors)
+        warnings.extend(warns)
+        if errors:
+            status, detail = "fail", f"{len(errors)} finding(s)"
+            if warns:
+                detail += f", {len(warns)} warning(s)"
+        elif warns:
+            status, detail = "warn", f"{len(warns)} warning(s)"
+        else:
+            status, detail = "pass", description
         checks_report.append({
-            "id": check_id,
-            "status": "pass" if not got else "fail",
-            "detail": description if not got else f"{len(got)} finding(s)",
+            "id": check_id, "status": status, "detail": detail,
         })
     return {
         "ok": not findings,
@@ -1290,6 +1543,9 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
         "checks": checks_report,
         "findings": findings,
         "finding_count": len(findings),
+        # The warning tier (v0.4.30): named, never gating.
+        "warnings": warnings,
+        "warning_count": len(warnings),
         # The paste-ready feedback.mechanical payload, from the same
         # derivation check_feedback_block verifies against. None when
         # the manifest never parsed — there is nothing honest to emit.
@@ -1307,13 +1563,20 @@ def render_human(report: dict, stream) -> None:
     print(f"response-lint: {report['response_dir']} "
           f"(response_kind={report['response_kind']!r})", file=stream)
     for chk in report["checks"]:
-        tag = {"pass": "[PASS]", "fail": "[FAIL]", "skip": "[SKIP]"}[chk["status"]]
+        tag = {"pass": "[PASS]", "fail": "[FAIL]", "skip": "[SKIP]",
+               "warn": "[WARN]"}[chk["status"]]
         print(f"{tag} {chk['id']} — {chk['detail']}", file=stream)
     for f in report["findings"]:
         print(f"  - {f['code']} {f['path']}: {f['message']}", file=stream)
         print(f"      expected: {f['expected']}", file=stream)
         print(f"      got:      {f['got']}", file=stream)
+    for w in report.get("warnings", []):
+        print(f"  ~ {w['code']} {w['path']}: {w['message']}", file=stream)
+        print(f"      expected: {w['expected']}", file=stream)
+        print(f"      got:      {w['got']}", file=stream)
     verdict = "CLEAN" if report["ok"] else f"FAIL — {report['finding_count']} finding(s)"
+    if report.get("warning_count"):
+        verdict += f" ({report['warning_count']} warning(s), non-gating)"
     print(f"result: {verdict}", file=stream)
 
 

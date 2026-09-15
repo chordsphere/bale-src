@@ -68,7 +68,7 @@
     "context_included": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "description": "Declarative list of what's in context/. Each entry is the in-tarball path (typically prefixed with context/)."
+      "description": "Declarative list of what's in context/. Each entry is the in-tarball path, prefixed context/: a request path context/<p> is the repo path <p> — the prefix is tarball layout, and nothing in a response (no changes[] path, no self-report) carries it (TARBALL.md section 3.1). The manifest's other path fields (resolved_scope, provenance.base_files) and every response changes[] path are repo-relative."
     },
     "resolved_scope": {
       "type": "array",
@@ -132,6 +132,11 @@
           "type": "string",
           "enum": ["read-only"],
           "description": "The read-only checkpoint waiver's stamp (v0.4.9): present — with provenance.checkpoint explicit null — when a checkpoint IS configured with a {sid}-bearing base but the pack's resolved write forecast is empty, so the per-session resolved-existence gate was waived (an empty forecast lands nothing; there is nothing for an oracle to grade). Lets the ledger distinguish waived (configured, deliberately not required) from unconfigured (checkpoint null, no key). Closed enum — extend by schema edit, not free text. Additive per the checkpoint precedent: not required, so every pre-v0.4.9 manifest stays valid; absent on every non-waived pack."
+        },
+        "packed_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The pack instant (v0.4.30): ISO 8601 UTC with an explicit offset at seconds precision (e.g. 2026-09-15T00:20:31+00:00 — the created_at shape bin/bale_validate.py accepts). Read from the same UTC instant the session id's date was minted from, so packed_at[:10] equals the sid's date on every bale-built request, and the emitted opener names the same value. One clock: session ids, their per-day counter files, and every timestamp bale writes are UTC (TARBALL.md section 1). Additive per the checkpoint_scope_admitted precedent: stamped unconditionally by bale-built blocks (uniform shape), admitted here but never required, so pre-stamp and hand-rolled manifests validate unchanged; admitted on the response echo (response-manifest.schema.json) so the verbatim copy keeps it, and the response to the stamping session itself echoes a block without it (one-apply-behind)."
         }
       }
     }

@@ -274,6 +274,11 @@
                   "enum": ["read-only"],
                   "description": "Echo of the request's provenance.checkpoint_waived stamp (v0.4.9): present when the request waived the per-session checkpoint for the empty-forecast (read-only) shape. Optional — the block is echoed verbatim, so the key rides through exactly when the request carried it; the echo shape must admit it because additionalProperties is false here."
                 },
+                "packed_at": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Echo of the request's provenance.packed_at stamp (v0.4.30) — the pack instant, ISO 8601 UTC with offset at seconds precision; its date equals the session id's date. Optional so echoes of pre-v0.4.30 requests (which carry no key) stay valid; the block is echoed verbatim, so the key rides through exactly when the request carried it, and the echo shape must admit it because additionalProperties is false here. Mirrors the request schema's definition (request-manifest.schema.json)."
+                },
                 "model_identity": {
                   "type": "string",
                   "minLength": 1,
