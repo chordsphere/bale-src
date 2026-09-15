@@ -1,0 +1,187 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-15-board-90-doc-residue-005",
+  "created_at": "2026-09-15T12:24:29+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-15T12:24:29+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-15-board-90-doc-residue-005.log",
+      "provenance": {
+        "work_class": "mixed",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-15T12:33:18+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-15-board-90-doc-residue-005.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bale apply --help (scratch install)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: doc-pin suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bale apply --help (scratch install)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: doc-pin suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/bale",
+        "docs/TARBALL.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/bale",
+        "docs/TARBALL.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.30",
+            "contract_docs": {
+              "CLAUDE.md": "580a04aaf30e406b5f0c80c9e936ea054e99996436762820f710ea7f0e768663",
+              "TARBALL.md": "6e3971eaa272e8485f809653c157a55996897f79ad0542af62cf293047055c62",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "398c3c6349f36ae50158e19671d6e8c0d88e5f3249f803e5aa8ea7d54fcceb4a"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-15-board-90-doc-residue-005.sh",
+              "sha256": "1eb2b0b854cd1b807243b42259d15c73961a42b52600b25c538684df06dc2f7b"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-15T12:24:29+00:00",
+            "base_files": {
+              "BALE.md": "c8dd1c230078610806b0f2228391bb3f31051bb1806de90c2644e1682a339ba3",
+              "bin/bale": "efb978d1e8712ed8108fa689d4c74494dcc0bd41f5d3e2bd16e4ccc816d6dd80",
+              "docs/TARBALL.md": "6e3971eaa272e8485f809653c157a55996897f79ad0542af62cf293047055c62"
+            },
+            "model_identity": "Claude Fable 5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The verbatim ruling is compared whitespace-normalized within the bare-form paragraph alone; line wrapping is the doc's, the words are the desk's.",
+            "The apply positional's own help string ('answering the open session') sits outside the brief's one-string bin/bale scope; left as-is and proposed."
+          ],
+          "judgment_calls": [
+            "\u00a78 keeps one closing sentence stating why several open sessions is not a refusal (responds_to is one string; the tie is the only ambiguity) and naming the always-open read-only master as the motivating case.",
+            "\u00a78 quotes the echo's two literal renderings rather than describing them abstractly.",
+            "The bin/bale description says 'newest by modification time' rather than st_mtime_ns; help text is operator-facing.",
+            "\u00a75.4's hook-store sentence is tagged (board 83) with no version since row 83 landed bumpless.",
+            "Registry rider: no includes-as-gated-scope prose remains in BALE.md \u00a77; nothing changed there."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [],
+          "docs_read": [
+            "CLAUDE.md",
+            "TARBALL.md",
+            "DOCS.md"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-15-board-90-doc-residue-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-15-board-90-doc-residue-005.sh",
+          "sha256": "1eb2b0b854cd1b807243b42259d15c73961a42b52600b25c538684df06dc2f7b"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-15T12:33:18+00:00",
+  "outcome": "applied"
+}
