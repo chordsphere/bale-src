@@ -285,5 +285,47 @@ class TestConfigCoherence(IncludeGroupBase):
         self.assertIn(HALF_CONFIGURED_MARKER, r.stderr)
 
 
+class TestThisRepoGroup(unittest.TestCase):
+    """Pins on THIS repo's configured group (bale.toml [pack]), read
+    off disk — the only test here that looks at the real config rather
+    than a scratch one. Board 68 rider 2: the release-surface group
+    pulls `tools/`, because tests/harness.py hard-requires tools/ via
+    INSTALL_TREES and a pack that triggered the group without it
+    shipped a test harness that could not build an install."""
+
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+
+    def repo_group(self) -> dict:
+        import sys
+        sys.path.insert(0, str(self.REPO_ROOT / "bin"))
+        import _bale_toml as tomllib  # the vendored TOML reader bale uses
+        with (self.REPO_ROOT / "bale.toml").open("rb") as f:
+            cfg = tomllib.load(f)
+        return cfg["pack"]
+
+    def test_release_surface_pulls_include_tools(self) -> None:
+        group = self.repo_group()
+        self.assertEqual(group["include_group"], GROUP_NAME)
+        self.assertIn("tools", group["include_group_pulls"])
+
+    def test_every_configured_pull_exists(self) -> None:
+        """A dangling pull refuses at engagement (TestConfigCoherence);
+        this repo's own list must never carry one."""
+        for pull in self.repo_group()["include_group_pulls"]:
+            self.assertTrue((self.REPO_ROOT / pull).exists(),
+                            msg=f"configured pull does not exist: {pull}")
+
+    def test_harness_install_trees_are_pulled(self) -> None:
+        """Every tree the harness copies into a scratch install rides
+        in the group (as a pull or a trigger), so a pack that triggers
+        the group ships a harness that can build one."""
+        from harness import INSTALL_TREES
+        group = self.repo_group()
+        shipped = set(group["include_group_pulls"]) | set(
+            group["include_group_triggers"])
+        for tree in INSTALL_TREES:
+            self.assertIn(tree, shipped)
+
+
 if __name__ == "__main__":
     unittest.main()

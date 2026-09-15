@@ -25,7 +25,15 @@ tests/harness.py):
   copy makes the run read-only against the live base even
   UNCONFINED (a write-attempting checkpoint leaves the real tree
   untouched); a checkpoint member against a project pinning no
-  [validation] base refuses before the dry-run;
+  [validation] base refuses before the dry-run, naming the resolved
+  project root and the config files judged (board 68);
+- gate order (board 68): the arg-inspectable pack gates — forecast
+  existence, forecast disjointness — and the argv parse itself run
+  before the dry-run, so a bundle they refuse spends no oracle
+  execution (no announcement line, no open-*.log band); a bundle
+  that clears them dry-runs and replays exactly as before;
+- the FORCE prefix rides once per line on both unconfined escapes
+  (--no-sandbox, [sandbox] enabled = false) — board 68 rider;
 - the pre-answered-intents channel: a `supersede` intent accepts the
   decline-default exchange under piped stdin (where the bare replay
   would decline), closing the parent as superseded-by-split and
@@ -86,6 +94,11 @@ USERNS_SKIP = ("unprivileged user namespaces unavailable in this "
                "verb's logic here)")
 
 CP_PATTERN = "claude/checkpoints/{sid}.sh"
+
+# The dry-run's announcement line (bale_open.dry_run_checkpoint). Its
+# absence from a refused open's stdout is the board-68 gate-order pin:
+# an arg-inspectable refusal costs no oracle execution.
+DRY_RUN_MARKER = "dry-running bundle checkpoint"
 
 # Checkpoint bodies per dry-run verdict. Each prints probe-grammar
 # lines so the proof echo has something to carry.
@@ -441,7 +454,175 @@ class OpenVerbTest(_OpenVerbBase):
         result = self.open_bundle(bundle, "--no-sandbox")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("[validation] base", result.stderr)
+        self.assertNotIn(DRY_RUN_MARKER, result.stdout)
         self.assert_no_session_state(result)
+        # Board 68: the refusal names the resolved project root and
+        # the config files it judged, each marked read or absent —
+        # "this project" alone cost a live probe round.
+        self.assert_names_root_and_config(
+            result.stderr, project_read=False, global_read=False)
+
+    # -- gate order (board 68): cheap gates before the oracle --------
+
+    def assert_no_dry_run(self, result) -> None:
+        """No dry-run ran: no announcement line, no proof, and no
+        open-*.log band under .bale/logs (the dry-run's only durable
+        trace)."""
+        self.assertNotIn(DRY_RUN_MARKER, result.stdout)
+        self.assertNotIn("expected-HOLD proof", result.stdout)
+        logs = self.repo / ".bale" / "logs"
+        dry_logs = (sorted(logs.glob("open-*.log")) if logs.exists()
+                    else [])
+        self.assertEqual(
+            dry_logs, [],
+            msg=f"a refused open still ran the dry-run: {dry_logs}\n"
+                f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+
+    def assert_names_root_and_config(self, text: str, *,
+                                     project_read: bool,
+                                     global_read: bool) -> None:
+        """The config-judgment tail: absolute root, both config paths,
+        each with its read/absent mark."""
+        root = self.repo.resolve()
+        self.assertIn(f"Project root: {root};", text)
+        self.assertIn(
+            f"{root / 'bale.toml'} "
+            f"({'read' if project_read else 'absent'})", text)
+        global_cfg = self.install / "user" / "bale.toml"
+        self.assertIn(
+            f"{global_cfg} ({'read' if global_read else 'absent'})", text)
+
+    def test_missing_write_path_refuses_before_the_dry_run(self) -> None:
+        """A stored --write naming a path that does not exist refuses
+        with the existence gate's own text, and the checkpoint never
+        runs — the specimen where a ~9-minute confined dry-run preceded
+        an arg-inspectable refusal."""
+        self.configure_checkpoint()
+        bundle = self.build_bundle(
+            "b.bale-bundle",
+            pack_argv=self.argv("gone", "--write", "missing.txt"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle, "--no-sandbox")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--write path does not exist: missing.txt",
+                      result.stderr)
+        self.assert_no_dry_run(result)
+        self.assert_no_session_state(result)
+
+    def test_forecast_intersection_refuses_before_the_dry_run(
+            self) -> None:
+        """A stored forecast intersecting an open session's refuses
+        with the disjointness gate's own text, before the dry-run."""
+        # The parent packs before the project pins a [validation]
+        # base (a {sid} base would demand a committed checkpoint the
+        # fixture has no reason to author); its recorded forecast is
+        # its include set, hello.txt.
+        parent = run_bale(
+            self.install,
+            ["pack", "Parent holding hello.txt", "--slug", "parent",
+             "--include", "hello.txt", "--expects-probe", "no",
+             "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            parent.returncode, 0,
+            msg=f"stdout:\n{parent.stdout}\nstderr:\n{parent.stderr}")
+        parent_sid = [ln for ln in parent.stdout.splitlines()
+                      if "session id:" in ln][0].split("session id:")[1].strip()
+        self.configure_checkpoint()
+        bundle = self.build_bundle(
+            "b.bale-bundle", pack_argv=self.argv("kid"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle, "--no-sandbox")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pack write forecast intersects", result.stderr)
+        self.assertIn(parent_sid, result.stderr)
+        self.assertIn("hello.txt ~ hello.txt", result.stderr)
+        self.assert_no_dry_run(result)
+        # Only the parent's state exists: no second tarball, no child.
+        outbox = self.repo / ".bale" / "outbox"
+        self.assertEqual(len(list(outbox.glob("request-*.tar.gz"))), 1)
+        sessions = self.repo / ".bale" / "sessions"
+        self.assertEqual(
+            sorted(p.name for p in sessions.iterdir() if p.is_dir()),
+            [parent_sid])
+
+    def test_gates_clear_then_dry_run_then_replay_in_that_order(
+            self) -> None:
+        """The happy path is unchanged in outcome, and the transcript
+        proves the order: the dry-run announcement precedes the replay
+        line, and the replayed pack re-runs its own gates and packs."""
+        self.configure_checkpoint()
+        bundle = self.build_bundle(
+            "b.bale-bundle", pack_argv=self.argv("ord"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle, "--no-sandbox")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        out = result.stdout
+        self.assertIn(DRY_RUN_MARKER, out)
+        self.assertLess(out.index(DRY_RUN_MARKER),
+                        out.index("replaying pack invocation"))
+        self.assertIn("expected-HOLD proof", out)
+        self.request_readme(result)  # exactly one packed request
+
+    def test_unparseable_stored_argv_refuses_before_the_dry_run(
+            self) -> None:
+        """The argv is parsed before the oracle runs: a stored flag the
+        CLI does not know refuses at argparse, with no dry-run spent."""
+        self.configure_checkpoint()
+        bundle = self.build_bundle(
+            "b.bale-bundle",
+            pack_argv=self.argv("bad", "--no-such-flag"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle, "--no-sandbox")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--no-such-flag", result.stderr)
+        self.assert_no_dry_run(result)
+        self.assert_no_session_state(result)
+
+    # -- FORCE prefix (board 68 rider) -------------------------------
+
+    def _force_lines(self, text: str) -> list:
+        return [ln for ln in text.splitlines() if "FORCE" in ln]
+
+    def test_no_sandbox_force_line_carries_one_prefix(self) -> None:
+        """log(force=True) prefixes `[bale] FORCE: ` itself; the message
+        must not add a second one (the observed `FORCE: FORCE:`)."""
+        self.configure_checkpoint()
+        bundle = self.build_bundle(
+            "b.bale-bundle", pack_argv=self.argv("one"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle, "--no-sandbox")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertNotIn("FORCE: FORCE:", result.stdout)
+        escape = [ln for ln in self._force_lines(result.stdout)
+                  if "--no-sandbox" in ln]
+        self.assertEqual(len(escape), 1, msg=str(escape))
+        self.assertTrue(escape[0].startswith("[bale] FORCE: --no-sandbox"),
+                        msg=escape[0])
+
+    def test_sandbox_off_by_config_force_line_carries_one_prefix(
+            self) -> None:
+        (self.repo / "bale.toml").write_text(
+            f"[validation]\nbase = \"{CP_PATTERN}\"\n"
+            f"[sandbox]\nenabled = false\n", encoding="utf-8")
+        bundle = self.build_bundle(
+            "b.bale-bundle", pack_argv=self.argv("cfgoff"),
+            checkpoint=CP_HOLD)
+        result = self.open_bundle(bundle)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertNotIn("FORCE: FORCE:", result.stdout)
+        by_config = [ln for ln in self._force_lines(result.stdout)
+                     if "[sandbox] enabled = false" in ln]
+        self.assertEqual(len(by_config), 1, msg=str(by_config))
+        self.assertTrue(
+            by_config[0].startswith("[bale] FORCE: bale.toml [sandbox]"),
+            msg=by_config[0])
 
     @unittest.skipUnless(USERNS_AVAILABLE, USERNS_SKIP)
     def test_confined_dry_run_happy_path(self) -> None:

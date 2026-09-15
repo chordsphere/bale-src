@@ -24,6 +24,12 @@ Board-35 gap 3 — the last ranked audit item: "Pack §7.4 caps /
   patterns through one matcher), `.baleignore` itself always ships in
   context/, negation patterns refuse, and excluding everything
   refuses with the widen-your-include message.
+- **Board 68 (appended)**: the opener's closing sentence is the shape
+  rule, verbatim (whitespace-collapsed pin); the disjointness refusal
+  leads with workable remedies against a whole-tree open forecast and
+  keeps the narrow-this-pack lead for partial overlaps; every
+  [validation]-base refusal names the resolved project root and the
+  config files judged.
 - **The soft-breach [y]/[e]/[n] prompt**: driven through a real pty
   (the prompt engages only on a TTY). [n] and bare Enter abort
   pre-sid; unrecognized input re-prompts; [e] collects session-only
@@ -480,6 +486,188 @@ class SoftBreachPromptTest(PackGuardsBase):
         included, _ = self.shipped_context()
         self.assertIn("context/payload/big.bin", included)
         self.assertIn("context/payload/small.txt", included)
+
+
+# ---------------------------------------------------------------------------
+# Board 68: opener shape sentence, whole-tree remedy lead, config naming
+# ---------------------------------------------------------------------------
+#
+# Three pins consumed by the board-68 session, homed here because this
+# suite already drives fully specified piped packs through the scratch
+# install (the opener's own suite, test_pack_opener.py, pins identity
+# carriage, not the closing sentence).
+
+# Scissor lines framing the opener paste block (bin/bale_pack.py
+# OPENER_BEGIN/OPENER_END), mirrored — the suite never imports bale.
+OPENER_BEGIN = ("--8<-- session opener (copy everything between the "
+                "scissor lines) --8<--")
+OPENER_END = "--8<-- end session opener --8<--"
+
+# The closing sentence, VERBATIM (bin/bale_pack.py OPENER_SHAPE_SENTENCE;
+# row 96's one pack line). The emitted lines wrap it, so the pin
+# compares whitespace-collapsed text; the bytes of the sentence are
+# what is pinned.
+OPENER_SHAPE_SENTENCE = (
+    "Every turn you end in this session takes one machine-recognizable "
+    "shape: a response tarball, a probe block, a light question block, "
+    "or a clarification response; a question asked as prose is not a "
+    "shape."
+)
+OPENER_EXAMINE_SENTENCE = (
+    "Please examine the tarball contents, starting with CLAUDE.md and "
+    "manifest.json, and go from there."
+)
+RETIRED_OPENER_TAIL = "Ask me if anything is unclear"
+
+INTERSECT_MARKER = "pack write forecast intersects"
+NARROW_THIS_PACK = "Narrow this pack's forecast with --write"
+WHOLE_TREE_LEAD = "recorded the whole-tree forecast"
+
+
+def _collapse(text: str) -> str:
+    return " ".join(text.split())
+
+
+class OpenerShapeSentenceTest(PackGuardsBase):
+    """The opener's closing sentence is the shape rule (board 68 rider 4)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_payload({"payload/a.txt": "a\n"})
+
+    def opener_segment(self, text: str) -> str:
+        self.assertIn(OPENER_BEGIN, text)
+        self.assertIn(OPENER_END, text)
+        return text[text.index(OPENER_BEGIN) + len(OPENER_BEGIN):
+                    text.index(OPENER_END)]
+
+    def test_opener_closes_with_the_shape_sentence_verbatim(self) -> None:
+        result = self.pack(slug="opener-shape")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        collapsed = _collapse(self.opener_segment(result.stdout))
+        self.assertIn(OPENER_SHAPE_SENTENCE, collapsed)
+        # The preceding sentence stays intact, and the shape sentence
+        # is the last thing before the closing scissor line.
+        self.assertIn(OPENER_EXAMINE_SENTENCE, collapsed)
+        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
+                        msg=collapsed)
+        self.assertLess(collapsed.index(OPENER_EXAMINE_SENTENCE),
+                        collapsed.index(OPENER_SHAPE_SENTENCE))
+        self.assertNotIn(RETIRED_OPENER_TAIL, collapsed)
+
+
+class DisjointnessRemedyTest(PackGuardsBase):
+    """The disjointness refusal's remedy lead (board 68 rider 3,
+    ADR-0015): against a whole-tree open forecast, narrowing this pack
+    cannot work and is not offered; a partial overlap keeps it."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_payload({"payload/a.txt": "a\n"})
+
+    def parent(self, *extra: str, slug: str = "parent"):
+        r = run_bale(
+            self.install,
+            ["pack", "parent session", "--slug", slug, "--no-readme",
+             *extra],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            r.returncode, 0,
+            msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        sid = self.open_sids()
+        self.assertEqual(len(sid), 1, msg=str(sid))
+        return sid[0]
+
+    def test_whole_tree_open_forecast_leads_with_workable_remedies(
+            self) -> None:
+        # No --include, no --write: the parent's recorded forecast is
+        # the whole tree, ["."], which intersects everything.
+        parent = self.parent()
+        result = self.pack("--write", "payload", slug="child")
+        self.assertNotEqual(result.returncode, 0)
+        err = result.stderr
+        self.assertIn(INTERSECT_MARKER, err)
+        self.assertIn(parent, err)
+        self.assertIn(WHOLE_TREE_LEAD, err)
+        self.assertNotIn(NARROW_THIS_PACK, err)
+        # The remedies that can work lead, in this order: apply, unlock,
+        # narrow ITS forecast — all before the --supersedes alternative.
+        apply_at = err.index("apply that session's response first")
+        unlock_at = err.index("`bale unlock <sid>`")
+        its_at = err.index("narrow ITS forecast")
+        supersedes_at = err.index("--supersedes")
+        self.assertLess(apply_at, unlock_at)
+        self.assertLess(unlock_at, its_at)
+        self.assertLess(its_at, supersedes_at)
+        self.assertEqual(self.open_sids(), [parent])
+
+    def test_partial_overlap_keeps_the_narrow_this_pack_lead(self) -> None:
+        parent = self.parent("--include", "payload")
+        result = self.pack(slug="child")   # forecast = include set = payload
+        self.assertNotEqual(result.returncode, 0)
+        err = result.stderr
+        self.assertIn(INTERSECT_MARKER, err)
+        self.assertIn(parent, err)
+        self.assertIn(NARROW_THIS_PACK, err)
+        self.assertNotIn(WHOLE_TREE_LEAD, err)
+        self.assertEqual(self.open_sids(), [parent])
+
+
+class ConfigJudgingRefusalTest(PackGuardsBase):
+    """Every pack-side refusal that judges [validation] base names the
+    resolved project root and the config files judged (board 68)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_payload({"payload/a.txt": "a\n"})
+        self.checkpoint_file = self.tmp / "planner-checkpoint.sh"
+        self.checkpoint_file.write_text(
+            "#!/usr/bin/env bash\necho '[FAIL] not landed'\nexit 1\n",
+            encoding="utf-8")
+
+    def assert_names_root_and_config(self, text: str, *,
+                                     project_read: bool) -> None:
+        root = self.repo.resolve()
+        self.assertIn(f"Project root: {root};", text)
+        self.assertIn(
+            f"{root / 'bale.toml'} ({'read' if project_read else 'absent'})",
+            text)
+        # The scratch install has no user/ layer; its path is named
+        # anyway, marked absent, so "was my global file seen?" is
+        # answered by the refusal itself.
+        self.assertIn(f"{self.install / 'user' / 'bale.toml'} (absent)",
+                      text)
+
+    def test_checkpoint_file_without_base_names_root_and_config(
+            self) -> None:
+        result = self.pack("--checkpoint-file", str(self.checkpoint_file))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pins no [validation] base", result.stderr)
+        self.assert_names_root_and_config(result.stderr, project_read=False)
+        self.assert_refused_pre_sid(result.stdout + result.stderr)
+
+    def test_checkpoint_file_with_literal_base_names_root_and_config(
+            self) -> None:
+        (self.repo / "bale.toml").write_text(
+            '[validation]\nbase = "checkpoint.sh"\n', encoding="utf-8")
+        result = self.pack("--checkpoint-file", str(self.checkpoint_file))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("literal path", result.stderr)
+        self.assert_names_root_and_config(result.stderr, project_read=True)
+        self.assert_refused_pre_sid(result.stdout + result.stderr)
+
+    def test_per_sid_base_missing_at_head_names_root_and_config(
+            self) -> None:
+        (self.repo / "bale.toml").write_text(
+            '[validation]\nbase = "claude/checkpoints/{sid}.sh"\n',
+            encoding="utf-8")
+        result = self.pack("--write", "payload")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("per-session blind checkpoint missing", result.stderr)
+        self.assert_names_root_and_config(result.stderr, project_read=True)
+        self.assert_refused_pre_sid(result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
