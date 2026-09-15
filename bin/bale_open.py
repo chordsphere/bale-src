@@ -15,7 +15,15 @@ does everything the old ceremony spread across hand-typed steps:
    present member's LF-normalized bytes must hash to the manifest's
    published sha256. The archive is sealed — an undeclared member, or
    a declared member missing from the archive, refuses.
-3. **Dry-run the checkpoint read-only against the live base** (board
+3. **Gate the replay argv before the oracle runs** (board 68): the
+   composed pack argv is parsed by the real CLI parser and the
+   arg-inspectable pack gates — forecast existence, forecast
+   disjointness — run through bale_pack.pack_argv_preflight, the
+   same implementations cmd_pack runs, so a bundle the replay would
+   refuse on its argv alone refuses here with that gate's own text
+   and no dry-run is spent. Every refusal from here on names the
+   resolved project root and the config files judged.
+4. **Dry-run the checkpoint read-only against the live base** (board
    48's leg, subsumed): the extracted checkpoint executes against a
    scratch copy of the live working tree — the live tree is untouched
    by construction — confined by default (ADR-0016 uniform posture),
@@ -27,7 +35,7 @@ does everything the old ceremony spread across hand-typed steps:
    oracle passes before any work landed) proceeds with a loud
    vacuous-oracle warning — the row ratifies only the exit-2 refusal,
    and an all-invariant checkpoint is the planner's call to make.
-4. **Replay the pack argv** with delivery-flag injection: the stored
+5. **Replay the pack argv** with delivery-flag injection: the stored
    `pack_argv` never carries `--readme-file`/`--checkpoint-file`
    (validate_bundle_manifest refuses a stored one); this module
    appends them pointing at the extracted members — `--no-readme`
@@ -50,8 +58,8 @@ gate, and never into bale_apply.
 Sections:
   1. Line-ending normalization        (~line 70)
   2. Bundle extraction + verification (~line 95)
-  3. Checkpoint dry-run               (~line 285)
-  4. Argv replay + cmd_open           (~line 470)
+  3. Checkpoint dry-run               (~line 255)
+  4. Argv replay + cmd_open           (~line 440)
 """
 
 from __future__ import annotations
@@ -459,27 +467,40 @@ def compose_pack_argv(manifest: dict, extracted: dict[str, Path]) -> list[str]:
 
 
 def cmd_open(args: argparse.Namespace) -> int:
-    """`bale open <bundle>` — verify, dry-run, replay (board 49a-ii).
+    """`bale open <bundle>` — verify, gate, dry-run, replay (board
+    49a-ii; gate order per board 68).
 
-    The pipeline, in trust order; every refusal happens before any
-    session state exists:
+    The pipeline, in trust order and cheapest-first; every refusal
+    happens before any session state exists:
 
     1. resolve the bundle argument (apply's search-path semantics,
        kind "bundle"); refuse a file outside the reserved suffix —
        the suffix IS the recognizer (BALE.md §6.7);
     2. read_bundle(): gate the manifest, seal-check the archive,
        verify both member hashes;
-    3. when the checkpoint member ships: refuse up front if the
+    3. compose the replay argv and parse it through the real CLI
+       parser (an unparseable stored argv refuses here, before any
+       oracle runs), then run the arg-inspectable pack gates —
+       forecast existence and forecast disjointness — via
+       bale_pack.pack_argv_preflight (board 68): cheap gates before
+       the expensive oracle execution, each the one implementation
+       cmd_pack itself runs, so a bundle the replay would refuse on
+       its argv alone refuses with that gate's own text and no
+       dry-run runs;
+    4. when the checkpoint member ships: refuse up front if the
        project pins no [validation] base (the same refusal
        `--checkpoint-file` would give, moved before the dry-run's
-       cost), then dry-run it read-only against the live base and
+       cost, naming the project root and the config files judged),
+       then dry-run it read-only against the live base and
        judge the exit code — 1 is the expected-HOLD proof, 0
        proceeds with a loud vacuous-oracle warning, anything else
        refuses the open as a defective oracle;
-    4. echo and replay the composed pack invocation through the real
-       CLI parser with the bundle's `pre_answered` intents on the
-       namespace (the in-process channel; BALE.md §6.7), returning
-       cmd_pack's own exit code.
+    5. echo and replay the composed pack invocation with the bundle's
+       `pre_answered` intents on the namespace (the in-process
+       channel; BALE.md §6.7), returning cmd_pack's own exit code.
+       The replay re-runs every gate at its own site — the pre-flight
+       is a cost ordering, not a substitute; the checkpoint-blindness
+       gate in particular runs only there.
     """
     from __main__ import (  # lazy — see module docstring
         build_parser,
@@ -489,7 +510,12 @@ def cmd_open(args: argparse.Namespace) -> int:
         resolve_inbound_path,
     )
     import bale_config  # lazy — sibling module
-    from bale_pack import BUNDLE_SUFFIX, is_bundle_file  # lazy — sibling
+    from bale_pack import (  # lazy — sibling
+        BUNDLE_SUFFIX,
+        config_judgment_suffix,
+        is_bundle_file,
+        pack_argv_preflight,
+    )
 
     cwd = Path.cwd().resolve()
     repo = repo_root(cwd)
@@ -533,6 +559,19 @@ def cmd_open(args: argparse.Namespace) -> int:
             target.write_bytes(data)
             extracted[name] = target
 
+        # Board 68: the arg-inspectable pack gates run here, BEFORE the
+        # checkpoint leg. The replay argv is composed and parsed once
+        # (build_parser is the real CLI parser, so a stored argv that
+        # cannot parse refuses now — argparse's own usage error — with
+        # no dry-run spent), then pack_argv_preflight evaluates the
+        # forecast-existence and forecast-disjointness gates with the
+        # implementations cmd_pack itself runs. The parsed namespace is
+        # the same object the replay below executes.
+        pack_argv = compose_pack_argv(manifest, extracted)
+        parser = build_parser()
+        pack_args = parser.parse_args(pack_argv)
+        pack_argv_preflight(repo, pack_args)
+
         if checkpoint is not None:
             if bale_config.get_validation_base(cfg) is None:
                 fail(f"the bundle ships a checkpoint member "
@@ -541,25 +580,28 @@ def cmd_open(args: argparse.Namespace) -> int:
                      f"pack's --checkpoint-file would refuse for the "
                      f"same reason. Configure [validation] base (see "
                      f"`bale config init`), or use a bundle authored "
-                     f"for an oracle-less project.")
+                     f"for an oracle-less project."
+                     + config_judgment_suffix(repo))
             network = bale_config.get_sandbox_network(cfg)
             # Sandbox-off by config (v0.4.26, board 75) honors the same
             # project-layer key apply does: a namespace-less host runs
             # `bale open` too, and the dry-run is the one other confined
             # leg. Same loudness contract — each escape FORCE-logs
             # naming itself, both when both are present; silence is
-            # the one forbidden outcome.
+            # the one forbidden outcome. log(force=True) supplies the
+            # `FORCE: ` prefix itself (board 68 rider: the message
+            # text carries none, or the line reads FORCE: FORCE:).
             sandbox_enabled = bale_config.get_sandbox_enabled(cfg)
             sandbox = sandbox_enabled and not args.no_sandbox
             if args.no_sandbox:
-                log(f"FORCE: --no-sandbox — the checkpoint dry-run "
+                log(f"--no-sandbox — the checkpoint dry-run "
                     f"executes UNCONFINED for this invocation "
                     f"(ADR-0016 escape; per-invocation only)"
                     + (" (redundant beside bale.toml [sandbox] enabled "
                        "= false)" if not sandbox_enabled else ""),
                     force=True)
             if not sandbox_enabled:
-                log(f"FORCE: bale.toml [sandbox] enabled = false "
+                log(f"bale.toml [sandbox] enabled = false "
                     f"(project layer) — the checkpoint dry-run executes "
                     f"UNCONFINED: operator privileges, inherited "
                     f"environment, network on",
@@ -596,14 +638,12 @@ def cmd_open(args: argparse.Namespace) -> int:
             log("no checkpoint member: skipping the dry-run leg "
                 "(nothing to prove)")
 
-        pack_argv = compose_pack_argv(manifest, extracted)
         log(f"replaying pack invocation: "
             f"bale {shlex.join(pack_argv)}")
-        parser = build_parser()
-        pack_args = parser.parse_args(pack_argv)
         # The in-process pre-answered-intents channel (BALE.md §6.7):
         # the raw manifest array rides the namespace attribute cmd_pack
         # parses at its reject-early site; no CLI flag can spell this.
+        # pack_args was parsed above, ahead of the dry-run (board 68).
         pack_args.pre_answered = manifest["pre_answered"]
         return pack_args.func(pack_args)
     finally:

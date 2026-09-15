@@ -1154,14 +1154,16 @@ def build_provenance_block(
                      f"re-run with --checkpoint-file <file> pointing at "
                      f"the planner's checkpoint, or commit the "
                      f"planner-authored checkpoint at "
-                     f"{checkpoint_path!r} first.")
+                     f"{checkpoint_path!r} first."
+                     + config_judgment_suffix(repo))
             fail(f"blind checkpoint missing at the pack-time tip: "
                  f"bale.toml [validation] base names "
                  f"{checkpoint_path!r}, but HEAD has no committed file "
                  f"at that path. A working-tree-only checkpoint is not "
                  f"yet the project's oracle (committed-is-ratified). "
                  f"Remedies: commit the checkpoint at the named path, "
-                 f"or clear the key via `bale config init`.")
+                 f"or clear the key via `bale config init`."
+                 + config_judgment_suffix(repo))
         checkpoint_stamp = {
             "path": checkpoint_path,
             "sha256": hashlib.sha256(blob.stdout).hexdigest(),
@@ -1254,6 +1256,7 @@ def build_provenance_block(
 def run_forecast_disjointness_gate(repo: Path, pack_scope: list, *,
                                    caller: str = "pack",
                                    declined_supersession: Optional[str] = None,
+                                   pending_supersession: Optional[str] = None,
                                    ) -> Optional[tuple]:
     """The pack-time forecast-disjointness gate (BALE.md §7.1 step 5;
     ADR-0015 re-basing ADR-0007's pack-time gate), read from the
@@ -1283,20 +1286,45 @@ def run_forecast_disjointness_gate(repo: Path, pack_scope: list, *,
     session's recorded forecast). The pack-side text is byte-identical
     to the pre-lift closure. `declined_supersession` is pack's
     declined-prompt note, appended when set.
+
+    Remedy lead (board 68 rider, ADR-0015 remedy text): when a
+    colliding open session recorded the whole-tree forecast (`["."]`,
+    the default of a pack typed without --write or --include), no
+    forecast this command could declare is disjoint from it — proven
+    live, where a disjoint `--write` still refused — so "narrow this
+    {caller}" is not a remedy and the refusal does not offer it. It
+    leads instead with the remedies that can work: apply that
+    session's response, `bale unlock` it if abandoned, or narrow ITS
+    forecast by re-packing it with --write. A partial overlap keeps
+    the narrow-this-{caller} lead byte-for-byte.
+
+    `pending_supersession` (board 68) names a sid whose `--supersedes`
+    exchange has not run yet, and excludes it from the conflict set.
+    The one caller is `bale open`'s pre-flight (pack_argv_preflight),
+    which evaluates this gate ahead of the replayed pack: an accepted
+    exchange closes that parent before pack's own (authoritative) gate
+    runs, and a declined one refuses there regardless, so the
+    pre-flight must never refuse on the parent alone — that would turn
+    every split-supersession bundle into a false refusal. cmd_pack
+    never passes it: by the time its gate runs, the exchange has run.
     """
     from __main__ import (  # lazy — see module docstring
         fail, open_sessions, read_session_scope, scope_intersection,
     )
 
-    open_sids = open_sessions(repo)
+    open_sids = [s for s in open_sessions(repo)
+                 if s != pending_supersession]
     if not open_sids:
         return None
     conflicts: list[tuple[str, list[tuple[str, str]]]] = []
+    whole_tree_sids: list[str] = []
     for open_sid in open_sids:
-        pairs = scope_intersection(
-            pack_scope, read_session_scope(repo, open_sid))
+        recorded = read_session_scope(repo, open_sid)
+        pairs = scope_intersection(pack_scope, recorded)
         if pairs:
             conflicts.append((open_sid, pairs))
+            if recorded == ["."]:
+                whole_tree_sids.append(open_sid)
     if conflicts:
         detail = "; ".join(
             f"{osid} ({', '.join(sorted({f'{a} ~ {b}' for a, b in pairs}))})"
@@ -1332,14 +1360,38 @@ def run_forecast_disjointness_gate(repo: Path, pack_scope: list, *,
                 f"when --include is also absent — and conflicts with "
                 f"every open session; "
             )
+        if whole_tree_sids:
+            # The whole-tree lead: naming the session(s) whose recorded
+            # forecast covers everything, and only remedies that act on
+            # THAT session. `--write` on this command cannot clear a
+            # `["."]` lock, so the narrow-this-{caller} sentence is
+            # deliberately absent here (board 68 rider; docstring).
+            whole = ", ".join(whole_tree_sids)
+            plural = len(whole_tree_sids) != 1
+            noun = "sessions" if plural else "session"
+            whose = "those sessions'" if plural else "that session's"
+            remedy_lead = (
+                f"Open {noun} {whole} recorded the whole-tree forecast "
+                f"([\".\"]), which every possible forecast intersects, "
+                f"so narrowing this {caller} with --write cannot clear "
+                f"it. Remedies that can: apply {whose} response first, "
+                f"run `bale unlock <sid>` if it was abandoned, or "
+                f"narrow ITS forecast (unlock it and re-pack it with "
+                f"--write paths disjoint from this {caller}'s)"
+            )
+        else:
+            remedy_lead = (
+                f"Narrow this "
+                f"{caller}'s forecast with --write paths disjoint from the "
+                f"open forecast(s), apply "
+                f"the open session's response first, run `bale unlock` "
+                f"if it was abandoned"
+            )
         fail(
             f"{caller} write forecast intersects {len(conflicts)} open "
             f"session(s): {detail}. Concurrent sessions require "
-            f"disjoint write forecasts (ADR-0015). Narrow this "
-            f"{caller}'s forecast with --write paths disjoint from the "
-            f"open forecast(s), apply "
-            f"the open session's response first, run `bale unlock` "
-            f"if it was abandoned"
+            f"disjoint write forecasts (ADR-0015). "
+            f"{remedy_lead}"
             f"{supersedes_remedy}. "
             f"{default_note}"
             f"a read-only {caller} (--read-only, "
@@ -1349,6 +1401,151 @@ def run_forecast_disjointness_gate(repo: Path, pack_scope: list, *,
             + declined_note
         )
     return (pack_scope, list(open_sids))
+
+
+def resolve_write_forecast(args: argparse.Namespace) -> list:
+    """The resolved write forecast (ADR-0015) of a parsed pack
+    namespace: `[]` for --read-only; the --write set when the flag was
+    typed (or wizard-collected); the resolved include set otherwise —
+    the load-bearing compatibility default, `["."]` when --include is
+    also absent, so a pack that never mentions --write forecasts
+    byte-for-byte what it recorded before the separation.
+
+    One implementation (board 68): cmd_pack evaluates it at both of
+    its gate sites and pack_argv_preflight at `bale open`'s, so the
+    forecast the pre-flight gates is the forecast the replay records.
+    """
+    from __main__ import resolved_scope  # lazy — see module docstring
+    return ([] if args.read_only
+            else resolved_scope(list(args.write)) if args.write
+            else resolved_scope(list(args.include)))
+
+
+def forecast_final_at_parse(args: argparse.Namespace) -> bool:
+    """True when nothing after arg-parse can change the write forecast.
+
+    The wizard (v0.3.15) engages when the goal positional or --slug is
+    missing, and its session-shape question can turn the pack
+    read-only while its where-will-changes-land follow-up can fill
+    --write — so with neither --read-only nor --write already fixing
+    the forecast, the disjointness gate defers to post-wizard rather
+    than refuse a pack the user was about to declare read-only. On
+    every other path the forecast is final at arg-parse and the gate
+    fires in pre-flight. cmd_pack's `gate_deferred` is the negation;
+    pack_argv_preflight gates only when this holds.
+    """
+    wizard_engaged = args.goal is None or args.slug is None
+    return not (wizard_engaged and not args.read_only and not args.write)
+
+
+def refuse_missing_scope_paths(repo: Path, includes: list,
+                               writes: list) -> None:
+    """The existence gate for the two scope flag families.
+
+    --include entries name existing paths; --write entries do too —
+    ADR-0014's rule held on the forecast surface (ADR-0015, design
+    brief I.1): nobody pre-names the files a response will create; a
+    packer who knows new files land in one area forecasts the
+    directory. Same check, same wording shape for both families, so
+    they stay one rule. Wizard-collected forecast entries were already
+    validated at the prompt; this catches the CLI-typed ones.
+
+    Extracted from cmd_pack (board 68) so `bale open`'s pre-flight
+    runs the identical gate ahead of the checkpoint dry-run instead
+    of a second copy; cmd_pack calls it at its original site.
+    """
+    from __main__ import fail  # lazy — see module docstring
+    for inc in includes:
+        if not (repo / inc).exists():
+            fail(f"--include path does not exist: {inc}")
+    for wpath in writes:
+        if not (repo / wpath).exists():
+            fail(
+                f"--write path does not exist: {wpath}. Forecast "
+                f"entries name existing files or directories "
+                f"(ADR-0014's rule, held on the forecast surface); "
+                f"to forecast new files, name the directory they "
+                f"will land under."
+            )
+
+
+def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
+    """The arg-inspectable pack gates, evaluated before anything
+    expensive (board 68): `bale open` calls this with the composed
+    replay argv, parsed by the real CLI parser, BEFORE the checkpoint
+    dry-run — cheap gates before the oracle execution.
+
+    Two gates, each the one implementation cmd_pack itself runs:
+
+    1. forecast existence — refuse_missing_scope_paths over the
+       --include and --write entries;
+    2. forecast disjointness — run_forecast_disjointness_gate over
+       resolve_write_forecast(args), only when forecast_final_at_parse
+       (the wizard path defers, exactly as cmd_pack does), and with
+       the argv's `--supersedes` sid excluded as pending: its exchange
+       runs inside the replay, so the pre-flight cannot judge it (see
+       the gate's docstring).
+
+    Existence runs first: a forecast entry that does not exist is an
+    argv defect in its own right, and a disjointness verdict computed
+    over a phantom path would name a collision that cannot be reasoned
+    about. The checkpoint-blindness gate deliberately stays in
+    cmd_pack — it is not moved here.
+
+    Passing is silent and returns None; the replayed pack re-runs
+    both gates at their own sites (cheap, and pack's contract stays
+    whole). Refusals are the gates' own text, via fail(), with no
+    session state existing yet. Journal tuples the gate returns are
+    discarded here — the replay's run is the one that journals.
+    """
+    refuse_missing_scope_paths(repo, list(args.include), list(args.write))
+    if forecast_final_at_parse(args):
+        run_forecast_disjointness_gate(
+            repo, resolve_write_forecast(args), caller="pack",
+            pending_supersession=(args.supersedes.strip()
+                                  if args.supersedes else None))
+
+
+def config_judgment_suffix(repo: Optional[Path]) -> str:
+    """The tail every config-judging refusal carries (board 68): the
+    resolved project root as an absolute path and the config files
+    the merged config judged — the repo's `bale.toml` and
+    `<install>/user/bale.toml` — each marked read or absent.
+
+    Live specimen: a `bale open` run from a directory the operator
+    did not realize was a different project refused on a missing
+    `[validation]` base, and the refusal's "this project" cost a probe
+    round that a named path would have prevented. Naming the root
+    answers "which project?", naming the files answers "which config
+    did you actually consult?", and the read/absent marks answer "was
+    my file even seen?". `[validation]` is project-layer only
+    (bale_config.get_validation_base), so a global file that was read
+    is marked as not supplying the key — otherwise a `[validation]`
+    table in the global file would look consulted when it is not.
+
+    `repo` is None on the pre-git-init path (checkpoint_file_base_or_
+    refuse runs before the walkthrough); the tail then says so rather
+    than naming a root that does not exist.
+    """
+    import bale_config  # lazy — see module docstring
+
+    def _mark(path: Path, *, project_layer_only: bool = False) -> str:
+        if not path.is_file():
+            return f"{path} (absent)"
+        if project_layer_only:
+            return (f"{path} (read; [validation] is project-layer only, "
+                    f"so this file does not supply the base)")
+        return f"{path} (read)"
+
+    global_mark = _mark(bale_config.GLOBAL_CONFIG_PATH,
+                        project_layer_only=True)
+    if repo is None:
+        return (f" Project root: none (not inside a git repository, so "
+                f"no project bale.toml could be read); config judged: "
+                f"{global_mark}.")
+    root = repo.resolve()
+    return (f" Project root: {root}; config judged: "
+            f"{_mark(root / bale_config.BALE_CONFIG)}, {global_mark}.")
 
 
 def checkpoint_blindness_preflight(repo: Path, pack_scope: list,
@@ -1669,7 +1866,8 @@ def checkpoint_resolved_preflight(repo: Path, sid: str,
              f"the planner-authored checkpoint at {resolved!r} by hand "
              f"and re-run the same {caller}. Either way the session counter "
              f"was not consumed, so the same session id — and the same "
-             f"resolved path — will be allocated.")
+             f"resolved path — will be allocated."
+             + config_judgment_suffix(repo))
     log(f"per-session checkpoint resolved: {base} -> {resolved} "
         f"(committed at HEAD; sid {sid})")
 
@@ -1779,19 +1977,24 @@ def checkpoint_file_base_or_refuse(repo: Optional[Path]) -> str:
     if repo is not None:
         base = bale_config.get_validation_base(
             bale_config.merged_config(repo))
+    # Both refusals judge the project's configuration, so both name
+    # the root and the config files judged (board 68;
+    # config_judgment_suffix).
     if base is None:
         fail("--checkpoint-file requires a configured per-session blind "
              "checkpoint, but bale.toml pins no [validation] base — the "
              "flag would commit an oracle nothing reads. Configure a "
              "{sid}-bearing base via `bale config init` ([validation] "
-             "base, e.g. claude/checkpoints/{sid}.sh), or drop the flag.")
+             "base, e.g. claude/checkpoints/{sid}.sh), or drop the flag."
+             + config_judgment_suffix(repo))
     if "{sid}" not in base:
         fail(f"--checkpoint-file is per-session ({{sid}} bases) only at "
              f"v1, but [validation] base is the literal path {base!r}. "
              f"A literal base's oracle is project-wide: the planner "
              f"commits it at {base!r} directly (edit, commit — no pack "
              f"flag involved), or moves the base to a {{sid}} pattern "
-             f"via `bale config init`.")
+             f"via `bale config init`."
+             + config_judgment_suffix(repo))
     return base
 
 
@@ -3441,6 +3644,20 @@ OPENER_CLOCK_SENTENCE = (
     "the session id, never from the chat."
 )
 
+# The shape sentence the opener closes with (board 68 rider, row 96's
+# one bin/bale_pack.py line; the doctrine it names lands in the global
+# docs in the same wave). VERBATIM, whitespace collapsed — the
+# emitted lines wrap it as the surrounding lines wrap, and the pin
+# (tests/test_pack_guards.py) compares the collapsed form. It replaced
+# "Ask me if anything is unclear before you build.", which invited
+# exactly the prose question the rule forbids.
+OPENER_SHAPE_SENTENCE = (
+    "Every turn you end in this session takes one machine-recognizable "
+    "shape: a response tarball, a probe block, a light question block, "
+    "or a clarification response; a question asked as prose is not a "
+    "shape."
+)
+
 
 def session_opener_block(sid: str, goal: str, *, read_only: bool,
                          packed_at: str) -> list:
@@ -3497,8 +3714,10 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         OPENER_CLOCK_SENTENCE,
         f"Goal, verbatim from the request manifest: {goal}",
         "Please examine the tarball contents, starting with CLAUDE.md and",
-        "manifest.json, and go from there. Ask me if anything is unclear",
-        "before you build.",
+        "manifest.json, and go from there. Every turn you end in this",
+        "session takes one machine-recognizable shape: a response tarball,",
+        "a probe block, a light question block, or a clarification",
+        "response; a question asked as prose is not a shape.",
         OPENER_END,
     ]
 
@@ -3916,8 +4135,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # --read-only given, or --write given — the gate fires here, in
     # pre-flight before any prompt, exactly as before.
     wizard_engaged = args.goal is None or args.slug is None
-    gate_deferred = (wizard_engaged and not args.read_only
-                     and not args.write)
+    # The deferral rule is forecast_final_at_parse's (board 68: one
+    # implementation, shared with `bale open`'s pre-flight).
+    gate_deferred = not forecast_final_at_parse(args)
     admitted_alongside: Optional[tuple] = None
     checkpoint_scope_admitted = False
     if not gate_deferred:
@@ -3925,11 +4145,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # pack; the --write set when the flag was typed; the resolved
         # include set otherwise — the load-bearing compatibility
         # default (a pack with no --write behaves byte-for-byte as
-        # before the separation).
-        _early_scope = ([] if args.read_only
-                        else resolved_scope(list(args.write))
-                        if args.write
-                        else resolved_scope(list(args.include)))
+        # before the separation). resolve_write_forecast is the one
+        # implementation (board 68), shared with open's pre-flight.
+        _early_scope = resolve_write_forecast(args)
         # Checkpoint blindness gate (v0.3.28, board 6 session C; BALE.md
         # §7.1 step 4b) — before the disjointness gate, so a self-oracle
         # forecast (or a read include set that would ship the oracle's
@@ -3996,10 +4214,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # that never mentions --write records exactly what it recorded
     # before the separation. Recorded via persist_pack_session further
     # down, read back by the gates as the forecast — "locks nothing,
-    # may land nothing" for [].
-    pack_scope = ([] if args.read_only
-                  else resolved_scope(list(args.write)) if args.write
-                  else resolved_scope(list(args.include)))
+    # may land nothing" for []. Same implementation as the pre-flight
+    # site (resolve_write_forecast, board 68).
+    pack_scope = resolve_write_forecast(args)
     if gate_deferred:
         # Same order as the pre-flight path: blindness gate (v0.3.28,
         # session C) before the disjointness gate, now that the
@@ -4124,26 +4341,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
     goal = args.goal.strip()
     if not goal:
         fail("goal must be non-empty.")
-    for inc in args.include:
-        if not (repo / inc).exists():
-            fail(f"--include path does not exist: {inc}")
-    # --write entries name existing paths — the ADR-0014 rule held on
-    # the forecast surface too (ADR-0015, design brief I.1): nobody
-    # pre-names the files a response will create; a packer who knows
-    # new files land in one area forecasts the directory. Same check,
-    # same site, same wording shape as the --include rule above, so
-    # the two flag families stay one rule. Wizard-collected forecast
-    # entries were already validated at the prompt; this site catches
-    # the CLI-typed ones.
-    for wpath in args.write:
-        if not (repo / wpath).exists():
-            fail(
-                f"--write path does not exist: {wpath}. Forecast "
-                f"entries name existing files or directories "
-                f"(ADR-0014's rule, held on the forecast surface); "
-                f"to forecast new files, name the directory they "
-                f"will land under."
-            )
+    # The existence gate for both scope flag families — --include and
+    # --write name existing paths (ADR-0014's rule, held on the
+    # forecast surface by ADR-0015). One implementation,
+    # refuse_missing_scope_paths (board 68), which `bale open`'s
+    # pre-flight also runs ahead of the checkpoint dry-run; the
+    # rationale and wording live there. Same site as before.
+    refuse_missing_scope_paths(repo, list(args.include), list(args.write))
 
     # Planner-bundle blindness (v0.4.12, board 49a-i; BALE.md §6.7).
     # Sited post-wizard (the wizard can fill args.write) and pre-walk,
