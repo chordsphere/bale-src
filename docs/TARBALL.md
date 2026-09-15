@@ -69,9 +69,11 @@ if it doesn't describe this session, the section stays unread.
   may run a day ahead of.
 - **The clock.** Every date bale mints — the session id, its per-day counter, a handoff re-mint — and every timestamp it writes are UTC; a session dates what it writes from the session id, never from the date its chat shows.
 - **Artifact directories.** `request-NNN/` and `response-NNN/` use
-  the same NNN as the session ID, zero-padded to three digits. A
-  response is numbered to match the request it answers. Probes
-  produce no artifact directory (§4.2).
+  the same NNN as the session ID, zero-padded to three digits,
+  while the tarball that carries each is named by the full session
+  id — `request-<sid>.tar.gz`, `response-<sid>.tar.gz` (§3.1, §10.1
+  step 11). A response is numbered to match the request it answers.
+  Probes produce no artifact directory (§4.2).
 - **Roles.** Four roles recur here and in `CLAUDE.md`, and every
   one is a role, never a species: the **planner** holds intent
   authority for a request — decomposes goals, authors packs, answers
