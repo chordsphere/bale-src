@@ -57,6 +57,23 @@ SWEEP_PROMPT_MARKER = "Close open read-only session"
 SWEEP_DECLINE_MARKER = "declining without a prompt"
 CLOSEOUT_MARKER = "Read-only session close-out"
 
+# The sweep prompt's decline lines (v0.4.31, board 89;
+# bale_pack.READONLY_SWEEP_DECLINE_LINES): a TTY decline names its
+# cause. The prompt is an ACCEPT default, so only two of the three
+# branches can decline here — Enter closes (pinned above). ^D at the
+# start of a line under the pty makes input() raise EOFError — the
+# "stdin closed" branch at a TTY prompt.
+EOT = "\x04"
+
+
+def sweep_declined(sid: str, cause: str) -> str:
+    return (f"read-only sweep: close of {sid} declined ({cause}); it stays "
+            f"open for the next read-only pack or `bale unlock {sid}`")
+
+
+def sweep_declined_causeless(sid: str) -> str:
+    return f"read-only sweep: close of {sid} declined; it stays open"
+
 # run_bale_pty and PTY_TIMEOUT moved to tests/harness.py when the
 # supersession suite became their second consumer (one harness,
 # consumed by every suite — the board-11 doctrine).
@@ -455,6 +472,44 @@ class ReadonlyPackTest(unittest.TestCase):
         self.assertEqual(record["attempts"][0]["outcome"], "opened")
         self.assertEqual(record["attempts"][0]["scope"], [])
         self.assertEqual(record["outcome"], "opened")
+
+    # -- the decline names its cause (v0.4.31, board 89) ------------------
+
+    def _sweep_declined(self, answers: str):
+        """A TTY decline at the sweep: the pack still succeeds (the
+        sweep is a courtesy close-out), both read-only sessions stay
+        open, no closure event is written, and the cause-less line is
+        gone."""
+        first = self.assert_pack_ok(self.pack("--read-only"))
+        code, output = self.readonly_pack_pty(slug="session-b",
+                                              answers=answers)
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(SWEEP_PROMPT_MARKER, output)
+        self.assertIn("[Y/n]", output)
+        self.assertNotIn(sweep_declined_causeless(first), output)
+        sids = self.open_sids()
+        self.assertEqual(len(sids), 2, msg=output)
+        self.assertIn(first, sids)
+        record = self.telemetry_record(first)
+        self.assertEqual(len(record["attempts"]), 1,
+                         msg="the declined sweep appended nothing")
+        return first, output
+
+    def test_sweep_n_is_quoted_back(self) -> None:
+        first, output = self._sweep_declined("n\n")
+        self.assertIn(sweep_declined(first, "answered 'n'"), output)
+
+    def test_sweep_stray_answer_is_quoted_back_stripped_and_lowercased(self) -> None:
+        first, output = self._sweep_declined("  NO \n")
+        self.assertIn(sweep_declined(first, "answered 'no'"), output)
+
+    def test_sweep_stdin_closed_at_the_prompt_names_itself(self) -> None:
+        """EOF declines even at the accept default, and says so — the
+        line an operator's "Enter did nothing" report could not be told
+        apart from before."""
+        first, output = self._sweep_declined(EOT)
+        self.assertIn(sweep_declined(first, "stdin closed or interrupted"),
+                      output)
 
     def test_sweep_piped_declines_without_prompt(self) -> None:
         """Piped stdin declines without a prompt — automation never

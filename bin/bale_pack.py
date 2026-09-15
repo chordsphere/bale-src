@@ -2064,9 +2064,9 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
     `command` (v0.4.21, board 63) names the request-building command
     for the open-time telemetry stamp below — the telemetry command
     vocabulary's honest-command posture (telemetry-record.schema.json).
-    Default "pack"; cmd_handoff passing "handoff" is proposed but not
-    yet wired (bin/bale is out of the board-63 session's scope), so
-    handoff opens stamp "pack" until that one-word change lands.
+    Default "pack"; cmd_handoff passes "handoff" (wired since rows
+    63/73, once bin/bale was in a forecast), so a handoff open stamps
+    the command that actually opened it.
 
     Since v0.4.21 (board 63) this function also stamps the two
     open-time provenance facts — work_class and packer, read from the
@@ -2604,6 +2604,53 @@ def parse_pre_answered_intents(raw) -> list[PreAnsweredIntent]:
     return intents
 
 
+# Decline lines for this module's two admission prompts (v0.4.31, board
+# 89): the --supersedes exchange and the read-only sweep's close-out.
+# Every y/N has the same three silent branches — stdin closed or
+# interrupted, an empty answer at a decline default, an answer actually
+# typed — and since board 83 (bin/bale's run_hook, HOOK_DECLINE_LINES)
+# a decline names which one it was. Same shape as the hook's table: one
+# FULL line per branch, held literally here (never assembled from a
+# cause phrase at runtime, so each line greps in this file), keyed by
+# the branch names bin/bale's ConfirmDecision.decline_branch returns
+# (mirrored in bale_report.CONFIRM_DECLINE_BRANCHES; the parity test
+# pins the three homes together). `{sid}` is the session the prompt
+# asked about; the `answered` line quotes the operator's stripped,
+# lowercased answer in explicit single quotes. Rendered by
+# bale_report.format_decline_line at each prompt. The pack wizard's two
+# flow prompts (the README y/N, the config setup y/N) are not admission
+# gates and stay on confirm_yn.
+SUPERSESSION_DECLINE_LINES = {
+    "stdin_closed":
+        "supersession of {sid} declined at the prompt (stdin closed or "
+        "interrupted); nothing closed",
+    "empty_at_decline_default":
+        "supersession of {sid} declined at the prompt (empty answer at a "
+        "decline default); nothing closed",
+    "answered":
+        "supersession of {sid} declined at the prompt (answered "
+        "'{answer}'); nothing closed",
+}
+
+# The sweep prompt is an ACCEPT default ([Y/n]), so its empty-answer
+# branch cannot decline; the line is held anyway so the table is
+# complete for every branch the vocabulary names — if the default were
+# ever flipped, the decline would still name itself rather than raise.
+READONLY_SWEEP_DECLINE_LINES = {
+    "stdin_closed":
+        "read-only sweep: close of {sid} declined (stdin closed or "
+        "interrupted); it stays open for the next read-only pack or "
+        "`bale unlock {sid}`",
+    "empty_at_decline_default":
+        "read-only sweep: close of {sid} declined (empty answer at a "
+        "decline default); it stays open for the next read-only pack or "
+        "`bale unlock {sid}`",
+    "answered":
+        "read-only sweep: close of {sid} declined (answered '{answer}'); "
+        "it stays open for the next read-only pack or `bale unlock {sid}`",
+}
+
+
 def consume_supersession_intent(
         intents: list[PreAnsweredIntent],
         sid: str) -> Optional[PreAnsweredIntent]:
@@ -2697,13 +2744,16 @@ def _resolve_supersession(args: argparse.Namespace,
     """
     from __main__ import (  # lazy — see module docstring
         close_session_with_record,
-        confirm_yn,
+        confirm_yn_decision,
         fail,
         git,
         log,
         session_is_open,
     )
-    from bale_report import read_telemetry_record  # lazy — see module docstring
+    from bale_report import (  # lazy — see module docstring
+        format_decline_line,
+        read_telemetry_record,
+    )
 
     if args.supersedes is None:
         return None, None
@@ -2762,16 +2812,24 @@ def _resolve_supersession(args: argparse.Namespace,
             f"here; the parent will close as superseded-by-split",
             force=True)
     elif sys.stdin.isatty():
-        accepted = confirm_yn(
+        decision = confirm_yn_decision(
             f"Close open session {sid} as superseded-by-split? Its "
             f"registry entry and .bale/sessions/ state are removed and "
             f"a closure record is written; a response for it could no "
             f"longer be applied."
         )
+        accepted = decision.accepted
+        if not accepted:
+            # One of three fixed lines (SUPERSESSION_DECLINE_LINES): the
+            # prompt's decline names its cause; the piped path below
+            # keeps its own no-prompt line.
+            log(format_decline_line(SUPERSESSION_DECLINE_LINES, decision,
+                                    sid=sid))
     else:
         accepted = False
         log(f"--supersedes {sid}: stdin is not a TTY; the exchange's "
             f"decline default applies without a prompt (nothing closed)")
+        log(f"supersession of {sid} declined; nothing closed")
 
     if accepted:
         telemetry_rel, _, _ = close_session_with_record(
@@ -2784,7 +2842,6 @@ def _resolve_supersession(args: argparse.Namespace,
             f"{telemetry_rel if telemetry_rel else 'write failed — see log'})")
         return sid, None
 
-    log(f"supersession of {sid} declined; nothing closed")
     if args.goal is None or args.slug is None:
         # Wizard path: the refusal is guaranteed (the parent stays open
         # and a declined --supersedes pack refuses even past the gate),
@@ -2845,12 +2902,13 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
     """
     from __main__ import (  # lazy — see module docstring
         close_session_with_record,
-        confirm_yn,
+        confirm_yn_decision,
         git,
         log,
         open_sessions,
         read_session_scope,
     )
+    from bale_report import format_decline_line  # lazy — see module docstring
 
     closed: list[str] = []
     for sid in open_sessions(repo):
@@ -2865,14 +2923,16 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
                 f"and closing it here would strand the branch. Skipping; "
                 f"run `bale revert {sid}` to discard the held state.")
             continue
+        decision = None
         if sys.stdin.isatty():
-            accepted = confirm_yn(
+            decision = confirm_yn_decision(
                 f"Close open read-only session {sid} as closed-read-only? "
                 f"A read-only session lands nothing, so no work is lost; "
                 f"its registry entry and .bale/sessions/ state are removed "
                 f"and a closure record is written.",
                 default_no=False,
             )
+            accepted = decision.accepted
         else:
             accepted = False
             log(f"read-only sweep: open read-only session {sid} found; "
@@ -2881,10 +2941,12 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
                 f"never silently closes a session). Close it with `bale "
                 f"unlock {sid}`, or re-run this pack on a TTY.")
         if not accepted:
-            if sys.stdin.isatty():
-                log(f"read-only sweep: close of {sid} declined; it stays "
-                    f"open for the next read-only pack or `bale unlock "
-                    f"{sid}`")
+            if decision is not None:
+                # One of three fixed lines (READONLY_SWEEP_DECLINE_LINES):
+                # a TTY decline names its cause; the piped path logged
+                # its own no-prompt line above.
+                log(format_decline_line(READONLY_SWEEP_DECLINE_LINES,
+                                        decision, sid=sid))
             continue
         telemetry_rel, _, _ = close_session_with_record(
             repo, sid,

@@ -22,7 +22,9 @@ Since v0.4.29 (board 83) two more facts live here:
   says so; `--json` is one line on stdout. ConfigHooksVerbTest drives
   it end-to-end through the scratch install (no git repo needed), and
   AcceptanceStoreUnitTest covers the resolver/forget helpers beside
-  the store trio it already covered.
+  the store trio it already covered. The `--json` renderer
+  (`format_config_hooks_json`) lives in bale_report since v0.4.31
+  (board 89), beside its siblings; the unit case loads it from there.
 
 The first suite to mention post_apply_pass and hook_auto_accept: the
 hook path had no coverage before this session. Driven through real
@@ -44,6 +46,7 @@ from pathlib import Path
 
 from harness import (
     REPO_ROOT,
+    _load_module,
     bale_env,
     build_response_dir,
     git_env,
@@ -682,7 +685,13 @@ class AcceptanceStoreUnitTest(unittest.TestCase):
         self.assertEqual(set(json.loads(self.store.read_text())), {"z", digest})
 
     def test_json_report_shape(self) -> None:
-        line = self.bc.format_config_hooks_json(
+        """The renderer lives beside its json siblings in bale_report
+        since v0.4.31 (board 89), one function moved; the emitted line
+        is unchanged."""
+        br = _load_module("bale_report")
+        self.assertFalse(hasattr(self.bc, "format_config_hooks_json"),
+                         msg="the renderer moved out of bale_config")
+        line = br.format_config_hooks_json(
             outcome="listed", version="0.0.0", store=self.store, entries=[],
             forgotten=None)
         self.assertNotIn("\n", line)

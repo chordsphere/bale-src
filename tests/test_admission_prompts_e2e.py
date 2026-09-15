@@ -13,6 +13,18 @@ Not covered here: the `bale retry` verb on the composed line (the
 suite that builds a HOLD state, test_hold_retry_e2e.py, is not shipped
 with this request; compose_admission_command's verb handling is pinned
 at the unit tier in test_admission_prompts.py).
+
+Since v0.4.31 (board 89) two more facts are pinned here:
+
+- The composed drift line carries every typed --allow-out-of-scope
+  value (normalized, first), then every drifted path — a typed path
+  that matched no drift used to be dropped. The json face's
+  `drift.remedy` is the same line.
+- Each of the two apply-time admission prompts names its decline
+  cause: `stdin closed or interrupted` (^D at the prompt under the
+  pty), `empty answer at a decline default` (Enter), `answered 'x'`
+  (a typed answer, stripped and lowercased). One case per cause per
+  prompt, the model being test_hook_acceptance.py's three.
 """
 
 from __future__ import annotations
@@ -41,6 +53,42 @@ DRIFT_MARKER = "[SCOPE-DRIFT-REFUSED]"
 SANDBOX_MARKER = "[SANDBOX-UNAVAILABLE]"
 NOT_OFFERED = "admission prompt not offered"
 SANDBOX_NOT_OFFERED = "sandbox admission prompt not offered"
+
+# ^D at the start of a line under the pty: the line discipline makes
+# input() raise EOFError — the "stdin closed" branch at a TTY prompt.
+EOT = "\x04"
+
+# The drift prompt's three decline lines (bale_apply.DRIFT_ADMISSION_
+# DECLINE_LINES), verbatim; the bare pre-board-89 line must not survive.
+DRIFT_DECLINE_BARE = "admission prompt declined at lib/b.txt; nothing"
+DRIFT_DECLINE_TAIL = "; nothing admitted at the prompt, nothing lands partially"
+DRIFT_DECLINE_STDIN_CLOSED = (
+    "admission prompt declined at lib/b.txt (stdin closed or interrupted)"
+    + DRIFT_DECLINE_TAIL)
+DRIFT_DECLINE_EMPTY = (
+    "admission prompt declined at lib/b.txt (empty answer at a decline "
+    "default)" + DRIFT_DECLINE_TAIL)
+
+
+def drift_decline_answered(answer: str) -> str:
+    return (f"admission prompt declined at lib/b.txt (answered '{answer}')"
+            + DRIFT_DECLINE_TAIL)
+
+
+# The sandbox prompt's three (bale_apply.SANDBOX_ADMISSION_DECLINE_LINES).
+SANDBOX_DECLINE_BARE = "sandbox admission prompt declined; nothing"
+SANDBOX_DECLINE_TAIL = "; nothing staged, nothing ran"
+SANDBOX_DECLINE_STDIN_CLOSED = (
+    "sandbox admission prompt declined (stdin closed or interrupted)"
+    + SANDBOX_DECLINE_TAIL)
+SANDBOX_DECLINE_EMPTY = (
+    "sandbox admission prompt declined (empty answer at a decline default)"
+    + SANDBOX_DECLINE_TAIL)
+
+
+def sandbox_decline_answered(answer: str) -> str:
+    return (f"sandbox admission prompt declined (answered '{answer}')"
+            + SANDBOX_DECLINE_TAIL)
 
 
 class _AdmissionFixture(unittest.TestCase):
@@ -189,6 +237,48 @@ class DriftNonTTYFacesTest(_AdmissionFixture):
         self.assertEqual(a["overridden_paths"], ["lib/b.txt"])
         self.assertEqual(a["overridden_path_sources"], {"lib/b.txt": "flag"})
 
+    def test_composed_line_carries_a_typed_path_that_matched_no_drift(self) -> None:
+        """The one composed-line rule (board 89): every typed
+        --allow-out-of-scope value rides the re-run line verbatim —
+        normalized as the gate compared it, typed values first, then
+        the drifted paths, deduplicated — so a no-effect typed path is
+        never dropped and re-asked. Here `./lib/zzz.txt` is in the
+        forecast's complement but not in the change set (no effect,
+        logged as such), `lib/b.txt` is typed AND drifting (once on the
+        line), and `lib/c.txt` is the refused drift."""
+        sid = self.pack_src_forecast()
+        tarball = self.response(sid, "lib/b.txt", "lib/c.txt")
+        r = run_bale(self.install, [
+            "apply", str(tarball),
+            "--allow-out-of-scope", "./lib/zzz.txt",
+            "--allow-out-of-scope", "lib/b.txt",
+        ], cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stdout)
+        self.assertIn("no matching out-of-forecast change: lib/zzz.txt "
+                      "(no effect)", r.stdout)
+        line = self.composed(tarball, "lib/b.txt", "lib/zzz.txt", "lib/c.txt")
+        self.assertIn(line, r.stdout)
+        self.assertTrue(any(ln.strip() == line for ln in r.stdout.splitlines()),
+                        msg="typed values first, drift appended, one line")
+        self.assertEqual(r.stdout.count("--allow-out-of-scope 'lib/b.txt'"),
+                         r.stdout.count(line),
+                         msg="a typed-and-drifting path rides once")
+        a = self.latest_attempt(sid)
+        self.assertEqual(a["overridden_paths"], ["lib/b.txt"])
+
+    def test_json_remedy_follows_the_typed_value_carry(self) -> None:
+        sid = self.pack_src_forecast()
+        tarball = self.response(sid, "lib/b.txt")
+        r = run_bale(self.install, [
+            "apply", str(tarball), "--json",
+            "--allow-out-of-scope", "lib/zzz.txt",
+        ], cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stderr)
+        report = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(report["outcome"], "scope-drift-refused")
+        self.assertEqual(report["drift"]["remedy"],
+                         self.composed(tarball, "lib/zzz.txt", "lib/b.txt"))
+
     def test_json_mode_declines_even_on_a_tty(self) -> None:
         sid = self.pack_src_forecast()
         tarball = self.response(sid, "lib/b.txt")
@@ -295,6 +385,47 @@ class DriftPromptTest(_AdmissionFixture):
         a = self.latest_attempt(sid)
         self.assertEqual(a["overridden_path_sources"],
                          {"lib/b.txt": "flag", "lib/c.txt": "prompt"})
+
+
+class DriftDeclineCauseTest(_AdmissionFixture):
+    """The per-path drift y/N names why it declined (board 89): one
+    case per branch, each refusing pre-staging with the session open
+    and the composed line printed."""
+
+    def _declined(self, answers: str):
+        sid = self.pack_src_forecast()
+        tarball = self.response(sid, "lib/b.txt")
+        code, out = run_bale_pty(self.install, ["apply", str(tarball)],
+                                 cwd=self.repo, env=self.env,
+                                 answers=answers)
+        self.assertEqual(code, 1, msg=out)
+        self.assertIn("admit lib/b.txt? [y/N]", out)
+        self.assertIn(DRIFT_MARKER, out)
+        self.assertRegex(out, r"admission prompt:\s+declined")
+        self.assertIn(self.composed(tarball, "lib/b.txt"), out)
+        self.assertNotIn(DRIFT_DECLINE_BARE, out,
+                         msg="the cause-less line must not survive")
+        self.assertIn(sid, self.open_sids())
+        self.assertEqual(self.latest_attempt(sid)["outcome"],
+                         "scope-drift-refused")
+        self.assertFalse((self.repo / ".bale" / "staging").exists())
+        return out
+
+    def test_enter_names_the_empty_answer(self) -> None:
+        out = self._declined("\n")
+        self.assertIn(DRIFT_DECLINE_EMPTY, out)
+
+    def test_n_is_quoted_back(self) -> None:
+        out = self._declined("n\n")
+        self.assertIn(drift_decline_answered("n"), out)
+
+    def test_stray_answer_is_quoted_back_stripped_and_lowercased(self) -> None:
+        out = self._declined("  NO \n")
+        self.assertIn(drift_decline_answered("no"), out)
+
+    def test_stdin_closed_at_the_prompt_names_itself(self) -> None:
+        out = self._declined(EOT)
+        self.assertIn(DRIFT_DECLINE_STDIN_CLOSED, out)
 
 
 class SandboxUnavailableTest(_AdmissionFixture):
@@ -415,6 +546,41 @@ class SandboxUnavailableTest(_AdmissionFixture):
         self.assertIn(SANDBOX_MARKER, out)
         self.assertIn(self.composed(tarball, "lib/b.txt", tail=" --no-sandbox"),
                       out)
+
+    # -- the decline names its cause (board 89) ---------------------------
+
+    def _declined(self, answers: str):
+        sid = self.pack_src_forecast()
+        tarball = self._in_forecast_response(sid)
+        self.break_sandbox()
+        code, out = run_bale_pty(self.install, ["apply", str(tarball)],
+                                 cwd=self.repo, env=self.env,
+                                 answers=answers)
+        self.assertNotEqual(code, 0, msg=out)
+        self.assertIn("run this attempt unconfined? [y/N]", out)
+        self.assertIn(SANDBOX_MARKER, out)
+        self.assertRegex(out, r"admission prompt:\s+declined")
+        line = self.composed(tarball, tail=" --no-sandbox")
+        self.assertIn(line, out)
+        self.assertIn("[bale] error: sandbox unavailable on this host", out,
+                      msg="the fail() posture and remedy are unchanged")
+        self.assertNotIn(SANDBOX_DECLINE_BARE, out,
+                         msg="the cause-less line must not survive")
+        self.assertIn(sid, self.open_sids())
+        self.assertEqual(self.latest_attempt(sid)["outcome"], "rejected")
+        return out
+
+    def test_enter_names_the_empty_answer(self) -> None:
+        out = self._declined("\n")
+        self.assertIn(SANDBOX_DECLINE_EMPTY, out)
+
+    def test_n_is_quoted_back(self) -> None:
+        out = self._declined("n\n")
+        self.assertIn(sandbox_decline_answered("n"), out)
+
+    def test_stdin_closed_at_the_prompt_names_itself(self) -> None:
+        out = self._declined(EOT)
+        self.assertIn(SANDBOX_DECLINE_STDIN_CLOSED, out)
 
 
 if __name__ == "__main__":

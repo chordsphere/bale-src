@@ -101,6 +101,26 @@ from harness import (
 ORIGINAL_HELLO = "hello\n"
 ORIGINAL_OTHER = "other\n"
 
+# The bare-apply confirmation's decline lines (v0.4.31, board 89;
+# bale_apply.BARE_APPLY_DECLINE_LINES), verbatim: the cause parenthetical
+# is the only addition to the fail() line the prompt always exited
+# through, and the cause-less form must not survive. ^D at the start of
+# a line under the pty makes input() raise EOFError — the "stdin
+# closed" branch at a TTY prompt.
+EOT = "\x04"
+BARE_DECLINE_CAUSELESS = "bare apply declined at the confirmation; nothing"
+BARE_DECLINE_STDIN_CLOSED = (
+    "bare apply declined at the confirmation (stdin closed or interrupted); "
+    "nothing applied.")
+BARE_DECLINE_EMPTY = (
+    "bare apply declined at the confirmation (empty answer at a decline "
+    "default); nothing applied.")
+
+
+def bare_decline_answered(answer: str) -> str:
+    return (f"bare apply declined at the confirmation (answered '{answer}'); "
+            f"nothing applied.")
+
 # bin/ on sys.path for the pure-helper unit test below (the same
 # sys.path tweak the harness's consumers of bin/ modules use).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bin"))
@@ -925,6 +945,47 @@ class BareApplyResolutionTest(unittest.TestCase):
                          msg=f"decline must refuse; output:\n{output}")
         self.assertIn("declined", output)
         self.assert_nothing_applied(sid)
+
+    # -- the decline names its cause (v0.4.31, board 89) ------------------
+
+    def _bare_declined(self, answers: str) -> str:
+        """Drive the confirmation to a decline and assert the posture
+        that predates the cause: exit 1 through fail(), the explicit-
+        form remedy, nothing applied, the session open, and the
+        pre-board-89 cause-less line gone."""
+        sid = self.pack_session("bare-cause")
+        self.deliver_response(sid, "sole-delivery", b"declined content\n")
+        exit_code, output = run_bale_pty(
+            self.install, ["apply"], cwd=self.repo, env=self.env,
+            answers=answers)
+        self.assertEqual(exit_code, 1,
+                         msg=f"decline must refuse; output:\n{output}")
+        self.assertIn(f"Apply this tarball against session {sid}? [y/N]",
+                      output)
+        self.assertIn("[bale] error: bare apply declined at the "
+                      "confirmation (", output)
+        self.assertIn("nothing applied. Name the tarball explicitly if the "
+                      "resolution picked the wrong file: bale apply <path>.",
+                      output)
+        self.assertNotIn(BARE_DECLINE_CAUSELESS, output)
+        self.assert_nothing_applied(sid)
+        return output
+
+    def test_bare_enter_at_the_decline_default_names_itself(self) -> None:
+        output = self._bare_declined("\n")
+        self.assertIn(BARE_DECLINE_EMPTY, output)
+
+    def test_bare_n_is_quoted_back(self) -> None:
+        output = self._bare_declined("n\n")
+        self.assertIn(bare_decline_answered("n"), output)
+
+    def test_bare_stray_answer_is_quoted_back_stripped_and_lowercased(self) -> None:
+        output = self._bare_declined("  NO \n")
+        self.assertIn(bare_decline_answered("no"), output)
+
+    def test_bare_stdin_closed_at_the_prompt_names_itself(self) -> None:
+        output = self._bare_declined(EOT)
+        self.assertIn(BARE_DECLINE_STDIN_CLOSED, output)
 
     # -- the refusal surface (piped: decline default, no prompt) ---------
 

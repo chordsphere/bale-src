@@ -2768,11 +2768,11 @@ def _cmd_config_init_global() -> int:
 # --json follows the process-wide stream discipline bale_report owns
 # (enable_json_mode / emit_json_line): stdout carries exactly the one
 # report line, everything else — the `[bale] ` trail and the human block
-# — goes to stderr. The renderer lives here rather than beside its
-# siblings in bale_report because that module is another open session's
-# forecast this sitting; the key vocabulary matches theirs (outcome
-# first, then version) and follows the same stability rule: existing
-# keys are never renamed or removed, new keys may be added.
+# — goes to stderr. The renderer (bale_report.format_config_hooks_json)
+# lives beside its siblings since v0.4.31 (board 89) — it sat here for
+# one release only because bale_report was another open session's
+# forecast the sitting it landed; the outcome vocabulary below stays
+# here, with the verb that speaks it.
 
 # Outcome vocabulary for the --json report, and for the human block's
 # verb. Error paths exit through fail() (stderr, non-zero, nothing on
@@ -2806,35 +2806,6 @@ def _acceptance_entries_sorted(data: dict) -> list[dict]:
     views = [_acceptance_entry_view(k, v) for k, v in data.items()]
     views.sort(key=lambda e: (e["accepted_at"] or "", e["sha256"]))
     return views
-
-
-def format_config_hooks_json(*, outcome: str, version: str, store: Path,
-                             entries: list[dict],
-                             forgotten: Optional[dict]) -> str:
-    """Render the `bale config hooks --json` report as ONE line of JSON.
-
-      outcome    "listed" or "forgotten" (see the constants above).
-      version    the bale VERSION string.
-      store      absolute path of the acceptance store file.
-      exists     whether the file was present (false reads as "nothing
-                 accepted yet"; a malformed file is exists=true with
-                 entries=[] and a `[bale] ` warning on stderr).
-      entries    every entry the store holds AFTER this run — the whole
-                 store on a list, the survivors on a forget — each an
-                 object: sha256, script, hook, layer, accepted_at (null
-                 when the field is absent), malformed (bool).
-      forgotten  null on a list; on a forget, the removed entry in the
-                 same object shape.
-    """
-    payload = {
-        "outcome": outcome,
-        "version": version,
-        "store": str(store),
-        "exists": store.is_file(),
-        "entries": entries,
-        "forgotten": forgotten,
-    }
-    return json.dumps(payload)
 
 
 def _print_acceptance_listing(store: Path, entries: list[dict]) -> None:
@@ -2934,7 +2905,7 @@ def cmd_config_hooks(args: argparse.Namespace) -> int:
     _print_acceptance_listing(store, entries)
 
     if getattr(args, "json", False):
-        bale_report.emit_json_line(format_config_hooks_json(
+        bale_report.emit_json_line(bale_report.format_config_hooks_json(
             outcome=(CONFIG_HOOKS_OUTCOME_FORGOTTEN if forgotten is not None
                      else CONFIG_HOOKS_OUTCOME_LISTED),
             version=VERSION, store=store, entries=entries,

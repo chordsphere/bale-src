@@ -395,7 +395,8 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
     re-peeks the tarball's responds_to to pick the session log and the
     locked sid (defense in depth: the same fact this scan matched on).
     """
-    from __main__ import confirm_yn, fail, log, open_sessions
+    from __main__ import confirm_yn_decision, fail, log, open_sessions
+    from bale_report import format_decline_line  # lazy — see module docstring
 
     no_interact, no_interact_source = resolve_no_interact(
         repo, cfg, args.no_interact)
@@ -568,12 +569,12 @@ def resolve_bare_apply_tarball(repo: Path, cwd: Path, cfg: dict,
             f"resolution guess silently. Name the tarball explicitly to "
             f"apply without the prompt: bale apply {tarball_path}"
         )
-    if not confirm_yn(f"Apply this tarball against session {sid}?"):
-        fail(
-            "bare apply declined at the confirmation; nothing applied. "
-            "Name the tarball explicitly if the resolution picked the "
-            "wrong file: bale apply <path>."
-        )
+    decision = confirm_yn_decision(
+        f"Apply this tarball against session {sid}?")
+    if not decision.accepted:
+        # One of three fixed lines (BARE_APPLY_DECLINE_LINES), through
+        # fail() as before: the cause is the only addition.
+        fail(format_decline_line(BARE_APPLY_DECLINE_LINES, decision))
     return tarball_path
 
 
@@ -1228,6 +1229,69 @@ def base_tree_sha256(repo: Path, base_sha: str, path: str) -> Optional[str]:
 # 2. Apply: pipeline
 # ---------------------------------------------------------------------------
 
+# Decline lines for this module's three admission prompts (v0.4.31,
+# board 89): the bare-apply confirmation, the per-path own-forecast
+# drift admission, and the sandbox-unavailable admission. Every y/N has
+# the same three silent branches — stdin closed or interrupted, an empty
+# answer at a decline default, an answer actually typed — and since
+# board 83 (bin/bale's run_hook, HOOK_DECLINE_LINES) a decline names
+# which one it was, so "I pressed Enter and nothing happened" is
+# answerable from the terminal line alone. Same shape as the hook's
+# table: one FULL line per branch, held literally here (never assembled
+# from a cause phrase at runtime, so each line greps in this file),
+# keyed by the branch names bin/bale's ConfirmDecision.decline_branch
+# returns (mirrored in bale_report.CONFIRM_DECLINE_BRANCHES; the parity
+# test pins the three homes together). The `answered` line quotes the
+# operator's stripped, lowercased answer in explicit single quotes.
+# Rendered by bale_report.format_decline_line at each prompt.
+#
+# The bare-apply lines are fail() messages: the decline keeps exiting
+# through fail() (exit 1, stderr, the explicit-form remedy) exactly as
+# it did before the cause was threaded through.
+BARE_APPLY_DECLINE_LINES = {
+    "stdin_closed":
+        "bare apply declined at the confirmation (stdin closed or "
+        "interrupted); nothing applied. Name the tarball explicitly if "
+        "the resolution picked the wrong file: bale apply <path>.",
+    "empty_at_decline_default":
+        "bare apply declined at the confirmation (empty answer at a "
+        "decline default); nothing applied. Name the tarball explicitly "
+        "if the resolution picked the wrong file: bale apply <path>.",
+    "answered":
+        "bare apply declined at the confirmation (answered '{answer}'); "
+        "nothing applied. Name the tarball explicitly if the resolution "
+        "picked the wrong file: bale apply <path>.",
+}
+
+# `{path}` is the drifted path the prompt was asking about when it
+# declined; the tail is the line the drift refusal has always logged.
+DRIFT_ADMISSION_DECLINE_LINES = {
+    "stdin_closed":
+        "admission prompt declined at {path} (stdin closed or "
+        "interrupted); nothing admitted at the prompt, nothing lands "
+        "partially",
+    "empty_at_decline_default":
+        "admission prompt declined at {path} (empty answer at a decline "
+        "default); nothing admitted at the prompt, nothing lands "
+        "partially",
+    "answered":
+        "admission prompt declined at {path} (answered '{answer}'); "
+        "nothing admitted at the prompt, nothing lands partially",
+}
+
+SANDBOX_ADMISSION_DECLINE_LINES = {
+    "stdin_closed":
+        "sandbox admission prompt declined (stdin closed or interrupted); "
+        "nothing staged, nothing ran",
+    "empty_at_decline_default":
+        "sandbox admission prompt declined (empty answer at a decline "
+        "default); nothing staged, nothing ran",
+    "answered":
+        "sandbox admission prompt declined (answered '{answer}'); nothing "
+        "staged, nothing ran",
+}
+
+
 def admission_prompt_allowed(*, dry_run: bool, no_interact: bool,
                              no_interact_source: str = "",
                              json_output: bool,
@@ -1411,7 +1475,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     print the same composed shape since v0.4.29 (board 81) — every
     carried flag plus theirs, one value per drifted path or missing
     name — but offer no prompt, by desk ruling: their admission door is
-    the pasted line only.
+    the pasted line only. Since v0.4.31 (board 89) one rule binds all
+    three composed lines: every typed admission value rides verbatim
+    (the drift line used to drop a typed path that matched no drift),
+    and every admission y/N — the two here and the bare-apply
+    confirmation — names its decline cause from a table of three
+    literal lines (the *_DECLINE_LINES constants above the pipeline).
 
     The flag's "deliberately no config key" clause was superseded at
     v0.4.26 (board 75): bale.toml's project-layer `[sandbox] enabled =
@@ -1457,7 +1526,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         _discard_hold_state,
         acquire_integration_lock,
         close_session,
-        confirm_yn,
+        confirm_yn_decision,
         current_branch,
         fail,
         git,
@@ -1490,6 +1559,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_apply_json,
         format_base_drift_refusal,
         format_checkpoint_stamp_refusal,
+        format_decline_line,
         format_dry_run_report,
         format_required_check_refusal,
         format_sandbox_unavailable_refusal,
@@ -1724,14 +1794,21 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         refused_paths = [p for p in drift_paths if p not in allow_norm]
         unused_allow = [p for p in allow_norm if p not in drift_paths]
         # The composed re-run every refusal below prints (v0.4.27): the
-        # real filename, one --allow-out-of-scope per drifted path —
-        # admitted and refused alike, so the operator deletes a flag
-        # rather than remembers one — and every admission flag this
-        # invocation already carried. Built once so the TTY-declined
-        # face and the non-TTY face print the identical line.
+        # real filename, every admission flag this invocation already
+        # carried, and one --allow-out-of-scope per value — every path
+        # the operator typed (normalized, as this gate compared them;
+        # v0.4.31, board 89: the desk's one rule for all three composed
+        # lines, matching the row-81 required-check and base-drift
+        # lines) FIRST, then every drifted path, admitted and refused
+        # alike, so the operator deletes a flag rather than remembers
+        # one. A typed path that matched no drift used to be dropped
+        # here, sending the operator back through a gate they had
+        # cleared. compose_admission_command dedups per flag. Built
+        # once so the TTY-declined face, the non-TTY face, and the
+        # json face (drift.remedy) print the identical line.
         drift_remedy = compose_admission_command(
             verb=invoked_by, tarball_name=tarball_path.name,
-            allow_out_of_scope=drift_paths,
+            allow_out_of_scope=[*allow_norm, *drift_paths],
             accept_base_drift=accept_base_drift or (),
             allow_missing_required_check=allow_missing_required_check or (),
             accept_checkpoint_change=accept_checkpoint_change,
@@ -1779,13 +1856,17 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                       f"ask (ADR-0015); admit each path or decline.")
                 print(f"  write forecast: {scope_shown}")
                 accepted: list[str] = []
+                decline = None
                 for path in refused_paths:
                     print()
                     print(f"  path:     {path}")
                     print(f"  reason:   {reasons.get(path) or '(none given)'}")
-                    if confirm_yn(f"  admit {path}?", default_no=True):
+                    decision = confirm_yn_decision(f"  admit {path}?",
+                                                   default_no=True)
+                    if decision.accepted:
                         accepted.append(path)
                     else:
+                        decline = decision
                         break
                 if len(accepted) == len(refused_paths):
                     for path in accepted:
@@ -1799,9 +1880,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     refused_paths = []
                 else:
                     declined_at_prompt = True
-                    log(f"admission prompt declined at {refused_paths[len(accepted)]}; "
-                        f"nothing admitted at the prompt, nothing lands "
-                        f"partially")
+                    # One of three fixed lines (DRIFT_ADMISSION_DECLINE_
+                    # LINES), naming the path the decline landed on and
+                    # why the prompt declined.
+                    log(format_decline_line(
+                        DRIFT_ADMISSION_DECLINE_LINES, decline,
+                        path=refused_paths[len(accepted)]))
             else:
                 log(f"admission prompt not offered ({prompt_closed}): "
                     f"the decline default applies to every drifted path")
@@ -2444,6 +2528,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     no_interact_source=no_interact_source,
                     json_output=json_mode())
                 admitted_unconfined = False
+                sandbox_decision = None
                 if prompt_ok:
                     print()
                     print("  The sandbox is unavailable on this host — the "
@@ -2455,8 +2540,9 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                           "privileges, inherited environment, network on "
                           "— for this invocation only (FORCE-logged; "
                           "sandbox_off_source: prompt is recorded).")
-                    admitted_unconfined = confirm_yn(
+                    sandbox_decision = confirm_yn_decision(
                         "  run this attempt unconfined?", default_no=True)
+                    admitted_unconfined = sandbox_decision.accepted
                 else:
                     log(f"sandbox admission prompt not offered "
                         f"({prompt_closed}): the decline default applies")
@@ -2472,8 +2558,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                         force=True)
                 else:
                     if prompt_ok:
-                        log("sandbox admission prompt declined; nothing "
-                            "staged, nothing ran")
+                        # One of three fixed lines (SANDBOX_ADMISSION_
+                        # DECLINE_LINES); the fail() below keeps its
+                        # remedy text unchanged.
+                        log(format_decline_line(
+                            SANDBOX_ADMISSION_DECLINE_LINES,
+                            sandbox_decision))
                     sandbox_remedy = compose_admission_command(
                         verb=invoked_by, tarball_name=tarball_path.name,
                         allow_out_of_scope=overridden_paths,

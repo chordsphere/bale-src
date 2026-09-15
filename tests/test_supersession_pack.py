@@ -55,6 +55,22 @@ PROMPT_MARKER = "Close open session"
 WIZARD_GOAL_MARKER = "Goal (one sentence)"
 UNLOCK_REMEDY = "bale unlock"
 
+# The exchange's decline lines (v0.4.31, board 89;
+# bale_pack.SUPERSESSION_DECLINE_LINES) — a TTY decline names its
+# cause; the piped path keeps the cause-less `declined; nothing closed`
+# beneath its no-prompt line. ^D at the start of a line under the pty
+# makes input() raise EOFError — the "stdin closed" branch at a TTY
+# prompt.
+EOT = "\x04"
+
+
+def supersession_declined(sid: str, cause: str) -> str:
+    return f"supersession of {sid} declined at the prompt ({cause}); nothing closed"
+
+
+def supersession_declined_causeless(sid: str) -> str:
+    return f"supersession of {sid} declined; nothing closed"
+
 
 class SupersessionPackTest(unittest.TestCase):
     """`bale pack --supersedes`: exchange, closure record, lineage, gate."""
@@ -375,6 +391,51 @@ class SupersessionPackTest(unittest.TestCase):
         self.assertNotIn("superseded_by", record["attempts"][0])
         self.assertIsNone(record["attempts"][0]["closure_reason"])
         self.assertEqual(self.open_sids(), [parent])
+
+    # -- the decline names its cause (v0.4.31, board 89) ------------------
+
+    def _pty_declined(self, answers: str):
+        """A fully specified --supersedes pack whose exchange declines
+        at the TTY: the pack refuses at the gate as before, the parent
+        stays open with its record untouched, and the cause-less line
+        is gone from the TTY path."""
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers=answers)
+        self.assertNotEqual(code, 0, msg=output)
+        self.assertIn(PROMPT_MARKER, output)
+        self.assertIn(INTERSECT_MARKER, output)
+        self.assertNotIn(supersession_declined_causeless(parent), output)
+        self.assertEqual(self.open_sids(), [parent])
+        record = self.telemetry_record(parent)
+        self.assertEqual(len(record["attempts"]), 1)
+        self.assertEqual(record["attempts"][0]["outcome"], "opened")
+        return parent, output
+
+    def test_pty_enter_at_the_decline_default_names_itself(self) -> None:
+        parent, output = self._pty_declined("\n")
+        self.assertIn(supersession_declined(
+            parent, "empty answer at a decline default"), output)
+
+    def test_pty_n_is_quoted_back(self) -> None:
+        parent, output = self._pty_declined("n\n")
+        self.assertIn(supersession_declined(parent, "answered 'n'"), output)
+
+    def test_pty_stdin_closed_at_the_prompt_names_itself(self) -> None:
+        parent, output = self._pty_declined(EOT)
+        self.assertIn(supersession_declined(
+            parent, "stdin closed or interrupted"), output)
+
+    def test_piped_decline_keeps_the_causeless_line(self) -> None:
+        """No prompt ran, so there is no branch to name: the piped path
+        logs its no-prompt line and the plain decline beneath it."""
+        parent = self.open_parent()
+        result = self.pack("--supersedes", parent, slug="child")
+        self.assertNotEqual(result.returncode, 0)
+        combined = result.stdout + result.stderr
+        self.assertIn(DECLINE_DEFAULT_MARKER, combined)
+        self.assertIn(supersession_declined_causeless(parent), combined)
+        self.assertNotIn("declined at the prompt (", combined)
 
     def test_idempotent_rerun_restamps_single_key(self) -> None:
         """The re-run of an aborted supersession pack re-stamps the same
