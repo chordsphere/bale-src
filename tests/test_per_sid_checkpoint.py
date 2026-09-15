@@ -35,7 +35,7 @@ observable state, never golden comparisons):
   --accept-checkpoint-change admits it).
 
 Sid prediction note: the pack-refusal and happy-path fixtures commit a
-checkpoint at the path the NEXT pack will resolve — date.today() +
+checkpoint at the path the NEXT pack will resolve — the UTC date (0.4.30) +
 slug + the fresh repo's counter — which is exactly the planner's own
 workflow under {sid}. A midnight rollover between the prediction and
 the pack would desync them; the suites already embed same-day
@@ -58,10 +58,17 @@ import json
 import sys
 import tempfile
 import unittest
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 
-from harness import (
+
+
+def utc_today() -> str:
+    """The UTC calendar date, ISO — the sid mint clock (0.4.30)."""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+from harness import (  # noqa: E402 — helper above is date-only, harness-free
     bale_env,
     build_response_dir,
     git_env,
@@ -174,9 +181,10 @@ class PerSidFixture(unittest.TestCase):
             f"[validation]\nbase = \"{value}\"\n", encoding="utf-8")
 
     def predicted_sid(self, slug: str, nnn: int = 1) -> str:
-        """The sid the next pack will mint: today + slug + the counter.
-        Mirrors the planner's own prediction workflow under {sid}."""
-        return f"{date.today().isoformat()}-{slug}-{nnn:03d}"
+        """The sid the next pack will mint: the UTC date + slug + the
+        counter. Mirrors the planner's own prediction workflow under
+        {sid}; the clock is UTC since 0.4.30 (TARBALL.md section 1)."""
+        return f"{utc_today()}-{slug}-{nnn:03d}"
 
     def commit_files(self, files: dict, message: str) -> dict:
         """Write and commit `files` ({relpath: text}); return
@@ -302,7 +310,7 @@ class PerSidCheckpointE2ETest(PerSidFixture):
                          msg="the refusal is pre-allocation: no session")
         self.assertFalse(
             (self.repo / ".bale" /
-             f"counter-{date.today().isoformat()}").exists(),
+             f"counter-{utc_today()}").exists(),
             msg="the per-day counter was not consumed by the refusal")
 
         # The remedy loop converges: commit exactly what was named,

@@ -59,7 +59,15 @@ if it doesn't describe this session, the section stays unread.
 
 - **Session IDs.** `YYYY-MM-DD-<slug>-NNN`, e.g.
   `2026-05-12-vue-scaffold-001`. The slug is short and kebab-cased.
-  NNN is a per-day monotonic counter maintained by bale.
+  NNN is a per-day monotonic counter maintained by bale, where the
+  day is the UTC day — the date is minted on the same clock as
+  every timestamp bale writes, never the packing machine's local
+  date. The request manifest's `provenance.packed_at` records the
+  pack instant on that clock, and the emitted session opener names
+  it. The chat interface shows its own date, the operator's local
+  calendar day, which the session id and the tarball's timestamps
+  may run a day ahead of.
+- **The clock.** Every date bale mints — the session id, its per-day counter, a handoff re-mint — and every timestamp it writes are UTC; a session dates what it writes from the session id, never from the date its chat shows.
 - **Artifact directories.** `request-NNN/` and `response-NNN/` use
   the same NNN as the session ID, zero-padded to three digits. A
   response is numbered to match the request it answers. Probes
@@ -1196,7 +1204,11 @@ context/
 ```
 
 The contents of `context/` are whatever the user named in the pack
-request.
+request. A request path context/<p> is the repo path <p>: the prefix is tarball layout, and nothing in a response — no changes[] path, no self-report — carries it. The manifest's `context_included`
+spells the tarball path; its `resolved_scope` and
+`provenance.base_files`, and every response `changes[]` path, spell
+the repo path. `tools/response_lint.py` flags a `changes[]` path or a
+`docs_read` entry that carries the prefix at the §10.1 self-check.
 
 Schema files in `context/` may be partial extracts when the full file
 isn't relevant — pull only the sections touched by the session, and

@@ -546,8 +546,27 @@ def sha256_bytes(b: bytes) -> str:
 # where NNN is a per-day monotonic counter maintained in
 # .bale/counter-YYYY-MM-DD.
 
+#
+# The clock (board 94, v0.4.30): the date is the UTC date — the same
+# clock every ISO timestamp bale writes already uses
+# (datetime.now(timezone.utc)) — never the packing machine's local
+# date. Before this, date.today() minted the sid on the local clock
+# while created_at/preserved_at/acquired_at rode UTC, so on a non-UTC
+# machine a sid, its counter file, and the tarball's own timestamps
+# could disagree on the day for hours every evening. utc_today() is the
+# one source both mint sites default to; a caller that already holds
+# the pack instant passes today= from it so the sid's date and the
+# provenance.packed_at stamp agree by construction (bin/bale_pack.py's
+# build_provenance_block), not by luck at a UTC-midnight boundary.
+
+def utc_today() -> date:
+    """The UTC calendar date right now — the mint clock for session ids
+    and their per-day counter files (TARBALL.md section 1)."""
+    return datetime.now(timezone.utc).date()
+
+
 def next_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
-    today = today or date.today()
+    today = today or utc_today()
     day = today.isoformat()
     counter_path = repo / ".bale" / f"counter-{day}"
     counter_path.parent.mkdir(parents=True, exist_ok=True)
@@ -578,7 +597,7 @@ def peek_session_id(repo: Path, slug: str, today: Optional[date] = None) -> str:
     allocate would desync the pair, which the provenance stamp
     builder's post-allocation re-check catches as defense in depth.
     """
-    today = today or date.today()
+    today = today or utc_today()
     day = today.isoformat()
     counter_path = repo / ".bale" / f"counter-{day}"
     n = 1
@@ -3824,9 +3843,15 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # gates) so the per-day counter doesn't burn an NNN on a pack
         # that was about to fail anyway. Same staging-then-allocate
         # ordering `bale pack` uses.
-        new_sid = next_session_id(repo, slug)
+        # One clock instant per request (board 94, v0.4.30): the sid's
+        # date and the provenance.packed_at stamp are read from the same
+        # UTC instant, so the two can never straddle a UTC midnight.
+        pack_clock = datetime.now(timezone.utc)
+        new_sid = next_session_id(repo, slug, today=pack_clock.date())
         set_log_file(repo / ".bale" / "logs" / f"{new_sid}.log")
         log(f"handoff from bailout {bailout_sid} -> new session {new_sid}")
+        log(f"pack clock: {pack_clock.isoformat(timespec='seconds')} "
+            f"(UTC; the sid's date is this instant's date)")
         log(f"inherited goal from request {responds_to_sid}")
         # Forecast provenance (v0.4.28): which branch of the resolution
         # above produced the recorded forecast, journaled so an
@@ -3909,6 +3934,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             provenance=build_provenance_block(
                 repo,
                 sid=new_sid,
+                packed_at=pack_clock,
                 checkpoint_scope_admitted=checkpoint_scope_admitted,
                 checkpoint_waived=not handoff_scope,
                 # The base-drift stamp (board 41): handoff is the second

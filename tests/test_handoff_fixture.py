@@ -278,13 +278,16 @@ class HandoffFixture(unittest.TestCase):
         return json.loads(p.read_text(encoding="utf-8"))
 
     def peeked_sid(self, slug: str = SLUG) -> str:
-        """The sid the next allocation WOULD take: today's date, `slug`,
+        """The sid the next allocation WOULD take: the UTC date, `slug`,
         the per-day counter plus one. Mirrors bin/bale's
         peek_session_id (read from the counter file rather than
         imported, so the test never loads the repo's bin/ into the
         test process — the install under test is the scratch copy).
+        The date is the UTC date, the clock the mint uses since
+        0.4.30 (TARBALL.md section 1) — a local-date prediction flakes
+        for hours a night on any non-UTC machine.
         """
-        day = datetime.date.today().isoformat()
+        day = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
         counter = self.repo / ".bale" / f"counter-{day}"
         n = 1
         if counter.exists():

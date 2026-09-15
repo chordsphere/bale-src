@@ -21,6 +21,10 @@ Pinned behaviors:
 - **--json interplay**: stdout keeps its one-JSON-line contract; the
   opener rides stderr (json-mode stream discipline) and still ends
   the run there.
+- **Clock carriage** (board 94, 0.4.30): the block carries the pack
+  instant on its own line — the same string the request manifest's
+  provenance.packed_at stamps — and the VERBATIM clock sentence on its
+  own line, with the goal line's single-line carriage untouched.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness
 in ``tests/harness.py`` carries it; see its module docstring.
@@ -35,6 +39,7 @@ or via ``python3 -m unittest discover -s tests``.
 from __future__ import annotations
 
 import json
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -58,6 +63,16 @@ OPENER_BEGIN = (
 )
 OPENER_END = "--8<-- end session opener --8<--"
 GOAL_LINE_PREFIX = "Goal, verbatim from the request manifest: "
+PACKED_LINE_PREFIX = "Packed at "
+PACKED_LINE_SUFFIX = " (UTC)."
+# VERBATIM (board 94): one emitted line, no placeholder inside it —
+# mirrors OPENER_CLOCK_SENTENCE in bin/bale_pack.py, restated so a
+# rewording of the emitted sentence breaks a test.
+CLOCK_SENTENCE = (
+    "Session ids and every bale timestamp are UTC and may run a day "
+    "ahead of the date this chat shows; date anything you write from "
+    "the session id, never from the chat."
+)
 READONLY_PHRASE = "read-only bale session"
 CLOSEOUT_MARKER = "Read-only session close-out"
 
@@ -160,6 +175,58 @@ class PackOpenerBase(unittest.TestCase):
         # Single-line carriage: the whole goal rides that one line,
         # unwrapped — a hard wrap would break verbatim substring match.
         self.assertEqual(goal_lines[0], GOAL_LINE_PREFIX + GOAL)
+
+    # -- pinned behavior 5: clock carriage (board 94) --------------------
+
+    def packed_at_of(self, tarball: Path) -> str:
+        """provenance.packed_at as the packed request manifest stamps it."""
+        with tarfile.open(tarball) as tf:
+            member = next(m for m in tf.getmembers()
+                          if m.name.endswith("/manifest.json"))
+            manifest = json.load(tf.extractfile(member))
+        return manifest["provenance"]["packed_at"]
+
+    def test_opener_carries_pack_time_and_clock_sentence(self) -> None:
+        """Two lines ride between the identity and the goal: the pack
+        instant (verbatim the manifest's packed_at) and the clock
+        sentence, each one emitted line; the goal line is untouched."""
+        result = self.pack("--json", slug="opener-clock")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[0])
+        packed_at = self.packed_at_of(Path(payload["tarball"]))
+        segment = self.opener_segment(result.stderr)
+        lines = segment.splitlines()
+        packed_lines = [ln for ln in lines
+                        if ln.startswith(PACKED_LINE_PREFIX)]
+        self.assertEqual(len(packed_lines), 1,
+                         msg=f"exactly one pack-time line expected:\n{segment}")
+        self.assertEqual(
+            packed_lines[0],
+            f"{PACKED_LINE_PREFIX}{packed_at}{PACKED_LINE_SUFFIX}",
+            msg="the opener names the very instant provenance stamps")
+        self.assertEqual(
+            lines.count(CLOCK_SENTENCE), 1,
+            msg=f"the clock sentence must ride as one verbatim line:\n{segment}")
+        goal_lines = [ln for ln in lines if ln.startswith(GOAL_LINE_PREFIX)]
+        self.assertEqual(goal_lines, [GOAL_LINE_PREFIX + GOAL],
+                         msg="the goal line's single-line carriage is untouched")
+        # Order: identity, pack time, clock sentence, goal.
+        sid_at = next(i for i, ln in enumerate(lines)
+                      if payload["sid"] in ln)
+        self.assertLess(sid_at, lines.index(packed_lines[0]))
+        self.assertLess(lines.index(packed_lines[0]),
+                        lines.index(CLOCK_SENTENCE))
+        self.assertLess(lines.index(CLOCK_SENTENCE),
+                        lines.index(goal_lines[0]))
+
+    def test_read_only_opener_carries_the_clock_too(self) -> None:
+        """The read-only shape emits the same two lines."""
+        result = self.pack("--read-only", slug="opener-ro-clock")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        segment = self.opener_segment(result.stdout)
+        self.assertIn(CLOCK_SENTENCE, segment.splitlines())
+        self.assertTrue(any(ln.startswith(PACKED_LINE_PREFIX)
+                            for ln in segment.splitlines()))
 
     # -- pinned behavior 3: every shape ----------------------------------
 
