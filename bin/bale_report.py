@@ -1049,16 +1049,31 @@ def format_checkpoint_scope_refusal(*, checkpoint_path: str,
     no session, no override.
 
     `caller` (v0.3.34) picks the narrowing-remedy sentence only —
-    "pack" (default) or "handoff" (since v0.4.28 a handoff's forecast
+    "pack" (default) or "handoff" — and the sentence is keyed on the
+    side that fired, per caller (v0.4.32, board 101; until then the
+    handoff branch was chosen before `side` was consulted, so a
+    handoff's read-side refusal offered the forecast-side `--write`
+    lever). Handoff, forecast side: since v0.4.28 a handoff's forecast
     is inherited from the bailed-on session or declared by its own
-    --write, so --write is its lever and the reading plan is not).
-    Within a side, the diagnosis, the
-    sanctioned-ordinary-path reminder, and the flag-successor lines
-    stay byte-shared between callers by ratified constraint — only the
-    one sentence swaps.
+    --write, so --write is its lever and the reading plan is not.
+    Handoff, read side: the read set IS the bailout's reading plan
+    (the bailed session's handoff.md), which `bale handoff` takes as
+    read includes and no flag on this command reshapes — so the read
+    fix is a reading plan that does not name the oracle, or the
+    admission flag; --write moves nothing on this side and is not
+    offered. Within a side, the diagnosis, the sanctioned-ordinary-path
+    reminder, and the flag-successor lines stay byte-shared between
+    callers by ratified constraint — only the one sentence swaps.
     """
     rendered_scope = ", ".join(scope) if scope else "(empty)"
-    if caller == "handoff":
+    if caller == "handoff" and side == "read":
+        narrowing_remedy = ("re-bail with a reading plan that does not "
+                            "name the checkpoint (a handoff's read set "
+                            "is the bailout's reading plan, which "
+                            "`bale handoff` ships as includes; --write "
+                            "moves the forecast, not the reads, so it is "
+                            "not the lever here)")
+    elif caller == "handoff":
         narrowing_remedy = ("re-run this handoff with --write paths that "
                             "do not cover the checkpoint (a handoff "
                             "without --write inherits the bailed-on "
