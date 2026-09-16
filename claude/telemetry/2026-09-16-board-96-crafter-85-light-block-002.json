@@ -1,0 +1,279 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-16-board-96-crafter-85-light-block-002",
+  "created_at": "2026-09-16T17:57:17+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-16T17:57:17+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-16-board-96-crafter-85-light-block-002.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-16T18:41:22+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-board-96-crafter-85-light-block-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_response_lint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc-pin suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "light-block render equals TARBALL.md 5.10 example bytes": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "light-block refusals (count, line break, --round, --sid, exclusions)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint embed byte-identical to response-manifest.schema.json": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "self_reported counts optional non-negative integers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md riders (5.2.2 sentence and counts, 5.10, 10.4 step 2)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "stem clock line whole in --help and the docstring": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint docstrings name the --request provenance seed": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_response_lint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc-pin suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "light-block render equals TARBALL.md 5.10 example bytes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "light-block refusals (count, line break, --round, --sid, exclusions)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint embed byte-identical to response-manifest.schema.json": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "self_reported counts optional non-negative integers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md riders (5.2.2 sentence and counts, 5.10, 10.4 step 2)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stem clock line whole in --help and the docstring": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint docstrings name the --request provenance seed": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md",
+        "schemas/response-manifest.schema.json",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tests/test_schema_embeds.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.33",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "1269b55f64e58dfa9b40e16fce89dfe129e3396987ef856522136b8bdf61e081",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-board-96-crafter-85-light-block-002.sh",
+              "sha256": "58f253e8e6cd01980254b924baf13d14c9c3f6a84967442b8adf9c42ca7db206"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T17:57:17+00:00",
+            "base_files": {
+              "docs/TARBALL.md": "1269b55f64e58dfa9b40e16fce89dfe129e3396987ef856522136b8bdf61e081",
+              "schemas/response-manifest.schema.json": "cd541947ba3d55ae0bffd7cb4cd57b8920e63c40763e95fa4b96d258f5ce0a7b",
+              "tests/test_craft_response.py": "5d6c25489571a126cb49b8b549ca84d2d8fa8306d71cd36142df919ab39d3646",
+              "tests/test_response_lint.py": "75e6105430d25f43427900a2989337e9d4d1b273c8fc832f6381a7848eb8a404",
+              "tests/test_schema_embeds.py": "c12a192d8aa32dd1e5b1b980a6d5b51d956a8008b24ae5589f8d6b73707811bb",
+              "tools/craft_response.py": "18f7af85a00addf121839de70173d2188682ca715f73b5ef3cb56dbda788846d",
+              "tools/response_lint.py": "9e04180861905855b6c80e053173870c07d878bde69872530fff409de37bb1e3"
+            },
+            "model_identity": "Claude Opus 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Apply's pre-flight validates this manifest against the installed response schema (bin/bale_validate.py SCHEMAS_DIR), so the new self_reported keys would refuse until this lands.",
+            "The brief's 'four doc-pin suites' are test_doc_crossrefs, test_global_doc_selfcontainment, test_sanctioned_pairs, and test_clock_discipline; the full suite covered any other reading."
+          ],
+          "judgment_calls": [
+            "Omitted light_blocks (honest value 1) and paste_carried_rounds (0) from this manifest to avoid a one-apply-behind pre-flight refusal; values recorded in notes.md.",
+            "--light-block accepts only a clarification manifest; an exchange record refuses (a light block opens no thread).",
+            "Optional row keys (options, recommendation, priority, origin) never render in the light block; stderr names the rows carrying them.",
+            "A help-formatter subclass keeps the verbatim stem clock sentence whole in --help at any COLUMNS, via argparse's _split_lines hook.",
+            "The \u00a75.2.2 rider sentence landed without code-span backticks so the whitespace-collapsed verbatim match holds.",
+            "Dropped 'today' from \u00a75.10's opening paragraph, which contradicted the new sentence naming the render.",
+            "Fixed the crafter's stale response-dir messages to list all four no-dir modes.",
+            "Kept test_schema_embeds' JSON-level equality doctrine; byte identity of the embed is asserted in validation.sh."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "repo-root bale.toml (three test_include_group tests read it; absent from the request's context/)"
+          ],
+          "docs_read": [
+            "CLAUDE.md META through 11.2",
+            "TARBALL.md sections 1, 2, 5, 7, 10",
+            "request README.md (brief)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-16-board-96-crafter-85-light-block-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-board-96-crafter-85-light-block-002.sh",
+          "sha256": "58f253e8e6cd01980254b924baf13d14c9c3f6a84967442b8adf9c42ca7db206"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-16T18:41:22+00:00",
+  "outcome": "applied"
+}
