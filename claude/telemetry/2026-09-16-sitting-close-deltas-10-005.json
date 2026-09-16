@@ -1,0 +1,238 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-16-sitting-close-deltas-10-005",
+  "created_at": "2026-09-16T19:20:06+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-16T19:20:06+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-16-sitting-close-deltas-10-005.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-16T19:38:56+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-sitting-close-deltas-10-005.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "block A: continue-plan-009 close block ends \u00a73": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block B: thirteen row growths land as each row's last content": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block B: rows 104-106 follow row 103": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block C: ruling queue, eleven registry brackets, seven new entries": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block D: two contracts follow the re-attempt contract": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block E: evidence entries 141-146 follow entry 140": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "block F: six lines follow the registry-riders line": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "continue-plan-009 sitting occurs once in \u00a73": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "insertions only against the base MASTER.md": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "block A: continue-plan-009 close block ends \u00a73": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block B: thirteen row growths land as each row's last content": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block B: rows 104-106 follow row 103": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block C: ruling queue, eleven registry brackets, seven new entries": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block D: two contracts follow the re-attempt contract": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block E: evidence entries 141-146 follow entry 140": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "block F: six lines follow the registry-riders line": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "continue-plan-009 sitting occurs once in \u00a73": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "insertions only against the base MASTER.md": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "block A: continue-plan-009 close block ends \u00a73",
+          "block B: thirteen row growths land as each row's last content",
+          "block B: rows 104-106 follow row 103",
+          "block C: ruling queue, eleven registry brackets, seven new entries",
+          "block D: two contracts follow the re-attempt contract",
+          "block E: evidence entries 141-146 follow entry 140",
+          "block F: six lines follow the registry-riders line",
+          "continue-plan-009 sitting occurs once in \u00a73",
+          "insertions only against the base MASTER.md"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.34",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "4a7a340919b1b44b5ae9e854537fa87340cd9e41858f8174e3a605b1daa31e7f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-sitting-close-deltas-10-005.sh",
+              "sha256": "8f9e0ca2cac75849904b3cbda8426aa3fcd8c98a5010b5bdc5fb31311d547f0a"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T19:20:06+00:00",
+            "base_files": {
+              "claude/MASTER.md": "39d4cdc0ca0adcadeeeb770a208f55bdf1bcf846006be662f12b1a0ee76d765d"
+            },
+            "model_identity": "claude-opus-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Blank-line separators between new board rows 104-106 and between evidence entries 141-146 follow the file's own numbered-item spacing; the brief's fences had none and its oracle collapses whitespace.",
+            "The Block A placeholder's parenthetical '(fill from your sid)' is an instruction and is removed with the <nnn> fill.",
+            "The inline registry brackets and ruling-queue entry are wrapped at 70 columns with the list's two-space indent; the ruling entry is a plain bullet as written."
+          ],
+          "judgment_calls": [
+            "Six brief-vs-source disagreements landed as written and named in notes.md (row 97's \u00a73.1 spelling, Block A's entry-143 cite, row 99's open-order cargo, row 106's one-file claim, row 82's four members, row 47 vs 106 on agreement).",
+            "validation.sh proves insertions-only against git HEAD when HEAD matches the base sha, and SKIPs with a reason otherwise.",
+            "The separate _section_29 renames registry entry is left unbracketed because the brief bracketed only the string-literal entry."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-16-sitting-close-deltas-10-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-sitting-close-deltas-10-005.sh",
+          "sha256": "8f9e0ca2cac75849904b3cbda8426aa3fcd8c98a5010b5bdc5fb31311d547f0a"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-16T19:38:56+00:00",
+  "outcome": "applied"
+}
