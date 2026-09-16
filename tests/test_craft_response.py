@@ -125,6 +125,21 @@ that named the extracted section by number are renamed to name their
 contract's current home (bin/bale_relay.py) — a grep of the shipped
 tree found no consumer selecting them by name.
 
+Session 2026-09-16-board-96-crafter-85-light-block-002 adds
+--light-block, the render over TARBALL.md 5.10's light question block.
+CraftLightBlock proves the render on one, two, and three rows with every
+row field present (the expected lines spelled out by hand, not rebuilt
+from the module's constants), the render of 5.10's own drawn example
+byte-equal to the doc's fence, the four-row refusal naming 5.10, --sid
+as an assertion and --round refusing by name, the exclusion list in
+both directions against --probe / --bundle / --emit-block and every
+response-directory flag, the input refusals (including a field value
+with a line break, which a one-line label cannot carry), and one row
+feeding either courier. CraftSelfReportedCountsUnseeded pins that the
+--request seed carries neither new self-reported count, and
+CraftBundleStemClockLine pins the stem clock sentence whole in --help
+at any width and in the module docstring.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -2507,6 +2522,412 @@ class CraftEmitBlock(unittest.TestCase):
         cp = run_craft("--emit-block", str(path), "--round", "0")
         self.assertEqual(cp.returncode, 2)
         self.assertIn("--round must be at least 1", cp.stderr)
+
+
+class CraftLightBlock(unittest.TestCase):
+    """--light-block through the CLI (TARBALL.md 5.10): the render on
+    one, two, and three rows with every field present, byte-pinned
+    against 5.10's own drawn example; the count refusal on four; --sid
+    as an assertion; --round refusing by name; the flag-exclusion
+    refusals in both directions; the input refusals; and the one-row-
+    feeds-either-courier property.
+
+    The expected render for the synthetic rows is spelled out line by
+    line here rather than recomputed from the module's constants — a
+    test that rebuilt the layout from LIGHT_LABELS would agree with any
+    layout the constants produced. The doc-example test is the other
+    anchor: it renders the rows 5.10 itself draws and compares against
+    the fenced bytes in docs/TARBALL.md, so the doc and the render
+    cannot drift apart without this suite naming it.
+    """
+
+    SID = "2026-09-16-light-fixture-002"
+
+    # One row per entry, each carrying every field a question row may
+    # hold — the four rendered fields and all four optional keys.
+    FULL_ROWS = [
+        {"question": "Seed the counts in the skeleton?",
+         "context": "extending the crafter's feedback stub",
+         "default_assumption": "no; absence is the honest default",
+         "why_blocked": "the brief says seed neither",
+         "options": ["seed neither", "seed zero"],
+         "recommendation": "seed neither",
+         "priority": "batched",
+         "origin": "intent-gap"},
+        {"question": "Name the flag --light-block?",
+         "context": "adding the CLI surface",
+         "default_assumption": "yes, as the brief spells it",
+         "why_blocked": "a rename would ripple into 5.10's sentence",
+         "options": ["--light-block"],
+         "recommendation": "--light-block",
+         "priority": "batched",
+         "origin": "intent-gap"},
+        {"question": "Refuse a fourth row with exit 2?",
+         "context": "enforcing the admission count",
+         "default_assumption": "yes, naming TARBALL.md 5.10",
+         "why_blocked": "exit 1 is reserved for findings",
+         "options": ["exit 2"],
+         "recommendation": "exit 2",
+         "priority": "blocking",
+         "origin": "probe-forbidden-environment"},
+    ]
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def _write(self, name: str, payload) -> Path:
+        path = self.tmp / name
+        path.write_text(json.dumps(payload, indent=2) + "\n",
+                        encoding="utf-8")
+        return path
+
+    def _manifest_file(self, rows: list[dict], sid: str | None = None
+                       ) -> Path:
+        return self._write("clar.json",
+                           clarification_manifest(sid or self.SID, rows))
+
+    @staticmethod
+    def _expected_entry(n: int, row: dict) -> list[str]:
+        return [
+            f"[{n}] question:     {row['question']}",
+            f"    while doing:  {row['context']}",
+            f"    would assume: {row['default_assumption']}",
+            f"    why blocked:  {row['why_blocked']}",
+        ]
+
+    def _expected_block(self, sid: str, rows: list[dict]) -> str:
+        lines = [f"=== LIGHT BEGIN {sid} ==="]
+        for n, row in enumerate(rows, 1):
+            lines.extend(self._expected_entry(n, row))
+        lines.append('Reply: answer inline, "as assumed", or "formal".')
+        lines.append(f"=== LIGHT END {sid} ===")
+        return "\n".join(lines) + "\n"
+
+    # -- the render -----------------------------------------------------
+
+    def test_renders_one_two_and_three_rows_with_every_field(self):
+        for count in (1, 2, 3):
+            with self.subTest(rows=count):
+                rows = self.FULL_ROWS[:count]
+                cp = run_craft("--light-block",
+                               str(self._manifest_file(rows)))
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertEqual(cp.stdout,
+                                 self._expected_block(self.SID, rows))
+                # stdout is the block and only the block.
+                self.assertNotIn("[craft]", cp.stdout)
+                # No integrity trailer (5.10's deliberate omission).
+                self.assertNotIn("sha256", cp.stdout)
+                # The optional keys never render, and the omission is
+                # said on stderr rather than silent.
+                for key in ("options", "recommendation", "priority",
+                            "origin"):
+                    self.assertNotIn(key, cp.stdout)
+                for i in range(count):
+                    self.assertIn(f"questions[{i}] carries options, "
+                                  "recommendation, priority, origin",
+                                  cp.stderr)
+                self.assertIn(f"{count} question(s)", cp.stderr)
+
+    def test_render_matches_the_tarball_5_10_example_bytes(self):
+        """Derive the rows from 5.10's fenced example, render them, and
+        compare against the fence's bytes. The parse reads only the
+        values after each label; the layout under test is the doc's."""
+        text = (REPO / "docs" / "TARBALL.md").read_text(encoding="utf-8")
+        section = text[text.index("### 5.10 The light question block"):]
+        fence_open = section.index("```\n=== LIGHT BEGIN ")
+        body_start = fence_open + len("```\n")
+        body_end = section.index("```", body_start)
+        doc_block = section[body_start:body_end]
+        lines = doc_block.splitlines()
+        sid = lines[0][len("=== LIGHT BEGIN "):-len(" ===")]
+        fields = {"question": "question", "while doing": "context",
+                  "would assume": "default_assumption",
+                  "why blocked": "why_blocked"}
+        rows: list[dict] = []
+        for line in lines[1:]:
+            stripped = line.strip()
+            if stripped.startswith("["):
+                rows.append({})
+                stripped = stripped.split("] ", 1)[1]
+            label, sep, value = stripped.partition(":")
+            if sep and label in fields:
+                rows[-1][fields[label]] = value.strip()
+        self.assertGreaterEqual(len(rows), 1, "5.10's example has entries")
+        for row in rows:
+            self.assertEqual(set(row), set(fields.values()))
+        cp = run_craft("--light-block",
+                       str(self._manifest_file(rows, sid=sid)))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(
+            cp.stdout, doc_block,
+            "the --light-block render drifted from TARBALL.md 5.10's drawn "
+            "block — the doc is the contract; fix whichever side moved")
+
+    def test_labels_map_onto_the_stub_keys_in_order(self):
+        """The four labels render the four required row fields, in the
+        order QUESTION_STUB_KEYS names them (5.10's mapping)."""
+        spec = __import__("importlib.util").util.spec_from_file_location(
+            "craft_light_under_test", CRAFT)
+        module = __import__("importlib.util").util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            tuple(field for _, field in module.LIGHT_LABELS),
+            module.QUESTION_STUB_KEYS)
+        self.assertEqual(module.LIGHT_MAX_QUESTIONS, 3)
+
+    def test_stdin_is_the_dash_spelling(self):
+        payload = json.dumps(clarification_manifest(self.SID,
+                                                    self.FULL_ROWS[:1]))
+        cp = subprocess.run(
+            [sys.executable, str(CRAFT), "--light-block", "-"],
+            input=payload, capture_output=True, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertEqual(cp.stdout,
+                         self._expected_block(self.SID, self.FULL_ROWS[:1]))
+
+    def test_one_row_feeds_either_courier(self):
+        """The same file renders as a light block and, sent formal, as
+        the exchange block — no rewriting between the two."""
+        path = self._manifest_file(self.FULL_ROWS[:2])
+        light = run_craft("--light-block", str(path))
+        formal = run_craft("--emit-block", str(path))
+        self.assertEqual(light.returncode, 0, light.stderr)
+        self.assertEqual(formal.returncode, 0, formal.stderr)
+        self.assertTrue(light.stdout.startswith("=== LIGHT BEGIN "))
+        self.assertTrue(formal.stdout.startswith("BALE EXCHANGE BEGIN "))
+
+    # -- admission ------------------------------------------------------
+
+    def test_four_rows_refuse_naming_5_10(self):
+        rows = self.FULL_ROWS + [dict(QUESTION_ROW)]
+        cp = run_craft("--light-block", str(self._manifest_file(rows)))
+        self.assertEqual(cp.returncode, 2, cp.stdout)
+        self.assertEqual(cp.stdout, "", "a refusal emits no partial block")
+        self.assertIn("TARBALL.md 5.10", cp.stderr)
+        self.assertIn("4 question rows", cp.stderr)
+        self.assertIn("at most 3", cp.stderr)
+        self.assertIn("--emit-block", cp.stderr,
+                      "the refusal names the formal courier")
+
+    # -- --sid and --round ----------------------------------------------
+
+    def test_sid_asserts_but_never_rewrites(self):
+        path = self._manifest_file(self.FULL_ROWS[:1])
+        agreeing = run_craft("--light-block", str(path), "--sid", self.SID)
+        self.assertEqual(agreeing.returncode, 0, agreeing.stderr)
+        self.assertEqual(agreeing.stdout,
+                         self._expected_block(self.SID, self.FULL_ROWS[:1]))
+        clash = run_craft("--light-block", str(path),
+                          "--sid", "2026-09-16-other-001")
+        self.assertEqual(clash.returncode, 2)
+        self.assertEqual(clash.stdout, "")
+        self.assertIn("contradicts the manifest's own session_id",
+                      clash.stderr)
+
+    def test_round_refuses_by_name(self):
+        path = self._manifest_file(self.FULL_ROWS[:1])
+        for value in ("1", "2"):
+            with self.subTest(round=value):
+                cp = run_craft("--light-block", str(path), "--round", value)
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "")
+                self.assertIn("--round is meaningless with --light-block",
+                              cp.stderr)
+
+    # -- flag exclusion -------------------------------------------------
+
+    def test_flag_exclusions(self):
+        path = self._manifest_file(self.FULL_ROWS[:1])
+        for extra in ([["--kind", "clarification"],
+                       ["--questions", "2"],
+                       ["--write"],
+                       ["--changes-only"],
+                       ["--apply-only"],
+                       ["--validation-epilogue"],
+                       ["--fragment", "call"],
+                       ["--doc-assertions", "--index", "INDEX.md"],
+                       ["--adr-dir", "adr"],
+                       ["--prune-reasons"],
+                       ["--index-header", "a.py"],
+                       ["--deleted", "a.txt"],
+                       ["--executable", "a.sh"],
+                       ["--force"],
+                       ["--pack-arg", "Goal"],
+                       ["--brief", "brief.md"],
+                       ["--no-brief"],
+                       ["--checkpoint", "c.sh"],
+                       ["--pre-answered", "supersede=x"],
+                       ["--out-dir", "."],
+                       ["--request", "manifest.json"]]):
+            with self.subTest(extra=extra[0]):
+                cp = run_craft("--light-block", str(path), *extra)
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertIn("--light-block is mutually exclusive",
+                              cp.stderr)
+                self.assertIn(extra[0], cp.stderr)
+                self.assertEqual(cp.stdout, "")
+
+        cp = run_craft("--light-block", str(path), str(self.tmp))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("takes no response dir", cp.stderr)
+        self.assertEqual(cp.stdout, "")
+
+        # The other no-response-dir modes refuse --light-block too, each
+        # naming it — the same exclusion list in both directions.
+        for other in (["--probe", "some-slug"],
+                      ["--bundle", "2026-09-16-x", "--no-brief",
+                       "--pack-arg", "Goal"],
+                      ["--emit-block", str(path)]):
+            with self.subTest(other=other[0]):
+                cp = run_craft(*other, "--light-block", str(path),
+                               cwd=self.tmp)
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertIn(f"{other[0]} is mutually exclusive", cp.stderr)
+                self.assertIn("--light-block", cp.stderr)
+                self.assertEqual(cp.stdout, "")
+        self.assertEqual(list(self.tmp.glob("*.bale-bundle")), [],
+                         "a refused --bundle writes no bundle")
+
+    # -- input refusals -------------------------------------------------
+
+    def test_input_refusals(self):
+        record = worker_record(self.SID)
+        cases = (
+            ("exchange record", record, "not a clarification manifest"),
+            ("normal manifest", {**clarification_manifest(self.SID),
+                                 "response_kind": "normal"},
+             "not a clarification manifest"),
+            ("no session_id", {k: v for k, v in
+                               clarification_manifest(self.SID).items()
+                               if k != "session_id"},
+             "carries no session_id"),
+            ("empty questions", clarification_manifest(self.SID, []),
+             "absent or empty"),
+            ("bad priority", clarification_manifest(
+                self.SID, [{**QUESTION_ROW, "priority": "urgent"}]),
+             "questions[0].priority"),
+            ("missing field", clarification_manifest(
+                self.SID, [{k: v for k, v in QUESTION_ROW.items()
+                            if k != "why_blocked"}]),
+             "missing required key 'why_blocked'"),
+            ("line break", clarification_manifest(
+                self.SID, [{**QUESTION_ROW,
+                            "why_blocked": "first line\nsecond line"}]),
+             "questions[0].why_blocked: carries a line break"),
+            ("not an object", [], "not a JSON object"),
+        )
+        for label, payload, needle in cases:
+            with self.subTest(label):
+                path = self._write("bad.json", payload)
+                cp = run_craft("--light-block", str(path))
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertEqual(cp.stdout, "", "a refusal emits no block")
+                self.assertIn(needle, cp.stderr)
+
+    def test_line_break_refuses_as_admission_pointing_at_clarification(self):
+        """The packer's ruling: a line break in a rendered field is the
+        count rule's "fits on one line" half — exit 2, naming the field,
+        never flattened, and the refusal points at the clarification
+        path. Every one of the four rendered fields is checked; an
+        optional key's line break is not rendered and does not refuse."""
+        for field in ("question", "context", "default_assumption",
+                      "why_blocked"):
+            for brk in ("\n", "\r\n", "\r"):
+                with self.subTest(field=field, brk=repr(brk)):
+                    row = {**QUESTION_ROW, field: f"first{brk}second"}
+                    path = self._write(
+                        "lb.json", clarification_manifest(self.SID, [row]))
+                    cp = run_craft("--light-block", str(path))
+                    self.assertEqual(cp.returncode, 2, cp.stdout)
+                    self.assertEqual(cp.stdout, "")
+                    self.assertIn(f"questions[0].{field}: carries a line "
+                                  "break", cp.stderr)
+                    self.assertIn("TARBALL.md 5.10", cp.stderr)
+                    self.assertIn("clarification response", cp.stderr)
+                    self.assertIn("--emit-block", cp.stderr)
+        row = {**QUESTION_ROW, "options": ["a\nb"]}
+        path = self._write("opt.json",
+                           clarification_manifest(self.SID, [row]))
+        cp = run_craft("--light-block", str(path))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertNotIn("a\nb", cp.stdout)
+
+    def test_non_string_input_file_refusals(self):
+        notjson = self.tmp / "notjson.json"
+        notjson.write_text("this is not json\n")
+        cp = run_craft("--light-block", str(notjson))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("not valid JSON", cp.stderr)
+
+        empty = self.tmp / "empty.json"
+        empty.write_text("")
+        cp = run_craft("--light-block", str(empty))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("input is empty", cp.stderr)
+
+        cp = run_craft("--light-block", str(self.tmp / "absent.json"))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("file not found", cp.stderr)
+
+
+class CraftSelfReportedCountsUnseeded(unittest.TestCase):
+    """The two v0.4.34 self-reported counts are never seeded by the
+    crafter (absence is the honest default; a worker who emitted a block
+    writes the number), for every kind --request seeds."""
+
+    SID = "2026-09-16-light-fixture-002"
+
+    def test_request_seed_carries_neither_count(self):
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp = Path(tmp_name)
+            request = tmp / "manifest.json"
+            request.write_text(json.dumps(request_manifest(self.SID)))
+            (tmp / "response-002").mkdir()
+            for kind in ("normal", "bailout", "clarification"):
+                with self.subTest(kind=kind):
+                    cp = run_craft(str(tmp / "response-002"), "--sid",
+                                   self.SID, "--kind", kind,
+                                   "--request", str(request))
+                    self.assertEqual(cp.returncode, 0, cp.stderr)
+                    seeded = json.loads(cp.stdout)["feedback"][
+                        "self_reported"]
+                    self.assertNotIn("light_blocks", seeded)
+                    self.assertNotIn("paste_carried_rounds", seeded)
+
+
+class CraftBundleStemClockLine(unittest.TestCase):
+    """Row 96's last clause: the --bundle help carries the stem clock
+    sentence verbatim in --help output, whole at any terminal width, and
+    the module docstring's stem guidance carries it too."""
+
+    LINE = "The stem's date is the UTC date, the same clock session ids use."
+
+    def test_help_carries_the_line_whole_at_any_width(self):
+        for columns in ("40", "80", "200"):
+            with self.subTest(columns=columns):
+                env = {**os.environ, "COLUMNS": columns}
+                cp = subprocess.run(
+                    [sys.executable, str(CRAFT), "--help"],
+                    capture_output=True, text=True, env=env)
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertEqual(cp.stdout.count(self.LINE), 1,
+                                 "exactly once, unbroken, in --help")
+                # It sits in --bundle's help, before the next flag (both
+                # located past the usage block, which names them too).
+                options_at = cp.stdout.index("\noptions:\n")
+                bundle_at = cp.stdout.index("--bundle STEM", options_at)
+                next_flag = cp.stdout.index("--pack-arg TOKEN", bundle_at)
+                self.assertTrue(
+                    bundle_at < cp.stdout.index(self.LINE) < next_flag)
+
+    def test_module_docstring_stem_guidance_carries_the_line(self):
+        import ast
+        docstring = ast.get_docstring(
+            ast.parse(CRAFT.read_text(encoding="utf-8")), clean=False)
+        self.assertIn(self.LINE, docstring)
 
 
 @unittest.skipUnless((Path(__file__).resolve().parent.parent / "bin"

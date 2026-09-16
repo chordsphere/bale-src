@@ -423,9 +423,17 @@ ADR-0013):
   should find without reading the diff, `budget_pressure` (`none` |
   `tight` | `bailed` — the session's own read of `CLAUDE.md` §11),
   `includes_missing` (files the session wanted but the request didn't
-  ship — packing signal), and `compaction_occurred` (with a
+  ship — packing signal), `compaction_occurred` (with a
   `disclosure_ref` pointing at where the `CLAUDE.md` §11.6 disclosure
-  lives when true). Honest empties are meaningful: `[]` asserts
+  lives when true), `light_blocks` (optional: the number of light
+  question blocks, §5.10, the worker emitted this session — the tier
+  opens no exchange record, so this count is how stats sees it), and
+  `paste_carried_rounds` (optional: the number of exchange rounds
+  whose record traveled by paste block, §5.9.2, rather than tarball —
+  so telemetry stops reading a real round as zero). The two counts
+  are never seeded by the crafter: absence is the honest default, and
+  a worker who emitted a block or carried a round by paste writes the
+  number. Honest empties are meaningful: `[]` asserts
   *none arose*, and the lint checks shape only, never content.
 
 One member has been documented by its schema description alone
@@ -446,7 +454,11 @@ the optional `linkage` and `provenance` members are the worker's to
 add when they apply), fill `self_reported`
 honestly, then run the lint once more — its feedback-block check
 recomputes every mechanical value against the directory as packed and
-flags any disagreement. A mismatch is the tell of a hand-filled or
+flags any disagreement. When the crafter seeded the block from the
+request (--request), fill model_identity and self_reported before
+running the emitter, and paste the emitter's object over the four
+placeholders key for key rather than replacing the mechanical object.
+A mismatch is the tell of a hand-filled or
 stale block (an edit made after the values were copied), and the fix
 is to re-run, not to adjust the values until the check goes quiet
 (rationale: ADR-0013).
@@ -982,8 +994,10 @@ exists because a sufficiently short question set is faster to read
 and answer in chat than to relay through the exchange, and its
 audit trail is the eventual response, not the thread. The block is
 specified here format-first so a worker can author it by hand
-today; a mechanized render is a convenience over this shape, never
-its home.
+wherever the crafter is unreachable; a mechanized render is a
+convenience over this shape, never its home. That render is `tools/craft_response.py --light-block
+<file>`, which renders the block from a filled clarification
+manifest, the same input `--emit-block` takes.
 
 **Admission is a count, not a judgment.** A question set is
 admitted to the light tier when it holds at most three questions,
@@ -2037,9 +2051,12 @@ mechanical checks won't catch them.
    questions, none multi-tiered, each with a default the packer can
    ratify in a word. A set that fails the count is §10.3's path; a
    blocking question is §10.3's path at any count.
-2. Author the block by hand per §5.10: `=== LIGHT BEGIN <sid> ===`,
-   one `[n]` entry per question with its four labeled rows, the
-   three-reply line, `=== LIGHT END <sid> ===`.
+2. Render the block per §5.10: fill the rows as a clarification
+   manifest and run `tools/craft_response.py --light-block <file>`,
+   which prints `=== LIGHT BEGIN <sid> ===`, one `[n]` entry per
+   question with its four labeled rows, the three-reply line, and
+   `=== LIGHT END <sid> ===`, and refuses a set that fails the count.
+   Where the crafter is unreachable, author the same block by hand.
 3. Stop. The turn ends on the block; nothing is built ahead of the
    reply, and no exchange record or telemetry is written.
 4. On the reply, continue under the same session: an inline answer

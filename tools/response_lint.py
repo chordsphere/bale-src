@@ -21,9 +21,14 @@ Usage:
 object on stdout (the TARBALL.md §5.2.2 fill-by-running-the-lint
 workflow, mechanized): every field is this run's own computation —
 the same derivation the feedback-block check verifies a shipped block
-against — never a transcription. The optional self-reported members
-(linkage, provenance) are not emitted; the worker adds them by hand
-when they apply.
+against — never a transcription. The two optional members
+(linkage, provenance) are not emitted, because neither is
+lint-computable: provenance is seeded into the manifest skeleton by
+tools/craft_response.py's --request (the request's provenance echoed
+verbatim plus an empty model_identity the worker fills), and linkage
+the worker adds by hand when the session went through a probe or
+clarification round. Pasting this object over the seeded block's four
+lint-computable placeholders, key for key, leaves both in place.
 
 Exit codes:
     0  clean — every check passed (warnings, if any, are printed but
@@ -439,6 +444,16 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                   }
                 }
               }
+            },
+            "light_blocks": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Optional (v0.4.34): the number of light question blocks (TARBALL.md section 5.10) the worker emitted this session — the chat-carried ask tier, which opens no exchange record, so this count is the only place the tier becomes visible to stats. Self-report, like everything in this stream; the lint checks shape only. Additive and OPTIONAL, so every earlier manifest keeps validating, and the crafter's skeleton seeds nothing: omission means the session reported no count, never that it emitted no block — a worker who emitted a block writes the number."
+            },
+            "paste_carried_rounds": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Optional (v0.4.34): the number of exchange rounds (TARBALL.md section 5.9.2) whose record traveled by paste block rather than by tarball — the courier the operator chose at carry time — so telemetry stops reading a real round as zero where no clarification tarball was applied. Self-report, like everything in this stream; the lint checks shape only. Additive and OPTIONAL, so every earlier manifest keeps validating, and the crafter's skeleton seeds nothing: omission means the session reported no count, never that no round was paste-carried."
             }
           }
         }
@@ -1338,9 +1353,11 @@ def _recompute_mechanical(manifest: dict, findings: list[dict]) -> dict:
     shipped block against it, and --emit-feedback-mechanical serializes
     it — so the flag can only ever print this lint run's own
     computations, never a transcription. The two optional members the
-    schema admits (linkage, provenance) are self-reported and
-    unverifiable, so they are deliberately NOT emitted here; the worker
-    adds them by hand when they apply.
+    schema admits (linkage, provenance) are not lint-computable, so they
+    are deliberately NOT emitted here: provenance is seeded by the
+    crafter's --request (tools/craft_response.py echoes the request's
+    provenance verbatim, and the worker fills model_identity), and
+    linkage the worker adds by hand when it applies.
     """
     mirror_findings = [f for f in findings
                        if f.get("check") == "changes-mirror"]

@@ -34,6 +34,16 @@ this guard is what keeps the next additive row key (the ``origin``
 precedent: admitted by bale in v0.4.24, refused by the crafter until
 board 91) from landing on one side only.
 
+A fourth guard rides here since session
+2026-09-16-board-96-crafter-85-light-block-002: the two self-reported
+counts (``light_blocks``, row 96; ``paste_carried_rounds``, row 85)
+keep their contracted shape in the schema — optional (never in
+``required``, so pre-wave manifests validate), integer, minimum 0 —
+inside a ``self_reported`` that stays a closed object. The embed
+equality above carries the shape into the lint's copy; this names the
+shape itself, so a later edit that made a count required or signed
+fails by name rather than only as an unexplained embed diff.
+
 Hermetic and stdlib-only: the lint and crafter modules are loaded by
 file path (both import nothing beyond the stdlib and execute nothing
 at import time), and the schema files are read from this repo.
@@ -204,6 +214,39 @@ class QuestionRowKeyParity(unittest.TestCase):
                     f"tools/craft_response.py's {constant} is not the "
                     f"schema's questions.items.{key} enum — the "
                     "vocabulary is closed and has one home")
+
+
+class SelfReportedCountShape(unittest.TestCase):
+    """light_blocks and paste_carried_rounds: optional integers >= 0 in a
+    closed self_reported, in the source schema and the lint's embed."""
+
+    COUNTS = ("light_blocks", "paste_carried_rounds")
+
+    @staticmethod
+    def self_reported_of(schema: dict) -> dict:
+        return (schema["properties"]["feedback"]["properties"]
+                ["self_reported"])
+
+    def test_counts_are_optional_nonnegative_integers(self):
+        lint = load_lint_module()
+        for label, schema in (
+                ("schemas/response-manifest.schema.json",
+                 load_schema("response-manifest.schema.json")),
+                ("tools/response_lint.py embed",
+                 json.loads(lint.RESPONSE_MANIFEST_SCHEMA_JSON))):
+            block = self.self_reported_of(schema)
+            with self.subTest(side=label):
+                self.assertIs(block.get("additionalProperties"), False,
+                              "self_reported stays a closed object")
+                for key in self.COUNTS:
+                    self.assertIn(key, block["properties"])
+                    self.assertNotIn(key, block["required"],
+                                     f"{key} is optional — pre-wave "
+                                     "manifests must keep validating")
+                    prop = block["properties"][key]
+                    self.assertEqual(prop.get("type"), "integer")
+                    self.assertEqual(prop.get("minimum"), 0)
+                    self.assertTrue(prop.get("description"))
 
 
 if __name__ == "__main__":
