@@ -1,0 +1,478 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-16-board-99a-outward-docs-003",
+  "created_at": "2026-09-16T17:57:28+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-16T17:57:28+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_archive_dir.py",
+        "tests/test_auto_sweep.py",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_required_check_gate.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-16-board-99a-outward-docs-003.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-16T18:49:36+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-board-99a-outward-docs-003.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 1,
+        "claims": {
+          "cli flag surface unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/VERSION untouched (bumpless)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "help strings trued up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "wizard rehearsal (bale config init, piped)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "README reflects the tree": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_probe_clipboard_config": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: wizard, help, and config suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "cli flag surface unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION untouched (bumpless)": {
+            "claim": "pass",
+            "verdict": "fail",
+            "agreement": "disagree"
+          },
+          "help strings trued up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "wizard rehearsal (bale config init, piped)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "README reflects the tree": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_probe_clipboard_config": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: wizard, help, and config suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (bin/bale, bin/bale_config.py, the new suite)",
+          "bin/bale executable bit (TARBALL.md 7.7)",
+          "cli flag surface unchanged",
+          "bin/VERSION untouched (bumpless)",
+          "help strings trued up",
+          "wizard rehearsal (bale config init, piped)",
+          "README reflects the tree",
+          "tests: test_probe_clipboard_config",
+          "tests: wizard, help, and config suites"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_archive_dir.py",
+        "tests/test_auto_sweep.py",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_required_check_gate.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "overridden_paths": [
+        "tests/test_probe_clipboard_config.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_probe_clipboard_config.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_probe_clipboard_config.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.33",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "1269b55f64e58dfa9b40e16fce89dfe129e3396987ef856522136b8bdf61e081",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-board-99a-outward-docs-003.sh",
+              "sha256": "c9a24b3124bb2bcf98b6a659678d2cc11cc3e66c2b035cbc3bb99fa813e4050f"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T17:57:28+00:00",
+            "base_files": {
+              "README.md": "6628577a4d51c6ed4033e18a21fc8f1825ff1619a98a92a4d8fe616d2a0629a8",
+              "bin/bale": "e0b2dc203ebded02ec56f84ff8e46b52e440e3729345874193bd8e677235b962",
+              "bin/bale_config.py": "e077caba815d1588a26eda1c6df60d502c4e672c58d061dc102b74aece1dbeb6",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validation.sh's rehearsal ran unconfined in the worker sandbox; apply runs it confined with network off, and nothing in it needs network"
+          ],
+          "judgment_calls": [
+            "light block answered 'as assumed' on all three: [probe] project-layer only with the reason in the prompt; new suite tests/test_probe_clipboard_config.py; README names BALE.md as a source-repo doc",
+            "get_probe_clipboard_command fails loudly on values the crafter's minimal reader would silently treat as unset (backslash, double quote, control characters) instead of returning None",
+            "render_bale_toml writes [probe] with json.dumps(ensure_ascii=False) so non-ASCII commands stay crafter-readable; other sections' serialization unchanged",
+            "_prompt_value/_prompt_path_list gained a defaulted unset_effective kwarg (display-only) so non-hook keys stop reading '(no hook will run)'; defaults preserve the hook/search_paths wording",
+            "bin/bale 'strings only' is proven by a parser-surface fingerprint computed from the base bytes; two stale parser comments also corrected",
+            "README describes the HOLD outcome, not the card layout, because board-47a is triaging the card this wave",
+            "none of the five forecast test files extended; wizard pins left untouched"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "CLAUDE.md META through \u00a711.2",
+            "TARBALL.md sections 1, 2, 5 (5.1-5.4, 5.10), 7, 10",
+            "DOCS.md INDEX, \u00a79",
+            "PLANNER.md \u00a75 (post-HOLD authoring)",
+            "TARBALL.md \u00a74.3 clipboard epilogue paragraph",
+            "BALE.md heading index and \u00a73.2"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_probe_clipboard_config.py",
+              "why": "the [probe] clipboard_command trio and its bale/crafter agreement need tests, and none of the five forecast test files is about probes; ratified by the packer's light-block answer [2]"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-16-board-99a-outward-docs-003.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-board-99a-outward-docs-003.sh",
+          "sha256": "c9a24b3124bb2bcf98b6a659678d2cc11cc3e66c2b035cbc3bb99fa813e4050f"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    },
+    {
+      "at": "2026-09-16T18:58:53+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-board-99a-outward-docs-003 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "cli flag surface unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/VERSION untouched (bumpless)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "help strings trued up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "wizard rehearsal (bale config init, piped)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "README reflects the tree": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_probe_clipboard_config": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: wizard, help, and config suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "cli flag surface unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/VERSION untouched (bumpless)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "help strings trued up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "wizard rehearsal (bale config init, piped)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "README reflects the tree": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_probe_clipboard_config": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: wizard, help, and config suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (bin/bale, bin/bale_config.py, the new suite)",
+          "bin/bale executable bit (TARBALL.md 7.7)",
+          "cli flag surface unchanged",
+          "bin/VERSION untouched (bumpless)",
+          "help strings trued up",
+          "wizard rehearsal (bale config init, piped)",
+          "README reflects the tree",
+          "tests: test_probe_clipboard_config",
+          "tests: wizard, help, and config suites"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_archive_dir.py",
+        "tests/test_auto_sweep.py",
+        "tests/test_blind_checkpoint.py",
+        "tests/test_required_check_gate.py",
+        "tests/test_sandbox_wrapper.py"
+      ],
+      "overridden_paths": [
+        "tests/test_probe_clipboard_config.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_probe_clipboard_config.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "tests/test_probe_clipboard_config.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.33",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "1269b55f64e58dfa9b40e16fce89dfe129e3396987ef856522136b8bdf61e081",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-board-99a-outward-docs-003.sh",
+              "sha256": "c9a24b3124bb2bcf98b6a659678d2cc11cc3e66c2b035cbc3bb99fa813e4050f"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T17:57:28+00:00",
+            "base_files": {
+              "README.md": "6628577a4d51c6ed4033e18a21fc8f1825ff1619a98a92a4d8fe616d2a0629a8",
+              "bin/bale": "e0b2dc203ebded02ec56f84ff8e46b52e440e3729345874193bd8e677235b962",
+              "bin/bale_config.py": "e077caba815d1588a26eda1c6df60d502c4e672c58d061dc102b74aece1dbeb6",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validation.sh's rehearsal ran unconfined in the worker sandbox; apply runs it confined with network off, and nothing in it needs network"
+          ],
+          "judgment_calls": [
+            "correction of the first attempt's HOLD: validation.sh's bumpless check asserted the literal bin/VERSION 0.4.33 from the request tree, but target-base staging carried the wave bumper's 0.4.34; the check now asserts the real invariant \u2014 no changes[] entry for bin/VERSION \u2014 and nothing under files/ changed",
+            "light block answered 'as assumed' on all three: [probe] project-layer only with the reason in the prompt; new suite tests/test_probe_clipboard_config.py; README names BALE.md as a source-repo doc",
+            "get_probe_clipboard_command fails loudly on values the crafter's minimal reader would silently treat as unset (backslash, double quote, control characters) instead of returning None",
+            "render_bale_toml writes [probe] with json.dumps(ensure_ascii=False) so non-ASCII commands stay crafter-readable; other sections' serialization unchanged",
+            "_prompt_value/_prompt_path_list gained a defaulted unset_effective kwarg (display-only) so non-hook keys stop reading '(no hook will run)'; defaults preserve the hook/search_paths wording",
+            "bin/bale 'strings only' is proven by a parser-surface fingerprint computed from the base bytes; two stale parser comments also corrected",
+            "README describes the HOLD outcome, not the card layout, because board-47a is triaging the card this wave",
+            "none of the five forecast test files extended; wizard pins left untouched"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "docs_read": [
+            "CLAUDE.md META through \u00a711.2",
+            "TARBALL.md sections 1, 2, 5 (5.1-5.4, 5.10), 7, 10",
+            "DOCS.md INDEX, \u00a79",
+            "PLANNER.md \u00a75 (post-HOLD authoring)",
+            "TARBALL.md \u00a74.3 clipboard epilogue paragraph",
+            "BALE.md heading index and \u00a73.2"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "forecast_departures": [
+            {
+              "path": "tests/test_probe_clipboard_config.py",
+              "why": "the [probe] clipboard_command trio and its bale/crafter agreement need tests, and none of the five forecast test files is about probes; ratified by the packer's light-block answer [2]"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-16-board-99a-outward-docs-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": "2026-09-16-board-99a-outward-docs-003",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-board-99a-outward-docs-003.sh",
+          "sha256": "c9a24b3124bb2bcf98b6a659678d2cc11cc3e66c2b035cbc3bb99fa813e4050f"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-16T18:58:53+00:00",
+  "outcome": "applied"
+}
