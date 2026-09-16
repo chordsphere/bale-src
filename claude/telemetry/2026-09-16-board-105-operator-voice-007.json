@@ -1,0 +1,275 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-16-board-105-operator-voice-007",
+  "created_at": "2026-09-16T22:29:51+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-16T22:29:51+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_pack.py",
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_pack_opener.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-16-board-105-operator-voice-007.log",
+      "provenance": {
+        "work_class": "mixed",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-16T22:42:38+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-board-105-operator-voice-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest test_pack_opener": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "opener VERBATIM sentences on both pack shapes": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc VERBATIM sentences in their home sections": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "frozen TARBALL.md text byte-identical": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "CLAUDE.md light-tier row names crafter path, hand fallback": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "opener tools claim: stdlib-only, no network imports": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "response declares no bin/VERSION change and stays in forecast": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest test_pack_opener": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "opener VERBATIM sentences on both pack shapes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc VERBATIM sentences in their home sections": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "frozen TARBALL.md text byte-identical": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "CLAUDE.md light-tier row names crafter path, hand fallback": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "opener tools claim: stdlib-only, no network imports": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "response declares no bin/VERSION change and stays in forecast": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python)",
+          "unittest test_sanctioned_pairs",
+          "unittest test_doc_crossrefs",
+          "unittest test_global_doc_selfcontainment",
+          "unittest test_schema_embeds",
+          "unittest test_pack_opener",
+          "opener VERBATIM sentences on both pack shapes",
+          "doc VERBATIM sentences in their home sections",
+          "frozen TARBALL.md text byte-identical",
+          "CLAUDE.md light-tier row names crafter path, hand fallback",
+          "opener tools claim: stdlib-only, no network imports",
+          "response declares no bin/VERSION change and stays in forecast"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_pack.py",
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_pack_opener.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_pack.py",
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_pack_opener.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.34",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "4a7a340919b1b44b5ae9e854537fa87340cd9e41858f8174e3a605b1daa31e7f",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-board-105-operator-voice-007.sh",
+              "sha256": "2a4b1ac3d3f118b35d566b6ee3c4ce2afc016bb832d77ebdb23e443245486611"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T22:29:51+00:00",
+            "base_files": {
+              "bin/bale_pack.py": "76a38e935e61a21d6b81e3da29e89902b309213027a78f4bfd5b523964cc3c9f",
+              "docs/CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "docs/TARBALL.md": "4a7a340919b1b44b5ae9e854537fa87340cd9e41858f8174e3a605b1daa31e7f",
+              "tests/test_doc_crossrefs.py": "abdd1f056578f9b7301eb4d791c80cddc56b2ba5068b0e646cff3b178e2b069a",
+              "tests/test_pack_opener.py": "a1ca3705b627378545925bcae3dd7e7f648da76f273defdb01602005cb36692e"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the INDEX row's 'where the crafter is unreachable' wording matches TARBALL.md \u00a75.10's own fallback phrasing closely enough to satisfy the rider"
+          ],
+          "judgment_calls": [
+            "emitted opener lines stay hand-wrapped literals beside the constants, mirroring the existing pattern, rather than deriving lines from the constants",
+            "the read-only operator-voice test also asserts the whole shape sentence, so the second half is pinned on both shapes, not only the scoped one the existing test covers",
+            "validation pins TARBALL.md \u00a75.10's two frozen sentences as raw wrapped bytes, stricter than the suite's collapsed compare, to honour 'byte-identical'",
+            "validation adds an AST check that the two shipped tools import only stdlib and nothing network-capable, so the opener's tools claim is tested rather than asserted"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-16-board-105-operator-voice-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-board-105-operator-voice-007.sh",
+          "sha256": "2a4b1ac3d3f118b35d566b6ee3c4ce2afc016bb832d77ebdb23e443245486611"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-16T22:42:38+00:00",
+  "outcome": "applied"
+}
