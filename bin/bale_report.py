@@ -4,7 +4,10 @@ This module owns the result-reporting surface of the pack and apply
 pipelines: the shared end-of-run summary formatter every command finishes on
 (`format_summary_block`, with its private word-wrap helper
 `_wrap_value_lines`), the BALE.md §8.7 apply walkthrough summary builder for
-the PASS/HOLD verdicts (`format_walkthrough_summary`), the TARBALL.md §5.6.3
+the PASS/HOLD verdicts (`format_walkthrough_summary`), the §8.8 closing
+HOLD card (`format_hold_card`, v0.4.34 board 47a, over its structured
+pieces `hold_judge` / `parse_failed_probe_labels` /
+`compose_hold_successors`, which board 47b's relay blocks consume), the TARBALL.md §5.6.3
 bailout banner (`print_bailout_banner`), its §5.9.3 clarification sibling
 (`print_clarification_banner`), the `bale apply --dry-run` plan
 report (`format_dry_run_report`), the machine-readable pack report
@@ -465,6 +468,233 @@ def format_walkthrough_summary(
     # Trailing blank separates the verdict block from the prompt the caller
     # prints next.
     return "\n".join(ref) + "\n" + summary_block + "\n"
+
+
+# ---------------------------------------------------------------------------
+# The HOLD card (board 47a, v0.4.34): judge line, failed probe labels, and
+# ruling-forked composed successors
+# ---------------------------------------------------------------------------
+#
+# The closing [HOLD] card is the last thing a HOLD prints, so it is where the
+# operator's next paste comes from. Before board 47a it said `validation:
+# exited <worker exit>` on a HOLD the checkpoint may have produced, named no
+# failed probe, and ended in a `bale retry <new-tarball>` placeholder one line
+# after bale stamped the held tarball's real path. The pieces below are pure
+# and structured on purpose: board 47b renders the same labels and successor
+# forks into addressed relay blocks, so it consumes `hold_judge`,
+# `parse_failed_probe_labels`, and `compose_hold_successors` rather than
+# re-deriving them from the card's text.
+
+# The probe-verdict grammar a failed probe is recognized by — the same
+# line-start test bale_open's dry-run proof echo keys on ([PASS]/[FAIL]/
+# [SKIP], leading whitespace tolerated).
+FAILED_PROBE_PREFIX = "[FAIL]"
+
+# The three judge cases (which judgment held). The strings are the
+# structured vocabulary 47b keys on; the card renders the human line.
+HOLD_JUDGE_CHECKPOINT = "blind checkpoint"
+HOLD_JUDGE_WORKER = "worker validation"
+HOLD_JUDGE_BOTH = "both"
+
+# The two rulings a successor fork answers (PLANNER.md §5 step 3).
+RULING_FIXTURE_DEFECT = "fixture-defect"
+RULING_WORK_DEFECT = "work-defect"
+
+
+def parse_failed_probe_labels(output: Optional[str]) -> list:
+    """Every `[FAIL] …` verdict line in a checkpoint's captured output,
+    label text only, in output (= log) order.
+
+    A line counts when, leading whitespace stripped, it starts with
+    `[FAIL]`; the label is the rest of the line with the prefix and
+    surrounding whitespace removed. `[]` when nothing failed (including
+    None or empty output). A bare `[FAIL]` line yields an empty label —
+    recorded honestly rather than dropped, so the list's length always
+    equals the number of failed verdict lines the checkpoint wrote.
+    Pure.
+    """
+    labels: list = []
+    for line in (output or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(FAILED_PROBE_PREFIX):
+            labels.append(stripped[len(FAILED_PROBE_PREFIX):].strip())
+    return labels
+
+
+def _checkpoint_attribution(cp_exit) -> str:
+    """The walkthrough's checkpoint half, same vocabulary (§8.6)."""
+    if cp_exit == 0:
+        return "checkpoint: PASS"
+    if cp_exit == 2:
+        return ("checkpoint: errored (exit 2) — the planner's checkpoint "
+                "itself errored")
+    return f"checkpoint: HOLD (exit {cp_exit})"
+
+
+def hold_judge(checkpoint: Optional[dict], exit_code: int) -> dict:
+    """Which judgment held a HOLD: {"case", "line"}.
+
+    `checkpoint` is the attempt's checkpoint stamp (None or
+    `{"configured": false}` when none ran); `exit_code` is the worker's
+    validation.sh exit. `case` is one of HOLD_JUDGE_CHECKPOINT (the
+    checkpoint objected, the worker passed), HOLD_JUDGE_WORKER (the
+    worker objected, the checkpoint passed or was unconfigured), or
+    HOLD_JUDGE_BOTH. A checkpoint exit 2 counts as the checkpoint
+    holding — the planner's artifact broke, which is the fixture side.
+    `line` names the case first, then both sources in the walkthrough
+    summary's attribution vocabulary (format_walkthrough_summary), so
+    the card and the summary above it can never attribute differently.
+    Pure. Called only on a HOLD: a both-zero input is a caller bug and
+    raises rather than render a judge line for a PASS.
+    """
+    ran = bool(checkpoint) and bool(checkpoint.get("configured"))
+    cp_exit = checkpoint.get("exit_code") if ran else None
+    cp_held = ran and cp_exit != 0
+    wk_held = exit_code != 0
+    if not (cp_held or wk_held):
+        raise ValueError("hold_judge: neither judgment held — not a HOLD")
+    wk_part = ("worker validation: PASS" if not wk_held
+               else f"worker validation: HOLD (exit {exit_code})")
+    cp_part = (_checkpoint_attribution(cp_exit) if ran
+               else "no blind checkpoint configured")
+    if cp_held and wk_held:
+        return {"case": HOLD_JUDGE_BOTH,
+                "line": f"both — {cp_part} · {wk_part}"}
+    if cp_held:
+        return {"case": HOLD_JUDGE_CHECKPOINT,
+                "line": f"blind checkpoint — {cp_part} · {wk_part}"}
+    return {"case": HOLD_JUDGE_WORKER,
+            "line": f"worker validation — {wk_part} · {cp_part}"}
+
+
+def compose_hold_successors(
+    *,
+    sid: str,
+    judge_case: str,
+    held_tarball: Optional[str],
+    held_tarball_why: str = "",
+    literal_checkpoint_path: Optional[str] = None,
+) -> list:
+    """The ruling-forked successors a HOLD card ends with, as data.
+
+    Returns a list of forks, each `{"ruling", "heading", "lines"}`:
+    the fixture-defect fork first (only when the checkpoint held —
+    judge_case HOLD_JUDGE_CHECKPOINT or HOLD_JUDGE_BOTH), then the
+    work-defect fork (always). `lines` are complete physical lines
+    (TARBALL.md §1): commands, plus at most one note line per fork
+    where a value cannot be composed. Paths go through shlex.quote.
+
+    `held_tarball` is the HOLD-time stamp's path when the stamp was
+    written this HOLD, or None when the write failed — ratified
+    (session notes, [1]): the card composes from the stamp outcome, so
+    it and `bale amend-checkpoint`'s report can never disagree, and a
+    failed stamp is said, never papered over with the in-process path.
+    `held_tarball_why` is the reason, rendered on the degrade line in
+    compose_retry_successor's shape (bin/bale): one line saying why,
+    then the placeholder form.
+
+    The fixture fork (PLANNER.md §5 steps 4–5): amend at the desk, then
+    retry the SAME held tarball through the provenance gate. The amend
+    line always carries `--sid <sid>` (ratified [2]: concurrent waves
+    make a sid-less amend refuse) and a trailing shell comment saying
+    `<amendment>` and `<hex>` are unknowable when the card renders. On a
+    literal [validation] base (`literal_checkpoint_path` set) the amend
+    verb refuses by design, so a one-line note to commit the amended
+    bytes at that path directly replaces it (ratified [3]); the retry
+    rung beneath is identical either way. The work fork: `bale retry`
+    at the held tarball's own path — the re-attempt closing-line rule
+    delivers the corrected `response-<sid>.tar.gz` to the same
+    directory under the same name. Pure.
+    """
+    import shlex
+
+    def retry_line(extra: str) -> list:
+        if held_tarball is not None:
+            return [f"bale retry {shlex.quote(held_tarball)}{extra}"]
+        return [f"(the response tarball path could not be filled in: "
+                f"{held_tarball_why}; substitute the path below)",
+                f"bale retry <response-tarball>{extra}"]
+
+    forks: list = []
+    if judge_case in (HOLD_JUDGE_CHECKPOINT, HOLD_JUDGE_BOTH):
+        if literal_checkpoint_path is not None:
+            first = (f"(literal [validation] base: commit the desk's "
+                     f"amended bytes at "
+                     f"{shlex.quote(literal_checkpoint_path)} directly — "
+                     f"`bale amend-checkpoint` is per-session only)")
+        else:
+            first = (f"bale amend-checkpoint <amendment> --sha256 <hex> "
+                     f"--sid {sid}  # <amendment> and <hex> are the desk's "
+                     f"published file and sha256 — unknowable when this "
+                     f"card renders")
+        forks.append({
+            "ruling": RULING_FIXTURE_DEFECT,
+            "heading": ("fixture defect (the checkpoint is wrong) — amend "
+                        "at the desk, then retry the held tarball:"),
+            "lines": [first] + retry_line(
+                f" --accept-checkpoint-change --sid {sid}"),
+        })
+    forks.append({
+        "ruling": RULING_WORK_DEFECT,
+        "heading": ("work defect (the response is wrong) — retry the "
+                    "corrected tarball, delivered where the held one is:"),
+        "lines": retry_line(""),
+    })
+    return forks
+
+
+def format_hold_card(
+    *,
+    sid: str,
+    exit_code: int,
+    checkpoint: Optional[dict],
+    sid_branch: str,
+    origin_branch: str,
+    staging,
+    telemetry: Optional[str],
+    held_tarball: Optional[str],
+    held_tarball_why: str = "",
+    literal_checkpoint_path: Optional[str] = None,
+) -> str:
+    """The closing [HOLD] card (BALE.md §8.8 inspect), as one string.
+
+    Rows: `judge` (hold_judge's line), `failed probes` (only when a
+    checkpoint ran: the labels joined by ` · ` in log order, or `none`),
+    then the pre-47a inspection rows — branch, log, staging, telemetry —
+    and `discard`. The successor forks (compose_hold_successors) ride
+    the trailer, because summary rows never wrap but a fork is two
+    commands, and the trailer is emitted verbatim: every command stays
+    one pasteable physical line. The failed labels are read from the
+    stamp's `failed_probes` (the telemetry field) so the card and the
+    record carry one list. Pure.
+    """
+    judge = hold_judge(checkpoint, exit_code)
+    rows = [("judge", judge["line"])]
+    if checkpoint and checkpoint.get("configured"):
+        labels = checkpoint.get("failed_probes") or []
+        rows.append(("failed probes",
+                     " · ".join(label or "(unlabeled [FAIL] line)"
+                                for label in labels)
+                     if labels else "none"))
+    rows.extend([
+        ("branch", f"{sid_branch} (committed; `git diff "
+                   f"{origin_branch}..{sid_branch}` to inspect "
+                   f"— checkout untouched)"),
+        ("log", f".bale/logs/{sid}.log"),
+        ("staging", f"{staging} (preserved)"),
+        ("telemetry", f"recorded {telemetry}" if telemetry
+         else "write failed — see log"),
+        ("discard", f"bale revert {sid}"),
+    ])
+    trailer = ["  Next step, by the desk's ruling:"]
+    for fork in compose_hold_successors(
+            sid=sid, judge_case=judge["case"], held_tarball=held_tarball,
+            held_tarball_why=held_tarball_why,
+            literal_checkpoint_path=literal_checkpoint_path):
+        trailer.append(f"  {fork['heading']}")
+        trailer.extend(f"    {line}" for line in fork["lines"])
+    return format_summary_block(rows, status="HOLD", sid=sid,
+                                trailer=trailer)
 
 
 def print_bailout_banner(manifest: dict, handoff_path: Path,
@@ -1560,6 +1790,9 @@ def format_apply_json(
                              errored)
                  script      {path, sha256} — the executed BASE-TREE
                              bytes' identity (BALE.md §8.5)
+                 failed_probes  (v0.4.34, board 47a) the label of every
+                             `[FAIL]` verdict line the checkpoint wrote,
+                             in log order; [] when none failed
                  stamp_matched  bool|null — the §8.5 provenance
                              verification's result (v0.3.28, session C):
                              true when the executed base-tree bytes
@@ -2890,7 +3123,21 @@ def build_telemetry_attempt(
     rejected or drift-refused attempt, so there is nothing to stamp).
     Blind outcomes never merge into `claim_verdict`: the checkpoint has
     no claims by construction, and a merged row would fabricate a
-    prediction that was never made.
+    prediction that was never made. Since v0.4.34 (board 47a) an
+    executed checkpoint's object carries `failed_probes` — the label of
+    every `[FAIL]` verdict line it wrote, in log order, `[]` when none
+    failed (parse_failed_probe_labels; the apply call site fills it on
+    the stamp) — and a `{"configured": false}` stamp never does: absent
+    when no checkpoint ran.
+
+    `manifest.validation_will_run` and `manifest.corrects` (v0.4.34,
+    board 44's rider landed at board 47a) are promoted with the
+    established key-presence semantics: `validation_will_run` rides
+    INSIDE the attempt's `validation` object (so only on validated
+    attempts) when the manifest carries the key, verbatim; `corrects`
+    rides on the attempt, verbatim — null included — when the manifest
+    carries the key. A manifest without the key, and an attempt with no
+    manifest, omit the field: absence is "not recorded", never a value.
 
     `sandbox_escaped` and `network_grant_exercised` (v0.4.5, board 10
     S2 — ADR-0016) are the sandbox stamps, written UNCONDITIONALLY
@@ -2959,6 +3206,12 @@ def build_telemetry_attempt(
             "claim_verdict": claim_verdict,
             "reconciliation_parsed": parsed,
         }
+        # Board 44's rider (landed v0.4.34, board 47a): the manifest's
+        # validation_will_run, key-presence semantics — carried when the
+        # manifest has the key, absent otherwise (docstring).
+        if manifest is not None and "validation_will_run" in manifest:
+            validation["validation_will_run"] = manifest[
+                "validation_will_run"]
     attempt = {
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "outcome": outcome,
@@ -3012,6 +3265,10 @@ def build_telemetry_attempt(
         attempt["diagnostics"] = diagnostics
     if clarification is not None:
         attempt["clarification"] = clarification
+    # Board 44's second rider (v0.4.34): the manifest's corrects pointer,
+    # verbatim (null included) when the manifest carries the key.
+    if manifest is not None and "corrects" in manifest:
+        attempt["corrects"] = manifest["corrects"]
     # Always-stamp on validated attempts (board 6 D4; see docstring):
     # key presence = epoch membership, configured:false = known-zero.
     if validation_state is not None:

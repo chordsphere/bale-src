@@ -1661,6 +1661,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_checkpoint_stamp_refusal,
         format_decline_line,
         format_dry_run_report,
+        format_hold_card,
         format_required_check_refusal,
         format_sandbox_unavailable_refusal,
         format_scope_drift_refusal,
@@ -1668,6 +1669,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_summary_block,
         format_walkthrough_summary,
         json_mode,
+        parse_failed_probe_labels,
         read_clarification_summary,
         write_telemetry_record,
     )
@@ -2726,6 +2728,10 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # open with no git side effects beyond the session-dir stamps
         # every apply writes.
         checkpoint_path = bale_config.get_validation_base(staging_cfg)
+        # The unresolved base (board 47a): the HOLD card's fixture fork
+        # needs to know whether the base was {sid}-bearing, which the
+        # resolved path below no longer shows.
+        checkpoint_base_raw = checkpoint_path
         if checkpoint_path is not None:
             # Per-sid resolution (v0.4.8, board 10 S7): a {sid}-bearing
             # base resolves against the LOCKED session id — the same
@@ -3044,6 +3050,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 "script": {"path": checkpoint_path,
                            "sha256": checkpoint_result["sha256"]},
                 "stamp_matched": checkpoint_stamp_matched,
+                # Board 47a (v0.4.34): the failed probe labels, in log
+                # order, [] when none failed — the §5 blindness watch's
+                # fixture-defect split, and the list the HOLD card
+                # renders. Parsed from the same captured output the
+                # banded log section holds; absent on the known-zero
+                # stamp above (no checkpoint ran).
+                "failed_probes": parse_failed_probe_labels(
+                    checkpoint_result.get("output")),
             }
 
         # Telemetry inputs (v0.3.9, B2): session_scope was read at the
@@ -3407,13 +3421,25 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # git work is complete, so a stamp write failure is logged
             # and the amend side degrades with that reason, rather than
             # turning a completed HOLD into a failure.
+            #
+            # Board 47a: the stamp's OUTCOME feeds the card's composed
+            # successors (ratified: compose from the stamp, never from
+            # the in-process path) — held_tarball is the stamped path on
+            # success, None with the reason on a failed write, so the
+            # card and amend-checkpoint's report cannot disagree and a
+            # failed stamp is said on the card rather than papered over.
             stamp_path = sessions_dir / HELD_TARBALL_STAMP
+            held_tarball: Optional[str] = None
+            held_tarball_why = ""
             try:
                 stamp_path.write_text(
                     str(tarball_path.resolve()) + "\n", encoding="utf-8")
+                held_tarball = str(tarball_path.resolve())
                 log(f"stamped held tarball {tarball_path.resolve()} at "
                     f"{stamp_path}")
             except OSError as e:
+                held_tarball_why = (f"the HOLD-time tarball stamp could not "
+                                    f"be written at {stamp_path} ({e})")
                 log(f"could not write the HOLD-time tarball stamp at "
                     f"{stamp_path} ({e}); `bale amend-checkpoint` will "
                     f"emit its successor in placeholder form", force=True)
@@ -3439,22 +3465,29 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     sandbox_off_source=sandbox_off_source,
                     log_path=f".bale/logs/{locked_sid}.log",
                 ))
-            print(format_summary_block(
-                [
-                    ("validation", f"exited {exit_code}"),
-                    ("branch", f"{sid_branch} (committed; `git diff "
-                               f"{origin_branch}..{sid_branch}` to inspect "
-                               f"— checkout untouched)"),
-                    ("log", f".bale/logs/{locked_sid}.log"),
-                    ("staging", f"{staging} (preserved)"),
-                    ("telemetry",
-                     f"recorded {telemetry_rel}" if telemetry_rel
-                     else "write failed — see log"),
-                    ("retry", "bale retry <new-tarball>"),
-                    ("discard", f"bale revert {locked_sid}"),
-                ],
-                status="HOLD",
+            # The closing card (board 47a, BALE.md §8.8): judge line,
+            # failed probe labels, ruling-forked composed successors —
+            # rendered by bale_report.format_hold_card, whose structured
+            # pieces 47b's relay blocks reuse. A literal [validation]
+            # base cannot take `bale amend-checkpoint`; the raw base key
+            # (unresolved) tells the two apart: resolution changed
+            # nothing exactly when the base carries no {sid}.
+            print(format_hold_card(
                 sid=locked_sid,
+                exit_code=exit_code,
+                checkpoint=(checkpoint_stamp if checkpoint_result is not None
+                            else None),
+                sid_branch=sid_branch,
+                origin_branch=origin_branch,
+                staging=staging,
+                telemetry=telemetry_rel,
+                held_tarball=held_tarball,
+                held_tarball_why=held_tarball_why,
+                literal_checkpoint_path=(
+                    checkpoint_path
+                    if checkpoint_result is not None
+                    and "{sid}" not in (checkpoint_base_raw or "")
+                    else None),
             ))
             if json_mode():
                 # Emitted on the exit-1 path deliberately: a machine

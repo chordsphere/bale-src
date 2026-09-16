@@ -142,6 +142,11 @@
                   }
                 }
               },
+              "validation_will_run": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "The response manifest's validation_will_run, verbatim (v0.4.34 — additive, record_version stays 1): the declared list of what validation.sh runs, the side claims must be a subset of (TARBALL.md section 5.3). Key-presence semantics: present when the manifest carried the key ([] included — an empty declaration is a recorded value), absent when it did not and on every earlier record, where readers keep the computable proxy bale stats shipped before the field existed."
+              },
               "reconciliation_parsed": {
                 "type": "boolean",
                 "description": "True when a section 7.3 'claims vs verdict:' block was found and parsed from validation.sh's output. False means claim_verdict is empty because the block was absent or unrecognizable — validation.sh authors the block per convention, not contract, so a parse miss is recorded rather than silently skipped."
@@ -177,11 +182,20 @@
                   "sha256": { "type": "string" }
                 }
               },
+              "failed_probes": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "The failed probe labels (v0.4.34 — additive; record_version stays 1): the label text of every [FAIL] verdict line the executed checkpoint wrote — the line with leading whitespace and the [FAIL] prefix stripped — in log order (stdout, then stderr, as the banded log section holds them), [] when none failed. Key-presence semantics: present on every executed-checkpoint object written from v0.4.34, ABSENT on the {\"configured\": false} known-zero form (no checkpoint ran) and on every earlier record, which reads as not-recorded, never as none-failed. The field the blindness watch splits fixture-defect HOLDs from worker misunderstanding with; the HOLD card renders the same list. Write-only at v0.4.34: no bale stats read side yet."
+              },
               "stamp_matched": {
                 "type": ["boolean", "null"],
                 "description": "The checkpoint provenance verification's result (v0.3.28): true when the executed base-tree bytes matched the request manifest's pack-time provenance.checkpoint stamp; false when a divergence was admitted by --accept-checkpoint-change (the current base-tree version ran); null when the request carried no provenance.checkpoint key (hand-rolled requests, and requests packed pre-0.3.28)."
               }
             }
+          },
+          "corrects": {
+            "type": ["string", "null"],
+            "description": "The response manifest's corrects pointer, verbatim (v0.4.34 — additive, record_version stays 1): the session id of the response this one re-attempts, or null. Key-presence semantics: present — null included — when the manifest carried the key, absent when it did not, on attempts with no response manifest (unlock, revert, rollback), and on every earlier record. bale stats' lineage read already reads this field tolerantly at attempt depth."
           },
           "scope_kind": {
             "type": "string",

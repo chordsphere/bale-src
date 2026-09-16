@@ -53,6 +53,11 @@ machinery; row 22's refusal and override are pinned in
 test_readonly_pack.py), 26–29 (required checks and checkpoints — their
 own suites), and the pack/handoff-side rows.
 
+One unit class rides here beside the reject surface: board 47a's
+``HoldCardUnitTest`` pins the extracted HOLD card renderer
+(``format_hold_card`` and its pieces in bin/bale_report.py) pure,
+sandbox-free; its end-to-end twin is tests/test_hold_retry_e2e.py.
+
 Fixture doctrine: every rejection test is exactly one mutation away
 from a known-good baseline — the shared harness builder
 (``build_response_dir``) produces a valid response, and the local
@@ -1571,6 +1576,222 @@ class ExplicitNameMissTest(unittest.TestCase):
                     result.stderr.rstrip().endswith(str(self.downloads)),
                     msg=f"unexpected trailer after the searched list:"
                         f"\n{result.stderr}")
+
+
+# ---------------------------------------------------------------------------
+# Board 47a (v0.4.34): the HOLD card renderer's unit pins
+# ---------------------------------------------------------------------------
+
+class HoldCardUnitTest(unittest.TestCase):
+    """The extracted HOLD card pieces (bin/bale_report.py), pinned pure.
+
+    In-process and sandbox-free: ``hold_judge`` in each of its three
+    cases (plus the unconfigured and errored-checkpoint forms),
+    ``parse_failed_probe_labels`` over none / one / several labels in
+    log order, ``compose_hold_successors`` on both ruling forks with a
+    path that needs shell quoting, the literal-base note, the no-stamp
+    degradation, and ``format_hold_card``'s assembled rows and trailer.
+    The end-to-end HOLDs that drive these through a real apply live in
+    tests/test_hold_retry_e2e.py (HoldCardE2ETest).
+    """
+
+    SID = "2026-09-16-card-unit-001"
+    HELD = "/tmp/held dir/response-2026-09-16-card-unit-001.tar.gz"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from harness import _load_module
+        cls.br = _load_module("bale_report")
+
+    def cp(self, exit_code: int, labels=None) -> dict:
+        return {"configured": True,
+                "state": "PASS" if exit_code == 0 else "HOLD",
+                "exit_code": exit_code,
+                "script": {"path": f"claude/checkpoints/{self.SID}.sh",
+                           "sha256": "0" * 64},
+                "stamp_matched": True,
+                "failed_probes": list(labels or [])}
+
+    # -- the judge line ---------------------------------------------------
+
+    def test_judge_checkpoint_case(self) -> None:
+        judge = self.br.hold_judge(self.cp(1), 0)
+        self.assertEqual(judge["case"], self.br.HOLD_JUDGE_CHECKPOINT)
+        self.assertEqual(
+            judge["line"],
+            "blind checkpoint — checkpoint: HOLD (exit 1) · "
+            "worker validation: PASS")
+
+    def test_judge_worker_case_with_and_without_checkpoint(self) -> None:
+        judge = self.br.hold_judge(self.cp(0), 1)
+        self.assertEqual(judge["case"], self.br.HOLD_JUDGE_WORKER)
+        self.assertEqual(
+            judge["line"],
+            "worker validation — worker validation: HOLD (exit 1) · "
+            "checkpoint: PASS")
+        for unconfigured in (None, {"configured": False}):
+            with self.subTest(checkpoint=unconfigured):
+                judge = self.br.hold_judge(unconfigured, 2)
+                self.assertEqual(judge["case"], self.br.HOLD_JUDGE_WORKER)
+                self.assertEqual(
+                    judge["line"],
+                    "worker validation — worker validation: HOLD (exit 2) "
+                    "· no blind checkpoint configured")
+
+    def test_judge_both_case(self) -> None:
+        judge = self.br.hold_judge(self.cp(1), 1)
+        self.assertEqual(judge["case"], self.br.HOLD_JUDGE_BOTH)
+        self.assertEqual(
+            judge["line"],
+            "both — checkpoint: HOLD (exit 1) · worker validation: "
+            "HOLD (exit 1)")
+
+    def test_judge_errored_checkpoint_is_the_checkpoint_side(self) -> None:
+        judge = self.br.hold_judge(self.cp(2), 0)
+        self.assertEqual(judge["case"], self.br.HOLD_JUDGE_CHECKPOINT)
+        self.assertIn("the planner's checkpoint itself errored",
+                      judge["line"])
+
+    def test_judge_refuses_a_pass(self) -> None:
+        with self.assertRaises(ValueError):
+            self.br.hold_judge(self.cp(0), 0)
+
+    # -- the failed probe labels ------------------------------------------
+
+    def test_labels_none_one_several_in_log_order(self) -> None:
+        parse = self.br.parse_failed_probe_labels
+        self.assertEqual(parse(None), [])
+        self.assertEqual(parse(""), [])
+        self.assertEqual(parse("[PASS] beta\n[SKIP] gamma: no tool\n"), [])
+        self.assertEqual(parse("[FAIL] oracle-probe-alpha\n"
+                               "[PASS] oracle-probe-beta\n"),
+                         ["oracle-probe-alpha"])
+        self.assertEqual(
+            parse("preamble\n[FAIL] zeta\n  [PASS] ok\n"
+                  "   [FAIL] alpha probe — detail\nnoise [FAIL] not-a-verdict\n"
+                  "[FAIL] mu\n"),
+            ["zeta", "alpha probe — detail", "mu"],
+            msg="log order kept (never sorted); leading whitespace "
+                "tolerated; a mid-line [FAIL] is not a verdict line")
+
+    def test_bare_fail_line_is_an_empty_label_not_dropped(self) -> None:
+        self.assertEqual(self.br.parse_failed_probe_labels("[FAIL]\n"), [""])
+
+    # -- the successor forks ------------------------------------------------
+
+    def forks(self, case, **kw):
+        kw.setdefault("held_tarball", self.HELD)
+        return self.br.compose_hold_successors(
+            sid=self.SID, judge_case=case, **kw)
+
+    def assert_one_line_each(self, forks) -> None:
+        for fork in forks:
+            for line in fork["lines"]:
+                self.assertNotIn("\n", line)
+
+    def test_checkpoint_hold_renders_both_forks_quoted(self) -> None:
+        import shlex
+        forks = self.forks(self.br.HOLD_JUDGE_CHECKPOINT)
+        self.assertEqual([f["ruling"] for f in forks],
+                         [self.br.RULING_FIXTURE_DEFECT,
+                          self.br.RULING_WORK_DEFECT])
+        amend, fixture_retry = forks[0]["lines"]
+        self.assertTrue(amend.startswith(
+            f"bale amend-checkpoint <amendment> --sha256 <hex> "
+            f"--sid {self.SID}  # "), msg=amend)
+        self.assertIn("unknowable when this card renders", amend)
+        quoted = shlex.quote(self.HELD)
+        self.assertNotEqual(quoted, self.HELD,
+                            msg="fixture path must need quoting")
+        self.assertEqual(
+            fixture_retry,
+            f"bale retry {quoted} --accept-checkpoint-change --sid {self.SID}")
+        self.assertEqual(shlex.split(fixture_retry)[2], self.HELD,
+                         msg="the quoted line round-trips to the real path")
+        self.assertEqual(forks[1]["lines"], [f"bale retry {quoted}"])
+        self.assert_one_line_each(forks)
+
+    def test_worker_hold_renders_work_fork_only(self) -> None:
+        forks = self.forks(self.br.HOLD_JUDGE_WORKER)
+        self.assertEqual([f["ruling"] for f in forks],
+                         [self.br.RULING_WORK_DEFECT])
+
+    def test_both_hold_renders_both_forks(self) -> None:
+        forks = self.forks(self.br.HOLD_JUDGE_BOTH)
+        self.assertEqual(len(forks), 2)
+
+    def test_literal_base_replaces_amend_line_keeps_retry_rung(self) -> None:
+        forks = self.forks(self.br.HOLD_JUDGE_CHECKPOINT,
+                           literal_checkpoint_path="claude/checkpoint.sh")
+        note, retry = forks[0]["lines"]
+        self.assertFalse(note.startswith("bale "), msg=note)
+        self.assertIn("claude/checkpoint.sh", note)
+        self.assertIn("directly", note)
+        self.assertIn("--accept-checkpoint-change", retry)
+        self.assertIn(f"--sid {self.SID}", retry)
+
+    def test_no_stamp_degrades_loudly_on_both_forks(self) -> None:
+        why = "the HOLD-time tarball stamp could not be written at X (boom)"
+        forks = self.forks(self.br.HOLD_JUDGE_BOTH, held_tarball=None,
+                           held_tarball_why=why)
+        fixture, work = forks
+        self.assertEqual(len(fixture["lines"]), 3)
+        self.assertIn("could not be filled in", fixture["lines"][1])
+        self.assertIn(why, fixture["lines"][1])
+        self.assertEqual(
+            fixture["lines"][2],
+            f"bale retry <response-tarball> --accept-checkpoint-change "
+            f"--sid {self.SID}")
+        self.assertIn(why, work["lines"][0])
+        self.assertEqual(work["lines"][1], "bale retry <response-tarball>")
+
+    # -- the assembled card ------------------------------------------------
+
+    def card(self, **kw) -> str:
+        base = dict(sid=self.SID, exit_code=0, checkpoint=self.cp(1),
+                    sid_branch=f"bale/{self.SID}", origin_branch="main",
+                    staging=f"/r/.bale/staging/{self.SID}",
+                    telemetry=f"claude/telemetry/{self.SID}.json",
+                    held_tarball=self.HELD)
+        base.update(kw)
+        return self.br.format_hold_card(**base)
+
+    def row(self, text: str, label: str) -> str:
+        prefix = f"  {label}:"
+        hits = [ln for ln in text.splitlines() if ln.startswith(prefix)]
+        self.assertEqual(len(hits), 1, msg=f"row {label!r} in:\n{text}")
+        return hits[0][len(prefix):].strip()
+
+    def test_card_rows_and_retired_placeholders(self) -> None:
+        text = self.card(checkpoint=self.cp(1, ["alpha", "beta two"]))
+        self.assertIn(f"  [HOLD] {self.SID}", text)
+        self.assertTrue(self.row(text, "judge").startswith(
+            "blind checkpoint — "))
+        self.assertEqual(self.row(text, "failed probes"), "alpha · beta two")
+        self.assertEqual(self.row(text, "discard"), f"bale revert {self.SID}")
+        self.assertNotIn("validation: exited", text)
+        self.assertNotIn("<new-tarball>", text)
+        self.assertNotIn("  retry:", text)
+
+    def test_card_failed_probes_none_and_absent(self) -> None:
+        text = self.card(checkpoint=self.cp(0), exit_code=1)
+        self.assertEqual(self.row(text, "failed probes"), "none")
+        text = self.card(checkpoint=None, exit_code=1)
+        self.assertNotIn("failed probes:", text,
+                         msg="no checkpoint ran: no row")
+        text = self.card(checkpoint={"configured": False}, exit_code=1)
+        self.assertNotIn("failed probes:", text)
+
+    def test_card_trailer_carries_every_fork_line_verbatim(self) -> None:
+        text = self.card(exit_code=1)
+        lines = [ln.strip() for ln in text.splitlines()]
+        for fork in self.forks(self.br.HOLD_JUDGE_BOTH):
+            self.assertIn(fork["heading"], lines)
+            for line in fork["lines"]:
+                self.assertIn(line, lines,
+                              msg="each successor is one physical line")
+        self.assertTrue(lines[-1].startswith("bale retry "),
+                        msg="the card ends on a pasteable successor")
 
 
 if __name__ == "__main__":
