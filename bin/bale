@@ -5684,7 +5684,25 @@ def cmd_stats(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
-        description=f"Claude session orchestrator (v{VERSION}).",
+        description=(
+            f"Claude session orchestrator (v{VERSION}): a request tarball "
+            f"goes out to the worker, a response tarball comes back, and "
+            f"bale validates, stages, and merges or holds it."
+        ),
+        epilog=(
+            "The loop: `bale pack` (or `bale open <bundle>` for a "
+            "planner-authored bundle) builds .bale/outbox/"
+            "request-<sid>.tar.gz and opens the session; `bale apply` "
+            "validates the response tarball, stages it, runs the "
+            "planner's blind checkpoint (when [validation] base is "
+            "configured) beside the response's validation.sh, and merges "
+            "on PASS or holds the bale/<sid> branch on HOLD — then `bale "
+            "retry`, `bale amend-checkpoint`, or `bale revert`. `bale "
+            "help <command>` shows any command's flags; `bale config "
+            "init` sets a repo up. The worker's side of the contract is "
+            "docs/CLAUDE.md and docs/TARBALL.md in this install; the "
+            "full tool reference is BALE.md in the bale-src repository."
+        ),
     )
     p.add_argument("--version", action="version", version=f"bale {VERSION}")
 
@@ -5696,7 +5714,22 @@ def build_parser() -> argparse.ArgumentParser:
     # continuations); don't reconstruct it from this parser.
     p_pack = sub.add_parser(
         "pack",
-        help="Build a request tarball from goal + included paths.",
+        help="Build a request tarball: goal, --include context, --write "
+             "forecast.",
+        description=(
+            "Build a request tarball and open its session. The goal is "
+            "the ask; --include selects what ships as context (default: "
+            "the whole repo, minus .baleignore, --exclude, and the "
+            "built-in directory and secret-pattern filters); --write declares the "
+            "write forecast — the paths the session is expected to "
+            "change, which the concurrency gates read — or --read-only "
+            "declares none. On a TTY, omitting the goal or --slug enters "
+            "the interactive wizard; piped, both are required. Pack "
+            "writes .bale/outbox/request-<sid>.tar.gz, and its report "
+            "ends with a paste-ready session opener for the worker's "
+            "chat. The flag surface's canonical description is "
+            "TARBALL.md §3.4."
+        ),
     )
     p_pack.add_argument(
         "goal", nargs="?", default=None,
@@ -5973,9 +6006,24 @@ def build_parser() -> argparse.ArgumentParser:
     # apply
     p_apply = sub.add_parser(
         "apply",
-        help="Validate and apply a response tarball.",
+        help="Validate, stage, and merge (PASS) or hold (HOLD) a response "
+             "tarball; bare `bale apply` finds the newest one.",
         description=(
-            "Validate and apply a response tarball. The tarball argument is "
+            "Validate and apply a response tarball: pre-flight the "
+            "manifest and its gates, overlay files/ and run apply.sh in "
+            "staging, run the planner's blind checkpoint (when [validation] "
+            "base is configured) and the response's validation.sh, commit "
+            "the session to bale/<sid>, and walk the verdict — PASS merges "
+            "into the origin branch by default; HOLD keeps bale/<sid> and "
+            "the staging copy for inspection and names the two next steps, "
+            "`bale retry <new-tarball>` or `bale revert <sid>` (a HOLD "
+            "whose cause is the checkpoint itself goes through `bale "
+            "amend-checkpoint` first). A bailout response prints the "
+            "`bale handoff` next step and closes the session; a "
+            "clarification response records its questions as a round of "
+            "the session's exchange thread and keeps the session open "
+            "for `bale relay`.\n\n"
+            "The tarball argument is "
             "resolved against apply.search_paths in bale.toml when set: "
             "relative names are tried against cwd first, then each "
             "configured directory in order, first match wins. Absolute "
@@ -6195,10 +6243,18 @@ def build_parser() -> argparse.ArgumentParser:
             "touched. The tarball argument is resolved "
             "against apply.search_paths in bale.toml the same way `bale "
             "apply` does.\n\n"
+            "A HOLD is retried on one of two rulings. When the work was "
+            "wrong, the worker ships a corrected response and `bale retry "
+            "<new-tarball>` runs it. When the blind checkpoint was wrong, "
+            "the planner publishes an amendment, `bale amend-checkpoint` "
+            "commits it and prints the retry line, and the retry of the "
+            "same response takes the --accept-checkpoint-change rung: the "
+            "provenance gate refuses the changed oracle until that flag "
+            "accepts it, per invocation.\n\n"
             "The per-attempt flags mirror `bale apply`'s (--verbose, "
             "--no-interact, --allow-out-of-scope, "
             "--allow-missing-required-check, --accept-checkpoint-change, "
-            "--json), since retry "
+            "--accept-base-drift, --no-sandbox, --json), since retry "
             "reruns the same pipeline. Apply's inspection flags "
             "(--show-validator, --show-apply-script, --dry-run) are "
             "deliberately absent here: they read the tarball or the open "
@@ -6614,30 +6670,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_unlock.set_defaults(func=cmd_unlock)
 
-    # handoff — repackage a bailout response into a fresh request tarball.
     # open — planner-bundle consumption (board 49a-ii; BALE.md §6.7).
-    # Verifies both member hashes, dry-runs the checkpoint read-only
-    # against the live base (expected-HOLD proof; exit 2 refuses as a
-    # defective oracle), then replays the stored pack argv with the
-    # delivery flags injected from member presence and the bundle's
-    # pre-answered intents on the in-process channel.
+    # Verifies both member hashes, parses the stored pack argv and runs
+    # the arg-inspectable pack gates (board 68), dry-runs the checkpoint
+    # read-only against the live base (expected-HOLD proof; exit 2
+    # refuses as a defective oracle), then replays the stored pack argv
+    # with the delivery flags injected from member presence and the
+    # bundle's pre-answered intents on the in-process channel.
     p_open = sub.add_parser(
         "open",
-        help="Consume a planner bundle: verify, dry-run the checkpoint, "
-             "pack.",
+        help="Consume a planner bundle: verify, gate the pack argv, "
+             "dry-run the checkpoint, pack.",
         description=(
-            "Consume a planner bundle (.bale-bundle; BALE.md §6.7): gate "
-            "bundle.json through validate_bundle_manifest before trusting "
-            "anything else, verify each member's published sha256 against "
-            "its LF-normalized bytes, dry-run the checkpoint member "
-            "read-only against a scratch copy of the live base and echo "
-            "the expected-HOLD proof (exit 1 expected; exit 2 refuses the "
-            "whole open as a defective oracle; exit 0 proceeds with a "
-            "vacuous-oracle warning), then replay the stored pack argv "
-            "with --readme-file/--no-readme and --checkpoint-file "
-            "injected from member presence and the bundle's pre_answered "
-            "intents riding the in-process channel — routed through every "
-            "decline-default exchange, never around it."
+            "Consume a planner bundle (.bale-bundle; BALE.md §6.7) and "
+            "pack its session, cheapest gate first, every refusal landing "
+            "before any session state exists. (1) Gate bundle.json "
+            "through validate_bundle_manifest before trusting anything "
+            "else, and verify each member's published sha256 against its "
+            "LF-normalized bytes. (2) Parse the stored pack argv with the "
+            "real CLI parser and run the arg-inspectable pack gates — "
+            "forecast existence, then forecast disjointness, the same "
+            "implementations `bale pack` runs (board 68) — so a bundle "
+            "the replay would refuse on its argv alone refuses here, in "
+            "that gate's own words, with no dry-run spent; refusals name "
+            "the resolved project root and the config files judged. (3) "
+            "When the bundle ships a checkpoint, refuse up front if the "
+            "project pins no [validation] base, then dry-run the "
+            "checkpoint read-only against a scratch copy of the live base "
+            "and echo the expected-HOLD proof (exit 1 expected; exit 2 "
+            "refuses the whole open as a defective oracle; exit 0 "
+            "proceeds with a vacuous-oracle warning). (4) Replay the "
+            "stored pack argv with --readme-file/--no-readme and "
+            "--checkpoint-file injected from member presence and the "
+            "bundle's pre_answered intents riding the in-process channel "
+            "— routed through every decline-default exchange, never "
+            "around it. The replayed pack re-runs every gate at its own "
+            "site; the early gates are a cost ordering, not a substitute."
         ),
     )
     p_open.add_argument(
@@ -6665,6 +6733,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_open.set_defaults(func=cmd_open)
 
+    # handoff — repackage a bailout response into a fresh request tarball.
     # TARBALL.md §5.6.3: when `bale apply` encounters response_kind=bailout
     # it prints the handoff banner and stops; `bale handoff <tarball>`
     # then takes that bailout's handoff.md and ships it as the sole
@@ -6789,11 +6858,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_handoff.set_defaults(func=cmd_handoff)
 
-    # config — group for configurables-management subcommands. At v0.0.x
-    # the only subcommand is `init`; set/get/edit land in later sessions.
+    # config — group for configurables-management subcommands: `init`
+    # (the wizard, the canonical bale.toml writer) and `hooks` (the hook
+    # acceptance store, v0.4.29). There is no set/get/edit subcommand.
     p_config = sub.add_parser(
         "config",
-        help="Manage bale configurables (per-repo or global).",
+        help="Manage bale configurables: `config init` walks bale.toml "
+             "(per-repo or --global); `config hooks` lists remembered "
+             "hook acceptances.",
+        description=(
+            "Manage bale's configuration. `bale config init` is the "
+            "wizard — the canonical writer of <repo>/bale.toml (default) "
+            "or <install>/user/bale.toml (--global), walking every "
+            "configurable bale reads. `bale config hooks` lists the "
+            "install's hook acceptance store, or forgets one entry."
+        ),
     )
     config_sub = p_config.add_subparsers(
         dest="config_cmd", required=True, metavar="<subcommand>",
@@ -6808,10 +6887,16 @@ def build_parser() -> argparse.ArgumentParser:
             "for this install (--global), or re-confirm existing values. "
             "Idempotent: re-running shows current values and lets you keep, "
             "change, suppress, or clear each one. "
-            "Default writes <repo>/bale.toml. With --global, writes "
-            "<install>/user/bale.toml — the install-wide layer that every "
-            "project using this bale install inherits per-key. Project "
-            "values override globals when both are set."
+            "Default writes <repo>/bale.toml, after checking git identity, "
+            "and ends with the .baleignore walkthrough. With --global, "
+            "writes <install>/user/bale.toml — the install-wide layer that "
+            "every project using this bale install inherits per-key. "
+            "Project values override globals when both are set. Some "
+            "sections are project-layer only — [validation], [sandbox], "
+            "[pack], and [probe] — so the global walk never offers them "
+            "and a global value for them is never inherited. Re-running "
+            "rewrites the file from the walked surface: hand-edited keys "
+            "the wizard does not walk are dropped."
         ),
     )
     p_config_init.add_argument(
@@ -6903,7 +6988,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print a shell completion script (bash) to stdout.",
         description=(
             "Print a shell completion script to stdout for the chosen "
-            "shell. Only bash is supported in v0.2.2. The output is a "
+            "shell. Only bash is supported. The output is a "
             "self-contained function that does pure-shell dispatch at "
             "Tab-press time — no subprocess back to bale per Tab press. "
             "Source it from your shell rc:\n\n"
@@ -6933,7 +7018,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Print a read-only summary of the working directory's bale: the "
             "tool version, the repo and whether its working tree is clean, the "
-            "open session (if any) and its lifecycle state, the outbox, a light "
+            "open sessions (if any) and each one's lifecycle state, the outbox, a light "
             "pointer at applied history, and what's configured. Takes no lock, "
             "makes no git or filesystem changes, and works outside a git repo "
             "or in a not-yet-initialised one. Always exits 0 on a successful "
