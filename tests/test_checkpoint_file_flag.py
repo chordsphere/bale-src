@@ -40,6 +40,13 @@ never golden comparisons):
   prompt entirely; an empty answer falls through to the named
   resolved-existence refusal; a typed `--checkpoint-file` skips the
   prompt (the typed `--write` precedent, board-13a).
+- **The candidate picker** (board pack-ux-micro, registry): before the
+  question the prompt lists `.sh` files from cwd and
+  `apply.search_paths`, newest first, each with path, UTC mtime and a
+  sha256 prefix; empty files and non-`.sh` names stay off the list; a
+  typed number picks, an out-of-range number re-prompts naming the
+  range, a typed path is still accepted beside a listing, and an empty
+  candidate set prints nothing extra.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; the per-sid fixture base comes from
@@ -56,7 +63,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from harness import run_bale_pty
@@ -78,6 +87,7 @@ EMPTY_FILE_PHRASE = "is empty"
 PROMPT_MARKER = "Checkpoint file to commit for this session?"
 COMMIT_SUBJECT_PREFIX = "bale: per-session checkpoint for "
 ECHO_ROW_MARKER = "checkpoint file sha256:"
+CANDIDATES_MARKER = "Checkpoint candidates"
 
 
 class CheckpointFileFixture(PerSidFixture):
@@ -384,6 +394,9 @@ class CheckpointWizardPromptTest(CheckpointFileFixture):
         code, output = self.wizard_pack(answers)
         self.assertEqual(code, 0, msg=output)
         self.assertIn(PROMPT_MARKER, output)
+        # No .sh in cwd, no search paths: the prompt prints nothing
+        # extra (board pack-ux-micro's empty-list rule).
+        self.assertNotIn(CANDIDATES_MARKER, output)
         self.assertEqual(self.open_sids(), [sid])
         self.assertEqual(self.head_bytes(self.resolved_for(sid)),
                          body.encode("utf-8"))
@@ -471,6 +484,78 @@ class CheckpointWizardPromptTest(CheckpointFileFixture):
         sid = self.predicted_sid("wiz-retry")
         self.assertEqual(self.head_bytes(self.resolved_for(sid)),
                          body.encode("utf-8"))
+
+    # -- the candidate picker (board pack-ux-micro) ----------------------
+
+    def inbox_with(self, files: dict) -> Path:
+        """An apply.search_paths directory holding `files` ({name:
+        (body, mtime-offset-seconds)}), configured beside the {sid}
+        base. Offsets are relative to a fixed past instant so ordering
+        never depends on write timing."""
+        inbox = self.tmp / "inbox"
+        inbox.mkdir()
+        epoch = 1_780_000_000  # a fixed instant; only the order matters
+        for name, (body, offset) in files.items():
+            f = inbox / name
+            f.write_text(body, encoding="utf-8")
+            os.utime(f, (epoch + offset, epoch + offset))
+        (self.repo / "bale.toml").write_text(
+            f"[validation]\nbase = \"{CP_PATTERN}\"\n\n"
+            f"[apply]\nsearch_paths = [\"{inbox}\"]\n",
+            encoding="utf-8")
+        return inbox
+
+    def picker_answers(self, goal: str, slug: str, *checkpoint: str) -> str:
+        return (f"{goal}\n{slug}\n" "c\n" "\n"
+                + "".join(f"{a}\n" for a in checkpoint)
+                + "\n" "\n" "\n" "n\n")
+
+    def test_candidates_listed_newest_first_and_number_picks(self) -> None:
+        older = checkpoint_script("older-cp")
+        newer = checkpoint_script("newer-cp")
+        inbox = self.inbox_with({
+            "older.sh": (older, 0),
+            "newer.sh": (newer, 600),
+            "empty.sh": ("", 900),        # empty: never a candidate
+            "notes.txt": ("not a script\n", 1200),
+        })
+        sid = self.predicted_sid("wiz-pick")
+        code, output = self.wizard_pack(
+            self.picker_answers("wizard picker goal", "wiz-pick", "1"))
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(CANDIDATES_MARKER, output)
+        new_at = output.find(f"[1] {(inbox / 'newer.sh').resolve()}")
+        old_at = output.find(f"[2] {(inbox / 'older.sh').resolve()}")
+        self.assertGreaterEqual(new_at, 0, msg=output)
+        self.assertGreater(old_at, new_at, msg=output)
+        # The listing precedes the question.
+        self.assertLess(new_at, output.find(PROMPT_MARKER))
+        newer_sha = hashlib.sha256(newer.encode("utf-8")).hexdigest()
+        self.assertIn(f"sha256 {newer_sha[:12]}", output)
+        stamp = datetime.fromtimestamp(
+            (inbox / "newer.sh").stat().st_mtime, timezone.utc
+        ).strftime("%Y-%m-%d %H:%M UTC")
+        self.assertIn(f"modified {stamp}", output)
+        self.assertNotIn("empty.sh", output)
+        self.assertNotIn("notes.txt", output)
+        # [1] is the newest, and its bytes are what got committed.
+        self.assertEqual(self.head_bytes(self.resolved_for(sid)),
+                         newer.encode("utf-8"))
+
+    def test_out_of_range_number_reprompts_and_typed_path_still_works(
+            self) -> None:
+        self.inbox_with({"listed.sh": (checkpoint_script("listed"), 0)})
+        typed_body = checkpoint_script("typed-beside-listing")
+        typed = self.write_source(typed_body, name="typed.sh")
+        sid = self.predicted_sid("wiz-typed-beside")
+        code, output = self.wizard_pack(self.picker_answers(
+            "wizard picker typed goal", "wiz-typed-beside",
+            "7", str(typed)))
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(CANDIDATES_MARKER, output)
+        self.assertIn("no candidate 7", output)
+        self.assertEqual(self.head_bytes(self.resolved_for(sid)),
+                         typed_body.encode("utf-8"))
 
     # -- fixture ---------------------------------------------------------
 

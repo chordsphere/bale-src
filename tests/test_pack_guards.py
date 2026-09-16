@@ -24,12 +24,24 @@ Board-35 gap 3 — the last ranked audit item: "Pack §7.4 caps /
   patterns through one matcher), `.baleignore` itself always ships in
   context/, negation patterns refuse, and excluding everything
   refuses with the widen-your-include message.
-- **Board 68 (appended)**: the opener's closing sentence is the shape
-  rule, verbatim (whitespace-collapsed pin); the disjointness refusal
-  leads with workable remedies against a whole-tree open forecast and
-  keeps the narrow-this-pack lead for partial overlaps; every
-  [validation]-base refusal names the resolved project root and the
-  config files judged.
+- **Board 68 (appended)**: the disjointness refusal leads with
+  workable remedies against a whole-tree open forecast and keeps the
+  narrow-this-pack lead for partial overlaps; every [validation]-base
+  refusal names the resolved project root and the config files judged.
+  (Its opener shape-sentence pin moved to tests/test_pack_opener.py at
+  board pack-ux-micro.)
+- **Board pack-ux-micro (appended)**: a negation line refuses under the
+  name of the source it came from — `.baleignore` or the session's
+  `--exclude` — never misattributed; `--verbose` closes its drop trail
+  with one `verbose: drop <entry> (not tracked)` line per include
+  entry, as typed, that no `git ls-files` path matched (a gitignored
+  file or directory entry, an all-ignored or empty directory), and
+  never names an untracked-but-shipped file or a file under a reached
+  entry; an included
+  `tests/` file whose module-level import names a repo test module the
+  pack does not ship warns once per (importer, module) — package-
+  qualified (`tests.x`) and bare-sibling (`from harness import`)
+  spellings alike — without refusing, and a stdlib import never warns.
 - **The soft-breach [y]/[e]/[n] prompt**: driven through a real pty
   (the prompt engages only on a TTY). [n] and bare Enter abort
   pre-sid; unrecognized input re-prompts; [e] collects session-only
@@ -99,6 +111,9 @@ PROMPT_EMPTY_ADDITIONS_MARKER = "no patterns added"
 FORCE_BYPASS_MARKER = "bypassing threshold breach"
 NO_FILES_MARKER = "no files would be included after exclusions"
 INVALID_EXCLUDE_MARKER = "invalid session exclude pattern"
+BALEIGNORE_REFUSAL_MARKER = "invalid pattern in .baleignore"
+UNTRACKED_DROP_SUFFIX = " (not tracked)"
+TEST_IMPORT_WARNING_LEAD = "warning: included test "
 
 
 class PackGuardsBase(unittest.TestCase):
@@ -409,6 +424,34 @@ class ExcludeAndBaleignoreTest(PackGuardsBase):
         self.assertIn("!keep", r.stderr)
         self.assert_refused_pre_sid(r.stderr)
 
+    def test_baleignore_negation_refusal_names_the_file(self) -> None:
+        """A negation line in .baleignore on the fully specified CLI path
+        (where load_baleignore never pre-validates) refuses attributed to
+        .baleignore — never as a session exclude pattern the operator
+        did not type."""
+        self.write_payload({"payload/keep.py": "print()\n"})
+        (self.repo / ".baleignore").write_text(
+            "*.log\n!keep.py\n", encoding="utf-8")
+        r = self.pack()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(BALEIGNORE_REFUSAL_MARKER, r.stderr)
+        self.assertIn("!keep.py", r.stderr)
+        self.assertNotIn(INVALID_EXCLUDE_MARKER, r.stderr)
+        self.assert_refused_pre_sid(r.stdout + r.stderr)
+
+    def test_exclude_negation_beside_clean_baleignore_names_session(
+            self) -> None:
+        """With a clean .baleignore present, the flag's negation keeps
+        the session wording — the split attributes, it does not merge."""
+        self.write_payload({"payload/f.txt": "x\n"})
+        (self.repo / ".baleignore").write_text("*.log\n", encoding="utf-8")
+        r = self.pack("--exclude", "!keep")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(INVALID_EXCLUDE_MARKER, r.stderr)
+        self.assertIn("!keep", r.stderr)
+        self.assertNotIn(BALEIGNORE_REFUSAL_MARKER, r.stderr)
+        self.assert_refused_pre_sid(r.stdout + r.stderr)
+
     def test_excluding_everything_refuses(self) -> None:
         """An empty surviving set is a refusal, not an empty pack."""
         self.write_payload({"payload/f.txt": "x\n"})
@@ -492,70 +535,211 @@ class SoftBreachPromptTest(PackGuardsBase):
 # Board 68: opener shape sentence, whole-tree remedy lead, config naming
 # ---------------------------------------------------------------------------
 #
-# Three pins consumed by the board-68 session, homed here because this
+class VerboseUntrackedDropTest(PackGuardsBase):
+    """Row 92 (board pack-ux-micro): `--verbose` names each include
+    ENTRY, as typed, that no `git ls-files` path matched — the one drop
+    the in-loop trail cannot see. The walk enumerates `git ls-files
+    --cached --others --exclude-standard`, so an untracked file that is
+    NOT ignored ships and gets no line; a gitignored entry never
+    entered the walk. Scope is the entry (row text; the session's
+    ratified light-block answer), never a file under a reached entry."""
+
+    def drop_lines(self, text: str) -> list:
+        return [ln.split("[bale] ", 1)[-1] for ln in text.splitlines()
+                if ln.split("[bale] ", 1)[-1].startswith("verbose: drop ")]
+
+    def test_gitignored_file_entry_gets_one_drop_line(self) -> None:
+        self.write_payload({
+            ".gitignore": "secret.cfg\n",
+            "secret.cfg": "ignored\n",
+            "payload/untracked.py": "ships\n",
+        })
+        r = self.pack("--include", "secret.cfg", "--verbose")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.drop_lines(r.stdout),
+                         ["verbose: drop secret.cfg (not tracked)"],
+                         msg=r.stdout)
+        # The untracked-but-not-ignored file ships; no line lies about it.
+        included, _ = self.shipped_context()
+        self.assertIn("context/payload/untracked.py", included)
+        self.assertNotIn("context/secret.cfg", included)
+
+    def test_gitignored_directory_entry_is_named_once_as_typed(self) -> None:
+        files = {".gitignore": "gen/\n", "payload/keep.txt": "k\n"}
+        files.update({f"gen/f{i}.py": "x\n" for i in range(5)})
+        self.write_payload(files)
+        r = self.pack("--include", "gen", "--verbose")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.drop_lines(r.stdout),
+                         ["verbose: drop gen (not tracked)"],
+                         msg=r.stdout)
+
+    def test_directory_whose_contents_are_all_ignored_is_one_line(
+            self) -> None:
+        """The directory itself is not ignored, only every file in it
+        (`*.log`): still one line for the entry, not one per file."""
+        self.write_payload({
+            ".gitignore": "*.log\n",
+            "logs/a.log": "a\n", "logs/b.log": "b\n",
+            "payload/keep.txt": "k\n",
+        })
+        r = self.pack("--include", "logs", "--verbose")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.drop_lines(r.stdout),
+                         ["verbose: drop logs (not tracked)"],
+                         msg=r.stdout)
+
+    def test_include_entry_matching_nothing_is_named(self) -> None:
+        """An included directory git lists nothing under (empty — git
+        tracks no directories) is named as the dropped entry."""
+        self.write_payload({"payload/a.txt": "a\n"})
+        (self.repo / "hollow").mkdir()
+        r = self.pack("--include", "hollow", "--verbose")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.drop_lines(r.stdout),
+                         ["verbose: drop hollow (not tracked)"],
+                         msg=r.stdout)
+
+    def test_ignored_file_under_a_reached_entry_gets_no_line(self) -> None:
+        """payload/ is reached by listed paths, so it is not a dropped
+        entry; the ignored file inside it is out of row 92's scope."""
+        self.write_payload({
+            ".gitignore": "payload/ignored.py\n",
+            "payload/ignored.py": "x\n",
+            "payload/keep.txt": "k\n",
+        })
+        r = self.pack("--verbose")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.drop_lines(r.stdout), [], msg=r.stdout)
+
+    def test_quiet_pack_prints_no_drop_lines(self) -> None:
+        self.write_payload({
+            ".gitignore": "gen/\n", "gen/x.py": "x\n",
+            "payload/keep.txt": "k\n",
+        })
+        r = self.pack("--include", "gen")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertNotIn(UNTRACKED_DROP_SUFFIX, r.stdout + r.stderr)
+
+
+class IncludedTestImportWarningTest(PackGuardsBase):
+    """Row 84 (board pack-ux-micro): an included tests/ file importing a
+    repo test module the pack does not ship warns — one line per
+    (importer, module), naming both — and never refuses."""
+
+    IMPORTER = (
+        "from __future__ import annotations\n"
+        "import json\n"
+        "import os, sys\n"
+        "import unittest\n"
+        "from pathlib import Path\n"
+        "from harness import make_repo\n"
+        "import tests.helper as helper\n"
+        "from tests import pkgmod\n"
+        "from tests import not_a_module\n"
+        "def later():\n"
+        "    from indented_sibling import x\n"
+    )
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_payload({
+            "tests/test_widget.py": self.IMPORTER,
+            "tests/harness.py": "def make_repo(): ...\n",
+            "tests/helper.py": "X = 1\n",
+            "tests/pkgmod/__init__.py": "\n",
+            "tests/indented_sibling.py": "x = 1\n",
+            "tests/__init__.py": "not_a_module = 1\n",
+        })
+
+    def pack_tests(self, *includes: str, slug: str = "imports"):
+        return run_bale(
+            self.install,
+            ["pack", "included test import warning goal", "--slug", slug,
+             "--no-readme", *[a for inc in includes
+                              for a in ("--include", inc)]],
+            cwd=self.repo, env=self.env)
+
+    def warnings(self, text: str) -> list:
+        return [ln.split("[bale] ", 1)[-1] for ln in text.splitlines()
+                if TEST_IMPORT_WARNING_LEAD in ln]
+
+    def test_each_missing_module_warns_once_and_pack_proceeds(self) -> None:
+        r = self.pack_tests("tests/test_widget.py")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        warned = self.warnings(r.stdout)
+        expected = {
+            "tests/harness.py",           # bare sibling
+            "tests/helper.py",            # import tests.x as y
+            "tests/pkgmod/__init__.py",   # from tests import <module>
+        }
+        named = set()
+        for line in warned:
+            self.assertIn("tests/test_widget.py", line)
+            for mod in expected:
+                if f" imports {mod}," in line:
+                    named.add(mod)
+        self.assertEqual(named, expected, msg=r.stdout)
+        self.assertEqual(len(warned), len(expected), msg=r.stdout)
+        # No stdlib false positive, no indented-import scan, no warning
+        # for a name that lives inside tests/__init__.py.
+        joined = "\n".join(warned)
+        for absent in ("json", "os.py", "sys", "unittest", "pathlib",
+                       "__future__", "indented_sibling", "not_a_module"):
+            self.assertNotIn(absent, joined)
+        self.assertEqual(len(self.open_sids()), 1)
+
+    def test_nested_importer_resolves_against_the_tests_root(self) -> None:
+        """A nested suite's bare `from harness import` resolves to
+        tests/harness.py (discover puts tests/ on sys.path) — the
+        ratified tests/<name>.py rule."""
+        self.write_payload({
+            "tests/sub/test_nested.py": "from harness import make_repo\n",
+        })
+        r = self.pack_tests("tests/sub/test_nested.py", slug="nested")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        warned = self.warnings(r.stdout)
+        self.assertEqual(len(warned), 1, msg=r.stdout)
+        self.assertIn("tests/sub/test_nested.py imports tests/harness.py,",
+                      warned[0])
+
+    def test_shipping_the_modules_silences_the_warning(self) -> None:
+        r = self.pack_tests("tests")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.warnings(r.stdout + r.stderr), [])
+
+    def test_non_tests_files_are_not_scanned(self) -> None:
+        self.write_payload({"payload/tool.py": "from harness import x\n"})
+        (self.repo / "payload" / "harness.py").write_text(
+            "x = 1\n", encoding="utf-8")
+        r = run_bale(
+            self.install,
+            ["pack", "non-tests scan goal", "--slug", "nontests",
+             "--no-readme", "--include", "payload/tool.py"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.warnings(r.stdout + r.stderr), [])
+
+
+# Two pins consumed by the board-68 session, homed here because this
 # suite already drives fully specified piped packs through the scratch
-# install (the opener's own suite, test_pack_opener.py, pins identity
-# carriage, not the closing sentence).
-
-# Scissor lines framing the opener paste block (bin/bale_pack.py
-# OPENER_BEGIN/OPENER_END), mirrored — the suite never imports bale.
-OPENER_BEGIN = ("--8<-- session opener (copy everything between the "
-                "scissor lines) --8<--")
-OPENER_END = "--8<-- end session opener --8<--"
-
-# The closing sentence, VERBATIM (bin/bale_pack.py OPENER_SHAPE_SENTENCE;
-# row 96's one pack line). The emitted lines wrap it, so the pin
-# compares whitespace-collapsed text; the bytes of the sentence are
-# what is pinned.
-OPENER_SHAPE_SENTENCE = (
-    "Every turn you end in this session takes one machine-recognizable "
-    "shape: a response tarball, a probe block, a light question block, "
-    "or a clarification response; a question asked as prose is not a "
-    "shape."
-)
-OPENER_EXAMINE_SENTENCE = (
-    "Please examine the tarball contents, starting with CLAUDE.md and "
-    "manifest.json, and go from there."
-)
-RETIRED_OPENER_TAIL = "Ask me if anything is unclear"
+# install. (Board 68's third pin, the opener's closing shape sentence,
+# moved to tests/test_pack_opener.py at board pack-ux-micro — one suite
+# per surface, and that suite already owns the scissor-line helpers.)
 
 INTERSECT_MARKER = "pack write forecast intersects"
 NARROW_THIS_PACK = "Narrow this pack's forecast with --write"
 WHOLE_TREE_LEAD = "recorded the whole-tree forecast"
-
-
-def _collapse(text: str) -> str:
-    return " ".join(text.split())
-
-
-class OpenerShapeSentenceTest(PackGuardsBase):
-    """The opener's closing sentence is the shape rule (board 68 rider 4)."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.write_payload({"payload/a.txt": "a\n"})
-
-    def opener_segment(self, text: str) -> str:
-        self.assertIn(OPENER_BEGIN, text)
-        self.assertIn(OPENER_END, text)
-        return text[text.index(OPENER_BEGIN) + len(OPENER_BEGIN):
-                    text.index(OPENER_END)]
-
-    def test_opener_closes_with_the_shape_sentence_verbatim(self) -> None:
-        result = self.pack(slug="opener-shape")
-        self.assertEqual(
-            result.returncode, 0,
-            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-        collapsed = _collapse(self.opener_segment(result.stdout))
-        self.assertIn(OPENER_SHAPE_SENTENCE, collapsed)
-        # The preceding sentence stays intact, and the shape sentence
-        # is the last thing before the closing scissor line.
-        self.assertIn(OPENER_EXAMINE_SENTENCE, collapsed)
-        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
-                        msg=collapsed)
-        self.assertLess(collapsed.index(OPENER_EXAMINE_SENTENCE),
-                        collapsed.index(OPENER_SHAPE_SENTENCE))
-        self.assertNotIn(RETIRED_OPENER_TAIL, collapsed)
 
 
 class DisjointnessRemedyTest(PackGuardsBase):
