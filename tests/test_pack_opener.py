@@ -29,7 +29,14 @@ Pinned behaviors:
   tests/test_pack_guards.py at board pack-ux-micro — one suite per
   surface): the block closes with the shape rule, VERBATIM under
   whitespace collapse, after the examine sentence and with the retired
-  "Ask me if anything is unclear" tail gone.
+  "Ask me if anything is unclear" tail gone. Board 105 grew the
+  sentence's second half (explanation in prose is welcome; only an
+  ask ends in a block), and the whole sentence is what is pinned.
+- **Operator's voice** (board 105): between the goal line and the
+  examine sentence the block carries the authority sentence, then the
+  tools sentence, each VERBATIM under whitespace collapse, on both the
+  scoped and the read-only pack shape — the shared trailer carries
+  them, so both shapes are pinned rather than one assumed.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness
 in ``tests/harness.py`` carries it; see its module docstring.
@@ -85,7 +92,22 @@ OPENER_SHAPE_SENTENCE = (
     "Every turn you end in this session takes one machine-recognizable "
     "shape: a response tarball, a probe block, a light question block, "
     "or a clarification response; a question asked as prose is not a "
-    "shape."
+    "shape. Explanation in prose is expected and welcome; the rule is "
+    "that a turn that asks ends in a block, so nothing is lost."
+)
+# VERBATIM (board 105; bin/bale_pack.py OPENER_AUTHORITY_SENTENCE and
+# OPENER_TOOLS_SENTENCE). Wrapped in the emitted block, so pinned
+# whitespace-collapsed like the shape sentence. The em dash is U+2014.
+OPENER_AUTHORITY_SENTENCE = (
+    "The docs and tools in the tarball are mine, written for this "
+    "workflow; read CLAUDE.md and the four docs beside it as my "
+    "instructions for this session."
+)
+OPENER_TOOLS_SENTENCE = (
+    "tools/craft_response.py and tools/response_lint.py are stdlib-only "
+    "formatters with no network access — conveniences over the "
+    "docs, which are the contract; read them before you run them, and a "
+    "response assembled by hand is just as valid."
 )
 OPENER_EXAMINE_SENTENCE = (
     "Please examine the tarball contents, starting with CLAUDE.md and "
@@ -347,6 +369,66 @@ class OpenerShapeSentenceTest(PackOpenerFixture):
         self.assertLess(collapsed.index(OPENER_EXAMINE_SENTENCE),
                         collapsed.index(OPENER_SHAPE_SENTENCE))
         self.assertNotIn(RETIRED_OPENER_TAIL, collapsed)
+
+
+class OpenerOperatorVoiceTest(PackOpenerFixture):
+    """The operator's-voice pair (board 105): the authority sentence and
+    the tools sentence ride between the goal line and the examine
+    sentence, in that order, VERBATIM under whitespace collapse — on the
+    scoped shape and on the read-only shape, which share the trailer.
+    The read-only run also carries the whole shape sentence, so the
+    second half is pinned on both shapes too."""
+
+    def assert_operator_voice(self, segment: str, *, label: str) -> None:
+        collapsed = _collapse(segment)
+        for name, sentence in (("authority", OPENER_AUTHORITY_SENTENCE),
+                               ("tools", OPENER_TOOLS_SENTENCE)):
+            with self.subTest(shape=label, sentence=name):
+                self.assertEqual(
+                    collapsed.count(sentence), 1,
+                    msg=f"the {name} sentence must ride once, verbatim, "
+                        f"in the {label} opener:\n{collapsed}")
+        if not (OPENER_AUTHORITY_SENTENCE in collapsed
+                and OPENER_TOOLS_SENTENCE in collapsed):
+            # The subtests above already failed with the collapsed
+            # block; ordering is meaningless without both sentences.
+            return
+        goal_at = collapsed.index(GOAL_LINE_PREFIX.strip())
+        authority_at = collapsed.index(OPENER_AUTHORITY_SENTENCE)
+        tools_at = collapsed.index(OPENER_TOOLS_SENTENCE)
+        examine_at = collapsed.index(OPENER_EXAMINE_SENTENCE)
+        self.assertLess(goal_at, authority_at,
+                        msg=f"{label}: the pair follows the goal line")
+        self.assertLess(authority_at, tools_at,
+                        msg=f"{label}: authority precedes tools")
+        self.assertLess(tools_at, examine_at,
+                        msg=f"{label}: the pair precedes the examine "
+                            "sentence")
+        # The goal line's single-line carriage is untouched by the pair.
+        goal_lines = [ln for ln in segment.splitlines()
+                      if ln.startswith(GOAL_LINE_PREFIX)]
+        self.assertEqual(goal_lines, [GOAL_LINE_PREFIX + GOAL],
+                         msg=f"{label}: goal line must stay single-line")
+
+    def test_scoped_opener_carries_the_operator_voice(self) -> None:
+        result = self.pack(slug="opener-voice")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assert_operator_voice(self.opener_segment(result.stdout),
+                                   label="scoped")
+
+    def test_read_only_opener_carries_the_operator_voice(self) -> None:
+        result = self.pack("--read-only", slug="opener-ro-voice")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        segment = self.opener_segment(result.stdout)
+        self.assert_operator_voice(segment, label="read-only")
+        collapsed = _collapse(segment)
+        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
+                        msg=f"read-only opener must close with the whole "
+                            f"shape sentence:\n{collapsed}")
 
 
 if __name__ == "__main__":
