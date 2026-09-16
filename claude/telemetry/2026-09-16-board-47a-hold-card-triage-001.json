@@ -1,0 +1,261 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-16-board-47a-hold-card-triage-001",
+  "created_at": "2026-09-16T17:56:55+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-16T17:56:55+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_closure_telemetry.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-16-board-47a-hold-card-triage-001.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-16T18:46:17+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-16-board-47a-hold-card-triage-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "bin/VERSION is 0.4.34": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "BALE.md bale open row carries board 68's sentence verbatim": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "BALE.md near-name sentence names apply, retry, and handoff": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "HOLD card renderer unit pins": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "HOLD card end-to-end (judge cases, labels, forks, degrade)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "HOLD card and amend-checkpoint agree": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "telemetry fields (failed_probes, validation_will_run, corrects)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: forecast suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: doc and schema pins": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "bin/VERSION is 0.4.34": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md bale open row carries board 68's sentence verbatim": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "BALE.md near-name sentence names apply, retry, and handoff": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "HOLD card renderer unit pins": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "HOLD card end-to-end (judge cases, labels, forks, degrade)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "HOLD card and amend-checkpoint agree": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "telemetry fields (failed_probes, validation_will_run, corrects)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: forecast suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: doc and schema pins": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_closure_telemetry.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_closure_telemetry.py",
+        "tests/test_hold_retry_e2e.py",
+        "tests/test_telemetry_extensions.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.33",
+            "contract_docs": {
+              "CLAUDE.md": "10d340623b73ae85ece5926a1016447f9dae66098099d97b956080728c9bcbfe",
+              "TARBALL.md": "1269b55f64e58dfa9b40e16fce89dfe129e3396987ef856522136b8bdf61e081",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-16-board-47a-hold-card-triage-001.sh",
+              "sha256": "76bf3a27a3a300ef8c60f8dd9713fd182a5ea075ec1469e70b5496b15bfbd144"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-16T17:56:55+00:00",
+            "base_files": {
+              "BALE.md": "1ef4e92d32ea89964d1228f28a1637778d69a99ecbb6c528c73e3d0f66915a00",
+              "bin/VERSION": "031f6065d669b8af39b130b3fa5ac7c3fe7683424294c3db1486f8efa21a6585",
+              "bin/bale_apply.py": "1064f0b6bcee68efbad11409b99f68f65918435dd2d485c7fe3eb6f45fee518b",
+              "bin/bale_report.py": "dd34a799383503bf979753c4dde0efe087e58b3292def1af44577c6a89a2a0a0",
+              "schemas/telemetry-record.schema.json": "00bb9ca29a97fc7daf21b953eeb3caac6d70d8ffdcb73d81a8ee13d1c5ea0066",
+              "tests/test_amend_checkpoint.py": "f92e350764ac1cf2f6ff2d64eaee5304c7074730376c72fa4789f74bdcd443d2",
+              "tests/test_apply_preflight.py": "d1878689d641b7e60adca848f6903f69aa8db94b3c1d2d1af3ffd85ee49461ad",
+              "tests/test_closure_telemetry.py": "a07b0966b739861528182465586c25ebf924fb6309eb5b97eb4310751479801c",
+              "tests/test_hold_retry_e2e.py": "683e1c2511ba2866fa941927f010bcd365ab36ac5e074966a7706e1661c87ff1",
+              "tests/test_telemetry_extensions.py": "e0ba22850127fa9e09b485748be56f896896576943d9b64f1dfb4ef81564cfe4"
+            },
+            "model_identity": "claude-opus-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [],
+          "judgment_calls": [
+            "Successor forks ride the card's trailer, not rows: summary rows never wrap, but a fork is two commands, and the trailer is emitted verbatim.",
+            "A checkpoint exit 2 counts as the checkpoint side for the judge case and renders the fixture fork: the planner's artifact broke.",
+            "Failed labels are parsed in bale_report from the checkpoint result's captured output at stamp time; bale_staging stays untouched.",
+            "The work-defect fork's retry line carries no --sid, per the brief's literal form: retry resolves from responds_to.",
+            "Schema descriptions anchor to v0.4.34 only, with no board citations: the self-containment pin forbids project citations in install-shipped schemas."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bale.toml (repo root) \u2014 three test_include_group cases error without it in a reconstructed tree; environment artifact, not a regression"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          }
+        }
+      },
+      "log": ".bale/logs/2026-09-16-board-47a-hold-card-triage-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-16-board-47a-hold-card-triage-001.sh",
+          "sha256": "76bf3a27a3a300ef8c60f8dd9713fd182a5ea075ec1469e70b5496b15bfbd144"
+        },
+        "stamp_matched": true
+      }
+    }
+  ],
+  "updated_at": "2026-09-16T18:46:17+00:00",
+  "outcome": "applied"
+}
