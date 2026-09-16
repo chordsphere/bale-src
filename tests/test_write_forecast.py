@@ -79,6 +79,7 @@ FORECAST_COVER_PHRASE = "write forecast covers the blind checkpoint"
 READ_NAME_PHRASE = "pack includes name the blind checkpoint explicitly"
 AUTO_EXCLUDE_PHRASE = "never ships incidentally"
 STATUS_ROW_LABEL = "write forecast"
+FORECAST_NOT_INCLUDED_PHRASE = "is forecast (--write) but not included"
 
 CHECKPOINT_PATH = "scripts/check.sh"
 
@@ -212,6 +213,69 @@ class ForecastRecordTest(WriteForecastBase):
         self.assertEqual(result.returncode, 1, msg=result.stdout)
         self.assertIn(MISSING_WRITE_MARKER, result.stderr)
         self.assertEqual(self.open_sids(), [])
+
+
+class ForecastIncludeMismatchWarningTest(WriteForecastBase):
+    """Board pack-ux-micro (registry; evidence 62's counter): a --write
+    naming an existing FILE that will not ship in context/ warns — one
+    line per path, naming it — and never refuses. A directory forecast
+    is how new files are forecast, so it never warns."""
+
+    def warned_paths(self, text: str) -> list:
+        return [ln.split("[bale] warning: ", 1)[1].split(" ", 1)[0]
+                for ln in text.splitlines()
+                if FORECAST_NOT_INCLUDED_PHRASE in ln]
+
+    def test_file_outside_includes_warns_once_and_packs(self) -> None:
+        result = self.pack("--write", "hello.txt", "src")
+        sid = self.assert_pack_ok(result)
+        self.assertEqual(self.warned_paths(result.stdout), ["hello.txt"],
+                         msg=result.stdout)
+        self.assertIn("cannot read", result.stdout)
+        self.assertEqual(self.scope_json(sid), ["hello.txt", "src"])
+
+    def test_each_uncovered_file_gets_its_own_line(self) -> None:
+        result = run_bale(
+            self.install,
+            ["pack", "two uncovered files", "--slug", "two",
+             "--include", "src", "--write", "hello.txt", "lib/b.txt",
+             "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assert_pack_ok(result)
+        self.assertEqual(sorted(self.warned_paths(result.stdout)),
+                         ["hello.txt", "lib/b.txt"], msg=result.stdout)
+
+    def test_directory_forecast_outside_includes_never_warns(self) -> None:
+        result = run_bale(
+            self.install,
+            ["pack", "directory forecast", "--slug", "dirfc",
+             "--include", "src", "--write", "lib", "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assert_pack_ok(result)
+        self.assertNotIn(FORECAST_NOT_INCLUDED_PHRASE,
+                         result.stdout + result.stderr)
+
+    def test_covered_file_forecast_never_warns(self) -> None:
+        result = self.pack("--write", "src/a.txt")
+        self.assert_pack_ok(result)
+        self.assertNotIn(FORECAST_NOT_INCLUDED_PHRASE,
+                         result.stdout + result.stderr)
+
+    def test_absent_write_never_warns(self) -> None:
+        """No --write: the forecast is the include set — nothing to
+        disagree with."""
+        result = self.pack()
+        self.assert_pack_ok(result)
+        self.assertNotIn(FORECAST_NOT_INCLUDED_PHRASE,
+                         result.stdout + result.stderr)
+
+    def test_file_under_include_but_excluded_warns(self) -> None:
+        """The judgment is against what ships: an excluded file under an
+        include is just as unreadable to the worker."""
+        result = self.pack("--write", "src/a.txt", "--exclude", "a.txt")
+        self.assert_pack_ok(result)
+        self.assertEqual(self.warned_paths(result.stdout), ["src/a.txt"],
+                         msg=result.stdout)
 
 
 class ForecastGateTest(WriteForecastBase):

@@ -47,6 +47,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -215,6 +216,185 @@ def is_under_include(rel: str, includes: list[str]) -> bool:
         except ValueError:
             continue
     return False
+
+
+def untracked_include_entries(includes: list[str],
+                              listed: list[str]) -> list[str]:
+    """The include entries the pack walk never sees (row 92, board
+    pack-ux-micro): each entry, AS TYPED, that no `git ls-files` path
+    matched — no listed path equal to it or under it. This is the one
+    drop reason `walk_for_pack --verbose` could not name, because the
+    walk iterates `git ls-files --cached --others --exclude-standard`
+    and an entry nothing in that listing reaches never enters the loop
+    that logs drops.
+
+    Scope is the entry, never the file under it (row 92's text, and the
+    session's ratified light-block answer: "gitignored include entries
+    and entries matching no git ls-files path"). One rule covers every
+    shape that answer names: a gitignored file named by --include, a
+    gitignored directory named by --include (reported once, as typed —
+    `gen`, not git's `gen/` rendering), an empty directory (git tracks
+    no directories), and on `bale handoff --verbose` a reading-plan
+    entry naming a path that does not exist (the typo case the row was
+    written for; `bale pack` refuses a nonexistent --include before
+    walking). An untracked file that is NOT ignored is in the listing
+    and ships, so it never qualifies; neither does a gitignored file
+    under an entry that other listed paths reach — the entry reached
+    the walk.
+
+    `listed` is the walk's own `list_git_files` result, so no second git
+    call runs. No includes (the whole-tree default) returns []: the row
+    is about include entries, and a whole-tree walk has none. Returned
+    in include order, de-duplicated by the typed spelling.
+    """
+    out: list[str] = []
+    for inc in includes:
+        if inc in out:
+            continue
+        if any(is_under_include(rel, [inc]) for rel in listed):
+            continue
+        out.append(inc)
+    return out
+
+
+def forecast_files_not_included(repo: Path, forecast: list[str],
+                                shipped: list[str]) -> list[str]:
+    """Forecast entries naming an existing FILE that will not ship in
+    context/ (registry row from evidence 62's proposed counter; board
+    pack-ux-micro): the worker is forecast to write a file it cannot
+    read. Returned sorted, for pack's one-warning-per-path emission.
+
+    Only file entries qualify. A directory entry is how a packer
+    forecasts NEW files (refuse_missing_scope_paths' rule), and new
+    files are legitimately absent from any include set, so a directory
+    never warns — not even one with nothing shipped under it. The
+    comparison is against the final shipped set rather than the include
+    entries, because a file under an include that an exclusion dropped
+    is just as unreadable to the worker as one no include reached.
+    A warning, never a refusal: a deliberate blind rewrite is legal.
+    """
+    shipped_set = set(shipped)
+    return sorted({entry for entry in forecast
+                   if (repo / entry).is_file() and entry not in shipped_set})
+
+
+# Module-level import lines only (column 0): the static scan row 84
+# asked for — no execution, no AST. An indented import inside a
+# function is a tolerated false negative, as is anything exotic
+# (relative imports, importlib, __import__). Group 1 is the `from X`
+# module; group 2 the `from X import <names>` tail; group 3 the
+# `import <a, b as c>` list.
+_IMPORT_LINE_RE = re.compile(
+    r"^(?:from\s+([A-Za-z_][\w.]*)\s+import\s+(.*)"
+    r"|import\s+([A-Za-z_][\w.]*(?:\s+as\s+\w+)?"
+    r"(?:\s*,\s*[A-Za-z_][\w.]*(?:\s+as\s+\w+)?)*))"
+)
+
+
+# Stdlib top-level names never resolve as bare siblings. A sibling
+# file that shadows one (tests/json.py beside `import json`) would in
+# fact be what Python imports, but row 84 rules any stdlib false
+# positive out and tolerates false negatives, so the shadow case is
+# given up deliberately. sys.stdlib_module_names is 3.10+; on an older
+# interpreter the set is empty and the on-disk sibling test alone
+# guards (a stdlib name only warns if a same-named sibling exists).
+_STDLIB_NAMES = frozenset(getattr(sys, "stdlib_module_names", ()))
+
+
+def _resolve_test_module(repo: Path, dotted: str) -> Optional[str]:
+    """`tests.a.b` -> the repo-relative module file if it exists on disk
+    (`tests/a/b.py`, else the package's `tests/a/b/__init__.py`), or
+    None. Existence on disk is the whole false-positive guard: a name
+    that resolves to no repo file (the stdlib, a third-party package, a
+    typo) is never reported."""
+    base = "/".join(dotted.split("."))
+    for rel in (f"{base}.py", f"{base}/__init__.py"):
+        if (repo / rel).is_file():
+            return rel
+    return None
+
+
+def excluded_test_module_imports(repo: Path, shipped: list[str]
+                                 ) -> list[tuple[str, str]]:
+    """(importing file, missing module file) pairs for row 84 (board
+    pack-ux-micro): an included `tests/` Python file whose module-level
+    import names a repo test module that is not in the shipped set —
+    a suite that cannot run in the worker's context, which otherwise
+    surfaces later as `includes_missing` or a `predicted` claim.
+
+    Two spellings resolve, both only to files that exist in the repo:
+
+    - **Package-qualified** — `import tests.x`, `from tests.x import …`,
+      and `from tests import x` (the last only when `tests/x.py` or
+      `tests/x/__init__.py` exists; otherwise `x` is a name inside the
+      package, not a module). This is the spelling the row names.
+    - **Bare sibling** — `from harness import …`, `import harness`,
+      resolved against the importing file's own directory, then the
+      `tests/` root (ratified at the session's light question block:
+      warn when `tests/<name>.py` exists and does not ship). Direct
+      execution puts the importer's directory on sys.path and
+      `unittest discover -s tests` puts `tests/`, so a bare name that
+      matches such a file IS that file; this is the
+      spelling this repo's own suites use (`from harness import`,
+      `from test_handoff_fixture import`), and the one the live
+      specimens most plausibly came from. A stdlib top-level name is
+      never resolved as a sibling (_STDLIB_NAMES), even when a
+      same-named file would shadow it.
+
+    Returned sorted and de-duplicated; unreadable files are skipped
+    (the pack walk already accounted for them — a scan that cannot read
+    a file has no import lines to judge, and the copy step will surface
+    a real read failure loudly).
+    """
+    shipped_set = set(shipped)
+    found: set[tuple[str, str]] = set()
+    for rel in shipped:
+        parts = Path(rel).parts
+        if len(parts) < 2 or parts[0] != "tests" or not rel.endswith(".py"):
+            continue
+        try:
+            text = (repo / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        sibling_dir = Path(rel).parent
+        for line in text.splitlines():
+            m = _IMPORT_LINE_RE.match(line)
+            if m is None:
+                continue
+            candidates: list[str] = []
+            if m.group(1) is not None:
+                mod = m.group(1)
+                candidates.append(mod)
+                if mod == "tests":
+                    tail = m.group(2).strip().strip("()")
+                    for name in tail.split(","):
+                        name = name.strip().split(" as ")[0].strip()
+                        if name.isidentifier():
+                            candidates.append(f"tests.{name}")
+            else:
+                for item in m.group(3).split(","):
+                    candidates.append(item.strip().split()[0])
+            for dotted in candidates:
+                target: Optional[str] = None
+                if dotted == "tests" or dotted.startswith("tests."):
+                    if dotted != "tests":
+                        target = _resolve_test_module(repo, dotted)
+                elif "." not in dotted and dotted not in _STDLIB_NAMES:
+                    # The importer's own directory first (direct
+                    # execution puts it on sys.path), then the tests/
+                    # root (`unittest discover -s tests` puts that there
+                    # for a nested importer too) — the planner's rule is
+                    # "tests/<name>.py exists", and a sibling of a
+                    # nested importer is the same idiom one level down.
+                    for sib_dir in dict.fromkeys(
+                            (sibling_dir, Path("tests"))):
+                        sib = (sib_dir / f"{dotted}.py").as_posix()
+                        if sib != rel and (repo / sib).is_file():
+                            target = sib
+                            break
+                if target is not None and target not in shipped_set:
+                    found.add((rel, target))
+    return sorted(found)
 
 
 def checkpoint_exclusion_basis(base: Optional[str]) -> Optional[str]:
@@ -419,6 +599,18 @@ def build_pack_matcher(
     know which patterns came from which source. The wizard previews the
     file contents separately so the user still understands what's
     persistent vs session-scoped, but at walk time they're the same set.
+
+    Refusal attribution (board-35 registry row, landed board
+    pack-ux-micro): the two sources are parsed separately BEFORE the
+    combined parse, so a refused line is named by the source it came
+    from. The parser is line-local (each line is classified on its own;
+    no line's validity depends on another), so parsing the file lines,
+    then the session lines, then the concatenation accepts and rejects
+    exactly what the single combined parse did — only the wording of a
+    refusal changes. Before the split, a negation line in `.baleignore`
+    on the fully-specified CLI path (where load_baleignore never ran)
+    was reported as an "invalid session exclude pattern", pointing the
+    operator at flags they never typed.
     """
     from __main__ import (  # lazy — see module docstring
         BALEIGNORE_FILE,
@@ -436,14 +628,30 @@ def build_pack_matcher(
     if not any(ln.strip() and not ln.strip().startswith("#")
                for ln in combined):
         return None
+    # Source-attributed validation (docstring): the file first, since a
+    # bad persistent line refuses every pack regardless of the flags.
+    try:
+        BaleignoreMatcher.from_lines(file_lines)
+    except ValueError as e:
+        fail(f"invalid pattern in {BALEIGNORE_FILE} ({f}): {e} "
+             f"The line is in the {BALEIGNORE_FILE} file, not "
+             f"in this pack's --exclude flags; fix it there.")
+    try:
+        BaleignoreMatcher.from_lines(list(session_excludes))
+    except ValueError as e:
+        # A session-extra pattern (--exclude, or the wizard / soft-breach
+        # [e] collection) tripped the guard. The user typed it; the
+        # message names it.
+        fail(f"invalid session exclude pattern: {e}")
     try:
         return BaleignoreMatcher.from_lines(combined)
     except ValueError as e:
-        # `.baleignore` was already validated by load_baleignore in any
-        # surface that called it; this branch fires when a session-extra
-        # pattern triggered the negation guard. Include the offending
-        # pattern in the message — the user typed it.
-        fail(f"invalid session exclude pattern: {e}")
+        # Unreachable while the parser stays line-local (both halves
+        # parsed clean above). Kept loud rather than assumed: if the
+        # parser ever grows cross-line rules, this names the composition
+        # instead of misattributing it to either source.
+        fail(f"invalid combined {BALEIGNORE_FILE} + session exclude "
+             f"patterns: {e}")
 
 
 
@@ -589,7 +797,11 @@ def walk_for_pack(
     the trail re-prints against the updated matcher, which is the honest
     rendering of a re-decided walk. Default (False) is byte-identical to
     today: no per-path output, surviving files summarized after the
-    walk as before.
+    walk as before. Since board pack-ux-micro (row 92) the verbose trail
+    also closes with one `verbose: drop <entry> (not tracked)` line per
+    include entry, as typed, that no listed path matched
+    (untracked_include_entries) — the only drop the in-loop trail cannot
+    see.
     """
     def _drop(rel: str, why: str) -> None:
         # Verbose-only per-path trail (docstring above). Quiet path
@@ -609,7 +821,8 @@ def walk_for_pack(
     checkpoint_drops: list[str] = []
     bundle_drops: list[str] = []
 
-    for rel in list_git_files(repo):
+    listed = list_git_files(repo)
+    for rel in listed:
         # Filter chain — matches gather_files_for_pack's body so the
         # surviving set on a no-cap run is consistent across entry points.
         if not (repo / rel).is_file():
@@ -698,6 +911,17 @@ def walk_for_pack(
                     f"(at {rel})"
                 )
                 break
+
+    # Untracked include entries (row 92, board pack-ux-micro):
+    # verbose-only, like every other drop line — but a different verb,
+    # `drop`, because these entries never reached the loop above;
+    # `skip` names a filter the loop applied to a listed path. See
+    # untracked_include_entries for which entries qualify. Emitted
+    # after the loop so the in-loop trail keeps its listing order.
+    if verbose:
+        from __main__ import log as _vlog  # lazy — verbose-only
+        for entry in untracked_include_entries(includes, listed):
+            _vlog(f"verbose: drop {entry} (not tracked)")
 
     # Checkpoint auto-exclusion log (v0.4.9; summarized v0.4.10). Loud
     # and unconditional — silent skips are bugs, and a planner watching
@@ -1956,6 +2180,89 @@ def locate_and_read_checkpoint_file(
     return path, data, None
 
 
+# How many candidates the wizard checkpoint prompt lists (board
+# pack-ux-micro; registry "a handful"). The listing is a picker for the
+# file the planner just delivered — newest first, so it sits at [1] —
+# not a survey of every script in the downloads directory.
+CHECKPOINT_CANDIDATES_MAX = 5
+
+# sha256 prefix length shown per candidate: enough to tell near-
+# duplicate downloads apart against the planner's published hash.
+CHECKPOINT_CANDIDATE_SHA_CHARS = 12
+
+
+@dataclass(frozen=True)
+class CheckpointCandidate:
+    """One wizard-listed checkpoint candidate: the absolute path, its
+    mtime (epoch seconds), and the sha256 hex of its CRLF-normalized
+    bytes — the same bytes locate_and_read_checkpoint_file would commit,
+    so the listed prefix agrees with the pack's identity echo."""
+    path: Path
+    mtime: float
+    sha256: str
+
+
+def checkpoint_file_candidates(
+    cwd: Path, search_paths: list[str], *,
+    limit: int = CHECKPOINT_CANDIDATES_MAX,
+) -> list[CheckpointCandidate]:
+    """The wizard checkpoint prompt's candidate list (registry row,
+    board pack-ux-micro): regular files whose name ends in `.sh`
+    directly inside cwd and each `apply.search_paths` directory — the
+    same places a typed bare name resolves through, non-recursive —
+    newest first by mtime, de-duplicated by resolved path, capped at
+    `limit`.
+
+    Missing search-path directories contribute nothing (a configured
+    `~/Downloads` on a machine without one is ordinary). An unreadable
+    or empty candidate is left off the list: picking it could only
+    re-prompt with the read error, which a typed path still surfaces
+    verbatim. Ties on mtime break by path so the listing is stable.
+    """
+    seen: dict[Path, CheckpointCandidate] = {}
+    for d in [cwd, *(Path(sp) for sp in search_paths)]:
+        try:
+            entries = list(d.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if not entry.name.endswith(".sh"):
+                continue
+            try:
+                if not entry.is_file():
+                    continue
+                resolved = entry.resolve()
+                if resolved in seen:
+                    continue
+                mtime = entry.stat().st_mtime
+                data = normalize_crlf(entry.read_bytes())
+            except OSError:
+                continue
+            if not data.strip():
+                continue
+            seen[resolved] = CheckpointCandidate(
+                path=resolved, mtime=mtime,
+                sha256=hashlib.sha256(data).hexdigest())
+    ordered = sorted(seen.values(), key=lambda c: (-c.mtime, str(c.path)))
+    return ordered[:limit]
+
+
+def format_checkpoint_candidates(candidates: list[CheckpointCandidate]
+                                 ) -> list[str]:
+    """Render candidates as the wizard's numbered lines: `[n] path`,
+    then the UTC mtime (bale's one clock) and the sha256 prefix. An
+    empty list renders no lines at all — the prompt prints nothing
+    extra when there is nothing to pick."""
+    lines: list[str] = []
+    for i, c in enumerate(candidates, start=1):
+        stamp = datetime.fromtimestamp(c.mtime, timezone.utc).strftime(
+            "%Y-%m-%d %H:%M UTC")
+        lines.append(f"  [{i}] {c.path}")
+        lines.append(f"      modified {stamp}  sha256 "
+                     f"{c.sha256[:CHECKPOINT_CANDIDATE_SHA_CHARS]}")
+    return lines
+
+
 def checkpoint_file_base_or_refuse(repo: Optional[Path]) -> str:
     """The v1 scope gate for --checkpoint-file: the merged config must
     pin a {sid}-bearing [validation] base, or the flag refuses — never
@@ -2681,6 +2988,14 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
     - an unconfigured or literal base — the prompt is the flag's
       wizard surface, and the flag is {sid}-only at v1.
 
+    Before asking, the prompt lists candidate files (board
+    pack-ux-micro; checkpoint_file_candidates): `.sh` files in cwd and
+    `apply.search_paths`, newest first, each with path, UTC mtime, and
+    a sha256 prefix, capped at CHECKPOINT_CANDIDATES_MAX. A typed
+    number in range picks one; any other answer is a path, resolved
+    exactly as before. With no candidates the prompt reads as it
+    always did — nothing extra is printed.
+
     An EMPTY answer deliberately falls through to the named
     resolved-existence refusal (checkpoint_resolved_preflight): the
     operator declined, and the refusal is loud with the remedy —
@@ -2699,11 +3014,29 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
     if base is None or "{sid}" not in base:
         return
 
+    cwd = Path.cwd().resolve()
+    candidates = checkpoint_file_candidates(
+        cwd, bale_config.get_apply_search_paths(
+            bale_config.merged_config(repo)))
     print(f"This project pins a per-session blind checkpoint "
           f"([validation] base = {base}).")
+    if candidates:
+        # The candidate picker (board pack-ux-micro): newest first, so
+        # the file the planner just delivered is [1]. Printed before the
+        # question so the question stays the last thing above "> ".
+        print("Checkpoint candidates (.sh files in cwd and "
+              "apply.search_paths, newest first):")
+        for line in format_checkpoint_candidates(candidates):
+            print(line)
     print("Checkpoint file to commit for this session? [Enter = none]")
-    print("  (the planner's file; resolves like --readme-file — cwd, "
-          "then apply.search_paths.")
+    if candidates:
+        print(f"  (a number 1-{len(candidates)} picks a candidate above; "
+              f"a typed path is accepted too.")
+        print("  Paths resolve like --readme-file — cwd, then "
+              "apply.search_paths.")
+    else:
+        print("  (the planner's file; resolves like --readme-file — cwd, "
+              "then apply.search_paths.")
     print("  An empty answer packs without one, refusing unless the "
           "resolved checkpoint")
     print("  is already committed.)")
@@ -2715,8 +3048,23 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
             fail("aborted at wizard prompt")
         if not raw:
             return
+        if raw.isdigit() and candidates:
+            pick = int(raw)
+            if 1 <= pick <= len(candidates):
+                # A pick resolves to the candidate's absolute path, which
+                # locate_inbound_path passes through unsearched — the
+                # read, normalization, and empty-file refusal stay the
+                # one shared implementation below.
+                raw = str(candidates[pick - 1].path)
+            elif not (cwd / raw).is_file():
+                # Out of range and not a file literally named that
+                # number: re-prompt naming the range rather than a
+                # confusing "not found; searched:" for "7".
+                print(f"  (no candidate {pick}; pick 1-{len(candidates)}, "
+                      f"type a path, or press Enter for none)")
+                continue
         path, data, err = locate_and_read_checkpoint_file(
-            raw, repo, Path.cwd().resolve())
+            raw, repo, cwd)
         if err is not None:
             print(f"  ({err})")
             continue
@@ -3648,7 +3996,8 @@ OPENER_CLOCK_SENTENCE = (
 # one bin/bale_pack.py line; the doctrine it names lands in the global
 # docs in the same wave). VERBATIM, whitespace collapsed — the
 # emitted lines wrap it as the surrounding lines wrap, and the pin
-# (tests/test_pack_guards.py) compares the collapsed form. It replaced
+# (tests/test_pack_opener.py, moved there from test_pack_guards.py by
+# board pack-ux-micro) compares the collapsed form. It replaced
 # "Ask me if anything is unclear before you build.", which invited
 # exactly the prose question the rule forbids.
 OPENER_SHAPE_SENTENCE = (
@@ -4614,6 +4963,30 @@ def cmd_pack(args: argparse.Namespace) -> int:
         f"max depth {projection.max_depth_seen})"
         + (f" [session excludes: {len(session_excludes)}]"
            if session_excludes else ""))
+
+    # Pack-time context warnings (board pack-ux-micro). Both are
+    # warnings, never refusals, and both judge the FINAL shipped set —
+    # after exclusions and the .baleignore force-include — because that
+    # set is exactly what the worker will be able to read. Pre-sid, so
+    # like every line above they reach the terminal (stderr under
+    # --json) without a session-journal copy.
+    #
+    # 1. Forecast-not-included: a typed or wizard-collected --write
+    #    naming an existing file that will not ship. Keyed on args.write
+    #    (the row's trigger); a --write-less pack's forecast IS its
+    #    include set, so there is no second surface to disagree with.
+    if args.write:
+        for wpath in forecast_files_not_included(repo, pack_scope, files):
+            log(f"warning: {wpath} is forecast (--write) but not included "
+                f"in context: the worker will be asked to write a file it "
+                f"cannot read. Add --include {wpath} if the worker needs "
+                f"its current bytes.")
+    # 2. Included tests importing excluded test modules (row 84).
+    for importer, module in excluded_test_module_imports(repo, files):
+        log(f"warning: included test {importer} imports {module}, which "
+            f"is not included in context: the suite cannot run in the "
+            f"worker's context. Add --include {module} if the worker "
+            f"should run it.")
 
     # Per-sid resolved-existence pre-flight (v0.4.8, board 10 S7): when
     # [validation] base carries {sid}, resolve it against the sid this

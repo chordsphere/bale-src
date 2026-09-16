@@ -25,6 +25,11 @@ Pinned behaviors:
   instant on its own line — the same string the request manifest's
   provenance.packed_at stamps — and the VERBATIM clock sentence on its
   own line, with the goal line's single-line carriage untouched.
+- **Shape sentence** (board 68 rider 4; moved here from
+  tests/test_pack_guards.py at board pack-ux-micro — one suite per
+  surface): the block closes with the shape rule, VERBATIM under
+  whitespace collapse, after the examine sentence and with the retired
+  "Ask me if anything is unclear" tail gone.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness
 in ``tests/harness.py`` carries it; see its module docstring.
@@ -73,6 +78,20 @@ CLOCK_SENTENCE = (
     "ahead of the date this chat shows; date anything you write from "
     "the session id, never from the chat."
 )
+# VERBATIM (board 68 rider 4; bin/bale_pack.py OPENER_SHAPE_SENTENCE).
+# The emitted lines wrap it, so the pin compares whitespace-collapsed
+# text; the bytes of the sentence are what is pinned.
+OPENER_SHAPE_SENTENCE = (
+    "Every turn you end in this session takes one machine-recognizable "
+    "shape: a response tarball, a probe block, a light question block, "
+    "or a clarification response; a question asked as prose is not a "
+    "shape."
+)
+OPENER_EXAMINE_SENTENCE = (
+    "Please examine the tarball contents, starting with CLAUDE.md and "
+    "manifest.json, and go from there."
+)
+RETIRED_OPENER_TAIL = "Ask me if anything is unclear"
 READONLY_PHRASE = "read-only bale session"
 CLOSEOUT_MARKER = "Read-only session close-out"
 
@@ -81,7 +100,16 @@ CLOSEOUT_MARKER = "Read-only session close-out"
 GOAL = "pin the opener: sid + goal ride the report's tail, verbatim"
 
 
-class PackOpenerBase(unittest.TestCase):
+def _collapse(text: str) -> str:
+    """Whitespace-collapse, so a wrapped sentence compares verbatim."""
+    return " ".join(text.split())
+
+
+class PackOpenerFixture(unittest.TestCase):
+    """Sandbox plumbing and opener helpers, holding no tests — so a
+    second suite class (OpenerShapeSentenceTest) inherits the helpers
+    without re-running PackOpenerBase's methods."""
+
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-opener-")
         self.tmp = Path(self._tmpdir.name)
@@ -143,6 +171,11 @@ class PackOpenerBase(unittest.TestCase):
             if stripped.startswith("session id:"):
                 return stripped.split("session id:", 1)[1].strip()
         self.fail(f"no session id row in report:\n{text}")
+
+
+class PackOpenerBase(PackOpenerFixture):
+    """The opener's pinned behaviors 1-5 (the class name predates the
+    fixture split and is kept so existing test ids do not move)."""
 
     # -- pinned behavior 1 + 2: end-position and identity carriage -------
 
@@ -290,6 +323,30 @@ class PackOpenerBase(unittest.TestCase):
         self.assertIn(payload["sid"], segment)
         self.assertIn(GOAL, segment)
         self.assert_ends_with_opener(result.stderr, label="stderr")
+
+
+class OpenerShapeSentenceTest(PackOpenerFixture):
+    """The opener's closing sentence is the shape rule (board 68 rider
+    4). Moved from tests/test_pack_guards.py at board pack-ux-micro —
+    one suite per surface — onto this suite's own opener_segment
+    helper, so the scissor-line constants are mirrored in one test
+    file only."""
+
+    def test_opener_closes_with_the_shape_sentence_verbatim(self) -> None:
+        result = self.pack(slug="opener-shape")
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        collapsed = _collapse(self.opener_segment(result.stdout))
+        self.assertIn(OPENER_SHAPE_SENTENCE, collapsed)
+        # The preceding sentence stays intact, and the shape sentence
+        # is the last thing before the closing scissor line.
+        self.assertIn(OPENER_EXAMINE_SENTENCE, collapsed)
+        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
+                        msg=collapsed)
+        self.assertLess(collapsed.index(OPENER_EXAMINE_SENTENCE),
+                        collapsed.index(OPENER_SHAPE_SENTENCE))
+        self.assertNotIn(RETIRED_OPENER_TAIL, collapsed)
 
 
 if __name__ == "__main__":
