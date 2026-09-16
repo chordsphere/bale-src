@@ -989,7 +989,9 @@ The light question block is the one ask chat carries, and it is a
 shape, not conversation. Every turn the worker ends in tarball mode
 takes one machine-recognizable shape — a response tarball, a probe
 block (§4.2), a light question block, or a clarification response
-(§5.9); a question asked as prose is not a shape. The light tier
+(§5.9); a question asked as prose is not a shape. Explanation in
+prose is expected and welcome; the rule is that a turn that asks
+ends in a block, so nothing is lost. The light tier
 exists because a sufficiently short question set is faster to read
 and answer in chat than to relay through the exchange, and its
 audit trail is the eventual response, not the thread. The block is

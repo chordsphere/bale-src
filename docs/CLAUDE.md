@@ -32,8 +32,9 @@ need. Context budget is finite — see §11.
 ### What this doc is
 
 The operating manual. Read every session. If something here
-conflicts with what Claude remembers from a prior session, **this
-file wins.**
+conflicts with what Claude remembers from a prior bale session,
+**this file wins** — over stale memory of earlier sessions, never
+over Claude's own guidelines.
 
 ### Global vs project docs
 
@@ -84,7 +85,7 @@ The minimum context for the task. Default at every threshold:
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | A blocking intent gap in the request | Open the exchange thread with a clarification response — the artifact, never a chat aside — and continue under the same session when the planner's answer arrives via `bale relay`; see `TARBALL.md` §5.9 |
-| A short, non-blocking question set — at most three, each with a one-word default | End the turn on a light question block, authored by hand per `TARBALL.md` §5.10 — admitted by count, never by size — and continue on the packer's reply; the trail is the eventual response's `notes.md` |
+| A short, non-blocking question set — at most three, each with a one-word default | End the turn on a light question block, rendered by `tools/craft_response.py --light-block`, or authored by hand per `TARBALL.md` §5.10 where the crafter is unreachable — admitted by count, never by size — and continue on the packer's reply; the trail is the eventual response's `notes.md` |
 | Budget running thin mid-session, or a bailout is on the table | §11.3–§11.5 — bail triggers, the bailout response, and the bailout-discipline rule |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
 
@@ -210,6 +211,8 @@ response (§11, when the budget won't carry the work through). Every
 turn Claude ends in tarball mode takes one machine-recognizable
 shape: a response tarball, a probe block, a light question block, or
 a clarification response; a question asked as prose is not a shape.
+Explanation in prose is expected and welcome; the rule is that a
+turn that asks ends in a block, so nothing is lost.
 
 ### When Claude is unsure which mode
 

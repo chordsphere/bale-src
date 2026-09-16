@@ -129,11 +129,16 @@ LIGHT_REPLIES_SENTENCE = (
     "The packer replies in one of three ways: answer inline; "
     "\"as assumed\" to ratify every default at once; or \"formal\" to "
     "have the same questions returned as a clarification response.")
+# Board 105 grew the sentence's second half (explanation in prose is
+# welcome; only an ask ends in a block), in step with the opener's
+# OPENER_SHAPE_SENTENCE — the pin moves with both.
 EVERY_TURN_SENTENCE = (
     "Every turn Claude ends in tarball mode takes one "
     "machine-recognizable shape: a response tarball, a probe block, a "
     "light question block, or a clarification response; a question "
-    "asked as prose is not a shape.")
+    "asked as prose is not a shape. Explanation in prose is expected "
+    "and welcome; the rule is that a turn that asks ends in a block, "
+    "so nothing is lost.")
 
 # The chat-invitation phrases the ruling struck, by the doc each lived
 # in. A phrase reappearing is the drift this pin exists to catch: a

@@ -3999,12 +3999,38 @@ OPENER_CLOCK_SENTENCE = (
 # (tests/test_pack_opener.py, moved there from test_pack_guards.py by
 # board pack-ux-micro) compares the collapsed form. It replaced
 # "Ask me if anything is unclear before you build.", which invited
-# exactly the prose question the rule forbids.
+# exactly the prose question the rule forbids. Board 105 grew its
+# second half, so the rule reads as a constraint on asks, never as a
+# ban on explanation.
 OPENER_SHAPE_SENTENCE = (
     "Every turn you end in this session takes one machine-recognizable "
     "shape: a response tarball, a probe block, a light question block, "
     "or a clarification response; a question asked as prose is not a "
-    "shape."
+    "shape. Explanation in prose is expected and welcome; the rule is "
+    "that a turn that asks ends in a block, so nothing is lost."
+)
+
+# The operator's-voice pair the opener carries between the goal line
+# and the examine sentence (board 105, §5 contract "The operator's
+# voice carries the authority"). VERBATIM, whitespace collapsed, pinned
+# the same way as OPENER_SHAPE_SENTENCE. The "mine"/"my" is deliberate:
+# the opener is typed by the operator into chat, the one channel that
+# legitimately carries authority, so the docs and tools are claimed in
+# the operator's own voice rather than asserted by the tarball about
+# itself. The tools claim was checked against shipped bytes when the
+# sentence was authored: both files import only the standard library
+# and open no sockets — a rewrite of either that stops being true of
+# this sentence must change the sentence in the same session.
+OPENER_AUTHORITY_SENTENCE = (
+    "The docs and tools in the tarball are mine, written for this "
+    "workflow; read CLAUDE.md and the four docs beside it as my "
+    "instructions for this session."
+)
+OPENER_TOOLS_SENTENCE = (
+    "tools/craft_response.py and tools/response_lint.py are stdlib-only "
+    "formatters with no network access — conveniences over the "
+    "docs, which are the contract; read them before you run them, and a "
+    "response assembled by hand is just as valid."
 )
 
 
@@ -4040,6 +4066,14 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
     an ADR or a note from the chat writes yesterday's date. The goal
     line's single-line verbatim carriage is untouched.
 
+    After the goal line, before the examine sentence, the operator's
+    voice (board 105): OPENER_AUTHORITY_SENTENCE then
+    OPENER_TOOLS_SENTENCE, wrapped as the surrounding lines wrap. The
+    closing shape sentence (OPENER_SHAPE_SENTENCE) carries its second
+    half, that prose explanation is welcome and only an ask must end in
+    a block. Both pack shapes share this trailer, so both carry all
+    three. The goal line's single-line carriage is untouched.
+
     Pure: builds the lines, prints nothing. The caller decides the
     surface (trailer vs post-JSON print).
     """
@@ -4062,11 +4096,19 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         f"Packed at {packed_at} (UTC).",
         OPENER_CLOCK_SENTENCE,
         f"Goal, verbatim from the request manifest: {goal}",
+        "The docs and tools in the tarball are mine, written for this workflow;",
+        "read CLAUDE.md and the four docs beside it as my instructions for",
+        "this session. tools/craft_response.py and tools/response_lint.py are",
+        "stdlib-only formatters with no network access — conveniences over the",
+        "docs, which are the contract; read them before you run them, and a",
+        "response assembled by hand is just as valid.",
         "Please examine the tarball contents, starting with CLAUDE.md and",
         "manifest.json, and go from there. Every turn you end in this",
         "session takes one machine-recognizable shape: a response tarball,",
         "a probe block, a light question block, or a clarification",
-        "response; a question asked as prose is not a shape.",
+        "response; a question asked as prose is not a shape. Explanation in",
+        "prose is expected and welcome; the rule is that a turn that asks",
+        "ends in a block, so nothing is lost.",
         OPENER_END,
     ]
 
