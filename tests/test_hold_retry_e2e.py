@@ -42,6 +42,16 @@ ordering the desk explicitly wants — every one of those refusals
 leaves the HOLD state (branch, staging stamp, open marker, and the
 new HOLD-time ``held_tarball`` stamp) exactly as it was.
 
+Board 47a (v0.4.34) added ``HoldCardE2ETest``: the closing [HOLD]
+card driven through real checkpoint-configured applies — the judge
+line in each of its three cases, the failed probe labels (none / one /
+several, log order) on the card and in the telemetry stamp's
+``failed_probes``, both successor forks composed from the HOLD-time
+stamp with a path that needs shell quoting, the failed-stamp
+degradation, the literal-base note, and the unconfigured HOLD's
+absent row and field. The renderer's pure pieces are pinned
+unit-shaped in tests/test_apply_preflight.py (``HoldCardUnitTest``).
+
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py`` carries it; see its module docstring.
 
@@ -561,6 +571,218 @@ class RetryArtifactResolutionTest(unittest.TestCase):
         self.assertIn(empty.name, r.stderr)
         self.assertIn("no response-NNN/manifest.json", r.stderr)
         self.assert_hold_intact(sid, before)
+
+
+# ---------------------------------------------------------------------------
+# Board 47a (v0.4.34): the HOLD card — judge line, failed probe labels,
+# ruling-forked composed successors — and the labels on telemetry
+# ---------------------------------------------------------------------------
+
+from test_per_sid_checkpoint import CP_PATTERN, PerSidFixture  # noqa: E402
+import shlex  # noqa: E402
+
+LITERAL_BASE = "claude/checkpoint.sh"
+
+
+def probe_checkpoint(verdicts: list, exit_code: int) -> str:
+    """A blind checkpoint printing `verdicts` ([(VERDICT, label), ...])
+    in order and exiting `exit_code` (TARBALL.md §7.2/§7.5)."""
+    body = "".join(f'echo "[{v}] {label}"\n' for v, label in verdicts)
+    return f"#!/usr/bin/env bash\n{body}exit {exit_code}\n"
+
+
+class HoldCardE2ETest(PerSidFixture):
+    """The desk's specimen, driven for real: a checkpoint-configured
+    session HOLDs through a real apply, and the closing card and the
+    telemetry attempt are asserted as observable output (ADR-0002).
+
+    The response tarball lands in a directory whose name holds a space,
+    so every composed successor exercises shlex quoting and is proven
+    pasteable by round-tripping through shlex.split. The three judge
+    cases each get a real HOLD; the unconfigured HOLD, the no-stamp
+    degradation, and the literal-base note ride the same fixture.
+    """
+
+    def open_checkpointed(self, slug: str, script: str, *,
+                          base: str = CP_PATTERN) -> str:
+        self.configure_base(base)
+        if base == CP_PATTERN:
+            source = self.tmp / f"cp-{slug}.sh"
+            source.write_text(script, encoding="utf-8")
+            r = self.pack(slug, "--include", "hello.txt",
+                          "--checkpoint-file", str(source))
+        else:
+            self.commit_files({base: script, "bale.toml":
+                               (self.repo / "bale.toml").read_text()},
+                              "commit the literal-base checkpoint")
+            r = self.pack(slug, "--include", "hello.txt")
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        matches = [s for s in self.open_sids() if f"-{slug}-" in s]
+        self.assertEqual(len(matches), 1, msg=f"{self.open_sids()}")
+        return matches[0]
+
+    def hold(self, sid: str, *, worker_exit: int, extra: dict = None):
+        verdict = "FAIL" if worker_exit else "PASS"
+        rdir = build_response_dir(
+            self.tmp / "held dir", sid,
+            summary="oracle",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "the specimen's rewrite",
+                      "data": b"specimen rewrite\n"}],
+            validation_sh=("#!/usr/bin/env bash\n"
+                           f"echo \"[{verdict}] fixture check\"\n"
+                           f"exit {worker_exit}\n"),
+            manifest_extra=extra)
+        tarball = tar_response_dir(rdir)
+        r = run_bale(self.install, ["apply", str(tarball)],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        return tarball, r
+
+    def card(self, stdout: str) -> list:
+        """The closing card's lines: everything after its [HOLD] headline
+        (the LAST headline — the walkthrough summary prints one too)."""
+        lines = stdout.splitlines()
+        starts = [i for i, ln in enumerate(lines)
+                  if ln.startswith("  [HOLD] ")]
+        self.assertTrue(starts, msg=stdout)
+        return [ln.strip() for ln in lines[starts[-1]:]]
+
+    def row(self, card: list, label: str) -> str:
+        hits = [ln for ln in card if ln.startswith(f"{label}:")]
+        self.assertEqual(len(hits), 1, msg=f"row {label!r} in {card}")
+        return hits[0][len(label) + 1:].strip()
+
+    def attempt(self, sid: str) -> dict:
+        p = self.repo / "claude" / "telemetry" / f"{sid}.json"
+        return json.loads(p.read_text(encoding="utf-8"))["attempts"][-1]
+
+    def commands(self, card: list, verb: str) -> list:
+        return [ln for ln in card if ln.startswith(f"bale {verb} ")]
+
+    # -- the three judge cases ------------------------------------------
+
+    def test_checkpoint_held_specimen(self) -> None:
+        sid = self.open_checkpointed("specimen", probe_checkpoint(
+            [("FAIL", "oracle-probe-alpha"), ("PASS", "oracle-probe-beta")],
+            1))
+        tarball, r = self.hold(sid, worker_exit=0,
+                               extra={"corrects": "2026-09-01-prior-001",
+                                      "validation_will_run":
+                                          ["fixture check"]})
+        card = self.card(r.stdout)
+        self.assertEqual(self.row(card, "judge"),
+                         "blind checkpoint — checkpoint: HOLD (exit 1) · "
+                         "worker validation: PASS")
+        self.assertEqual(self.row(card, "failed probes"),
+                         "oracle-probe-alpha")
+        self.assertNotIn("validation: exited 0", r.stdout)
+        self.assertNotIn("<new-tarball>", r.stdout)
+
+        held = str(tarball.resolve())
+        amend = self.commands(card, "amend-checkpoint")
+        self.assertEqual(len(amend), 1, msg=card)
+        self.assertIn(f"--sid {sid}", amend[0])
+        retries = self.commands(card, "retry")
+        self.assertEqual(retries, [
+            f"bale retry {shlex.quote(held)} --accept-checkpoint-change "
+            f"--sid {sid}",
+            f"bale retry {shlex.quote(held)}",
+        ])
+        for line in retries:
+            self.assertEqual(shlex.split(line)[2], held,
+                             msg="pasteable: the quoted path round-trips")
+
+        attempt = self.attempt(sid)
+        self.assertEqual(attempt["checkpoint"]["failed_probes"],
+                         ["oracle-probe-alpha"])
+        self.assertEqual(attempt["validation"]["validation_will_run"],
+                         ["fixture check"])
+        self.assertEqual(attempt["corrects"], "2026-09-01-prior-001")
+
+    def test_worker_held_renders_work_fork_only(self) -> None:
+        sid = self.open_checkpointed("workerheld", probe_checkpoint(
+            [("PASS", "oracle-probe-beta")], 0))
+        tarball, r = self.hold(sid, worker_exit=1)
+        card = self.card(r.stdout)
+        self.assertEqual(self.row(card, "judge"),
+                         "worker validation — worker validation: HOLD "
+                         "(exit 1) · checkpoint: PASS")
+        self.assertEqual(self.row(card, "failed probes"), "none")
+        self.assertEqual(self.commands(card, "amend-checkpoint"), [])
+        self.assertEqual(self.commands(card, "retry"),
+                         [f"bale retry {shlex.quote(str(tarball.resolve()))}"])
+        self.assertEqual(self.attempt(sid)["checkpoint"]["failed_probes"],
+                         [])
+
+    def test_both_held_renders_both_forks_labels_in_log_order(self) -> None:
+        sid = self.open_checkpointed("bothheld", probe_checkpoint(
+            [("FAIL", "zeta-probe"), ("PASS", "beta-probe"),
+             ("FAIL", "alpha-probe")], 1))
+        _, r = self.hold(sid, worker_exit=1)
+        card = self.card(r.stdout)
+        self.assertEqual(self.row(card, "judge"),
+                         "both — checkpoint: HOLD (exit 1) · worker "
+                         "validation: HOLD (exit 1)")
+        self.assertEqual(self.row(card, "failed probes"),
+                         "zeta-probe · alpha-probe")
+        self.assertEqual(len(self.commands(card, "amend-checkpoint")), 1)
+        self.assertEqual(len(self.commands(card, "retry")), 2)
+        self.assertEqual(self.attempt(sid)["checkpoint"]["failed_probes"],
+                         ["zeta-probe", "alpha-probe"],
+                         msg="log order, never sorted")
+
+    # -- no checkpoint, no stamp, literal base ---------------------------
+
+    def test_unconfigured_hold_has_no_probe_row_or_field(self) -> None:
+        r = self.pack("nocp", "--include", "hello.txt")
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+        sid = self.open_sids()[0]
+        _, held = self.hold(sid, worker_exit=1)
+        card = self.card(held.stdout)
+        self.assertEqual(self.row(card, "judge"),
+                         "worker validation — worker validation: HOLD "
+                         "(exit 1) · no blind checkpoint configured")
+        self.assertFalse([ln for ln in card
+                          if ln.startswith("failed probes:")])
+        self.assertEqual(self.attempt(sid)["checkpoint"],
+                         {"configured": False},
+                         msg="failed_probes absent when no checkpoint ran")
+
+    def test_failed_stamp_write_degrades_the_card_loudly(self) -> None:
+        sid = self.open_checkpointed("nostamp", probe_checkpoint(
+            [("FAIL", "oracle-probe-alpha")], 1))
+        # A directory where the stamp file goes makes the write fail —
+        # the loud-never-fatal branch, reached without mocking.
+        (self.repo / ".bale" / "sessions" / sid / "held_tarball").mkdir()
+        _, r = self.hold(sid, worker_exit=0)
+        card = self.card(r.stdout)
+        notes = [ln for ln in card if "could not be filled in" in ln]
+        self.assertEqual(len(notes), 2, msg=card)
+        self.assertIn("could not be written", notes[0])
+        self.assertEqual(self.commands(card, "retry"), [
+            f"bale retry <response-tarball> --accept-checkpoint-change "
+            f"--sid {sid}",
+            "bale retry <response-tarball>",
+        ])
+        self.assertIn("FORCE: could not write the HOLD-time tarball stamp",
+                      r.stdout + r.stderr)
+
+    def test_literal_base_notes_the_direct_commit(self) -> None:
+        sid = self.open_checkpointed("literal", probe_checkpoint(
+            [("FAIL", "oracle-probe-alpha")], 1), base=LITERAL_BASE)
+        tarball, r = self.hold(sid, worker_exit=0)
+        card = self.card(r.stdout)
+        self.assertEqual(self.commands(card, "amend-checkpoint"), [])
+        notes = [ln for ln in card if "literal [validation] base" in ln]
+        self.assertEqual(len(notes), 1, msg=card)
+        self.assertIn(LITERAL_BASE, notes[0])
+        self.assertIn(
+            f"bale retry {shlex.quote(str(tarball.resolve()))} "
+            f"--accept-checkpoint-change --sid {sid}",
+            self.commands(card, "retry"))
 
 
 if __name__ == "__main__":

@@ -487,7 +487,7 @@ forward-looking entry.
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
-| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — the forecast-existence and forecast-disjointness gates — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal verbatim and — since v0.4.28 (board 73, ADR-0015) — its recorded write forecast exactly, including a recorded `[]` (a read-only parent resumes read-only). The bailout's reading plan is the read set only: its files ship in `context/` and gate nothing. `--write` / `--read-only` override the inheritance with pack's grammar and refusals (the case where the bailing worker's `handoff.md` argues the ask changed); a missing or unreadable parent record falls back to the reading-plan file set — the whole tree when the plan cites nothing — as an *undeclared* forecast that takes the bare-pack rule (v0.4.9), and the summary's `inherited:` row names which branch fired beside the goal. Runs pack's gates, one implementation each, pre-sid so a refusal consumes nothing: the ADR-0015 forecast-disjointness gate (§7.1 step 5 — admitted beside open sessions whose forecasts are disjoint, which is what makes the command reachable under an always-open read-only master; refused on intersection with handoff's own remedies, never `--supersedes`), the checkpoint blindness gate (§7.1 step 4b, §11 row 30; `--allow-checkpoint-in-scope` admits, FORCE-logged and stamped), and for a `{sid}` base the resolved-existence gate, whose first-named remedy `--checkpoint-file` the command now accepts with pack's one-run install; an empty forecast waives it (§8.5). Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24). Until 0.4.27 handoff refused while any session was open, forecast its reading plan's file set, and lacked the flag family — ADR-0007's shape, which the ADR-0015 flip had not reached on this path. | v0.0.6 |
 | `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
@@ -969,7 +969,11 @@ complete so the operator pastes rather than reassembles. `--sid` is
 filled too, as belt-and-suspenders: retry resolves from the
 tarball's own `responds_to` and `--sid` vets it, so the composed
 line vets rather than depends. The same composed line ends the
-amendment-proper and the idempotent-re-run rungs alike. The recorded
+amendment-proper and the idempotent-re-run rungs alike. Since
+v0.4.34 (board 47a) the `[HOLD]` card's fixture-defect fork (§8.8)
+composes this same retry line from the same stamp, beneath the
+sid-ful `bale amend-checkpoint` line it hands the operator, so the
+card and this report cannot disagree. The recorded
 `stamp_matched: false` at that retry remains the truthful double
 record, alongside the amendment's own commit.
 
@@ -1182,7 +1186,10 @@ the §5 command row carries its surface): it gates the extracted,
 LF-normalized `bundle.json` through `validate_bundle_manifest`
 before trusting anything else, refuses undeclared or missing
 archive members (a bundle is sealed), verifies both member hashes,
-dry-runs the checkpoint member read-only against a scratch copy of
+parses the stored `pack_argv` and runs every pack gate an argument
+vector alone can decide — forecast existence and forecast
+disjointness — so a bad argv is refused before any oracle bytes
+execute (board 68), then dry-runs the checkpoint member read-only against a scratch copy of
 the live base and echoes the expected-HOLD proof (exit 1 expected;
 exit 2 refuses the whole open as a defective oracle; exit 0
 proceeds with a loud vacuous-oracle warning), then replays the
@@ -2168,7 +2175,7 @@ is one string, so each candidate answers exactly one of them, and
 the only genuine ambiguity is the tie — which is what lets the bare
 form work at a desk whose read-only master is always open beside the
 worker.
-On a miss, apply and retry list every near-name candidate in the searched directories — the typed name minus its .tar.gz suffix as a prefix — as complete quoted command lines, newest first.
+On a miss, apply, retry, and handoff list every near-name candidate in the searched directories — the typed name minus its .tar.gz suffix as a prefix — as complete quoted command lines, newest first.
 
 The pipeline below describes a normal response. Bailout and
 clarification responses branch off after pre-flight and are never
@@ -2911,8 +2918,9 @@ code was also 0 (§8.5: PASS requires both)** — mark the branch as
 `[PASS]` for the walkthrough. Otherwise mark as `[HOLD]`, attributed
 per source everywhere the outcome renders — the banded session log,
 the walkthrough summary (`checkpoint: PASS · worker validation: HOLD
-(exit 1)`), the `--json` report's additive `checkpoint` key, and the
-telemetry stamp (§8.9). The envelope vocabulary stays PASS/HOLD; the
+(exit 1)`), the closing `[HOLD]` card's `judge` line (§8.8), the
+`--json` report's additive `checkpoint` key, and the telemetry stamp
+(§8.9). The envelope vocabulary stays PASS/HOLD; the
 attribution is additive. A HOLD is a commit on `bale/<sid>` —
 inert, since nothing has the branch checked out — and inspection is
 identical in UX to PASS inspection: `git diff <origin>..bale/<sid>`,
@@ -3049,12 +3057,42 @@ acceptance store).
   response. That new response's manifest sets `corrects: <held_sid>`
   as a history pointer — the corrected work itself runs as a fresh
   session against origin, not layered onto the discarded branch.
-  The closing `[HOLD]` banner names both inspection surfaces — the
-  committed branch with its diff command (`git diff
-  <origin>..bale/<sid>` — checkout untouched) and the preserved
-  per-sid staging path — plus the session log and the two ways
-  forward (`bale retry <new-tarball>`, `bale revert <sid>`). The
-  inspect action also stamps `.bale/sessions/<sid>/held_tarball`
+  The closing `[HOLD]` card (`format_hold_card`, `bin/bale_report.py`;
+  v0.4.34, board 47a) says who held, what failed, and what to paste
+  next. Its `judge` row names which judgment held — `blind
+  checkpoint`, `worker validation`, or `both` — followed by both
+  sources in the walkthrough summary's attribution vocabulary (a
+  checkpoint exit 2 counts as the checkpoint side, phrased as the
+  planner's checkpoint itself erroring). When a checkpoint ran, a
+  `failed probes` row lists the label of every `[FAIL]` verdict line
+  it wrote, in log order, or `none` — the same list the telemetry
+  stamp's `failed_probes` carries (§8.9). The inspection rows follow:
+  the committed branch with its diff command (`git diff
+  <origin>..bale/<sid>` — checkout untouched), the session log, the
+  preserved per-sid staging path, telemetry, and `discard` (`bale
+  revert <sid>`). The card ends with the successors, forked by the
+  desk's ruling (PLANNER.md §5 step 3), every line complete, one
+  physical line, paths through `shlex.quote`. The **fixture-defect**
+  fork (the checkpoint is wrong) renders when the checkpoint held —
+  alone or with the worker: `bale amend-checkpoint <amendment>
+  --sha256 <hex> --sid <sid>`, its trailing comment saying the two
+  desk values are unknowable when the card renders, then `bale retry
+  <held-tarball> --accept-checkpoint-change --sid <sid>` — the same
+  line `bale amend-checkpoint`'s own report composes (§5.7). On a
+  literal `[validation]` base the amend verb refuses by design, so a
+  one-line note to commit the amended bytes at that path directly
+  replaces the amend line; the retry rung is unchanged. The
+  **work-defect** fork (the response is wrong) always renders: `bale
+  retry <held-tarball>` — the corrected response is delivered as
+  `response-<sid>.tar.gz` to the directory the held one came from. A
+  worker-only HOLD therefore renders the work-defect fork alone, and a
+  HOLD where both held renders both. Both forks compose from the
+  HOLD-time stamp below, never from the in-process path: when the
+  stamp write fails, each fork says so on one line and falls back to
+  the `<response-tarball>` placeholder, the amend verb's degrade shape.
+  The pieces are pure and structured (`hold_judge`,
+  `parse_failed_probe_labels`, `compose_hold_successors`) so relay
+  blocks render the same data. The inspect action also stamps `.bale/sessions/<sid>/held_tarball`
   (v0.4.25, board 71): the resolved absolute path of the tarball
   this HOLD was applied from, beside `staging_path`, so `bale
   amend-checkpoint` composes its retry successor without a
@@ -3126,9 +3164,21 @@ short-lived `.bale/sessions/<sid>/` directory:
   object on every validated attempt post-epoch — key presence is
   epoch membership, `{"configured": false}` is the known-zero form,
   and an executed checkpoint records its per-source state, exit code,
-  and the executed base-tree bytes' `{path, sha256}` (§8.5). Blind
-  outcomes never merge into `claim_verdict`: the checkpoint has no
-  claims by construction;
+  and the executed base-tree bytes' `{path, sha256}` (§8.5). Since
+  v0.4.34 (board 47a) the executed form also carries `failed_probes`:
+  the label of every `[FAIL]` verdict line the checkpoint wrote, in
+  log order, `[]` when none failed, absent on the known-zero form —
+  the field that splits fixture-defect HOLDs from worker
+  misunderstanding, and the list the `[HOLD]` card renders (§8.8).
+  Blind outcomes never merge into `claim_verdict`: the checkpoint has
+  no claims by construction;
+- the **promoted manifest fields** (v0.4.34, board 44's rider landed
+  at board 47a): the response manifest's `validation_will_run` rides
+  inside the attempt's `validation` object and its `corrects` pointer
+  rides on the attempt, both verbatim and both by key presence —
+  present when the manifest carried the key (`[]` and `null`
+  included), absent otherwise, including on manifest-less attempts
+  such as unlock and `bale revert <sid>`;
 - the **sandbox stamps** (v0.4.5, board 10 S2 — ADR-0016):
   `attempts[].sandbox_escaped` (this attempt's response scripts ran
   unconfined under a per-invocation `--no-sandbox`) and

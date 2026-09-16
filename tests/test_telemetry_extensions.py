@@ -28,6 +28,11 @@ Four surfaces, one additive session (BALE.md §8.9):
   the validator's walk so an invented basis rejects at any depth the
   loose schema didn't enumerate.
 
+Board 47a (v0.4.34) adds a fifth surface in the same additive posture:
+``checkpoint.failed_probes`` and board 44's two promoted manifest fields,
+``validation.validation_will_run`` and ``attempts[].corrects``, pinned by
+key presence (``Board47aTelemetryFieldsTest``).
+
 Plus the two session-level guarantees the brief names as explicit
 claims: the legacy corpus keeps validating (zero regressions, run over
 both the checked-in ``claude/telemetry/`` corpus and the synthetic
@@ -339,6 +344,89 @@ class ClaimBasisTest(unittest.TestCase):
 
     def test_legacy_bare_string_claims_still_validate(self) -> None:
         rec = self._validated_record("pass")
+        self.assertEqual(self.bv.validate_telemetry_record(rec), [])
+
+
+class Board47aTelemetryFieldsTest(unittest.TestCase):
+    """Board 47a (v0.4.34): checkpoint.failed_probes, and board 44's two
+    promoted manifest fields — validation.validation_will_run and
+    attempts[].corrects — with key-presence semantics: carried verbatim
+    when the manifest has the key, absent (never null-filled) when it
+    does not. Schema descriptions exist for all three, additively."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bv = _load_module("bale_validate")
+        cls.br = _load_module("bale_report")
+        cls.schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    def validated(self, manifest=None, **kw) -> dict:
+        return self.br.build_telemetry_attempt(
+            outcome="held", command="apply", manifest=manifest,
+            validation_state="HOLD", validation_exit_code=1,
+            validation_output="", **kw)
+
+    def test_validation_will_run_key_presence(self) -> None:
+        attempt = self.validated({"validation_will_run": ["lint", "tests"],
+                                  "claims": {}})
+        self.assertEqual(attempt["validation"]["validation_will_run"],
+                         ["lint", "tests"])
+        self.assertEqual(self.validated({"validation_will_run": []})
+                         ["validation"]["validation_will_run"], [],
+                         msg="an empty list is a recorded value")
+        self.assertNotIn("validation_will_run",
+                         self.validated({"claims": {}})["validation"])
+        self.assertNotIn("validation_will_run", self.validated()["validation"])
+        rejected = self.br.build_telemetry_attempt(
+            outcome="rejected", command="apply",
+            manifest={"validation_will_run": ["lint"]})
+        self.assertIsNone(rejected["validation"],
+                          msg="no validation object, nothing to carry into")
+
+    def test_corrects_key_presence_null_included(self) -> None:
+        self.assertEqual(self.validated({"corrects": "2026-09-01-x-001"})
+                         ["corrects"], "2026-09-01-x-001")
+        attempt = self.validated({"corrects": None})
+        self.assertIn("corrects", attempt)
+        self.assertIsNone(attempt["corrects"])
+        self.assertNotIn("corrects", self.validated({"claims": {}}))
+        self.assertNotIn("corrects", self.br.build_telemetry_attempt(
+            outcome="unlocked", command="unlock"))
+
+    def test_failed_probes_ride_the_checkpoint_stamp_verbatim(self) -> None:
+        stamp = {"configured": True, "state": "HOLD", "exit_code": 1,
+                 "script": {"path": "p.sh", "sha256": "0" * 64},
+                 "stamp_matched": None, "failed_probes": ["b", "a"]}
+        attempt = self.validated({}, checkpoint=stamp)
+        self.assertEqual(attempt["checkpoint"]["failed_probes"], ["b", "a"])
+        self.assertNotIn("failed_probes", self.validated({})["checkpoint"],
+                         msg="known-zero stamp: absent when none ran")
+
+    def test_schema_describes_the_three_fields_additively(self) -> None:
+        items = self.schema["properties"]["attempts"]["items"]
+        checkpoint = items["properties"]["checkpoint"]
+        validation = items["properties"]["validation"]
+        fp = checkpoint["properties"]["failed_probes"]
+        self.assertEqual(fp["type"], "array")
+        self.assertEqual(fp["items"], {"type": "string"})
+        self.assertIn("log order", fp["description"])
+        vwr = validation["properties"]["validation_will_run"]
+        self.assertEqual(vwr["type"], "array")
+        self.assertIn("corrects", items["properties"])
+        self.assertIn("null", items["properties"]["corrects"]["type"])
+        self.assertNotIn("failed_probes", checkpoint.get("required", []))
+        self.assertNotIn("validation_will_run", validation["required"])
+        self.assertNotIn("corrects", items["required"])
+
+    def test_stamped_attempts_validate(self) -> None:
+        stamp = {"configured": True, "state": "HOLD", "exit_code": 1,
+                 "script": {"path": "p.sh", "sha256": "0" * 64},
+                 "stamp_matched": True, "failed_probes": ["alpha"]}
+        attempt = self.validated({"corrects": None,
+                                  "validation_will_run": ["x"]},
+                                 checkpoint=stamp)
+        rec = _minimal_record()
+        rec["attempts"] = [attempt]
         self.assertEqual(self.bv.validate_telemetry_record(rec), [])
 
 

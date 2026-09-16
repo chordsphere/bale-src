@@ -285,6 +285,34 @@ class ClosureTelemetryTest(unittest.TestCase):
         self.assertIn("superseded-by-split", report.CLOSURE_REASONS,
                       msg="board 26 consumes this value; it must survive")
 
+    def test_closing_attempts_promote_manifest_fields_by_presence(
+            self) -> None:
+        """Board 47a (v0.4.34, board 44's rider): a closing attempt that
+        processed a response manifest (the walkthrough revert) carries
+        its corrects pointer and, inside the validation object, its
+        validation_will_run — verbatim, by key presence. The
+        manifest-less closures (`bale revert <sid>`, unlock) omit both
+        rather than recording a null they never observed."""
+        report = load_bale_report(self.install)
+        manifest = {"corrects": "2026-09-01-prior-001",
+                    "validation_will_run": ["fixture check"], "claims": {}}
+        walkthrough_revert = report.build_telemetry_attempt(
+            outcome="reverted", command="apply", manifest=manifest,
+            validation_state="HOLD", validation_exit_code=1,
+            validation_output="")
+        self.assertEqual(walkthrough_revert["corrects"],
+                         "2026-09-01-prior-001")
+        self.assertEqual(
+            walkthrough_revert["validation"]["validation_will_run"],
+            ["fixture check"])
+        for outcome, command in (("reverted", "revert"),
+                                 ("unlocked", "unlock")):
+            with self.subTest(command=command):
+                bare = report.build_telemetry_attempt(
+                    outcome=outcome, command=command)
+                self.assertNotIn("corrects", bare)
+                self.assertIsNone(bare["validation"])
+
     def test_reason_flag_wired_with_shared_choices(self) -> None:
         """Both commands reject a bogus --reason at the parser, listing
         the shared vocabulary — proof the flag is wired to

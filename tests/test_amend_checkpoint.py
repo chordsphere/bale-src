@@ -40,6 +40,10 @@ comparisons). Coverage, per the board-53 ruling ((b)-as-adjusted):
   stamp (held before the stamp existed, or never held) degrades
   loudly to the placeholder form with one line saying why, and never
   omits the successor.
+- **The card agrees** (board 47a, v0.4.34): the HOLD card's
+  fixture-defect fork carries the sid-ful amend line and a retry rung
+  byte-identical to this verb's composed successor — one stamp, one
+  line, never two that could disagree.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py``; the per-sid fixture base comes from
@@ -345,6 +349,63 @@ class AmendCheckpointSuccessorTest(AmendFixture):
         self.assertIn(PLACEHOLDER, last)
         self.assertIn(NO_STAMP_PHRASE, r.stdout)
         self.assertIn("has not reached HOLD", r.stdout)
+
+
+class HoldCardAgreementTest(AmendFixture):
+    """Board 47a (v0.4.34): the HOLD card's fixture-defect fork and
+    `bale amend-checkpoint`'s own report compose from the same HOLD-time
+    stamp, so the card's retry rung IS the verb's successor, byte for
+    byte — and the card's amend line is the one this verb accepts
+    (--sid carried, the two desk values the only placeholders)."""
+
+    def test_card_fixture_fork_matches_amend_successor(self) -> None:
+        # Pack the session with a failing oracle, so the HOLD is the
+        # checkpoint's (the fixture-defect case) and the pack-time stamp
+        # accounts for it at amend.
+        self.configure_base(CP_PATTERN)
+        failing = self.tmp / "cp-cardagree.sh"
+        failing.write_text("#!/usr/bin/env bash\n"
+                           "echo \"[FAIL] oracle-probe-alpha\"\nexit 1\n",
+                           encoding="utf-8")
+        packed = self.pack("cardagree", "--include", "hello.txt",
+                           "--checkpoint-file", str(failing))
+        self.assertEqual(packed.returncode, 0, msg=packed.stderr)
+        sid = [s for s in self.open_sids() if "-cardagree-" in s][0]
+        rdir = build_response_dir(
+            self.tmp / "card dir", sid,
+            summary="agreement fixture: a clean response the oracle holds",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "the goal's rewrite", "data": b"clean\n"}],
+            validation_sh=("#!/usr/bin/env bash\n"
+                           "echo \"[PASS] fixture check\"\nexit 0\n"))
+        tarball = tar_response_dir(rdir)
+        held = run_bale(self.install,
+                        ["apply", str(tarball)],
+                        cwd=self.repo, env=self.env)
+        self.assertEqual(held.returncode, 1,
+                         msg=f"stdout:\n{held.stdout}\nstderr:\n{held.stderr}")
+        card = held.stdout[held.stdout.rindex("  [HOLD] "):]
+        card_lines = [ln.strip() for ln in card.splitlines()]
+        self.assertIn("failed probes: oracle-probe-alpha", card_lines)
+        amend_lines = [ln for ln in card_lines
+                       if ln.startswith("bale amend-checkpoint ")]
+        self.assertEqual(len(amend_lines), 1, msg=card)
+        self.assertTrue(amend_lines[0].startswith(
+            f"bale amend-checkpoint <amendment> --sha256 <hex> --sid {sid}"))
+        card_retry = [ln for ln in card_lines
+                      if ln.startswith("bale retry ")
+                      and "--accept-checkpoint-change" in ln]
+        self.assertEqual(len(card_retry), 1, msg=card)
+
+        v1 = checkpoint_script("v1-cardagree")
+        amendment = self.write_amendment(v1, name="amend-cardagree.sh")
+        r = self.amend(str(amendment), "--sha256", sha256_text_lf(v1),
+                       "--sid", sid)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertEqual(self.assert_successor_is_last_line(r.stdout, sid),
+                         card_retry[0],
+                         msg="the card and the verb compose one successor")
 
 
 class AmendCheckpointAccountingTest(AmendFixture):
