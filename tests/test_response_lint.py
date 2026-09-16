@@ -14,6 +14,17 @@ Runs the lint as a subprocess against crafted-then-filled tempdir
 response directories — no bale install, no tests/harness.py, stdlib
 only (the crafter builds the fixtures the way a worker would).
 
+Session 2026-09-16-board-96-crafter-85-light-block-002 adds
+SelfReportedCounts: the two optional self-reported integers
+(feedback.self_reported.light_blocks, row 96; paste_carried_rounds,
+row 85) round-trip through the lint on a crafter-scaffolded response
+dir — present at zero and above, lint clean, values read back
+unchanged; absent, still clean (optional, so pre-wave manifests
+validate); negative, fractional, boolean, and string values each a
+manifest-schema finding naming the field. The lint reads the counts
+through its embedded schema copy, so this class is also the behavioral
+half of tests/test_schema_embeds.py's parity pin.
+
 Run:  python3 -m unittest tests.test_response_lint -v
   or: python3 -m unittest discover -s tests -p 'test_response_lint.py'
 """
@@ -187,6 +198,108 @@ class EmitFeedbackMechanical(unittest.TestCase):
         self.assertEqual(cp.stdout.strip(), "",
                          "no honest object exists without a manifest")
         self.assertIn("cannot emit feedback.mechanical", cp.stderr)
+
+
+class SelfReportedCounts(unittest.TestCase):
+    """light_blocks and paste_carried_rounds through the lint."""
+
+    SID = "2026-09-16-light-fixture-002"
+    COUNTS = ("light_blocks", "paste_carried_rounds")
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = self.tmp / "response-002"
+        dst = self.rdir / "files" / "src" / "new.txt"
+        dst.parent.mkdir(parents=True)
+        dst.write_bytes(b"fixture content\n")
+        cp = subprocess.run(
+            [sys.executable, str(CRAFT), str(self.rdir),
+             "--sid", self.SID, "--write"],
+            capture_output=True, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        (self.rdir / "validation.sh").write_text(
+            "#!/usr/bin/env bash\nexit 0\n")
+        self.mpath = self.rdir / "manifest.json"
+        manifest = json.loads(self.mpath.read_text())
+        manifest["summary"] = "fixture response for the count tests"
+        for c in manifest["changes"]:
+            c["action"] = "created"
+            c["reason"] = "fixture file"
+        manifest["validation_will_run"] = ["fixture assertion"]
+        manifest["claims"] = {"fixture assertion": "pass"}
+        self.mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        # The 5.2.2 workflow: emit, paste, fill self_reported.
+        cp = run_lint(str(self.rdir), "--emit-feedback-mechanical")
+        self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+        manifest["feedback"] = {
+            "mechanical": json.loads(cp.stdout),
+            "self_reported": {
+                "assumptions": [],
+                "judgment_calls": [],
+                "budget_pressure": "none",
+                "includes_missing": [],
+                "compaction_occurred": {"occurred": False,
+                                        "disclosure_ref": None},
+            },
+        }
+        self.base = manifest
+
+    def write_counts(self, **counts) -> None:
+        manifest = json.loads(json.dumps(self.base))
+        manifest["feedback"]["self_reported"].update(counts)
+        self.mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    def lint_json(self) -> tuple[int, dict]:
+        cp = run_lint(str(self.rdir), "--json")
+        return cp.returncode, json.loads(cp.stdout)
+
+    def test_counts_round_trip_clean(self):
+        for values in ({"light_blocks": 0, "paste_carried_rounds": 0},
+                       {"light_blocks": 2, "paste_carried_rounds": 3},
+                       {"light_blocks": 1},
+                       {"paste_carried_rounds": 4}):
+            with self.subTest(values=values):
+                self.write_counts(**values)
+                cp = run_lint(str(self.rdir))
+                self.assertEqual(cp.returncode, 0,
+                                 f"counts must lint clean:\n{cp.stdout}")
+                self.assertIn("result: CLEAN", cp.stdout)
+                # The emitter's schema_valid agrees: the counts are
+                # schema-valid, not merely tolerated.
+                emitted = run_lint(str(self.rdir),
+                                   "--emit-feedback-mechanical")
+                self.assertTrue(json.loads(emitted.stdout)["schema_valid"])
+                read_back = json.loads(self.mpath.read_text())[
+                    "feedback"]["self_reported"]
+                for key, value in values.items():
+                    self.assertEqual(read_back[key], value)
+
+    def test_absent_counts_stay_clean(self):
+        """Optional: a manifest from before the counts existed still
+        validates (one-apply-behind)."""
+        self.write_counts()
+        cp = run_lint(str(self.rdir))
+        self.assertEqual(cp.returncode, 0, cp.stdout)
+        sr = json.loads(self.mpath.read_text())["feedback"]["self_reported"]
+        for key in self.COUNTS:
+            self.assertNotIn(key, sr)
+
+    def test_malformed_counts_are_schema_findings(self):
+        for key in self.COUNTS:
+            for bad in (-1, 1.5, True, "2", None):
+                with self.subTest(key=key, bad=bad):
+                    self.write_counts(**{key: bad})
+                    code, report = self.lint_json()
+                    self.assertEqual(code, 1, report)
+                    schema_findings = [
+                        f for f in report["findings"]
+                        if f.get("check") == "manifest-schema"]
+                    self.assertTrue(schema_findings, report["findings"])
+                    self.assertTrue(
+                        any(key in json.dumps(f) for f in schema_findings),
+                        f"the finding names {key}: {schema_findings}")
 
 
 if __name__ == "__main__":

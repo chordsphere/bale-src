@@ -352,6 +352,16 @@
                   }
                 }
               }
+            },
+            "light_blocks": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Optional (v0.4.34): the number of light question blocks (TARBALL.md section 5.10) the worker emitted this session — the chat-carried ask tier, which opens no exchange record, so this count is the only place the tier becomes visible to stats. Self-report, like everything in this stream; the lint checks shape only. Additive and OPTIONAL, so every earlier manifest keeps validating, and the crafter's skeleton seeds nothing: omission means the session reported no count, never that it emitted no block — a worker who emitted a block writes the number."
+            },
+            "paste_carried_rounds": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Optional (v0.4.34): the number of exchange rounds (TARBALL.md section 5.9.2) whose record traveled by paste block rather than by tarball — the courier the operator chose at carry time — so telemetry stops reading a real round as zero where no clarification tarball was applied. Self-report, like everything in this stream; the lint checks shape only. Additive and OPTIONAL, so every earlier manifest keeps validating, and the crafter's skeleton seeds nothing: omission means the session reported no count, never that no round was paste-carried."
             }
           }
         }

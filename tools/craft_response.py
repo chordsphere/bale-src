@@ -2,15 +2,16 @@
 """craft_response.py — mechanical scaffolder for a bale response directory.
 
 Sections:
-  1. Imports + constants                                                   (~line 272)
-  2. Shared helpers (slug, log, exit)                                      (~line 545)
-  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 579)
-  4. Planner-bundle emission (--bundle)                                    (~line 663)
-  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 828)
-  6. Path handling                                                         (~line 1392)
-  7. Skeleton construction                                                 (~line 1453)
-  8. Doc-contract assertions (--doc-assertions)                            (~line 1730)
-  9. CLI                                                                   (~line 2072)
+  1. Imports + constants                                                   (~line 305)
+  2. Shared helpers (slug, log, exit)                                      (~line 578)
+  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 612)
+  4. Planner-bundle emission (--bundle)                                    (~line 696)
+  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 861)
+  6. Light question block emission (--light-block; TARBALL.md §5.10)       (~line 1445)
+  7. Path handling                                                         (~line 1652)
+  8. Skeleton construction                                                 (~line 1713)
+  9. Doc-contract assertions (--doc-assertions)                            (~line 1990)
+  10. CLI                                                                  (~line 2332)
 
 A WORKER runs this against its own response-NNN/ directory while
 building a response, without bale installed. It mechanizes the
@@ -119,7 +120,9 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   schemas/bundle-manifest.schema.json, shipped with every install)
   `--bundle STEM` assembles a planner bundle — the
   desk-side emission half, so the authoring desk never hand-composes
-  argv or hash blocks. It writes `<STEM>{BUNDLE_SUFFIX}` (a gzipped
+  argv or hash blocks. The recommended stem shape is `<date>-<slug>`.
+  The stem's date is the UTC date, the same clock session ids use.
+  It writes `<STEM>{BUNDLE_SUFFIX}` (a gzipped
   tar, members flat at the archive root: `bundle.json` plus exactly
   the declared members — `brief.md` from `--brief`, `checkpoint.sh`
   from `--checkpoint`) and prints the paste line the desk ships
@@ -165,6 +168,24 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   two from drifting. stdout is the block and only the block, so
   `--emit-block r.json > block.txt` captures it clean;
 
+- (light, §5.10) `--light-block <file|->` renders the light question
+  block for a filled clarification manifest — the same input
+  `--emit-block` takes, so one question row feeds either courier — to
+  stdout: `=== LIGHT BEGIN <sid> ===` / `=== LIGHT END <sid> ===`
+  sentinels, one numbered entry per row under §5.10's four labels
+  (`question` / `while doing` / `would assume` / `why blocked`, mapped
+  in order onto `question`, `context`, `default_assumption`,
+  `why_blocked`), and the packer's three-reply line, with no integrity
+  trailer (§5.10's deliberate omission). The tool enforces the part of
+  admission a tool can count — more than three question rows refuses,
+  naming §5.10 — and so does a rendered field value carrying a line
+  break, the count rule's "fits on one line" half, which a tool can
+  check too (the refusal points at the clarification path); judging
+  "multi-tiered" stays the worker's, who can read. `--sid` asserts the manifest's session_id and
+  never rewrites it; `--round` refuses (a light block opens no thread,
+  so it has no round). The render is derived from §5.10's drawn
+  example, and the test suite pins it against that example's bytes;
+
 For the normal kind, `validation.sh` remains un-emitted on purpose:
 there it is the worker's hypothesis test (TARBALL.md §7) — judgment,
 never scaffolded. The no-op validation.sh exists only for the two
@@ -185,6 +206,7 @@ Usage:
                       (--brief FILE | --no-brief) [--checkpoint FILE]
                       [--pre-answered PROMPT=SUBJECT]... [--out-dir DIR]
     craft_response.py --emit-block FILE [--round N]
+    craft_response.py --light-block FILE [--sid SESSION_ID]
 
 Modes (mutually exclusive; default prints the manifest skeleton):
     (default)       print the manifest-skeleton JSON to stdout
@@ -218,6 +240,7 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     stdout. Desk-side only; takes no response dir and
                     combines with none of the response-directory flags
                     (or --probe).
+                    The stem's date is the UTC date, the same clock session ids use.
     --emit-block FILE
                     render the exchange paste block for FILE (a filled
                     clarification manifest or a filled worker exchange
@@ -227,6 +250,14 @@ Modes (mutually exclusive; default prints the manifest skeleton):
                     (or --probe / --bundle). --round N sets the round
                     on the manifest path and asserts it on the record
                     path.
+    --light-block FILE
+                    render the TARBALL.md §5.10 light question block for
+                    FILE (a filled clarification manifest; `-` reads
+                    stdin) to stdout. More than three question rows
+                    refuses. Takes no response dir and combines with
+                    none of the response-directory flags (or --probe /
+                    --bundle / --emit-block) and refuses --round; --sid
+                    asserts the manifest's session_id.
 
 Bundle options (only with --bundle):
     --pack-arg TOKEN    one pack-argv token, repeatable in order — the
@@ -251,7 +282,9 @@ Options:
     --executable PATH   normal only: add a chmod +x line for a files/
                         path (repeatable)
     --sid SESSION_ID    session id for session_id and responds_to;
-                        required except under --changes-only/--apply-only
+                        required except under --changes-only/--apply-only.
+                        With --light-block, an assertion on the manifest's
+                        own session_id instead
     --request FILE      the request's manifest.json; seeds the feedback
                         block (provenance echoed verbatim plus an empty
                         model_identity) into the emitted manifest. Only
@@ -1301,6 +1334,26 @@ def read_emit_block_input(path_str: str) -> bytes | str:
         return f"--emit-block: could not read {src}: {exc}"
 
 
+def read_light_block_input(path_str: str) -> bytes | str:
+    """Read the --light-block input: stdin for `-`, else the named file.
+    Returns bytes, or an error message string. The --emit-block reader's
+    posture exactly (no search-path resolution; the worker names the file
+    it just filled), with this flag's name in the messages."""
+    if path_str == "-":
+        try:
+            return sys.stdin.buffer.read()
+        except OSError as exc:
+            return (f"--light-block: could not read the manifest from "
+                    f"stdin: {exc}")
+    src = Path(path_str)
+    if not src.is_file():
+        return f"--light-block: file not found: {src}"
+    try:
+        return src.read_bytes()
+    except OSError as exc:
+        return f"--light-block: could not read {src}: {exc}"
+
+
 def build_emit_block(data: bytes, round_arg: int | None) -> tuple[str, str]:
     """Turn the read bytes into (block, log line), or raise ValueError
     with the refusal message.
@@ -1389,7 +1442,214 @@ def build_emit_block(data: bytes, round_arg: int | None) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# 6. Path handling
+# 6. Light question block emission (--light-block; TARBALL.md §5.10)
+# ---------------------------------------------------------------------------
+#
+# The light question block is the one ask chat carries (TARBALL.md §5.10):
+# at most three non-blocking questions, sentinel-bracketed and read by eye,
+# answered inline in chat. The doc specifies it format-first so a worker
+# can author it by hand; this section is the convenience render over that
+# shape, never its home — every constant below is derived from §5.10's
+# drawn example, and tests/test_craft_response.py's CraftLightBlock renders
+# that example's own rows and compares against the doc's bytes, so a
+# doc edit and a render edit cannot drift apart silently.
+#
+# Unlike the exchange block there is no second implementation to hold
+# parity with: a light block opens no exchange record, `bale relay` never
+# sees it, and it carries no integrity trailer (a deliberate §5.10
+# omission — at most three hand-read entries). The doc IS the other side.
+#
+# Input is a filled clarification manifest — the same input --emit-block
+# takes — so one question row feeds either courier: a light block the
+# packer sends "formal" becomes `--emit-block` of the very same file.
+#
+# Admission is a count (§5.10). The tool enforces the parts of it a tool
+# can check — at most LIGHT_MAX_QUESTIONS rows, and each rendered field
+# fitting on one line (the count rule's "fits on one line" half: a value
+# carrying a line break refuses, naming the field, and is never silently
+# flattened) — and leaves "multi-tiered" (options that need explaining, a
+# why_blocked that needs a paragraph) to the worker, who can read. Both
+# refusals point at the clarification path, where a set that fails
+# admission belongs. Ratified at the packer's light-block reply for this
+# session (2026-09-16-board-96-crafter-85-light-block-002).
+
+LIGHT_BLOCK_BEGIN = "=== LIGHT BEGIN"
+LIGHT_BLOCK_END = "=== LIGHT END"
+LIGHT_SENTINEL_CLOSE = "==="
+
+# The four fixed labels, in §5.10's order, each mapped onto the question
+# row field it renders. The row fields are QUESTION_STUB_KEYS' required
+# four; a test pins that the two tuples name the same fields.
+LIGHT_LABELS = (
+    ("question", "question"),
+    ("while doing", "context"),
+    ("would assume", "default_assumption"),
+    ("why blocked", "why_blocked"),
+)
+
+# The packer's three replies — the block ends with this line every time.
+LIGHT_REPLY_LINE = 'Reply: answer inline, "as assumed", or "formal".'
+
+# The count half of §5.10's admission test.
+LIGHT_MAX_QUESTIONS = 3
+
+# The value column: the longest label plus its colon plus one space, so
+# every value starts in the same column (§5.10's drawn alignment).
+LIGHT_LABEL_WIDTH = max(len(label) for label, _ in LIGHT_LABELS) + 2
+
+
+def light_sentinels(sid: str) -> tuple[str, str]:
+    """The (begin, end) sentinel lines for `sid` — the session id, not a
+    slug, so the block names the session it suspends (§5.10)."""
+    return (f"{LIGHT_BLOCK_BEGIN} {sid} {LIGHT_SENTINEL_CLOSE}",
+            f"{LIGHT_BLOCK_END} {sid} {LIGHT_SENTINEL_CLOSE}")
+
+
+def format_light_block(sid: str, rows: list[dict]) -> str:
+    """Render the §5.10 light question block for already-admitted rows.
+
+    Pure: no admission, no validation — build_light_block does both
+    before calling this, and the tests render and compare it in memory.
+    Layout, one numbered entry per row:
+
+      === LIGHT BEGIN <sid> ===
+      [n] question:     <question>
+          while doing:  <context>
+          would assume: <default_assumption>
+          why blocked:  <why_blocked>
+      Reply: answer inline, "as assumed", or "formal".
+      === LIGHT END <sid> ===
+    """
+    begin, end = light_sentinels(sid)
+    lines = [begin]
+    for n, row in enumerate(rows, 1):
+        marker = f"[{n}] "
+        for i, (label, field) in enumerate(LIGHT_LABELS):
+            lead = marker if i == 0 else " " * len(marker)
+            lines.append(f"{lead}{label + ':':<{LIGHT_LABEL_WIDTH}}"
+                         f"{row[field]}")
+    lines.append(LIGHT_REPLY_LINE)
+    lines.append(end)
+    return "\n".join(lines) + "\n"
+
+
+def light_block_line_break_problems(rows: list[dict]) -> list[str]:
+    """Field values the one-line labels cannot carry; [] = none.
+
+    Admission, not judgment: this is §5.10's "fits on one line" half of
+    the count, the part a tool can check. A line break inside a value
+    would also start a line belonging to no label, so flattening it
+    would hide a failed admission behind a well-formed block. Only the
+    four rendered fields are checked — the optional row keys never
+    render here.
+    """
+    problems: list[str] = []
+    for i, row in enumerate(rows):
+        for label, field in LIGHT_LABELS:
+            value = row.get(field)
+            if isinstance(value, str) and ("\n" in value or "\r" in value):
+                problems.append(
+                    f"questions[{i}].{field}: carries a line break — the "
+                    f"`{label}` label renders one line")
+    return problems
+
+
+def build_light_block(data: bytes, sid_arg: str | None
+                      ) -> tuple[str, list[str]]:
+    """Turn the read bytes into (block, log lines), or raise ValueError
+    with the refusal message.
+
+    Refusal order is cheapest-diagnosis-first: decoding and shape, then
+    the session-id agreement, then the row count (§5.10's admission,
+    named), then the row structure (question_row_problems — the same
+    check --emit-block applies, so a row admitted here would also pass
+    there), then the one-line half of admission. Nothing is emitted on
+    any refusal.
+    """
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"--light-block: input is not valid UTF-8: {exc}")
+    if not text.strip():
+        raise ValueError(
+            "--light-block: input is empty — expected a filled "
+            "clarification manifest")
+    try:
+        manifest = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--light-block: input is not valid JSON: {exc}")
+    if not isinstance(manifest, dict):
+        raise ValueError(
+            f"--light-block: input is not a JSON object (got "
+            f"{type(manifest).__name__})")
+    if manifest.get("response_kind") != CLARIFICATION_KIND:
+        extra = (" — an exchange record is a thread artifact, and a light "
+                 "block opens no thread (TARBALL.md 5.10)"
+                 if "from" in manifest else "")
+        raise ValueError(
+            "--light-block: input is not a clarification manifest "
+            "(response_kind: \"clarification\"); the light block renders "
+            "the same question rows a clarification carries, from the "
+            "same file --emit-block takes" + extra)
+
+    sid = manifest.get("session_id")
+    if not _nonempty_str(sid):
+        raise ValueError(
+            "--light-block: the clarification manifest carries no "
+            "session_id — both sentinels name the session the block "
+            "suspends, and they come from it")
+    if sid_arg is not None and sid_arg != sid:
+        raise ValueError(
+            f"--light-block: --sid {sid_arg!r} contradicts the manifest's "
+            f"own session_id {sid!r} — the flag asserts which session the "
+            f"block suspends and never rewrites it; render the manifest "
+            f"for this session, or drop --sid")
+
+    rows = manifest.get("questions")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(
+            "--light-block: the manifest's questions[] is absent or empty "
+            "— a light block with no entries asks nothing")
+    if len(rows) > LIGHT_MAX_QUESTIONS:
+        raise ValueError(
+            f"--light-block: {len(rows)} question rows — the light tier "
+            f"admits at most {LIGHT_MAX_QUESTIONS} (TARBALL.md 5.10: "
+            f"admission is a count, not a judgment). This set is a "
+            f"clarification response; the same manifest renders for the "
+            f"paste courier with --emit-block")
+
+    problems = question_row_problems(rows)
+    if problems:
+        raise ValueError(
+            "--light-block: the question rows are not valid clarification "
+            "rows; nothing emitted:\n  " + "\n  ".join(problems))
+
+    problems = light_block_line_break_problems(rows)
+    if problems:
+        raise ValueError(
+            "--light-block: a rendered field does not fit on one line, so "
+            "the set fails the light tier's admission (TARBALL.md 5.10: "
+            "each default ratifiable in a word or an answer that fits on "
+            "one line); nothing emitted:\n  " + "\n  ".join(problems)
+            + "\nThis set is a clarification response: fill the same "
+            "manifest and render it for the paste courier with "
+            "--emit-block (TARBALL.md 5.9.2)")
+
+    notes = [f"light block rendered for {sid}: {len(rows)} question(s), "
+             f"within the count of {LIGHT_MAX_QUESTIONS} (TARBALL.md 5.10)"]
+    for i, row in enumerate(rows):
+        unrendered = [k for k in QUESTION_OPTIONAL_KEYS if k in row]
+        if unrendered:
+            notes.append(
+                f"questions[{i}] carries {', '.join(unrendered)} — the light "
+                f"block renders the four labeled fields only; those keys "
+                f"travel if the packer replies \"formal\" (--emit-block of "
+                f"this same file)")
+    return format_light_block(sid, rows), notes
+
+
+# ---------------------------------------------------------------------------
+# 7. Path handling
 # ---------------------------------------------------------------------------
 
 def rel_path_problem(path_str: str) -> str | None:
@@ -1450,7 +1710,7 @@ def sha256_of(path: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 7. Skeleton construction
+# 8. Skeleton construction
 # ---------------------------------------------------------------------------
 
 def build_changes(files_root: Path | None, deleted: list[str]) -> list[dict]:
@@ -1727,7 +1987,7 @@ def build_validation_epilogue(executables: list[str],
 
 
 # ---------------------------------------------------------------------------
-# 8. Doc-contract assertions (--doc-assertions)
+# 9. Doc-contract assertions (--doc-assertions)
 # ---------------------------------------------------------------------------
 #
 # Parameterized, opt-in emissions for the per-project doc-contract rows
@@ -2069,12 +2329,50 @@ def shell_quote(path_str: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 9. CLI
+# 10. CLI
 # ---------------------------------------------------------------------------
+
+# The bundle stem's clock (TARBALL.md §1): session ids and every bale
+# timestamp are UTC, and a desk dating a stem from its chat's local date
+# runs a day behind after 20:00 Eastern. The sentence is pinned verbatim
+# in --help, so it must survive argparse's rewrapping whole.
+BUNDLE_STEM_CLOCK_LINE = ("The stem's date is the UTC date, the same clock "
+                          "session ids use.")
+
+# Help sentences that print whole, on a line of their own, at any terminal
+# width. A sentence pinned verbatim in --help output would otherwise break
+# across lines wherever COLUMNS happens to fall, and a pin that holds at one
+# width and fails at another is a flaky pin.
+UNWRAPPED_HELP_SENTENCES = (BUNDLE_STEM_CLOCK_LINE,)
+
+
+class CraftHelpFormatter(argparse.HelpFormatter):
+    """argparse's default formatter, except that a sentence named in
+    UNWRAPPED_HELP_SENTENCES is kept whole on its own line; the text
+    around it wraps as usual. Overrides _split_lines, the hook argparse
+    has routed per-argument help wrapping through since its stdlib
+    debut; if a future argparse stops calling it, the verbatim --help
+    pin in tests/test_craft_response.py fails by name rather than the
+    sentence silently rewrapping."""
+
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        for sentence in UNWRAPPED_HELP_SENTENCES:
+            if sentence in text:
+                head, _, tail = text.partition(sentence)
+                lines: list[str] = []
+                if head.strip():
+                    lines.extend(self._split_lines(head, width))
+                lines.append(sentence)
+                if tail.strip():
+                    lines.extend(self._split_lines(tail, width))
+                return lines
+        return super()._split_lines(text, width)
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="craft_response.py",
+        formatter_class=CraftHelpFormatter,
         description=("Scaffold a bale response (--kind normal | bailout | "
                      "clarification): the manifest skeleton, apply.sh, and "
                      "the non-normal kinds' companion artifacts. The "
@@ -2083,7 +2381,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap.add_argument("response_dir", nargs="?", default=None,
                     help="the response-NNN/ directory (required except "
-                         "under --probe, which reads no response dir)")
+                         "under --probe, --bundle, --emit-block, and "
+                         "--light-block, which read no response dir)")
     ap.add_argument("--probe", default=None, metavar="SLUG",
                     help="emit the TARBALL.md 4.2 probe skeleton for SLUG "
                          "to stdout; mutually exclusive with the "
@@ -2093,7 +2392,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "suffix (desk-side) and print the bale "
                          "open paste line; mutually exclusive with the "
                          "response-directory modes and flags, and with "
-                         "--probe")
+                         "--probe. " + BUNDLE_STEM_CLOCK_LINE)
     ap.add_argument("--pack-arg", action="append", default=[],
                     metavar="TOKEN", dest="pack_arg",
                     help="with --bundle: one stored pack-argv token, "
@@ -2132,6 +2431,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "relay` emits for the same record; mutually "
                          "exclusive with the response-directory modes and "
                          "flags, and with --probe and --bundle")
+    ap.add_argument("--light-block", default=None, metavar="FILE",
+                    dest="light_block",
+                    help="render the TARBALL.md 5.10 light question block "
+                         "for FILE (a filled clarification manifest — the "
+                         "same input --emit-block takes; `-` reads stdin) to "
+                         "stdout. Refuses more than three question rows "
+                         "(5.10's admission count); judging multi-tiered "
+                         "questions stays the worker's. Takes --sid only, "
+                         "which asserts the manifest's session_id; mutually "
+                         "exclusive with the response-directory modes and "
+                         "flags, with --round, and with --probe, --bundle, "
+                         "and --emit-block")
     ap.add_argument("--round", type=int, default=None, metavar="N",
                     help="with --emit-block: the round the record occupies "
                          "(integer >= 1, default 1). On a clarification "
@@ -2140,7 +2451,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                          "own round, and a contradiction refuses rather "
                          "than rewrites")
     ap.add_argument("--sid", default=None,
-                    help="session id (fills session_id and responds_to)")
+                    help="session id (fills session_id and responds_to); "
+                         "with --light-block, asserts the manifest's own "
+                         "session_id instead")
     ap.add_argument("--request", default=None, metavar="FILE",
                     dest="request",
                     help="path to the request's manifest.json; seeds the "
@@ -2252,6 +2565,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--out-dir", args.out_dir is not None),
             ("--emit-block", args.emit_block is not None),
             ("--round", args.round is not None),
+            ("--light-block", args.light_block is not None),
         ) if given]
         if supplied:
             return die(f"--probe is mutually exclusive with "
@@ -2310,6 +2624,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--executable", bool(args.executable)),
             ("--emit-block", args.emit_block is not None),
             ("--round", args.round is not None),
+            ("--light-block", args.light_block is not None),
         ) if given]
         if supplied:
             return die(f"--bundle is mutually exclusive with "
@@ -2453,6 +2768,7 @@ def main(argv: list[str] | None = None) -> int:
             ("--checkpoint", args.checkpoint is not None),
             ("--pre-answered", bool(args.pre_answered)),
             ("--out-dir", args.out_dir is not None),
+            ("--light-block", args.light_block is not None),
         ) if given]
         if supplied:
             return die(f"--emit-block is mutually exclusive with "
@@ -2483,6 +2799,70 @@ def main(argv: list[str] | None = None) -> int:
             "being reasoned from (TARBALL.md 5.9.2)")
         return EXIT_OK
 
+    # Light-block mode (TARBALL.md §5.10). The same exclusion list as
+    # --probe, --bundle, and --emit-block — it reads no response dir and
+    # combines with none of the response-directory modes or flags — except
+    # that --sid is admitted, as an assertion on the manifest's session_id.
+    # --round refuses by name first: a light block opens no thread, so it
+    # has no round, and the generic list would not say why. stdout is the
+    # block and only the block; every [craft] line is stderr's.
+    if args.light_block is not None:
+        if args.round is not None:
+            return die("--round is meaningless with --light-block — a light "
+                       "block opens no exchange thread, so it has no round "
+                       "(TARBALL.md 5.10); drop --round")
+        supplied = [flag for flag, given in (
+            ("--kind", args.kind is not None),
+            ("--changes-only", args.changes_only),
+            ("--apply-only", args.apply_only),
+            ("--write", args.write),
+            ("--validation-epilogue", args.validation_epilogue),
+            ("--doc-assertions", args.doc_assertions),
+            ("--fragment", args.fragment is not None),
+            ("--index", args.index is not None),
+            ("--adr-dir", args.adr_dir is not None),
+            ("--adr-baseline", args.adr_baseline is not None),
+            ("--prune-reasons", args.prune_reasons),
+            ("--index-header", bool(args.index_header)),
+            ("--request", args.request is not None),
+            ("--questions", args.questions is not None),
+            ("--deleted", bool(args.deleted)),
+            ("--executable", bool(args.executable)),
+            ("--force", args.force),
+            ("--pack-arg", bool(args.pack_arg)),
+            ("--brief", args.brief is not None),
+            ("--no-brief", args.no_brief),
+            ("--checkpoint", args.checkpoint is not None),
+            ("--pre-answered", bool(args.pre_answered)),
+            ("--out-dir", args.out_dir is not None),
+        ) if given]
+        if supplied:
+            return die(f"--light-block is mutually exclusive with "
+                       f"{', '.join(supplied)} — the block is a chat shape "
+                       "the packer answers inline, not a response-directory "
+                       "artifact (TARBALL.md 5.10)")
+        if args.response_dir is not None:
+            return die(f"--light-block takes no response dir (got "
+                       f"{args.response_dir!r}) — it renders the manifest in "
+                       "the named file to stdout; drop the positional "
+                       "argument")
+        got = read_light_block_input(args.light_block)
+        if isinstance(got, str):
+            return die(got)
+        try:
+            block, notes = build_light_block(got, args.sid)
+        except ValueError as exc:
+            return die(str(exc))
+        sys.stdout.write(block)
+        for note in notes:
+            log(note)
+        log("block emitted on stdout — end the turn on it; multi-tiered "
+            "questions (options that need explaining, a why_blocked that "
+            "needs a paragraph) fail admission however few there are, and "
+            "that judgment is the worker's. The trail is the eventual "
+            "response's notes.md, never a thread (TARBALL.md 5.10)")
+        return EXIT_OK
+
     stray_bundle = [flag for flag, given in (
         ("--pack-arg", bool(args.pack_arg)),
         ("--brief", args.brief is not None),
@@ -2499,8 +2879,8 @@ def main(argv: list[str] | None = None) -> int:
         return die("--round: only meaningful with --emit-block")
 
     if args.response_dir is None:
-        return die("response dir is required (only --probe and --bundle "
-                   "run without one)")
+        return die("response dir is required (only --probe, --bundle, "
+                   "--emit-block, and --light-block run without one)")
     rdir = Path(args.response_dir)
     if not rdir.is_dir():
         return die(f"response dir not found or not a directory: {rdir}")
