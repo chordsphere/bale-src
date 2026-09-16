@@ -1,5 +1,7 @@
 #!/bin/bash
-# Blind checkpoint — pack-UX micro, v1. Outcome-only, CLI-level in a
+# Blind checkpoint — pack-UX micro, v2 (P3 amended: untracked-not-ignored
+# files SHIP; the "not tracked" drop is for gitignored include entries and
+# entries matching no git ls-files path). Outcome-only, CLI-level in a
 # scratch repo (piped stdin; read-only packs where a forecast is not
 # the point, so packs never collide). cwd = staging root.
 fails=0
@@ -12,6 +14,8 @@ R="$S/repo"; mkdir -p "$R/src" "$R/docs" "$R/tests"
 echo x > "$R/src/a.py"; echo d > "$R/docs/x.md"; printf 'from tests.helper_b import X\nimport os\n' > "$R/tests/test_a.py"; echo 'X=1' > "$R/tests/helper_b.py"
 ( cd "$R" && git init -q && git config user.name o && git config user.email o@o && printf '[staging]\nstrategy = "target-base"\n' > bale.toml && git add -A && git commit -qm i ) || { failp "scratch repo"; exit 1; }
 echo y > "$R/src/untracked.py"
+mkdir -p "$R/build" && echo o > "$R/build/out.txt" && echo l > "$R/src/ignored.log"
+printf 'build/\n*.log\n' > "$R/.gitignore" && ( cd "$R" && git add .gitignore && git commit -qm ig )
 pk() { ( cd "$R" && python3 "$BALE" pack "g" "$@" --no-readme </dev/null >"$S/out" 2>&1 ); }
 # P1: a .baleignore negation is attributed to .baleignore, not the session.
 printf '!keep.py\n' > "$R/.baleignore"
@@ -23,9 +27,10 @@ if grep -q 'invalid session exclude pattern' "$S/out"; then pass "--exclude nega
 # P2: forecast/include mismatch warns, naming the path, and still packs.
 pk --slug m --include src --write docs/x.md
 if grep -q 'docs/x.md' "$S/out" && grep -qi 'warn' "$S/out" && ! grep -q '\[bale\] error' "$S/out"; then pass "forecast-not-included warning names the path"; else failp "forecast-not-included warning names the path"; fi
-# P3: verbose names the untracked drop.
-pk --slug v --include src --read-only --verbose
-if grep -q 'verbose: drop src/untracked.py (not tracked)' "$S/out"; then pass "verbose names the untracked drop"; else failp "verbose names the untracked drop"; fi
+# P3: verbose names gitignored include entries as untracked drops; a shipping untracked file gets no drop line.
+pk --slug v --include src --include build --include src/ignored.log --read-only --verbose
+if grep -q 'verbose: drop build (not tracked)' "$S/out" && grep -q 'verbose: drop src/ignored.log (not tracked)' "$S/out"; then pass "verbose names gitignored include entries as not-tracked drops"; else failp "verbose names gitignored include entries as not-tracked drops"; fi
+if ! grep -q 'drop src/untracked.py' "$S/out"; then pass "no drop line for an untracked file that ships"; else failp "no drop line for an untracked file that ships"; fi
 # P4: included test importing an excluded tests module warns, naming both; stdlib import does not.
 pk --slug t --include tests/test_a.py --read-only
 if grep -q 'tests/test_a.py' "$S/out" && grep -q 'helper_b' "$S/out" && grep -qi 'warn' "$S/out" && ! grep -q '\[bale\] error' "$S/out"; then pass "test-import-outside-includes warning"; else failp "test-import-outside-includes warning"; fi
