@@ -39,6 +39,10 @@ layer detection, and by `build_parser` for command dispatch):
   - cmd_config_init — argparse-bound entry point for `bale config init`.
   - cmd_config_hooks — argparse-bound entry point for `bale config
     hooks` (v0.4.29, board 83; section 4).
+
+Sections are [hooks], [apply], [staging], [identity] (both layers) and
+[validation], [sandbox], [pack], [probe] (project layer only); each
+section's tuple below documents its keys and its layer ruling.
 """
 
 from __future__ import annotations
@@ -355,6 +359,34 @@ PACK_VALUES = (
     "include_group_pulls",
 )
 
+# Value-shaped configurables under the [probe] section — the probe
+# scaffold's opt-in clipboard epilogue (registry fold-in, ratified
+# 2026-08-18, configurable-never-core; the config-side carrier landed
+# with board 99a). Same trio contract as the sections above: a typed
+# accessor (get_probe_clipboard_command), a walk_configurables() block,
+# and a render_bale_toml() branch.
+#
+# The consumer is NOT bin/: it is tools/craft_response.py's --probe
+# emission, which reads `[probe] clipboard_command` with its own
+# stdlib-only single-key scan (read_clipboard_command) from ./bale.toml
+# or ./context/bale.toml — the project file, as shipped in a request's
+# context/. That reach decides the layer: the section is PROJECT-LAYER
+# ONLY, because a global-layer value would never reach the probe
+# epilogue. The global wizard never walks it, and merged_config never
+# inherits it — a key the wizard offered but no reader consulted would
+# be a prompt that lies.
+PROBE_VALUES = (
+    # String: the shell command probe output is piped into (e.g.
+    # "pbcopy", "xclip -selection clipboard", "clip.exe"). Absent or
+    # empty = no clipboard epilogue; the scaffold carries remedy text
+    # walking the operator through this opt-in instead. The value must
+    # stay inside the crafter scan's readable shape — one line, no
+    # backslash, no double quote, no control characters — so the
+    # accessor and the wizard refuse anything the crafter would
+    # silently read as unset (probe_clipboard_command_problem).
+    "clipboard_command",
+)
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -577,6 +609,21 @@ def merged_config(repo: Path) -> dict:
             out_pack[key] = p_pack[key]
     if out_pack:
         merged["pack"] = out_pack
+
+    # [probe] — PROJECT LAYER ONLY (board 99a; see PROBE_VALUES).
+    # Deliberately no `elif key in g_probe` branch: the key's only reader
+    # (the crafter's probe scaffold) sees the project bale.toml as shipped
+    # in the request, never <install>/user/bale.toml, so a global value
+    # would configure nothing. A hand-edited global [probe] is ignored
+    # here, never inherited.
+    p_probe = (p.get("probe")
+               if isinstance(p.get("probe"), dict) else {})
+    out_probe: dict = {}
+    for key in PROBE_VALUES:
+        if key in p_probe:
+            out_probe[key] = p_probe[key]
+    if out_probe:
+        merged["probe"] = out_probe
 
     return merged
 
@@ -1373,6 +1420,81 @@ def get_pack_include_group(cfg: dict) -> Optional[dict]:
     return {"name": name, "triggers": triggers, "pulls": pulls}
 
 
+def probe_clipboard_command_problem(value: str) -> Optional[str]:
+    """Say why `value` is not a usable [probe] clipboard_command, or None.
+
+    The crafter's reader (tools/craft_response.py read_clipboard_command)
+    is a deliberately minimal single-key scan of a one-line TOML basic
+    string: it treats a value containing a backslash as unset, cannot
+    see past an embedded double quote, and never reads a second line.
+    render_bale_toml writes the value with json.dumps, which escapes
+    control characters into backslash sequences. So a value carrying any
+    of those would round-trip through bale's own TOML parser and then be
+    silently unset at craft time — the disagreement this check exists
+    to refuse up front. Non-ASCII is fine: the renderer writes it
+    literally (ensure_ascii=False). Whitespace at either end is not a
+    problem; both readers strip it. The empty string is not judged here
+    — callers read it as unset.
+    """
+    if "\\" in value:
+        return "contains a backslash"
+    if '"' in value:
+        return "contains a double quote"
+    for ch in value:
+        if ord(ch) < 0x20 or ord(ch) == 0x7F:
+            return (f"contains a control character (U+{ord(ch):04X}; "
+                    f"one line, no tabs)")
+    return None
+
+
+def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
+    """Return [probe].clipboard_command from the merged config, or None.
+
+    The config-side carrier of the probe scaffold's opt-in clipboard
+    epilogue (PROBE_VALUES). None when the section or key is absent, or
+    the value is empty after stripping — the "no clipboard epilogue"
+    state. A set value comes back stripped, which is exactly what the
+    crafter's scan yields for the same bytes.
+
+    Merged-config note: [probe] is project-layer only (PROBE_VALUES owns
+    the rationale) — merged_config never carries a global value into
+    this section, so this accessor reads the project's own key or
+    nothing.
+
+    Shape posture: a non-table section or a non-string value is fatal,
+    as in the sibling string accessors. So is a string the crafter's
+    minimal reader cannot read (probe_clipboard_command_problem): the
+    crafter would treat it as unset and emit remedy text, so accepting
+    it here would leave bale and the crafter disagreeing about whether
+    the opt-in is configured. Right or loud, never split.
+    """
+    from __main__ import fail
+
+    probe_section = cfg.get("probe")
+    if probe_section is None:
+        return None
+    if not isinstance(probe_section, dict):
+        fail(f"{BALE_CONFIG}: [probe] must be a table, "
+             f"got {type(probe_section).__name__}")
+    raw = probe_section.get("clipboard_command")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: probe.clipboard_command must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    if not val:
+        return None
+    problem = probe_clipboard_command_problem(val)
+    if problem is not None:
+        fail(f"{BALE_CONFIG}: probe.clipboard_command {problem}; the "
+             f"probe scaffold's reader (tools/craft_response.py) would "
+             f"treat it as unset. Use a one-line command with no "
+             f"backslashes or double quotes (wrap it in a script if it "
+             f"needs them).")
+    return val
+
+
 # ---------------------------------------------------------------------------
 # 3. `bale config init` wizard
 # ---------------------------------------------------------------------------
@@ -1392,8 +1514,15 @@ def get_pack_include_group(cfg: dict) -> Optional[dict]:
 
 def _prompt_value(label: str, *, current: Optional[str],
                   inherited: Optional[str] = None,
-                  description: list[str]) -> Optional[str]:
+                  description: list[str],
+                  unset_effective: str = "(no hook will run)") -> Optional[str]:
     """Generic value-prompt for the wizard.
+
+    `unset_effective` is the effective-line rendering when no layer sets
+    the key (or this layer suppresses it). The default keeps the hook
+    keys' wording; every non-hook string key passes its own, so the
+    wizard never tells the operator an unset archive_dir or packer means
+    "no hook will run" (the _prompt_bool precedent).
 
     Three states the wizard recognizes at this layer:
       - None       — key absent at this layer. Means "inherit" if a lower
@@ -1426,7 +1555,7 @@ def _prompt_value(label: str, *, current: Optional[str],
     if current is None:
         print(f"  current at this layer: (unset)")
     elif current == "":
-        print(f"  current at this layer: (suppressed — no hook runs at this layer)")
+        print(f"  current at this layer: (suppressed — empty string; the inherited value is ignored)")
     else:
         print(f"  current at this layer: {current}")
 
@@ -1445,14 +1574,14 @@ def _prompt_value(label: str, *, current: Optional[str],
     if effective:
         print(f"  effective: {effective}")
     else:
-        print(f"  effective: (no hook will run)")
+        print(f"  effective: {unset_effective}")
 
     # Prompt instructions. Suppress option only appears when there's something
     # to suppress; that keeps the wording minimal in the common case (global
     # walk, or project walk with no inherited value).
     print(f"  Enter to keep. Type a value to set. Type '-' to clear (unset at this layer).")
     if inherited:
-        print(f"  Type 'x' to suppress (write empty string — no hook regardless of inherited).")
+        print(f"  Type 'x' to suppress (write an empty string — ignores the inherited value).")
 
     try:
         raw = input(f"  > ")
@@ -1546,8 +1675,15 @@ def _prompt_bool(label: str, *, current: Optional[bool],
 
 def _prompt_path_list(label: str, *, current: Optional[list[str]],
                       inherited: Optional[list[str]] = None,
-                      description: list[str]) -> Optional[list[str]]:
+                      description: list[str],
+                      unset_effective: str = "(no extra search paths)"
+                      ) -> Optional[list[str]]:
     """List-of-paths prompt for the wizard, mirroring `_prompt_value` semantics.
+
+    `unset_effective` is the effective-line rendering when the list is
+    unset or suppressed. The default keeps apply.search_paths' wording;
+    the other list keys (check names, untracked inputs, group paths)
+    pass their own.
 
     Three states at this layer:
       - None        — key absent.
@@ -1602,7 +1738,7 @@ def _prompt_path_list(label: str, *, current: Optional[list[str]],
         for p in effective:
             print(f"    {p}")
     else:
-        print(f"  effective: (no extra search paths)")
+        print(f"  effective: {unset_effective}")
 
     print(f"  Enter to keep. Type colon-separated paths to set. Type '-' to clear.")
     if inherited:
@@ -1793,15 +1929,19 @@ def walk_configurables(existing: dict, *, layer: str,
             "Optional. Enter to skip; you can wire one up later.",
             "Directories bale searches when a command is given a relative",
             "inbound-file name: the tarball for `bale apply` / `bale",
-            "retry` / `bale handoff`, and the prose file for `bale pack",
-            "--readme-file`. Tried in order; first match wins. An",
+            "retry` / `bale handoff`, the bundle for `bale open`, the",
+            "file for `bale relay` and `bale amend-checkpoint`, and the",
+            "prose or checkpoint file for `bale pack --readme-file` /",
+            "`--checkpoint-file`. Tried in order; first match wins. An",
             "absolute path argument bypasses search. Cwd is always tried",
-            "first implicitly — you don't need to list it.",
+            "first implicitly — you don't need to list it. Bare `bale",
+            "apply` (no tarball named) looks for the newest",
+            "response-*.tar.gz across cwd and these directories.",
             "Tilde (~/Downloads) and env vars ($HOME/Downloads) expand at",
             "use time, so the committed file stays portable across machines.",
             "Use case: worker files land in ~/Downloads; with ~/Downloads",
-            "here, `bale apply request-NNN.tar.gz` and `bale pack ...",
-            "--readme-file brief.md` both work from anywhere in the repo.",
+            "here, a bare `bale apply` and `bale pack ... --readme-file",
+            "brief.md` both work from anywhere in the repo.",
         ],
     )
     if val_list is not None:
@@ -1889,6 +2029,7 @@ def walk_configurables(existing: dict, *, layer: str,
             "— bale never auto-commits. Unset = no archival. HOLDs,",
             "reverts, bailouts, and clarifications archive nothing.",
         ],
+        unset_effective="(unset — no archival)",
     )
     if val is not None:
         new.setdefault("apply", {})["archive_dir"] = val
@@ -1952,6 +2093,7 @@ def walk_configurables(existing: dict, *, layer: str,
             "tree plus the declared staging.untracked_inputs below, so",
             "validation exercises exactly the content the commit lands.",
         ],
+        unset_effective="(unset — working-tree)",
     )
     if val not in (None, "") and val.strip() not in STAGING_STRATEGIES:
         print(f"  '{val}' is not a staging strategy; expected one of: "
@@ -1983,6 +2125,7 @@ def walk_configurables(existing: dict, *, layer: str,
             "a missing or tracked entry fails the apply loudly rather",
             "than being skipped.",
         ],
+        unset_effective="(none)",
     )
     if val_list is not None:
         new.setdefault("staging", {})["untracked_inputs"] = val_list
@@ -2015,6 +2158,7 @@ def walk_configurables(existing: dict, *, layer: str,
             "project > global). Unset everywhere = requests stamp",
             "'unconfigured' and pack logs a hint.",
         ],
+        unset_effective="(unset — requests stamp 'unconfigured')",
     )
     if val is not None:
         new.setdefault("identity", {})["packer"] = val
@@ -2054,6 +2198,7 @@ def walk_configurables(existing: dict, *, layer: str,
                 "scripts/validation.base.sh. Project-layer only — the",
                 "global wizard does not walk this key.",
             ],
+            unset_effective="(unset — no blind checkpoint)",
         )
         if val is not None:
             new.setdefault("validation", {})["base"] = val
@@ -2087,6 +2232,7 @@ def walk_configurables(existing: dict, *, layer: str,
                 "Colon-separated names, e.g. tests:lint. Project-layer",
                 "only — the global wizard does not walk this key.",
             ],
+            unset_effective="(no required checks)",
         )
         if val_list is not None:
             new.setdefault("validation", {})["required"] = val_list
@@ -2199,6 +2345,7 @@ def walk_configurables(existing: dict, *, layer: str,
                 "Project-layer only — the global wizard does not walk",
                 "this key.",
             ],
+            unset_effective="(unset — no include group)",
         )
         if val is not None:
             new.setdefault("pack", {})["include_group"] = val
@@ -2221,6 +2368,7 @@ def walk_configurables(existing: dict, *, layer: str,
                 "subtrees). Colon-separated paths, e.g. bin:tests.",
                 "Project-layer only.",
             ],
+            unset_effective="(none)",
         )
         if val_list is not None:
             new.setdefault("pack", {})["include_group_triggers"] = val_list
@@ -2244,9 +2392,58 @@ def walk_configurables(existing: dict, *, layer: str,
                 "context silently. Colon-separated paths, e.g.",
                 "install.sh:docs. Project-layer only.",
             ],
+            unset_effective="(none)",
         )
         if val_list is not None:
             new.setdefault("pack", {})["include_group_pulls"] = val_list
+
+        # ---- [probe].clipboard_command (PROJECT LAYER ONLY) --------------
+        # The probe scaffold's opt-in clipboard epilogue (board 99a; see
+        # PROBE_VALUES). Walked only in project mode because the key's one
+        # reader — tools/craft_response.py's --probe emission — reads the
+        # project bale.toml as shipped in the request; a global value
+        # would never reach it. `inherited` is deliberately None (and
+        # merged_config never inherits [probe]), so 'x' is never offered.
+        # The crafter-readable shape check runs after the prompt with the
+        # staging.strategy reject-with-hint posture: an unreadable value
+        # keeps current rather than landing a key the crafter would
+        # silently treat as unset.
+        existing_probe = (existing.get("probe")
+                          if isinstance(existing.get("probe"), dict)
+                          else {})
+        raw_cur = existing_probe.get("clipboard_command")
+        current = raw_cur if isinstance(raw_cur, str) else None
+
+        val = _prompt_value(
+            "probe.clipboard_command",
+            current=current,
+            inherited=None,
+            description=[
+                "Optional. Enter to skip (no clipboard epilogue).",
+                "Shell command the probe scaffold pipes its output into —",
+                "e.g. pbcopy, xclip -selection clipboard, or clip.exe.",
+                "When set, a probe script emitted by `tools/craft_response.py",
+                "--probe` ends by copying its PROBE BEGIN/END block into",
+                "this command, reporting success or failure and never",
+                "failing the probe over it. Unset = no clipboard epilogue:",
+                "the scaffold carries setup remedy text instead, and you",
+                "select between the banners by hand. One line, no",
+                "backslashes or double quotes (wrap anything fancier in a",
+                "script). Project-layer only: the crafter reads this",
+                "repo's bale.toml as shipped in the request, so a",
+                "global-layer value would never reach the probe epilogue —",
+                "the global wizard neither walks nor inherits this key.",
+            ],
+            unset_effective="(unset — no clipboard epilogue)",
+        )
+        if val not in (None, ""):
+            problem = probe_clipboard_command_problem(val)
+            if problem is not None:
+                print(f"  '{val}' {problem}; the probe scaffold's reader "
+                      f"would treat it as unset. Keeping current.")
+                val = current
+        if val is not None:
+            new.setdefault("probe", {})["clipboard_command"] = val
 
     return new
 
@@ -2267,8 +2464,8 @@ _PROJECT_TOML_HEADER = """\
 # the canonical interface; hand-edits work but the wizard knows only
 # about the configurables it walks through. Re-running the wizard
 # rewrites this file from its walked surface, so any unrecognized
-# keys you hand-edited in will be dropped. At v0.0.x there are no
-# escape hatches for this — set/get/edit subcommands land later.
+# keys you hand-edited in will be dropped. There is no set/get/edit
+# subcommand; the wizard is the writer.
 """
 
 _GLOBAL_TOML_HEADER = """\
@@ -2451,6 +2648,24 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
                     parts.append(f"{key} = {rendered_array}")
                 else:
                     parts.append(f"{key} = {json.dumps(v)}")
+        parts.append("")
+
+    # [probe] section (board 99a — the probe scaffold's clipboard
+    # epilogue). One string key, emitted in PROBE_VALUES order.
+    # ensure_ascii=False is deliberate: json.dumps' default escapes
+    # non-ASCII into \uXXXX sequences, and the crafter's minimal reader
+    # treats any backslash as unset — so a command with a non-ASCII
+    # character would round-trip through tomllib yet vanish at craft
+    # time. Literal UTF-8 is a valid TOML basic string. Project-layer
+    # only by walk (the ruling on PROBE_VALUES): the global wizard never
+    # puts this section in its dict.
+    probe_section = cfg.get("probe") or {}
+    if probe_section:
+        parts.append("[probe]")
+        for key in PROBE_VALUES:
+            if key in probe_section:
+                parts.append(f"{key} = "
+                             f"{json.dumps(probe_section[key], ensure_ascii=False)}")
         parts.append("")
 
     return "\n".join(parts)
