@@ -358,6 +358,11 @@ says so):
   [2026-08-31: DISPOSED — ratified at the continue-plan sitting
   (session 026); the ruling's text of record is §5, this date, and
   the board-37 reshape it directs is bracketed on that row.]
+- Whether the release tarball ships BALE.md — today `scripts/build.sh`
+  excludes it, the README now points install readers at `bale help
+  <command>`, and several `--help` strings still cite `BALE.md §N` an
+  install reader cannot open (99a's Proposal 1). Ship it, or keep it
+  source-only and qualify the citations in a `bin/bale` string pass.
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -522,6 +527,9 @@ with the unverifiable ones carried verbatim and marked):
   and is told their session exclude pattern is invalid will look
   in the wrong place. I deliberately did not pin this wording in
   the suite so the fix isn't fighting a test."
+  [2026-09-16: consumed at `2026-09-16-board-pack-ux-micro-004` — the
+  prefix attributes by source in both directions; the `ValueError`
+  tail still names `.baleignore` — row 106.]
 - test_apply_preflight.py module-docstring history true-up: the
   "earlier behavior pin documented the identical-duplicate
   acceptance" line misattributes session 1, which deliberately
@@ -552,6 +560,9 @@ with the unverifiable ones carried verbatim and marked):
   `--write` names an existing file absent from resolved includes.
   Rides the next session touching bin/bale_pack.py. (Source:
   evidence 62's proposed counter.)
+  [2026-09-16: consumed at `2026-09-16-board-pack-ux-micro-004` —
+  judged against the shipped set after excludes; a warning, never a
+  refusal.]
 - validate.sh's schema presence loop trued up to cover every
   shipped schema. Rides the next validate.sh touch. (Source: the
   S4 notes' proposal, `2026-08-13-board-10-escalation-schemas-002`.)
@@ -584,9 +595,14 @@ with the unverifiable ones carried verbatim and marked):
   everything); the honest remedy is close/apply/unlock the open
   session, or narrow ITS forecast. Rides the next gate/report
   touch.
+  [2026-09-16: consumed at `2026-09-15-board-68-open-gate-order-012`,
+  on handoff too.]
 - Wizard checkpoint prompt candidate picker: list search-path
   candidates newest-first with path, mtime, and sha prefix; a
   free-typed path stays accepted. Rides the next pack-UX session.
+  [2026-09-16: consumed at `2026-09-16-board-pack-ux-micro-004` —
+  every `.sh` in cwd and the search paths, newest first, path + mtime
+  + sha prefix; a typed number or a typed path.]
 - Handoff read-side parity — back on the registry after riding as
   the oneshot session's dropped stretch item (its §11.2 pre-flight:
   the core plus wizard and echo fit, the stretch did not earn the
@@ -672,9 +688,12 @@ with the unverifiable ones carried verbatim and marked):
   complete without it, but discoverability lives in the wizard. Scope
   hints: `bin/bale_config.py` (walk_configurables + render_bale_toml + a
   typed accessor, per its §2.5 contract)."
+  [2026-09-16: consumed at `2026-09-16-board-99a-outward-docs-003` —
+  project layer only, with the reason in the prompt.]
 - bale open FORCE-prefix doubling — the --no-sandbox line logs "FORCE:
   FORCE:", observed at the first live open (this sitting's rehearsal and
   spawn); a one-line fix. Rides the next bin/bale_open.py touch.
+  [2026-09-16: consumed at `2026-09-15-board-68-open-gate-order-012`.]
 - Board 10 escalation-charge annotation: the probe paste-back
   transport hop — pure wire both directions, judgment in neither —
   is the first flow the harness transport replaces; the manual
@@ -794,6 +813,9 @@ with the unverifiable ones carried verbatim and marked):
   literals. Cheap to fold into whatever session next touches that
   class." (Accepted 2026-08-31 at the continue-plan-012 sitting's
   wave-3 close.)
+  [2026-09-16: consumed at `2026-09-15-board-91-82-crafter-pair-011`,
+  with the two `_section_29` renames (no name-selecting consumer
+  found).]
 - The two `_section_29` test-id renames — want a session that
   checks name-selecting consumers. Text verbatim from
   `2026-08-31-tools-true-up-021`'s Proposals: "**Rename the two
@@ -869,6 +891,8 @@ with the unverifiable ones carried verbatim and marked):
   telemetry-record.schema.json descriptions if you want the fields
   documented; independent of everything else here." (Accepted
   2026-08-31 at the continue-plan-012 sitting's wave-3 close.)
+  [2026-09-16: consumed at
+  `2026-09-16-board-47a-hold-card-triage-001`.]
 - Wire the dossier into `bale stats --sid` — bin/bale is now free
   (the wave's bin/bale-holding siblings closed with it); the
   compute and render halves are done and unit-covered. Text
@@ -898,6 +922,9 @@ with the unverifiable ones carried verbatim and marked):
   67 pack didn't ship it). Rides row 68's bin/ touch or the next
   release-surface touch. (Accepted 2026-08-31/09-01 at the
   continue-plan sitting, session 026.)
+  [2026-09-16: consumed at `2026-09-15-board-68-open-gate-order-012` —
+  the group is project config; this repo's `bale.toml` pulls `tools`,
+  pinned by `TestThisRepoGroup`.]
 - `normalize()` from the two doc-pin suites into `tests/harness.py`
   — rides the next session whose forecast holds `tests/harness.py`.
   Text verbatim from `2026-09-14-board-80-tests-only-pins-008`'s
@@ -916,13 +943,52 @@ with the unverifiable ones carried verbatim and marked):
   `bale_pack`; a lazy `import bale_pack` (~line 1144) contradicts it.
   Drop the sentence or lift the import — rides the next
   `bale_apply.py` touch. From board 101.
+  [2026-09-16: consumed at `2026-09-15-board-102-explicit-name-010` —
+  the sentence now says what is true; the import stays lazy.]
 - `shlex.quote` on the non-TTY bare-apply refusal's
   `bale apply {path}` line, matching the decline's quoted alternative
   — rides row 102. From board 101.
+  [2026-09-16: consumed at `2026-09-15-board-102-explicit-name-010`.]
 - "request includes" in place of "pack includes" in the shared
   blindness diagnosis, so it reads right on a handoff — only if the
   byte-shared-diagnosis constraint is re-ratified; otherwise stands.
   From board 101.
+- BALE.md riders for 99b's true-up, one entry: the `[probe]
+  clipboard_command` key (project layer only, with its reason) in
+  §3.6 and the `bale.toml` sections; the two pack-time warnings
+  (forecast-not-included; included test importing an excluded test
+  module) near the §7.4/§6.4 guard prose, with their
+  warning-never-refusal posture; and a re-true of the README and
+  `bale apply`/`retry` help HOLD wording against 47a's landed card
+  (the ruling-keyed next step is the card's lead affordance). Rides
+  99b; the last item touches `README.md` and `bin/bale` too.
+- `docs/CLAUDE.md`'s INDEX read-paths row for the light tier says
+  "authored by hand per TARBALL.md §5.10"; it names
+  `tools/craft_response.py --light-block` as the path with
+  hand-authoring as the fallback. Rides the next `docs/CLAUDE.md`
+  touch (row 105 is one).
+- The crafter's `read_clipboard_command` reads only double-quoted
+  TOML values; a hand-edited literal string (`'pbcopy'`) parses in
+  bale and reads as unset in the crafter. Accept the single-quoted
+  form or name it in the treated-as-unset note; a pin belongs in
+  `CrafterAgreementTest`. Rides the next `tools/craft_response.py`
+  touch (row 69).
+- `format_walkthrough_summary` builds its checkpoint attribution
+  through `_checkpoint_attribution`, the helper the judge line uses,
+  so the vocabulary has one home instead of three (walkthrough, apply
+  log line, card); a pure refactor that must keep the walkthrough's
+  exit-2 tail. Rides the next `bin/bale_report.py` touch (47b).
+- E2E pin for `bale handoff --verbose` naming a typo'd reading-plan
+  path as `verbose: drop <path> (not tracked)` — the case row 92 was
+  written for; no source change expected. Rides the next handoff
+  suite touch.
+- A bale-side consumer for `get_probe_clipboard_command`: a `bale
+  status` row ("probe clipboard: <cmd> / unset") so a
+  crafter-unreadable hand edit surfaces before a probe falls back to
+  remedy text. Rides the next `bale status` touch.
+- Pack-json `sweep`/`include_group` key: named and deferred at 47a
+  (its pass-through half sat in the pack-UX micro's file). Carrier
+  unchanged.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -2077,6 +2143,86 @@ carries only what has no row home; close recorded by
   held wave: 68, then 56+57 beside it, then 69, then 37 → 43 → 45 →
   S6. Rows 92, 93, and 98 stand until brought forward.
 
+Landed 2026-09-16, the continue-plan-009 sitting (master
+`2026-09-15-continue-plan-009`, read-only; opened 2026-09-15 UTC on
+"continue the plan, take on a little more work, look for disjoint
+packing and chunking"; the previous master
+`2026-09-15-continue-plan-004` closed at close-9). Eight sessions
+landed in two waves of four beside the desk, up from three; this
+block carries only what has no row home; close recorded by
+`2026-09-16-sitting-close-deltas-10-005`:
+
+- Wave record, wave 1 (all opened beside each other, forecasts
+  disjoint by the gate's own judgment; one bumper):
+  `2026-09-15-board-102-explicit-name-010` (0.4.33),
+  `2026-09-15-board-91-82-crafter-pair-011` (bumpless under 0.4.33),
+  `2026-09-15-board-68-open-gate-order-012` (bumpless),
+  `2026-09-15-board-96-doc-97-terminal-shapes-013` (bumpless, doc
+  lane). All four applied clean on the first attempt.
+- Wave record, wave 2 (opened after 20:00 Eastern, so their sids
+  date 2026-09-16): `2026-09-16-board-47a-hold-card-triage-001`
+  (0.4.34), `2026-09-16-board-96-crafter-85-light-block-002`
+  (bumpless), `2026-09-16-board-99a-outward-docs-003` (bumpless;
+  re-attempt — the first attempt HELD on its own validation.sh
+  asserting the literal `0.4.33` under target-base staging that
+  already carried 47a's `0.4.34`, blind checkpoint 5/5, change set
+  byte-identical), `2026-09-16-board-pack-ux-micro-004` (bumpless;
+  re-attempt — the first attempt HELD two of eight blind checks, both
+  the worker's, on an oracle the desk had amended once, v2
+  `cc6b44200d8d`).
+- Chunking of record: row 96 split in three file-disjoint thirds
+  (doc, crafter, pack flag), the flag deferred to the 100 arc's enum
+  session; row 47 split into 47a (judge line, labels, forked
+  successors, telemetry) and 47b (addressed blocks); 82 rode 91, 97
+  rode 96-doc, 85 rode 96-crafter, 92 and 84 and three pack-side
+  registry riders rode one pack-UX micro. 102 ran ahead of 47 (small
+  first). Two bumpless-unders in one wave is the new normal.
+- Desk fixture defect of record: the pack-UX brief's row-92 example
+  named an untracked file as a drop; untracked-not-ignored files ship
+  (`git ls-files --cached --others --exclude-standard`). The worker's
+  light block caught it before the apply; the desk amended the oracle
+  (v2) and the first apply used `--accept-checkpoint-change` (§6
+  entry 143).
+- The light tier's first day: three light blocks from three workers
+  in one hour (99a, 96-crafter, 47a), a fourth from pack-UX; every
+  one admitted by count, every one answered inline in a minute, no
+  thread opened. One answer was "no" (96-crafter's §10.4: the one
+  sentence granted was a floor). 96-crafter's own manifest omits the
+  two counts it created because apply validates against the installed
+  schema — checked, not inferred; the honest one-apply-behind case.
+- Sitting-open record: close-9's notes.md ratified wholesale at the
+  open (the includes-as-scope entry's second bracket left as landed).
+  The sitting-open version check was satisfied by the request's
+  provenance stamp, 0.4.32.
+- Outside review of record: the operator ran bale against another
+  model, which declined the framework on four grounds — a file
+  claiming precedence over the model's own instructions, the shape
+  rule reading as a prose ban, two opaque tools presented as required,
+  and 250 KB of contract around a two-paragraph seed (§6 entry 145).
+  Separately, on another project, a read-only discussion session
+  returned a tarball because no doc carves out a discussion and the
+  shape rule wins by silence (§6 entry 146). Rows 104 and 105 answer
+  both.
+- Declined at the desk: `bale open --gates-only` (68's Proposal) —
+  the pre-flight is a cost ordering, not a verb.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open.
+- Board deltas of the close: rows 102, 91, 82, 68, 97, 85, 92, 84
+  DONE; rows 96, 47, 99 grown (96 two thirds done, 47a and 99a done);
+  rows 98 and 69 grown; rows 104, 105, 106 opened; evidence entries
+  141–146 in §6; two contracts dated 2026-09-16 in §5; the version
+  landmark 0.4.34, the tests-forecast concurrency clause, the
+  scratch-repo checkpoint rules, the target-base validation rule, and
+  the install-shipped-schema rule in §7.
+- Sequencing for the next desk: wave 3 — 47b, 56+57, 69 (+85's lint
+  half if any remains), the stats micro (86 + 98 + the dossier wiring
+  + the two self-reported counts' read side), and 106 (the `bin/bale`
+  de-dup micro) can all run beside each other; 105 is a doc-lane
+  micro that goes first, since it changes what every fresh model
+  reads first; then 104 → 37 → 103 (design sitting) → the 100 arc
+  (absorbs 77; 99b rides its doc wave; 96's pack flag rides its enum
+  session) → 43 → 45 → S6. Row 93 stands until brought forward.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2785,6 +2931,22 @@ and §8, so done items keep their numbers as one-line pointers.
     101's HOLD this sitting, relayed by hand as card plus log. The
     composed retry line on the banner is quoted through `shlex.quote`
     per the re-attempt closing-line rule (§7).]
+    [2026-09-16: split at the desk. 47a DONE at
+    `2026-09-16-board-47a-hold-card-triage-001`, 0.4.34: the card's
+    `validation:` row is replaced by a judge line (checkpoint, worker,
+    or both; exit 2 counts as the checkpoint side), a `failed probes:`
+    row from the stamp's captured output, and a trailer of
+    ruling-forked successors — fixture defect: `bale amend-checkpoint
+    <amendment> --sha256 <hex> --sid <sid>` then `bale retry '<held>'
+    --accept-checkpoint-change --sid <sid>`; work defect: `bale retry
+    '<held>'` — composed from the `held_tarball` stamp outcome so card
+    and amend agree by construction, a literal base rendering a
+    commit-directly note. `failed_probes` rides every executed stamp
+    and the `--json` key list; the `validation_will_run`/`corrects`
+    rider consumed. Seen live by 99a's worker on its own HOLD the same
+    hour. 47b (the addressed desk-facing and worker-facing blocks with
+    the log bands inlined, the happy-path desk block, the TARBALL.md
+    sentence) stands, wave 3.]
 
 48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
     into board 49 (the `bale open` dry-run leg); whether the
@@ -3225,6 +3387,20 @@ and §8, so done items keep their numbers as one-line pointers.
     expensive ones — applied at row 78 to a prompt: drift refuses
     before the sandbox prompt (§6 entry 122). The `bale open`
     reorder itself is still queued here.]
+    [2026-09-16: DONE at `2026-09-15-board-68-open-gate-order-012`,
+    bumpless under 0.4.33. `cmd_open` now runs compose → parse →
+    pre-flight (existence, then disjointness) before the checkpoint
+    leg; the replay re-runs both gates (a cost ordering, not a
+    substitute). Ratified: a `pending_supersession` exclusion in the
+    pre-flight only (the replay stays authoritative); the five-site
+    config-judgment family with one `config_judgment_suffix`; the
+    whole-tree remedy lead on handoff too; an unparseable stored argv
+    refuses at argparse before any dry-run. Riders consumed: FORCE
+    doubling, `tools` in this repo's release-surface pulls, the
+    ADR-0015 remedy text, and row 96's opener sentence. Proposals: the
+    BALE.md open-order sentence (landed at 47a); `cmd_handoff` →
+    `refuse_missing_scope_paths` (row 106); the opener-pin relocation
+    (landed at pack-UX); `--gates-only` declined.]
 
 69. **tools pair** — queued 2026-09-01 (one micro session, both
     halves from the 026 sitting): (a) a bare-string claims-value
@@ -3242,6 +3418,10 @@ and §8, so done items keep their numbers as one-line pointers.
     deferred on. Scope hints: tools/craft_response.py (and its
     embed-parity tests if the skeleton is asserted anywhere); only
     after this session lands."
+    [2026-09-16: 96-crafter touched both tools files this sitting
+    (the lint's docstrings no longer say `provenance` is hand-added);
+    the crafter's size — bundle, probe, emit-block, light-block modes
+    — is now the extraction question this row should answer first.]
 
 70. **shipped-doc reachability — DONE** 2026-09-01 at the
     continue-plan-005 sitting (opened in-sitting under the first
@@ -3656,6 +3836,14 @@ and §8, so done items keep their numbers as one-line pointers.
     `model_identity` empty — mechanizing "echoed verbatim".
     Unblocked now that the echo schema has applied (row 76). From
     74-76's Proposals.
+    [2026-09-16: DONE at `2026-09-15-board-91-82-crafter-pair-011`.
+    `--request` seeds `feedback.mechanical.provenance` verbatim plus
+    `model_identity: ""` in the skeleton's stdout; the four lint-owned
+    members seeded `false` and `self_reported` seeded with two
+    schema-invalid sentinels so an unfilled block cannot pass, which
+    reorders §5.2.2 to fill-before-emit (the clause landed at
+    96-crafter); `--request` admitted on all three kinds; the request's
+    `session_id` must equal `--sid`. Dogfooded on its own response.]
 
 83. **`bale config` view of the hook acceptance store** — queued
     2026-09-14 (small; bin/): list, forget-one. Today "forget" is
@@ -3716,6 +3904,12 @@ and §8, so done items keep their numbers as one-line pointers.
     `test_handoff_happy`) — the desk chased test imports but not
     fixture consumers, so the `peeked_sid` edit shipped with one test
     exercising it (§7 include rule, §6 entry 133).
+    [2026-09-16: DONE at `2026-09-16-board-pack-ux-micro-004`. Warns,
+    never refuses, when an included test's `import tests.x`, `from
+    tests.x import`, or bare-sibling `import x`/`from x import`
+    resolves to a `tests/<name>.py` absent from the shipped set after
+    excludes (this repo's idiom is bare siblings — 49 files); stdlib
+    names never fire.]
 
 85. **exchange-carried-outside-relay self-report** — queued
     2026-09-14 (schema + docs + lint): a worker-side field in the
@@ -3725,6 +3919,10 @@ and §8, so done items keep their numbers as one-line pointers.
     packs the final tarball"). Three specimens this sitting (§6
     entry 115). The mechanical half of the §3 exchange-adoption
     watch.
+    [2026-09-16: DONE at `2026-09-16-board-96-crafter-85-light-block-002`.
+    `feedback.self_reported.paste_carried_rounds` (integer, min 0),
+    optional; the lint's embed refreshed; §5.2.2 rows for both counts.
+    The read side is row 98's.]
 
 86. **stats drill-down row for handoff-origin sessions** — queued
     2026-09-14 (small; bin/bale_stats): `command == "handoff"` at
@@ -3906,6 +4104,13 @@ and §8, so done items keep their numbers as one-line pointers.
     without the key. Scope grows by the crafter's embedded copy and
     `test_schema_embeds` extended to the pair. Sequenced before row
     96, which makes the paste block the light tier's courier.
+    [2026-09-16: DONE at `2026-09-15-board-91-82-crafter-pair-011`,
+    bumpless under 0.4.33. The schema already admitted `origin` by
+    `$ref` and bale's validator by the v0.4.24 row check; the refusal
+    was the crafter's `QUESTION_OPTIONAL_KEYS` alone. Parity pinned in
+    `test_schema_embeds` (`QuestionRowKeyParity`); the exchange-record
+    schema left untouched on the one-home rule; both section-29
+    registry riders consumed.]
 
 92. **`walk_for_pack --verbose` names untracked drops** — queued
     2026-09-14 (bin/). From 73B's Proposals, VERBATIM: "**What:** in
@@ -3917,6 +4122,12 @@ and §8, so done items keep their numbers as one-line pointers.
     `bin/bale_pack.py`, the walk; pack's `--verbose` suites."
     Stands until pack's `--verbose` brings it forward (§3 close
     block).
+    [2026-09-16: DONE at `2026-09-16-board-pack-ux-micro-004`. One rule
+    per include entry, printed as typed: it drops when no listed path
+    equals it or lies under it (gitignored entries, empty directories,
+    and on handoff a nonexistent reading-plan path). An untracked
+    file that ships gets no line. The handoff `--verbose` E2E pin is
+    a registry rider.]
 
 93. **Record a forecast's declaration status beside `scope.json`**
     — queued 2026-09-14 (bin/; gated). From 73B's Proposals,
@@ -4038,6 +4249,27 @@ and §8, so done items keep their numbers as one-line pointers.
     code touches; the four doc-pin suites and the self-containment
     guard ship; sequenced after 91 because an `origin`-tagged question
     is paste-block-refused until 91 lands.
+    [2026-09-16: split at the desk into three file-disjoint thirds.
+    Doc third DONE at `2026-09-15-board-96-doc-97-terminal-shapes-013`
+    (bumpless): the four chat invitations struck plus four more the
+    worker found (§4.1, §5.1, §2, INDEX), §5.10 landed format-first
+    (sentinels `=== LIGHT BEGIN <sid> ===`/`END`, labels `[n] question
+    / while doing / would assume / why blocked` onto the four row
+    fields, no integrity trailer, "formal" re-enters through §10.3, a
+    §10.4 checklist), PLANNER.md §15's packer half, CLAUDE.md's shapes
+    paragraph at five with the every-turn sentence, the §9 pivot
+    bullet pointed at the shapes. The opener's closing sentence landed
+    at 68 (the one `bin/bale_pack.py` line). Crafter third DONE at
+    `2026-09-16-board-96-crafter-85-light-block-002` (bumpless):
+    `--light-block FILE [--sid]` renders §5.10 from a clarification
+    manifest (four rows refuse; a line break in a field refuses as the
+    count rule's one-line half; optional row keys never render, stderr
+    names them), `feedback.self_reported.light_blocks` (integer, min
+    0), the `--bundle` stem clock sentence in `--help` via
+    `CraftHelpFormatter`, §10.4 step 2 names the flag. The pack-flag
+    third (force formal on the `expects_probe` pattern) is deferred
+    to the 100 arc's enum session. Row 105 rewrites the shape
+    sentence's second half; row 104 makes it kind-conditional.]
 
 97. **Where ADRs live: one spelling** — queued 2026-09-15 (docs/,
     after 96). From board 94's Proposals, VERBATIM: "Three injected
@@ -4049,6 +4281,11 @@ and §8, so done items keep their numbers as one-line pointers.
     hints:** the three sites; the doc-pin suites ship; ratify the
     spelling at the desk before dispatch (the desk's read: DOCS.md's,
     since it is the doc that defines the ADR).
+    [2026-09-16: DONE at `2026-09-15-board-96-doc-97-terminal-shapes-013`.
+    DOCS.md's spelling won: CLAUDE.md's INDEX row and TARBALL.md §3.1's
+    example say `claude/context/adr/`; DOCS.md unchanged (its bare
+    `adr/` in §5 read as relative shorthand, left). §3.1's example
+    is illustrative under the prefix rule; left.]
 
 98. **Stats read-side `context/` normalization** — queued 2026-09-15
     (bin/bale_stats.py; low). From board 94's Proposals, VERBATIM:
@@ -4057,6 +4294,10 @@ and §8, so done items keep their numbers as one-line pointers.
     the repo spelling, without editing them." Additive doctrine: no
     retroactive record edits. Stands until a stats session brings it
     forward.
+    [2026-09-16: grown — the stats micro also reads the two new
+    self-reported counts, `light_blocks` and `paste_carried_rounds`
+    (a paste-carried round adds to `clarification.rounds` rather than
+    hiding under it), and row 86 rides beside it.]
 
 99. **Outward-facing doc refresh** — queued 2026-09-15 (docs; two
     sessions on one seam). The root `README.md` is dated 2026-06-03
@@ -4073,6 +4314,20 @@ and §8, so done items keep their numbers as one-line pointers.
     100 arc's doc-sweep wave, and carrying the two registry sentences
     that name it. `tests/test_readme_identity.py` pins `--readme-file`
     behavior, not README content.
+    [2026-09-16: 99a DONE at `2026-09-16-board-99a-outward-docs-003`,
+    bumpless (re-attempt; see the close block). README rewritten to
+    the tree (every verb, every `bin/` module, five docs, ten daily
+    flows, no date; install readers pointed at `bale help <command>`
+    because `scripts/build.sh` excludes BALE.md — whether the release
+    should ship it is in the ruling queue); every `--help` string read
+    against behavior, the `bin/bale` flag surface proven unchanged by
+    a parser-hash check; the `[probe] clipboard_command` config
+    carrier consumed — project layer only, the reason in the prompt,
+    the accessor refusing crafter-unreadable values loudly, a new
+    suite `tests/test_probe_clipboard_config.py`. 99b stands on the
+    100 arc's doc wave, now also carrying: the new key, open's order,
+    retry's two rulings, the two pack warnings, and a re-true of the
+    README/help HOLD wording against 47a's landed card.]
 
 100. **Model-agnostic bale — ARC** — queued 2026-09-15. Operator's
     goal, VERBATIM: "I want to abstract everything away from claude or
@@ -4130,6 +4385,15 @@ and §8, so done items keep their numbers as one-line pointers.
     operator: typing the whole path is annoying, and a second download
     of the same name gets `(1)` appended, so the quotes are
     load-bearing.
+    [2026-09-16: DONE at `2026-09-15-board-102-explicit-name-010`,
+    0.4.33. The bare-name lookup already existed for both verbs; the
+    delta was the miss: near-name candidates (typed stem as prefix,
+    the `(1)` twins) listed as complete `shlex.quote`d lines for the
+    typed verb, newest first; handoff got the listing too; the
+    non-TTY line quoted; the docstring rider consumed. BALE.md's
+    sentence landed in §8's bare-form paragraph; 47a widened it to
+    name handoff. Its Proposal (a shared `fail_not_found` for the
+    absolute and no-search-path miss branches) is row 106's.]
 
 103. **Cross-model capability probe** — queued 2026-09-15 (a design
     sitting, then one pack run N ways). Operator's goal, VERBATIM:
@@ -4151,6 +4415,71 @@ and §8, so done items keep their numbers as one-line pointers.
     for weaker models. Runs after 99a and before the 100 arc's design
     sitting so the findings feed the sweep. The desk writes the probe
     request at the design sitting.
+
+104. **Session kinds, switchable; the context pack** — queued
+    2026-09-16 (pack + manifest + opener + docs). A session declares a
+    kind at pack time, carried in the manifest and stated in the
+    opener's first line: `build` (today's contract — forecast,
+    checkpoint, the four terminal shapes, a response tarball);
+    `discussion` (chat is the deliverable; no tarball unless asked;
+    the shape rule does not apply; a light injection — CLAUDE.md's
+    core plus a short discussion section, not the wire contract);
+    `master` (the desk sitting: read-only, authoring bundles and
+    briefs in chat); `context` (bare `bale pack` in a directory
+    produces a session-less tarball of that tree — no sid, no lock,
+    no opener, no telemetry — named for the directory, to travel
+    beside another project's request as reading material; the
+    operator has done this by hand for months). The kind is a
+    declared start, not a cage: the architect switches it at will,
+    and a session switches itself at named transitions — a worker
+    that reaches a split becomes a secondary master to its own fleet;
+    a discussion that reaches a solid point becomes a master or a
+    build, declaring its forecast at that moment (ADR-0015's
+    where-will-changes-land follow-up is the mechanism). `--read-only`
+    today conflates an empty-forecast build with a discussion; it
+    stays for the former and `--kind` names the rest. The opener's
+    closing sentence is kind-conditional (the shape sentence for
+    build; "answer in chat; no tarball unless I ask" for discussion).
+    Specimen: a read-only discussion on another project returned an
+    empty-`changes[]` tarball because the docs carve out no
+    discussion and the shape rule wins by silence — the worker's own
+    diagnosis, verbatim: "right now the docs don't say, and the shape
+    rule's default wins by silence" (§6 entry 146). The doc-injection
+    split rides the 100 arc's doc sweep; the rest is its own session
+    after row 105.
+
+105. **Operator-voice authority framing** — queued 2026-09-16 (doc
+    lane with one `bin/bale_pack.py` string). Three edits that change
+    what every fresh model reads first: (1) the opener — typed by the
+    operator, in chat, the one legitimate channel — says in the first
+    person that the docs and tools in the tarball are the operator's,
+    written for this workflow, to be read as the operator's
+    instructions for the session, and says what the two tools are
+    (stdlib-only formatters, no network, read before running,
+    conveniences — the doc is the contract and a hand-authored
+    response is valid); (2) CLAUDE.md's precedence sentence says what
+    it means — this file wins over stale memory of prior bale
+    sessions, never over the model's own guidelines; (3) the shape
+    sentence gains its second half: explanation in prose is expected
+    and welcome; the rule is that a turn that *asks* ends in a block
+    so nothing is lost. Specimen: an outside model declined the
+    framework on exactly these grounds (§6 entry 145). Goes first in
+    the next wave.
+
+106. **`bin/bale` de-dup micro** — queued 2026-09-16 (bin/; one
+    session, five riders on one file). From this sitting's Proposals:
+    a shared `fail_not_found(kind, path, verb)` for the three
+    not-found lines so the absolute-path and no-search-path miss
+    branches get the near-name listing too (102); `cmd_handoff` calls
+    `bale_pack.refuse_missing_scope_paths` — the last copy of that
+    gate (68); `compose_retry_successor` delegates to
+    `bale_report.compose_hold_successors` so the amend report and the
+    card agree structurally, not by test (47a); split
+    `BaleignoreMatcher.from_lines`'s error text so it stops naming
+    `.baleignore` and each caller prefixes its source (pack-UX);
+    `RawDescriptionHelpFormatter` on the subparsers so descriptions
+    keep their paragraph breaks and `completion --help` its examples
+    (99a). Runs beside wave 3.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -4859,6 +5188,19 @@ of record with one home):
   because a second download of the same name gains a `(1)`; the desk's
   brief names the delivery directory (a §7 fact) so the worker never
   invents a path. Row 102 makes the bare filename resolve on its own.
+- **A session kind is a declared start, switchable.** Every session
+  is packed as one of `build`, `discussion`, `master`, or `context`;
+  the four terminal shapes bind `build` alone; a discussion answers
+  in chat and lands nothing unless asked. The architect switches a
+  session's kind at will; a session switches itself at the named
+  transitions (a worker at a split becomes a secondary master; a
+  discussion at a solid point becomes a master or a build and
+  declares its forecast then). Ratified 2026-09-16; lands at row 104.
+- **The operator's voice carries the authority.** What makes the
+  injected docs instructions is the operator saying so in the
+  opener, typed in chat; no file claims precedence over the model's
+  own guidelines, and the tools are named as conveniences over a
+  doc that is the contract. Ratified 2026-09-16; lands at row 105.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -6166,6 +6508,60 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     code row that will change or add tests forecasts `tests`. Rows
     101's pack did. (Desk-side, this sitting.)
 
+141. **Four beside the desk, twice.** Eight sessions in two waves of
+    four, every forecast disjoint by the gate's own judgment, one
+    bumper per wave and two or three bumpless-unders beside it; every
+    pack forecast named suites rather than `tests` and the gate
+    admitted all eight beside each other. The tests-forecast rule
+    (entry 140) needed its concurrency clause the first time it met
+    concurrency (§7). The operator's paste load at four was
+    unremarkable.
+
+142. **Absence is not a drop.** The desk rehearsed row 92's "today"
+    line, saw no verbose line for an untracked file, and wrote a
+    drop into the brief and the oracle; the file ships. Rehearsal
+    observed the right output and drew the wrong inference from an
+    absence. The worker's light block ("the brief's example actually
+    ships today") caught it before the apply — the first time the
+    tier paid for a fixture defect rather than a work one — and the
+    desk amended (v2) under the bad-oracle protocol with the first
+    apply on `--accept-checkpoint-change`. Then the worker's own two
+    defects HELD on the amended oracle; the retry landed.
+
+143. **A validation invariant under target-base staging is stated
+    relative to the response, never as a literal from the request
+    tree.** 99a's validation.sh asserted `bin/VERSION == 0.4.33`
+    read off the request; staging carried the sibling bumper's
+    `0.4.34`. The corrected check asserts "declares no `bin/VERSION`
+    change". Concurrency makes every request-tree literal a stale
+    guess (§7).
+
+144. **The card paid for itself the same hour.** 99a's first HOLD
+    rendered 47a's card — judge line, failed probes, the
+    ruling-keyed next step — because 47a had merged minutes before;
+    99a's worker read its own ruling off the card and proposed the
+    README re-true. One-apply-behind cut the other way: 47a's own
+    HOLD, had it happened, would have shown the old card.
+
+145. **An outside review.** Run against another model, the framework
+    was declined on four grounds, quoted from the transcript in
+    substance: a file in an upload claiming to win over the model's
+    own instructions is indistinguishable from an injection; "a
+    question asked as prose is not a shape" reads as a prose ban;
+    two opaque 100 KB / 75 KB tools presented as required were not
+    run sight-unseen; 250 KB of contract around a two-paragraph seed
+    is a mismatch worth noticing. Three are wording, one is
+    proportionality; none is model-specific. Rows 105 and 104
+    answer them in that order; the transcript is a rarer and more
+    useful specimen than a HOLD.
+
+146. **The shape rule wins by silence.** On another project a
+    read-only discussion returned an empty-`changes[]` tarball with
+    the discussion in notes.md. The worker's reasoning was sound on
+    the docs as written: nothing carves out a discussion, and
+    "read-only lands nothing" reads as "lands no changes". Silence
+    is a rule; row 104 names the kinds.
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -6352,6 +6748,29 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   emitting any bundle, the desk checks the §3 registry for entries
   whose ride condition the forecast satisfies and names them in the
   brief.
+- Version landmark: 0.4.34 (`2026-09-16-board-47a-hold-card-triage-001`);
+  0.4.33 was 102 the same sitting.
+- Tests-forecast rule, concurrency clause (2026-09-16): a session
+  running alone forecasts `tests`; sessions running beside each other
+  forecast named suites, and a worker's new test file travels
+  ship-enumerate-admit. No sibling in a wave forecasts the `tests`
+  directory.
+- A blind checkpoint that drives `bale` inside a scratch repo sets a
+  repo-local git identity (bale's own commits need one under the
+  scrubbed environment) and unlocks every session between scenarios
+  (a replayed pack leaves a session open, and the next scenario
+  collides with it). `/tmp` is a private tmpfs inside the sandbox, so
+  `mktemp -d` is safe.
+- A validation invariant under target-base staging is stated relative
+  to the response ("declares no `bin/VERSION` change"), never as a
+  literal read off the request tree (§6 entry 143).
+- Install-shipped schemas are self-contained: descriptions cite
+  versions ("v0.4.34"), never board numbers;
+  `test_global_doc_selfcontainment` enforces it. BALE.md is
+  repo-local and keeps its board citations.
+- The delivery directory and the search path are one place:
+  `/mnt/c/Users/chord/Downloads/`; the desk's `bale amend-checkpoint`
+  line names the amendment there with `--sid`, always.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
