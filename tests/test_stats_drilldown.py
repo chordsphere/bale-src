@@ -18,6 +18,20 @@ that landed with them:
   observed-vs-predicted split, and outcome rates per contract-doc-hash
   epoch.
 
+The stats micro (2026-09-17) extends the suite on both ends:
+
+- **the corpus read sides** (``StatsMicroReadSideTest``, unit) — row
+  86's handoff-origin count, row 98's read-time ``context/``
+  normalization inside the first ``docs_read`` read side, and the two
+  self-reported counts (``light_blocks``, ``paste_carried_rounds``)
+  with the paste-carried-rounds-count-as-rounds total — including the
+  tolerance rules (absent, malformed, retried) the brief pins;
+- **the dossier wiring** (``DossierE2ETest``) — board 44's registry
+  entry: ``bale stats --sid SID`` in both output modes, the honest
+  miss at exit 0, and the fail()-shaped refusals (non-composing
+  filters, a blank sid, an unusable telemetry path). This promotes the
+  dossier coverage above from unit-only to end to end.
+
 Suites are unit-first over synthetic corpora, following the
 ``test_stats_linkage.py`` precedent (the shared fixture corpus and
 ``test_stats_aggregation.py``'s whole-corpus expectations stay
@@ -981,6 +995,232 @@ class RenderingTest(_CorpusCase):
 
 
 # ---------------------------------------------------------------------------
+# The stats micro read sides (rows 86 + 98, and row 98's 09-16 growth)
+# ---------------------------------------------------------------------------
+
+def _reported(feedback: dict, **fields) -> dict:
+    """A _feedback() block with extra self_reported fields set."""
+    feedback["self_reported"].update(fields)
+    return feedback
+
+
+class StatsMicroReadSideTest(_CorpusCase):
+    """handoff_origin_sessions, docs_read, light_blocks_total,
+    paste_carried_rounds_total, clarification_rounds_total —
+    hand-derived over synthetic corpora."""
+
+    def test_handoff_origin_keys_on_the_opened_stamp(self) -> None:
+        handoff_open = _attempt(at="2026-09-01T09:00:00+00:00",
+                                outcome="opened", command="handoff",
+                                provenance={"work_class": "code",
+                                            "packer": "p"})
+        self.seed([
+            # Counted: the open-time stamp names handoff (prepended).
+            _record("2026-09-01-h-001", "2026-09-01T09:00:00+00:00",
+                    "applied", [
+                        handoff_open,
+                        _attempt(at="2026-09-01T10:00:00+00:00",
+                                 feedback=_feedback(),
+                                 validation=_validation()),
+                    ]),
+            # Counted while still open: origin is an open-time fact.
+            _record("2026-09-01-h-002", "2026-09-01T11:00:00+00:00",
+                    "opened", [
+                        _attempt(at="2026-09-01T11:00:00+00:00",
+                                 outcome="opened", command="handoff",
+                                 provenance={"work_class": "doc",
+                                             "packer": "p"}),
+                    ]),
+            # Not counted: a pack open.
+            _record("2026-09-01-h-003", "2026-09-01T12:00:00+00:00",
+                    "opened", [_opened_attempt("2026-09-01T12:00:00+00:00")]),
+            # Not counted: "handoff" on a non-opened attempt is not the
+            # open-time stamp the row keys on.
+            _record("2026-09-01-h-004", "2026-09-01T13:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-01T13:00:00+00:00",
+                                 command="handoff",
+                                 feedback=_feedback(),
+                                 validation=_validation()),
+                    ]),
+        ])
+        stats, _ = self.stats()
+        self.assertEqual(stats["corpus"]["handoff_origin_sessions"], 2)
+        # The work-class filter reaches it like every membership total.
+        doc, _ = self.stats(work_class="doc")
+        self.assertEqual(doc["corpus"]["handoff_origin_sessions"], 1)
+
+    def test_docs_read_normalizes_one_leading_context_prefix(self) -> None:
+        def applied(sid: str, created: str, docs_read) -> dict:
+            return _record(sid, created, "applied", [
+                _attempt(at=created,
+                         feedback=_reported(_feedback(), docs_read=docs_read),
+                         validation=_validation()),
+            ])
+        self.seed([
+            # The brief's pair: two spellings, one token.
+            applied("2026-09-02-d-001", "2026-09-02T09:00:00+00:00",
+                    ["context/docs/CLAUDE.md"]),
+            applied("2026-09-02-d-002", "2026-09-02T10:00:00+00:00",
+                    ["docs/CLAUDE.md",
+                     "(context/bin/bale_stats.py), CLAUDE.md §11"]),
+            # One strip only: a doubled prefix keeps its second copy.
+            applied("2026-09-02-d-003", "2026-09-02T11:00:00+00:00",
+                    ["context/context/x.md"]),
+            # Not a reporting session: empty list, non-list, blank-only.
+            applied("2026-09-02-d-004", "2026-09-02T12:00:00+00:00", []),
+            applied("2026-09-02-d-005", "2026-09-02T13:00:00+00:00",
+                    "docs/CLAUDE.md"),
+            applied("2026-09-02-d-006", "2026-09-02T14:00:00+00:00",
+                    ["   "]),
+        ])
+        stats, stderr = self.stats()
+        self.assertEqual(stats["corpus"]["docs_read"], {
+            "sessions": 3,
+            "tokens": {
+                "CLAUDE.md": 1,
+                "bin/bale_stats.py": 1,
+                "context/x.md": 1,
+                "docs/CLAUDE.md": 2,
+                "§11": 1,
+            },
+        })
+        self.assertEqual(stderr, "",
+                         msg="malformed self-reports are tolerated, "
+                             "not diagnosed: no record failed to load")
+
+    def test_docs_read_latest_carrier_counts_once(self) -> None:
+        # HOLD then retry, both re-reporting their reading: the session
+        # is read once, from the latest carrier.
+        self.seed([
+            _record("2026-09-03-r-001", "2026-09-03T09:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-03T09:00:00+00:00",
+                                 outcome="held",
+                                 feedback=_reported(
+                                     _feedback(),
+                                     docs_read=["context/docs/A.md"],
+                                     light_blocks=3),
+                                 validation=_validation(state="HOLD",
+                                                        exit_code=1)),
+                        _attempt(at="2026-09-03T10:00:00+00:00",
+                                 command="retry",
+                                 feedback=_reported(
+                                     _feedback(),
+                                     docs_read=["docs/B.md"],
+                                     light_blocks=1),
+                                 validation=_validation()),
+                    ]),
+        ])
+        stats, _ = self.stats()
+        self.assertEqual(stats["corpus"]["docs_read"],
+                         {"sessions": 1, "tokens": {"docs/B.md": 1}})
+        self.assertEqual(stats["corpus"]["light_blocks_total"], 1)
+
+    def test_self_reported_counts_and_round_total(self) -> None:
+        closing_stamp = {"rounds": 2, "records": []}
+        self.seed([
+            # Stamp 2 + paste 1 = 3 rounds; light blocks 2.
+            _record("2026-09-04-c-001", "2026-09-04T09:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-04T09:00:00+00:00",
+                                 feedback=_reported(
+                                     _feedback(), light_blocks=2,
+                                     paste_carried_rounds=1),
+                                 validation=_validation(),
+                                 clarification=closing_stamp),
+                    ]),
+            # Pre-epoch stamp absence, paste-carried only: 2 rounds —
+            # the round that never reached a stamp still counts.
+            _record("2026-09-04-c-002", "2026-09-04T10:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-04T10:00:00+00:00",
+                                 feedback=_reported(
+                                     _feedback(), paste_carried_rounds=2),
+                                 validation=_validation()),
+                    ]),
+            # In-flight (no closing stamp) with a paste-carried round.
+            _record("2026-09-04-c-003", "2026-09-04T11:00:00+00:00",
+                    "held", [
+                        _attempt(at="2026-09-04T11:00:00+00:00",
+                                 outcome="held",
+                                 feedback=_reported(
+                                     _feedback(), paste_carried_rounds=1),
+                                 validation=_validation(state="HOLD",
+                                                        exit_code=1)),
+                    ]),
+            # Malformed counts read as no report: bool, negative,
+            # string. The stamp's 1 still counts.
+            _record("2026-09-04-c-004", "2026-09-04T12:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-04T12:00:00+00:00",
+                                 feedback=_reported(
+                                     _feedback(), light_blocks=True,
+                                     paste_carried_rounds=-1),
+                                 validation=_validation(),
+                                 clarification={"rounds": 1,
+                                                "records": []}),
+                    ]),
+            _record("2026-09-04-c-005", "2026-09-04T13:00:00+00:00",
+                    "applied", [
+                        _attempt(at="2026-09-04T13:00:00+00:00",
+                                 feedback=_reported(
+                                     _feedback(), light_blocks="4"),
+                                 validation=_validation()),
+                    ]),
+            # No feedback at all: aggregates, contributes nothing.
+            _record("2026-09-04-c-006", "2026-09-04T14:00:00+00:00",
+                    "unlocked", [
+                        _attempt(at="2026-09-04T14:00:00+00:00",
+                                 outcome="unlocked", command="unlock",
+                                 closure_reason="abandoned"),
+                    ]),
+        ])
+        stats, _ = self.stats()
+        corpus = stats["corpus"]
+        self.assertEqual(corpus["sessions"], 6,
+                         msg="no record fails to aggregate for lacking "
+                             "or mangling the counts")
+        self.assertEqual(corpus["light_blocks_total"], 2)
+        self.assertEqual(corpus["paste_carried_rounds_total"], 4)
+        # stamps 2 + 1, paste-carried 1 + 2 + 1.
+        self.assertEqual(corpus["clarification_rounds_total"], 7)
+
+    def test_empty_corpus_totals_are_zero(self) -> None:
+        stats, _ = self.stats()
+        corpus = stats["corpus"]
+        self.assertEqual(corpus["handoff_origin_sessions"], 0)
+        self.assertEqual(corpus["docs_read"], {"sessions": 0, "tokens": {}})
+        self.assertEqual(corpus["light_blocks_total"], 0)
+        self.assertEqual(corpus["paste_carried_rounds_total"], 0)
+        self.assertEqual(corpus["clarification_rounds_total"], 0)
+        out = bale_report.format_stats_report(stats)
+        self.assertNotIn("docs read:", out,
+                         msg="no reporting session, no docs_read line")
+        self.assertIn("handoff-origin", out)
+        self.assertIn("0 (0 stamped + 0 paste-carried)", out)
+
+    def test_normalize_docs_read_token(self) -> None:
+        norm = bale_stats.normalize_docs_read_token
+        self.assertEqual(norm("context/docs/CLAUDE.md"), "docs/CLAUDE.md")
+        self.assertEqual(norm("docs/CLAUDE.md,"), "docs/CLAUDE.md")
+        self.assertEqual(norm("`context/bin/bale`"), "bin/bale")
+        self.assertEqual(norm("context/context/a"), "context/a")
+        self.assertEqual(norm("mycontext/a"), "mycontext/a",
+                         msg="only a LEADING prefix strips")
+        self.assertEqual(norm("(),"), "")
+
+    def test_telemetry_dir_problem(self) -> None:
+        problem = bale_stats.telemetry_dir_problem
+        self.assertIsNone(problem(self.telemetry))
+        self.assertIsNone(problem(self.telemetry / "absent"),
+                          msg="absent is the honest empty corpus")
+        not_a_dir = self.telemetry / "file.json"
+        not_a_dir.write_text("{}", encoding="utf-8")
+        self.assertIn("not a directory", problem(not_a_dir))
+
+
+# ---------------------------------------------------------------------------
 # End to end: the additive keys survive the real wiring, both modes
 # ---------------------------------------------------------------------------
 
@@ -1062,6 +1302,115 @@ class DrilldownE2ETest(unittest.TestCase):
         self.assertIn("doc epoch unstamped", out)
         last = [ln for ln in out.splitlines() if ln.strip()][-1]
         self.assertIn("filters:", last)
+
+
+
+class DossierE2ETest(unittest.TestCase):
+    """`bale stats --sid SID` — board 44's registry entry, wired: the
+    dossier replaces the aggregate in both output modes, an unknown sid
+    is the honest miss at exit 0, and the refusals are fail()-shaped
+    (stderr, non-zero, nothing on stdout)."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(
+            prefix="bale-dossier-e2e-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def _seed(self) -> None:
+        # The DrilldownE2ETest corpus: a held session and an opened one.
+        DrilldownE2ETest._seed(self)
+
+    def _run(self, *args: str):
+        return run_bale(self.install, ["stats", *args], cwd=self.repo,
+                        env=self.env)
+
+    def _json_line(self, result) -> dict:
+        self.assertEqual(result.returncode, 0,
+                         msg=f"stdout:\n{result.stdout}\n"
+                             f"stderr:\n{result.stderr}")
+        lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+        self.assertEqual(len(lines), 1,
+                         msg="json stream discipline: one stdout line")
+        return json.loads(lines[0])
+
+    def assertRefused(self, result, needle: str) -> None:
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "",
+                         msg="refusals are fail()-shaped: nothing on "
+                             "stdout")
+        self.assertIn(needle, result.stderr)
+
+    def test_json_dossier_found(self) -> None:
+        self._seed()
+        payload = self._json_line(
+            self._run("--sid", "2026-08-10-e2e-001", "--json"))
+        self.assertEqual(payload["outcome"], "dossier")
+        self.assertEqual(payload["session_id"], "2026-08-10-e2e-001")
+        self.assertIs(payload["found"], True)
+        self.assertEqual(payload["record"]["outcome"], "held")
+        self.assertIs(payload["record"]["in_flight"], True)
+        self.assertEqual(len(payload["attempts"]), 1)
+        self.assertEqual(
+            payload["attempts"][0]["validation"]["checks"][0]["agreement"],
+            "disagree")
+        self.assertNotIn("classes", payload,
+                         msg="--sid swaps the aggregate out entirely")
+
+    def test_json_dossier_honest_miss(self) -> None:
+        self._seed()
+        payload = self._json_line(
+            self._run("--sid", "2026-08-12-nowhere-001", "--json"))
+        self.assertEqual(payload, {
+            "outcome": "dossier",
+            "session_id": "2026-08-12-nowhere-001",
+            "found": False,
+            "parse_failure": False,
+            "filtered_record_version": False,
+        })
+
+    def test_absent_corpus_is_an_honest_miss(self) -> None:
+        payload = self._json_line(
+            self._run("--sid", "2026-08-12-nowhere-001", "--json"))
+        self.assertIs(payload["found"], False)
+
+    def test_human_dossier_both_ways(self) -> None:
+        self._seed()
+        found = self._run("--sid", "2026-08-11-e2e-002")
+        self.assertEqual(found.returncode, 0, msg=found.stderr)
+        self.assertIn("attempt 1: opened (pack)", found.stdout)
+        self.assertNotIn("filters:", found.stdout,
+                         msg="the dossier, not the aggregate report")
+        miss = self._run("--sid", "2026-08-12-nowhere-001")
+        self.assertEqual(miss.returncode, 0, msg=miss.stderr)
+        self.assertIn("no dossier", miss.stdout)
+
+    def test_filters_do_not_compose_with_sid(self) -> None:
+        self._seed()
+        self.assertRefused(
+            self._run("--sid", "2026-08-10-e2e-001", "--json",
+                      "--since", "2026-08-01"), "--since")
+        self.assertRefused(
+            self._run("--sid", "2026-08-10-e2e-001",
+                      "--work-class", "code"), "--work-class")
+
+    def test_blank_sid_refused(self) -> None:
+        self.assertRefused(self._run("--sid", "  ", "--json"), "--sid")
+
+    def test_unusable_telemetry_dir_refused(self) -> None:
+        claude = self.repo / "claude"
+        claude.mkdir(parents=True, exist_ok=True)
+        (claude / "telemetry").write_text("not a directory\n",
+                                          encoding="utf-8")
+        self.assertRefused(
+            self._run("--sid", "2026-08-10-e2e-001", "--json"),
+            "not a directory")
 
 
 if __name__ == "__main__":

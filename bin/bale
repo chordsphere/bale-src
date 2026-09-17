@@ -153,6 +153,8 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     write_telemetry_record,
     format_stats_json,
     format_stats_report,
+    format_session_dossier_json,
+    format_session_dossier_report,
 )
 
 # The `bale stats` aggregation core — corpus loading, parsing tolerances,
@@ -165,7 +167,9 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 from bale_stats import (  # noqa: E402 — sys.path tweak above is load-bearing
     UNCLASSED,
     WORK_CLASSES,
+    compute_session_dossier,
     compute_stats,
+    telemetry_dir_problem,
 )
 
 # The pack path — file enumeration and filtering, scope projection +
@@ -5654,11 +5658,30 @@ def cmd_stats(args) -> int:
     docstring owns the key contract. The `[bale] stats:` diagnostic
     lines (skipped corrupt records, filtered future versions) go to
     stderr in BOTH modes — see bale_stats's module docstring.
+
+    --sid SID (board 44 level 2, wired by the stats micro) swaps the
+    aggregate for the session dossier: bale_stats.compute_session_dossier
+    over the same one substrate, rendered by bale_report's
+    format_session_dossier_json (whose docstring owns that line's key
+    contract) or format_session_dossier_report, under the same --json
+    stream discipline. An unknown sid is the honest miss — `found: false`,
+    exit 0, the `bale status` posture — never an error. Two refusals exit
+    through fail() before anything renders: a blank SID, and a telemetry
+    path that exists but cannot be read as a corpus
+    (bale_stats.telemetry_dir_problem; an ABSENT directory stays the
+    honest empty corpus). --sid does not compose with --work-class or
+    --since: those filter the aggregate's membership, a dossier renders
+    one record whole, and silently ignoring a filter the operator typed
+    would misreport what was read — so the combination is refused.
     """
     # Stream discipline first, before any line can print (matches
     # cmd_pack / cmd_apply / cmd_status).
     if args.json:
         enable_json_mode()
+    base = repo_root(Path.cwd()) or Path.cwd()
+    telemetry_dir = base / "claude" / "telemetry"
+    if args.sid is not None:
+        return _stats_dossier(args, telemetry_dir)
     since = None
     if args.since:
         try:
@@ -5667,13 +5690,41 @@ def cmd_stats(args) -> int:
             fail(f"--since must be an ISO date (YYYY-MM-DD); got "
                  f"{args.since!r}")
         since = args.since
-    base = repo_root(Path.cwd()) or Path.cwd()
-    stats = compute_stats(base / "claude" / "telemetry",
+    stats = compute_stats(telemetry_dir,
                           work_class=args.work_class, since=since)
     if args.json:
         emit_json_line(format_stats_json(stats))
     else:
         print(format_stats_report(stats))
+    return 0
+
+
+def _stats_dossier(args, telemetry_dir: Path) -> int:
+    """The `bale stats --sid SID` branch of cmd_stats (its docstring
+    carries the contract): refuse the non-composing filters, a blank sid,
+    and an unusable telemetry dir through fail(); otherwise compute and
+    render the dossier, exit 0 — found or not."""
+    combined = [flag for flag, value in (("--work-class", args.work_class),
+                                         ("--since", args.since))
+                if value is not None]
+    if combined:
+        fail(f"--sid renders one session's dossier and does not compose "
+             f"with {' or '.join(combined)} (those filter the aggregate "
+             f"report); drop {'them' if len(combined) > 1 else 'it'} or "
+             f"drop --sid")
+    sid = args.sid.strip()
+    if not sid:
+        fail("--sid needs a session id (YYYY-MM-DD-<slug>-NNN); got a "
+             "blank value")
+    problem = telemetry_dir_problem(telemetry_dir)
+    if problem is not None:
+        fail(f"cannot read the telemetry corpus for --sid {sid}: "
+             f"{problem}")
+    dossier = compute_session_dossier(telemetry_dir, sid)
+    if args.json:
+        emit_json_line(format_session_dossier_json(dossier))
+    else:
+        print(format_session_dossier_report(dossier))
     return 0
 
 
@@ -7067,6 +7118,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--since", default=None, metavar="DATE",
         help="ISO date (YYYY-MM-DD), inclusive, against each record's "
              "created_at: restrict membership to records on or after it.",
+    )
+    p_stats.add_argument(
+        "--sid", default=None, metavar="SID",
+        help="Render one session's dossier instead of the aggregate: "
+             "every attempt with its claim/verdict pairs, checkpoint and "
+             "clarification stamps, diagnostics, and lineage. An unknown "
+             "sid is an honest miss (found: false), exit 0. Composes "
+             "with --json only (the format_session_dossier_json "
+             "docstring in bin/bale_report.py owns that line's keys); "
+             "--work-class and --since are refused beside it.",
     )
     p_stats.add_argument(
         "--json", action="store_true",

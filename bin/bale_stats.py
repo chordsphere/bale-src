@@ -47,8 +47,12 @@ Stateless and read-only: no writes, no locks, no git. Public surface is
 `compute_stats(telemetry_dir, work_class=None, since=None)` returning the
 plain-dict stats payload both renderers consume, and — board 44's level
 2 — `compute_session_dossier(telemetry_dir, sid)`, one sid rendered
-whole over the same one substrate; the loaders and
-classifiers below them are importable for tests. The payload's *key
+whole over the same one substrate, with `telemetry_dir_problem` the
+gate `bale stats --sid` fails through before computing it; the loaders
+and classifiers below them — the stats micro's session readers
+(is_handoff_origin, session_docs_read, session_self_reported_count,
+session_clarification_rounds, normalize_docs_read_token) among them —
+are importable for tests. The payload's *key
 list* as a consumer contract is owned by the `format_stats_json`
 docstring in `bin/bale_report.py` (one-home rule; the dossier line's
 keys are owned by `format_session_dossier_json`'s, per the same
@@ -417,6 +421,135 @@ def _self_reported_clarification(record: dict) -> bool:
         if linkage is not None and linkage.get("kind") == "clarification":
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# The stats micro read sides (rows 86 + 98, and row 98's 09-16 growth)
+# ---------------------------------------------------------------------------
+
+# The session-open command a handoff stamps (bale_pack.persist_pack_session's
+# `command` argument; cmd_handoff passes "handoff"). Row 86 keys on it.
+HANDOFF_COMMAND = "handoff"
+
+# The request tarball's layout prefix (TARBALL.md §3.1): a request path
+# `context/<p>` is the repo path `<p>`. Row 98 strips ONE leading copy at
+# read time so historical docs_read tokens aggregate with the repo
+# spelling — the records themselves are never edited (additive doctrine).
+DOCS_READ_CONTEXT_PREFIX = "context/"
+
+# Surrounding punctuation a free-text docs_read token sheds before the
+# prefix test — the spelling precedent is tools/response_lint.py's
+# docs_read tokenizer (`(context/bin/bale)` and `context/docs/X,` both
+# name a path). Mirrored here, deliberately NOT imported: bin/ never
+# imports request-carried tools, and the reader must stay stdlib-pure.
+_DOCS_READ_TOKEN_STRIP = "()[]{}<>'\"`,;:"
+
+
+def is_handoff_origin(record: dict) -> bool:
+    """Row 86: the session was opened by `bale handoff`.
+
+    Keys on the open-time stamp persist_pack_session writes — an attempt
+    with outcome "opened" whose command is "handoff" — never on lineage
+    or naming. A pre-v0.4.21 handoff session carries no opened attempt
+    and reads False: an honest pre-epoch unknown, not a known non-handoff
+    (the renderers say nothing about it either way).
+    """
+    return any(a.get("outcome") == "opened"
+               and a.get("command") == HANDOFF_COMMAND
+               for a in record["attempts"])
+
+
+def normalize_docs_read_token(raw: str) -> str:
+    """One whitespace-split docs_read token in its aggregation spelling.
+
+    Surrounding punctuation stripped (the lint's precedent), then ONE
+    leading `context/` stripped — so `context/docs/CLAUDE.md` and
+    `docs/CLAUDE.md` aggregate together while a doubled
+    `context/context/x` keeps its second copy (one strip is the rule;
+    anything more would be guessing at a spelling nobody wrote). Returns
+    "" for a token that was punctuation only; callers drop those.
+    """
+    token = raw.strip(_DOCS_READ_TOKEN_STRIP)
+    if token.startswith(DOCS_READ_CONTEXT_PREFIX):
+        token = token[len(DOCS_READ_CONTEXT_PREFIX):]
+    return token
+
+
+def _self_reported(attempt: dict) -> Optional[dict]:
+    """The attempt's feedback.self_reported block, or None — tolerant
+    like every feedback read (a missing or non-dict block is no block)."""
+    feedback = attempt.get("feedback")
+    if not isinstance(feedback, dict):
+        return None
+    reported = feedback.get("self_reported")
+    return reported if isinstance(reported, dict) else None
+
+
+def session_docs_read(record: dict) -> Optional[list]:
+    """The session's docs_read self-report: the LATEST attempt carrying a
+    non-empty list of strings under feedback.self_reported.docs_read, or
+    None when no attempt does.
+
+    Latest-carrier, not every carrier: a HOLD→retry session re-reports
+    its reading on the retry's manifest, and summing both would count
+    one session's reading twice. Non-string entries are dropped, a
+    non-list value is no report — absence counts nothing and never fails
+    the record.
+    """
+    for attempt in reversed(record["attempts"]):
+        reported = _self_reported(attempt)
+        if reported is None:
+            continue
+        entries = reported.get("docs_read")
+        if not isinstance(entries, list):
+            continue
+        strings = [e for e in entries if isinstance(e, str) and e.strip()]
+        if strings:
+            return strings
+    return None
+
+
+def session_self_reported_count(record: dict, key: str) -> int:
+    """A self-reported session count (light_blocks, paste_carried_rounds):
+    the value on the LATEST attempt carrying it as a non-negative integer,
+    0 when none does.
+
+    Both counts are per-session by their schema descriptions ("this
+    session"), so a retry's manifest restates rather than adds to them —
+    the latest carrier is the session's figure (same reasoning as
+    session_docs_read). Absent, null, negative, or non-integer values
+    (bool included — JSON true is not a count) read as no report: 0,
+    and never a failure to aggregate.
+    """
+    for attempt in reversed(record["attempts"]):
+        reported = _self_reported(attempt)
+        if reported is None:
+            continue
+        value = reported.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) \
+                and value >= 0:
+            return value
+    return 0
+
+
+def session_clarification_rounds(record: dict) -> int:
+    """Row 98's round total for one session: the closing attempt's
+    promoted clarification stamp `rounds` (0 when the stamp is absent or
+    malformed — the pre-epoch unknown contributes nothing to a sum) PLUS
+    the session's paste_carried_rounds. A paste-carried round counts as a
+    round: it adds to the stamp's figure rather than hiding under it,
+    because a record that traveled by paste block is never preserved
+    under .bale/clarifications/ and so never reaches the stamp.
+    """
+    stamp = _clarification_stamp(record)
+    rounds = 0
+    if stamp is not None:
+        value = stamp.get("rounds")
+        if isinstance(value, int) and not isinstance(value, bool) \
+                and value >= 0:
+            rounds = value
+    return rounds + session_self_reported_count(record,
+                                                "paste_carried_rounds")
 
 
 def _rate(numerator: int, denominator: int) -> Optional[float]:
@@ -1142,6 +1275,25 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
       the counts they compose — the existing cross_checks counts are
       unchanged.
 
+    The stats micro adds five corpus totals over the same filtered
+    membership (so both filters reach them like every membership total):
+    - **`handoff_origin_sessions`** (row 86) — sessions whose open-time
+      stamp names `bale handoff` (is_handoff_origin).
+    - **`docs_read`** (row 98) — `{sessions, tokens}`: sessions carrying a
+      non-empty docs_read self-report (session_docs_read, latest
+      carrier), and token occurrence counts over those reports, each
+      entry whitespace-split and every token normalized by
+      normalize_docs_read_token — one leading `context/` stripped at
+      read time, so historical tarball-layout spellings aggregate with
+      the repo spelling without a record edit.
+    - **`light_blocks_total`** / **`paste_carried_rounds_total`** — the
+      two self-reported session counts summed (latest carrier per
+      session; absence is 0, never a failure).
+    - **`clarification_rounds_total`** — the closing clarification
+      stamps' rounds summed plus every paste_carried_rounds
+      (session_clarification_rounds): a paste-carried round counts as a
+      round rather than hiding under a zero stamp.
+
     Returns a plain dict; `format_stats_json` in bale_report owns its
     key list as the consumer contract, and `format_stats_report` renders
     the same payload for humans.
@@ -1344,6 +1496,31 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
         doc_epochs.items(),
         key=lambda item: (item[1]["first_created_at"], item[0])))
 
+    # The stats micro's corpus read sides (rows 86 + 98 and row 98's
+    # 09-16 growth; the compute_stats docstring carries the surface).
+    # Same filtered membership as every other corpus total beside them.
+    handoff_origin = sum(1 for r in membership if is_handoff_origin(r))
+    docs_read_sessions = 0
+    docs_read_tokens: dict[str, int] = {}
+    light_blocks_total = 0
+    paste_carried_total = 0
+    clarification_rounds_total = 0
+    for record in membership:
+        entries = session_docs_read(record)
+        if entries is not None:
+            docs_read_sessions += 1
+            for entry in entries:
+                for raw in entry.split():
+                    token = normalize_docs_read_token(raw)
+                    if token:
+                        docs_read_tokens[token] = (
+                            docs_read_tokens.get(token, 0) + 1)
+        light_blocks_total += session_self_reported_count(
+            record, "light_blocks")
+        paste_carried_total += session_self_reported_count(
+            record, "paste_carried_rounds")
+        clarification_rounds_total += session_clarification_rounds(record)
+
     total_response = sum(row["response_attempts"] for row in classes.values())
     total_validated = sum(row["validated_attempts"]
                           for row in classes.values())
@@ -1364,6 +1541,14 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "response_attempts": total_response,
             "validated_attempts": total_validated,
             "checks": total_checks,
+            "handoff_origin_sessions": handoff_origin,
+            "docs_read": {
+                "sessions": docs_read_sessions,
+                "tokens": dict(sorted(docs_read_tokens.items())),
+            },
+            "light_blocks_total": light_blocks_total,
+            "paste_carried_rounds_total": paste_carried_total,
+            "clarification_rounds_total": clarification_rounds_total,
         },
         "classes": classes,
         "closure_mix": closure_mix,
@@ -1496,6 +1681,32 @@ def _dossier_attempt(attempt: dict) -> dict:
                           if isinstance(superseded_by, str) else None),
         "log": attempt.get("log"),
     }
+
+
+def telemetry_dir_problem(telemetry_dir: Path) -> Optional[str]:
+    """Why `telemetry_dir` cannot be read as a corpus, or None when it can.
+
+    The `bale stats --sid` wiring's fail() gate (board 44's registry
+    entry: "fail() on an unusable telemetry dir"). ABSENT is usable — the
+    honest empty corpus, under which every sid renders the honest miss,
+    exactly as the aggregate renders an honest empty report. Unusable is
+    a path that exists but is not a directory, or a directory this
+    process cannot list: load_corpus would read either as an empty
+    corpus, and a dossier miss rendered over an unreadable corpus would
+    be a confident lie ("no record carries this sid") rather than a read.
+    Pure check, no writes; the listing attempt is the authoritative test
+    (os.access alone is advisory under some mounts).
+    """
+    if not telemetry_dir.exists():
+        return None
+    if not telemetry_dir.is_dir():
+        return f"{telemetry_dir} exists but is not a directory"
+    try:
+        with os.scandir(telemetry_dir) as entries:
+            next(entries, None)
+    except OSError as e:
+        return f"{telemetry_dir} cannot be listed: {e}"
+    return None
 
 
 def compute_session_dossier(telemetry_dir: Path, sid: str) -> dict:
