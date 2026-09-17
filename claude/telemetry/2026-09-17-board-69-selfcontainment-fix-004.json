@@ -302,7 +302,8 @@
         "rounds": 0,
         "records": []
       },
-      "corrects": null
+      "corrects": null,
+      "superseded_by": "2026-09-17-board-69-selfcontainment-fix-both-005"
     }
   ],
   "updated_at": "2026-09-17T02:40:48+00:00",
