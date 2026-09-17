@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-15-sitting-close-deltas-9-008`.
+Last landed by: `2026-09-17-sitting-close-deltas-11-007`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -472,6 +472,10 @@ with the unverifiable ones carried verbatim and marked):
   a clarification round regardless. Transport lesson, recorded on
   both riders: the next session that perturbs those expectations
   must be shipped this entry's text, extension included.]
+  [2026-09-17: the fold-in list gains the stats micro's two records,
+  `tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json` and
+  `tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json`
+  (`2026-09-17-stats-micro-001`).]
 - Checkpoint `bash -n` fail-fast: `check_response_shell_syntax`
   gates `apply.sh` and `validation.sh` only; a syntax-errored
   checkpoint surfaces mid-pipeline. Rides board 10 or the next
@@ -916,6 +920,8 @@ with the unverifiable ones carried verbatim and marked):
   rather than lost; still rides the next bin/bale stats touch.]
   (Accepted 2026-08-31
   at the continue-plan-012 sitting's wave-3 close.)
+  [2026-09-17: consumed at `2026-09-17-stats-micro-001` (row 44's
+  wiring; rows 86 and 98 beside it).]
 - Release-surface include group, candidate extension: pull tools/
   along with the group (specimen: 002's includes_missing —
   tests/harness.py hard-requires tools/ via INSTALL_TREES, and the
@@ -935,6 +941,8 @@ with the unverifiable ones carried verbatim and marked):
   `tests/test_doc_crossrefs.py`, `tests/test_sanctioned_pairs.py`;
   trivial, any time." (Accepted 2026-09-14 at the continue-plan-006
   sitting's close.)
+  [2026-09-17: carrier now row 109, the harness micro, which holds
+  `tests/harness.py`.]
 - `bale config hooks` row in BALE.md §5's command table, and one
   sentence in BALE.md's apply and pack sections that every admission
   y/N names its decline cause — both ride 99b (the BALE.md true-up).
@@ -967,12 +975,16 @@ with the unverifiable ones carried verbatim and marked):
   `tools/craft_response.py --light-block` as the path with
   hand-authoring as the fallback. Rides the next `docs/CLAUDE.md`
   touch (row 105 is one).
+  [2026-09-17: consumed at `2026-09-16-board-105-operator-voice-007`.]
 - The crafter's `read_clipboard_command` reads only double-quoted
   TOML values; a hand-edited literal string (`'pbcopy'`) parses in
   bale and reads as unset in the crafter. Accept the single-quoted
   form or name it in the treated-as-unset note; a pin belongs in
   `CrafterAgreementTest`. Rides the next `tools/craft_response.py`
   touch (row 69).
+  [2026-09-17: consumed at `2026-09-16-board-69-tools-pair-008` — the
+  single-quoted form is accepted; the triple-quoted refusal is a new
+  entry below.]
 - `format_walkthrough_summary` builds its checkpoint attribution
   through `_checkpoint_attribution`, the helper the judge line uses,
   so the vocabulary has one home instead of three (walkthrough, apply
@@ -989,6 +1001,34 @@ with the unverifiable ones carried verbatim and marked):
 - Pack-json `sweep`/`include_group` key: named and deferred at 47a
   (its pass-through half sat in the pack-UX micro's file). Carrier
   unchanged.
+  [2026-09-17: carrier now 47b's rider list (row 47).]
+- Four sibling precedence sentences — the META "this file wins"
+  sentences of TARBALL.md, DOCS.md, CODE.md, and PLANNER.md, siblings
+  of CLAUDE.md's reworded one — ride the 100 arc's doc-injection
+  sweep. From the 2026-09-16/17 sitting.
+- TARBALL.md §5.10's shape-sentence pin in `test_doc_crossrefs` —
+  rides the doc sweep. From 105's Proposals.
+- In-process opener constants test. From the 2026-09-16/17 sitting.
+  [2026-09-17: consumed at `2026-09-17-board-106-bale-dedup-003`; this
+  entry records it.]
+- Bale-side refusal of a triple-quoted `clipboard_command` — rides the
+  next `bin/bale_config.py` touch; 005/69's disclosure stands
+  meanwhile.
+- `from_lines`' stale "at v0.1" marker — rides the next `bin/bale`
+  touch.
+- The crafter comment carrying a `board-96-…` sid string — tolerated
+  by the guard; look at it in the doc sweep.
+- BALE.md §5.6 stats prose (`--sid`, the five new keys) — input to
+  99b.
+- Proposals of the `2026-09-16-continue-plan-006` sitting's workers
+  (105's 1–3; 69, the stats micro, 56+57, 106), dispositions: consumed
+  — the in-process opener constants test (106); carried — the four
+  precedence sentences and the §5.10 pin (doc sweep), the
+  triple-quoted refusal (`bin/bale_config.py`), `from_lines`' marker
+  (`bin/bale`), the crafter's sid-string comment (doc sweep), the
+  BALE.md stats prose (99b), `_load_cli()` and `normalize()` (row
+  109), and 47b's five riders (row 47). Anything not named here or on
+  those rows stands as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -2223,6 +2263,71 @@ block carries only what has no row home; close recorded by
   (absorbs 77; 99b rides its doc wave; 96's pack flag rides its enum
   session) → 43 → 45 → S6. Row 93 stands until brought forward.
 
+Landed 2026-09-17, the continue-plan-006 sitting (master
+`2026-09-16-continue-plan-006`, read-only; opened 2026-09-16T22:17Z;
+the UTC date rolled to 09-17 mid-sitting, so sids opened after ~00:00Z
+carry 09-17; the previous master `2026-09-15-continue-plan-009` closed
+read-only at this sitting's open). Wave 3 landed but for 47b, one fix
+split and landed, and three rows opened; this block carries only what
+has no row home; close recorded by
+`2026-09-17-sitting-close-deltas-11-007`:
+
+- Landing record, in order, all applied clean unless noted:
+  `2026-09-16-board-105-operator-voice-007` (bumpless);
+  `2026-09-16-board-69-tools-pair-008`; `2026-09-17-stats-micro-001`;
+  `2026-09-17-board-56-57-changelog-aborted-002` (HOLD on
+  `test_global_doc_selfcontainment` — a base defect, §6 entry 148 —
+  retried unchanged after the fix; 0.4.35 bumper);
+  `2026-09-17-board-69-selfcontainment-fix-004` (HOLD; closed
+  superseded-by-split by 005);
+  `2026-09-17-board-69-selfcontainment-fix-both-005`;
+  `2026-09-17-board-106-bale-dedup-003` (HOLD, fixture defect: the
+  near-name probes pinned a quote character; checkpoint v2 amended,
+  retried with `--accept-checkpoint-change`; its telemetry record
+  shows three HOLDs and one rejected apply before the landing retry at
+  2026-09-17T11:58Z).
+- In flight at the brief, closed before this close packed:
+  `2026-09-17-guard-maintenance-006` (row 108) applied clean at
+  2026-09-17T13:01Z per its telemetry record. Its notes.md was not
+  before the desk when the brief was written, so its ratification
+  queues to the next open beside this close's.
+- Sitting-open record, ratification block A (close-10's notes.md): all
+  six disagreements accepted — 97's bracket strike, 143→142, row 99
+  verify-only, 106 spans two files, 82 four values, 106 names
+  `compose_retry_successor`; both proposals accepted.
+- Wave 3 re-cut by file map at the open: 3a = 105, 69, the stats micro
+  (with the dossier wiring), the 56+57 bumper; 3b = 106 then 47b —
+  corrected mid-sitting: 106 touches neither `bin/bale_apply.py` nor
+  `bin/bale_report.py`, so it ran beside 56+57 (§6 entry 150). 47b
+  stands, with a rider list (row 47).
+- Worker light blocks answered from the desk, all defaults ratified:
+  69 (pin home, property-not-inventory, `docs_read` seeded loud with a
+  new warning `DOCS_READ_EMPTY_STUB`); the stats micro (latest
+  attempt, punctuation-shed tokens, membership totals); 56+57 (CODE.md
+  §8.5 home); 106 (fixture ruling). Every worker notes.md judgment
+  call is ratified as shipped; the dispositions of their proposals are
+  the registry and board entries of this close (§6 entry 149).
+- The `--supersedes` dirty-`main` finding: the operator hit it
+  2026-09-17T02:41Z and committed by hand; cause and fix on row 107.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open.
+- Board deltas of the close: rows 105, 69, 86, 98, 56, 57, 106 DONE;
+  row 44's dossier wiring consumed; row 47 grown (47b's rider list and
+  the HOLD card's third category); rows 107, 108, 109 opened in §4,
+  108 DONE before the close packed; evidence entries 147–154 in §6;
+  the heading "New, ratified 2026-09-16" set over close-10's two
+  contracts and six contracts dated 2026-09-17 in §5; the version
+  landmark 0.4.35.
+- Registry deltas of the close: consumed — the `bale stats --sid`
+  dossier wiring (stats micro), the light-tier INDEX-row rider (105),
+  the crafter's single-quoted `clipboard_command` rider (69); carriers
+  moved — `normalize()` to row 109, the pack-json
+  `sweep`/`include_group` key to 47b's rider list; the post-epoch
+  fixture entry gains the stats micro's two records; seven new
+  entries, one recorded consumed at birth (the in-process opener
+  constants test, 106), and a dispositions entry for the sitting's
+  Proposals.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -2859,6 +2964,9 @@ and §8, so done items keep their numbers as one-line pointers.
     stale "until it lands, every stats run warns" fold-in bracket
     (2026-08-31) is struck this landing — the one sanctioned
     retroactive edit of this close.]
+    [2026-09-17: the dossier wiring (the §3 registry's `bale stats
+    --sid` entry) consumed at `2026-09-17-stats-micro-001`, beside
+    rows 86 and 98.]
 
 45. **hostile-foreign-repo arc** — queued 2026-08-16 (multi-session arc;
     feeds S6; sequenced before any harness autonomy): deliberately run
@@ -2947,6 +3055,17 @@ and §8, so done items keep their numbers as one-line pointers.
     hour. 47b (the addressed desk-facing and worker-facing blocks with
     the log bands inlined, the happy-path desk block, the TARBALL.md
     sentence) stands, wave 3.]
+    [2026-09-17: 47b stands, and its next open carries a rider list:
+    the pack-json `sweep`/`include_group` key (moved here from the §3
+    registry); `base_drift_overrides` in
+    `format_session_dossier_json`'s docstring;
+    `compose_hold_successors`' docstring (now delegated to, since
+    106); the `DOCS_READ_EMPTY_STUB` sentence in TARBALL.md §5.2.2;
+    removal of `bale_apply.py:~3763`'s post-resolution existence check
+    (unreachable since 106). Brief input, the HOLD card's substance:
+    its "next step" offers two categories, fixture and work; the
+    sitting hit a third twice — a base defect, neither fixture nor
+    work (§6 entry 151).]
 
 48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
     into board 49 (the `bale open` dry-run leg); whether the
@@ -3140,6 +3259,12 @@ and §8, so done items keep their numbers as one-line pointers.
     surface list — a natural board-9 Level-1 linked pair with the
     harness side if timed together, not required to be.
     Retroactive backfill explicitly out of scope.
+    [2026-09-17: DONE with row 57 at
+    `2026-09-17-board-56-57-changelog-aborted-002`, 0.4.35: schema
+    `changelog-record`, `validate_changelog_record`,
+    `claude/changelog/<version>.json` (the first record is 0.4.35's
+    own), the discipline sentence at CODE.md §8.5. First attempt HELD
+    on a base defect (§6 entry 148); retried unchanged and landed.]
 
 57. **`aborted`-class closure reason** — queued 2026-08-25 (small;
     from the harness spec-intake sitting, seed D15): the harness
@@ -3147,6 +3272,11 @@ and §8, so done items keep their numbers as one-line pointers.
     follows the v0.4.7 legacy-tolerant pattern. Ratified as its
     own small board item alongside board 56; sequencing among the
     smalls is the next desk's call.
+    [2026-09-17: DONE with row 56 at
+    `2026-09-17-board-56-57-changelog-aborted-002`, 0.4.35: `aborted`
+    in the telemetry schema's `closure_reason` enum and in
+    `CLOSURE_REASONS`, so `bale unlock --reason` and `bale revert
+    --reason` accept it.]
 
 58. **exchange constants, install-side parity** — queued 2026-08-31
     (small; from the exchange arc's close): accepted from the
@@ -3422,6 +3552,15 @@ and §8, so done items keep their numbers as one-line pointers.
     (the lint's docstrings no longer say `provenance` is hand-added);
     the crafter's size — bundle, probe, emit-block, light-block modes
     — is now the extraction question this row should answer first.]
+    [2026-09-17: DONE at `2026-09-16-board-69-tools-pair-008`
+    (bumpless): the `CLAIMS_VALUE` lint row; `docs_read` seeded in the
+    crafter's skeleton, loud when unfilled (`DOCS_READ_EMPTY_STUB`);
+    the crafter clipboard rider consumed. The extraction question
+    answered "not yet; the exchange pair (§5+§6) is the one seam".
+    Watch: revisit if §5+§6 passes ~60 KB or sessions touching the
+    pair stop touching the rest. The tools' self-containment repair
+    landed at `2026-09-17-board-69-selfcontainment-fix-both-005` (§6
+    entry 148).]
 
 70. **shipped-doc reachability — DONE** 2026-09-01 at the
     continue-plan-005 sitting (opened in-sitting under the first
@@ -3928,6 +4067,8 @@ and §8, so done items keep their numbers as one-line pointers.
     2026-09-14 (small; bin/bale_stats): `command == "handoff"` at
     persist. From 73A's Proposals; the corpus in this sitting's
     context had zero such sessions.
+    [2026-09-17: DONE at `2026-09-17-stats-micro-001`
+    (`corpus.handoff_origin_sessions`), beside row 98.]
 
 87. **response tarball naming standardization + row 51 resolver
     check** — queued 2026-09-14 (tools/ + bin/ + docs). Operator,
@@ -4298,6 +4439,11 @@ and §8, so done items keep their numbers as one-line pointers.
     self-reported counts, `light_blocks` and `paste_carried_rounds`
     (a paste-carried round adds to `clarification.rounds` rather than
     hiding under it), and row 86 rides beside it.]
+    [2026-09-17: DONE at `2026-09-17-stats-micro-001`, with row 86 and
+    row 44's dossier wiring. New stats keys
+    `corpus.handoff_origin_sessions`, `corpus.docs_read`,
+    `light_blocks_total`, `paste_carried_rounds_total`,
+    `clarification_rounds_total`.]
 
 99. **Outward-facing doc refresh** — queued 2026-09-15 (docs; two
     sessions on one seam). The root `README.md` is dated 2026-06-03
@@ -4465,6 +4611,10 @@ and §8, so done items keep their numbers as one-line pointers.
     so nothing is lost. Specimen: an outside model declined the
     framework on exactly these grounds (§6 entry 145). Goes first in
     the next wave.
+    [2026-09-17: DONE at `2026-09-16-board-105-operator-voice-007`
+    (bumpless): the opener's operator-voice sentences on both pack
+    shapes, CLAUDE.md's precedence sentence, and the shape sentence's
+    second half; the light-tier INDEX-row registry rider consumed.]
 
 106. **`bin/bale` de-dup micro** — queued 2026-09-16 (bin/; one
     session, five riders on one file). From this sitting's Proposals:
@@ -4480,6 +4630,45 @@ and §8, so done items keep their numbers as one-line pointers.
     `RawDescriptionHelpFormatter` on the subparsers so descriptions
     keep their paragraph breaks and `completion --help` its examples
     (99a). Runs beside wave 3.
+    [2026-09-17: DONE at `2026-09-17-board-106-bale-dedup-003`
+    (bumpless-under), spanning `bin/bale` and `bin/bale_pack.py`;
+    `compose_retry_successor` delegates to `compose_hold_successors`.
+    HELD on a fixture defect — the near-name probes pinned a quote
+    character; the desk amended the checkpoint (v2) and the landing
+    retry used `--accept-checkpoint-change` (§6 entry 152). The
+    in-process opener constants test is consumed here (§3 registry).]
+
+107. **`--supersedes` leaves `main` dirty** — queued 2026-09-17 (high;
+    `bin/bale_pack.py`). Cause, desk-verified in the bytes: the
+    `--checkpoint-file` path commits only the checkpoint (`git commit
+    -- <path>`), and `stamp_superseded_by` then modifies the parent's
+    tracked telemetry record; the sweep commit that carries other
+    telemetry events never sees it. The operator hit it
+    2026-09-17T02:41Z and committed by hand. Fix: the stamp lands
+    inside the pack's commit (or the sweep's). Blind checkpoint: the
+    repro in a scratch repo with a tracked telemetry dir and a
+    `[validation] base` pin, a second pack `--supersedes` the first
+    (prompt acceptance needs the pty harness; non-TTY declines), then
+    `git status --porcelain` empty.
+
+108. **Guard maintenance** — queued 2026-09-17 (in flight when the
+    brief was written): `INSTALL_SCHEMAS` + `changelog-record`; the
+    hyphenated `board-<digits>` deny shape with a sid-aware anchor;
+    the two tolerated tools leftovers rewritten;
+    `claude/changelog/<bin/VERSION>.json` must exist (ruling: every
+    bump carries a record; §5).
+    [2026-09-17: DONE at `2026-09-17-guard-maintenance-006`
+    (bumpless), applied clean 2026-09-17T13:01Z per its telemetry
+    record — after the brief, before this close packed. Its
+    self-report names one light block with three defaults ratified as
+    assumed, and further crafter provenance leftovers proposed rather
+    than rewritten; its notes.md queues to the next open.]
+
+109. **Harness micro** — queued 2026-09-17 (small; tests):
+    `_load_cli()` beside `_load_module` (106's proposal); the queued
+    `normalize()` registry rider (rides `tests/harness.py`); and
+    `SubcommandHelpLayoutTest` moved to a new `tests/test_cli_help.py`
+    with the completion pins.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -5188,6 +5377,10 @@ of record with one home):
   because a second download of the same name gains a `(1)`; the desk's
   brief names the delivery directory (a §7 fact) so the worker never
   invents a path. Row 102 makes the bare filename resolve on its own.
+
+New, ratified 2026-09-16 (the continue-plan-009 sitting; each a ruling
+of record with one home):
+
 - **A session kind is a declared start, switchable.** Every session
   is packed as one of `build`, `discussion`, `master`, or `context`;
   the four terminal shapes bind `build` alone; a discussion answers
@@ -5201,6 +5394,33 @@ of record with one home):
   opener, typed in chat; no file claims precedence over the model's
   own guidelines, and the tools are named as conveniences over a
   doc that is the contract. Ratified 2026-09-16; lands at row 105.
+
+New, ratified 2026-09-17 (the `2026-09-16-continue-plan-006` sitting;
+each a ruling of record with one home):
+
+- **Every version bump carries its changelog record.** Every
+  `bin/VERSION` bump carries `claude/changelog/<version>.json`; a bump
+  without one fails the suite by name. Landed at row 108, over row
+  56's record family.
+- **A `tools/` forecast ships the self-containment suite.** A forecast
+  touching `tools/` ships `test_global_doc_selfcontainment` (the tools
+  are injected surfaces), as `schemas/` already does (§6 entry 148).
+- **A file named clean says how.** A brief that names a file as clean
+  states how that was verified, or forecasts the file anyway (§6 entry
+  148).
+- **"Bumpless-under", defined.** A desk term, now defined: no
+  `bin/VERSION` change and no version tag added or removed; the
+  touched files' highest tag stays ≤ `bin/VERSION`. Two workers of
+  this sitting flagged the term undefined and read it this way.
+- **`board-<digits>` is a citation; a session id is lineage.** For the
+  self-containment guard, `board-<digits>` is a board citation; a
+  session id (`YYYY-MM-DD-` before `board-`) is lineage and stays
+  tolerated. Landed at row 108.
+- **The desk verifies a gate rule before writing its paste line.** The
+  desk verifies gate rules against `bin/bale`'s own text before
+  writing a line the operator will paste — three refusals this
+  sitting, each correct: `--write` on a nonexistent path, a pack flag
+  on the `open` line, superseding a held session (§6 entry 147).
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -6561,6 +6781,69 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     the docs as written: nothing carves out a discussion, and
     "read-only lands nothing" reads as "lands no changes". Silence
     is a rule; row 104 names the kinds.
+
+147. **Gate refusals on desk assumptions.** Three times this sitting a
+    `bin/bale` gate refused a line the desk wrote for the operator to
+    paste, three different kinds, and each refusal was correct:
+    `--write` on a nonexistent path, a pack flag on the `open` line,
+    and superseding a held session. The desk wrote from its model of
+    the gates rather than from `bin/bale`'s text; the gates did the
+    check the desk skipped, one paste later. The 2026-09-17 contract
+    moves the check ahead of the paste (§5). (Desk-side, this
+    sitting.)
+
+148. **The include-miss chain.** Row 69's brief did not forecast
+    `test_global_doc_selfcontainment`, though the tools are injected
+    surfaces; 56+57 then HELD on that suite — a base defect, not its
+    work. The fix, `2026-09-17-board-69-selfcontainment-fix-004`, was
+    briefed on the desk's unverified "crafter is clean", forecast only
+    the lint, and HELD in turn; it closed superseded-by-split by
+    `2026-09-17-board-69-selfcontainment-fix-both-005`, which landed
+    both tools, and 56+57 retried unchanged and landed. 56+57's worker
+    had already diagnosed the base drift in its own `validation.sh`
+    and SKIPped the tools-only failures by name before the desk ruled.
+    Two contracts follow (§5): a `tools/` forecast ships the guard,
+    and a file named clean says how it was verified. (Desk-side, this
+    sitting; the diagnosis worker-side, 56+57.)
+
+149. **Worker light blocks, four.** Four this sitting — 69, the stats
+    micro, 56+57, 106 — all non-blocking, all answered from the desk,
+    every default ratified. One was mis-shaped and self-admitted
+    (56+57). One diagnosed a blind fixture from the brief text alone
+    (106), the question the desk's fixture ruling answered.
+    (Worker-side, this sitting.)
+
+150. **Desk file-map errors and their cost.** At the open the desk
+    serialized 106 behind 47b; 106 touches neither `bin/bale_apply.py`
+    nor `bin/bale_report.py`, and it lost a turn before the correction
+    put it beside 56+57. "Different regions of one file" is not a
+    forecast: the gate reads paths, and the desk's file map has to
+    read them the same way. (Desk-side, this sitting.)
+
+151. **The HOLD card's missing third category.** 47a's card offers two
+    next-step categories, fixture defect and work defect. The sitting
+    hit a third twice — a base defect, neither fixture nor work (entry
+    148) — and the card had no line for it. Input to 47b's brief (row
+    47). (Desk-side, this sitting.)
+
+152. **Rehearsal counts.** Fixture defects caught before delivery:
+    105: 1, 69: 2, the stats micro: 1, 106: 3, the fix: 1. Escaped:
+    106's quote character (a rendering detail), and the fix's crafter
+    guess — not rehearsable, because it was a fact about the tree, not
+    a behavior (entry 148). (Desk-side, this sitting.)
+
+153. **"As assued."** The desk's answer to the stats micro's light
+    block carried a typo, "as assued"; the worker read it as "as
+    assumed", ratified all three defaults, and named the reading as an
+    assumption in its self-report. The typo was the desk's; the
+    reading was correct and said so. (Worker-side, the stats micro.)
+
+154. **Sids date from bale's clock.** The desk's briefs carried a
+    stale date until they moved to the `<UTC-date>` form. The sid is
+    minted on bale's UTC clock at open, and this sitting straddled UTC
+    midnight (opened 2026-09-16T22:17Z; sids after ~00:00Z carry
+    09-17), so a date typed from the desk's own day goes stale at UTC
+    midnight. (Desk-side, this sitting.)
 
 ## 7. Standing environment facts
 
