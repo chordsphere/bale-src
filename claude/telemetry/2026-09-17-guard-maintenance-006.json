@@ -1,0 +1,219 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-17-guard-maintenance-006",
+  "created_at": "2026-09-17T11:59:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-17T11:59:36+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_changelog_record.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-17-guard-maintenance-006.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-17T13:01:19+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-17-guard-maintenance-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_response_lint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_craft_response": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "tests: test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: tools prose leftovers gone, live sid kept": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: tools AST (docstrings stripped) matches base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: tools line counts preserved": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: tools executable bits": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bumpless (no bin/VERSION or version-tag change in changes[])": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false,
+        "validation_will_run": [
+          "python syntax (py_compile, 4 changed files)",
+          "tests: test_global_doc_selfcontainment",
+          "tests: test_changelog_record",
+          "tests: test_response_lint",
+          "tests: test_craft_response",
+          "tests: test_schema_embeds",
+          "assert: tools prose leftovers gone, live sid kept",
+          "assert: tools AST (docstrings stripped) matches base",
+          "assert: tools line counts preserved",
+          "assert: tools executable bits",
+          "assert: bumpless (no bin/VERSION or version-tag change in changes[])"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_changelog_record.py",
+        "tests/test_global_doc_selfcontainment.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/test_global_doc_selfcontainment.py",
+        "tests/test_changelog_record.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.35",
+            "contract_docs": {
+              "CLAUDE.md": "e988918d1725fac6319b6390263769789d33e2f57ab0d2ea39db36ad994601eb",
+              "TARBALL.md": "d193ca8abb0560f47058e3a97616d800d5610e915d01ec27ab1e02999601a4c7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-17-guard-maintenance-006.sh",
+              "sha256": "abe07cba431273705086be46ad4b39d833d27cd0c8db4ba2623534fd6afb3991"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-17T11:59:36+00:00",
+            "base_files": {
+              "tests/test_changelog_record.py": "8b87826938ca4fc9187ec94a6f720469d3f3ec47e1d4fb73fa416f546d243791",
+              "tests/test_global_doc_selfcontainment.py": "1c92cc64c48c8d1f3068f34dcb09ea1b6bfeb10052f8046e50f84aa1e4f07749",
+              "tools/craft_response.py": "0c9dee7d3a234d0ec71b39e12e3ec1cd8546bf6b8eeafc650a024dee3df06a6b",
+              "tools/response_lint.py": "ff233250bea0b0e9058b1670c39cb640d9639abf716fcf4cb4533a5bc037462a"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "tests/test_craft_response.py's two PackInjectionSurface cases pass in the operator's tree, where bin/bale_pack.py exists (absent from this request)"
+          ],
+          "judgment_calls": [
+            "Hyphen anchor is token-based (no undated segment before board may open a YYYY-MM-DD- date) rather than a fixed-width date lookbehind, so sids with board- mid-slug or behind a prefix stay tolerated",
+            "The hyphen row rides in both deny tables as one shared compiled object (light block [1], ratified as assumed)",
+            "Undated kebab fragments such as fx-board-12 are caught as citations (light block [2], ratified as assumed)",
+            "Remaining craft_response.py provenance leftovers (lines 108, 359, 544) proposed in notes.md, not rewritten (light block [3], ratified as assumed)",
+            "Byte-identical-in-effect evidenced by an AST fingerprint with docstrings stripped, pinned in validation.sh against the base files"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "bin/bale_pack.py (read-only need: tests/test_craft_response.py PackInjectionSurface execs it)"
+          ],
+          "docs_read": [
+            "CLAUDE.md META through 11.2",
+            "TARBALL.md META, INDEX, sections 1, 2, 5.1-5.5, 7, 10",
+            "response-manifest.schema.json feedback section (targeted)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "light_blocks": 1
+        }
+      },
+      "log": ".bale/logs/2026-09-17-guard-maintenance-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-17-guard-maintenance-006.sh",
+          "sha256": "abe07cba431273705086be46ad4b39d833d27cd0c8db4ba2623534fd6afb3991"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-17T13:01:19+00:00",
+  "outcome": "applied"
+}
