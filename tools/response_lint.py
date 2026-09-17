@@ -49,12 +49,12 @@ modified one must carry no dated line later than it. Warnings are a
 separate tier: reported as [WARN] with their own `warnings[]` in the
 JSON report, never counted as findings.
 
-`claims-value` (board 69) files CLAIMS_VALUE for a bare-string claims
+`claims-value` files CLAIMS_VALUE for a bare-string claims
 value outside pass|fail|untested|unknown — the vocabulary bale's apply
 enforces in Python, which the embedded schema cannot express for the
 bare-string form (no oneOf in the subset validator). Before it, such a
 value linted clean and refused at apply.
-`docs-read-stub` (board 69) warns DOCS_READ_EMPTY_STUB when
+`docs-read-stub` warns DOCS_READ_EMPTY_STUB when
 feedback.self_reported.docs_read is present and exactly [] — the
 crafter's seeded stub shipped unfilled: fill it or delete the key.
 Omission (reported nothing) stays silent.
@@ -1291,7 +1291,7 @@ def check_context_prefix(ctx: dict) -> list[dict]:
 
 def check_docs_read_stub(ctx: dict) -> list[dict]:
     """A shipped feedback.self_reported.docs_read that is exactly []
-    is a warning (board 69, planner ruling at this session's light block).
+    is a warning: most likely the crafter's stub, shipped unfilled.
 
     tools/craft_response.py seeds `docs_read: []` so the optional field
     has scaffold presence. The schema reads an omitted docs_read as

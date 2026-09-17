@@ -629,9 +629,9 @@ def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
     string with no escapes: a basic string ("pbcopy", what bale's
     renderer writes) or a literal string ('pbcopy', what a hand edit
     often writes — bale's own TOML parser reads it, so this scan does
-    too; board 69's registry rider). Anything richer — an escape, a
-    triple-quoted multi-line form, an embedded double quote, a control
-    character — is treated as unset: the never-fails,
+    too, rather than call a working key unset). Anything richer — an
+    escape, a triple-quoted multi-line form, an embedded double quote, a
+    control character — is treated as unset: the never-fails,
     never-silently-skips path, where the scaffold carries remedy text
     instead of the epilogue and the note names the accepted forms and
     the unread triple-quoted ones. bin/bale_config.py's
@@ -1835,8 +1835,8 @@ def read_request_provenance(path_str: str) -> tuple[dict | None, str | None] | s
 # its required key — the diagnostics.json `bail_trigger: ""` posture:
 # a block the worker never filled cannot pass the lint by accident.
 #
-# `docs_read` is the one OPTIONAL key seeded (board 69, from
-# 2026-09-01-board-70-doc-reachability-007's Proposals): an optional
+# `docs_read` is the one OPTIONAL key seeded, and the exception is
+# deliberate rather than an oversight in the stub: an optional
 # field with no scaffold presence tends to go unfilled, and its value is
 # longitudinal, so the stub is there to be filled. It is seeded
 # schema-VALID ([] lints clean) — so, unlike the two sentinels, an
