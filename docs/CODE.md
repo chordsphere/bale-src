@@ -480,6 +480,16 @@ This is the meta-code analogue of `CLAUDE.md` section 6's
 "contracts are non-negotiable under time pressure" — the
 recursion magnifies the cost of a confidently-wrong refactor.
 
+### 8.5 Surface changes write their changelog entry
+
+When a meta-code project keeps changelog records
+(`schemas/changelog-record.schema.json`: one structured record per
+version naming the machine-readable surfaces it changed — a surface
+list, not the narrative log `CLAUDE.md` §7 rules out), the session
+that changes a machine-readable surface writes that version's entry in
+the same response, so the record is part of the change rather than a
+later reconstruction of it.
+
 ---
 
 ## 9. Naming Conventions

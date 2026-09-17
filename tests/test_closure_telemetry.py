@@ -73,6 +73,19 @@ def load_bale_report(install: Path):
     return module
 
 
+def load_bin_module(install: Path, name: str):
+    """Import a scratch-install bin/<name>.py by path, unregistered —
+    the load_bale_report posture for the other library modules
+    (bale_validate imports nothing from __main__ at module scope, which
+    is what makes this possible)."""
+    path = install / "bin" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"{name}_under_test",
+                                                  str(path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class ClosureTelemetryTest(unittest.TestCase):
     """Unlock and revert write durable closure records with a reason.
 
@@ -220,6 +233,19 @@ class ClosureTelemetryTest(unittest.TestCase):
         self.assertEqual(attempt["closure_reason"], "abandoned")
         self.assertEqual(attempt["scope"], [])
 
+    def test_unlock_accepts_aborted_reason(self) -> None:
+        """The kill-switch value end to end (v0.4.35): bin/bale's
+        --reason choices come from CLOSURE_REASONS, so `unlock --reason
+        aborted` is accepted without a bin/bale edit, stamps 'aborted',
+        and the written record passes validate_telemetry_record."""
+        sid = self.packed_sid(self.pack(slug="closure-aborted"))
+        self.assert_ok(self.unlock("--reason", "aborted"))
+
+        record = self.telemetry_record(sid)
+        self.assertEqual(record["attempts"][-1]["closure_reason"], "aborted")
+        validate = load_bin_module(self.install, "bale_validate")
+        self.assertEqual(validate.validate_telemetry_record(record), [])
+
     # -- pinned behavior 4: the crash-debris pointer path ----------------
 
     def test_crash_debris_sweep_records_for_named_sid(self) -> None:
@@ -284,6 +310,40 @@ class ClosureTelemetryTest(unittest.TestCase):
                           msg="omitted --reason records an honest null")
         self.assertIn("superseded-by-split", report.CLOSURE_REASONS,
                       msg="board 26 consumes this value; it must survive")
+
+    def test_aborted_reason_in_vocabulary_and_schema(self) -> None:
+        """'aborted' (v0.4.35) is a closure reason in both homes: the
+        writer-side CLOSURE_REASONS tuple bin/bale's --reason choices
+        import, and the telemetry schema's closed closure_reason enum —
+        and the two homes agree as sets, so the next additive value
+        cannot land on one side only. A record carrying it validates;
+        an invented reason still rejects."""
+        report = load_bale_report(self.install)
+        self.assertIn("aborted", report.CLOSURE_REASONS)
+        schema = json.loads(
+            (self.install / "schemas" / "telemetry-record.schema.json")
+            .read_text(encoding="utf-8"))
+        enum = (schema["properties"]["attempts"]["items"]["properties"]
+                ["closure_reason"]["enum"])
+        self.assertEqual(set(report.CLOSURE_REASONS),
+                         {v for v in enum if v is not None})
+        self.assertIn(None, enum, msg="closure_reason stays nullable")
+
+        validate = load_bin_module(self.install, "bale_validate")
+        record = {
+            "record_version": 1,
+            "session_id": "2026-09-17-fx-aborted-001",
+            "created_at": "2026-09-17T00:00:00+00:00",
+            "updated_at": "2026-09-17T00:00:00+00:00",
+            "outcome": "unlocked",
+            "attempts": [{"at": "2026-09-17T00:00:00+00:00",
+                          "outcome": "unlocked", "command": "unlock",
+                          "closure_reason": "aborted"}],
+        }
+        self.assertEqual(validate.validate_telemetry_record(record), [])
+        record["attempts"][0]["closure_reason"] = "killed"
+        self.assertTrue(validate.validate_telemetry_record(record),
+                        msg="the vocabulary stays closed")
 
     def test_closing_attempts_promote_manifest_fields_by_presence(
             self) -> None:

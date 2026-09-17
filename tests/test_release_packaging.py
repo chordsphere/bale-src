@@ -58,6 +58,7 @@ from harness import slow
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BUILD_SH = REPO_ROOT / "scripts" / "build.sh"
 INSTALL_SH = REPO_ROOT / "install.sh"
+VALIDATE_SH = REPO_ROOT / "validate.sh"
 
 SUBPROCESS_TIMEOUT = 120  # seconds; generous — each build run is seconds.
 
@@ -212,6 +213,36 @@ class ReleaseListCoverageTest(unittest.TestCase):
     def test_install_layout_covers_exchange_schema(self) -> None:
         self.assertIn("schemas/exchange-record.schema.json",
                       extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
+    def test_release_files_covers_changelog_schema(self) -> None:
+        """schemas/changelog-record.schema.json ships (v0.4.35):
+        bale_validate.validate_changelog_record loads it from the
+        installed schemas tree, so a release without it turns the
+        changelog record's validator into a RuntimeError — and the
+        tree-coverage guard would refuse the build anyway, since the
+        file sits under schemas/."""
+        self.assertIn("schemas/changelog-record.schema.json",
+                      extract_bash_array(BUILD_SH, "RELEASE_FILES"))
+
+    def test_install_layout_covers_changelog_schema(self) -> None:
+        self.assertIn("schemas/changelog-record.schema.json",
+                      extract_bash_array(INSTALL_SH, "INSTALL_LAYOUT"))
+
+    def test_validate_sh_schema_loop_covers_changelog_schema(self) -> None:
+        """validate.sh's presence-and-parse loop names every shipped
+        schema; its comment says a session adding a schema extends it,
+        and drift there is a missing check, never a failed build — so
+        the row is pinned here instead."""
+        loop = next(
+            (line for line in VALIDATE_SH.read_text(
+                encoding="utf-8").splitlines()
+             if line.startswith("for s in ") and "exchange-record" in line),
+            None)
+        self.assertIsNotNone(loop, "validate.sh's schema loop moved")
+        # The loop reads `for s in a b c; do` — drop the `; do` tail
+        # before tokenizing, or the last name carries the semicolon.
+        names = loop[len("for s in "):].split(";")[0].split()
+        self.assertIn("changelog-record", names)
 
     def test_release_files_covers_bale_relay(self) -> None:
         """bin/bale_relay.py (the relay verb's home since v0.4.21, when

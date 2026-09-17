@@ -1,0 +1,29 @@
+{
+  "record_version": 1,
+  "version": "0.4.35",
+  "session_id": "2026-09-17-board-56-57-changelog-aborted-002",
+  "at": "2026-09-17T02:13:00+00:00",
+  "surfaces": [
+    {
+      "path": "schemas/changelog-record.schema.json",
+      "change": "new record family: claude/changelog/<version>.json, required record_version (exactly 1), version, session_id, at, and a non-empty surfaces list of {path, change}"
+    },
+    {
+      "path": "bin/bale_validate.py",
+      "change": "new library entry point validate_changelog_record(record) -> list of error strings ([] = valid); CHANGELOG_RECORD_SCHEMA and CHANGELOG_RECORD_VERSION constants"
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "attempts[].closure_reason enum gains 'aborted' (additive; record_version stays 1)"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "CLOSURE_REASONS gains 'aborted', so `bale unlock --reason` and `bale revert --reason` accept it"
+    },
+    {
+      "path": "scripts/build.sh",
+      "change": "RELEASE_FILES gains schemas/changelog-record.schema.json (install.sh's INSTALL_LAYOUT and validate.sh's schema loop follow)"
+    }
+  ],
+  "notes": "First record of the family; versions before 0.4.35 are not backfilled."
+}
