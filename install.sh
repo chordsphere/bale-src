@@ -243,6 +243,7 @@ INSTALL_LAYOUT=(
   schemas/escalation-record.schema.json
   schemas/bundle-manifest.schema.json
   schemas/exchange-record.schema.json
+  schemas/changelog-record.schema.json
   tools/response_lint.py
   tools/craft_response.py
   install.sh

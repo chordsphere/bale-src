@@ -68,6 +68,7 @@ TELEMETRY_RECORD_SCHEMA = "telemetry-record.schema.json"
 ESCALATION_RECORD_SCHEMA = "escalation-record.schema.json"
 BUNDLE_MANIFEST_SCHEMA = "bundle-manifest.schema.json"
 EXCHANGE_RECORD_SCHEMA = "exchange-record.schema.json"
+CHANGELOG_RECORD_SCHEMA = "changelog-record.schema.json"
 
 
 # --- JSON Schema validation (BALE.md §11 rows 6) ----------------------------
@@ -830,17 +831,20 @@ def validate_clarification_questions(rows: list) -> list:
     return errors
 
 
-def _created_at_problem(value) -> str | None:
+def _created_at_problem(value, field: str = "created_at") -> str | None:
     """Return why `value` is not an ISO 8601 UTC timestamp, or None.
 
     The schema pins `created_at` as a non-empty string; the format is
     this check's, because bale's validator subset has no `format`
-    keyword. Accepted: anything datetime.fromisoformat parses that
-    carries a zero UTC offset — `...+00:00` or the `Z` suffix (mapped to
-    +00:00 before parsing, since 3.10's fromisoformat does not accept
-    it). A naive timestamp or a non-UTC offset is refused: the thread's
-    records are compared across sessions and machines, and an ambiguous
-    wall-clock time is exactly the value that would sort wrong later.
+    keyword. `field` names the key in the messages (v0.4.35: the
+    changelog record's `at` reuses this check); the default keeps the
+    exchange record's messages exactly as they were. Accepted: anything
+    datetime.fromisoformat parses that carries a zero UTC offset —
+    `...+00:00` or the `Z` suffix (mapped to +00:00 before parsing,
+    since 3.10's fromisoformat does not accept it). A naive timestamp or
+    a non-UTC offset is refused: the thread's records are compared
+    across sessions and machines, and an ambiguous wall-clock time is
+    exactly the value that would sort wrong later.
     """
     from datetime import datetime, timezone
     if not isinstance(value, str):
@@ -852,10 +856,10 @@ def _created_at_problem(value) -> str | None:
         return (f"{value!r} is not an ISO 8601 timestamp (expected e.g. "
                 f"2026-08-29T14:03:00+00:00)")
     if parsed.tzinfo is None:
-        return (f"{value!r} carries no UTC offset — created_at is ISO 8601 "
+        return (f"{value!r} carries no UTC offset — {field} is ISO 8601 "
                 f"UTC (append +00:00 or Z)")
     if parsed.utcoffset() != timezone.utc.utcoffset(None):
-        return (f"{value!r} is not in UTC — created_at carries a zero "
+        return (f"{value!r} is not in UTC — {field} carries a zero "
                 f"offset (+00:00 or Z), never a local one")
     return None
 
@@ -948,6 +952,118 @@ def validate_exchange_record(record: dict) -> list:
                     f"answers[{i}].question_round: {qr} is not an earlier "
                     f"round than this record's round {rnd} — an answer "
                     f"keys a question already in the thread")
+    return errors
+
+
+# --- Changelog record validation (v0.4.35) ----------------------------------
+#
+# One more LIBRARY entry point in the validate_escalation_record posture:
+# empty list = valid, strings = errors, no __main__ dependency. The record
+# family is claude/changelog/<version>.json, one file per bale version,
+# naming the machine-readable surfaces that version changed
+# (schemas/changelog-record.schema.json is the shape's one home; CODE.md
+# section 8.5 carries the same-response discipline that fills it). The
+# point of a validator here is that omission is loud: a record missing
+# its surfaces list — or any other required key — is an error string,
+# never a quietly thinner record.
+
+# The record's version pin, mirrored from the schema's record_version enum.
+CHANGELOG_RECORD_VERSION = 1
+
+
+def _changelog_version_problem(value) -> str | None:
+    """Return why `value` is not a dotted numeric X.Y.Z version, or None.
+
+    The schema subset has no `pattern` keyword, so the form is checked
+    here. Exactly three dot-separated runs of ASCII digits, no `v`
+    prefix and no suffix: the record names a released bin/VERSION
+    value, and bin/VERSION carries that bare form.
+    """
+    if not isinstance(value, str):
+        return None  # the schema pass already reported the type
+    parts = value.split(".")
+    if len(parts) != 3 or not all(
+            part and part.isascii() and part.isdigit() for part in parts):
+        return (f"{value!r} is not a dotted numeric X.Y.Z version (e.g. "
+                f"0.4.35) — no v prefix, no suffix")
+    return None
+
+
+def _changelog_surface_path_problem(value) -> str | None:
+    """Return why a surface `path` is not repo-relative, or None.
+
+    A surface is named by its repo path so consumers can key on it; an
+    absolute path or a '..' segment names something outside the repo
+    (or the same file two ways), which no consumer can match.
+    """
+    if not isinstance(value, str) or not value:
+        return None  # the schema pass already reported type / minLength
+    if value.startswith("/") or value.startswith("\\"):
+        return (f"{value!r} is absolute — a surface is named by its "
+                f"repo-relative path")
+    if ".." in value.replace("\\", "/").split("/"):
+        return (f"{value!r} carries a '..' segment — a surface is named "
+                f"by its repo-relative path inside the repo")
+    return None
+
+
+def validate_changelog_record(record: dict) -> list:
+    """Validate one changelog record; [] = valid, else human-readable errors.
+
+    The per-record entry point over changelog-record.schema.json
+    (v0.4.35), importable as a library from bin/bale_validate.py, no bale
+    process required — the validate_escalation_record posture exactly:
+
+        errors = validate_changelog_record(json.loads(path.read_text()))
+        if errors: ...
+
+    Two layers:
+
+    1. **Shape** — the schema pass. Loose at the envelope and inside
+       each surface row (additionalProperties: true), so future additive
+       fields keep earlier records validating; what it pins, it pins:
+       the five-field required core (record_version exactly 1, version,
+       session_id, at, surfaces), surfaces non-empty, and each row's
+       path and change. A missing required key is an error, so an
+       omitted surfaces list is loud rather than a thinner record.
+    2. **The rules the schema subset cannot express** — version is
+       dotted numeric X.Y.Z; `at` (and `updated_at` when present) is
+       ISO 8601 with a UTC offset; every surface path is repo-relative.
+
+    The record's file name agreeing with its version
+    (claude/changelog/<version>.json) is a corpus property, not a record
+    property — this function sees the record alone, so the caller
+    holding the path checks it (the test suite does).
+
+    A non-dict argument is reported as an error, not raised. A missing
+    or corrupt schema file raises RuntimeError: an install problem, not
+    a record problem (_load_schema_lib).
+    """
+    if not isinstance(record, dict):
+        return [f"changelog record is not a JSON object "
+                f"(got {_describe_json_value(record)})"]
+    schema = _load_schema_lib(CHANGELOG_RECORD_SCHEMA)
+    errors = validate_against_schema(record, schema)
+
+    problem = _changelog_version_problem(record.get("version"))
+    if problem is not None:
+        errors.append(f"version: {problem}")
+
+    for key in ("at", "updated_at"):
+        if key not in record:
+            continue  # a missing `at` is the schema pass's required-key error
+        problem = _created_at_problem(record[key], field=key)
+        if problem is not None:
+            errors.append(f"{key}: {problem}")
+
+    surfaces = record.get("surfaces")
+    if isinstance(surfaces, list):
+        for i, row in enumerate(surfaces):
+            if not isinstance(row, dict):
+                continue  # the schema pass already reported the type
+            problem = _changelog_surface_path_problem(row.get("path"))
+            if problem is not None:
+                errors.append(f"surfaces[{i}].path: {problem}")
     return errors
 
 

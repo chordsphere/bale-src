@@ -2934,6 +2934,9 @@ CLOSURE_REASONS = (
     "closed-read-only",
     "no_response",
     "malformed_response",
+    # v0.4.35: a harness or operator kill-switch closed the session before
+    # a response (distinct from "abandoned", unlock's inferred default).
+    "aborted",
 )
 
 # The §7.3 reconciliation line as validation.sh conventionally prints it:
