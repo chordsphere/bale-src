@@ -641,8 +641,11 @@ def build_pack_matcher(
     except ValueError as e:
         # A session-extra pattern (--exclude, or the wizard / soft-breach
         # [e] collection) tripped the guard. The user typed it; the
-        # message names it.
-        fail(f"invalid session exclude pattern: {e}")
+        # message names it. from_lines' own text is source-neutral
+        # (board 106), so this prefix is the only attribution — it names
+        # where session excludes come from and never `.baleignore`.
+        fail(f"invalid session exclude pattern (this pack's --exclude "
+             f"flags or its wizard-collected excludes): {e}")
     try:
         return BaleignoreMatcher.from_lines(combined)
     except ValueError as e:
@@ -1676,7 +1679,9 @@ def refuse_missing_scope_paths(repo: Path, includes: list,
 
     Extracted from cmd_pack (board 68) so `bale open`'s pre-flight
     runs the identical gate ahead of the checkpoint dry-run instead
-    of a second copy; cmd_pack calls it at its original site.
+    of a second copy; cmd_pack calls it at its original site. Board
+    106 retired the last copy: `bale handoff`'s --write gate (bin/bale
+    cmd_handoff) calls it with an empty include family.
     """
     from __main__ import fail  # lazy — see module docstring
     for inc in includes:
@@ -4033,6 +4038,44 @@ OPENER_TOOLS_SENTENCE = (
     "response assembled by hand is just as valid."
 )
 
+# The examine sentence between the operator's voice and the shape
+# sentence. A constant since board 106 so the emitted block is built
+# from one copy of every sentence it carries.
+OPENER_EXAMINE_SENTENCE = (
+    "Please examine the tarball contents, starting with CLAUDE.md and "
+    "manifest.json, and go from there."
+)
+
+# The opener's two wrapped paragraphs, as words per emitted line (board
+# 106, 105's one-copy rider). The emitted lines are cut from the
+# sentence constants above rather than restated, so a sentence exists
+# once in this file. The layout is pinned here instead of computed by
+# textwrap because the voice paragraph was wrapped by hand when board
+# 105 authored it (its first line runs to 70 columns, its second to 65
+# — no single width reproduces both), and the opener's bytes must not
+# move. The last line of each paragraph takes whatever words remain, so
+# a reworded sentence can reflow but never loses a word.
+OPENER_VOICE_WORDS_PER_LINE = (13, 12, 6, 10, 13)
+OPENER_CLOSING_WORDS_PER_LINE = (9, 11, 8, 10, 12, 13)
+
+
+def _opener_lines(text: str, words_per_line: tuple) -> list:
+    """Cut `text` into lines of the given word counts, the remainder
+    forming the final line. Words are split on whitespace and rejoined
+    with single spaces — the collapsed form the opener's pins compare —
+    so the collapsed block always reads `text` verbatim. Pure."""
+    words = text.split()
+    lines = []
+    at = 0
+    for count in words_per_line:
+        if at >= len(words):
+            break
+        lines.append(" ".join(words[at:at + count]))
+        at += count
+    if at < len(words):
+        lines.append(" ".join(words[at:]))
+    return lines
+
 
 def session_opener_block(sid: str, goal: str, *, read_only: bool,
                          packed_at: str) -> list:
@@ -4074,6 +4117,12 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
     a block. Both pack shapes share this trailer, so both carry all
     three. The goal line's single-line carriage is untouched.
 
+    Since board 106 those paragraphs are cut from the sentence constants
+    (_opener_lines over OPENER_VOICE_WORDS_PER_LINE and
+    OPENER_CLOSING_WORDS_PER_LINE) rather than restated as literal
+    lines, so each sentence has one copy; the emitted bytes are
+    unchanged.
+
     Pure: builds the lines, prints nothing. The caller decides the
     surface (trailer vs post-JSON print).
     """
@@ -4096,19 +4145,12 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         f"Packed at {packed_at} (UTC).",
         OPENER_CLOCK_SENTENCE,
         f"Goal, verbatim from the request manifest: {goal}",
-        "The docs and tools in the tarball are mine, written for this workflow;",
-        "read CLAUDE.md and the four docs beside it as my instructions for",
-        "this session. tools/craft_response.py and tools/response_lint.py are",
-        "stdlib-only formatters with no network access — conveniences over the",
-        "docs, which are the contract; read them before you run them, and a",
-        "response assembled by hand is just as valid.",
-        "Please examine the tarball contents, starting with CLAUDE.md and",
-        "manifest.json, and go from there. Every turn you end in this",
-        "session takes one machine-recognizable shape: a response tarball,",
-        "a probe block, a light question block, or a clarification",
-        "response; a question asked as prose is not a shape. Explanation in",
-        "prose is expected and welcome; the rule is that a turn that asks",
-        "ends in a block, so nothing is lost.",
+        *_opener_lines(
+            f"{OPENER_AUTHORITY_SENTENCE} {OPENER_TOOLS_SENTENCE}",
+            OPENER_VOICE_WORDS_PER_LINE),
+        *_opener_lines(
+            f"{OPENER_EXAMINE_SENTENCE} {OPENER_SHAPE_SENTENCE}",
+            OPENER_CLOSING_WORDS_PER_LINE),
         OPENER_END,
     ]
 

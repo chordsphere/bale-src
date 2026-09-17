@@ -112,6 +112,12 @@ FORCE_BYPASS_MARKER = "bypassing threshold breach"
 NO_FILES_MARKER = "no files would be included after exclusions"
 INVALID_EXCLUDE_MARKER = "invalid session exclude pattern"
 BALEIGNORE_REFUSAL_MARKER = "invalid pattern in .baleignore"
+# Board 106: BaleignoreMatcher.from_lines' own sentence is source-
+# neutral, so the refusal for a session pattern must not name the file
+# at all; the session prefix names the flag instead.
+MATCHER_NEGATION_SENTENCE = (
+    "negation patterns (lines starting with '!') are not supported")
+BALEIGNORE_NAME = ".baleignore"
 UNTRACKED_DROP_SUFFIX = " (not tracked)"
 TEST_IMPORT_WARNING_LEAD = "warning: included test "
 
@@ -424,6 +430,22 @@ class ExcludeAndBaleignoreTest(PackGuardsBase):
         self.assertIn("!keep", r.stderr)
         self.assert_refused_pre_sid(r.stderr)
 
+    def test_session_exclude_refusal_never_names_the_baleignore_file(
+            self) -> None:
+        """Board 106: with no .baleignore anywhere, the session pattern's
+        refusal carries the matcher's source-neutral sentence under the
+        session prefix, which names --exclude — and nothing in the
+        output points the operator at a file they do not have."""
+        self.write_payload({"payload/f.txt": "x\n"})
+        r = self.pack("--exclude", "!keep")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(MATCHER_NEGATION_SENTENCE, r.stderr)
+        refusal = [ln for ln in r.stderr.splitlines()
+                   if INVALID_EXCLUDE_MARKER in ln]
+        self.assertEqual(len(refusal), 1, msg=r.stderr)
+        self.assertIn("--exclude", refusal[0])
+        self.assertNotIn(BALEIGNORE_NAME, r.stdout + r.stderr)
+
     def test_baleignore_negation_refusal_names_the_file(self) -> None:
         """A negation line in .baleignore on the fully specified CLI path
         (where load_baleignore never pre-validates) refuses attributed to
@@ -438,6 +460,9 @@ class ExcludeAndBaleignoreTest(PackGuardsBase):
         self.assertIn("!keep.py", r.stderr)
         self.assertNotIn(INVALID_EXCLUDE_MARKER, r.stderr)
         self.assert_refused_pre_sid(r.stdout + r.stderr)
+        # Board 106: the file is named by the caller's prefix, not by the
+        # matcher's sentence — the sentence itself stays source-neutral.
+        self.assertIn(MATCHER_NEGATION_SENTENCE + " at v0.1.", r.stderr)
 
     def test_exclude_negation_beside_clean_baleignore_names_session(
             self) -> None:
