@@ -1321,8 +1321,8 @@ def check_docs_read_stub(ctx: dict) -> list[dict]:
 
 
 # DOCS.md §5's standard ADR header line, `- **Date:** YYYY-MM-DD`; the
-# recognizer is content-keyed and path-agnostic (a planner ruling at the
-# clarification round that shaped this check): projects place ADRs under claude/context/adr/,
+# recognizer is content-keyed and path-agnostic, because no one ADR home
+# holds across projects: they place ADRs under claude/context/adr/,
 # adr/, or decisions/, and any .md the response authors with this header
 # is a dated artifact whether or not it is an ADR by path.
 ADR_DATE_HEADER = re.compile(r"^\s*-\s+\*\*Date:\*\*\s+(\d{4}-\d{2}-\d{2})\b")

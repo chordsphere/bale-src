@@ -20,10 +20,21 @@ Three subjects, one family:
   rule is a corpus property the record-alone validator cannot see, so
   it lives here. The corpus must not be empty: 0.4.35 wrote the first
   record, and a vanished directory is a failure, not a pass on nothing.
+- **The current version's record** (2026-09-17-guard-maintenance-006) —
+  claude/changelog/<bin/VERSION>.json exists, validates, and carries
+  bin/VERSION as its version. Every bump carries a record: the family
+  exists primarily for bale's version ladder, so a version with no
+  record is exactly the omission the family is meant to make loud.
+  The corpus test alone cannot see it — a missing file is simply not
+  globbed. 0.4.35's record exists; the pin binds every bump after it,
+  so the session that bumps bin/VERSION writes the record in the same
+  response.
 
 Hermetic and stdlib-only: bale_validate is loaded in-process by path
 through the shared harness (no bale process, no __main__), and the
-schema and records are read from this repo; nothing is written.
+schema, records, and bin/VERSION are read from this repo; nothing is
+written to it (the pin's failure-direction cases build their records
+in a temporary directory).
 
 Run:  python3 tests/test_changelog_record.py
   or: python3 -m unittest discover -s tests -p 'test_changelog_record.py'
@@ -33,6 +44,7 @@ from __future__ import annotations
 
 import copy
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -41,6 +53,7 @@ from harness import _load_module
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schemas" / "changelog-record.schema.json"
 CHANGELOG_DIR = REPO_ROOT / "claude" / "changelog"
+VERSION_PATH = REPO_ROOT / "bin" / "VERSION"
 
 REQUIRED_KEYS = ("record_version", "version", "session_id", "at",
                  "surfaces")
@@ -58,6 +71,29 @@ def minimal_record() -> dict:
              "change": "closure_reason enum gains 'aborted' (additive)"},
         ],
     }
+
+
+def version_record_problems(validate, version: str,
+                            changelog_dir: Path = CHANGELOG_DIR) -> list:
+    """Every reason `version` lacks a good changelog record, [] when it
+    has one. Loud by construction: a missing file, unparseable JSON,
+    validator errors, and a version mismatch each name themselves and
+    the path, so a failing pin says what to write where. Read-only."""
+    path = changelog_dir / f"{version}.json"
+    shown = f"claude/changelog/{version}.json"
+    if not path.is_file():
+        return [f"{shown} is missing — every bin/VERSION needs its "
+                "changelog record, written by the session that bumps it"]
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"{shown} is not readable JSON: {exc}"]
+    problems = [f"{shown}: {e}"
+                for e in validate.validate_changelog_record(record)]
+    if isinstance(record, dict) and record.get("version") != version:
+        problems.append(f"{shown} carries version "
+                        f"{record.get('version')!r}, not {version!r}")
+    return problems
 
 
 class ValidateChangelogRecordTest(unittest.TestCase):
@@ -245,6 +281,69 @@ class ChangelogCorpusTest(unittest.TestCase):
                     record), [])
                 self.assertEqual(path.name, f"{record['version']}.json")
 
+
+class CurrentVersionRecordTest(unittest.TestCase):
+    """bin/VERSION has its changelog record — the missing-record pin."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.validate = _load_module("bale_validate")
+
+    def current_version(self) -> str:
+        self.assertTrue(VERSION_PATH.is_file(),
+                        "bin/VERSION is missing — the pin has no version "
+                        "to bind, which is a failure, not a pass")
+        version = VERSION_PATH.read_text(encoding="utf-8").strip()
+        self.assertTrue(version, "bin/VERSION is empty")
+        return version
+
+    def test_current_version_has_a_valid_record(self) -> None:
+        version = self.current_version()
+        self.assertEqual(
+            version_record_problems(self.validate, version), [],
+            f"bin/VERSION is {version} but its changelog record is not "
+            "in order")
+
+    def test_missing_record_is_loud(self) -> None:
+        """The pin's failure direction, without touching the corpus: a
+        version no record exists for yields a problem naming the path
+        to write."""
+        absent = "0.0.0"
+        self.assertFalse((CHANGELOG_DIR / f"{absent}.json").exists())
+        problems = version_record_problems(self.validate, absent)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("claude/changelog/0.0.0.json is missing",
+                      problems[0])
+
+    def test_wrong_or_broken_record_is_loud(self) -> None:
+        """A record under the version's name that carries another
+        version, fails validation, or is not JSON each fail and name
+        the path. Built in a temp directory; the repo is never
+        written."""
+        with tempfile.TemporaryDirectory() as tmp:
+            changelog = Path(tmp)
+            wrong = minimal_record()
+            wrong["version"] = "9.9.8"
+            (changelog / "9.9.9.json").write_text(json.dumps(wrong),
+                                                  encoding="utf-8")
+            broken = minimal_record()
+            broken["version"] = "9.9.7"
+            del broken["surfaces"]
+            (changelog / "9.9.7.json").write_text(json.dumps(broken),
+                                                  encoding="utf-8")
+            (changelog / "9.9.6.json").write_text("{not json",
+                                                  encoding="utf-8")
+            for version, needle in (("9.9.9", "carries version '9.9.8'"),
+                                    ("9.9.7", "surfaces"),
+                                    ("9.9.6", "not readable JSON")):
+                with self.subTest(version=version):
+                    problems = version_record_problems(
+                        self.validate, version, changelog)
+                    self.assertTrue(problems)
+                    self.assertTrue(
+                        any(needle in p and
+                            f"claude/changelog/{version}.json" in p
+                            for p in problems), problems)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
