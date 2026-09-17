@@ -1,0 +1,649 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-17-board-56-57-changelog-aborted-002",
+  "created_at": "2026-09-17T02:05:05+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-17T02:05:05+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "docs/CODE.md",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests/test_closure_telemetry.py",
+        "tests/test_release_packaging.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-17-board-56-57-changelog-aborted-002.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-17T02:23:18+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-17-board-56-57-changelog-aborted-002.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "declared bump: bin/VERSION and its changelog record agree": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changelog record validates; omitted surfaces is loud": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/bale_report.py touch limited to CLOSURE_REASONS": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_closure_telemetry": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_release_packaging": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "self-containment: docs and schemas incl. changelog-record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "scripts/build.sh pre-flights and release verify": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "release validate.sh (extracted build)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_global_doc_selfcontainment (full suite)": "unknown"
+        },
+        "claim_verdict": {
+          "declared bump: bin/VERSION and its changelog record agree": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changelog record validates; omitted surfaces is loud": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale_report.py touch limited to CLOSURE_REASONS": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_changelog_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_closure_telemetry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_release_packaging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "self-containment: docs and schemas incl. changelog-record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "scripts/build.sh pre-flights and release verify": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "release validate.sh (extracted build)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_global_doc_selfcontainment (full suite)": {
+            "claim": "unknown",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python)",
+          "file syntax (bash -n)",
+          "file syntax (json)",
+          "exec bits (install.sh, scripts/build.sh, validate.sh)",
+          "declared bump: bin/VERSION and its changelog record agree",
+          "changelog record validates; omitted surfaces is loud",
+          "bin/bale_report.py touch limited to CLOSURE_REASONS",
+          "tests: test_changelog_record",
+          "tests: test_closure_telemetry",
+          "tests: test_release_packaging",
+          "tests: test_doc_crossrefs",
+          "tests: test_sanctioned_pairs",
+          "tests: test_schema_embeds",
+          "self-containment: docs and schemas incl. changelog-record",
+          "tests: test_global_doc_selfcontainment (full suite)",
+          "scripts/build.sh pre-flights and release verify",
+          "release validate.sh (extracted build)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "docs/CODE.md",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests/test_closure_telemetry.py",
+        "tests/test_release_packaging.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [
+        "claude/changelog/0.4.35.json",
+        "tests/test_changelog_record.py"
+      ],
+      "overridden_path_sources": {
+        "claude/changelog/0.4.35.json": "prompt",
+        "tests/test_changelog_record.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "claude/changelog/0.4.35.json",
+        "docs/CODE.md",
+        "install.sh",
+        "schemas/changelog-record.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_changelog_record.py",
+        "tests/test_closure_telemetry.py",
+        "tests/test_release_packaging.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.34",
+            "contract_docs": {
+              "CLAUDE.md": "e988918d1725fac6319b6390263769789d33e2f57ab0d2ea39db36ad994601eb",
+              "TARBALL.md": "d193ca8abb0560f47058e3a97616d800d5610e915d01ec27ab1e02999601a4c7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-17-board-56-57-changelog-aborted-002.sh",
+              "sha256": "cbefd8b5eaebe903e7b5fbd699392f23db29558323bcaf0b309ce227154da2bf"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-17T02:05:04+00:00",
+            "base_files": {
+              "bin/VERSION": "1f1673fdef5874a5e9e75a39634b0d001e54cd2fb11b9f3bc21b35de3a204cf9",
+              "bin/bale_report.py": "401e5c8956acafd1ee88c7aec08a7a1290bfa9274860ccc61d03e5623b4158f2",
+              "bin/bale_validate.py": "5df4f47bca2246f1f222066f94a95b012c70a2a6060bdfc3a72aab62ae353f03",
+              "docs/CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "install.sh": "2202b6f18cab7bd97aa709829c81be0c96bbb3f6643c9a78e3cf551ee1c191f8",
+              "schemas/bundle-manifest.schema.json": "7de472e7f32927f3f32800ad3b0bf2947037763244f4f3effaf3025027411b9e",
+              "schemas/diagnostics.schema.json": "4af369855de847f505c2fb0a2d4e3909a1c427622a341e4f0b8aa105bd0fd4ed",
+              "schemas/escalation-record.schema.json": "16729aae82e20425f91b9fb343de6a74d00fa417ce3cd718767413deee550c41",
+              "schemas/exchange-record.schema.json": "c9c291899103c4a73768ef930697722b89c5c3ef8f5b388c78c36741316cddc8",
+              "schemas/request-manifest.schema.json": "0c0486c4582a6d02cb2b4df154e88b6d461e99dd4618cb57d1a23617cc0d2c2a",
+              "schemas/response-manifest.schema.json": "d5ed116271c07c0173e2b91031a1726b65894b1ab162de970242ebe4defb3b52",
+              "schemas/telemetry-record.schema.json": "09b2e98537698f06334443ee427621812d9bfd1360971bf6809fa593cd62f84c",
+              "scripts/build.sh": "b3827cba0ef9570e5c07ee1b425fd892677b67e3e3f8391f521133bae5d295db",
+              "tests/test_closure_telemetry.py": "83cf332977a3f912faf9b65a2b3383ed6120b9fb8fa8d5dd16c33f55b133f205",
+              "tests/test_release_packaging.py": "958401f310d33886d0d689b7fb9dc3543c372c87f9e3497339813e9dbe72bb45",
+              "validate.sh": "f42ef4eef92eba9e95d929f1162bc13214e761e23f06dbdba4acb06e74db6147"
+            },
+            "model_identity": "Claude Opus 5 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The request's context/ copies are the operator's base (every base_files stamp matched); the tools/ citation drift is assumed present in the real tree too, which tools/ base stamps cannot confirm",
+            "A version's record lists machine-readable surfaces only; bin/VERSION itself is the record's version key, not a surface row"
+          ],
+          "judgment_calls": [
+            "Discipline sentence homed as new CODE.md \u00a78.5 (Meta Code): CODE.md has no release-list rules for it to sit beside",
+            "Optional per-row session_id on surfaces[] so a same-version append by a sibling session stays attributed",
+            "surfaces minItems 1: a version with no machine-readable change writes no record",
+            "_created_at_problem generalized with a field parameter rather than copied",
+            "Full self-containment suite: tools/-only failures report as SKIP naming the files, anything else FAILs",
+            "upgrade.sh REQUIRED_RELEASE_MEMBERS left alone, per the exchange-record packaging precedent"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the CLOSURE_REASONS parity suite bin/bale_validate.py cites (likely tests/test_telemetry_extensions.py) \u2014 whether it lists the vocabulary literally decides if it needs 'aborted'"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "CLAUDE.md",
+            "TARBALL.md",
+            "CODE.md",
+            "DOCS.md"
+          ],
+          "light_blocks": 1,
+          "forecast_departures": [
+            {
+              "path": "claude/changelog/0.4.35.json",
+              "why": "row 56's first record is this version's own; claude/changelog/ did not exist at pack, so no forecast entry could name it (the brief and constraints pre-authorize it as ship-enumerate-admit)"
+            },
+            {
+              "path": "tests/test_changelog_record.py",
+              "why": "tests ship with code: validate_changelog_record needs a suite, and no existing forecast test file is its subject (pre-authorized ship-enumerate-admit)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-17-board-56-57-changelog-aborted-002.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-17-board-56-57-changelog-aborted-002.sh",
+          "sha256": "cbefd8b5eaebe903e7b5fbd699392f23db29558323bcaf0b309ce227154da2bf"
+        },
+        "stamp_matched": true,
+        "failed_probes": [
+          "release-schema-and-doc-suites-pass"
+        ]
+      }
+    },
+    {
+      "at": "2026-09-17T02:54:24+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-17-board-56-57-changelog-aborted-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "declared bump: bin/VERSION and its changelog record agree": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changelog record validates; omitted surfaces is loud": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bin/bale_report.py touch limited to CLOSURE_REASONS": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_closure_telemetry": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_release_packaging": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_sanctioned_pairs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_schema_embeds": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "self-containment: docs and schemas incl. changelog-record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "scripts/build.sh pre-flights and release verify": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "release validate.sh (extracted build)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_global_doc_selfcontainment (full suite)": "unknown"
+        },
+        "claim_verdict": {
+          "declared bump: bin/VERSION and its changelog record agree": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changelog record validates; omitted surfaces is loud": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bin/bale_report.py touch limited to CLOSURE_REASONS": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_changelog_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_closure_telemetry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_release_packaging": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_sanctioned_pairs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_schema_embeds": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "self-containment: docs and schemas incl. changelog-record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "scripts/build.sh pre-flights and release verify": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "release validate.sh (extracted build)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_global_doc_selfcontainment (full suite)": {
+            "claim": "unknown",
+            "verdict": "pass",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python)",
+          "file syntax (bash -n)",
+          "file syntax (json)",
+          "exec bits (install.sh, scripts/build.sh, validate.sh)",
+          "declared bump: bin/VERSION and its changelog record agree",
+          "changelog record validates; omitted surfaces is loud",
+          "bin/bale_report.py touch limited to CLOSURE_REASONS",
+          "tests: test_changelog_record",
+          "tests: test_closure_telemetry",
+          "tests: test_release_packaging",
+          "tests: test_doc_crossrefs",
+          "tests: test_sanctioned_pairs",
+          "tests: test_schema_embeds",
+          "self-containment: docs and schemas incl. changelog-record",
+          "tests: test_global_doc_selfcontainment (full suite)",
+          "scripts/build.sh pre-flights and release verify",
+          "release validate.sh (extracted build)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "docs/CODE.md",
+        "install.sh",
+        "schemas",
+        "scripts/build.sh",
+        "tests/test_closure_telemetry.py",
+        "tests/test_release_packaging.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [
+        "claude/changelog/0.4.35.json",
+        "tests/test_changelog_record.py"
+      ],
+      "overridden_path_sources": {
+        "claude/changelog/0.4.35.json": "prompt",
+        "tests/test_changelog_record.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_validate.py",
+        "claude/changelog/0.4.35.json",
+        "docs/CODE.md",
+        "install.sh",
+        "schemas/changelog-record.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "scripts/build.sh",
+        "tests/test_changelog_record.py",
+        "tests/test_closure_telemetry.py",
+        "tests/test_release_packaging.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.34",
+            "contract_docs": {
+              "CLAUDE.md": "e988918d1725fac6319b6390263769789d33e2f57ab0d2ea39db36ad994601eb",
+              "TARBALL.md": "d193ca8abb0560f47058e3a97616d800d5610e915d01ec27ab1e02999601a4c7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-17-board-56-57-changelog-aborted-002.sh",
+              "sha256": "cbefd8b5eaebe903e7b5fbd699392f23db29558323bcaf0b309ce227154da2bf"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-17T02:05:04+00:00",
+            "base_files": {
+              "bin/VERSION": "1f1673fdef5874a5e9e75a39634b0d001e54cd2fb11b9f3bc21b35de3a204cf9",
+              "bin/bale_report.py": "401e5c8956acafd1ee88c7aec08a7a1290bfa9274860ccc61d03e5623b4158f2",
+              "bin/bale_validate.py": "5df4f47bca2246f1f222066f94a95b012c70a2a6060bdfc3a72aab62ae353f03",
+              "docs/CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "install.sh": "2202b6f18cab7bd97aa709829c81be0c96bbb3f6643c9a78e3cf551ee1c191f8",
+              "schemas/bundle-manifest.schema.json": "7de472e7f32927f3f32800ad3b0bf2947037763244f4f3effaf3025027411b9e",
+              "schemas/diagnostics.schema.json": "4af369855de847f505c2fb0a2d4e3909a1c427622a341e4f0b8aa105bd0fd4ed",
+              "schemas/escalation-record.schema.json": "16729aae82e20425f91b9fb343de6a74d00fa417ce3cd718767413deee550c41",
+              "schemas/exchange-record.schema.json": "c9c291899103c4a73768ef930697722b89c5c3ef8f5b388c78c36741316cddc8",
+              "schemas/request-manifest.schema.json": "0c0486c4582a6d02cb2b4df154e88b6d461e99dd4618cb57d1a23617cc0d2c2a",
+              "schemas/response-manifest.schema.json": "d5ed116271c07c0173e2b91031a1726b65894b1ab162de970242ebe4defb3b52",
+              "schemas/telemetry-record.schema.json": "09b2e98537698f06334443ee427621812d9bfd1360971bf6809fa593cd62f84c",
+              "scripts/build.sh": "b3827cba0ef9570e5c07ee1b425fd892677b67e3e3f8391f521133bae5d295db",
+              "tests/test_closure_telemetry.py": "83cf332977a3f912faf9b65a2b3383ed6120b9fb8fa8d5dd16c33f55b133f205",
+              "tests/test_release_packaging.py": "958401f310d33886d0d689b7fb9dc3543c372c87f9e3497339813e9dbe72bb45",
+              "validate.sh": "f42ef4eef92eba9e95d929f1162bc13214e761e23f06dbdba4acb06e74db6147"
+            },
+            "model_identity": "Claude Opus 5 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The request's context/ copies are the operator's base (every base_files stamp matched); the tools/ citation drift is assumed present in the real tree too, which tools/ base stamps cannot confirm",
+            "A version's record lists machine-readable surfaces only; bin/VERSION itself is the record's version key, not a surface row"
+          ],
+          "judgment_calls": [
+            "Discipline sentence homed as new CODE.md \u00a78.5 (Meta Code): CODE.md has no release-list rules for it to sit beside",
+            "Optional per-row session_id on surfaces[] so a same-version append by a sibling session stays attributed",
+            "surfaces minItems 1: a version with no machine-readable change writes no record",
+            "_created_at_problem generalized with a field parameter rather than copied",
+            "Full self-containment suite: tools/-only failures report as SKIP naming the files, anything else FAILs",
+            "upgrade.sh REQUIRED_RELEASE_MEMBERS left alone, per the exchange-record packaging precedent"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "the CLOSURE_REASONS parity suite bin/bale_validate.py cites (likely tests/test_telemetry_extensions.py) \u2014 whether it lists the vocabulary literally decides if it needs 'aborted'"
+          ],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "CLAUDE.md",
+            "TARBALL.md",
+            "CODE.md",
+            "DOCS.md"
+          ],
+          "light_blocks": 1,
+          "forecast_departures": [
+            {
+              "path": "claude/changelog/0.4.35.json",
+              "why": "row 56's first record is this version's own; claude/changelog/ did not exist at pack, so no forecast entry could name it (the brief and constraints pre-authorize it as ship-enumerate-admit)"
+            },
+            {
+              "path": "tests/test_changelog_record.py",
+              "why": "tests ship with code: validate_changelog_record needs a suite, and no existing forecast test file is its subject (pre-authorized ship-enumerate-admit)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-17-board-56-57-changelog-aborted-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-17-board-56-57-changelog-aborted-002.sh",
+          "sha256": "cbefd8b5eaebe903e7b5fbd699392f23db29558323bcaf0b309ce227154da2bf"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-17T02:54:24+00:00",
+  "outcome": "applied"
+}
