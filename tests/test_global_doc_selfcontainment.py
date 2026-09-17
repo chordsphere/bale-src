@@ -3,7 +3,9 @@
 PLANNER.md joined the scanned set at 2026-08-16-planner-birth-003;
 the injected tools and the citation shapes joined at
 2026-08-31-global-doc-purge-004; the install-shipped schemas and
-their own deny table joined at 2026-08-31-guard-deny-shapes-022).
+their own deny table joined at 2026-08-31-guard-deny-shapes-022;
+the changelog-record schema and the hyphenated board shape joined at
+2026-09-17-guard-maintenance-006).
 
 The injected surface bale ships into every request is self-contained:
 it cites only the five global docs — docs/CLAUDE.md, docs/TARBALL.md,
@@ -43,8 +45,11 @@ citations, and those are numbered forms, not fixed strings, so this
 half is necessarily patterns. The original "literal substrings, not
 a heuristic" framing is amended honestly rather than quietly
 outgrown: the substring half stays literal, and the pattern half is
-kept to two tightly anchored shapes (word-boundary + digits, no
-fuzzier) so the false-positive surface stays near zero:
+kept to tightly anchored shapes (word-boundary + digits, no
+fuzzier) so the false-positive surface stays near zero. It was two
+shapes until 2026-09-17; the third, hyphenated board form carries one
+extra anchor, the sid awareness, and is amended in here in the same
+honest spirit rather than slipped in:
 
 - ``evidence <digits>`` — the "(evidence N)" ledger citations. The
   bare word "evidence" stays legal; only the numbered form is a
@@ -53,6 +58,26 @@ fuzzier) so the false-positive surface stays near zero:
   ("board 33", "board row 54", "board 49b"). The word-boundary
   anchor keeps "keyboard"/"dashboard" out; version strings
   ("v0.3.21") never match.
+- ``board-<digits>`` / ``board-row-<digits>`` — the hyphenated board
+  citation ("board-13c"), one hyphen away from the form above and
+  the same citation (desk ruling, 2026-09-17). It needs one more
+  anchor than its spaced twin, because session ids are kebab tokens
+  that legitimately carry ``board-<digits>``
+  (``2026-09-16-board-96-crafter-85-light-block-002``) and sids are
+  lineage, not citations. The anchor is sid-aware by token, not by
+  a fixed prefix: the match must begin a kebab token (no word
+  character or hyphen before it), and no hyphen-separated segment
+  between that start and ``board`` may open a ``YYYY-MM-DD-`` date.
+  So a sid is tolerated wherever ``board-`` sits in its slug
+  (``2026-09-17-fx-board-12-cleanup-003``) and however it is
+  prefixed (``response-<sid>.tar.gz``, a checkpoint path), while a
+  bare ``board-13c``, a parenthesized one, or an undated kebab
+  fragment (``fx-board-12``) still fails. ``keyboard-1``/``onboard-3``
+  stay out on the token-start anchor. The one known blind spot is a
+  sid hard-wrapped at the hyphen before ``board`` — the line scan
+  sees a bare ``board-<digits>`` there and fails it, which errs
+  loud; re-wrap the sid. ``BoardHyphenAnchorTest`` pins both
+  directions on specimens independent of the scanned tree.
 
 A third half rides beside the substrings and the citation shapes:
 the pointer class (the 2026-09-01 reachability cleanup). "the
@@ -73,7 +98,11 @@ The third scan group is the install-shipped schemas — the five
 non-embedded schemas the 2026-08-31 schema purge (board row 66,
 session ...-board-66-schema-purge-015) made self-contained:
 request-manifest, telemetry-record, escalation-record,
-exchange-record, bundle-manifest. They are not injected into
+exchange-record, bundle-manifest — plus changelog-record, which
+landed self-contained at v0.4.35 and joined the group at
+2026-09-17-guard-maintenance-006 (the docstring's own instruction:
+the group is updated alongside the schemas tree, and the schema
+ships with every install). They are not injected into
 requests, but they ship with every bale install and are reachable
 from any project the same way the tools pair is, so a project-local
 citation in a schema description dangles everywhere except this
@@ -96,7 +125,12 @@ it so a failure names the ratified shape it violated. One
 mechanism note: the ratified text reads "board followed by digits";
 this table reuses the docs group's row-tolerant anchor (``board
 row 66`` is the purge's own citation form), which is strictly
-wider. There is deliberately NO dated-citation shape: the purge's
+wider. A second mechanism note, from 2026-09-17: the hyphenated
+board row (``board-<digits>``, sid-aware, half two above) rides in
+this table too, as the same shared compiled pattern. That is the
+ratified board form widened by one hyphen per the desk ruling that
+the guard catch it — the board row this table already carries, not
+a step toward convergence; every other row stays per-surface. There is deliberately NO dated-citation shape: the purge's
 one dated rewrite was editorial judgment beyond the literal deny
 set, and any date anchor collides with created_at and session-id
 examples in the scanned files. ADR-number and PLANNER.md-section
@@ -153,6 +187,18 @@ DENIED_SUBSTRINGS = (
     "claude/INDEX.md",
 )
 
+# The hyphenated board citation, sid-aware (docstring, half two, carries
+# the design): a match must open a kebab token — nothing word-like or a
+# hyphen before it — and no hyphen-separated segment between that token
+# start and "board" may open a YYYY-MM-DD- date, so a session id carrying
+# board-<digits> anywhere in its slug, however prefixed, never matches.
+# One compiled object shared by both deny tables, so they cannot drift.
+BOARD_HYPHEN_LABEL = "board-<digits> / board-row-<digits> (sid-aware)"
+BOARD_HYPHEN_PATTERN = re.compile(
+    r"(?<![\w-])"                          # opens a kebab token
+    r"(?:(?!\d{4}-\d{2}-\d{2}-)\w+-)*"     # undated leading segments only
+    r"board(?:-row)?-\d")
+
 # Half two: citation shapes — numbered forms with no literal spelling.
 # Keep each pattern tightly anchored (docstring carries the honesty
 # note on why this half is patterns); label first, so failures read.
@@ -160,6 +206,7 @@ DENIED_PATTERNS = (
     ("evidence <digits>", re.compile(r"\bevidence \d")),
     ("board <digits> / board row <digits>",
      re.compile(r"\bboard(?: row)? \d")),
+    (BOARD_HYPHEN_LABEL, BOARD_HYPHEN_PATTERN),
 )
 
 # Half three: the pointer class — matched over the whole text, with
@@ -175,12 +222,13 @@ DENIED_WRAPPED_PATTERNS = (
 )
 
 # The third scan group: the five non-embedded install-shipped schemas
-# the 2026-08-31 schema purge made self-contained (docstring carries
+# the 2026-08-31 schema purge made self-contained, plus changelog-record
+# (landed self-contained at v0.4.35) (docstring carries
 # the group's rationale and why diagnostics/response-manifest stay
 # out). Update alongside the schemas tree if the install set changes.
 INSTALL_SCHEMAS = ("request-manifest", "telemetry-record",
                    "escalation-record", "exchange-record",
-                   "bundle-manifest")
+                   "bundle-manifest", "changelog-record")
 
 SCANNED_SCHEMAS = tuple(
     f"schemas/{name}.schema.json" for name in INSTALL_SCHEMAS)
@@ -197,6 +245,7 @@ SCHEMA_DENIED_SUBSTRINGS = (
 SCHEMA_DENIED_PATTERNS = (
     ("board <digits> / board row <digits>",
      re.compile(r"\bboard(?: row)? \d")),
+    (BOARD_HYPHEN_LABEL, BOARD_HYPHEN_PATTERN),
     ("evidence <digits>", re.compile(r"\bevidence \d")),
     ("S<digit> sitting form", re.compile(r"\bS[0-9]\b")),
     ("session <letter> residue", re.compile(r"\bsession [A-D]\b")),
@@ -336,6 +385,80 @@ class GlobalDocSelfContainment(unittest.TestCase):
                         lambda line, p=pattern: p.search(line)
                         is not None,
                         doctrine=self.SCHEMA_DOCTRINE)
+
+
+class BoardHyphenAnchorTest(unittest.TestCase):
+    """The sid-aware hyphenated board anchor, graded both directions on
+    specimens that do not depend on the scanned tree — a clean tree
+    proves only that nothing is there to catch, never that the shape
+    would catch it (module docstring, half two, carries the design)."""
+
+    # Citations: every one must match.
+    CITATIONS = (
+        # The live leftover this shape was ruled in to catch, verbatim
+        # from tools/craft_response.py before its rewrite.
+        "    Separable (fold-in: board-13c via the registry): `--fragment`",
+        "board-13c",
+        "(board-13c)",
+        "see board-row-54 for the ruling",
+        "claude/board-7 notes",
+        "the board-50 fold-in",
+        "an undated kebab fragment fx-board-12 is not a sid",
+        "a date apart from it is no sid: 2026-09-16 board-13c",
+        "board-13c beside a sid 2026-09-16-board-96-x-002",
+    )
+
+    # Session ids and look-alikes: none may match.
+    TOLERATED = (
+        # The live sid in tools/craft_response.py, verbatim.
+        "# session (2026-09-16-board-96-crafter-85-light-block-002).",
+        "2026-09-16-board-96-crafter-85-light-block-002",
+        "2026-09-17-fx-board-12-cleanup-003",
+        "2026-09-16-board-row-54-fold-001",
+        "response-2026-09-16-board-96-crafter-85-light-block-002.tar.gz",
+        "claude/checkpoints/2026-09-16-board-96-x-002.sh",
+        "keyboard-1",
+        "dashboard-2 widget",
+        "onboard-3",
+        "billboard-9",
+        "board-level decision",
+        "v0.3.21",
+    )
+
+    def test_citations_match(self):
+        for text in self.CITATIONS:
+            with self.subTest(text=text):
+                self.assertIsNotNone(
+                    BOARD_HYPHEN_PATTERN.search(text),
+                    f"hyphenated board citation not caught: {text!r}")
+
+    def test_session_ids_and_lookalikes_tolerated(self):
+        for text in self.TOLERATED:
+            with self.subTest(text=text):
+                match = BOARD_HYPHEN_PATTERN.search(text)
+                self.assertIsNone(
+                    match,
+                    f"sid or look-alike flagged as a citation: {text!r} "
+                    f"(matched {match.group(0) if match else ''!r})")
+
+    def test_both_deny_tables_carry_the_shared_row(self):
+        """One compiled object in both tables, so the docs-and-tools
+        and schema groups cannot drift on this row."""
+        for name, table in (("DENIED_PATTERNS", DENIED_PATTERNS),
+                            ("SCHEMA_DENIED_PATTERNS",
+                             SCHEMA_DENIED_PATTERNS)):
+            with self.subTest(table=name):
+                rows = [p for label, p in table
+                        if label == BOARD_HYPHEN_LABEL]
+                self.assertEqual(len(rows), 1)
+                self.assertIs(rows[0], BOARD_HYPHEN_PATTERN)
+
+    def test_changelog_schema_is_scanned(self):
+        """changelog-record ships with every install (v0.4.35), so it
+        rides in the schema group — and the presence test then fails
+        loud if it moves."""
+        self.assertIn("schemas/changelog-record.schema.json",
+                      SCANNED_SCHEMAS)
 
 
 if __name__ == "__main__":

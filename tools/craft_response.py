@@ -2029,7 +2029,7 @@ def build_validation_epilogue(executables: list[str],
     each part carrying its own paste-placement instruction, the worker
     cutting at the banners.
 
-    Separable (fold-in: board-13c via the registry): `--fragment`
+    Separable (one part per call, nothing to cut): `--fragment`
     emits exactly one part, so each can be pasted straight where its
     instruction says — `definitions` before the checks, `assertions`
     with the session-specific assertions, `call` last — and pasting
