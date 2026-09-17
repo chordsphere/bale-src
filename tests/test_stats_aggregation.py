@@ -30,6 +30,17 @@ half); and an effective ``required_check_overrides`` entry on an
 applied attempt. Pre-epoch key absence is the original eighteen
 records, which the ``checkpoint`` coverage row counts as lacking.
 
+The stats micro (rows 86 + 98, 2026-09-17) adds two applied ``code``
+records dated 2026-06-30 — inside every existing window, before the
+``--since`` fixture — for the new corpus read sides: a handoff-origin
+session (an ``opened`` attempt with command ``handoff`` prepended, the
+open-time stamp ``persist_pack_session`` writes) that also carries a
+promoted ``rounds: 1`` stamp beside its self-reported clarification
+linkage, ``light_blocks: 2``, ``paste_carried_rounds: 1``, and a
+tarball-layout ``context/docs/...`` docs_read; and a sibling whose
+docs_read spells ``docs/CLAUDE.md`` repo-relative, so the two spellings
+aggregate to one token. Neither carries a checkpoint stamp.
+
 Oracle doctrine per ADR-0002: observable-state assertions against the
 documented contract — the ``--json`` line is asserted key-by-key from
 hand-derived expectations, never compared byte-for-byte to a golden
@@ -119,22 +130,35 @@ class StatsAggregationTest(unittest.TestCase):
 
         self.assertEqual(stats["outcome"], "stats")
 
-        # Corpus context: 29 files = 27 records + 1 parse failure + 1
+        # Corpus context: 31 files = 29 records + 1 parse failure + 1
         # filtered future version; one read-only and one crash-debris
-        # session leave 25 classed members, six of them in-flight (the
+        # session leave 27 classed members, six of them in-flight (the
         # original held session, the four checkpoint-HOLD shapes, and
-        # the required-check-refused session).
+        # the required-check-refused session). The two stats-micro
+        # records add one validated apply and one check each; the
+        # handoff record's opened attempt is not a response attempt.
         self.assertEqual(stats["corpus"], {
-            "records": 27,
+            "records": 29,
             "parse_failures": 1,
             "filtered_record_versions": 1,
             "read_only_sessions": 1,
             "crash_debris_sessions": 1,
-            "sessions": 25,
+            "sessions": 27,
             "in_flight_sessions": 6,
-            "response_attempts": 26,
-            "validated_attempts": 22,
-            "checks": 27,
+            "response_attempts": 28,
+            "validated_attempts": 24,
+            "checks": 29,
+            # The stats micro keys (hand-derived in
+            # test_stats_micro_corpus_keys below).
+            "handoff_origin_sessions": 1,
+            "docs_read": {
+                "sessions": 2,
+                "tokens": {"5": 1, "7": 1, "docs/CLAUDE.md": 2,
+                           "docs/TARBALL.md": 1, "sections": 1},
+            },
+            "light_blocks_total": 2,
+            "paste_carried_rounds_total": 1,
+            "clarification_rounds_total": 5,
         })
 
         # Epoch: minimum created_at, and the pre-epoch statement is the
@@ -147,7 +171,8 @@ class StatsAggregationTest(unittest.TestCase):
         # Coverage by key presence: the two earliest records lack the
         # closure_reason key (pre-v0.3.16 shapes); eleven records carry
         # a clarification stamp (seven original + the four session-D
-        # applied closes), so sixteen of twenty-seven lack it.
+        # applied closes); the two stats-micro records carry both keys,
+        # so the lacking counts hold at two and sixteen of twenty-nine.
         self.assertEqual(stats["coverage"]["closure_reason"], {
             "first_sid": "2026-06-05-fx-applied-001",
             "records_lacking": 2,
@@ -161,30 +186,34 @@ class StatsAggregationTest(unittest.TestCase):
         # fixture with a validated attempt. The required-check-refused
         # record does NOT carry it (validation never ran; the
         # always-stamp rule's other half), so it counts among the
-        # nineteen lacking, beside the eighteen pre-epoch originals.
+        # twenty-one lacking, beside the eighteen pre-epoch originals
+        # and the two stamp-less stats-micro records.
         self.assertEqual(stats["coverage"]["checkpoint"], {
             "first_sid": "2026-06-21-fx-ckpt-zero-001",
-            "records_lacking": 19,
+            "records_lacking": 21,
         })
 
         # The scopeless overload: [] scope with NO closure_reason key is
         # NOT read-only (detection keys on closure_reason, never scope) —
         # exactly one session (the swept unlock) is the read-only count,
         # and the scopeless-applied session's class row proves it landed
-        # in the rates (its check is part of code's 13).
+        # in the rates (its check is part of code's checks).
         self.assertEqual(stats["corpus"]["read_only_sessions"], 1)
 
         code = stats["classes"]["code"]
-        self.assertEqual(code["sessions"], 18)
-        self.assertEqual(code["closed_sessions"], 12)
-        self.assertEqual(code["response_attempts"], 20)
-        self.assertEqual(code["validated_attempts"], 17)
+        # The two stats-micro records are applied code sessions: +2
+        # sessions, closed sessions, response and validated attempts,
+        # checks, and agreeing checks throughout this row.
+        self.assertEqual(code["sessions"], 20)
+        self.assertEqual(code["closed_sessions"], 14)
+        self.assertEqual(code["response_attempts"], 22)
+        self.assertEqual(code["validated_attempts"], 19)
         # checks: superseded HOLD attempts included (attempt history is
         # the point) and the rolled-back session's applied attempt stays
         # in every mechanical denominator; each session-D fixture adds
         # one check.
-        self.assertEqual(code["checks"], 22)
-        self.assertEqual(code["checks_agree"], 18)
+        self.assertEqual(code["checks"], 24)
+        self.assertEqual(code["checks_agree"], 20)
         self.assertEqual(code["checks_disagree"], 3)
         # The named residual: the hold-retry session's [n/a] check
         # (claim "unknown", verdict "skip") lands in checks_na — every
@@ -192,25 +221,26 @@ class StatsAggregationTest(unittest.TestCase):
         # bucket — and STAYS in agreement_rate's all-checks denominator
         # (D2: naming the residual does not redefine the rate).
         self.assertEqual(code["checks_na"], 1)
-        self.assertAlmostEqual(code["agreement_rate"], 18 / 22)
+        self.assertAlmostEqual(code["agreement_rate"], 20 / 24)
         self.assertEqual(code["unparsed_validated_attempts"], 0)
         self.assertEqual(code["held_attempts"], 6)
-        self.assertAlmostEqual(code["hold_rate"], 6 / 17)
+        self.assertAlmostEqual(code["hold_rate"], 6 / 19)
         self.assertEqual(code["drift_refused_attempts"], 1)
-        self.assertAlmostEqual(code["drift_refusal_rate"], 1 / 20)
+        self.assertAlmostEqual(code["drift_refusal_rate"], 1 / 22)
         self.assertEqual(code["override_attempts"], 1,
                          msg="override incidence is a count beside the "
                              "drift refusals, not a rate")
         self.assertEqual(code["bailout_sessions"], 1)
-        self.assertEqual(code["sessions_with_response_attempt"], 18)
-        self.assertAlmostEqual(code["bailout_rate"], 1 / 18)
+        self.assertEqual(code["sessions_with_response_attempt"], 20)
+        self.assertAlmostEqual(code["bailout_rate"], 1 / 20)
         # Clarification epoch: only closed sessions whose closing attempt
         # carries the stamp; rounds >= 1 clarifies. The four session-D
         # applied closes carry the known-zero stamp, widening the epoch
-        # denominator without clarifying.
-        self.assertEqual(code["clarified_sessions"], 1)
-        self.assertEqual(code["clarification_epoch_sessions"], 8)
-        self.assertAlmostEqual(code["clarification_rate"], 1 / 8)
+        # denominator without clarifying. The stats-micro pair widens it
+        # by two, and the handoff record's rounds: 1 stamp clarifies.
+        self.assertEqual(code["clarified_sessions"], 2)
+        self.assertEqual(code["clarification_epoch_sessions"], 10)
+        self.assertAlmostEqual(code["clarification_rate"], 2 / 10)
 
         # -- board 6 session D: the checkpoint rows (D4.2) ------------
         # The denominator is validated attempts whose stamp reads
@@ -294,7 +324,7 @@ class StatsAggregationTest(unittest.TestCase):
         # read-only and crash-debris never appear, the superseded parent
         # shows under its reason, in-flight sits beside the mix.
         self.assertEqual(stats["closure_mix"], {
-            "applied": 16,
+            "applied": 18,
             "reverted": 0,
             "bailout": 1,
             "unlocked": {"abandoned": 1, "superseded-by-split": 1},
@@ -305,16 +335,17 @@ class StatsAggregationTest(unittest.TestCase):
         # session agrees in both directions, one is self-reported-only,
         # one promoted-only; and the bailed session that self-reported
         # budget_pressure "none" is exactly the miscalibration the
-        # stream exists to surface.
+        # stream exists to surface. The handoff record agrees in both
+        # directions (linkage kind clarification beside rounds: 1).
         self.assertEqual(stats["cross_checks"]["clarification"], {
-            "self_reported_sessions": 2,
-            "promoted_sessions": 2,
-            "both": 1,
+            "self_reported_sessions": 3,
+            "promoted_sessions": 3,
+            "both": 2,
             "self_only": 1,
             "promoted_only": 1,
         })
         self.assertEqual(stats["cross_checks"]["budget"], {
-            "pressure": {"none": 21, "tight": 2, "unreported": 2},
+            "pressure": {"none": 23, "tight": 2, "unreported": 2},
             "bailed_with_pressure_none": 1,
         })
 
@@ -322,6 +353,45 @@ class StatsAggregationTest(unittest.TestCase):
         # named on stderr — never a crash, never a silent skip.
         self.assertIn(CORRUPT_NAME, stderr)
         self.assertIn(FILTERED_NAME, stderr)
+
+    def test_stats_micro_corpus_keys(self) -> None:
+        """Rows 86 + 98 and the two self-reported counts, hand-derived
+        over the fixture corpus (the expectations test_full_corpus_json
+        pins inside the corpus dict, derived here line by line)."""
+        self.seed_corpus()
+        stats, _ = self.stats_json()
+        corpus = stats["corpus"]
+        # Row 86: exactly one record carries an opened attempt whose
+        # command is handoff; every other opened-less record reads False.
+        self.assertEqual(corpus["handoff_origin_sessions"], 1)
+        # Row 98: the handoff record reads context/docs/CLAUDE.md and
+        # "context/docs/TARBALL.md (sections 5, 7)"; its sibling reads
+        # docs/CLAUDE.md. One leading context/ strips at read time, the
+        # free-text entry splits on whitespace and sheds surrounding
+        # punctuation, so the two CLAUDE.md spellings are ONE token.
+        self.assertEqual(corpus["docs_read"]["sessions"], 2)
+        self.assertEqual(corpus["docs_read"]["tokens"]["docs/CLAUDE.md"], 2)
+        self.assertNotIn("context/docs/CLAUDE.md",
+                         corpus["docs_read"]["tokens"],
+                         msg="the tarball-layout spelling never survives "
+                             "as its own token")
+        # The self-reported counts: only the handoff record carries
+        # them; every other record lacks both keys and counts 0 without
+        # failing to aggregate.
+        self.assertEqual(corpus["light_blocks_total"], 2)
+        self.assertEqual(corpus["paste_carried_rounds_total"], 1)
+        # Stamped rounds over membership: clar-match 2 + clar-promoted 1
+        # + the handoff record's 1 = 4; plus its one paste-carried round
+        # = 5. A paste-carried round counts as a round.
+        self.assertEqual(corpus["clarification_rounds_total"], 5)
+        # Filters reach the membership totals like every sibling: the
+        # doc class carries none of the new facts.
+        doc_only, _ = self.stats_json("--work-class", "doc")
+        self.assertEqual(doc_only["corpus"]["handoff_origin_sessions"], 0)
+        self.assertEqual(doc_only["corpus"]["docs_read"],
+                         {"sessions": 0, "tokens": {}})
+        self.assertEqual(doc_only["corpus"]["paste_carried_rounds_total"],
+                         0)
 
     # -- filters ----------------------------------------------------------
 
@@ -360,7 +430,7 @@ class StatsAggregationTest(unittest.TestCase):
                          msg="context counts honor the since-window")
         # …while the whole-corpus facts stay corpus facts: the epoch is
         # the corpus's true start and records counts every loaded file.
-        self.assertEqual(stats["corpus"]["records"], 27)
+        self.assertEqual(stats["corpus"]["records"], 29)
         self.assertEqual(stats["epoch"]["first_sid"],
                          "2026-06-01-fx-pre-cr-001")
 
@@ -422,6 +492,13 @@ class StatsAggregationTest(unittest.TestCase):
                       "2026-06-21-fx-ckpt-zero-001", out)
         self.assertIn("epoch: corpus begins 2026-06-01T10:00:00+00:00", out)
         self.assertIn("closure mix:", out)
+        # The stats micro rows: the docs_read line with the normalized
+        # token first (most-read), and the summary rows above filters.
+        self.assertIn("docs read: 2 reporting sessions [docs/CLAUDE.md 2",
+                      out)
+        self.assertIn("handoff-origin", out)
+        self.assertIn("5 (4 stamped + 1 paste-carried)", out)
+        self.assertIn("light blocks", out)
         # Trailing summary block last, and NO next-step hint after it —
         # stats is terminal, not a lifecycle step. The last non-empty
         # line is therefore a summary row, not a hint sentence.

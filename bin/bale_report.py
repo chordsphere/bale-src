@@ -3662,6 +3662,45 @@ def format_stats_json(stats: dict) -> str:
                   response_attempts / validated_attempts / checks
                                             membership attempt totals
                                             (D2 units)
+                  handoff_origin_sessions   (row 86, additive) membership
+                                            sessions whose open-time
+                                            stamp — the `opened`
+                                            attempt — carries command
+                                            "handoff"
+                  docs_read                 (row 98, additive)
+                                            {sessions, tokens}: sessions
+                                            carrying a non-empty
+                                            feedback.self_reported
+                                            .docs_read (latest carrier),
+                                            and {token: count} over
+                                            those reports — each entry
+                                            whitespace-split, surrounding
+                                            punctuation shed, ONE leading
+                                            "context/" stripped at read
+                                            time (no record is edited)
+                  light_blocks_total        (additive) sum of the
+                                            self-reported light_blocks
+                                            counts, 0 when none carry it
+                  paste_carried_rounds_total
+                                            (additive) sum of the
+                                            self-reported
+                                            paste_carried_rounds, 0 when
+                                            none carry it
+                  clarification_rounds_total
+                                            (additive) the closing
+                                            clarification stamps' rounds
+                                            summed PLUS every
+                                            paste_carried_rounds — a
+                                            paste-carried round counts
+                                            as a round
+                                            Self-reported counts read
+                                            the latest attempt carrying
+                                            them per session; semantics
+                                            in bin/bale_stats.py
+                                            (is_handoff_origin,
+                                            session_docs_read,
+                                            session_self_reported_count,
+                                            session_clarification_rounds)
       classes   per-work-class rate rows keyed by resolved class
                 (including "unclassed"); each row carries every
                 numerator and denominator beside its rate, rates null
@@ -4110,6 +4149,18 @@ def format_stats_report(stats: dict) -> str:
             f"({_pct(row['applied_rate'])}), reverted "
             f"{row['reverted']}, bailout {row['bailout']}, unlocked "
             f"{row['unlocked']}")
+    # The stats micro's docs_read read side (row 98): rendered when any
+    # session reported its reading, tokens verbatim from the json
+    # contract (already context/-normalized in bale_stats), most-read
+    # first so the long tail of free-text tokens sits at the end.
+    docs_read = stats["corpus"]["docs_read"]
+    if docs_read["sessions"]:
+        ranked = sorted(docs_read["tokens"].items(),
+                        key=lambda item: (-item[1], item[0]))
+        lines.append(
+            f"  docs read: {docs_read['sessions']} reporting sessions "
+            f"[" + ", ".join(f"{token} {count}"
+                             for token, count in ranked) + "]")
     corpus_members = [(bucket, sids)
                       for bucket, sids in stats["members"].items()
                       if sids]
@@ -4136,6 +4187,16 @@ def format_stats_report(stats: dict) -> str:
         ("filtered versions", str(corpus["filtered_record_versions"])),
         ("read-only", str(corpus["read_only_sessions"])),
         ("crash-debris", str(corpus["crash_debris_sessions"])),
+        # The stats micro rows (86, and row 98's self-reported counts):
+        # always rendered — a zero here is a computed total, not a
+        # fabricated one — and kept above filters, which stays last.
+        ("handoff-origin", str(corpus["handoff_origin_sessions"])),
+        ("clarification rounds",
+         f"{corpus['clarification_rounds_total']} "
+         f"({corpus['clarification_rounds_total'] - corpus['paste_carried_rounds_total']}"
+         f" stamped + {corpus['paste_carried_rounds_total']} "
+         f"paste-carried)"),
+        ("light blocks", str(corpus["light_blocks_total"])),
         ("filters", "; ".join(filter_bits) if filter_bits else "none"),
     ]
     body = "\n".join(lines)
