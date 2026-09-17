@@ -1,0 +1,269 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-17-stats-micro-001",
+  "created_at": "2026-09-17T00:33:23+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-17T00:33:23+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-17-stats-micro-001.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-17T01:58:38+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-17-stats-micro-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_stats_drilldown": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_stats_aggregation": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_telemetry_extensions": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: corpus keys over the fixture corpus": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bumpless-under (bin/VERSION untouched)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bale_report.py changes confined to the stats renderers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: test_stats_drilldown": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_stats_aggregation": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_telemetry_extensions": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: corpus keys over the fixture corpus": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bumpless-under (bin/VERSION untouched)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bale_report.py changes confined to the stats renderers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (bin/bale, bin/bale_stats.py, bin/bale_report.py, tests)",
+          "json syntax (new stats_corpus fixtures)",
+          "tests: test_stats_drilldown",
+          "tests: test_stats_aggregation",
+          "tests: test_telemetry_extensions",
+          "assert: corpus keys over the fixture corpus",
+          "assert: bumpless-under (bin/VERSION untouched)",
+          "assert: bale_report.py changes confined to the stats renderers"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json",
+        "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.34",
+            "contract_docs": {
+              "CLAUDE.md": "e988918d1725fac6319b6390263769789d33e2f57ab0d2ea39db36ad994601eb",
+              "TARBALL.md": "d193ca8abb0560f47058e3a97616d800d5610e915d01ec27ab1e02999601a4c7",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "f1ba3ae53f8a04a014de6e18fdb0820a3bc822d75bfeb157815de64fd5ffe43c",
+              "PLANNER.md": "3bf1bc379ebf4e21917076fde1c7e3b51034424e5bd3beff3b64afab6912a3cc"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-17-stats-micro-001.sh",
+              "sha256": "a451aad2e5e02b3b9f78f7febee124beb9f6d0192ab8af78ed55ea678d1d448b"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-17T00:33:22+00:00",
+            "base_files": {
+              "bin/bale": "078c6fd0fe1bce6bad78195929e67a2e783d624189e40460dc393b254e78a8c7",
+              "bin/bale_report.py": "9307b6f5261aa745a51d977d2bbe3acd35c1f3eb224f9243322fe77c5bcfb7f2",
+              "bin/bale_stats.py": "ef7e953ec2de5ac3191f0ea8bf2eac33ecc6ed8727296f3b37db4f81e651e739",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/test_stats_aggregation.py": "8276c0ac7965667424266841f0de1b9fc8e110bdda43ea629c1546d483606171",
+              "tests/test_stats_drilldown.py": "815c7f2a98ad2fafa011870dd36174b28f51bdca54983b89f252f0f3fca44b23"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The packer's reply \"as assued\" is read as \"as assumed\": all three light-block defaults ratified (latest carrier; strip punctuation; membership)."
+          ],
+          "judgment_calls": [
+            "light_blocks, paste_carried_rounds, and docs_read read the LATEST attempt carrying them per session (no double count across HOLD->retry); ratified via light block 1.",
+            "docs_read tokens shed surrounding punctuation (the lint tokenizer's set) before one leading context/ strips; empty tokens drop; counts are occurrences; ratified via light block 2.",
+            "The five new corpus totals follow the filtered membership like sessions/attempt totals; ratified via light block 3.",
+            "--sid refuses --work-class and --since (fail()) rather than ignoring them.",
+            "Unusable telemetry dir = exists but not a directory, or cannot be listed; an absent dir stays the honest empty corpus (found: false, exit 0). A blank --sid is refused; any other string is looked up.",
+            "Self-reported counts reject bool, negative, and non-integer values as no report (0).",
+            "The fixture pair is dated 2026-06-30 so it sits inside every existing window, before the --since fixture, without moving any coverage first_sid; the opened attempt omits the post-epoch stamps (scope_kind, cost) so the scope_kind sub-epoch does not start in the aggregation expectations.",
+            "The handoff fixture carries a self-reported clarification linkage beside its rounds: 1 stamp so it agrees in both cross-check directions instead of adding a promoted-only disagreement."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through section 11.2",
+            "README.md (request brief)",
+            "TARBALL.md sections 1, 2, 5, 7, 10"
+          ],
+          "light_blocks": 1
+        }
+      },
+      "log": ".bale/logs/2026-09-17-stats-micro-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-17-stats-micro-001.sh",
+          "sha256": "a451aad2e5e02b3b9f78f7febee124beb9f6d0192ab8af78ed55ea678d1d448b"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-17T01:58:38+00:00",
+  "outcome": "applied"
+}
