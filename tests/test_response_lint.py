@@ -25,6 +25,21 @@ manifest-schema finding naming the field. The lint reads the counts
 through its embedded schema copy, so this class is also the behavioral
 half of tests/test_schema_embeds.py's parity pin.
 
+Session 2026-09-16-board-69-tools-pair-008 adds two classes over one
+crafted fixture. ClaimsValueCheck: the bare-string claims-value check
+(row 69 (a)) — §6 entry 104's specimen (`"lint": "maybe"`) files
+CLAIMS_VALUE at manifest.json:$.claims.lint, error severity, one per
+offending key; every vocabulary word files nothing; the annotated
+object form stays the embedded schema's and is never double-filed;
+feedback.mechanical's derivations are unchanged; and the lint's
+restated CLAIM_VALUES is pinned (read by AST, never imported) to the
+schema's object-form enum and, where bin/ ships, to
+bin/bale_validate.py's. DocsReadStubWarning: a present, exactly-empty
+feedback.self_reported.docs_read draws the warning-tier
+DOCS_READ_EMPTY_STUB ("fill it or delete the key"), never gating;
+omission is silent, a filled list quiet, a malformed value the
+schema's.
+
 Run:  python3 -m unittest tests.test_response_lint -v
   or: python3 -m unittest discover -s tests -p 'test_response_lint.py'
 """
@@ -300,6 +315,234 @@ class SelfReportedCounts(unittest.TestCase):
                     self.assertTrue(
                         any(key in json.dumps(f) for f in schema_findings),
                         f"the finding names {key}: {schema_findings}")
+
+
+def _tuple_constant(path: Path, name: str) -> tuple | None:
+    """A module-level tuple-of-strings constant read by AST — the file
+    is parsed, never imported (the lint tests stay import-free)."""
+    import ast
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == name):
+            return tuple(ast.literal_eval(node.value))
+    return None
+
+
+class _CraftedResponse(unittest.TestCase):
+    """A crafter-scaffolded, judgment-filled normal response dir with
+    validation_will_run ["lint"] — the shape board 69's specimen used."""
+
+    SID = "2026-09-16-claims-fixture-008"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = self.tmp / "response-008"
+        dst = self.rdir / "files" / "src" / "new.txt"
+        dst.parent.mkdir(parents=True)
+        dst.write_bytes(b"fixture content\n")
+        cp = subprocess.run(
+            [sys.executable, str(CRAFT), str(self.rdir),
+             "--sid", self.SID, "--write"],
+            capture_output=True, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        (self.rdir / "validation.sh").write_text(
+            "#!/usr/bin/env bash\nexit 0\n")
+        self.mpath = self.rdir / "manifest.json"
+        manifest = json.loads(self.mpath.read_text())
+        manifest["summary"] = "fixture response for the board 69 tests"
+        for c in manifest["changes"]:
+            c["action"] = "created"
+            c["reason"] = "fixture file"
+        manifest["validation_will_run"] = ["lint", "tests"]
+        manifest["claims"] = {"lint": "pass"}
+        self.base = manifest
+        self.write()
+
+    def write(self, **overrides) -> dict:
+        manifest = json.loads(json.dumps(self.base))
+        manifest.update(overrides)
+        self.mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        return manifest
+
+    def lint_json(self, *extra: str) -> tuple[int, dict]:
+        cp = run_lint(str(self.rdir), "--json", *extra)
+        self.assertIn(cp.returncode, (0, 1), cp.stderr)
+        return cp.returncode, json.loads(cp.stdout)
+
+    @staticmethod
+    def codes(entries: list[dict], code: str) -> list[dict]:
+        return [e for e in entries if e.get("code") == code]
+
+
+class ClaimsValueCheck(_CraftedResponse):
+    """Board 69 (a): the bare-string claims-value check.
+
+    The specimen (§6 entry 104): `"claims": {"lint": "maybe"}` linted
+    with nothing about `maybe` and refused at apply on bin/bale_validate's
+    CLAIM_VALUES. Now: CLAIMS_VALUE at manifest.json:$.claims.<key>,
+    error severity, one per offending key; every vocabulary word files
+    nothing; the annotated object form stays the schema's (never
+    double-filed); the mechanical derivations are untouched; and the
+    lint's restated vocabulary is pinned to bale's CLAIM_VALUES and to
+    the schema's object-form enum.
+    """
+
+    def test_the_specimen_files_claims_value(self):
+        self.write(claims={"lint": "maybe"})
+        code, report = self.lint_json()
+        self.assertEqual(code, 1, report)
+        hits = self.codes(report["findings"], "CLAIMS_VALUE")
+        self.assertEqual(len(hits), 1, report["findings"])
+        hit = hits[0]
+        self.assertEqual(hit["path"], "manifest.json:$.claims.lint")
+        self.assertEqual(hit["severity"], "error")
+        self.assertEqual(hit["check"], "claims-value")
+        self.assertIn("maybe", hit["got"])
+        for word in ("pass", "fail", "untested", "unknown"):
+            self.assertIn(word, hit["expected"])
+        self.assertEqual(report["findings"], hits,
+                         "the specimen is otherwise clean — CLAIMS_VALUE "
+                         "is the one finding")
+
+    def test_every_vocabulary_word_files_nothing(self):
+        for word in ("pass", "fail", "untested", "unknown"):
+            with self.subTest(word=word):
+                self.write(claims={"lint": word})
+                code, report = self.lint_json()
+                self.assertEqual(code, 0, report["findings"])
+                self.assertEqual(
+                    self.codes(report["findings"], "CLAIMS_VALUE"), [])
+
+    def test_one_finding_per_offending_key(self):
+        self.write(claims={"lint": "maybe", "tests": "PASS"})
+        _code, report = self.lint_json()
+        paths = sorted(h["path"] for h in
+                       self.codes(report["findings"], "CLAIMS_VALUE"))
+        self.assertEqual(paths, ["manifest.json:$.claims.lint",
+                                 "manifest.json:$.claims.tests"],
+                         "case matters: PASS is not pass")
+
+    def test_object_form_is_the_schemas_never_double_filed(self):
+        self.write(claims={"lint": {"value": "maybe"}})
+        code, report = self.lint_json()
+        self.assertEqual(code, 1)
+        self.assertTrue([f for f in report["findings"]
+                         if f["check"] == "manifest-schema"],
+                        "the embedded schema's object-form enum files it")
+        self.assertEqual(self.codes(report["findings"], "CLAIMS_VALUE"), [])
+        self.write(claims={"lint": {"value": "pass",
+                                    "claim_basis": "predicted"}})
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+
+    def test_non_string_value_is_a_schema_finding_only(self):
+        for bad in (5, None, ["pass"]):
+            with self.subTest(bad=bad):
+                self.write(claims={"lint": bad})
+                code, report = self.lint_json()
+                self.assertEqual(code, 1)
+                self.assertEqual(
+                    self.codes(report["findings"], "CLAIMS_VALUE"), [])
+
+    def test_mechanical_derivations_are_unchanged(self):
+        """Its own registry row: schema_valid and claims_subset keep
+        meaning schema conformance and the subset rule."""
+        self.write(claims={"lint": "maybe"})
+        cp = run_lint(str(self.rdir), "--emit-feedback-mechanical")
+        self.assertEqual(cp.returncode, 1, cp.stderr)
+        mech = json.loads(cp.stdout)
+        self.assertTrue(mech["schema_valid"])
+        self.assertTrue(mech["claims_subset"])
+
+    def test_vocabulary_mirrors_the_schema_object_enum(self):
+        lint_values = _tuple_constant(LINT, "CLAIM_VALUES")
+        self.assertIsNotNone(lint_values, "the lint restates CLAIM_VALUES")
+        schema = json.loads(
+            (REPO / "schemas" / "response-manifest.schema.json").read_text(
+                encoding="utf-8"))
+        obj = schema["properties"]["claims"]["additionalProperties"]
+        self.assertEqual(set(lint_values),
+                         set(obj["properties"]["value"]["enum"]))
+
+    @unittest.skipUnless((REPO / "bin" / "bale_validate.py").is_file(),
+                         "bin/ not shipped in this sandbox")
+    def test_vocabulary_mirrors_bale_validate(self):
+        self.assertEqual(
+            _tuple_constant(LINT, "CLAIM_VALUES"),
+            _tuple_constant(REPO / "bin" / "bale_validate.py",
+                            "CLAIM_VALUES"),
+            "tools/response_lint.py's CLAIM_VALUES is the mirror of "
+            "bin/bale_validate.py's — refresh it in the same response")
+
+
+class DocsReadStubWarning(_CraftedResponse):
+    """Board 69, planner ruling: a present, exactly-empty
+    feedback.self_reported.docs_read draws the warning-tier
+    DOCS_READ_EMPTY_STUB ("fill it or delete the key"); omission stays
+    silent, a filled list is quiet, and a malformed value stays the
+    schema's."""
+
+    def with_self_reported(self, **extra) -> None:
+        manifest = json.loads(json.dumps(self.base))
+        manifest["feedback"] = {
+            "mechanical": {
+                "response_kind": "normal", "schema_valid": True,
+                "mirror_agreement": {"changes_to_files": True,
+                                     "files_to_changes": True},
+                "claims_subset": True,
+            },
+            "self_reported": {
+                "assumptions": [], "judgment_calls": [],
+                "budget_pressure": "none", "includes_missing": [],
+                "compaction_occurred": {"occurred": False,
+                                        "disclosure_ref": None},
+                **extra,
+            },
+        }
+        self.mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+
+    def test_present_empty_list_warns_never_gates(self):
+        self.with_self_reported(docs_read=[])
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertTrue(report["ok"])
+        hits = self.codes(report["warnings"], "DOCS_READ_EMPTY_STUB")
+        self.assertEqual(len(hits), 1, report["warnings"])
+        self.assertEqual(hits[0]["path"],
+                         "manifest.json:$.feedback.self_reported.docs_read")
+        self.assertEqual(hits[0]["severity"], "warning")
+        self.assertEqual(hits[0]["check"], "docs-read-stub")
+        self.assertIn("fill it or delete the key", hits[0]["message"])
+        human = run_lint(str(self.rdir))
+        self.assertIn("[WARN] docs-read-stub", human.stdout)
+        self.assertIn("result: CLEAN", human.stdout)
+
+    def test_omitted_key_is_silent(self):
+        self.with_self_reported()
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(report["warnings"], [])
+
+    def test_filled_list_is_quiet(self):
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(
+            self.codes(report["warnings"], "DOCS_READ_EMPTY_STUB"), [])
+
+    def test_malformed_value_is_the_schemas(self):
+        for bad in ("", {}, None):
+            with self.subTest(bad=bad):
+                self.with_self_reported(docs_read=bad)
+                code, report = self.lint_json()
+                self.assertEqual(code, 1)
+                self.assertEqual(
+                    self.codes(report["warnings"], "DOCS_READ_EMPTY_STUB"),
+                    [])
 
 
 if __name__ == "__main__":

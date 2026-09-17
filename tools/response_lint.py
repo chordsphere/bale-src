@@ -49,6 +49,16 @@ modified one must carry no dated line later than it. Warnings are a
 separate tier: reported as [WARN] with their own `warnings[]` in the
 JSON report, never counted as findings.
 
+`claims-value` (board 69) files CLAIMS_VALUE for a bare-string claims
+value outside pass|fail|untested|unknown — the vocabulary bale's apply
+enforces in Python, which the embedded schema cannot express for the
+bare-string form (no oneOf in the subset validator). Before it, such a
+value linted clean and refused at apply.
+`docs-read-stub` (board 69) warns DOCS_READ_EMPTY_STUB when
+feedback.self_reported.docs_read is present and exactly [] — the
+crafter's seeded stub shipped unfilled: fill it or delete the key.
+Omission (reported nothing) stays silent.
+
 Output:
     Default: human-readable report on stdout, every failure named
     with path, expected, and got — never first-failure-only.
@@ -952,6 +962,51 @@ def check_claims_subset(ctx: dict) -> list[dict]:
     return out
 
 
+# Mirror of bin/bale_validate.py's CLAIM_VALUES (TARBALL.md section 5.3
+# carries the vocabulary table). Deliberately duplicated rather than
+# imported: this lint is a standalone second implementation of the
+# WRITTEN contract, never a bale import (see module docstring), and it
+# runs inside request tarballs where no bale install is reachable.
+# The embedded schema cannot carry this enum for the bare-string form —
+# the subset validator has no oneOf, and the schema's own claims
+# description says the bare-string enum is "enforced in Python" — so
+# without this mirror a bare-string value outside the vocabulary lints
+# clean and refuses at apply. The object form's `value` enum stays the
+# schema's (manifest-schema files it); this mirror never re-files it.
+CLAIM_VALUES = ("pass", "fail", "untested", "unknown")
+
+
+def check_claims_value(ctx: dict) -> list[dict]:
+    """Every bare-string claims value is in the claim vocabulary (§5.3).
+
+    Only the bare-string form is judged here. The annotated object form
+    ({"value": ..., "claim_basis": ...}) is pinned by the embedded
+    schema's plain enum and filed by manifest-schema, and a value of any
+    other JSON type is a schema type violation — both are skipped so no
+    violation is filed twice. Its own registry row (not a manifest-schema
+    or claims-subset finding) on purpose: the feedback block's
+    schema_valid and claims_subset keep meaning exactly what their
+    derivations say, schema conformance and the subset rule.
+    """
+    claims = ctx["manifest"].get("claims")
+    if not isinstance(claims, dict):
+        return []  # schema check already filed the type violation
+    out = []
+    for key, value in claims.items():
+        if not isinstance(value, str) or value in CLAIM_VALUES:
+            continue
+        out.append(finding(
+            "CLAIMS_VALUE", f"manifest.json:$.claims.{key}",
+            f"one of {list(CLAIM_VALUES)}", repr(value),
+            f"claims[{key!r}] = {value!r} is outside the claim vocabulary "
+            "(TARBALL.md section 5.3) — bale's apply refuses it "
+            "(bin/bale_validate.py CLAIM_VALUES); the embedded schema "
+            "cannot see a bare-string value, so this check is its only "
+            "pre-pack catch",
+        ))
+    return out
+
+
 def _empty_surface_findings(manifest: dict, kind: str, section: str) -> list[dict]:
     """The empty change surfaces bailout (§5.6.2) and clarification (§5.9.2) share."""
     out = []
@@ -1234,6 +1289,37 @@ def check_context_prefix(ctx: dict) -> list[dict]:
     return out
 
 
+def check_docs_read_stub(ctx: dict) -> list[dict]:
+    """A shipped feedback.self_reported.docs_read that is exactly []
+    is a warning (board 69, planner ruling at this session's light block).
+
+    tools/craft_response.py seeds `docs_read: []` so the optional field
+    has scaffold presence. The schema reads an omitted docs_read as
+    "reported nothing", but a present [] claims the session read
+    nothing — which, from an untouched stub, is a false datum rather
+    than an honest empty. The lint cannot tell a real empty from an
+    unfilled seed, so it names every present [] and lets the worker
+    choose: fill it, or delete the key. Omission stays silent. Warning
+    tier (the CONTEXT_PREFIXED_DOCS_READ tier): the self-report is
+    advisory, so it is named, never gating.
+    """
+    fb = ctx["manifest"].get("feedback")
+    sr = fb.get("self_reported") if isinstance(fb, dict) else None
+    if not isinstance(sr, dict) or "docs_read" not in sr:
+        return []
+    if sr["docs_read"] != []:
+        return []  # filled, or a type violation the schema check filed
+    return [warning(
+        "DOCS_READ_EMPTY_STUB",
+        "manifest.json:$.feedback.self_reported.docs_read",
+        "the docs and sections this session read, or the key omitted",
+        "[]",
+        "docs_read is present and empty — the crafter's stub shipped "
+        "unfilled, and a present [] records that nothing was read; fill it "
+        "or delete the key (omission means reported nothing)",
+    )]
+
+
 # DOCS.md §5's standard ADR header line, `- **Date:** YYYY-MM-DD`; the
 # recognizer is content-keyed and path-agnostic (a planner ruling at the
 # clarification round that shaped this check): projects place ADRs under claude/context/adr/,
@@ -1477,6 +1563,10 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
      "set(claims) is a verbatim subset of validation_will_run "
      "(TARBALL.md 5.3, 10.1)",
      check_claims_subset),
+    ("claims-value",
+     "every bare-string claims value is pass|fail|untested|unknown "
+     "(TARBALL.md 5.3; mirrors bin/bale_validate.py CLAIM_VALUES)",
+     check_claims_value),
     ("kind-shape",
      "response-kind shape rules: bailout 5.6.1/5.6.2, clarification 5.9.2, "
      "questions placement",
@@ -1492,6 +1582,10 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
      "no changes[] path or docs_read entry carries the request tarball's "
      "context/ prefix (TARBALL.md 3.1)",
      check_context_prefix),
+    ("docs-read-stub",
+     "a present feedback.self_reported.docs_read is not the unfilled [] "
+     "stub (warning tier)",
+     check_docs_read_stub),
     ("dated-artifacts",
      "dated artifacts the response authors are dated from the session id "
      "(TARBALL.md 1)",

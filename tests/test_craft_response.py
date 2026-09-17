@@ -140,6 +140,22 @@ feeding either courier. CraftSelfReportedCountsUnseeded pins that the
 CraftBundleStemClockLine pins the stem clock sentence whole in --help
 at any width and in the module docstring.
 
+Session 2026-09-16-board-69-tools-pair-008 lands row 69's crafter
+half and 105's standing pin. CraftDocsReadStub proves the --request
+seed's `docs_read: []` stub for every kind: schema-valid (the finished
+response lints clean, with the lint's warning-tier DOCS_READ_EMPTY_STUB
+naming an unfilled stub, and quiet once filled), still judged (a
+malformed entry is a schema finding), and independent per build — the
+test that found build_feedback's shallow copy sharing the stub's
+containers across seeds. CraftRequestProvenance's drift bridge admits
+the one optional stub beside the schema's required set. ToolsHermeticPin
+is the standing form of 105's one-off check on the opener's claim
+("stdlib-only formatters with no network access"): an AST walk over
+both request-carried tools asserting the property — stdlib-only, no
+network-capable module or process/FFI escape hatch, no dynamic import —
+never the inventory (105's import set rides as a comment), with a
+walker self-test so the pin cannot pass vacuously.
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -1078,9 +1094,17 @@ class CraftRequestProvenance(unittest.TestCase):
         self.assertEqual(
             set(seeded["mechanical"]["mirror_agreement"]),
             set(mech["properties"]["mirror_agreement"]["required"]))
+        sr_schema = feedback["properties"]["self_reported"]
         self.assertEqual(
             set(seeded["self_reported"]),
-            set(feedback["properties"]["self_reported"]["required"]))
+            set(sr_schema["required"]) | {"docs_read"},
+            "every required self_reported key plus the one optional stub "
+            "(docs_read, board 69) — nothing else is seeded")
+        self.assertNotIn("docs_read", sr_schema["required"],
+                         "docs_read is seeded as an OPTIONAL key's stub; "
+                         "if the schema ever requires it, this bridge "
+                         "needs rethinking, not a silent pass")
+        self.assertIn("docs_read", sr_schema["properties"])
         echo = mech["properties"]["provenance"]
         self.assertTrue(
             set(seeded["mechanical"]["provenance"]) <= set(echo["properties"]),
@@ -2896,6 +2920,304 @@ class CraftSelfReportedCountsUnseeded(unittest.TestCase):
                         "self_reported"]
                     self.assertNotIn("light_blocks", seeded)
                     self.assertNotIn("paste_carried_rounds", seeded)
+
+
+class CraftDocsReadStub(unittest.TestCase):
+    """Board 69 (b): --request seeds `docs_read: []` in self_reported.
+
+    The stub is the optional field's scaffold presence (the
+    2026-09-01-board-70-doc-reachability-007 proposal): seeded for every
+    kind, schema-valid as seeded — the filled response lints clean with
+    the empty list and with real entries — and still judged by the lint
+    (a malformed entry is a schema finding naming the field), and an
+    unfilled [] that ships draws the lint's warning-tier
+    DOCS_READ_EMPTY_STUB — "fill it or delete the key". The
+    unseeded path is unchanged: without --request there is no feedback
+    block at all (CraftRequestProvenance's byte-identity test).
+    """
+
+    SID = "2026-09-16-docs-read-fixture-008"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.request = self.tmp / "request-008" / "manifest.json"
+        self.request.parent.mkdir()
+        self.request.write_text(json.dumps(request_manifest(self.SID)),
+                                encoding="utf-8")
+
+    def test_every_kind_seeds_an_empty_docs_read(self):
+        for kind in ("normal", "bailout", "clarification"):
+            with self.subTest(kind=kind):
+                rdir = self.tmp / f"response-{kind}"
+                rdir.mkdir()
+                cp = run_craft(str(rdir), "--sid", self.SID, "--kind", kind,
+                               "--request", str(self.request))
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                sr = json.loads(cp.stdout)["feedback"]["self_reported"]
+                self.assertIn("docs_read", sr)
+                self.assertEqual(sr["docs_read"], [])
+                self.assertEqual(list(sr)[-1], "docs_read",
+                                 "the optional stub follows the required "
+                                 "keys, as in the stub constant")
+
+    def test_seeds_are_independent_copies(self):
+        """The stub constant is a module-level dict; two builds must not
+        share any of its containers (a shallow dict() copy did, before
+        board 69 — found by this test): a mutation of one seed never
+        leaks into the next build or into the constant."""
+        crafter = _load_crafter_module()
+        first = crafter.build_feedback("normal", None)["self_reported"]
+        for key, value in first.items():
+            if isinstance(value, list):
+                value.append("mutated")
+            elif isinstance(value, dict):
+                value["mutated"] = True
+        second = crafter.build_feedback("normal", None)["self_reported"]
+        for key, value in crafter.FEEDBACK_SELF_REPORTED_STUB.items():
+            with self.subTest(key=key):
+                if isinstance(value, (list, dict)):
+                    self.assertFalse(value, "the constant was mutated")
+                    self.assertEqual(second[key], type(value)(),
+                                     "a later seed saw the mutation")
+
+    def _finished(self, docs_read) -> Path:
+        rdir = make_response_dir(self.tmp, {"a.txt": b"alpha\n"})
+        cp = run_craft(str(rdir), "--sid", self.SID, "--request",
+                       str(self.request), "--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        mpath = rdir / "manifest.json"
+        manifest = json.loads(mpath.read_text())
+        manifest["summary"] = "fixture"
+        for entry in manifest["changes"]:
+            entry["action"] = "created"
+            entry["reason"] = "fixture"
+        manifest["validation_will_run"] = ["tests"]
+        manifest["claims"] = {"tests": "pass"}
+        fb = manifest["feedback"]
+        fb["mechanical"]["provenance"]["model_identity"] = "fixture-model"
+        fb["self_reported"].update(
+            budget_pressure="none",
+            compaction_occurred={"occurred": False, "disclosure_ref": None})
+        if docs_read is not None:
+            fb["self_reported"]["docs_read"] = docs_read
+        (rdir / "validation.sh").write_text("#!/usr/bin/env bash\nexit 0\n")
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        emit = subprocess.run(
+            [sys.executable, str(LINT), str(rdir),
+             "--emit-feedback-mechanical"],
+            capture_output=True, text=True)
+        self.assertTrue(emit.stdout.strip(), emit.stderr)
+        fb["mechanical"].update(json.loads(emit.stdout))
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        return rdir
+
+    def test_empty_stub_lints_clean_with_the_loud_warning(self):
+        """The seed untouched: clean (exit 0, never gating), but the
+        lint's DOCS_READ_EMPTY_STUB warning names it."""
+        rdir = self._finished(docs_read=None)
+        seeded = json.loads((rdir / "manifest.json").read_text())
+        self.assertEqual(seeded["feedback"]["self_reported"]["docs_read"],
+                         [])
+        cp = run_lint(rdir)
+        self.assertEqual(cp.returncode, 0, cp.stdout)
+        self.assertIn("result: CLEAN", cp.stdout)
+        self.assertIn("DOCS_READ_EMPTY_STUB", cp.stdout)
+        self.assertIn("fill it or delete the key", cp.stdout)
+
+    def test_filled_stub_lints_clean_and_quiet(self):
+        rdir = self._finished(
+            docs_read=["CLAUDE.md", "TARBALL.md sections 1, 2, 5, 7"])
+        cp = run_lint(rdir)
+        self.assertEqual(cp.returncode, 0, cp.stdout)
+        self.assertNotIn("DOCS_READ_EMPTY_STUB", cp.stdout)
+
+    def test_malformed_entry_is_still_a_schema_finding(self):
+        rdir = self._finished(docs_read=[""])
+        cp = run_lint(rdir)
+        self.assertEqual(cp.returncode, 1, cp.stdout)
+        self.assertIn("docs_read", cp.stdout)
+        self.assertIn("SCHEMA_VIOLATION", cp.stdout)
+
+
+def _load_crafter_module():
+    """Import tools/craft_response.py in-process (it is a script)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "craft_response_docs_read_under_test", CRAFT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ToolsHermeticPin(unittest.TestCase):
+    """The standing pin for the opener's claim about the two
+    request-carried tools: "stdlib-only formatters with no network
+    access" (session 105 verified it once in its validation.sh; board
+    69 (d) makes it standing, in the tools' own lane).
+
+    A pure AST walk over tools/craft_response.py and
+    tools/response_lint.py — nothing is imported or executed — asserting
+    the property, never the inventory: every import (top-level or nested
+    in a function) is a stdlib module; none is network-capable, nor a
+    process or FFI escape hatch that could reach the network without
+    importing a network module; nothing imports dynamically
+    (__import__, importlib, runpy, exec, eval). A harmless new stdlib
+    import (copy, textwrap) passes untouched; a network import fails
+    here, in the tools' own lane. A walker self-test proves each
+    detector fires on synthetic source, so the pin can never pass
+    vacuously.
+    """
+
+    TOOLS = (CRAFT, LINT)
+
+    # For the record only, never asserted (planner ruling, board 69 (d):
+    # an exact-set baseline pins mechanism and fails on harmless change).
+    # Session 105's import set for the two tools, confirmed against the
+    # shipped bytes at board 69: argparse, collections, datetime, gzip,
+    # hashlib, io, json, pathlib, re, sys, tarfile, __future__.
+
+    # Network-capable stdlib modules, and the escape hatches (process
+    # spawning, FFI, dynamic import) through which a tool could reach
+    # the network while importing none of them.
+    NETWORK_CAPABLE = frozenset({
+        "socket", "ssl", "select", "selectors", "asyncio", "http",
+        "urllib", "ftplib", "smtplib", "poplib", "imaplib", "nntplib",
+        "telnetlib", "xmlrpc", "socketserver", "webbrowser", "wsgiref",
+        "email.mime", "mailbox",
+    })
+    ESCAPE_HATCHES = frozenset({
+        "subprocess", "multiprocessing", "pty", "ctypes", "importlib",
+        "runpy", "code", "pdb",
+    })
+    DYNAMIC_CALL_NAMES = frozenset({"__import__", "exec", "eval"})
+
+    @staticmethod
+    def scan(source: str, filename: str = "<tool>") -> dict:
+        """Imports (top-level module names), relative imports, and
+        dynamic-import sites found in `source` by an AST walk."""
+        import ast
+        tree = ast.parse(source, filename=filename)
+        imports: set[str] = set()
+        dotted: set[str] = set()
+        relative: list[int] = []
+        dynamic: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.add(alias.name.split(".")[0])
+                    dotted.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    relative.append(node.lineno)
+                    continue
+                mod = node.module or ""
+                imports.add(mod.split(".")[0])
+                dotted.add(mod)
+            elif isinstance(node, ast.Call):
+                fn = node.func
+                if (isinstance(fn, ast.Name)
+                        and fn.id in ToolsHermeticPin.DYNAMIC_CALL_NAMES):
+                    dynamic.append(f"line {node.lineno}: {fn.id}()")
+                elif (isinstance(fn, ast.Attribute)
+                      and fn.attr == "import_module"):
+                    dynamic.append(f"line {node.lineno}: .import_module()")
+            elif isinstance(node, ast.Name) and node.id == "__import__":
+                dynamic.append(f"line {node.lineno}: __import__ reference")
+            elif (isinstance(node, ast.Attribute)
+                  and node.attr == "__import__"):
+                dynamic.append(f"line {node.lineno}: .__import__ reference")
+        return {"imports": imports, "dotted": dotted,
+                "relative": relative, "dynamic": sorted(set(dynamic))}
+
+    def scans(self):
+        for path in self.TOOLS:
+            yield path, self.scan(path.read_text(encoding="utf-8"),
+                                  str(path))
+
+    def forbidden(self, found: dict) -> set[str]:
+        hits = set()
+        for name in found["dotted"] | found["imports"]:
+            for banned in self.NETWORK_CAPABLE | self.ESCAPE_HATCHES:
+                if name == banned or name.startswith(banned + "."):
+                    hits.add(name)
+        return hits
+
+    def test_both_tools_are_present(self):
+        for path in self.TOOLS:
+            self.assertTrue(path.is_file(), f"{path} missing — the pin "
+                            "covers the two request-carried tools by name")
+
+    def test_every_import_is_stdlib(self):
+        stdlib = set(sys.stdlib_module_names)
+        for path, found in self.scans():
+            with self.subTest(tool=path.name):
+                self.assertEqual(found["relative"], [],
+                                 f"{path.name} has relative imports — the "
+                                 "tools are standalone single files")
+                outside = sorted(found["imports"] - stdlib)
+                self.assertEqual(outside, [],
+                                 f"{path.name} imports non-stdlib "
+                                 f"module(s) {outside} — the tools are "
+                                 "stdlib-only (they run in request "
+                                 "tarballs with no install)")
+
+    def test_no_network_capable_module_or_escape_hatch(self):
+        for path, found in self.scans():
+            with self.subTest(tool=path.name):
+                self.assertEqual(
+                    sorted(self.forbidden(found)), [],
+                    f"{path.name} imports a network-capable module or a "
+                    "process/FFI/dynamic-import escape hatch — the "
+                    "opener tells every worker these tools have no "
+                    "network access")
+
+    def test_no_dynamic_import(self):
+        for path, found in self.scans():
+            with self.subTest(tool=path.name):
+                self.assertEqual(
+                    found["dynamic"], [],
+                    f"{path.name} imports dynamically — an AST walk "
+                    "cannot see what a dynamic import loads, so the "
+                    "hermetic claim would stop being checkable")
+
+    def test_walker_detects_each_violation_shape(self):
+        """The pin's own self-test: every detector fires on synthetic
+        source, including an import nested in a function body — so a
+        broken walker fails here instead of passing the tools
+        vacuously."""
+        cases = {
+            "top-level network": ("import socket\n", "forbidden"),
+            "nested network": ("def f():\n    from urllib.request "
+                               "import urlopen\n", "forbidden"),
+            "dotted network": ("import http.client\n", "forbidden"),
+            "process hatch": ("import subprocess\n", "forbidden"),
+            "non-stdlib": ("import requests\n", "non-stdlib"),
+            "relative": ("from . import sibling\n", "relative"),
+            "__import__ call": ("m = __import__('socket')\n", "dynamic"),
+            "import_module": ("import importlib\n"
+                              "importlib.import_module('ssl')\n",
+                              "dynamic"),
+            "exec": ("exec('import socket')\n", "dynamic"),
+        }
+        stdlib = set(sys.stdlib_module_names)
+        for label, (src, expect) in cases.items():
+            with self.subTest(case=label):
+                found = self.scan(src)
+                detected = {
+                    "forbidden": bool(self.forbidden(found)),
+                    "non-stdlib": bool(found["imports"] - stdlib),
+                    "relative": bool(found["relative"]),
+                    "dynamic": bool(found["dynamic"]),
+                }
+                self.assertTrue(detected[expect],
+                                f"{label}: {expect} not detected in "
+                                f"{found}")
+        clean = self.scan("import re\nre.compile('x')\n")
+        self.assertFalse(self.forbidden(clean))
+        self.assertEqual(clean["dynamic"], [],
+                         "re.compile is not the compile() builtin")
 
 
 class CraftBundleStemClockLine(unittest.TestCase):

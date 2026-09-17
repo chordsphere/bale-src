@@ -27,6 +27,16 @@ Three tiers, cheapest first:
   test_sandbox_wrapper / test_blind_checkpoint precedent): the project
   wizard walks and preserves the key and states why it is project-only;
   the global wizard never offers it.
+
+Board 69's registry rider (session 2026-09-16-board-69-tools-pair-008)
+extends the agreement tier to the hand-edited TOML literal string: for
+`clipboard_command = 'pbcopy'` the crafter's reader returns `pbcopy`,
+the value bale's accessor returns; every readable command a literal can
+carry agrees on both sides; a refused content (backslash, double quote,
+raw tab) is unset crafter-side in either quote form and fatal
+bale-side; and the one remaining split — triple-quoted strings, which
+bale's parser reads and the crafter's one-line scan does not — is named
+in the crafter's treated-as-unset note, pinned here.
 """
 
 from __future__ import annotations
@@ -314,6 +324,70 @@ class CrafterAgreementTest(_HermeticConfigBase):
         crafter_cmd, _note = self.crafter.read_clipboard_command(self.repo)
         self.assertIsNone(crafter_cmd)
         self.assertIsNone(self.accessor())
+
+    # -- board 69's registry rider: the hand-edited literal string -----
+
+    def test_single_quoted_literal_reads_back_on_both_sides(self) -> None:
+        """The rider's graded outcome: for clipboard_command = 'pbcopy'
+        the crafter's reader returns pbcopy — the value bale's own TOML
+        parser and accessor return for the same bytes."""
+        self.write_project("[probe]\nclipboard_command = 'pbcopy'\n")
+        crafter_cmd, note = self.crafter.read_clipboard_command(self.repo)
+        self.assertEqual(crafter_cmd, "pbcopy", msg=note)
+        self.assertEqual(self.accessor(), "pbcopy")
+
+    def test_hand_written_literals_agree_with_the_accessor(self) -> None:
+        """Every readable command that a literal string can carry (no
+        single quote inside), padded and with a trailing comment, reads
+        identically on both sides."""
+        for value in READABLE_COMMANDS:
+            if "'" in value:
+                continue  # a TOML literal string cannot contain its quote
+            for line in (f"clipboard_command = '{value}'",
+                         f"clipboard_command = '  {value}  '  # hand edit"):
+                with self.subTest(line=line):
+                    self.write_project(f"[probe]\n{line}\n")
+                    crafter_cmd, note = self.crafter.read_clipboard_command(
+                        self.repo)
+                    self.assertEqual(crafter_cmd, value, msg=note)
+                    self.assertEqual(self.accessor(), crafter_cmd)
+
+    def test_refused_contents_in_either_quote_read_as_unset(self) -> None:
+        """A one-line value bale's accessor refuses is unset crafter-side
+        in both quote forms — including a raw tab, legal TOML in either
+        form, which the basic-string scan used to return."""
+        cases = (
+            ("clipboard_command = 'C:\\Windows\\clip.exe'", "backslash"),
+            ("clipboard_command = 'sh -c \"pbcopy\"'", "double quote"),
+            ("clipboard_command = 'xclip\t-selection clipboard'",
+             "control character"),
+            ('clipboard_command = "xclip\t-selection clipboard"',
+             "control character"),
+        )
+        for line, reason in cases:
+            with self.subTest(line=line):
+                self.write_project(f"[probe]\n{line}\n")
+                crafter_cmd, _note = self.crafter.read_clipboard_command(
+                    self.repo)
+                self.assertIsNone(crafter_cmd)
+                with self.assertRaises(_FailRaises.Fatal) as ctx:
+                    self.accessor()
+                self.assertIn(reason, str(ctx.exception))
+
+    def test_unread_triple_quoted_forms_are_named_in_the_note(self) -> None:
+        """The known remaining split, disclosed rather than silent: bale
+        parses a one-line triple-quoted string; the crafter's scan does
+        not read it, and its treated-as-unset note says so."""
+        for line in ("clipboard_command = '''pbcopy'''",
+                     'clipboard_command = """pbcopy"""'):
+            with self.subTest(line=line):
+                self.write_project(f"[probe]\n{line}\n")
+                crafter_cmd, note = self.crafter.read_clipboard_command(
+                    self.repo)
+                self.assertIsNone(crafter_cmd)
+                self.assertIn("treated as unset", note)
+                self.assertIn("triple-quoted", note)
+                self.assertIn("'single-quoted'", note)
 
 
 def _walk_with_answers(existing: dict, *, layer: str,

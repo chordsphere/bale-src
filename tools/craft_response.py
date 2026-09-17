@@ -2,16 +2,16 @@
 """craft_response.py — mechanical scaffolder for a bale response directory.
 
 Sections:
-  1. Imports + constants                                                   (~line 305)
-  2. Shared helpers (slug, log, exit)                                      (~line 578)
-  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 612)
-  4. Planner-bundle emission (--bundle)                                    (~line 696)
-  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 861)
-  6. Light question block emission (--light-block; TARBALL.md §5.10)       (~line 1445)
-  7. Path handling                                                         (~line 1652)
-  8. Skeleton construction                                                 (~line 1713)
-  9. Doc-contract assertions (--doc-assertions)                            (~line 1990)
-  10. CLI                                                                  (~line 2332)
+  1. Imports + constants                                                   (~line 307)
+  2. Shared helpers (slug, log, exit)                                      (~line 581)
+  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 615)
+  4. Planner-bundle emission (--bundle)                                    (~line 732)
+  5. Exchange block emission (--emit-block; the worker side of the thread) (~line 897)
+  6. Light question block emission (--light-block; TARBALL.md §5.10)       (~line 1481)
+  7. Path handling                                                         (~line 1688)
+  8. Skeleton construction                                                 (~line 1749)
+  9. Doc-contract assertions (--doc-assertions)                            (~line 2038)
+  10. CLI                                                                  (~line 2380)
 
 A WORKER runs this against its own response-NNN/ directory while
 building a response, without bale installed. It mechanizes the
@@ -46,7 +46,9 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   flags as mismatches until the emitter's output is pasted over
   them), and `self_reported` carries its required keys with two
   schema-invalid sentinels (`budget_pressure: ""`,
-  `compaction_occurred: {}`) so an unfilled block cannot pass. The
+  `compaction_occurred: {}`) so an unfilled block cannot pass, plus
+  one optional stub, `docs_read: []` (schema-valid: fill it with the
+  docs and sections read, or drop the key to report nothing). The
   worker fills `model_identity` and `self_reported` BEFORE running
   the emitter — a schema gap at emit time would poison the emitted
   `schema_valid` — then pastes the emitter's four values in. The
@@ -360,8 +362,9 @@ BRIEF_PLACEHOLDER = "TODO(brief)"
 # The opt-in config key naming the environment's clipboard command.
 # NAMED LOUDLY on purpose: the config-side carrier (the next
 # bin/bale_config.py touch) must land the same spelling — section
-# `[probe]`, key `clipboard_command`, a one-line TOML basic string
-# whose value is the shell command probe output is piped into (e.g.
+# `[probe]`, key `clipboard_command`, a one-line TOML basic ("...") or
+# literal ('...') string whose value is the shell command probe output
+# is piped into (e.g.
 # "pbcopy", "xclip -selection clipboard"). This tool reads the key
 # with a deliberately minimal single-key scan (stdlib-only, no TOML
 # parser is available standalone on 3.10), looked up in ./bale.toml
@@ -623,11 +626,22 @@ def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
     Deliberately a minimal single-key scan, not a TOML parser: this
     tool is stdlib-only and runs standalone on 3.10 (no tomllib), and
     the key's contract is one section, one key, one quoted one-line
-    basic string with no escapes. Anything richer is treated as unset
-    — the never-fails, never-silently-skips path: the scaffold then
-    carries remedy text instead of the epilogue. The config-side
-    accessor that eventually lands in bin/bale_config.py is the full
-    reader; this scan must agree with it on the simple shape.
+    string with no escapes: a basic string ("pbcopy", what bale's
+    renderer writes) or a literal string ('pbcopy', what a hand edit
+    often writes — bale's own TOML parser reads it, so this scan does
+    too; board 69's registry rider). Anything richer — an escape, a
+    triple-quoted multi-line form, an embedded double quote, a control
+    character — is treated as unset: the never-fails,
+    never-silently-skips path, where the scaffold carries remedy text
+    instead of the epilogue and the note names the accepted forms and
+    the unread triple-quoted ones. bin/bale_config.py's
+    get_probe_clipboard_command is the full reader; its shape check
+    (probe_clipboard_command_problem) refuses the contents this scan
+    cannot read, so the two agree on every one-line basic or literal
+    value (tests/test_probe_clipboard_config.py pins it). The one
+    known split left is the triple-quoted forms, which bale's parser
+    reads and this scan does not — named in the note rather than
+    parsed here.
 
     Lookup order: ./bale.toml (the repo-root layout), then
     ./context/bale.toml (the request-root layout). The first file
@@ -656,27 +670,55 @@ def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
             key, _, value = line.partition("=")
             if key.strip() != CLIPBOARD_KEY:
                 continue
-            value = value.strip()
-            # Minimal basic-string read: "cmd", optional trailing
-            # comment, no escapes and no embedded quotes supported.
-            if value.startswith('"'):
-                closing = value.find('"', 1)
-                if closing > 0:
-                    cmd = value[1:closing].strip()
-                    rest = value[closing + 1:].strip()
-                    usable = (cmd and "\\" not in cmd
-                              and (not rest or rest.startswith("#")))
-                    if usable:
-                        return cmd, (f"{rel} sets [{CLIPBOARD_SECTION}] "
-                                     f"{CLIPBOARD_KEY}")
+            cmd = one_line_quoted_value(value.strip())
+            if cmd is not None:
+                return cmd, (f"{rel} sets [{CLIPBOARD_SECTION}] "
+                             f"{CLIPBOARD_KEY}")
             return None, (f"{rel} carries [{CLIPBOARD_SECTION}] "
                           f"{CLIPBOARD_KEY} but not as a non-empty "
-                          f"one-line quoted string without escapes — "
-                          f"treated as unset")
+                          f"one-line \"double-quoted\" or 'single-quoted' "
+                          f"string without escapes, double quotes, or "
+                          f"control characters (triple-quoted multi-line "
+                          f"forms are not read) — treated as unset")
         return None, (f"{rel} found; [{CLIPBOARD_SECTION}] "
                       f"{CLIPBOARD_KEY} unset")
     return None, (f"no bale.toml found "
                   f"({', '.join('./' + c for c in CLIPBOARD_CONFIG_CANDIDATES)})")
+
+
+def one_line_quoted_value(value: str) -> str | None:
+    """The stripped command inside a one-line TOML basic ("...") or
+    literal ('...') string, or None when the shape is outside what
+    read_clipboard_command reads.
+
+    Both quote characters open the same minimal read: the first
+    matching quote after the opener closes the value, and only an
+    optional trailing `# comment` may follow. A literal string cannot
+    contain its own quote character, so its first `'` IS its close; a
+    basic string supports no escapes here, so its first `"` is too. A
+    triple-quoted opener closes at once on an empty value, so both
+    multi-line forms read as unset. The content rules mirror
+    bin/bale_config.py's probe_clipboard_command_problem — no
+    backslash, no double quote, no control character (a raw tab is
+    legal TOML inside either form, and bale refuses it) — so every
+    value returned here is one bale's accessor returns identically
+    for the same line.
+    """
+    if not value or value[0] not in ('"', "'"):
+        return None
+    quote = value[0]
+    closing = value.find(quote, 1)
+    if closing < 0:
+        return None
+    cmd = value[1:closing].strip()
+    rest = value[closing + 1:].strip()
+    if not cmd or (rest and not rest.startswith("#")):
+        return None
+    if "\\" in cmd or '"' in cmd:
+        return None
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in cmd):
+        return None
+    return cmd
 
 
 def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
@@ -1792,12 +1834,26 @@ def read_request_provenance(path_str: str) -> tuple[dict | None, str | None] | s
 # on purpose — `budget_pressure` off-enum, `compaction_occurred` missing
 # its required key — the diagnostics.json `bail_trigger: ""` posture:
 # a block the worker never filled cannot pass the lint by accident.
+#
+# `docs_read` is the one OPTIONAL key seeded (board 69, from
+# 2026-09-01-board-70-doc-reachability-007's Proposals): an optional
+# field with no scaffold presence tends to go unfilled, and its value is
+# longitudinal, so the stub is there to be filled. It is seeded
+# schema-VALID ([] lints clean) — so, unlike the two sentinels, an
+# unfilled stub never fails the lint; it draws the lint's warning-tier
+# DOCS_READ_EMPTY_STUB instead, since a present [] would record that
+# nothing was read. Fill it with the docs and sections actually
+# read, or delete the key to report nothing: the schema reads an
+# omitted docs_read as "reported nothing", never "read nothing". The
+# two optional counts (light_blocks, paste_carried_rounds) stay
+# unseeded — absence is their honest default.
 FEEDBACK_SELF_REPORTED_STUB = {
     "assumptions": [],           # worker fills; [] is the honest empty
     "judgment_calls": [],        # worker fills; [] is the honest empty
     "budget_pressure": "",       # worker fills: none | tight | bailed
     "includes_missing": [],      # worker fills; [] is the honest empty
     "compaction_occurred": {},   # worker fills: {"occurred": bool, ...}
+    "docs_read": [],             # worker fills: docs/sections read (optional)
 }
 
 
@@ -1846,7 +1902,14 @@ def build_feedback(kind: str, provenance: dict | None) -> dict:
             "claims_subset": False,       # lint fills
             "provenance": echo,
         },
-        "self_reported": dict(FEEDBACK_SELF_REPORTED_STUB),
+        # A fresh container per value: dict(STUB) alone is shallow, so
+        # every seed would share the stub's lists and dict — one seed's
+        # mutation would leak into the next build and into the constant.
+        "self_reported": {
+            key: (type(value)(value) if isinstance(value, (list, dict))
+                  else value)
+            for key, value in FEEDBACK_SELF_REPORTED_STUB.items()
+        },
     }
 
 
