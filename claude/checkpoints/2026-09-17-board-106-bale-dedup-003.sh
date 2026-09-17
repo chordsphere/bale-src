@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Blind checkpoint — board 106, the bin/bale de-dup micro.
+# Blind checkpoint — board 106, the bin/bale de-dup micro. v2: the
+# near-name probes accept the listing in shlex form (board 102's render)
+# as well as the brief's illustrative double quotes; fixture amendment,
+# desk-side, at 106's first HOLD.
 # Authored at the desk from the request (2026-09-16/17 UTC), before any
 # implementation existed; grades outcomes of the applied tree only.
 # Runs from the staging root. Writes: a private tmpdir only (a scratch
@@ -7,14 +10,14 @@
 # Exit 0 = every probe PASS/SKIP, 1 = a probe FAILed, 2 = script error.
 set -u
 trap 'echo "[ERROR] checkpoint script errored at line $LINENO"; exit 2' ERR
-echo "checkpoint 106 v1: writes to nothing in the tree (tmpdir only)"
+echo "checkpoint 106 v2: writes to nothing in the tree (tmpdir only)"
 fails=0
 pass() { echo "[PASS] $1"; }
 fail() { echo "[FAIL] $1"; fails=$((fails + 1)); }
 tmp="$(mktemp -d)"; export CP_TMP="$tmp"; export CP_ROOT="$PWD"
 
 python3 - <<'PY' || fails=$((fails + $?))
-import ast, os, subprocess, sys
+import ast, os, shlex, subprocess, sys
 from pathlib import Path
 fails = 0
 def verdict(label, ok, detail=""):
@@ -40,7 +43,9 @@ try:
         r = run([verb, miss], cwd=repo)
         verdict(f"absolute-miss-lists-near-name-twin-{verb}",
                 r.returncode != 0 and "not found" in r.stderr
-                and f'bale {verb} "{twin}"' in r.stderr and r.stdout.strip() == "",
+                and (f"bale {verb} {shlex.quote(str(twin))}" in r.stderr
+                     or f'bale {verb} "{twin}"' in r.stderr)
+                and r.stdout.strip() == "",
                 f"rc={r.returncode} stderr={r.stderr[-300:]!r}")
     # 2. one home for the forecast-existence gate
     src = bale.read_text()
@@ -106,5 +111,5 @@ done
 if [ "$suites_ok" -eq 1 ]; then pass "dedup-suites-pass"; else
   fail "dedup-suites-pass"; tail -30 "$tmp/suites.log"; fi
 rm -rf "$tmp"
-if [ "$fails" -ne 0 ]; then echo "checkpoint 106 v1: $fails probe(s) failed"; exit 1; fi
-echo "checkpoint 106 v1: all probes passed"; exit 0
+if [ "$fails" -ne 0 ]; then echo "checkpoint 106 v2: $fails probe(s) failed"; exit 1; fi
+echo "checkpoint 106 v2: all probes passed"; exit 0
