@@ -65,6 +65,7 @@ import unittest
 from pathlib import Path
 
 from harness import (
+    _load_module,
     build_response_dir,
     run_bale,
     run_checked,
@@ -406,6 +407,39 @@ class HoldCardAgreementTest(AmendFixture):
         self.assertEqual(self.assert_successor_is_last_line(r.stdout, sid),
                          card_retry[0],
                          msg="the card and the verb compose one successor")
+
+    def test_degraded_successor_is_the_card_composers_output(self) -> None:
+        """Board 106 (47a): compose_retry_successor delegates to
+        bale_report.compose_hold_successors, so the degrade form agrees
+        too — not only the composed line above. With no HOLD-time stamp
+        the report's last two lines (the why line, then the placeholder
+        rung) are exactly the card composer's fixture-defect retry rung
+        for the same reason. The reason is read back from the report
+        rather than restated here, since the comparison is about the
+        frame both surfaces put around it."""
+        sid = self.packed_session("degradeagree")
+        v1 = checkpoint_script("v1-degradeagree")
+        amendment = self.write_amendment(v1, name="amend-degradeagree.sh")
+        r = self.amend(str(amendment), "--sha256", sha256_text_lf(v1),
+                       "--sid", sid)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assert_successor_is_last_line(r.stdout, sid)
+        lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+        why_line = lines[-2]
+        lead = "(the response tarball path could not be filled in: "
+        self.assertTrue(why_line.startswith(lead), msg=why_line)
+        self.assertIn(NO_STAMP_PHRASE, why_line)
+        why = why_line[len(lead):why_line.rindex("; ")]
+        br = _load_module("bale_report")
+        forks = br.compose_hold_successors(
+            sid=sid, judge_case=br.HOLD_JUDGE_CHECKPOINT,
+            held_tarball=None, held_tarball_why=why)
+        fixture = [f for f in forks
+                   if f["ruling"] == br.RULING_FIXTURE_DEFECT]
+        self.assertEqual(len(fixture), 1)
+        self.assertEqual(lines[-2:], fixture[0]["lines"][1:],
+                         msg="the verb's degrade form is the card's")
 
 
 class AmendCheckpointAccountingTest(AmendFixture):

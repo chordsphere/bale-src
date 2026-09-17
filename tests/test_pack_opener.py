@@ -37,6 +37,14 @@ Pinned behaviors:
   tools sentence, each VERBATIM under whitespace collapse, on both the
   scoped and the read-only pack shape — the shared trailer carries
   them, so both shapes are pinned rather than one assumed.
+- **One copy of each sentence** (board 106, 105's ratified proposal):
+  an in-process unit test calls ``session_opener_block`` directly and
+  asserts the collapsed block carries ``OPENER_AUTHORITY_SENTENCE``,
+  ``OPENER_TOOLS_SENTENCE`` and ``OPENER_SHAPE_SENTENCE`` by reference
+  to the module's own constants, that those constants still equal the
+  literals restated here, and that bin/bale_pack.py holds each
+  sentence once — the emitted lines are cut from the constants, not
+  restated beside them.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness
 in ``tests/harness.py`` carries it; see its module docstring.
@@ -57,6 +65,7 @@ import unittest
 from pathlib import Path
 
 from harness import (
+    _load_module,
     bale_env,
     make_install,
     make_repo,
@@ -429,6 +438,112 @@ class OpenerOperatorVoiceTest(PackOpenerFixture):
         self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
                         msg=f"read-only opener must close with the whole "
                             f"shape sentence:\n{collapsed}")
+
+
+class OpenerConstantsInProcessTest(unittest.TestCase):
+    """Board 106 (105's constants test): the opener is built from
+    bin/bale_pack.py's sentence constants, pinned in process — no
+    sandbox, no pack run. The E2E classes above pin the rendered text
+    against this file's restated literals; this class pins the module's
+    constants themselves, so the two cannot drift apart unnoticed."""
+
+    SID = "2026-09-17-opener-constants-001"
+    PACKED_AT = "2026-09-17T02:05:43+00:00"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.bp = _load_module("bale_pack")
+
+    def block(self, *, read_only: bool) -> list:
+        return self.bp.session_opener_block(
+            self.SID, GOAL, read_only=read_only, packed_at=self.PACKED_AT)
+
+    def segment(self, lines: list) -> list:
+        begin = lines.index(self.bp.OPENER_BEGIN)
+        end = lines.index(self.bp.OPENER_END)
+        self.assertLess(begin, end)
+        return lines[begin + 1:end]
+
+    def test_block_carries_the_module_constants_on_both_shapes(self) -> None:
+        sentences = (
+            ("authority", self.bp.OPENER_AUTHORITY_SENTENCE),
+            ("tools", self.bp.OPENER_TOOLS_SENTENCE),
+            ("examine", self.bp.OPENER_EXAMINE_SENTENCE),
+            ("shape", self.bp.OPENER_SHAPE_SENTENCE),
+        )
+        for read_only in (False, True):
+            collapsed = _collapse("\n".join(
+                self.segment(self.block(read_only=read_only))))
+            positions = []
+            for name, sentence in sentences:
+                with self.subTest(read_only=read_only, sentence=name):
+                    self.assertEqual(collapsed.count(sentence), 1,
+                                     msg=collapsed)
+                    positions.append(collapsed.index(sentence))
+            self.assertEqual(positions, sorted(positions),
+                             msg="authority, tools, examine, shape — in "
+                                 "that order")
+            self.assertTrue(
+                collapsed.endswith(self.bp.OPENER_SHAPE_SENTENCE))
+
+    def test_module_constants_equal_the_pinned_literals(self) -> None:
+        """The restated literals at the top of this file are the
+        rewording guard; the module constants must be those bytes."""
+        for name, pinned in (
+                ("OPENER_BEGIN", OPENER_BEGIN),
+                ("OPENER_END", OPENER_END),
+                ("OPENER_CLOCK_SENTENCE", CLOCK_SENTENCE),
+                ("OPENER_AUTHORITY_SENTENCE", OPENER_AUTHORITY_SENTENCE),
+                ("OPENER_TOOLS_SENTENCE", OPENER_TOOLS_SENTENCE),
+                ("OPENER_EXAMINE_SENTENCE", OPENER_EXAMINE_SENTENCE),
+                ("OPENER_SHAPE_SENTENCE", OPENER_SHAPE_SENTENCE)):
+            with self.subTest(constant=name):
+                self.assertEqual(getattr(self.bp, name), pinned)
+
+    def test_each_sentence_has_one_copy_in_the_module_source(self) -> None:
+        """Before board 106 the emitted lines restated the sentences as
+        literals beside the constants. A fragment that sits inside one
+        string literal of each constant must now occur once in the
+        file."""
+        source = Path(self.bp.__file__).read_text(encoding="utf-8")
+        for fragment in (
+                "The docs and tools in the tarball are mine",
+                "response assembled by hand is just as valid.",
+                "manifest.json, and go from there.",
+                "ends in a block, so nothing is lost."):
+            with self.subTest(fragment=fragment):
+                self.assertEqual(source.count(fragment), 1)
+
+    def test_paragraph_lines_keep_every_word_and_the_width(self) -> None:
+        """The cut never drops or duplicates a word, and the wrapped
+        paragraphs stay within the 70 columns board 105 authored them
+        at (the goal line, which is never wrapped, is excluded)."""
+        for text, counts in (
+                (f"{self.bp.OPENER_AUTHORITY_SENTENCE} "
+                 f"{self.bp.OPENER_TOOLS_SENTENCE}",
+                 self.bp.OPENER_VOICE_WORDS_PER_LINE),
+                (f"{self.bp.OPENER_EXAMINE_SENTENCE} "
+                 f"{self.bp.OPENER_SHAPE_SENTENCE}",
+                 self.bp.OPENER_CLOSING_WORDS_PER_LINE)):
+            lines = self.bp._opener_lines(text, counts)
+            self.assertEqual(" ".join(lines).split(), text.split())
+            self.assertEqual(len(lines), len(counts) + 1)
+            for line in lines:
+                self.assertLessEqual(len(line), 70, msg=line)
+        segment = self.segment(self.block(read_only=False))
+        goal_at = next(i for i, ln in enumerate(segment)
+                       if ln.startswith(GOAL_LINE_PREFIX))
+        for line in segment[goal_at + 1:]:
+            self.assertLessEqual(len(line), 70, msg=line)
+
+    def test_remainder_forms_the_last_line(self) -> None:
+        """A reworded sentence reflows rather than losing words: words
+        past the pinned counts become one final line, and counts past
+        the end of the text stop cleanly."""
+        cut = self.bp._opener_lines
+        self.assertEqual(cut("a b c d e", (2, 2)), ["a b", "c d", "e"])
+        self.assertEqual(cut("a b c", (2, 5, 5)), ["a b", "c"])
+        self.assertEqual(cut("", (3,)), [])
 
 
 if __name__ == "__main__":

@@ -131,8 +131,11 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     CLOSURE_REASONS,
+    HOLD_JUDGE_CHECKPOINT,
+    RULING_FIXTURE_DEFECT,
     awaiting_side,
     build_telemetry_attempt,
+    compose_hold_successors,
     read_clarification_summary,
     emit_json_line,
     enable_json_mode,
@@ -212,6 +215,7 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
     locate_and_read_checkpoint_file,
     normalize_crlf,
     persist_pack_session,
+    refuse_missing_scope_paths,
     run_forecast_disjointness_gate,
 )
 
@@ -1460,15 +1464,27 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     render (pack's --readme-file, open's bundle) leave it None and keep
     the bare refusal; a verb with zero candidates keeps it too.
 
+    Board 106 widens the listing to every miss branch. With a verb, the
+    resolver also runs the existence check the absolute and no-search-
+    path branches used to leave to the caller, and refuses through
+    fail_not_found — so `bale apply /abs/dir/response-X.tar.gz` lists
+    the `response-X (1).tar.gz` twin beside it exactly as a relative
+    search miss does. The refusal's first line is the caller's old
+    `<kind> not found: <resolved path>` byte for byte; the callers'
+    own post-resolution checks stay as defense in depth and are now
+    unreachable for a verb caller. Verb-less callers are unchanged:
+    they still receive the unchecked path and do their own read.
+
     The semantics are layered so that a user with no search_paths
     configured sees identical behavior to the pre-search-paths era:
 
       1. Absolute path → returned as-is. Search is bypassed entirely (per
-         the bale.toml contract). The caller checks existence and emits
-         its normal "<kind> not found" error if the path doesn't exist.
+         the bale.toml contract). Existence: see the board-106 paragraph
+         above — checked here when a verb is given, by the caller
+         otherwise.
       2. Relative path AND no search_paths configured → resolved against
          cwd. Same behavior as the original `Path(arg).resolve()` plus
-         the caller's existence check.
+         the existence check (here with a verb, the caller's without).
       3. Relative path AND search_paths configured → cwd first, then each
          configured search path in order. First existing file wins. If
          none match, fail() here with a multi-line message naming every
@@ -1489,23 +1505,62 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     resolution implementation.
     """
     resolved = locate_inbound_path(arg, cwd, search_paths)
-    if resolved is not None:
-        return resolved
+    if resolved is None:
+        # Search miss: the refusal names every directory consulted — per
+        # the explicit constraint, the user should never be left guessing
+        # which paths bale consulted.
+        fail_not_found(kind, arg, verb, cwd=cwd, search_paths=search_paths)
+    if verb is not None and not resolved.is_file():
+        # Absolute or no-search-path miss (board 106): the two branches
+        # locate_inbound_path returns unchecked. Refused here, rather
+        # than at each verb's own check, so the near-name listing
+        # reaches them without the caller's module changing.
+        fail_not_found(kind, resolved, verb, cwd=cwd)
+    return resolved
 
-    # Nothing matched. The error names every directory that was searched —
-    # per the explicit constraint, the user should never be left guessing
-    # which paths bale consulted.
-    lines = [f"{kind} not found: {arg}", "  searched:"]
-    lines.append(f"    {cwd}  (cwd)")
-    for sp in search_paths:
-        lines.append(f"    {sp}")
+
+def fail_not_found(kind: str, path, verb: Optional[str] = None, *,
+                   cwd: Optional[Path] = None,
+                   search_paths: Optional[list] = None) -> None:
+    """Refuse a missing inbound file with bale's one not-found shape
+    (board 106), then exit through fail().
+
+    The first line is `<kind> not found: <path>`, where `path` is
+    whatever the refusal should name — the typed argument on a search
+    miss, the resolved path on the absolute and no-search-path
+    branches. Two optional blocks follow, in this order:
+
+    - `search_paths` given (a search miss): `  searched:` and every
+      directory consulted, cwd first and marked `(cwd)` — `cwd` is
+      required with it.
+    - `verb` given: the board-102 near-name listing — every candidate
+      near_name_candidates finds for `path` across cwd plus the given
+      search paths, each rendered as a paste-ready, shlex-quoted
+      `bale <verb> <path>` line, newest first. An absolute `path` scans
+      its own directory, which is where the exact match was looked for.
+      Zero candidates adds nothing, so the refusal is byte-identical to
+      the pre-listing form.
+
+    Callers with no verb to render (pack's --readme-file, open's bundle,
+    amend-checkpoint's amendment file) pass None and keep the bare
+    refusal. Wording lives here only: resolve_inbound_path, retry's and
+    handoff's defensive checks, and amend-checkpoint's two refusals all
+    route through this function, so the not-found lines cannot drift.
+    """
+    lines = [f"{kind} not found: {path}"]
+    if search_paths is not None:
+        lines.append("  searched:")
+        lines.append(f"    {cwd}  (cwd)")
+        for sp in search_paths:
+            lines.append(f"    {sp}")
     if verb is not None:
-        # Board 102: the typed name minus its .tar.gz suffix is the
-        # prefix; each hit renders as the whole command line for the
-        # verb the user typed, quoted so a Downloads twin with a space
-        # and parens pastes back intact. Zero hits adds nothing — the
-        # refusal above is byte-identical to the pre-listing form.
-        candidates = near_name_candidates(arg, cwd, search_paths)
+        # The typed name minus its .tar.gz suffix is the prefix; each hit
+        # renders as the whole command line for the verb the user typed,
+        # quoted so a Downloads twin with a space and parens pastes back
+        # intact.
+        scan_cwd = cwd if cwd is not None else Path.cwd().resolve()
+        candidates = near_name_candidates(str(path), scan_cwd,
+                                          list(search_paths or []))
         if candidates:
             lines.append("  near-name candidates (newest first):")
             for candidate in candidates:
@@ -1763,7 +1818,14 @@ class BaleignoreMatcher:
         """Build a matcher from a list of pattern lines. Lines may include
         comments and blanks; they're stripped here. Raises ValueError on
         leading `!` (negation, unsupported) so the caller can fail
-        with file context."""
+        with file context.
+
+        The ValueError text is source-neutral (board 106): the same
+        parser serves the repo's `.baleignore` file and a pack's session
+        excludes (--exclude, the wizard, the soft-breach [e] prompt), so
+        the message names neither. Each caller prefixes its own source —
+        load_baleignore the file path, build_pack_matcher (bin/
+        bale_pack.py) `.baleignore` or the session excludes."""
         entries: list[tuple] = []
         patterns: list[str] = []
         for raw in lines:
@@ -1773,7 +1835,7 @@ class BaleignoreMatcher:
             if stripped.startswith("!"):
                 raise ValueError(
                     f"negation patterns (lines starting with '!') are not "
-                    f"supported in .baleignore at v0.1. Offending line: "
+                    f"supported at v0.1. Offending line: "
                     f"{stripped!r}. Narrow `--include` paths or remove "
                     f"the conflicting positive pattern instead."
                 )
@@ -1907,6 +1969,8 @@ def load_baleignore(repo: Path) -> Optional[BaleignoreMatcher]:
     try:
         return BaleignoreMatcher.from_lines(text.splitlines())
     except ValueError as e:
+        # from_lines' text is source-neutral (board 106); the file path
+        # prefix is what names `.baleignore` here.
         fail(f"{f}: {e}")
 
 
@@ -2383,7 +2447,9 @@ def cmd_retry(args: argparse.Namespace) -> int:
     tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                         verb="retry")
     if not tarball_path.is_file():
-        fail(f"tarball not found: {tarball_path}")
+        # Unreachable since board 106 (the resolver refuses a verb's miss
+        # itself); kept as defense in depth, through the one wording home.
+        fail_not_found("tarball", tarball_path, "retry", cwd=cwd)
 
     # json output mode (v0.3.14, retry parity): same two-part contract as
     # `bale apply --json` (v0.2.8) — stdout carries exactly the one-line
@@ -2732,14 +2798,13 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
     search = bale_config.get_apply_search_paths(cfg)
     src = locate_inbound_path(args.file, cwd, search)
     if src is None:
-        lines = [f"amendment file not found: {args.file}", "  searched:",
-                 f"    {cwd}  (cwd)"]
-        lines += [f"    {sp}" for sp in search]
-        fail("\n".join(lines))
+        fail_not_found("amendment file", args.file, cwd=cwd,
+                       search_paths=search)
     if not src.is_file():
         # The absolute / no-search-path branches return their candidate
-        # unchecked; the read is the existence check there.
-        fail(f"amendment file not found: {src}")
+        # unchecked; the read is the existence check there. No verb: an
+        # amendment is not a tarball, so there is no listing to render.
+        fail_not_found("amendment file", src)
     try:
         data = src.read_bytes()
     except OSError as e:
@@ -2950,17 +3015,34 @@ def compose_retry_successor(repo: Path, sid: str) -> list[str]:
     --sid stays in the composed line as belt-and-suspenders: retry
     resolves from the tarball's own responds_to (resolve_retry_session)
     and --sid vets it, so the line vets rather than depends.
+
+    Board 106 (47a): the lines are not restated here. The HOLD card's
+    fixture-defect fork — bale_report.compose_hold_successors, called
+    for the checkpoint-held case — is the one composer; this function
+    reads the stamp, logs which rung it took, and returns that fork's
+    retry rung, i.e. its lines after the leading amend line (the
+    composer's documented `[amend line] + retry lines` shape). The
+    amendment report and the card therefore agree by construction on
+    both the composed line and the degrade form, not by a test that
+    compares two copies.
     """
     held, why = read_held_tarball_stamp(repo, sid)
     if held is not None:
         log(f"successor composed from the HOLD-time tarball stamp: {held}")
-        return [f"bale retry {shlex.quote(held)} "
-                f"--accept-checkpoint-change --sid {sid}"]
-    log(f"successor degraded to the placeholder form — {why}", force=True)
-    return [f"(the response tarball path could not be filled in: {why}; "
-            f"substitute the held response's path below)",
-            f"bale retry <response-tarball> --accept-checkpoint-change "
-            f"--sid {sid}"]
+    else:
+        log(f"successor degraded to the placeholder form — {why}",
+            force=True)
+    forks = compose_hold_successors(
+        sid=sid, judge_case=HOLD_JUDGE_CHECKPOINT,
+        held_tarball=held, held_tarball_why=why)
+    fixture = [f for f in forks if f["ruling"] == RULING_FIXTURE_DEFECT]
+    if len(fixture) != 1 or len(fixture[0]["lines"]) < 2:
+        # The composer's contract changed shape under us. Refuse loudly
+        # rather than print a successor that may not be the card's.
+        fail(f"internal: compose_hold_successors returned no usable "
+             f"fixture-defect fork for {sid} ({forks!r}); the amendment "
+             f"is committed — compose the retry line from the HOLD card.")
+    return list(fixture[0]["lines"][1:])
 
 
 # ---------------------------------------------------------------------------
@@ -3589,7 +3671,9 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                         verb="handoff")
     if not tarball_path.is_file():
-        fail(f"tarball not found: {tarball_path}")
+        # Unreachable since board 106 (the resolver refuses a verb's miss
+        # itself); kept as defense in depth, through the one wording home.
+        fail_not_found("tarball", tarball_path, "handoff", cwd=cwd)
 
     # --checkpoint-file (v0.4.28, board 73 path 2): the same front-loaded
     # read and base-shape gate cmd_pack runs, sited pre-tarball so a
@@ -3612,16 +3696,11 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     # existing-paths rule; BALE.md §6.7's bundle refusal), sited
     # pre-tarball beside the flag grammar above. The forecast itself is
     # resolved after the bailout is opened, next to the inheritance it
-    # overrides.
-    for wpath in args.write:
-        if not (repo / wpath).exists():
-            fail(
-                f"--write path does not exist: {wpath}. Forecast "
-                f"entries name existing files or directories "
-                f"(ADR-0014's rule, held on the forecast surface); "
-                f"to forecast new files, name the directory they "
-                f"will land under."
-            )
+    # overrides. The existence gate is bale_pack's own implementation
+    # (board 106 retired the copy that lived here): handoff has no
+    # --include, so the include family is passed empty and only the
+    # --write loop runs — same order, same refusal text.
+    refuse_missing_scope_paths(repo, [], list(args.write))
     bundle_offenders = bundle_named_entries(list(args.write))
     if bundle_offenders:
         rendered = "; ".join(f"--write {entry}" for entry in bundle_offenders)
@@ -5732,6 +5811,56 @@ def _stats_dossier(args, telemetry_dir: Path) -> int:
 # 26. CLI
 # ---------------------------------------------------------------------------
 
+class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """The help formatter every subparser uses (board 106, 99a).
+
+    argparse's default formatter collapses a description into one
+    reflowed paragraph, which flattened the paragraph breaks `apply`
+    and `retry` author and ran `completion`'s two example commands into
+    the surrounding prose. Plain RawDescriptionHelpFormatter fixes that
+    but stops wrapping altogether, so every description written as one
+    long string (most of them) would print as a single line hundreds of
+    characters wide. This subclass keeps the raw formatter's contract
+    for the structure an author writes and argparse's wrapping for the
+    prose inside it:
+
+    - Blocks are separated by blank lines, and a blank line between
+      blocks is kept.
+    - A block whose every line is indented is a literal (an example
+      command): its lines are emitted verbatim, never wrapped.
+    - Any other block is prose, filled exactly as HelpFormatter fills a
+      whole description — whitespace collapsed, wrapped to the terminal
+      width.
+
+    So a description with no blank lines renders byte-for-byte as it
+    did under the default formatter, at any width; only descriptions
+    that author paragraphs or literal blocks change, and only by keeping
+    them. Argument help strings are unaffected (RawDescription* touches
+    description and epilog only). The top-level parser keeps the default
+    formatter — its text has no structure to preserve.
+    """
+
+    _BLOCK_SEPARATOR = re.compile(r"\n[ \t]*\n")
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        blocks = [block.strip("\n")
+                  for block in self._BLOCK_SEPARATOR.split(text)
+                  if block.strip()]
+        if not blocks:
+            return argparse.HelpFormatter._fill_text(self, text, width,
+                                                     indent)
+        rendered = []
+        for block in blocks:
+            lines = block.split("\n")
+            if all(line[:1] in (" ", "\t") for line in lines):
+                rendered.append("\n".join(indent + line.rstrip()
+                                          for line in lines))
+            else:
+                rendered.append(argparse.HelpFormatter._fill_text(
+                    self, block, width, indent))
+        return "\n\n".join(rendered)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
@@ -5765,6 +5894,7 @@ def build_parser() -> argparse.ArgumentParser:
     # continuations); don't reconstruct it from this parser.
     p_pack = sub.add_parser(
         "pack",
+        formatter_class=SubcommandHelpFormatter,
         help="Build a request tarball: goal, --include context, --write "
              "forecast.",
         description=(
@@ -6057,6 +6187,7 @@ def build_parser() -> argparse.ArgumentParser:
     # apply
     p_apply = sub.add_parser(
         "apply",
+        formatter_class=SubcommandHelpFormatter,
         help="Validate, stage, and merge (PASS) or hold (HOLD) a response "
              "tarball; bare `bale apply` finds the newest one.",
         description=(
@@ -6277,6 +6408,7 @@ def build_parser() -> argparse.ArgumentParser:
     # retry
     p_retry = sub.add_parser(
         "retry",
+        formatter_class=SubcommandHelpFormatter,
         help="Re-attempt a HOLDed session with a new response tarball "
              "(same session id, no repack).",
         description=(
@@ -6436,6 +6568,7 @@ def build_parser() -> argparse.ArgumentParser:
     # amend-checkpoint
     p_amend = sub.add_parser(
         "amend-checkpoint",
+        formatter_class=SubcommandHelpFormatter,
         help="Commit a desk-published checkpoint amendment over an open "
              "session's blind oracle and emit the retry line "
              "(PLANNER.md \u00a75 steps 4\u20135).",
@@ -6504,6 +6637,7 @@ def build_parser() -> argparse.ArgumentParser:
     # relay
     p_relay = sub.add_parser(
         "relay",
+        formatter_class=SubcommandHelpFormatter,
         help="Record one exchange in a suspended session's clarification "
              "thread and emit the counterpart's paste block; with no "
              "file, re-emit the latest recorded round "
@@ -6558,6 +6692,7 @@ def build_parser() -> argparse.ArgumentParser:
     # revert
     p_revert = sub.add_parser(
         "revert",
+        formatter_class=SubcommandHelpFormatter,
         help="Discard a held bale branch.",
         description=(
             "Discard a held bale branch and close its session. The sid "
@@ -6610,6 +6745,7 @@ def build_parser() -> argparse.ArgumentParser:
     # with --undo. Command logic lives in the sibling bale_rollback module.
     p_rollback = sub.add_parser(
         "rollback",
+        formatter_class=SubcommandHelpFormatter,
         help="git revert an applied (merged) session. Defaults to the most "
              "recent; --undo reverses a rollback; --list shows status.",
         description=(
@@ -6659,6 +6795,7 @@ def build_parser() -> argparse.ArgumentParser:
     # unlock
     p_unlock = sub.add_parser(
         "unlock",
+        formatter_class=SubcommandHelpFormatter,
         help="Clear an abandoned session (no git side effects), or "
              "--integration for a stale integration lock.",
         description=(
@@ -6730,6 +6867,7 @@ def build_parser() -> argparse.ArgumentParser:
     # bundle's pre-answered intents on the in-process channel.
     p_open = sub.add_parser(
         "open",
+        formatter_class=SubcommandHelpFormatter,
         help="Consume a planner bundle: verify, gate the pack argv, "
              "dry-run the checkpoint, pack.",
         description=(
@@ -6791,6 +6929,7 @@ def build_parser() -> argparse.ArgumentParser:
     # context entry for a new session that inherits the original goal.
     p_handoff = sub.add_parser(
         "handoff",
+        formatter_class=SubcommandHelpFormatter,
         help="Repackage a bailout response into a fresh request tarball.",
         description=(
             "Take a bailout response tarball (response_kind=\"bailout\", "
@@ -6914,6 +7053,7 @@ def build_parser() -> argparse.ArgumentParser:
     # acceptance store, v0.4.29). There is no set/get/edit subcommand.
     p_config = sub.add_parser(
         "config",
+        formatter_class=SubcommandHelpFormatter,
         help="Manage bale configurables: `config init` walks bale.toml "
              "(per-repo or --global); `config hooks` lists remembered "
              "hook acceptances.",
@@ -6930,6 +7070,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_config_init = config_sub.add_parser(
         "init",
+        formatter_class=SubcommandHelpFormatter,
         help="Walk through every configurable at the chosen layer (project "
              "by default; pass --global for the install-wide layer). "
              "Idempotent.",
@@ -6967,6 +7108,7 @@ def build_parser() -> argparse.ArgumentParser:
     # install-level, like `config init --global`.
     p_config_hooks = config_sub.add_parser(
         "hooks",
+        formatter_class=SubcommandHelpFormatter,
         help="List the hook acceptance store (project/configured hook "
              "scripts accepted at the prompt, by sha256), or --forget "
              "one entry.",
@@ -7011,6 +7153,7 @@ def build_parser() -> argparse.ArgumentParser:
     # subcommand is.
     p_help = sub.add_parser(
         "help",
+        formatter_class=SubcommandHelpFormatter,
         help="Show help for bale or a specific command.",
         description=(
             "Show help. With no arguments, prints the top-level usage "
@@ -7036,6 +7179,7 @@ def build_parser() -> argparse.ArgumentParser:
     # moment of generation; re-run when commands or flags change.
     p_completion = sub.add_parser(
         "completion",
+        formatter_class=SubcommandHelpFormatter,
         help="Print a shell completion script (bash) to stdout.",
         description=(
             "Print a shell completion script to stdout for the chosen "
@@ -7065,6 +7209,7 @@ def build_parser() -> argparse.ArgumentParser:
     # for free, the whole point of those two reading from this one parser.
     p_status = sub.add_parser(
         "status",
+        formatter_class=SubcommandHelpFormatter,
         help="Show a read-only summary of this repo's bale state.",
         description=(
             "Print a read-only summary of the working directory's bale: the "
@@ -7095,6 +7240,7 @@ def build_parser() -> argparse.ArgumentParser:
     # stats
     p_stats = sub.add_parser(
         "stats",
+        formatter_class=SubcommandHelpFormatter,
         help="Aggregate the claude/telemetry/ corpus into trust-ledger "
              "rates.",
         description=(

@@ -49,8 +49,11 @@ or via ``python3 -m unittest discover -s tests``.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from test_handoff_fixture import HandoffFixture
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 PARENT_FORECAST_FILE = "other.txt"
 DRIFT_REJECT_PHRASE = "own-forecast drift"
@@ -331,6 +334,31 @@ class HandoffManifestIsModernTest(HandoffFixture):
                       result.stdout)
         new_sid = self.sole_new_open_sid(bailed_sid)
         self.assertEqual(self.recorded_scope(new_sid), ["hello.txt"])
+
+
+class HandoffExistenceGateOneHomeTest(unittest.TestCase):
+    """Board 106 (68): the --write existence refusal has one home,
+    bin/bale_pack.py's refuse_missing_scope_paths, and cmd_handoff calls
+    it rather than carrying a copy. Behavior is pinned above
+    (test_write_grammar_matches_pack asserts the refusal text on the
+    handoff surface); this class pins that the text cannot fork again.
+    Static and sandbox-free: it reads the shipped sources only."""
+
+    REFUSAL = "--write path does not exist"
+
+    def source(self, name: str) -> str:
+        return (REPO_ROOT / "bin" / name).read_text(encoding="utf-8")
+
+    def test_refusal_text_lives_only_in_bale_pack(self) -> None:
+        self.assertEqual(self.source("bale").count(self.REFUSAL), 0,
+                         msg="bin/bale carries its own copy of the gate")
+        self.assertEqual(self.source("bale_pack.py").count(self.REFUSAL), 1)
+
+    def test_cmd_handoff_calls_the_shared_gate(self) -> None:
+        text = self.source("bale")
+        start = text.index("\ndef cmd_handoff(")
+        end = text.index("\ndef ", start + 1)
+        self.assertIn("refuse_missing_scope_paths(", text[start:end])
 
 
 if __name__ == "__main__":

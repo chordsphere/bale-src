@@ -1425,6 +1425,13 @@ class ExplicitNameMissTest(unittest.TestCase):
     scan and a stat — so the fixtures are empty files with pinned
     mtimes; nothing here needs an open session, and every verb refuses
     at resolution before any session state is touched.
+
+    Board 106 (bin/bale fail_not_found) widens the listing to the two
+    branches that used to refuse bare: an absolute path (search is
+    bypassed, so the listing scans the path's own directory) and a
+    relative name with no search paths configured (cwd only). Callers
+    with no verb — `bale open`'s bundle, `bale pack --readme-file` —
+    keep their bare refusal even with a candidate beside the miss.
     """
 
     PREFIX = "response-2026-09-15-near-001"
@@ -1576,6 +1583,250 @@ class ExplicitNameMissTest(unittest.TestCase):
                     result.stderr.rstrip().endswith(str(self.downloads)),
                     msg=f"unexpected trailer after the searched list:"
                         f"\n{result.stderr}")
+
+    # -- board 106: every miss branch ------------------------------------
+
+    def bare_miss(self, verb: str, typed: str, named: Path):
+        """A miss on a branch that does not search: exit 1, the refusal
+        names `named` (the path the branch checked), and there is no
+        searched block."""
+        result = run_bale(self.install, [verb, typed],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(
+            result.returncode, 1,
+            msg=f"expected the not-found refusal (exit 1); "
+                f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn(f"tarball not found: {named}", result.stderr)
+        self.assertNotIn("  searched:", result.stderr)
+        return result
+
+    def test_absolute_path_miss_lists_the_twin_for_every_verb(self) -> None:
+        """The desk's reproduction: `bale <verb> /abs/dir/response-X.tar.gz`
+        with the browser twin `response-X (1).tar.gz` beside it lists the
+        twin as a paste-ready, quoted line — apply, retry and handoff
+        alike — and still exits 1."""
+        twin = self.drop(f"{self.PREFIX} (1).tar.gz")
+        typed = self.downloads / f"{self.PREFIX}.tar.gz"
+        for verb in ("apply", "retry", "handoff"):
+            with self.subTest(verb=verb):
+                result = self.bare_miss(verb, str(typed), typed)
+                self.assertEqual(self.listing_lines(result.stderr),
+                                 [f"bale {verb} '{twin}'"])
+
+    def test_absolute_path_miss_scans_only_its_own_directory(self) -> None:
+        """Search is bypassed for an absolute path, so a near name in a
+        configured search directory other than the path's own is not a
+        candidate."""
+        elsewhere = self.tmp / "elsewhere"
+        elsewhere.mkdir()
+        self.drop(f"{self.PREFIX}-dl.tar.gz")  # in the search path only
+        near = self.drop(f"{self.PREFIX}-here.tar.gz", where=elsewhere)
+        typed = elsewhere / f"{self.PREFIX}.tar.gz"
+        result = self.bare_miss("apply", str(typed), typed)
+        self.assertEqual(self.listing_lines(result.stderr),
+                         [f"bale apply {near}"])
+
+    def test_no_search_path_relative_miss_lists_cwd_names(self) -> None:
+        """With no search paths configured a relative name resolves
+        against cwd only; its miss names the resolved path and lists the
+        cwd twin."""
+        (self.repo / "bale.toml").unlink()
+        twin = self.drop(f"{self.PREFIX} (1).tar.gz", where=self.repo)
+        typed = f"{self.PREFIX}.tar.gz"
+        for verb in ("apply", "retry", "handoff"):
+            with self.subTest(verb=verb):
+                result = self.bare_miss(verb, typed,
+                                        (self.repo / typed).resolve())
+                self.assertEqual(self.listing_lines(result.stderr),
+                                 [f"bale {verb} '{twin.resolve()}'"])
+
+    def test_absolute_miss_without_candidates_is_the_bare_refusal(
+            self) -> None:
+        """Zero candidates on the widened branches adds nothing: the
+        refusal is the one line it was before board 106."""
+        self.drop("response-2026-09-15-other-001.tar.gz")
+        typed = self.downloads / f"{self.PREFIX}.tar.gz"
+        for verb in ("apply", "retry", "handoff"):
+            with self.subTest(verb=verb):
+                result = self.bare_miss(verb, str(typed), typed)
+                self.assertNotIn("near-name", result.stderr)
+                self.assertEqual(result.stderr.strip(),
+                                 f"[bale] error: tarball not found: {typed}")
+
+    def test_verbless_callers_keep_the_bare_refusal(self) -> None:
+        """No verb, no listing — even with a near name right beside the
+        miss. `bale open` keeps its bundle refusal and `bale pack
+        --readme-file` its read refusal, unchanged."""
+        self.drop(f"{self.PREFIX} (1).tar.gz")
+        typed = self.downloads / f"{self.PREFIX}.tar.gz"
+        with self.subTest(caller="open"):
+            result = run_bale(self.install, ["open", str(typed)],
+                              cwd=self.repo, env=self.env)
+            self.assertEqual(result.returncode, 1, msg=result.stderr)
+            self.assertEqual(result.stderr.strip(),
+                             f"[bale] error: bundle not found: {typed}")
+        with self.subTest(caller="pack --readme-file"):
+            result = run_bale(
+                self.install,
+                ["pack", "readme miss fixture", "--slug", "readmemiss",
+                 "--include", "hello.txt", "--readme-file", str(typed)],
+                cwd=self.repo, env=self.env)
+            self.assertEqual(result.returncode, 1, msg=result.stderr)
+            self.assertIn("could not read --readme-file", result.stderr)
+            self.assertNotIn("near-name", result.stderr)
+            self.assertNotIn("bale pack ", result.stderr)
+
+
+class BaleignoreLoaderAttributionTest(unittest.TestCase):
+    """Board 106: `BaleignoreMatcher.from_lines` raises source-neutral
+    text, and each caller names its own source. The repo-file loader
+    (bin/bale load_baleignore) is reached on apply's path-safety pass;
+    its refusal names `.baleignore` through the file path it prefixes,
+    and the matcher's own sentence no longer does (the pack-side
+    callers are pinned in tests/test_pack_guards.py)."""
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-ignoreload-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = bale_env(self.home, self.tmp)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_apply_names_the_baleignore_file_as_the_source(self) -> None:
+        packed = run_bale(self.install,
+                          ["pack", "loader attribution fixture",
+                           "--slug", "ignoreload", "--include", ".",
+                           "--no-readme"],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(packed.returncode, 0, msg=packed.stderr)
+        root = self.repo / ".bale" / "sessions"
+        sid = [d.name for d in root.iterdir() if (d / "open").is_file()][0]
+        tarball = tar_response_dir(build_response_dir(
+            self.tmp / "response", sid,
+            summary="loader attribution fixture: rewrite hello.txt",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "fixture rewrite", "data": b"x\n"}]))
+        # The negation line lands after pack, so only apply's loader
+        # reads it.
+        genv = git_env(self.home)
+        (self.repo / ".baleignore").write_text("!keep\n", encoding="utf-8")
+        run_checked(["git", "add", ".baleignore"], cwd=self.repo, env=genv)
+        run_checked(["git", "commit", "-m", "negation"], cwd=self.repo,
+                    env=genv)
+        result = run_bale(self.install, ["apply", str(tarball)],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        refusal = [ln for ln in result.stderr.splitlines()
+                   if "negation patterns" in ln]
+        self.assertEqual(len(refusal), 1, msg=result.stderr)
+        prefix = f"[bale] error: {self.repo / '.baleignore'}: "
+        self.assertTrue(refusal[0].startswith(prefix), msg=refusal[0])
+        self.assertIn("'!keep'", refusal[0])
+        self.assertNotIn(".baleignore", refusal[0][len(prefix):],
+                         msg="the matcher's own sentence names no source")
+
+
+class SubcommandHelpLayoutTest(unittest.TestCase):
+    """Board 106 (99a): every subparser renders its description with
+    bin/bale's SubcommandHelpFormatter, a RawDescriptionHelpFormatter
+    that keeps blank-line paragraph breaks and indented literal blocks
+    and still wraps prose. Rendered through the real CLI at a pinned
+    80-column width (argparse wraps to COLUMNS - 2)."""
+
+    COLUMNS = 80
+    COMMANDS = (
+        ("pack",), ("apply",), ("retry",), ("amend-checkpoint",),
+        ("relay",), ("revert",), ("rollback",), ("unlock",), ("open",),
+        ("handoff",), ("config",), ("config", "init"), ("config", "hooks"),
+        ("help",), ("completion",), ("status",), ("stats",),
+    )
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-help-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.env = dict(bale_env(self.home, self.tmp),
+                        COLUMNS=str(self.COLUMNS))
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def help_text(self, *command: str) -> str:
+        result = run_bale(self.install, [*command, "--help"],
+                          cwd=self.tmp, env=self.env)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        return result.stdout
+
+    @staticmethod
+    def description_lines(text: str) -> list:
+        """The lines between the usage block and the first argument
+        section heading."""
+        lines = text.splitlines()
+        start = next(i for i, ln in enumerate(lines) if ln == "") + 1
+        end = next((i for i, ln in enumerate(lines)
+                    if i >= start and ln.endswith(":")
+                    and not ln.startswith(" ")
+                    and ln in ("positional arguments:", "options:",
+                               "optional arguments:")), len(lines))
+        return lines[start:end]
+
+    def test_completion_examples_render_on_their_own_lines(self) -> None:
+        lines = self.help_text("completion").splitlines()
+        for example in (
+                "    source <(bale completion bash)",
+                "    bale completion bash > "
+                "~/.local/share/bash-completion/completions/bale"):
+            with self.subTest(example=example.strip()):
+                self.assertIn(example, lines)
+                at = lines.index(example)
+                self.assertEqual(lines[at - 1], "",
+                                 msg="blank line before the example")
+                self.assertEqual(lines[at + 1], "",
+                                 msg="blank line after the example")
+        self.assertIn("Or install persistently:", lines)
+
+    def test_authored_paragraph_breaks_survive(self) -> None:
+        for command, opening in (
+                ("apply", "The tarball argument is resolved against"),
+                ("apply", "Inspection flags (--show-validator,"),
+                ("retry", "A HOLD is retried on one of two rulings."),
+                ("retry", "The per-attempt flags mirror")):
+            with self.subTest(command=command, paragraph=opening):
+                lines = self.help_text(command).splitlines()
+                starts = [i for i, ln in enumerate(lines)
+                          if ln.startswith(opening)]
+                self.assertEqual(len(starts), 1, msg="\n".join(lines))
+                self.assertEqual(lines[starts[0] - 1], "")
+
+    def test_every_description_still_wraps(self) -> None:
+        """No subparser's prose relies on a formatter that stopped
+        wrapping: every non-literal description line fits the width."""
+        for command in self.COMMANDS:
+            with self.subTest(command=" ".join(command)):
+                description = self.description_lines(
+                    self.help_text(*command))
+                self.assertTrue(any(ln.strip() for ln in description),
+                                msg="expected a rendered description")
+                for line in description:
+                    if line.startswith("    "):
+                        continue  # a literal block, verbatim by design
+                    self.assertLessEqual(len(line), self.COLUMNS - 2,
+                                         msg=line)
+
+    def test_single_paragraph_description_renders_as_one_block(
+            self) -> None:
+        """A description written as one string keeps argparse's filled
+        layout: one contiguous block, no blank line inside it."""
+        description = self.description_lines(self.help_text("status"))
+        body = [ln for ln in description if ln.strip()]
+        self.assertGreater(len(body), 1)
+        first = description.index(body[0])
+        self.assertEqual(description[first:first + len(body)], body)
 
 
 # ---------------------------------------------------------------------------
