@@ -31,8 +31,20 @@ Run:  python3 -m unittest tests.test_sanctioned_pairs -v
 
 from __future__ import annotations
 
+import sys
 import unittest
 from pathlib import Path
+
+# normalize() lives in tests/harness.py (board 109: one home per helper).
+# The dotted run form in the docstring (`python3 -m unittest
+# tests.<suite>`) does not put tests/ on sys.path the way direct execution
+# and `discover -s tests` do, so put it there before the bare import —
+# this suite ran in all three forms before the helper moved, and still
+# does.
+_TESTS_DIR = str(Path(__file__).resolve().parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
+from harness import normalize  # noqa: E402 — path guard above
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO / "docs"
@@ -151,12 +163,6 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "half stands alone for its citers"),
     ],
 }
-
-
-def normalize(text: str) -> str:
-    """Collapse all whitespace runs to single spaces — the rewrapping
-    tolerance: pins match words, never line breaks."""
-    return " ".join(text.split())
 
 
 class SanctionedPairPins(unittest.TestCase):
