@@ -19,6 +19,13 @@ sandbox (ADR-0005 doctrine, via tests/harness.py):
   shape), and a declined supersession refuses even when the scopes
   happen to be disjoint (the post-gate check)
 - on the wizard path a decline refuses before any wizard prompt runs
+- tree-clean after supersession (board 107): with telemetry tracked
+  and `[apply] sweep` on, an accepted supersession leaves no tracked
+  file modified — the reverse-lineage stamp rides its own
+  `[bale sweep <parent>] superseded_by <child>` commit, on the
+  checkpoint-file recipe the defect was reproduced with, on the plain
+  config, and on the idempotent re-run; with the sweep off or unset
+  the pre-fix behavior stands (no sweep output, no sweep commit)
 
 The pty runner lives in the harness (extracted when this suite became
 its second consumer).
@@ -27,6 +34,7 @@ its second consumer).
 from __future__ import annotations
 
 import json
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -54,6 +62,18 @@ IDEMPOTENT_MARKER = "idempotent re-run"
 PROMPT_MARKER = "Close open session"
 WIZARD_GOAL_MARKER = "Goal (one sentence)"
 UNLOCK_REMEDY = "bale unlock"
+
+# Board 107 (tree-clean after supersession). The per-session checkpoint
+# base the defect was reproduced under (the same {sid} pattern
+# tests/test_per_sid_checkpoint.py pins), the sweep commit-subject
+# prefix (BALE.md §8.8's message family), and the stamp sweep's event.
+CHECKPOINT_BASE = "claude/checkpoints/{sid}.sh"
+SWEEP_SUBJECT_PREFIX = "[bale sweep "
+SWEEP_LOG_MARKER = "sweep: "
+
+
+def stamp_sweep_subject(parent: str, child: str) -> str:
+    return f"[bale sweep {parent}] superseded_by {child}"
 
 # The exchange's decline lines (v0.4.31, board 89;
 # bale_pack.SUPERSESSION_DECLINE_LINES) — a TTY decline names its
@@ -458,6 +478,178 @@ class SupersessionPackTest(unittest.TestCase):
         self.assertEqual(split_attempts[0]["superseded_by"], child2,
                          msg="latest write wins — the completing pack's "
                              "child is the real supersessor")
+
+
+    # -- board 107: tree-clean after supersession ------------------------
+
+    def configure(self, *, sweep: "bool | None",
+                  checkpoint_base: bool = False) -> None:
+        """Write and commit bale.toml: `[apply] sweep` true/false, or
+        the key left unset when `sweep` is None; optionally the
+        per-session `{sid}` checkpoint base. Committed so the fixture's
+        own config is not the dirt the tree-clean assertions look for."""
+        lines = []
+        if checkpoint_base:
+            lines += ["[validation]", f'base = "{CHECKPOINT_BASE}"', ""]
+        if sweep is not None:
+            lines += ["[apply]", f"sweep = {'true' if sweep else 'false'}"]
+        (self.repo / "bale.toml").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8")
+        env = git_env(self.home)
+        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=env)
+        run_checked(["git", "commit", "-m", "configure bale.toml"],
+                    cwd=self.repo, env=env)
+
+    def git_out(self, *args: str) -> str:
+        r = subprocess.run(["git", *args], cwd=self.repo,
+                           env=git_env(self.home), capture_output=True,
+                           text=True)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"git {args} failed: {r.stderr}")
+        return r.stdout
+
+    def commit_open_records(self) -> None:
+        """Track the telemetry directory as it stands (the operator
+        committing an open session's `opened` record — the brief's
+        reproduction step)."""
+        env = git_env(self.home)
+        run_checked(["git", "add", "claude/telemetry"], cwd=self.repo,
+                    env=env)
+        run_checked(["git", "commit", "-m", "track opened records"],
+                    cwd=self.repo, env=env)
+
+    def assert_tracked_tree_clean(self, *, untracked_ok: set) -> None:
+        """No tracked file is modified, staged, or deleted; the only
+        porcelain lines allowed are the named untracked paths (every
+        pack leaves its own `opened` record untracked until that
+        session closes — that is not the defect)."""
+        lines = [ln for ln in
+                 self.git_out("status", "--porcelain", "-uall").splitlines()
+                 if ln.strip()]
+        tracked_dirt = [ln for ln in lines if not ln.startswith("?? ")]
+        self.assertEqual(tracked_dirt, [],
+                         msg=f"tracked files left modified: {lines}")
+        untracked = {ln[3:] for ln in lines if ln.startswith("?? ")}
+        self.assertLessEqual(untracked, untracked_ok,
+                             msg=f"unexpected untracked paths: {lines}")
+
+    def committed_record(self, sid: str) -> dict:
+        return json.loads(self.git_out(
+            "show", f"HEAD:claude/telemetry/{sid}.json"))
+
+    def sweep_subjects(self) -> list:
+        return [ln for ln in self.git_out("log", "--format=%s").splitlines()
+                if ln.startswith(SWEEP_SUBJECT_PREFIX)]
+
+    def assert_stamp_committed(self, parent: str, child: str) -> None:
+        committed = self.committed_record(parent)
+        latest = committed["attempts"][-1]
+        self.assertEqual(latest["closure_reason"], "superseded-by-split")
+        self.assertEqual(latest["superseded_by"], child,
+                         msg="the COMMITTED parent record must carry the "
+                             "reverse-lineage stamp")
+        self.assertEqual(committed, self.telemetry_record(parent),
+                         msg="HEAD and the working tree must agree on "
+                             "the parent record")
+
+    def test_accept_leaves_tree_clean_checkpoint_recipe(self) -> None:
+        """Board 107's reproduction, verbatim: a {sid} checkpoint base,
+        sweep on, tracked telemetry, a parent packed with
+        --checkpoint-file and its `opened` record committed, then a
+        child packed --supersedes under the pty answering y. After it,
+        no tracked file is modified, the committed parent record
+        carries superseded_by naming the child, and the stamp's sweep
+        commit lands after the child's checkpoint commit."""
+        self.configure(sweep=True, checkpoint_base=True)
+        source = self.tmp / "cp.sh"
+        source.write_text("#!/usr/bin/env bash\n"
+                          "echo \"[PASS] board-107 fixture\"\nexit 0\n",
+                          encoding="utf-8")
+        parent = self.packed_sid(self.pack(
+            "--checkpoint-file", str(source), slug="parent"))
+        self.commit_open_records()
+        code, output = self.pack_pty(
+            "--supersedes", parent, "--checkpoint-file", str(source),
+            slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        child = self.open_sids()[0]
+        self.assert_tracked_tree_clean(
+            untracked_ok={f"claude/telemetry/{child}.json"})
+        self.assert_stamp_committed(parent, child)
+        subjects = self.git_out("log", "--format=%s").splitlines()
+        self.assertEqual(subjects[0], stamp_sweep_subject(parent, child),
+                         msg=f"the stamp sweep is the newest commit: "
+                             f"{subjects}")
+        self.assertEqual(subjects[1],
+                         f"bale: per-session checkpoint for {child}")
+        self.assertEqual(subjects[2],
+                         f"[bale sweep {parent}] superseded-by-split",
+                         msg="the close keeps its own sweep commit")
+
+    def test_accept_leaves_tree_clean_plain_config(self) -> None:
+        """The defect is not checkpoint-specific: sweep on, no base, the
+        parent's `opened` record never committed by hand (the close's
+        sweep adds it). Still no tracked dirt, stamp committed."""
+        self.configure(sweep=True)
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        child = self.open_sids()[0]
+        self.assert_tracked_tree_clean(
+            untracked_ok={f"claude/telemetry/{child}.json"})
+        self.assert_stamp_committed(parent, child)
+        self.assertEqual(self.sweep_subjects(), [
+            stamp_sweep_subject(parent, child),
+            f"[bale sweep {parent}] superseded-by-split",
+        ])
+
+    def test_idempotent_rerun_leaves_tree_clean(self) -> None:
+        """The re-run of a supersession whose first child was abandoned
+        re-stamps in place (latest child wins) and commits the re-stamp:
+        the tree stays clean and HEAD names the completing child."""
+        self.configure(sweep=True)
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        first_child = self.open_sids()[0]
+        self.assert_ok(run_bale(self.install, ["unlock", first_child],
+                                cwd=self.repo, env=self.env))
+        rerun = self.pack("--supersedes", parent, slug="child-retry")
+        child2 = self.packed_sid(rerun)
+        self.assertIn(IDEMPOTENT_MARKER, rerun.stdout + rerun.stderr)
+        self.assert_tracked_tree_clean(
+            untracked_ok={f"claude/telemetry/{child2}.json"})
+        self.assert_stamp_committed(parent, child2)
+        self.assertIn(stamp_sweep_subject(parent, child2),
+                      self.sweep_subjects())
+
+    def _accept_without_sweep(self, sweep: "bool | None") -> None:
+        """Sweep off or unset: sweep_commit's contract stands — no sweep
+        output of any kind and no sweep commit; the stamp is written to
+        the working tree exactly as before the fix (the operator's to
+        commit)."""
+        self.configure(sweep=sweep)
+        parent = self.open_parent()
+        code, output = self.pack_pty(
+            "--supersedes", parent, slug="child", answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        child = self.open_sids()[0]
+        self.assertNotIn(SWEEP_LOG_MARKER, output)
+        self.assertEqual(self.sweep_subjects(), [])
+        self.assertEqual(
+            self.telemetry_record(parent)["attempts"][-1]["superseded_by"],
+            child, msg="the stamp itself still lands on disk")
+        status = self.git_out("status", "--porcelain", "-uall")
+        self.assertIn(f"?? claude/telemetry/{parent}.json", status,
+                      msg="nothing committed the parent record")
+
+    def test_sweep_false_commits_nothing(self) -> None:
+        self._accept_without_sweep(False)
+
+    def test_sweep_unset_commits_nothing(self) -> None:
+        self._accept_without_sweep(None)
 
 
 if __name__ == "__main__":
