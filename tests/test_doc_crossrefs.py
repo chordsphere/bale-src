@@ -50,6 +50,17 @@ are exactly the kind of prose a rewrap-tolerant scan never reads;
 these pins are that content check. Matching is whitespace-normalized
 like every other prose pin here.
 
+Since board 109 (from 2026-09-16-board-105-operator-voice-007's
+Proposals) the shape sentence's third home is pinned too. The ruling
+lives in the session opener, docs/CLAUDE.md §3, and docs/TARBALL.md
+§5.10, and until then the suites pinned only the first two. §5.10's
+copy is its own wording, not CLAUDE.md's — "the worker" for "Claude",
+an em-dash for the colon, and the §4.2 / §5.9 pointers — so it is
+pinned as TARBALL_SHAPE_SENTENCE against the §5.10 section body alone
+(a copy that drifted elsewhere in TARBALL.md does not satisfy it), and
+a constant-level check holds the two pinned copies to one shared
+second half, the half that was grown in step at board 105.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -60,8 +71,20 @@ Run:  python3 -m unittest tests.test_doc_crossrefs -v
 from __future__ import annotations
 
 import re
+import sys
 import unittest
 from pathlib import Path
+
+# normalize() lives in tests/harness.py (board 109: one home per helper).
+# The dotted run form in the docstring (`python3 -m unittest
+# tests.<suite>`) does not put tests/ on sys.path the way direct execution
+# and `discover -s tests` do, so put it there before the bare import —
+# this suite ran in all three forms before the helper moved, and still
+# does.
+_TESTS_DIR = str(Path(__file__).resolve().parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
+from harness import normalize  # noqa: E402 — path guard above
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO / "docs"
@@ -90,12 +113,6 @@ def load_docs() -> dict[str, str]:
     }
 
 
-def normalize(text: str) -> str:
-    """Collapse all whitespace runs to single spaces — the rewrapping
-    tolerance: prose pins match words, never line breaks."""
-    return " ".join(text.split())
-
-
 def top_level_section(text: str, number: int) -> str:
     """The body of `## N. …` up to the next `## ` heading, or '' when
     no such heading exists (the caller asserts on that)."""
@@ -104,6 +121,21 @@ def top_level_section(text: str, number: int) -> str:
         return ""
     rest = text[m.end():]
     nxt = re.search(r"^##\s", rest, re.M)
+    return rest if nxt is None else rest[:nxt.start()]
+
+
+def subsection(text: str, number: str) -> str:
+    """The body of `### N.N …` up to the next `##` or `###` heading, or
+    '' when no such heading exists (the caller asserts on that).
+
+    A deeper `####` heading inside the subsection stays in its body;
+    `number` is matched literally, so "5.1" never matches "5.10".
+    """
+    m = re.search(rf"^###\s+{re.escape(number)}\s.*$", text, re.M)
+    if m is None:
+        return ""
+    rest = text[m.end():]
+    nxt = re.search(r"^#{2,3}\s", rest, re.M)
     return rest if nxt is None else rest[:nxt.start()]
 
 
@@ -139,6 +171,22 @@ EVERY_TURN_SENTENCE = (
     "asked as prose is not a shape. Explanation in prose is expected "
     "and welcome; the rule is that a turn that asks ends in a block, "
     "so nothing is lost.")
+# The same ruling's third home, TARBALL.md 5.10, in that section's own
+# words (board 109, from 105's Proposals): the first half is worded for
+# the contract doc — "the worker", an em-dash, the 4.2 / 5.9 pointers —
+# while the second half is CLAUDE.md's verbatim. Pinned against the 5.10
+# body only; the point is that *this* home keeps its copy.
+TARBALL_SHAPE_SENTENCE = (
+    "Every turn the worker ends in tarball mode takes one "
+    "machine-recognizable shape — a response tarball, a probe block "
+    "(§4.2), a light question block, or a clarification response "
+    "(§5.9); a question asked as prose is not a shape. Explanation in "
+    "prose is expected and welcome; the rule is that a turn that asks "
+    "ends in a block, so nothing is lost.")
+# The second half both pinned copies must share, word for word.
+SHAPE_SENTENCE_SECOND_HALF = (
+    "Explanation in prose is expected and welcome; the rule is that a "
+    "turn that asks ends in a block, so nothing is lost.")
 
 # The chat-invitation phrases the ruling struck, by the doc each lived
 # in. A phrase reappearing is the drift this pin exists to catch: a
@@ -293,6 +341,54 @@ class TerminalShapePins(unittest.TestCase):
             "shape rule beside its tarball-mode shapes — the sentence "
             "must agree with the session opener bale emits:\n  "
             f"{EVERY_TURN_SENTENCE}")
+
+    def test_tarball_5_10_states_shape_sentence(self):
+        """TARBALL.md 5.10 keeps its own copy of the shape sentence,
+        second half included — in the section, not merely the file."""
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        section = normalize(subsection(self.docs["TARBALL.md"], "5.10"))
+        self.assertTrue(
+            section,
+            "docs/TARBALL.md has no `### 5.10` heading — the light "
+            "question block's home moved; section numbers are stable "
+            "(DOCS.md 6.4)")
+        self.assertTrue(
+            normalize(TARBALL_SHAPE_SENTENCE) in section,
+            "docs/TARBALL.md 5.10 no longer states the shape sentence "
+            "in its own words, second half included — the ruling lives "
+            "in three homes (the opener, CLAUDE.md 3, TARBALL.md 5.10) "
+            "and this is the third; restore it rather than paraphrase "
+            f"it:\n  {TARBALL_SHAPE_SENTENCE}")
+
+    def test_subsection_reads_5_10_alone(self):
+        """Self-test on the extractor, so the 5.10 pin cannot pass by
+        reading past its section: the body stops before the next
+        heading and does not reach back into 5.9."""
+        body = subsection(self.docs["TARBALL.md"], "5.10")
+        self.assertIn("=== LIGHT BEGIN", body)
+        self.assertNotRegex(body, r"(?m)^#{2,3}\s",
+                            "the 5.10 body ran into another heading")
+        self.assertNotIn("#### 5.9.4", body)
+        synthetic = ("### 5.1 One\none body\n### 5.10 Ten\nten body\n"
+                     "#### 5.10.1 Deep\ndeep body\n## 6. Next\nnext\n")
+        self.assertEqual(subsection(synthetic, "5.1"), "\none body\n")
+        self.assertEqual(subsection(synthetic, "5.10"),
+                         "\nten body\n#### 5.10.1 Deep\ndeep body\n")
+        self.assertEqual(subsection(synthetic, "5.2"), "")
+
+    def test_pinned_shape_sentences_share_second_half(self):
+        """The two pinned copies (CLAUDE.md 3's and TARBALL.md 5.10's)
+        end on the same second half — the half board 105 grew in step.
+        A later edit to one constant that forgets the other trips
+        here, before either doc is read."""
+        for label, sentence in (("CLAUDE.md 3", EVERY_TURN_SENTENCE),
+                                ("TARBALL.md 5.10", TARBALL_SHAPE_SENTENCE)):
+            with self.subTest(copy=label):
+                self.assertTrue(
+                    normalize(sentence).endswith(
+                        normalize(SHAPE_SENTENCE_SECOND_HALF)),
+                    f"the {label} pin no longer ends on the shared "
+                    "second half of the shape sentence")
 
     def test_struck_chat_invitations_stay_absent(self):
         for doc, phrase in STRUCK_PHRASES:
