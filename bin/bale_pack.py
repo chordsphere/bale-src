@@ -3411,6 +3411,51 @@ def _resolve_supersession(args: argparse.Namespace,
     return None, sid
 
 
+def sweep_superseded_by_stamp(repo: Path, parent_sid: str,
+                              child_sid: str,
+                              stamp_rel: Optional[str]) -> Optional[dict]:
+    """Commit the reverse-lineage stamp through the auto-sweep (board
+    107; BALE.md §8.8) — the second write to the parent's telemetry
+    record that no commit covered.
+
+    Why a second sweep. An accepted `--supersedes` writes the parent's
+    record twice. The exchange closes the parent through
+    close_session_with_record, whose step 4 writes the closure attempt
+    and whose step 5 sweeps it — committed as `[bale sweep <parent>]
+    superseded-by-split` before the child sid exists. Once the sid is
+    minted, stamp_superseded_by enriches that already-committed attempt
+    with `superseded_by: <child>`, and nothing committed the rewrite:
+    with telemetry tracked and the sweep on, an accepted supersession
+    left ` M claude/telemetry/<parent>.json` behind — the very dirt the
+    next apply's dirty-target pre-flight then refuses.
+
+    The fix sweeps the stamp as its own event, on the same contract as
+    every other sweep: pathspec-only on exactly the one path this pack
+    rewrote, `[bale sweep <parent>] superseded_by <child>` in the
+    message family, loud either way, never fatal (sweep_commit never
+    raises), and — `[apply] sweep` unset or false — no output and no
+    commit, so every path stays byte-identical to the pre-fix pack.
+    The close keeps its own sweep rather than deferring to one combined
+    commit here: the accepted-abort window (a gate refusal against a
+    second open session, a cap refusal, an editor abort — all after
+    the close, before this point) must still leave the closure record
+    committed, and the child sid that names the stamp does not exist
+    until this point.
+
+    A failed stamp (stamp_rel None — already logged loudly by the
+    stamper) sweeps an empty path list, which sweep_commit reports as
+    `sweep: nothing to commit`: the close-with-record idiom
+    (`[telemetry_rel] if telemetry_rel else []`), so the event is never
+    silently skipped. The idempotent re-run's re-stamp commits the same
+    way; an unchanged record is sweep_commit's legitimate nothing.
+
+    Returns sweep_commit's result (None when the key is unset/false).
+    """
+    from __main__ import sweep_commit  # lazy — see module docstring
+    return sweep_commit(repo, parent_sid, f"superseded_by {child_sid}",
+                        [stamp_rel] if stamp_rel else [])
+
+
 def _run_readonly_sweep(repo: Path) -> list[str]:
     """The read-only sweep (v0.3.21, board 33): a read-only pack offers
     to close each open session whose recorded scope is exactly [].
@@ -5161,6 +5206,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
             log(f"supersedes {superseded_sid}: reverse lineage "
                 f"superseded_by={sid} stamped on the closure attempt "
                 f"({stamp_rel})")
+        # Board 107: the stamp rewrote a record the close already
+        # swept; sweep the rewrite too, or the tree is left dirty.
+        sweep_superseded_by_stamp(repo, superseded_sid, sid, stamp_rel)
     if swept_sids:
         # Same journaling rationale for the read-only sweep (v0.3.21):
         # the close events ran pre-sid; the durable closure lives in
