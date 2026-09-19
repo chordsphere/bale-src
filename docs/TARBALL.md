@@ -40,7 +40,7 @@ if it doesn't describe this session, the section stays unread.
 
 | Situation (trigger) | Load |
 |-----------|------|
-| Producing a normal response tarball — the default whenever work landed | Core: sections 1, 2, 5, 7 |
+| Producing a normal response tarball — the default in a worker session whenever work landed (a read-only, planner session produces none, §2) | Core: sections 1, 2, 5, 7 |
 | Orienting in the received request needs more than the manifest itself — a field's semantics, what belongs where in `context/`, or how `expects_probe` binds | Section 3 |
 | Asked to draft a `bale pack` command, or offering a rescope split (`CLAUDE.md` §11.2) | Section 3.4 |
 | An environment fact the response depends on is missing, stale, or unclear — returning a probe instead of building | Sections 1, 2, 4 |
@@ -107,7 +107,7 @@ if it doesn't describe this session, the section stays unread.
 |----------|-----------|------|
 | Request tarball | planner → worker | start of a tarball-mode session |
 | Probe | worker → planner | whenever an environment-specific fact is missing, stale, or unclear (§4.1) |
-| Response tarball | worker → planner | every tarball-mode response |
+| Response tarball | worker → planner | once per worker session — any pack with a write forecast — carrying the finished work; a read-only pack returns none |
 | Exchange | planner ⇄ worker | a thread opened by the worker's clarification response (§5.9) — both directions travel as the same exchange record, and the session stays suspended until the thread resolves |
 
 The two tarballs are artifacts. The probe is not — it is a
@@ -120,6 +120,21 @@ a paste block (§5.9.2). Chat carries conversation and never a
 blocking ask (§5.9.1); the one ask it does carry is the light
 question block (§5.10) — a shape, not conversation, whose trail is
 the eventual response rather than a thread.
+
+What a session owes back follows from how it was packed: a worker
+session, any pack with a write forecast, owes one response tarball
+carrying the finished work; a planner session, a read-only pack,
+lands nothing and returns no response tarball, not even an empty
+one — it owes its answer in chat and, for each session it is asked
+to author, a crafter bundle beside its `bale open` line.
+The request manifest says which kind a session is: the empty
+forecast, `resolved_scope: []`, is the read-only pack's stamp
+(§3.2, §3.4). An empty response tarball is not a receipt — the
+planner reads a planner session's answer in chat, and a tarball
+with nothing in it only adds a no-op to apply. A planner session
+that needs a fact or a decision still asks through the probe, the
+light question block, or the clarification response, like any
+other session (§5.10).
 
 ---
 
@@ -992,12 +1007,12 @@ recourse is `bale unlock` and a repack — the planner's call.
 ### 5.10 The light question block
 
 The light question block is the one ask chat carries, and it is a
-shape, not conversation. Every turn the worker ends in tarball mode
-takes one machine-recognizable shape — a response tarball, a probe
-block (§4.2), a light question block, or a clarification response
-(§5.9); a question asked as prose is not a shape. Explanation in
-prose is expected and welcome; the rule is that a turn that asks
-ends in a block, so nothing is lost. The light tier
+shape, not conversation. A turn that needs something from the
+packer, an environment fact or a decision, ends in the matching
+shape: a probe block, a light question block, or a clarification
+response; a question asked as prose is not a shape, because it gets
+lost. Every other turn is ordinary prose. The probe block's format
+is §4.2's and the clarification response's is §5.9's. The light tier
 exists because a sufficiently short question set is faster to read
 and answer in chat than to relay through the exchange, and its
 audit trail is the eventual response, not the thread. The block is
@@ -1286,7 +1301,7 @@ request-NNN/
     craft_response.py  # injected by bale (v0.3.19): the response-skeleton crafter (§5.2)
   context/             # everything the user chose to include
     <project files and any project docs the user named>
-  README.md            # optional; prose context beyond the manifest's structured fields — authored by either party
+  README.md            # the session's brief, when one ships — named by the manifest's `readme` key (§3.2); authored by either party
 ```
 
 The first six slots are reserved for bale-injected global docs and
@@ -1301,15 +1316,24 @@ including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
 level slots are reserved for project docs; bale is project-agnostic.
 
-`README.md` is optional prose context: whatever is worth keeping
-that doesn't reduce cleanly to the manifest's `goal`, `constraints`,
-or `out_of_scope` fields. Either party authors it. The planner
-writes it directly — the pack wizard offers `$EDITOR` to opt in —
-or the worker writes it on request, delivering the brief as a
-downloadable file the planner ships with `--readme-file` (§3.4),
-whose search-path resolution lets a brief in the planner's downloads
-directory pack by bare name. Most sessions skip the README
-entirely.
+`README.md` is the session's brief: the planner's prose — intent,
+rulings and their reasons, whatever doesn't reduce cleanly to the
+manifest's `goal`, `constraints`, or `out_of_scope` fields. When
+one ships, the manifest's `readme` key names it and pins its sha256
+(§3.2), and the session opener bale emits names it too, as the
+worker's third read after `manifest.json` and `CLAUDE.md`. The
+worker reads it before building; a brief that names a different
+session than the manifest's is stale, and the worker says so rather
+than building from it. Either party authors it. The planner writes
+it directly — the pack wizard offers `$EDITOR` to opt in — or the
+worker writes it on request, delivered as a member of the crafter
+bundle beside the new request's `bale open` line (`PLANNER.md` §2),
+or, only where the crafter is unreachable, as a downloadable file
+the planner ships with `--readme-file` (§3.4), whose search-path
+resolution lets a brief in the planner's downloads directory pack by
+bare name. A pack without
+a brief says so explicitly (`--no-readme`, §3.4), and its manifest's
+`readme` key is `null`.
 
 A project that has adopted the DOCS.md workflow might fill `context/`
 with paths like:
@@ -1368,7 +1392,11 @@ the directory inside stays `request-NNN/`.
   "resolved_scope": [
     "STATE.md",
     "charter-brief.md"
-  ]
+  ],
+  "readme": {
+    "path": "README.md",
+    "sha256": "3b1f9c..."
+  }
 }
 ```
 
@@ -1456,6 +1484,23 @@ Field semantics:
   the separation resolve (a recorded include set reads as an
   over-forecast: it over-locks, never under-locks, and self-clears
   at close); every manifest bale builds carries it.
+- **`readme`** — whether the request ships a brief (§3.1), so a
+  worker that reads the manifest first learns from the manifest
+  itself that one exists. `null` when no `README.md` ships. When one
+  ships, an object with exactly two keys: `"path"`, always the
+  string `README.md` (the request-root path), and `"sha256"`, the
+  hex sha256 of the shipped `README.md` bytes — the same value the
+  pack report's `readme sha256` row echoes, so the brief in hand
+  can be checked against the brief that was packed. Every request
+  bale builds stamps it: `bale pack` from the brief it ships, or
+  `null` when it ships none, and `bale handoff`, which ships no
+  brief, `null`. The key is top-level on purpose, not under
+  `provenance`: the response echoes provenance verbatim (§5.2.2),
+  and the brief's identity belongs to the request, not to that
+  echo. Additive on `resolved_scope`'s model — admitted by the
+  schema, not required — so previously stamped and hand-rolled
+  requests stay valid, and a worker holding a manifest without the
+  key looks for `README.md` at the request root instead.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -1520,7 +1565,7 @@ or a packing behavior:
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
 | `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
-| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship prose context, including a worker-authored brief (§3.1). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Also fails loudly when the resolved brief still contains an **unfilled placeholder**: any line containing the sentinel `TODO(brief)` (v0.3.21) — the convention a worker-authored brief uses to scaffold slots it hasn't filled, so a half-generated brief never ships; a worker authoring a brief writes exactly that form for anything left for the planner to complete, and fills or removes every such line before delivering a brief meant to pack. The pack report echoes the resolved README's identity — path, first heading line, and sha256 of the shipped bytes (v0.3.21; path + heading alone proved insufficient identity). The prose is read as UTF-8 text with each CRLF read as LF (bare CR untouched), so the shipped README and its echoed sha256 are over LF-normalized bytes — a brief that traveled a line-ending-mangling transport ships and echoes identically to its LF twin. Combines with `--edit` to review the file before packing. |
+| `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship the session's brief, including a worker-authored one (§3.1); the shipped brief is what the manifest's `readme` key names (§3.2). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Also fails loudly when the resolved brief still contains an **unfilled placeholder**: any line containing the sentinel `TODO(brief)` (v0.3.21) — the convention a worker-authored brief uses to scaffold slots it hasn't filled, so a half-generated brief never ships; a worker authoring a brief writes exactly that form for anything left for the planner to complete, and fills or removes every such line before delivering a brief meant to pack. The pack report echoes the resolved README's identity — path, first heading line, and sha256 of the shipped bytes (v0.3.21; path + heading alone proved insufficient identity). The prose is read as UTF-8 text with each CRLF read as LF (bare CR untouched), so the shipped README and its echoed sha256 are over LF-normalized bytes — a brief that traveled a line-ending-mangling transport ships and echoes identically to its LF twin. Combines with `--edit` to review the file before packing. |
 | `--checkpoint-file PATH` | Delivers the planner-authored blind checkpoint (§7) for a project that pins one: bale commits the file's bytes at the project's configured per-session checkpoint path and proceeds with the pack in the same invocation. The bytes are CRLF-normalized at read — every CRLF replaced by LF, bare CR never touched — before the commit, the echoed sha256, and the provenance stamp, so the committed oracle and every published hash are over LF-normalized bytes and a CRLF-mangled delivery commits as the LF oracle the planner published; everything downstream of the commit hashes and executes committed bytes byte-exact, unchanged. A relative PATH resolves exactly like `--readme-file` (cwd first, then each configured search directory in order; an absolute path bypasses the search), and a missing, unreadable, or empty file fails loudly, same posture. Idempotent when the resolved path is already committed with identical bytes — compared after normalization, so LF and CRLF twins of one oracle are the same delivery (the re-run of an aborted pack); differing bytes refuse loudly — the flag never silently replaces a committed checkpoint. Contradicts `--read-only` at arg-parse time: a read-only pack's empty write forecast waives the checkpoint requirement — the session can land nothing, so there is nothing for a checkpoint to grade and nothing to install. |
 | `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
 | `--no-edit` | In the wizard, skips the README y/N prompt and `$EDITOR` entirely — for automation that still wants the wizard's structured-field walk. Compatible with `--readme-file` (the file's prose still ships; no editor opens); conflicts with `--edit`; a no-op on the fully specified path. |
@@ -1528,7 +1573,7 @@ or a packing behavior:
 | `--json` | Emits the end-of-run pack report as one line of JSON on stdout — stable keys for downstream tooling — with informational lines and prompts moved to stderr. Packing behavior, prompts, caps, and hooks are unchanged. |
 | `--packer NAME` | Sets `manifest.provenance.packer` — the pack's author identity, stamped so telemetry can attribute packer-side failures as well as worker-side ones. |
 | `--work-class {code\|doc\|contract-doc\|meta\|mixed}` | Sets `manifest.provenance.work_class` — the work class telemetry and the trust ledger aggregate rates by. On the wizard path the session-shape question asks for it when the flag is absent (v0.3.15). |
-| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean. |
+| `--read-only` | Opens the session with the **empty write forecast** (v0.3.15, as the empty recorded scope; the degenerate case of the forecast model since v0.4.1, ADR-0015, and its only spelling — `--write` with zero paths refuses, and the two flags together contradict) — the read-only session shape for discussion, orchestration, or audit. A read-only pack is a planner session: it lands nothing and returns no response tarball, not even an empty one — what it owes is its answer in chat and, for each session it is asked to author, a crafter bundle beside its `bale open` line (§2). The empty forecast intersects nothing (sibling packs and applies are admitted alongside it) and covers nothing (the own-forecast drift gate refuses every `changes[]` path a response under this sid ships — any `[]`-forecast session is structurally sweep-safe, and race-safe as well: an open `[]`-forecast sibling can be disregarded in re-landing and race reasoning, because it structurally lands nothing). `--include` still selects what ships in `context/` — the session reads files; it cannot land changes to them. Since v0.3.21 a read-only pack also **sweeps**: finding an open session with recorded forecast `[]` (same registry record, same key), it offers to close it — `closed-read-only`, command `pack` — at a prompt whose default is **accept** (a read-only session structurally cannot lose work; piped stdin declines without a prompt, so automation never silently closes a session). Scoped packs and apply never sweep. The open banner names the session's own close-out: the next read-only pack, or `bale unlock <sid>` now. Bare boolean. |
 | `--supersedes <sid>` | Declares the pack a split supersession of the named open session (v0.3.17): after a y/N exchange with a **decline default** (piped stdin takes the decline without a prompt), the parent closes as superseded-by-split, the child's manifest stamps `depends_on.superseded_session`, and exactly that one collision clears at the pack-time disjointness gate — every other open session still gates as usual. A sid that is not open is accepted only when its telemetry history shows a superseded-by-split closure (the idempotent re-run of a pack that aborted after the close). **Worker-authored only, by contract**: this flag appears in worker-emitted rescope commands — this table's §11.2 offer being the one sanctioned unsolicited-runnable site — and the architect pastes them. |
 | `--max-*` | A family of guard-rail caps (e.g. on included-file count or total context size) that make bale refuse an oversized pack rather than ship it. The specific caps are bale's; this reference does not enumerate them. |
 | `--force` | Override the `--max-*` guard rails when the planner knowingly wants a pack past a cap. |
@@ -1548,7 +1593,9 @@ file-disjoint seams, however generous its includes. The read-only
 shape (`--read-only`, the empty forecast) is the orchestrator's own
 pack form: a master session that reads, discusses, and delegates
 stays open alongside every worker precisely because its forecast
-intersects nothing — and lands nothing.
+intersects nothing — and lands nothing, so it returns its answers in
+chat and its authored sessions as bundles, never a response tarball
+(§2).
 
 **Split supersession.** When a pre-flight split (`CLAUDE.md` §11.2)
 proposes a first session whose forecast intersects an open session's —
@@ -1956,6 +2003,9 @@ mechanical checks won't catch them.
 > section wins.
 
 ### 10.1 Building a response tarball
+
+A worker session's checklist. A read-only (planner) session builds
+no response tarball and skips it (§2).
 
 1. Confirm the bale-injected globals are present: `CLAUDE.md`,
    `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md`. The first two
