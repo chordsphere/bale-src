@@ -351,6 +351,13 @@ or a citation-shaped `claude/INDEX.md`) in the five files under
                                # its retry successor (§5.7);
                                # per-attempt: retry's discard wipes
                                # it and a re-HOLD re-stamps
+      held_admissions          # the admissions the held apply
+                               # exercised, as one JSON object —
+                               # stamped beside held_tarball
+                               # (§8.8, v0.4.37); read by `bale
+                               # amend-checkpoint` so its retry
+                               # line re-states them (§5.7); same
+                               # per-attempt lifecycle
     logs/<sid>.log             # structured log
     archive/                   # past session manifests (optional)
 ```
@@ -483,7 +490,7 @@ forward-looking entry.
 | `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
-| `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball> --accept-checkpoint-change --sid <sid>` line as its named successor — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs; a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
+| `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball> --accept-checkpoint-change --sid <sid>` line as its named successor — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs, re-stating every admission the held apply exercised from the HOLD-time `held_admissions` stamp (v0.4.37, board 110); a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor, and a session with no readable admissions stamp gets one line saying they could not be recovered. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
@@ -968,10 +975,18 @@ invocation with the published hash in hand, and the emitted line is
 complete so the operator pastes rather than reassembles. `--sid` is
 filled too, as belt-and-suspenders: retry resolves from the
 tarball's own `responds_to` and `--sid` vets it, so the composed
-line vets rather than depends. The same composed line ends the
-amendment-proper and the idempotent-re-run rungs alike. Since
+line vets rather than depends. Since v0.4.37 (board 110) the line
+also re-states every admission the held apply exercised
+(`--allow-out-of-scope`, `--accept-base-drift`,
+`--allow-missing-required-check`, `--no-sandbox`), read from the
+HOLD-time `held_admissions` stamp (§8.8): the retry is the same bytes,
+and no override carries forward from a failed attempt, so a held
+apply that needed one would otherwise refuse again at the gate it was
+admitted through. `--accept-checkpoint-change` still appears once. The
+same composed line ends the amendment-proper and the
+idempotent-re-run rungs alike. Since
 v0.4.34 (board 47a) the `[HOLD]` card's fixture-defect fork (§8.8)
-composes this same retry line from the same stamp, beneath the
+composes this same retry line from the same stamps, beneath the
 sid-ful `bale amend-checkpoint` line it hands the operator, so the
 card and this report cannot disagree. The recorded
 `stamp_matched: false` at that retry remains the truthful double
@@ -983,7 +998,13 @@ FORCE-logged line and one report line say why the path could not be
 filled in, and the placeholder form
 `bale retry <response-tarball> --accept-checkpoint-change --sid <sid>`
 follows as the last line. The successor is never omitted on any
-rung.
+rung. A session with no readable admissions stamp — held before
+v0.4.37, never held, or a stamp that cannot be parsed — degrades the
+same way on its own line: one FORCE-logged line and one report line
+say the admissions could not be recovered and why, above the
+path's line if that degrades too, and the successor prints carrying
+only `--accept-checkpoint-change --sid <sid>` for the operator to
+extend.
 
 ### 5.8 `bale relay`
 
@@ -3186,8 +3207,18 @@ acceptance store).
   alone or with the worker: `bale amend-checkpoint <amendment>
   --sha256 <hex> --sid <sid>`, its trailing comment saying the two
   desk values are unknowable when the card renders, then `bale retry
-  <held-tarball> --accept-checkpoint-change --sid <sid>` — the same
-  line `bale amend-checkpoint`'s own report composes (§5.7). On a
+  <held-tarball> [admissions] --sid <sid>` — the same line `bale
+  amend-checkpoint`'s own report composes (§5.7). Since v0.4.37 (board
+  110) the admissions are re-stated here too, in the base-defect
+  fork's grammar and for its reason: the retry is the same bytes, so a
+  held apply admitted with `--allow-out-of-scope` otherwise refuses at
+  own-forecast drift. `--accept-checkpoint-change` is always among
+  them, exactly once, whether or not the held apply exercised it; a
+  HOLD that exercised no admission renders the pre-0.4.37 line byte
+  for byte. The fixture rung composes its admissions from the HOLD-time
+  admissions stamp below, never the in-process values, so the card and
+  the amend report stay one line; a failed stamp write adds one line
+  saying the admissions could not be recovered and why. On a
   literal `[validation]` base the amend verb refuses by design, so a
   one-line note to commit the amended bytes at that path directly
   replaces the amend line; the retry rung is unchanged. The
@@ -3211,7 +3242,11 @@ acceptance store).
   apply exercised (`--allow-out-of-scope`, `--accept-base-drift`,
   `--allow-missing-required-check`, `--accept-checkpoint-change`, a
   typed `--no-sandbox`), because the tarball is the same bytes and no
-  override carries forward from a failed attempt.
+  override carries forward from a failed attempt. This rung renders
+  in-process — it appears only on the card — so it keeps its
+  admissions even when the admissions stamp write fails. The
+  **work-defect** rung never re-states admissions: it names new
+  bytes, and the operator admits against those.
   The pieces are pure and structured (`hold_judge`,
   `parse_failed_probe_labels`, `compose_hold_successors`), and since
   v0.4.36 (board 47b) the HOLD prints **addressed relay blocks** built
@@ -3248,7 +3283,17 @@ acceptance store).
   amend-checkpoint` composes its retry successor without a
   placeholder (§5.7). Loud-never-fatal — the HOLD's git work is
   complete by then, so a stamp write failure is logged and the amend
-  side degrades with that reason.
+  side degrades with that reason. Beside it, since v0.4.37 (board
+  110), `.bale/sessions/<sid>/held_admissions`: a one-object JSON stamp
+  (`version` plus the five admissions — `allow_out_of_scope`,
+  `accept_base_drift`, `allow_missing_required_check` as lists,
+  `accept_checkpoint_change`, `no_sandbox` as booleans) recording
+  what this HOLD's apply exercised. It is written on every HOLD, empty
+  admissions included, so its absence means a HOLD from before
+  v0.4.37; the same loud-never-fatal posture applies, and the same
+  per-attempt lifecycle, so a session held twice carries only the
+  latest held attempt's admissions. A reader refuses a stamp it
+  cannot fully parse rather than re-state half of it.
 - **Revert.** Delete the branch (forcefully), wipe
   `.bale/sessions/<sid>/`, close the session in the registry, release
   the integration lock. Same operation regardless

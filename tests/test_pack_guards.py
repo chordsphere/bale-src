@@ -462,7 +462,11 @@ class ExcludeAndBaleignoreTest(PackGuardsBase):
         self.assert_refused_pre_sid(r.stdout + r.stderr)
         # Board 106: the file is named by the caller's prefix, not by the
         # matcher's sentence — the sentence itself stays source-neutral.
-        self.assertIn(MATCHER_NEGATION_SENTENCE + " at v0.1.", r.stderr)
+        # Board 110 (v0.4.37): the stale "at v0.1" marker is gone — the
+        # sentence ends at "supported." and names no version.
+        self.assertIn(MATCHER_NEGATION_SENTENCE + ". Offending line:",
+                      r.stderr)
+        self.assertNotIn("at v0.1", r.stderr)
 
     def test_exclude_negation_beside_clean_baleignore_names_session(
             self) -> None:

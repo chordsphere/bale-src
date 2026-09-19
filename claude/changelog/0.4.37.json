@@ -1,0 +1,33 @@
+{
+  "record_version": 1,
+  "version": "0.4.37",
+  "session_id": "2026-09-19-board-110-held-admissions-007",
+  "at": "2026-09-19T02:43:38+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_apply.py",
+      "change": "HOLD stamps .bale/sessions/<sid>/held_admissions (HELD_ADMISSIONS_STAMP) beside held_tarball: one versioned JSON object of the five admissions the held apply exercised, written on every HOLD, loud-never-fatal; new pure format_held_admissions_stamp / parse_held_admissions_stamp (strict: a stamp that does not fully parse is refused, never half-read); the admissions dict is built once and feeds the stamp and the card"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "compose_hold_successors' fixture-defect retry rung re-states the held apply's admissions in the base rung's grammar (--accept-checkpoint-change exactly once, --sid last), composed from the new held_admissions / held_admissions_why arguments (the stamp's outcome); an unrecoverable record adds one note line; a HOLD with no admission composes the pre-0.4.37 line byte for byte; the work rung stays bare; format_hold_card passes the two arguments through"
+    },
+    {
+      "path": "bin/bale",
+      "change": "new read_held_admissions_stamp; compose_retry_successor re-states the stamped admissions, so bale amend-checkpoint's closing line stays byte-identical to the HOLD card's fixture rung, and names an absent or unreadable stamp on one line (FORCE-logged); amend-checkpoint help and docstrings say so"
+    },
+    {
+      "path": "bin/bale",
+      "change": "riders: cmd_retry's and cmd_handoff's unreachable post-resolution existence checks retired, each proof left in a comment; BaleignoreMatcher.from_lines' negation refusal drops its stale 'at v0.1' marker; run_hook's three placeholder-less f-strings are plain strings (output unchanged)"
+    },
+    {
+      "path": "BALE.md",
+      "change": "section 8.8 documents the fixture rung's re-stated admissions and the held_admissions stamp; section 5.7 and the verb table document amend-checkpoint's admissions and their degrade line; the .bale/ tree lists the new stamp"
+    },
+    {
+      "path": "tests/test_cli_help.py",
+      "change": "new: SubcommandHelpLayoutTest moved here whole from tests/test_apply_preflight.py (same tests, same names)"
+    }
+  ],
+  "notes": "One-apply-behind: the apply that lands 0.4.37 still runs 0.4.36's apply path, so a HOLD taken during that apply writes no held_admissions stamp, and amend-checkpoint then prints the degrade line for it."
+}
