@@ -1,0 +1,270 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-19-board-110-held-admissions-007",
+  "created_at": "2026-09-19T02:29:07+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-19T02:29:07+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-19-board-110-held-admissions-007.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-19T03:04:19+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-19-board-110-held-admissions-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "version invariant (bin/VERSION names its changelog record)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "riders: twin checks, v0.1 marker, placeholder-less f-strings": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider 6: SubcommandHelpLayoutTest moved whole": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: held-admissions E2E (the pasted line lands)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: touched suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "version invariant (bin/VERSION names its changelog record)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "riders: twin checks, v0.1 marker, placeholder-less f-strings": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider 6: SubcommandHelpLayoutTest moved whole": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: held-admissions E2E (the pasted line lands)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (changed .py and bin/bale)",
+          "json syntax (claude/changelog/0.4.37.json)",
+          "version invariant (bin/VERSION names its changelog record)",
+          "riders: twin checks, v0.1 marker, placeholder-less f-strings",
+          "rider 6: SubcommandHelpLayoutTest moved whole",
+          "tests: held-admissions E2E (the pasted line lands)",
+          "tests: touched suites",
+          "tests: full suite (--slow)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_hold_retry_e2e.py"
+      ],
+      "overridden_paths": [
+        "tests/test_cli_help.py",
+        "tests/test_pack_guards.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_cli_help.py": "prompt",
+        "tests/test_pack_guards.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_report.py",
+        "claude/changelog/0.4.37.json",
+        "tests/test_amend_checkpoint.py",
+        "tests/test_apply_preflight.py",
+        "tests/test_cli_help.py",
+        "tests/test_pack_guards.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.36",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-19-board-110-held-admissions-007.sh",
+              "sha256": "79ce4991935b557b160a5c2594ced74dcdbb496d4e3e37a67938f925187dc1c6"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-19T02:29:06+00:00",
+            "base_files": {
+              "BALE.md": "02b7ff0a02f996befabae889fec2075085bd353115e956b9a92b0dda0b56c8e4",
+              "bin/VERSION": "3fe5a208c7783976c775da2adb21f9c69db4ae5fbc773a06955c0fa7ac675cef",
+              "bin/bale": "463174b5fbddafbac406f59fcc3615164fa127cec56796adba26a35e2d3d5f40",
+              "bin/bale_apply.py": "4f746f97f64db4d0c6381dbc0de4a0d7706316f5259b46cebb8856a1c77f1990",
+              "bin/bale_report.py": "3de24197f4c259d0f186f50b6a36ba2a80cb76a2c6dc15ddfb8cacdd60308b9a",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "tests/test_amend_checkpoint.py": "87bd923520125a92591597f675a3e63e182ffd3ee1660f76db69eab2ccfdd2ed",
+              "tests/test_apply_preflight.py": "0cfb9f34f74fc10d4e04111177b2917a55e58626e035e12e3566803daf1d60ea",
+              "tests/test_hold_retry_e2e.py": "5842725a36cea7dc6aba385ed7b75beb66ff6d4a34aa8133d10bc668ffcdc47a"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "A HOLD taken by the landing apply itself (one-apply-behind: 0.4.36's apply path) writes no held_admissions stamp; amend-checkpoint names that absence rather than guessing admissions."
+          ],
+          "judgment_calls": [
+            "Admissions live in a new held_admissions stamp beside held_tarball, not the telemetry attempt: same lifecycle (per-attempt, wiped by retry's discard, so 'latest held attempt' holds by construction) and it records the card's exact predicates.",
+            "The card's fixture rung composes from the stamp's OUTCOME (board 47a's rule); the base rung stays in-process. A failed stamp write degrades only the fixture rung.",
+            "Unit default: compose_hold_successors with neither held_admissions nor held_admissions_why re-states nothing (keeps pure-call compatibility); both production callers always pass one or the other.",
+            "Degrade note sits above the path note, so a legacy held_tarball-less report still has the path note as its second-to-last line.",
+            "The parser refuses a stamp it cannot fully parse (including unknown keys) rather than re-state part of it.",
+            "Rider 4's unit test lives in test_amend_checkpoint.py (the amend composer's suite) rather than a new file."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "README.md (repo root) \u2014 validate.sh's 'README.md present' check fails in the request tree without it; not needed for the work"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (brief)",
+            "TARBALL.md INDEX, sections 1, 2, 5, 7, 10.1"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_pack_guards.py",
+              "why": "rider 2: its pin asserted the stale 'at v0.1.' text verbatim, so removing the marker from bin/bale requires updating the pin"
+            },
+            {
+              "path": "tests/test_cli_help.py",
+              "why": "rider 6: the brief's named destination for SubcommandHelpLayoutTest's move \u2014 a new file the forecast could not name"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-19-board-110-held-admissions-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-19-board-110-held-admissions-007.sh",
+          "sha256": "79ce4991935b557b160a5c2594ced74dcdbb496d4e3e37a67938f925187dc1c6"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-19T03:04:19+00:00",
+  "outcome": "applied"
+}
