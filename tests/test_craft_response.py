@@ -2,11 +2,13 @@
 """Hermetic tests for tools/craft_response.py (session 007).
 
 Runs the crafter as a subprocess against programmatically built tempdir
-response directories — no bale install, no tests/harness.py, stdlib
-only. Also asserts, unit-shaped, that bale_pack's injected-file surface
-ships the craft tool (the request deliberately runs no bin/bale E2E;
-build.sh's tree-coverage guard and validate.sh's install rows backstop
-the rest).
+response directories — no bale install, no tests/harness.py, stdlib only
+(one exception: ExchangeBlockParity borrows harness's _load_cli for
+bin/bale, imported inside its setUpClass so nothing else here depends on
+the harness). Also asserts, unit-shaped, that bale_pack's injected-file
+surface ships the craft tool (the request deliberately runs no bin/bale
+E2E; build.sh's tree-coverage guard and validate.sh's install rows
+backstop the rest).
 
 Two design-contract guards ride along:
 - the crafter shares no code with the judge (no response_lint import in
@@ -3263,7 +3265,8 @@ class ExchangeBlockParity(unittest.TestCase):
     until the v0.4.21 extraction). setUpClass loads bin/bale rather
     than the relay module because bin/bale re-exports the wire surface
     for this suite; that re-export is itself part of what the guard
-    holds still, so the loader stays as it is.
+    holds still, so bin/bale stays the module loaded. How it loads is
+    tests/harness.py's _load_cli(), the one home for that loader.
 
     Imports both homes and compares them by EXECUTION, never against a
     pinned fixture string: a string would pin today's layout twice
@@ -3275,23 +3278,23 @@ class ExchangeBlockParity(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import importlib.machinery
-        import importlib.util
         sys.path.insert(0, str(REPO / "tools"))
-        sys.path.insert(0, str(REPO / "bin"))
         import craft_response
         cls.craft = sys.modules["craft_response"]
-        # bin/bale has no .py suffix, so name the source loader; nothing
-        # runs at import (main() is guarded). Same shape as
-        # tests/test_thread_status.py's load_bale_module.
-        path = str(REPO / "bin" / "bale")
-        loader = importlib.machinery.SourceFileLoader("bale_parity", path)
-        spec = importlib.util.spec_from_file_location(
-            "bale_parity", path, loader=loader)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["bale_parity"] = module
-        loader.exec_module(module)
-        cls.bale = module
+        # The harness import is deferred to here so the rest of this
+        # suite stays harness-free (module docstring). tests/ is on
+        # sys.path under discovery and direct execution but not under
+        # the dotted form (``-m unittest tests.test_craft_response``),
+        # so it is added only when absent.
+        tests_dir = str(Path(__file__).resolve().parent)
+        if tests_dir not in sys.path:
+            sys.path.insert(0, tests_dir)
+        from harness import _load_cli
+        # bin/bale by path, registered as ``bale_cli`` (never __main__,
+        # so main() stays guarded). _load_cli puts bin/ on sys.path only
+        # when absent and keeps it there, which is what the bare
+        # bale_validate import below resolves through.
+        cls.bale = _load_cli()
         import bale_validate
         cls.lib = bale_validate
 

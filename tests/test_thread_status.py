@@ -35,8 +35,6 @@ Run:  python3 -m unittest tests.test_thread_status -v
 
 from __future__ import annotations
 
-import importlib.machinery
-import importlib.util
 import json
 import re
 import sys
@@ -45,6 +43,7 @@ import unittest
 from pathlib import Path
 
 from harness import (
+    _load_cli,
     bale_env,
     git_env,
     make_install,
@@ -103,21 +102,6 @@ def planner_record(sid: str, round_no: int = 2, n_answers: int = 2) -> dict:
         ],
         "preserved_at": "2026-08-29T15:00:01+00:00",
     }
-
-
-def load_bale_module():
-    """Load bin/bale by path as a module (not __main__) for the pure
-    classifier. The file has no .py suffix, so the source loader is
-    named explicitly; bin/ is on sys.path (above) for its sibling
-    imports, and nothing runs at import — main() is guarded."""
-    path = str(REPO_ROOT / "bin" / "bale")
-    loader = importlib.machinery.SourceFileLoader("bale_under_test", path)
-    spec = importlib.util.spec_from_file_location(
-        "bale_under_test", path, loader=loader)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["bale_under_test"] = module  # dataclasses resolve by name
-    loader.exec_module(module)
-    return module
 
 
 def flat(text: str) -> str:
@@ -254,7 +238,13 @@ class PureClassifierTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.bale = load_bale_module()
+        # bin/bale by path, registered as harness's ``bale_cli`` (never
+        # __main__, so main() stays guarded). Both targets are pure:
+        # _session_state_and_hint is bin/bale's own and
+        # format_clarification_value is bale_report's, re-exported;
+        # neither reaches back through ``from __main__ import``, so
+        # _load_cli's lazy reach-back limit does not bite here.
+        cls.bale = _load_cli()
 
     def classify(self, awaiting, rounds=1):
         return self.bale._session_state_and_hint(
