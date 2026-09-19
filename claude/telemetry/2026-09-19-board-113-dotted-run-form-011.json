@@ -1,0 +1,263 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-19-board-113-dotted-run-form-011",
+  "created_at": "2026-09-19T03:29:03+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-19T03:29:03+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/harness.py",
+        "tests/test_thread_status.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-19-board-113-dotted-run-form-011.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-19T23:51:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-19-board-113-dotted-run-form-011.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "pin suite: python3 -m unittest tests.test_dotted_run_form": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "test_thread_status in dotted, discovery and direct forms": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "harness-adjacent and baseline suites, dotted": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "pin bites: sweep fails without tests/__init__.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bumpless: changes[] holds tests/ paths only": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: CLI_PATH comment in the past tense": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "full discovery: python3 -m unittest discover -s tests (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "every suite run dotted, one process each (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "pin suite: python3 -m unittest tests.test_dotted_run_form": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "test_thread_status in dotted, discovery and direct forms": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "harness-adjacent and baseline suites, dotted": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "pin bites: sweep fails without tests/__init__.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bumpless: changes[] holds tests/ paths only": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: CLI_PATH comment in the past tense": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "full discovery: python3 -m unittest discover -s tests (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "every suite run dotted, one process each (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (py_compile)",
+          "pin suite: python3 -m unittest tests.test_dotted_run_form",
+          "test_thread_status in dotted, discovery and direct forms",
+          "harness-adjacent and baseline suites, dotted",
+          "pin bites: sweep fails without tests/__init__.py",
+          "bumpless: changes[] holds tests/ paths only",
+          "rider: CLI_PATH comment in the past tense",
+          "full discovery: python3 -m unittest discover -s tests (--slow)",
+          "every suite run dotted, one process each (--slow)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/harness.py",
+        "tests/test_thread_status.py"
+      ],
+      "overridden_paths": [
+        "tests/__init__.py",
+        "tests/test_dotted_run_form.py"
+      ],
+      "overridden_path_sources": {
+        "tests/__init__.py": "prompt",
+        "tests/test_dotted_run_form.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/__init__.py",
+        "tests/harness.py",
+        "tests/test_dotted_run_form.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.37",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-19-board-113-dotted-run-form-011.sh",
+              "sha256": "1eeac426c65e0afaaecfebcb8ad16fcde0c01026b0dfafcb844b83d0cdd55a19"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-19T03:29:03+00:00",
+            "base_files": {
+              "tests/harness.py": "081935105ec79c48597b11702487c4b661d865b4bda6a829a3dbce56b5d9113a",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Nothing outside tests/ runs `python3 -m unittest` with no arguments from the repo root and relies on it finding nothing; with tests/ a package, that bare form now discovers the whole suite (checked validate.sh, scripts/build.sh, install.sh, upgrade.sh, bale.toml: none do)."
+          ],
+          "judgment_calls": [
+            "Single-point fix via tests/__init__.py rather than per-suite guards; inserts at sys.path[0] when absent, the same entry discovery adds.",
+            "Pin lives in a new suite rather than test_thread_status.py: it covers the whole tree and must not depend on harness.",
+            "test_thread_status.py left untouched although forecast: the init makes its dotted run line work, so no edit was required.",
+            "Existing per-suite path guards left in place (out of forecast / out of scope, harmless); proposed for removal instead.",
+            "Also updated harness.py's module docstring (in forecast), which claimed only two run forms."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md (META through \u00a711.2)",
+            "README.md (brief)",
+            "TARBALL.md \u00a7\u00a71, 2, 5.1\u20135.4, 7, 10.1",
+            "claude/responses/2026-09-19-board-111-tests-smalls-008/notes.md",
+            "tests/harness.py",
+            "tests/test_thread_status.py (head)",
+            "bin/bale_pack.py (row-84 import scan)",
+            "tests/test_pack_guards.py (row-84 fixtures)",
+            "schemas/response-manifest.schema.json (forecast_departures)"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/__init__.py",
+              "why": "the single-point fix the goal needs; the dotted form can only get tests/ on sys.path from a package init"
+            },
+            {
+              "path": "tests/test_dotted_run_form.py",
+              "why": "the goal asks for a test pinning the dotted form tree-wide; no forecast file is a fitting home"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-19-board-113-dotted-run-form-011.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-19-board-113-dotted-run-form-011.sh",
+          "sha256": "1eeac426c65e0afaaecfebcb8ad16fcde0c01026b0dfafcb844b83d0cdd55a19"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-19T23:51:13+00:00",
+  "outcome": "applied"
+}
