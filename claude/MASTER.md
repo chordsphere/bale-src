@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-17-sitting-close-deltas-11-007`.
+Last landed by: `2026-09-19-sitting-close-deltas-12-001`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -371,6 +371,7 @@ with the unverifiable ones carried verbatim and marked):
 
 - run_hook's three placeholder-less f-strings — rides any session
   touching bin/bale section 23. Cosmetic.
+  [2026-09-18: carrier now row 110, among its `bin/bale` riders.]
 - `claude/context/bale-internals.md` §2.5 schema-snippet true-up —
   whether the snippet-not-extended precedent ([staging] v0.3.7,
   [identity] v0.3.8, followed consistently by board-6 sessions A–C,
@@ -413,6 +414,8 @@ with the unverifiable ones carried verbatim and marked):
   recorded at that call site. Scope: `bin/bale_report.py`,
   `bin/bale_pack.py` (pass-through), a `--json` case in
   `tests/test_include_group.py`."]
+  [2026-09-18: carrier now row 104; gains 107's Proposal 1 — the
+  stamp sweep's result joins the key.]
 - BALE.md §7/§7.2 includes-as-scope true-up — rides the next
   BALE.md-touching session. Text verbatim from
   `2026-08-07-board-13c-contract-docs-006`'s Proposals: "**What:**
@@ -481,6 +484,9 @@ with the unverifiable ones carried verbatim and marked):
   checkpoint surfaces mid-pipeline. Rides board 10 or the next
   session touching that function. (Source:
   `2026-08-07-sandbox-adr-009`'s surprises.)
+  [2026-09-18: flagged, not closed — the desk saw a
+  `check_checkpoint_shell_syntax` in `bin/bale_staging.py` (line 125)
+  and did not read it; the next desk verifies and retires or keeps.]
 - gather_files_for_pack verbose kwarg in cmd_handoff — rides the
   next session touching bin/bale's handoff surface. Text verbatim
   from `2026-08-07-board-35-handoff-happy-011`'s Proposals:
@@ -592,6 +598,13 @@ with the unverifiable ones carried verbatim and marked):
   (transcript-ordered proof in the sitting log; §6 entry 74).
   Rides the next session touching the supersession close/sweep
   path.
+  [2026-09-18: closed at `2026-09-18-board-107-supersedes-clean-tree-004`
+  as not reproducing as written — the closure record is written before
+  its sweep, and the log order is a reporting artifact (the `superseded`
+  line prints after `close_session_with_record` returns). The worker's
+  inference, from code and version history rather than the sitting log,
+  is that the 2026-08-13/14 dirt was row 107's stamp. The tree-clean
+  test landed.]
 - ADR-0015 disjointness remedy text: "narrow this pack" is the
   wrong remedy against a whole-tree open session — proven live
   this sitting, where a disjoint `--write` still refused (the open
@@ -943,6 +956,8 @@ with the unverifiable ones carried verbatim and marked):
   sitting's close.)
   [2026-09-17: carrier now row 109, the harness micro, which holds
   `tests/harness.py`.]
+  [2026-09-18: consumed at `2026-09-18-board-109-harness-micro-002` —
+  `normalize()` has one home in `tests/harness.py`.]
 - `bale config hooks` row in BALE.md §5's command table, and one
   sentence in BALE.md's apply and pack sections that every admission
   y/N names its decline cause — both ride 99b (the BALE.md true-up).
@@ -990,6 +1005,10 @@ with the unverifiable ones carried verbatim and marked):
   so the vocabulary has one home instead of three (walkthrough, apply
   log line, card); a pure refactor that must keep the walkthrough's
   exit-2 tail. Rides the next `bin/bale_report.py` touch (47b).
+  [2026-09-18: consumed at `2026-09-18-board-47b-relay-blocks-003` — the
+  walkthrough routes through `_checkpoint_attribution` (a
+  `_worker_attribution` beside it), its exit-2 tail byte-identical; the
+  apply log line's wording stands as a third home, unscheduled.]
 - E2E pin for `bale handoff --verbose` naming a typo'd reading-plan
   path as `verbose: drop <path> (not tracked)` — the case row 92 was
   written for; no source change expected. Rides the next handoff
@@ -1002,12 +1021,19 @@ with the unverifiable ones carried verbatim and marked):
   (its pass-through half sat in the pack-UX micro's file). Carrier
   unchanged.
   [2026-09-17: carrier now 47b's rider list (row 47).]
+  [2026-09-18: moved off 47b at the open — the key spans
+  `bin/bale_report.py` (47b) and `bin/bale_pack.py` (107); carrier now
+  row 104, gaining 107's Proposal 1.]
 - Four sibling precedence sentences — the META "this file wins"
   sentences of TARBALL.md, DOCS.md, CODE.md, and PLANNER.md, siblings
   of CLAUDE.md's reworded one — ride the 100 arc's doc-injection
   sweep. From the 2026-09-16/17 sitting.
 - TARBALL.md §5.10's shape-sentence pin in `test_doc_crossrefs` —
   rides the doc sweep. From 105's Proposals.
+  [2026-09-18: consumed at `2026-09-18-board-109-harness-micro-002`, as
+  a pin on §5.10's own wording (`TARBALL_SHAPE_SENTENCE`), with a third
+  test holding both pinned constants to one shared second half; whether
+  the three homes converge on one wording is a new entry below.]
 - In-process opener constants test. From the 2026-09-16/17 sitting.
   [2026-09-17: consumed at `2026-09-17-board-106-bale-dedup-003`; this
   entry records it.]
@@ -1016,6 +1042,7 @@ with the unverifiable ones carried verbatim and marked):
   meanwhile.
 - `from_lines`' stale "at v0.1" marker — rides the next `bin/bale`
   touch.
+  [2026-09-18: carrier now row 110.]
 - The crafter comment carrying a `board-96-…` sid string — tolerated
   by the guard; look at it in the doc sweep.
 - BALE.md §5.6 stats prose (`--sid`, the five new keys) — input to
@@ -1029,6 +1056,43 @@ with the unverifiable ones carried verbatim and marked):
   BALE.md stats prose (99b), `_load_cli()` and `normalize()` (row
   109), and 47b's five riders (row 47). Anything not named here or on
   those rows stands as shipped.
+- The stale comment on `depends_on.superseded_session` in `cmd_pack`
+  ("carries no successor pointer"), stale since v0.3.23's reverse
+  stamp — rides the next `bin/bale_pack.py` touch (row 104). From
+  `2026-09-18-board-107-supersedes-clean-tree-004`'s notes.
+- BALE.md §8.8 trigger-list sentence for the stamp sweep — input to
+  99b. Text verbatim from
+  `2026-09-18-board-107-supersedes-clean-tree-004`'s Proposals:
+  "…pack's session closes (the read-only sweep and the supersession
+  close, §7.2), including the supersession's reverse-lineage stamp on
+  the parent record, swept as its own
+  `[bale sweep <parent>] superseded_by <child>`
+  commit once the child sid exists…"
+- Whether the shape sentence's three homes converge on one wording:
+  TARBALL.md §5.10 says "the worker" and carries section pointers;
+  CLAUDE.md §3 and the opener say "Claude". Rides row 104's
+  kind-conditional rewrite or the doc sweep. From
+  `2026-09-18-board-109-harness-micro-002`'s notes.
+- The three remaining provenance leftovers in `tools/craft_response.py`
+  (lines 108, 359, 544 at that session) — rides the next crafter
+  session; and whether `fold-in: <NNN>'s accepted proposal`-style
+  citations deserve a deny shape — unscheduled, specimen survey first.
+  Both from `2026-09-17-guard-maintenance-006`'s Proposals, ratified at
+  the 2026-09-18 sitting.
+- A suite-level pin that `tools/craft_response.py` and
+  `tools/response_lint.py` stay stdlib-only with no network import,
+  since the opener now says so in the operator's voice — 105's Proposal
+  2, which close 11 under-recorded, as its worker warned it might (item
+  3 of close 11's notes.md). Accepted 2026-09-18; carrier row 104 (a
+  guess that 104 will hold `tests/test_pack_opener.py`). This master
+  did the check by hand — read the crafter's imports before running it
+  — which is the opener's sentence working as written.
+- Proposals of the `2026-09-18-continue-plan-001` sitting's workers
+  (107, 109, 47b), dispositions: 107's 1 → the pack-json key (row 104),
+  2 → 99b (the §8.8 entry above); 109's 1 → row 111, 2 → row 110, 3 →
+  §7 (the include-authoring rule); 47b's 1 → row 110, 2 → row 110's
+  riders, 3 → row 111, 4 → §7 (the same rule). Anything not named here
+  or on those rows stands as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -2328,6 +2392,94 @@ has no row home; close recorded by
   constants test, 106), and a dispositions entry for the sitting's
   Proposals.
 
+Landed 2026-09-18, the continue-plan-001 sitting (master
+`2026-09-18-continue-plan-001`, read-only; packed 2026-09-18T23:04:16Z;
+the previous master `2026-09-16-continue-plan-006` closed
+`closed-read-only` at 2026-09-17T15:24:21Z per its record — 34 seconds
+after close 11's landing retry, the day before this sitting opened, not
+at its open). Wave 4 landed whole — rows 107 and 47 (47b) DONE, row
+109's narrowed two thirds DONE, rows 110 and 111 opened; this block
+carries only what has no row home; close recorded by
+`2026-09-19-sitting-close-deltas-12-001`:
+
+- Landing record, in apply order from telemetry — one apply attempt
+  each, worker validation PASS and blind checkpoint PASS on every one,
+  no HOLD (the operator's one-word "applied" was the whole story):
+  `2026-09-18-board-107-supersedes-clean-tree-004` (bumpless-under;
+  2026-09-18T23:52:21Z); `2026-09-18-board-109-harness-micro-002`
+  (tests-only, bumpless-under; 23:53:32Z; one out-of-forecast file,
+  `tests/test_harness_cli_loader.py`, admitted at apply at the prompt);
+  `2026-09-18-board-47b-relay-blocks-003` (the wave's bumper, 0.4.36,
+  with `claude/changelog/0.4.36.json`; 2026-09-19T00:01:45Z, past UTC
+  midnight). 47b and 107 shipped nothing outside their forecasts. The
+  three packed within thirteen seconds of each other
+  (23:26:38Z–23:26:51Z) and ran beside the desk together.
+- Wave 4 cut by file map at the open, before any bundle: two
+  collisions found at the desk rather than at the gate.
+  `tests/test_apply_preflight.py` holds both 47b's `HoldCardUnitTest`
+  and the class row 109 was to move, so 109 ran narrowed (loader,
+  `normalize()`, one rider) and its class move was deferred; the
+  pack-json `sweep`/`include_group` rider spans `bin/bale_report.py`
+  (47b) and `bin/bale_pack.py` (107), so it moved to row 104. All three
+  bundles were dress-rehearsed with `bale open` beside a read-only
+  master in one scratch repo before delivery; the gate admitted them
+  together (§6 entry 155).
+- Sitting-open record: close 11's notes.md ratified wholesale
+  (operator: "as assumed"), its item 3 checked against 105's notes —
+  proposals 1 and 3 were recorded, proposal 2 was not (registry above;
+  carrier row 104). `2026-09-17-guard-maintenance-006`'s notes.md
+  ratified wholesale, the token-anchored `board-<digits>` pattern
+  included. The sitting-open version check was satisfied by the
+  request's provenance stamp, 0.4.35 (the master's own record carries
+  no version; the three workers' provenance stamps read 0.4.35).
+- Desk light blocks, two (the master asks the operator through the
+  same tier). Block one, three questions — the 109 narrowing, the
+  rider's move to 104, close 11's ratification — answered "as assumed,
+  with one clarification", the clarification being the operator's
+  statement of what he needs from the HOLD card, carried verbatim into
+  47b's brief. Block two, three questions: the routing rule was
+  ratified by exercise (the operator opened the 47b bundle built on
+  it); the other two — guard-maintenance's ratification and 105's
+  Proposal 2 — were re-asked at the close, and this close is built on
+  "yes" to both.
+- Worker judgment calls, all ratified as shipped: 107's two sweep
+  commits rather than one (the closure sweeps at its event, the stamp
+  at its own; a deferred close sweep would regress the accepted-abort
+  window); 109's `SourceFileLoader` over `runpy`, its `tests/` path
+  guard in the two doc-pin suites, and its pin of §5.10's own wording;
+  47b's five decisions — `send first:` as a trailer line, the worker
+  block built from in-memory validation output and never the log,
+  bands cut by byte offset per attempt, the sentinel guard, the quoted
+  closing line — and its base-defect flag finding.
+- Ratification debt carried forward, per convention: THIS close's
+  notes.md queues to the next sitting's open.
+- Board deltas of the close: row 47 DONE (47b; the interim
+  planner-first rule retired); row 107 DONE; row 109 two thirds and one
+  rider DONE, its class move now row 111's; row 104 grown four riders;
+  rows 110 and 111 opened in §4; evidence entries 155–163 in §6; the
+  heading "New, ratified 2026-09-18" over four contracts in §5; the
+  version landmark 0.4.36 (0.4.35 recorded beside it), an
+  include-authoring rule, the untracked-`opened` fact, the log's worker
+  band, the harness's two helpers, and 47b's one-apply-behind in §7.
+- Registry deltas of the close: consumed — `normalize()` and the §5.10
+  shape-sentence pin (109), `format_walkthrough_summary`'s attribution
+  (47b); closed as not reproducing — supersession's
+  closure-before-sweep (107); carriers moved — both pack-json
+  `sweep`/`include_group` entries to row 104 (gaining 107's Proposal
+  1), `run_hook`'s f-strings and `from_lines`' marker to row 110;
+  flagged for the next desk — checkpoint `bash -n` fail-fast; six new
+  entries, the last a dispositions entry for the sitting's Proposals.
+- Sequencing for the next desk: rows 110 and 111 are new smalls; both
+  want `tests/test_apply_preflight.py` (110 for `HoldCardUnitTest`, 111
+  for the class move), so cut them by file map, not by this sentence.
+  Row 104 is next in the standing line and now carries four riders
+  (registry above); the desk read this sitting that pack's argument
+  parser lives in `bin/bale`, so 104 and 110 likely both hold
+  `bin/bale` — verify before cutting. Then 37 → 103 (design sitting) →
+  the 100 arc (absorbs 77; 99b rides its doc wave; 96's pack flag rides
+  its enum session) → 43 → 45 → S6. Row 93 stands until brought
+  forward.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -3066,6 +3218,24 @@ and §8, so done items keep their numbers as one-line pointers.
     its "next step" offers two categories, fixture and work; the
     sitting hit a third twice — a base defect, neither fixture nor
     work (§6 entry 151).]
+    [2026-09-18: DONE at `2026-09-18-board-47b-relay-blocks-003`,
+    0.4.36. On a HOLD, two sentinel-bracketed blocks print before the
+    card, in send order —
+    `=== RELAY BEGIN <sid> to planner ===` and
+    `=== RELAY BEGIN <sid> to worker ===`,
+    each closed by its `RELAY END` twin and each opening with where to
+    paste it; the planner block inlines this attempt's checkpoint and
+    worker log bands, and the worker block carries the judge line, the
+    failed probe labels, the worker's own validation output, and the
+    quoted `bale retry` line, nothing else of the checkpoint's. The
+    card's trailer opens with the `send first:` line; the successor
+    fork gains the third ruling, `base defect`, whose retry rung
+    re-states every admission the held apply exercised and carries
+    `--sid`. A clean apply prints one planner block (verdict,
+    admissions, `notes.md`). TARBALL.md §7 gains the worker-facing
+    paragraph. Four riders consumed; the pack-json rider moved to row
+    104. The interim operator rule in this row's 2026-09-10 bracket is
+    retired — the tool routes (§5, 2026-09-18). Row 47 is complete.]
 
 48. **Pack-time checkpoint dry-run echo — ABSORBED** 2026-08-18
     into board 49 (the `bale open` dry-run leg); whether the
@@ -4593,6 +4763,12 @@ and §8, so done items keep their numbers as one-line pointers.
     rule's default wins by silence" (§6 entry 146). The doc-injection
     split rides the 100 arc's doc sweep; the rest is its own session
     after row 105.
+    [2026-09-18: grown four riders — the pack-json
+    `sweep`/`include_group` key, now with the stamp sweep's result
+    (107's Proposal 1; moved from 47b, §3 registry); the stale
+    `depends_on.superseded_session` comment in `cmd_pack`; 105's
+    Proposal 2, the tools' stdlib-only pin; and the three-homes wording
+    question for the shape sentence.]
 
 105. **Operator-voice authority framing** — queued 2026-09-16 (doc
     lane with one `bin/bale_pack.py` string). Three edits that change
@@ -4650,6 +4826,15 @@ and §8, so done items keep their numbers as one-line pointers.
     `[validation] base` pin, a second pack `--supersedes` the first
     (prompt acceptance needs the pty harness; non-TTY declines), then
     `git status --porcelain` empty.
+    [2026-09-18: DONE at `2026-09-18-board-107-supersedes-clean-tree-004`
+    (bumpless-under): `cmd_pack` calls a new `sweep_superseded_by_stamp`
+    right after `stamp_superseded_by`, handing `sweep_commit` the one
+    stamped path once the child sid exists, as
+    `[bale sweep <parent>] superseded_by <child>`;
+    sweep unset or false is byte-identical to before; five tests, three
+    failing on the 0.4.35 bytes; `bin/bale` untouched. The row's
+    "`git status --porcelain` empty" was one inference off (§6 entry
+    156).]
 
 108. **Guard maintenance** — queued 2026-09-17 (in flight when the
     brief was written): `INSTALL_SCHEMAS` + `changelog-record`; the
@@ -4669,6 +4854,54 @@ and §8, so done items keep their numbers as one-line pointers.
     `normalize()` registry rider (rides `tests/harness.py`); and
     `SubcommandHelpLayoutTest` moved to a new `tests/test_cli_help.py`
     with the completion pins.
+    [2026-09-18: two thirds and one rider DONE at
+    `2026-09-18-board-109-harness-micro-002` (tests-only): `_load_cli()`
+    in `tests/harness.py` (a `SourceFileLoader` under `bale_cli`, fresh
+    module per call, `sys.path` hygiene, the `__main__` reach-back limit
+    documented and pinned); `normalize()` with one home there; the §5.10
+    shape pin (§3 registry). The loader's tests landed in a new
+    `tests/test_harness_cli_loader.py`, out of forecast and admitted at
+    apply. The `SubcommandHelpLayoutTest` move is row 111's now — the
+    class shares `tests/test_apply_preflight.py` with 47b's
+    `HoldCardUnitTest`.]
+
+110. **Held admissions stamped at HOLD** — queued 2026-09-18 (code;
+    `bin/bale`, `bin/bale_apply.py`, `bin/bale_report.py`, and tests —
+    `HoldCardUnitTest` in `tests/test_apply_preflight.py` among them).
+    The defect in one sentence: the fixture-defect retry rung and
+    `bale amend-checkpoint`'s report retry the same bytes without
+    re-stating admissions, so a held apply that needed
+    `--allow-out-of-scope` refuses at the fixture retry — and 109
+    shipped an out-of-forecast file this very wave. Text verbatim from
+    `2026-09-18-board-47b-relay-blocks-003`'s Proposals: "**Stamp the
+    held apply's admissions at HOLD time.** Write them beside
+    `held_tarball` (e.g. `.bale/sessions/<sid>/held_admissions`).
+    *Why:* the fixture-defect retry rung and `bale amend-checkpoint`'s
+    report both retry the same bytes, but neither re-states the
+    admissions, so a held apply that needed `--allow-out-of-scope`
+    refuses at the fixture retry. The base rung only gets this right
+    because the card renders in-process. *Scope hints:* `bin/bale`
+    (`compose_retry_successor`, `read_held_tarball_stamp`),
+    `bin/bale_apply.py`'s inspect branch, `compose_hold_successors`'
+    fixture fork. The card and amend report must change in one session
+    to keep their byte agreement." Card and amend report change in one
+    session. Riders on `bin/bale`: `cmd_retry`'s twin existence check
+    after `resolve_inbound_path(..., verb="retry")` (47b's Proposal 2 —
+    prove it unreachable as 47b proved `cmd_apply`'s, and look at
+    `handoff`'s); `from_lines`' stale "at v0.1" marker; `run_hook`'s
+    three placeholder-less f-strings (both from the §3 registry); and a
+    `compose_retry_successor` unit test through `_load_cli()` (109's
+    Proposal 2; it needs a scratch repo with held-tarball state).
+
+111. **Tests smalls** — queued 2026-09-18 (tests only):
+    `SubcommandHelpLayoutTest` from `tests/test_apply_preflight.py` to a
+    new `tests/test_cli_help.py` with the completion pins (row 109's
+    deferred third); `_load_cli()` adopted in
+    `tests/test_thread_status.py` (`load_bale_module`) and
+    `tests/test_craft_response.py` (`ExchangeBlockParity.setUpClass`),
+    retiring the two ad-hoc loaders (109's Proposal 1); a pin for
+    TARBALL.md §7's worker relay paragraph in a doc-pin suite (47b's
+    Proposal 3).
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -5421,6 +5654,28 @@ each a ruling of record with one home):
   writing a line the operator will paste — three refusals this
   sitting, each correct: `--write` on a nonexistent path, a pack flag
   on the `open` line, superseding a held session (§6 entry 147).
+
+New, ratified 2026-09-18 (the `2026-09-18-continue-plan-001` sitting;
+each a ruling of record with one home):
+
+- **The tool routes HOLD material.** When the checkpoint held (alone
+  or with the worker), the planner block goes first and the worker
+  block waits for the desk's ruling; when only the worker's validation
+  held, the worker block goes first. The worker block carries the
+  failed probe labels and the worker's own validation output, nothing
+  else of the checkpoint's. Supersedes row 47's interim planner-first
+  rule. Landed at row 47.
+- **The relay markers are wire format.** The RELAY sentinels, the
+  `send first:` line's leading bytes, and the three ruling words
+  (`fixture defect`, `work defect`, `base defect`) are wire format.
+  Landed at row 47.
+- **A retry of held bytes re-states its admissions.** A retry of held
+  bytes re-states every admission the held apply exercised; nothing
+  carries forward from a failed attempt. Landed on the base-defect rung
+  at row 47; the fixture rung is row 110.
+- **The supersession stamp sweeps at its own event.** Two sweep commits
+  per accepted supersession: the closure at the close, and the stamp
+  once the child sid exists. Landed at row 107.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -6845,6 +7100,65 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     09-17), so a date typed from the desk's own day goes stale at UTC
     midnight. (Desk-side, this sitting.)
 
+155. **Collisions found at the desk, not the gate.** Wave 4's two file
+    collisions — `tests/test_apply_preflight.py` under 47b and 109, and
+    the pack-json rider across 47b's and 107's files — were found by
+    the file map at the open, before any bundle, and cut there (§3).
+    Entry 150's lesson applied before dispatch. (Desk-side, this
+    sitting.)
+
+156. **The row's oracle sentence was one inference off.** Row 107 said
+    the tree would be clean; rehearsal showed every pack leaves its own
+    `opened` record untracked until its session closes, so the oracle
+    graded "no tracked file modified" and "the committed record carries
+    `superseded_by`". Entry 142's class, caught by reproducing before
+    writing the oracle. (Desk-side, this sitting.)
+
+157. **A rider that no longer reproduced.** The registry entry's
+    log-order evidence was a reporting artifact; 107's worker said so
+    rather than fixing a non-defect, and marked its inference as
+    inference. (Worker-side, 107.)
+
+158. **A sentence verified by fragments.** 109's brief said §5.10
+    "carries the sentence today"; the desk had matched three fragments
+    of the second half, and the first half differs from CLAUDE.md's.
+    The worker pinned §5.10's own wording; the oracle, mutation-shaped
+    on the second half only, did not HOLD. A claim about a sentence is
+    checked whole. (Desk-side claim, worker-side catch.)
+
+159. **The desk read the writer, not the artifact.** 47b's brief
+    called the log's worker band "the worker's own script's output"
+    from the write sites in `bin/bale_staging.py`; a real log shows
+    apply journaling the checkpoint's exit line, path included, inside
+    that band. The worker built the block from in-memory output and
+    gave the function no parameter that could carry checkpoint output.
+    (Desk-side claim, worker-side catch.)
+
+160. **Thin pins, two outcomes.** 109's oracle accepted attribute or
+    mapping access for the loader's return, and the worker's different,
+    better mechanism landed without a HOLD. 47b's verbatim `send first:`
+    bytes ruled out an aligned card row, because rows pad labels — a
+    verbatim marker constrains layout, and the desk did not know the
+    renderer's padding when it pinned the bytes. (Desk-side, this
+    sitting.)
+
+161. **A habit that contradicted a rule for weeks.** The operator's
+    HOLD routine — card plus the whole session log, to the worker
+    first — ran against row 47's interim planner-first rule and handed
+    workers the checkpoint band; neither side noticed until the
+    operator described the routine while asking for it to be
+    automated. Rules the tool does not carry are not carried. Row 47
+    now carries it. (Desk-side, this sitting.)
+
+162. **The fixture rung's latent gap.** Found by 47b's worker while
+    answering the brief's question about the base rung's flags. Row
+    110. (Worker-side, 47b.)
+
+163. **A tool-use pause at the open.** The master's first turn hit the
+    tool-use limit before any bundle; it named the pause as a pause
+    (CLAUDE.md §11.1), ended on a hand-authored light block, and
+    resumed with context intact. (Desk-side, this sitting.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -7054,6 +7368,28 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
 - The delivery directory and the search path are one place:
   `/mnt/c/Users/chord/Downloads/`; the desk's `bale amend-checkpoint`
   line names the amendment there with `--sid`, always.
+- Version landmark: 0.4.36 (`2026-09-18-board-47b-relay-blocks-003`);
+  0.4.35 was `2026-09-17-board-56-57-changelog-aborted-002` (close 11's
+  Proposal, accepted).
+- Include-authoring rule, accreted 2026-09-18: a pack that ships
+  `tests/` ships the repo-root `bale.toml` and `claude/changelog` too.
+  Without them, inside a request,
+  `test_include_group.TestThisRepoGroup` errors three times and
+  `test_changelog_record` fails twice (`test_corpus_is_not_empty`,
+  `test_current_version_has_a_valid_record`); until a pack carries
+  them, the brief's known-baseline sentence names all five (109's
+  Proposal 3, 47b's Proposal 4).
+- A pack leaves its own `opened` telemetry record untracked until its
+  session closes; "tree clean after a pack" means no *tracked* file
+  modified (§6 entry 156).
+- The session log's worker band is not only the worker's output: apply
+  journals the checkpoint's exit line inside it. Nothing worker-facing
+  is built from the log (§6 entry 159).
+- `tests/harness.py` carries `_load_cli()` (an in-process `bin/bale`
+  under the module name `bale_cli`, fresh per call) and `normalize()`
+  (row 109).
+- One-apply-behind held for 47b: the first HOLD or clean apply after its
+  landing is the first to print relay blocks.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
