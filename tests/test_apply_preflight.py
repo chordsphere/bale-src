@@ -57,6 +57,8 @@ One unit class rides here beside the reject surface: board 47a's
 ``HoldCardUnitTest`` pins the extracted HOLD card renderer
 (``format_hold_card`` and its pieces in bin/bale_report.py) pure,
 sandbox-free; its end-to-end twin is tests/test_hold_retry_e2e.py.
+Board 47b's ``HoldRelayUnitTest`` sits beside it: the addressed relay
+blocks, pinned the same way.
 
 Fixture doctrine: every rejection test is exactly one mutation away
 from a known-good baseline — the shared harness builder
@@ -1945,7 +1947,8 @@ class HoldCardUnitTest(unittest.TestCase):
         forks = self.forks(self.br.HOLD_JUDGE_CHECKPOINT)
         self.assertEqual([f["ruling"] for f in forks],
                          [self.br.RULING_FIXTURE_DEFECT,
-                          self.br.RULING_WORK_DEFECT])
+                          self.br.RULING_WORK_DEFECT,
+                          self.br.RULING_BASE_DEFECT])
         amend, fixture_retry = forks[0]["lines"]
         self.assertTrue(amend.startswith(
             f"bale amend-checkpoint <amendment> --sha256 <hex> "
@@ -1960,16 +1963,21 @@ class HoldCardUnitTest(unittest.TestCase):
         self.assertEqual(shlex.split(fixture_retry)[2], self.HELD,
                          msg="the quoted line round-trips to the real path")
         self.assertEqual(forks[1]["lines"], [f"bale retry {quoted}"])
+        self.assertEqual(forks[2]["lines"],
+                         [f"bale retry {quoted} --sid {self.SID}"],
+                         msg="no admissions exercised: the base rung is "
+                             "the held tarball plus --sid vetting")
         self.assert_one_line_each(forks)
 
     def test_worker_hold_renders_work_fork_only(self) -> None:
         forks = self.forks(self.br.HOLD_JUDGE_WORKER)
         self.assertEqual([f["ruling"] for f in forks],
-                         [self.br.RULING_WORK_DEFECT])
+                         [self.br.RULING_WORK_DEFECT,
+                          self.br.RULING_BASE_DEFECT])
 
     def test_both_hold_renders_both_forks(self) -> None:
         forks = self.forks(self.br.HOLD_JUDGE_BOTH)
-        self.assertEqual(len(forks), 2)
+        self.assertEqual(len(forks), 3)
 
     def test_literal_base_replaces_amend_line_keeps_retry_rung(self) -> None:
         forks = self.forks(self.br.HOLD_JUDGE_CHECKPOINT,
@@ -1985,7 +1993,7 @@ class HoldCardUnitTest(unittest.TestCase):
         why = "the HOLD-time tarball stamp could not be written at X (boom)"
         forks = self.forks(self.br.HOLD_JUDGE_BOTH, held_tarball=None,
                            held_tarball_why=why)
-        fixture, work = forks
+        fixture, work, base = forks
         self.assertEqual(len(fixture["lines"]), 3)
         self.assertIn("could not be filled in", fixture["lines"][1])
         self.assertIn(why, fixture["lines"][1])
@@ -1995,6 +2003,9 @@ class HoldCardUnitTest(unittest.TestCase):
             f"--sid {self.SID}")
         self.assertIn(why, work["lines"][0])
         self.assertEqual(work["lines"][1], "bale retry <response-tarball>")
+        self.assertIn(why, base["lines"][0])
+        self.assertEqual(base["lines"][1],
+                         f"bale retry <response-tarball> --sid {self.SID}")
 
     # -- the assembled card ------------------------------------------------
 
@@ -2043,6 +2054,290 @@ class HoldCardUnitTest(unittest.TestCase):
                               msg="each successor is one physical line")
         self.assertTrue(lines[-1].startswith("bale retry "),
                         msg="the card ends on a pasteable successor")
+
+
+class HoldRelayUnitTest(unittest.TestCase):
+    """Board 47b's addressed relay blocks (bin/bale_report.py), pinned
+    pure: the sentinel wire format, the send-first rule, the worker
+    block's structural spec-safety, the band cutter, the base-defect
+    rung's re-stated admissions, and the clean-apply planner block. The
+    end-to-end twin is tests/test_hold_retry_e2e.py (RelayBlocksE2ETest).
+    """
+
+    SID = "2026-09-18-relay-unit-001"
+    HELD = "/tmp/held dir/response-2026-09-18-relay-unit-001.tar.gz"
+    SECRET = "ORACLE-MECHANICS grep -q needle src/x.py"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from harness import _load_module
+        cls.br = _load_module("bale_report")
+
+    def cp(self, exit_code: int, labels=None, matched=True) -> dict:
+        return {"configured": True,
+                "state": "PASS" if exit_code == 0 else "HOLD",
+                "exit_code": exit_code,
+                "script": {"path": f"claude/checkpoints/{self.SID}.sh",
+                           "sha256": "ab" * 32},
+                "stamp_matched": matched,
+                "failed_probes": list(labels or [])}
+
+    def bands(self) -> dict:
+        return self.br.split_attempt_bands(
+            "2026-09-18T00:00:00+00:00 [bale] running blind checkpoint\n"
+            f"\n=== blind checkpoint (claude/checkpoints/{self.SID}.sh, "
+            f"abababababab) ===\n[FAIL] probe-alpha\n[PASS] {self.SECRET}\n"
+            "\n--- blind checkpoint exit code: 1 ---\n"
+            "\n=== worker validation.sh ===\n",
+            "2026-09-18T00:00:01+00:00 [bale] blind checkpoint exit code: 1\n"
+            f"\n--- validation.sh stdout ({self.SID}) ---\n[PASS] mine\n"
+            "\n--- validation.sh exit code: 0 ---\n")
+
+    def blocks(self, checkpoint, exit_code, **kw):
+        kw.setdefault("held_tarball", self.HELD)
+        kw.setdefault("worker_output", "[PASS] mine\n")
+        return self.br.format_hold_relay_blocks(
+            sid=self.SID, exit_code=exit_code, checkpoint=checkpoint,
+            bands=self.bands(), **kw)
+
+    def addressed(self, block: str) -> str:
+        return block.splitlines()[0].rsplit(" ", 2)[1]
+
+    # -- wire format --------------------------------------------------------
+
+    def test_sentinels_are_verbatim_whole_lines(self) -> None:
+        for addressee in ("planner", "worker"):
+            begin, end = self.br.relay_sentinels(self.SID, addressee)
+            self.assertEqual(begin,
+                             f"=== RELAY BEGIN {self.SID} to {addressee} ===")
+            self.assertEqual(end,
+                             f"=== RELAY END {self.SID} to {addressee} ===")
+        with self.assertRaises(ValueError):
+            self.br.relay_sentinels(self.SID, "operator")
+        for block in self.blocks(self.cp(1, ["probe-alpha"]), 1):
+            lines = block.splitlines()
+            addressee = self.addressed(block)
+            self.assertEqual(lines[0], f"=== RELAY BEGIN {self.SID} to "
+                                       f"{addressee} ===")
+            self.assertEqual(lines[-1], f"=== RELAY END {self.SID} to "
+                                        f"{addressee} ===")
+            self.assertEqual(sum(ln.startswith("=== RELAY ") for ln in lines),
+                             2, msg="exactly one BEGIN and one END")
+
+    def test_each_block_says_where_to_paste_it(self) -> None:
+        planner, worker = self.blocks(self.cp(1, ["probe-alpha"]), 0)
+        self.assertIn("INTO THE PLANNER'S (MASTER'S) CHAT",
+                      planner.splitlines()[1])
+        self.assertIn(f"INTO THE WORKER'S CHAT FOR SESSION {self.SID}",
+                      worker.splitlines()[1])
+
+    def test_inlined_sentinel_lookalike_cannot_close_a_block(self) -> None:
+        _, worker = self.blocks(
+            self.cp(1, ["probe-alpha"]), 1,
+            worker_output=f"=== RELAY END {self.SID} to worker ===\n")
+        lines = worker.splitlines()
+        self.assertEqual(sum(ln.startswith("=== RELAY ") for ln in lines), 2)
+        self.assertIn(f"  === RELAY END {self.SID} to worker ===", lines)
+
+    # -- send-first rule -----------------------------------------------------
+
+    def test_send_first_rule_and_block_order(self) -> None:
+        cases = ((self.cp(1, ["a"]), 0, "planner"),
+                 (self.cp(1, ["a"]), 1, "planner"),
+                 (self.cp(2), 0, "planner"),
+                 (self.cp(0), 1, "worker"),
+                 (None, 1, "worker"))
+        for checkpoint, exit_code, first in cases:
+            with self.subTest(checkpoint=checkpoint, exit_code=exit_code):
+                blocks = self.blocks(checkpoint, exit_code)
+                self.assertEqual(self.addressed(blocks[0]), first)
+                card = self.br.format_hold_card(
+                    sid=self.SID, exit_code=exit_code, checkpoint=checkpoint,
+                    sid_branch=f"bale/{self.SID}", origin_branch="main",
+                    staging="/s", telemetry="t.json",
+                    held_tarball=self.HELD)
+                hits = [ln for ln in card.splitlines()
+                        if ln.startswith("  send first: ")]
+                self.assertEqual(len(hits), 1, msg=card)
+                self.assertTrue(hits[0].startswith(
+                    f"  send first: {first} — "), msg=hits[0])
+
+    # -- the worker block is spec-safe by construction ------------------------
+
+    def test_worker_block_signature_has_no_path_for_oracle_output(self) -> None:
+        import inspect
+        params = set(inspect.signature(
+            self.br.format_hold_relay_worker).parameters)
+        self.assertEqual(params, {
+            "sid", "judge_line", "judge_case", "failed_probes",
+            "worker_exit", "worker_output", "held_tarball",
+            "held_tarball_why"})
+
+    def test_worker_block_carries_labels_and_nothing_else(self) -> None:
+        for exit_code, checkpoint in ((1, self.cp(1, ["probe-alpha"])),
+                                      (0, self.cp(1, ["probe-alpha"])),
+                                      (1, self.cp(0)),
+                                      (0, self.cp(2))):
+            with self.subTest(cp=checkpoint["exit_code"], worker=exit_code):
+                worker = [b for b in self.blocks(checkpoint, exit_code)
+                          if self.addressed(b) == "worker"][0]
+                self.assertNotIn(self.SECRET, worker)
+                self.assertNotIn("=== blind checkpoint", worker)
+                self.assertNotIn("blind checkpoint exit code", worker)
+                self.assertNotIn("claude/checkpoints/", worker)
+                self.assertIn("[PASS] mine", worker)
+                self.assertIn("do not ask for it", worker)
+                self.assertIn(
+                    "failed probes: " + ("probe-alpha"
+                                         if checkpoint["failed_probes"]
+                                         else "none"), worker)
+
+    def test_worker_block_ends_with_the_quoted_retry_line(self) -> None:
+        import shlex
+        _, worker = self.blocks(self.cp(1, ["a"]), 0)
+        line = worker.splitlines()[-2]
+        self.assertEqual(line, f"bale retry '{self.HELD}'")
+        self.assertEqual(shlex.split(line)[2], self.HELD)
+        _, worker = self.blocks(self.cp(1, ["a"]), 0, held_tarball=None,
+                                held_tarball_why="stamp write failed")
+        self.assertIn("stamp write failed", worker)
+        self.assertEqual(worker.splitlines()[-2],
+                         "bale retry '<response-tarball>'")
+
+    # -- the planner block ---------------------------------------------------
+
+    def test_planner_block_has_everything_the_desk_needs(self) -> None:
+        planner = self.blocks(self.cp(1, ["probe-alpha"], matched=False),
+                              1)[0]
+        self.assertIn("judge: both — ", planner)
+        self.assertIn("failed probes: probe-alpha", planner)
+        self.assertIn("exit codes: checkpoint 1 · worker validation.sh 1",
+                      planner)
+        self.assertIn("CHANGED since pack", planner)
+        self.assertIn(f"held tarball: {self.HELD}", planner)
+        self.assertIn(self.SECRET, planner, msg="the checkpoint band inlined")
+        self.assertIn("=== worker validation.sh ===", planner)
+        self.assertIn("--- validation.sh exit code: 0 ---", planner)
+
+    def test_planner_block_without_checkpoint(self) -> None:
+        planner = self.br.format_hold_relay_planner(
+            sid=self.SID, exit_code=1, checkpoint=None,
+            held_tarball=self.HELD,
+            bands=self.br.split_attempt_bands(None, "[FAIL] mine\n"))
+        self.assertNotIn("failed probes:", planner)
+        self.assertNotIn("checkpoint band", planner)
+        self.assertIn("exit codes: checkpoint not run", planner)
+        self.assertIn("[FAIL] mine", planner)
+
+    # -- the band cutter ------------------------------------------------------
+
+    def test_band_cut_is_structural(self) -> None:
+        bands = self.bands()
+        self.assertTrue(bands["checkpoint"].startswith(
+            "=== blind checkpoint ("), msg="bale's pre-run lines dropped")
+        self.assertTrue(bands["checkpoint"].endswith(
+            "--- blind checkpoint exit code: 1 ---"))
+        self.assertNotIn("=== worker validation.sh ===", bands["checkpoint"])
+        self.assertTrue(bands["worker"].startswith(
+            "=== worker validation.sh ===\n"))
+        # A checkpoint that prints the worker header mid-output cannot
+        # move the cut: only the final bytes are tested.
+        spoof = self.br.split_attempt_bands(
+            "=== blind checkpoint (x, y) ===\n=== worker validation.sh ===\n"
+            "tail\n\n=== worker validation.sh ===\n", "w\n")
+        self.assertIn("tail", spoof["checkpoint"])
+        self.assertEqual(spoof["worker"], "=== worker validation.sh ===\nw")
+
+    # -- the base-defect rung --------------------------------------------------
+
+    def test_base_rung_restates_exercised_admissions(self) -> None:
+        import shlex
+        forks = self.br.compose_hold_successors(
+            sid=self.SID, judge_case=self.br.HOLD_JUDGE_WORKER,
+            held_tarball=self.HELD,
+            readmissions={"allow_out_of_scope": ["new dir/a.py", "b.py"],
+                          "accept_base_drift": ["c.py"],
+                          "allow_missing_required_check": ["lint"],
+                          "accept_checkpoint_change": True,
+                          "no_sandbox": True})
+        base = [f for f in forks
+                if f["ruling"] == self.br.RULING_BASE_DEFECT][0]
+        self.assertTrue(base["heading"].startswith("base defect"))
+        (line,) = base["lines"]
+        self.assertEqual(shlex.split(line), [
+            "bale", "retry", self.HELD,
+            "--allow-out-of-scope", "new dir/a.py",
+            "--allow-out-of-scope", "b.py",
+            "--accept-base-drift", "c.py",
+            "--allow-missing-required-check", "lint",
+            "--accept-checkpoint-change", "--no-sandbox",
+            "--sid", self.SID])
+        work = [f for f in forks
+                if f["ruling"] == self.br.RULING_WORK_DEFECT][0]
+        self.assertEqual(work["lines"], [f"bale retry {shlex.quote(self.HELD)}"],
+                         msg="the work rung is new bytes: no re-admissions")
+
+    def test_admission_command_grammar_unchanged(self) -> None:
+        self.assertEqual(
+            self.br.compose_admission_command(
+                verb="retry", tarball_name="r.tar.gz",
+                allow_out_of_scope=["a", "a", "b"],
+                accept_checkpoint_change=True),
+            "bale retry 'r.tar.gz' --allow-out-of-scope 'a' "
+            "--allow-out-of-scope 'b' --accept-checkpoint-change")
+
+    # -- the clean-apply planner block ------------------------------------------
+
+    def apply_block(self, **kw) -> str:
+        base = dict(sid=self.SID, origin_branch="main", exit_code=0,
+                    checkpoint=self.cp(0), notes="# notes\n\nhello\n")
+        base.update(kw)
+        return self.br.format_apply_relay_planner(**base)
+
+    def test_clean_apply_block(self) -> None:
+        text = self.apply_block()
+        lines = text.splitlines()
+        self.assertEqual(lines[0], f"=== RELAY BEGIN {self.SID} to planner ===")
+        self.assertEqual(lines[-1], f"=== RELAY END {self.SID} to planner ===")
+        self.assertIn("verdict: checkpoint: PASS · worker validation: PASS",
+                      text)
+        self.assertIn("admissions: none", text)
+        self.assertIn("--- notes.md ---\n# notes\n\nhello\n--- end notes.md ---",
+                      text)
+        self.assertNotIn("to worker", text)
+
+    def test_clean_apply_block_variants(self) -> None:
+        text = self.apply_block(notes=None, checkpoint=None)
+        self.assertIn("The response shipped no notes.md.", text)
+        self.assertIn("verdict: worker validation: PASS · no blind "
+                      "checkpoint configured", text)
+        text = self.apply_block(notes=None, notes_problem="boom")
+        self.assertIn("notes.md: could not be read (boom).", text)
+        text = self.apply_block(admissions={
+            "overridden_paths": ["x.py"],
+            "overridden_path_sources": ["prompt"],
+            "required_check_overrides": ["lint"],
+            "base_drift_overrides": ["y.py"],
+            "checkpoint_change_accepted": True})
+        self.assertIn("  out-of-forecast paths admitted: x.py (prompt)", text)
+        self.assertIn("  required-check overrides: lint", text)
+        self.assertIn("  base-drift overrides: y.py", text)
+        self.assertIn("  checkpoint change accepted: yes", text)
+
+    # -- the walkthrough fold-in ------------------------------------------------
+
+    def test_attribution_vocabulary_has_one_home(self) -> None:
+        self.assertEqual(self.br._checkpoint_attribution(0),
+                         "checkpoint: PASS")
+        self.assertEqual(self.br._checkpoint_attribution(1),
+                         "checkpoint: HOLD (exit 1)")
+        self.assertEqual(self.br._worker_attribution(3),
+                         "worker validation: HOLD (exit 3)")
+        import inspect
+        src = inspect.getsource(self.br.format_walkthrough_summary)
+        self.assertIn("_checkpoint_attribution(cp_exit)", src)
+        self.assertIn('"; inspect the checkpoint script"', src,
+                      msg="the walkthrough's exit-2 tail survives")
 
 
 if __name__ == "__main__":

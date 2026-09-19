@@ -690,6 +690,7 @@ class HoldCardE2ETest(PerSidFixture):
             f"bale retry {shlex.quote(held)} --accept-checkpoint-change "
             f"--sid {sid}",
             f"bale retry {shlex.quote(held)}",
+            f"bale retry {shlex.quote(held)} --sid {sid}",
         ])
         for line in retries:
             self.assertEqual(shlex.split(line)[2], held,
@@ -712,8 +713,10 @@ class HoldCardE2ETest(PerSidFixture):
                          "(exit 1) · checkpoint: PASS")
         self.assertEqual(self.row(card, "failed probes"), "none")
         self.assertEqual(self.commands(card, "amend-checkpoint"), [])
+        quoted = shlex.quote(str(tarball.resolve()))
         self.assertEqual(self.commands(card, "retry"),
-                         [f"bale retry {shlex.quote(str(tarball.resolve()))}"])
+                         [f"bale retry {quoted}",
+                          f"bale retry {quoted} --sid {sid}"])
         self.assertEqual(self.attempt(sid)["checkpoint"]["failed_probes"],
                          [])
 
@@ -729,7 +732,7 @@ class HoldCardE2ETest(PerSidFixture):
         self.assertEqual(self.row(card, "failed probes"),
                          "zeta-probe · alpha-probe")
         self.assertEqual(len(self.commands(card, "amend-checkpoint")), 1)
-        self.assertEqual(len(self.commands(card, "retry")), 2)
+        self.assertEqual(len(self.commands(card, "retry")), 3)
         self.assertEqual(self.attempt(sid)["checkpoint"]["failed_probes"],
                          ["zeta-probe", "alpha-probe"],
                          msg="log order, never sorted")
@@ -760,12 +763,13 @@ class HoldCardE2ETest(PerSidFixture):
         _, r = self.hold(sid, worker_exit=0)
         card = self.card(r.stdout)
         notes = [ln for ln in card if "could not be filled in" in ln]
-        self.assertEqual(len(notes), 2, msg=card)
+        self.assertEqual(len(notes), 3, msg=card)
         self.assertIn("could not be written", notes[0])
         self.assertEqual(self.commands(card, "retry"), [
             f"bale retry <response-tarball> --accept-checkpoint-change "
             f"--sid {sid}",
             "bale retry <response-tarball>",
+            f"bale retry <response-tarball> --sid {sid}",
         ])
         self.assertIn("FORCE: could not write the HOLD-time tarball stamp",
                       r.stdout + r.stderr)
@@ -783,6 +787,151 @@ class HoldCardE2ETest(PerSidFixture):
             f"bale retry {shlex.quote(str(tarball.resolve()))} "
             f"--accept-checkpoint-change --sid {sid}",
             self.commands(card, "retry"))
+
+
+class RelayBlocksE2ETest(HoldCardE2ETest):
+    """Board 47b, driven for real: a HOLD prints the addressed relay
+    blocks before the card, the worker block carries the failed labels
+    and nothing else of the checkpoint's output, the planner block
+    inlines exactly this attempt's log bands (a retry's block does not
+    re-carry the first attempt's), and a clean apply prints the
+    ratification relay with notes.md verbatim and no worker block.
+    """
+
+    # The checkpoint's passing probe label: in the log, in the planner
+    # block, never in the worker block.
+    PASSING_LABEL = "oracle-mechanics-beta"
+
+    def block(self, stdout: str, sid: str, addressee: str) -> str:
+        begin = f"=== RELAY BEGIN {sid} to {addressee} ==="
+        end = f"=== RELAY END {sid} to {addressee} ==="
+        lines = stdout.splitlines()
+        self.assertEqual(lines.count(begin), 1, msg=stdout)
+        self.assertEqual(lines.count(end), 1, msg=stdout)
+        i, j = lines.index(begin), lines.index(end)
+        self.assertLess(i, j)
+        return "\n".join(lines[i:j + 1])
+
+    def checkpoint_held(self, slug: str):
+        sid = self.open_checkpointed(slug, probe_checkpoint(
+            [("FAIL", "oracle-probe-alpha"), ("PASS", self.PASSING_LABEL)],
+            1))
+        return sid
+
+    def test_hold_blocks_addressed_and_spec_safe(self) -> None:
+        sid = self.checkpoint_held("relayhold")
+        tarball, r = self.hold(sid, worker_exit=1)
+        planner = self.block(r.stdout, sid, "planner")
+        worker = self.block(r.stdout, sid, "worker")
+
+        self.assertIn("failed probes: oracle-probe-alpha", worker)
+        self.assertIn("[FAIL] fixture check", worker,
+                      msg="the worker's own output rides")
+        self.assertNotIn(self.PASSING_LABEL, worker)
+        self.assertNotIn("=== blind checkpoint", worker)
+        self.assertNotIn("blind checkpoint exit code", worker)
+        self.assertNotIn(".bale/logs", worker)
+        self.assertIn(f"bale retry '{tarball.resolve()}'", worker)
+
+        self.assertIn(self.PASSING_LABEL, planner,
+                      msg="the checkpoint band is inlined for the desk")
+        self.assertIn("=== worker validation.sh ===", planner)
+        self.assertIn("exit codes: checkpoint 1 · worker validation.sh 1",
+                      planner)
+        self.assertIn(f"held tarball: {tarball.resolve()}", planner)
+
+        out = r.stdout
+        self.assertLess(out.index(f"=== RELAY BEGIN {sid} to planner ==="),
+                        out.index(f"=== RELAY BEGIN {sid} to worker ==="),
+                        msg="send order: planner first on a checkpoint hold")
+        card = self.card(out)
+        self.assertLess(out.rindex("=== RELAY END"),
+                        out.rindex(f"  [HOLD] {sid}"),
+                        msg="the blocks print before the card")
+        self.assertIn("send first: planner — the checkpoint held; the "
+                      "worker block waits for the planner's ruling", card)
+        heads = [ln for ln in card if ln.startswith("base defect")]
+        self.assertEqual(len(heads), 1, msg=card)
+
+    def test_worker_only_hold_sends_worker_first(self) -> None:
+        sid = self.open_checkpointed("relayworker", probe_checkpoint(
+            [("PASS", self.PASSING_LABEL)], 0))
+        _, r = self.hold(sid, worker_exit=1)
+        worker = self.block(r.stdout, sid, "worker")
+        self.assertNotIn(self.PASSING_LABEL, worker,
+                         msg="a passing checkpoint's output stays out too")
+        self.assertIn("failed probes: none", worker)
+        self.assertLess(r.stdout.index(f"=== RELAY BEGIN {sid} to worker"),
+                        r.stdout.index(f"=== RELAY BEGIN {sid} to planner"))
+        self.assertTrue([ln for ln in self.card(r.stdout)
+                         if ln.startswith("send first: worker — ")],
+                        msg=r.stdout)
+
+    def test_retry_block_carries_only_this_attempts_bands(self) -> None:
+        sid = self.checkpoint_held("relayretry")
+        self.hold(sid, worker_exit=0)
+        rdir = build_response_dir(
+            self.tmp / "second", sid, summary="second",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "the second attempt",
+                      "data": b"second attempt\n"}],
+            validation_sh=("#!/usr/bin/env bash\n"
+                           "echo \"[PASS] second attempt check\"\nexit 0\n"))
+        r = run_bale(self.install, ["retry", str(tar_response_dir(rdir))],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        planner = self.block(r.stdout, sid, "planner")
+        self.assertEqual(planner.count("=== blind checkpoint ("), 1)
+        self.assertIn("second attempt check", planner)
+        self.assertNotIn("[PASS] fixture check", planner,
+                         msg="the first attempt's worker band is not "
+                             "re-carried")
+        log = (self.repo / ".bale" / "logs" / f"{sid}.log").read_text()
+        self.assertEqual(log.count("=== blind checkpoint ("), 2,
+                         msg="the log itself holds both attempts")
+
+    def test_clean_apply_prints_the_ratification_relay(self) -> None:
+        sid = self.open_checkpointed("relaypass", probe_checkpoint(
+            [("PASS", self.PASSING_LABEL)], 0))
+        rdir = build_response_dir(
+            self.tmp / "pass dir", sid, summary="clean",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "a clean rewrite", "data": b"clean\n"}],
+            validation_sh=("#!/usr/bin/env bash\n"
+                           "echo \"[PASS] fixture check\"\nexit 0\n"))
+        (rdir / "notes.md").write_text("# Notes\n\nRatify the thing.\n",
+                                       encoding="utf-8")
+        r = run_bale(self.install, ["apply", str(tar_response_dir(rdir)),
+                                    "--no-interact"],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
+        planner = self.block(r.stdout, sid, "planner")
+        self.assertNotIn(f"to worker ===", r.stdout)
+        self.assertIn("--- notes.md ---\n# Notes\n\nRatify the thing.\n"
+                      "--- end notes.md ---", planner)
+        self.assertIn("verdict: checkpoint: PASS · worker validation: PASS",
+                      planner)
+        self.assertIn("admissions: none", planner)
+        self.assertNotIn(self.PASSING_LABEL, planner,
+                         msg="a clean apply relays notes and verdict, "
+                             "not log bands")
+        self.assertLess(r.stdout.index(f"=== RELAY END {sid} to planner"),
+                        r.stdout.rindex(f"[PASS] {sid}"))
+
+    def test_json_mode_keeps_stdout_one_line(self) -> None:
+        sid = self.checkpoint_held("relayjson")
+        rdir = build_response_dir(
+            self.tmp / "json dir", sid, summary="json",
+            entries=[{"path": "hello.txt", "action": "modified",
+                      "reason": "json", "data": b"json\n"}],
+            validation_sh="#!/usr/bin/env bash\necho \"[PASS] x\"\nexit 0\n")
+        r = run_bale(self.install, ["apply", str(tar_response_dir(rdir)),
+                                    "--json"],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertEqual(len(r.stdout.splitlines()), 1, msg=r.stdout)
+        json.loads(r.stdout)
+        self.assertIn(f"=== RELAY BEGIN {sid} to worker ===", r.stderr)
 
 
 if __name__ == "__main__":

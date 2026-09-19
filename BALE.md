@@ -3018,6 +3018,20 @@ acceptance store).
   move), the change count, the preserved staging path, and the
   rollback hint: *"To roll back this bale: `bale rollback <sid>`, or
   `bale rollback` for the most recent."*
+  Just above that banner (v0.4.36, board 47b) the merge prints the
+  **ratification relay**: one addressed block between the whole-line
+  sentinels `=== RELAY BEGIN <sid> to planner ===` and `=== RELAY END
+  <sid> to planner ===` (`format_apply_relay_planner`,
+  `bin/bale_report.py`), opening with where to paste it (the
+  planner's chat), then the verdict in the walkthrough's attribution
+  vocabulary, the admissions the apply exercised (out-of-forecast
+  paths with how each was admitted, required-check overrides,
+  base-drift overrides, an accepted checkpoint change — or `none`),
+  and the response's `notes.md` verbatim (or a plain line saying it
+  shipped none, or why it could not be read). It replaces pasting
+  `notes.md` and typing "applied". A clean apply has no worker block.
+  Under `--json` the block lands on stderr with every other human
+  line; the JSON line and its keys are unchanged.
   When `bale.toml` sets `[apply] archive_dir` (v0.3.30, the landed
   §13 v0.5 candidate; valid at both config layers like the sibling
   `[apply]` keys, repo-relative only), the merge path additionally
@@ -3090,9 +3104,50 @@ acceptance store).
   HOLD-time stamp below, never from the in-process path: when the
   stamp write fails, each fork says so on one line and falls back to
   the `<response-tarball>` placeholder, the amend verb's degrade shape.
+  The **base-defect** fork (v0.4.36, board 47b) always renders,
+  last: the target base was broken before the response touched it
+  (a suite failing on the base, holding a correct response), so
+  neither fixture nor work is wrong; the ruling lands the base repair
+  in its own session, then retries the held tarball unchanged — `bale
+  retry <held-tarball> [admissions] --sid <sid>`. No flag answers the
+  repaired base itself: a repair packed while this session is open is
+  forecast-disjoint from it, and the base-drift gate stamps only
+  forecast paths. The rung instead re-states every admission the held
+  apply exercised (`--allow-out-of-scope`, `--accept-base-drift`,
+  `--allow-missing-required-check`, `--accept-checkpoint-change`, a
+  typed `--no-sandbox`), because the tarball is the same bytes and no
+  override carries forward from a failed attempt.
   The pieces are pure and structured (`hold_judge`,
-  `parse_failed_probe_labels`, `compose_hold_successors`) so relay
-  blocks render the same data. The inspect action also stamps `.bale/sessions/<sid>/held_tarball`
+  `parse_failed_probe_labels`, `compose_hold_successors`), and since
+  v0.4.36 (board 47b) the HOLD prints **addressed relay blocks** built
+  from them, before the card (`format_hold_relay_blocks`). Each is
+  bracketed by whole-line sentinels — `=== RELAY BEGIN <sid> to
+  planner ===` / `=== RELAY END <sid> to planner ===` and the same
+  pair `to worker` — and opens by saying in plain words whose chat it
+  goes to. The **planner block** carries the judge line, the failed
+  probe labels, both exit codes, the checkpoint stamp state (matched,
+  changed-and-accepted, or unstamped), the held tarball's path, and
+  this attempt's two session-log bands inlined as the log has them —
+  the checkpoint band and the worker band, cut by byte offsets taken
+  around the two scripts, so a retry's block never re-carries an
+  earlier attempt. It replaces card-plus-`cat`-the-log. The **worker
+  block** is spec-safe by construction: its builder takes only the
+  judge line, the parsed labels, the worker's own `validation.sh`
+  output, and the held path, so no other line of the checkpoint's
+  output can reach it in any judge case, a passing checkpoint
+  included; it tells the worker not to ask for the log, and ends on
+  the `bale retry '<held-tarball>'` line a re-attempt closes its turn
+  with. An inlined line that would read as a sentinel is indented two
+  spaces, so no output can close a block early. The card's trailer
+  opens with `send first: planner` (the checkpoint held, alone or
+  with the worker — the worker block waits for the desk's ruling) or
+  `send first: worker` (only the worker's validation held — its block
+  is the worker's own output), a verbatim trailer line so the wire
+  bytes survive the rows' column padding. This retires the interim
+  rule that HOLD material routes to the planner first, never the
+  worker: the material it guarded no longer reaches the worker. The
+  blocks do not change `--json`: they print where the card prints,
+  which json mode routes to stderr. The inspect action also stamps `.bale/sessions/<sid>/held_tarball`
   (v0.4.25, board 71): the resolved absolute path of the tarball
   this HOLD was applied from, beside `staging_path`, so `bale
   amend-checkpoint` composes its retry successor without a
