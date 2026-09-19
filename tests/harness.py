@@ -32,10 +32,14 @@ the in-process loader for ``bin/bale`` itself (the script, not a
 sibling), and ``normalize``, the whitespace collapse the two doc-pin
 suites share.
 
-The suites import from here (``from harness import ...``); both direct
-execution (``python3 tests/<suite>.py``) and discovery
-(``python3 -m unittest discover -s tests``) put ``tests/`` on
-``sys.path``, so the bare module name resolves in both run modes.
+The suites import from here (``from harness import ...``), and the
+bare module name resolves in all three run forms: direct execution
+(``python3 tests/<suite>.py``) and discovery (``python3 -m unittest
+discover -s tests``) put ``tests/`` on ``sys.path`` themselves, and
+since board 113 the dotted form from the repo root (``python3 -m
+unittest tests.<suite>``) gets the same entry from
+``tests/__init__.py``. ``tests/test_dotted_run_form.py`` pins the
+dotted form for every suite.
 """
 
 from __future__ import annotations
@@ -433,20 +437,19 @@ def _minimal_record(**attempt_overrides) -> dict:
 # test files. _load_module above cannot serve: bin/bale has no .py suffix,
 # and it is the script whose __main__ the siblings reach back into.
 #
-# The shape reconciles the two ad-hoc copies already in the tree
+# The shape reconciled the two ad-hoc copies then in the tree
 # (tests/test_thread_status.py's load_bale_module and
 # tests/test_craft_response.py's ExchangeBlockParity.setUpClass): an
 # explicit SourceFileLoader, the module registered under a name that is
 # never "__main__" so the guarded main() does not run and dataclasses
-# resolve their module by name. What it adds over both copies is
+# resolve their module by name. What it added over both copies was
 # hygiene a shared helper owes every consumer: bin/bale's own
 # unconditional sys.path.insert is undone (bin/ is added only when
 # absent, as _load_module does, and repeated loads never grow the
-# path), a failed
-# load leaves no half-built module registered, and an import-time
-# sys.exit (a missing VERSION file) surfaces as a named error instead of
-# a bare SystemExit. Adopting it in those two suites is left to them —
-# neither is in this row.
+# path), a failed load leaves no half-built module registered, and an
+# import-time sys.exit (a missing VERSION file) surfaces as a named
+# error instead of a bare SystemExit. Both suites adopted it at board
+# 111, and the two copies are gone.
 
 CLI_PATH = BIN_DIR / "bale"
 CLI_MODULE_NAME = "bale_cli"
