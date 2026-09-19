@@ -85,8 +85,23 @@ and names the manifest's `readme` key, docs/TARBALL.md 3.2 documents
 the key, and 3.1's old "most sessions skip the README" claim stays
 gone.
 
-Hermetic and stdlib-only: the docs are read from this repo; nothing
-runs.
+Since board 111 (from 2026-09-18-board-47b-relay-blocks-003's
+Proposals) the suite also pins the worker relay paragraph of
+docs/TARBALL.md 7, the one opening "A HOLD reaches the worker as one
+addressed block". It states a worker-facing wire fact — the whole-line
+`to worker` sentinels `bale apply` prints around a HOLD's worker
+block — that the code pinned but the doc did not. The sentinels are
+not pinned as a literal: they are built by bin/bale_report.py's own
+relay_sentinels() with the docs' `<sid>` placeholder and asserted in
+the section 7 lead (the prose before `### 7.1`), so the pin goes red
+when either side moves — a doc edit that drops or re-spells them, or
+a code change to what apply prints. Two narrow clauses of the same
+paragraph ride beside it: the lead clause that names the sentinels as
+whole-line, and the whole-of-the-failure-context sentence.
+
+Hermetic and stdlib-only: the docs are read from this repo, and the
+one code import is bin/bale_report.py for the pure relay_sentinels()
+builder (stdlib-only at module scope); nothing else runs.
 
 Run:  python3 -m unittest tests.test_doc_crossrefs -v
   or: python3 -m unittest discover -s tests -p 'test_doc_crossrefs.py'
@@ -108,7 +123,7 @@ from pathlib import Path
 _TESTS_DIR = str(Path(__file__).resolve().parent)
 if _TESTS_DIR not in sys.path:
     sys.path.insert(0, _TESTS_DIR)
-from harness import normalize  # noqa: E402 — path guard above
+from harness import _load_module, normalize  # noqa: E402 — path guard above
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO / "docs"
@@ -161,6 +176,20 @@ def subsection(text: str, number: str) -> str:
     rest = text[m.end():]
     nxt = re.search(r"^#{2,3}\s", rest, re.M)
     return rest if nxt is None else rest[:nxt.start()]
+
+
+def section_lead(text: str, number: int) -> str:
+    """The lead of `## N. …`: its body up to the first subsection
+    heading (`###` or deeper) or the next `##`, whichever comes first;
+    '' when no such heading exists (the caller asserts on that).
+
+    TARBALL.md 7's worker relay paragraph sits in this lead, before
+    `### 7.1`, and the relay pin reads the lead alone so a copy of the
+    sentinels elsewhere in section 7 cannot satisfy it.
+    """
+    body = top_level_section(text, number)
+    nxt = re.search(r"^#{3,6}\s", body, re.M)
+    return body if nxt is None else body[:nxt.start()]
 
 
 # The bundle-delivery ruling's lead phrase (PLANNER.md §2) and the
@@ -235,6 +264,46 @@ STRUCK_PHRASES = (
     ("CLAUDE.md", "brief paused question in chat"),
 )
 
+
+# The worker relay paragraph of TARBALL.md 7 (board 111, from
+# 2026-09-18-board-47b-relay-blocks-003's Proposals). The sentinel lines
+# themselves are NOT constants here: they come from bin/bale_report.py's
+# relay_sentinels(), called with the docs' placeholder for the sid, so
+# the doc is held to what `bale apply` actually prints. The two clauses
+# are the paragraph's own words, narrow, whitespace-collapsed.
+RELAY_SID_PLACEHOLDER = "<sid>"
+RELAY_WORKER_LEAD_CLAUSE = (
+    "A HOLD reaches the worker as one addressed block that `bale apply` "
+    "prints between the whole-line sentinels")
+RELAY_WORKER_CONTEXT_CLAUSE = (
+    "That block is the whole of the failure context — it carries nothing "
+    "else of the checkpoint's output, by construction — so the worker "
+    "diagnoses from it and never asks for the session log")
+
+
+def relay_worker_gaps(lead: str, begin: str, end: str) -> list[str]:
+    """What the TARBALL.md 7 lead is missing of the worker relay
+    paragraph, as human-readable gaps; [] when the paragraph states it
+    all. `lead` is raw doc text (normalized here); `begin` and `end`
+    are the sentinel lines as the code builds them. Each sentinel is
+    matched as a whole backticked code span, so a longer line that
+    merely contains it does not satisfy the pin, and BEGIN must come
+    before END."""
+    body = normalize(lead)
+    gaps = []
+    for label, clause in (("lead clause", RELAY_WORKER_LEAD_CLAUSE),
+                          ("failure-context sentence",
+                           RELAY_WORKER_CONTEXT_CLAUSE)):
+        if normalize(clause) not in body:
+            gaps.append(f"{label}: {clause}")
+    at = {}
+    for label, line in (("BEGIN sentinel", begin), ("END sentinel", end)):
+        at[label] = body.find(normalize(f"`{line}`"))
+        if at[label] == -1:
+            gaps.append(f"{label}: `{line}`")
+    if -1 not in at.values() and at["BEGIN sentinel"] > at["END sentinel"]:
+        gaps.append("sentinel order: BEGIN is stated after END")
+    return gaps
 
 class DocCrossReferences(unittest.TestCase):
     """Every doc-named section pointer resolves to a heading."""
@@ -553,6 +622,94 @@ class ReadmeBriefPins(unittest.TestCase):
                     "is the session's brief, named by the manifest's "
                     "`readme` key and read third")
 
+
+
+class RelayParagraphPins(unittest.TestCase):
+    """TARBALL.md 7's worker relay paragraph states the `to worker`
+    sentinels exactly as `bale apply` prints them (board 111)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.docs = load_docs()
+        # _load_module, not a bare import: harness's one home for loading
+        # a bin/ sibling by path, bin/ added to sys.path only when absent.
+        report = _load_module("bale_report")
+        cls.begin, cls.end = report.relay_sentinels(
+            RELAY_SID_PLACEHOLDER, report.RELAY_TO_WORKER)
+
+    def _lead(self) -> str:
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        lead = section_lead(self.docs["TARBALL.md"], 7)
+        self.assertTrue(
+            lead,
+            "docs/TARBALL.md has no `## 7.` heading — the validation "
+            "section moved; section numbers are stable (DOCS.md 6.4)")
+        return lead
+
+    def test_tarball_7_states_worker_relay_paragraph(self):
+        gaps = relay_worker_gaps(self._lead(), self.begin, self.end)
+        self.assertEqual(
+            gaps, [],
+            "docs/TARBALL.md 7's lead no longer states the worker relay "
+            "paragraph as `bale apply` prints it (whitespace aside). The "
+            "sentinels are built by bin/bale_report.py's relay_sentinels(); "
+            "if the code changed, the doc follows in the same response; if "
+            "the doc changed, restore the paragraph rather than paraphrase "
+            "it. Missing:\n  " + "\n  ".join(gaps))
+
+    def test_builder_addresses_the_worker(self):
+        """Constant-level: the builder's worker lines are the addressed
+        `to worker` form, so the doc pin above cannot pass on a planner
+        pair or a bare sentinel. Trips before the doc is read."""
+        self.assertEqual(
+            (self.begin, self.end),
+            ("=== RELAY BEGIN <sid> to worker ===",
+             "=== RELAY END <sid> to worker ==="))
+
+    def test_pin_bites(self):
+        """The pin fails against a lead without the fact: the paragraph
+        struck, the sentinels re-addressed to the planner, BEGIN and END
+        swapped, or a sentinel unbackticked into running prose. Each
+        mutation starts from the real lead, so the check is not vacuous."""
+        lead = self._lead()
+        self.assertEqual(relay_worker_gaps(lead, self.begin, self.end), [])
+        para_at = lead.index("A HOLD reaches the worker")
+        para_end = lead.index("\n\n", para_at)
+        begin_span = "`=== RELAY BEGIN <sid> to\nworker ===`"
+        self.assertIn(begin_span, lead, "the lead's own wrap moved; "
+                      "re-anchor this self-test's mutations")
+        mutations = {
+            "paragraph struck": lead[:para_at] + lead[para_end:],
+            "addressed to planner": lead.replace(
+                "to\nworker ===`", "to\nplanner ===`").replace(
+                "to worker ===`", "to planner ===`"),
+            "BEGIN and END swapped": lead.replace(
+                "RELAY BEGIN", "RELAY @SWAP@").replace(
+                "RELAY END", "RELAY BEGIN").replace(
+                "RELAY @SWAP@", "RELAY END"),
+            "BEGIN unbackticked": lead.replace(
+                begin_span, begin_span.strip("`")),
+        }
+        for label, mutated in mutations.items():
+            with self.subTest(mutation=label):
+                self.assertNotEqual(mutated, lead, "mutation was a no-op")
+                self.assertNotEqual(
+                    relay_worker_gaps(mutated, self.begin, self.end), [])
+
+    def test_section_lead_reads_7_lead_alone(self):
+        """Self-test on the extractor, so the pin cannot pass by reading
+        into 7.1–7.7 or past section 7."""
+        lead = self._lead()
+        self.assertIn("A HOLD reaches the worker", lead)
+        self.assertNotRegex(lead, r"(?m)^#{2,6}\s",
+                            "the 7 lead ran into a heading")
+        self.assertNotIn("staging directory", lead)
+        synthetic = ("## 6. Six\nsix\n## 7. Seven\nlead body\n"
+                     "### 7.1 One\none body\n## 8. Eight\neight\n")
+        self.assertEqual(section_lead(synthetic, 7), "\nlead body\n")
+        self.assertEqual(section_lead("## 7. Seven\nonly lead\n", 7),
+                         "\nonly lead\n")
+        self.assertEqual(section_lead(synthetic, 9), "")
 
 if __name__ == "__main__":
     unittest.main()
