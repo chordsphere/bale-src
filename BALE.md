@@ -1070,6 +1070,24 @@ request-NNN/
 `manifest.json` schema is `TARBALL.md` section 3.2. Bale fills the
 schema from CLI args and/or wizard input.
 
+**The `readme` key.** Every request bale builds stamps a top-level
+`readme`, saying whether a README brief ships: `null` when none does,
+otherwise an object with exactly two keys — `path`, always the
+request-root `README.md`, and `sha256`, the hex sha256 of the shipped
+`README.md` bytes, the same value the pack report's `readme sha256`
+row echoes (§7.7). It exists so a worker that reads `manifest.json`
+first — as the session opener and `CLAUDE.md` both tell it to — learns
+from the manifest itself that a brief exists, rather than from a chat
+line it may skim. It is top-level on purpose, not under `provenance`:
+the response echoes provenance verbatim, so a key there would drag
+`response-manifest.schema.json`, the lint's embedded copy of it, and
+the echo-parity suite along. The schema change is additive on
+`resolved_scope`'s model — the key is admitted by
+`schemas/request-manifest.schema.json` and not required, so
+hand-rolled and older requests stay valid, and the top level stays a
+closed object. Both request-building paths stamp it through the
+shared `build_request_manifest` (§7.5).
+
 ### 6.2 Response tarball
 
 Per `TARBALL.md` section 5.1:
@@ -1851,6 +1869,21 @@ Saving an empty buffer omits the file. The fallback chain matches
 `bale handoff --edit-goal` on purpose — they share one `open_in_editor`
 helper, so users see one editor-resolution behavior across the tool.
 
+**The scaffold's instruction comment never ships.** The scaffold opens
+with a `# <goal>` heading and an HTML comment addressed to the packer
+("This README is OPTIONAL …"); that comment is for the packer, not the
+worker, and until the opener-reword session it shipped whenever the
+packer didn't delete it by hand — telling the worker the brief it was
+reading was optional. Bale now strips it from the saved buffer on both
+editor paths (this `y` path and `--edit`, below): any HTML comment
+opening with the scaffold's marker is removed whole, even if the packer
+edited inside it, and the packer's own prose — including any comment of
+their own — ships as typed. A buffer left holding nothing but the
+untouched scaffold (whitespace and the unedited `# <goal>` heading)
+carries no prose and counts as no README, exactly like an empty buffer,
+so the opener never names a brief that says nothing. The README
+identity echo is computed after the strip, over the bytes that ship.
+
 `--no-edit` forces skip regardless.
 
 Two flags (v0.2.4) give the README a CLI surface beyond the wizard:
@@ -1876,7 +1909,8 @@ Two flags (v0.2.4) give the README a CLI surface beyond the wizard:
   engages). Seeded with `--readme-file`'s content when both are
   given — a review-then-pack flow — and with the standard scaffold
   otherwise. Saving an empty buffer omits the file, same as the
-  wizard's step. Requires a TTY (use `--readme-file` for
+  wizard's step, and the scaffold's instruction comment is stripped
+  the same way (a scaffold-only buffer omits too). Requires a TTY (use `--readme-file` for
   non-interactive prose); contradicts `--no-edit`, and passing both
   is an error.
 
@@ -1896,8 +1930,8 @@ A third flag (v0.3.8) closes the loop on the no-prose case:
 **The no-readme guard.** A pack that resolves no prose is either
 deliberate or an oversight, and the two must not look the same.
 `--no-readme` is the deliberate spelling; a wizard-path user who
-answered `n` at the README prompt (or saved an empty buffer) made
-the choice interactively and is exempt. What remains is the un-asked
+answered `n` at the README prompt (or saved an empty or scaffold-only
+buffer) made the choice interactively and is exempt. What remains is the un-asked
 case, and the guard splits on the courier:
 
 - **On a TTY: warn.** The user is watching and can Ctrl-C and
@@ -1999,7 +2033,17 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    `bin/bale`'s `INJECTED_TOOLS` tuple (the one source for the list:
    the lint and, since v0.3.19, the crafter), copied from the
    install's `tools/` with mode preserved so each arrives executable.
-4. Write `manifest.json` with the gathered fields.
+4. Write `manifest.json` with the gathered fields, including the
+   top-level `readme` key (§6.1): the two-key object when README
+   prose was resolved (step 6), `null` otherwise. The stamp comes from
+   the shared `build_request_manifest`, so the second request-building
+   path gets it too: `bale handoff` ships no README and stamps `null`
+   through the builder's default. The sha256 is computed over the exact
+   bytes step 6 writes (one helper, `shipped_readme_text`, defines them
+   for the write, the stamp, and the §7.7 echo), and
+   `build_request_tarball` re-checks the stamp against the bytes it
+   writes — a mismatch is a construction bug, raised before the tarball
+   exists.
 5. Walk the include paths; apply exclusions (baked-in, `.baleignore`,
    user-supplied for this session, and — v0.4.9 — the configured
    blind checkpoint: the literal path for a literal base, the static
@@ -2019,7 +2063,9 @@ ship a 500MB tarball if the user has confirmed that's intentional.
    include it as `README.md`. Otherwise omit the file entirely (the
    manifest's `goal`, `constraints`, and `out_of_scope` fields carry
    the structured intent); `--no-edit`, an `n` at the wizard prompt,
-   and an emptied editor buffer all land here.
+   an emptied editor buffer, and an editor buffer holding only the
+   untouched scaffold (§7.3) all land here. Prose from the editor
+   ships with the scaffold's instruction comment stripped (§7.3).
 7. Tar with `tar -czf request-NNN.tar.gz request-NNN/`.
 
 ### 7.6 Persist session state
@@ -2084,10 +2130,59 @@ goal on a single never-wrapped line — so the opener names what was
 just packed and the fresh session can check the request manifest
 against the very message that opened it. Bale owns and versions the
 wording (`session_opener_block` in `bin/bale_pack.py`); the
-hand-maintained paragraph it replaces is retired. Under `--json` the
+hand-maintained paragraph it replaces is retired.
+
+The block's order and content (the opener-reword session, which
+retired the old examine and shape sentences). A worker meeting the
+earlier opener cold read it as a possible prompt injection: its rules
+were bare absolutes with no reasons, its first rule was the clock
+before the reader knew what the session was, its reading instruction
+was soft, late, and put `CLAUDE.md` before the manifest (the docs say
+the reverse), and nothing it was guaranteed to read named the README.
+So every rule now carries its reason in the same sentence, and the
+block reads, between the scissor lines:
+
+1. The `I'm using "bale"` line, the identity (sid; the read-only
+   two-liner), and the goal line — identity and goal before any rule.
+2. A wrapped paragraph: the **authority** sentence (the docs and tools
+   are the operator's, and the five docs are the operator's
+   instructions — claimed in the operator's voice, since chat is the
+   channel that carries authority); the **reading** sentence —
+   manifest first, then `CLAUDE.md`, then, *when a README ships*,
+   `README.md` named as the brief; the no-README form omits it; and
+   the **tools** sentence (stdlib-only formatters, no network,
+   conveniences over the docs).
+3. `Packed at <packed_at> (UTC).` and the **clock** sentence, each its
+   own line: bale's dates are UTC and can run a day ahead of the chat's
+   date, a timezone gap rather than an error, so the worker dates from
+   the sid.
+4. A wrapped paragraph: the **ask** sentence (a fact or decision the
+   worker needs ends its turn in the matching `TARBALL.md` block —
+   probe, light question block, or clarification — because a prose
+   question tends to get lost), then the **deliverable**: on a
+   `--read-only` pack, a *planner* session — nothing lands, so no
+   response tarball, not even an empty one; what is owed is an answer
+   in chat and, for each session the operator asks it to author, a
+   crafter bundle with its `bale open` line (`PLANNER.md`); on every
+   other pack, a *worker* session, which owes one response tarball
+   carrying the finished work.
+
+The deliverable keys on `--read-only` and nothing else: pack knows no
+other mode, and every read-only session structurally lands nothing, so
+the planner closing is true of a master sitting, a discussion, and an
+audit alike — its bundle clause binds only when the operator asks. The
+README signal is the same value the manifest's `readme` key is stamped
+from (§6.1), so the opener names a brief exactly when the manifest
+does. Every sentence is a constant in `bin/bale_pack.py`, pinned
+verbatim by `tests/test_pack_opener.py` (whitespace-collapsed for the
+wrapped paragraphs, which wrap at 70 columns on whitespace only, so a
+hyphenated word like `stdlib-only` is never split), and all four
+variants — planner/worker × README/no README — are pinned whole.
+Under `--json` the
 stdout contract is untouched — stdout stays exactly the one JSON
 line — and the opener block prints after the report line on stderr,
-per json-mode stream discipline; a structured `opener` key in the
+per json-mode stream discipline, carrying the same block the human
+report would (both call sites share the two keys); a structured `opener` key in the
 JSON report is deliberately not part of this contract yet (it would
 live in `format_pack_json`, whose docstring owns the key set).
 

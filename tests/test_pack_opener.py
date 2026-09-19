@@ -21,30 +21,28 @@ Pinned behaviors:
 - **--json interplay**: stdout keeps its one-JSON-line contract; the
   opener rides stderr (json-mode stream discipline) and still ends
   the run there.
-- **Clock carriage** (board 94, 0.4.30): the block carries the pack
-  instant on its own line — the same string the request manifest's
-  provenance.packed_at stamps — and the VERBATIM clock sentence on its
-  own line, with the goal line's single-line carriage untouched.
-- **Shape sentence** (board 68 rider 4; moved here from
-  tests/test_pack_guards.py at board pack-ux-micro — one suite per
-  surface): the block closes with the shape rule, VERBATIM under
-  whitespace collapse, after the examine sentence and with the retired
-  "Ask me if anything is unclear" tail gone. Board 105 grew the
-  sentence's second half (explanation in prose is welcome; only an
-  ask ends in a block), and the whole sentence is what is pinned.
-- **Operator's voice** (board 105): between the goal line and the
-  examine sentence the block carries the authority sentence, then the
-  tools sentence, each VERBATIM under whitespace collapse, on both the
-  scoped and the read-only pack shape — the shared trailer carries
-  them, so both shapes are pinned rather than one assumed.
-- **One copy of each sentence** (board 106, 105's ratified proposal):
-  an in-process unit test calls ``session_opener_block`` directly and
-  asserts the collapsed block carries ``OPENER_AUTHORITY_SENTENCE``,
-  ``OPENER_TOOLS_SENTENCE`` and ``OPENER_SHAPE_SENTENCE`` by reference
-  to the module's own constants, that those constants still equal the
-  literals restated here, and that bin/bale_pack.py holds each
-  sentence once — the emitted lines are cut from the constants, not
-  restated beside them.
+- **Clock carriage** (board 94, 0.4.30; reworded with the opener): the
+  block carries the pack instant on its own line — the same string the
+  request manifest's provenance.packed_at stamps — and the VERBATIM
+  clock sentence on its own line, both after the goal line, whose
+  single-line carriage is untouched.
+- **The reworded opener** (the README-and-deliverable reword, which
+  retired the examine and shape sentences): after the goal line, a
+  paragraph of the authority sentence, the reading sentence, and the
+  tools sentence; then the pack-time and clock lines; then a paragraph
+  of the ask sentence and the deliverable sentence(s). The reading
+  sentence names README.md as the brief exactly when a README ships;
+  the deliverable is the planner form on a --read-only pack and the
+  worker form otherwise. All four variants (worker/planner x
+  README/no README) are pinned byte-exact under whitespace collapse,
+  whole block, against the literals restated here — and the human
+  report and the --json stream carry the same block per variant.
+- **One copy of each sentence** (board 106): an in-process unit test
+  calls ``session_opener_block`` directly on all four variants, asserts
+  the module's sentence constants equal the literals restated here and
+  that bin/bale_pack.py holds each sentence once — the emitted lines
+  are cut from the constants, not restated beside them — and that the
+  wrap breaks on whitespace only (``stdlib-only`` is never split).
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness
 in ``tests/harness.py`` carries it; see its module docstring.
@@ -86,31 +84,30 @@ OPENER_END = "--8<-- end session opener --8<--"
 GOAL_LINE_PREFIX = "Goal, verbatim from the request manifest: "
 PACKED_LINE_PREFIX = "Packed at "
 PACKED_LINE_SUFFIX = " (UTC)."
-# VERBATIM (board 94): one emitted line, no placeholder inside it —
-# mirrors OPENER_CLOCK_SENTENCE in bin/bale_pack.py, restated so a
-# rewording of the emitted sentence breaks a test.
+# VERBATIM: the opener's sentences, restated from the brief so a
+# silent rewording of any emitted sentence breaks a test. They mirror
+# the OPENER_*_SENTENCE constants in bin/bale_pack.py. The clock
+# sentence rides one emitted line and is pinned as a line; the others
+# ride wrapped paragraphs and are pinned whitespace-collapsed. The em
+# dash in the tools sentence is U+2014.
 CLOCK_SENTENCE = (
-    "Session ids and every bale timestamp are UTC and may run a day "
-    "ahead of the date this chat shows; date anything you write from "
-    "the session id, never from the chat."
+    "bale's dates are UTC and can run a day ahead of this chat's date "
+    "(a timezone gap, not an error); date what you write from the "
+    "session id."
 )
-# VERBATIM (board 68 rider 4; bin/bale_pack.py OPENER_SHAPE_SENTENCE).
-# The emitted lines wrap it, so the pin compares whitespace-collapsed
-# text; the bytes of the sentence are what is pinned.
-OPENER_SHAPE_SENTENCE = (
-    "Every turn you end in this session takes one machine-recognizable "
-    "shape: a response tarball, a probe block, a light question block, "
-    "or a clarification response; a question asked as prose is not a "
-    "shape. Explanation in prose is expected and welcome; the rule is "
-    "that a turn that asks ends in a block, so nothing is lost."
-)
-# VERBATIM (board 105; bin/bale_pack.py OPENER_AUTHORITY_SENTENCE and
-# OPENER_TOOLS_SENTENCE). Wrapped in the emitted block, so pinned
-# whitespace-collapsed like the shape sentence. The em dash is U+2014.
 OPENER_AUTHORITY_SENTENCE = (
     "The docs and tools in the tarball are mine, written for this "
-    "workflow; read CLAUDE.md and the four docs beside it as my "
-    "instructions for this session."
+    "workflow; CLAUDE.md and the four docs beside it are my instructions "
+    "for this session."
+)
+OPENER_READING_WITH_README_SENTENCE = (
+    "Read manifest.json first, then CLAUDE.md, then README.md, my brief "
+    "for this session; CLAUDE.md says when the other four docs are "
+    "needed."
+)
+OPENER_READING_NO_README_SENTENCE = (
+    "Read manifest.json first, then CLAUDE.md; CLAUDE.md says when the "
+    "other four docs are needed."
 )
 OPENER_TOOLS_SENTENCE = (
     "tools/craft_response.py and tools/response_lint.py are stdlib-only "
@@ -118,17 +115,42 @@ OPENER_TOOLS_SENTENCE = (
     "docs, which are the contract; read them before you run them, and a "
     "response assembled by hand is just as valid."
 )
-OPENER_EXAMINE_SENTENCE = (
-    "Please examine the tarball contents, starting with CLAUDE.md and "
-    "manifest.json, and go from there."
+OPENER_ASK_SENTENCE = (
+    "If you need something from me, a fact from my machine or a "
+    "decision, end that turn with the matching block from TARBALL.md (a "
+    "probe, a light question block, or a clarification response) rather "
+    "than a question in prose, which tends to get lost."
 )
-RETIRED_OPENER_TAIL = "Ask me if anything is unclear"
+OPENER_DELIVERABLE_WORKER_SENTENCE = (
+    "This is a worker session: what I need back is one response tarball "
+    "carrying the finished work."
+)
+OPENER_DELIVERABLE_PLANNER_SENTENCE = (
+    "This is a planner session: nothing lands from it, so don't build a "
+    "response tarball, even an empty one. What I need back is your "
+    "answer in chat and, for each session I ask you to author, a crafter "
+    "bundle with its bale open line, as PLANNER.md describes."
+)
+# The sentences the reword retired, by a fragment of each — none may
+# come back. The old authority and clock wordings are retired too.
+RETIRED_FRAGMENTS = (
+    "Ask me if anything is unclear",
+    "Please examine the tarball contents",
+    "machine-recognizable shape",
+    "read CLAUDE.md and the four docs beside it as my instructions",
+    "Session ids and every bale timestamp are UTC",
+)
+USING_LINE = (
+    "I'm using \"bale\", a CLI that packaged the attached request tarball.")
 READONLY_PHRASE = "read-only bale session"
 CLOSEOUT_MARKER = "Read-only session close-out"
 
 # A goal with spaces and punctuation, so the verbatim-carriage
 # assertions exercise a realistic string, not a slug.
 GOAL = "pin the opener: sid + goal ride the report's tail, verbatim"
+# A brief for the README variants — its content is irrelevant here; the
+# opener keys only on whether one ships.
+BRIEF_BODY = "# Brief — opener fixture\n\nProse the worker reads.\n"
 
 
 def _collapse(text: str) -> str:
@@ -154,14 +176,23 @@ class PackOpenerFixture(unittest.TestCase):
 
     # -- helpers ---------------------------------------------------------
 
-    def pack(self, *extra: str, slug: str = "opener-a"):
+    def pack(self, *extra: str, slug: str = "opener-a",
+             readme: bool = False):
+        """Pack GOAL non-interactively. `readme` ships a brief through
+        --readme-file; otherwise --no-readme declares none."""
+        if readme:
+            brief = self.tmp / f"brief-{slug}.md"
+            brief.write_text(BRIEF_BODY, encoding="utf-8")
+            readme_args = ["--readme-file", str(brief)]
+        else:
+            readme_args = ["--no-readme"]
         return run_bale(
             self.install,
             [
                 "pack", GOAL,
                 "--slug", slug,
                 "--include", "hello.txt",
-                "--no-readme",
+                *readme_args,
                 *extra,
             ],
             cwd=self.repo,
@@ -251,9 +282,9 @@ class PackOpenerBase(PackOpenerFixture):
         return manifest["provenance"]["packed_at"]
 
     def test_opener_carries_pack_time_and_clock_sentence(self) -> None:
-        """Two lines ride between the identity and the goal: the pack
-        instant (verbatim the manifest's packed_at) and the clock
-        sentence, each one emitted line; the goal line is untouched."""
+        """Two lines ride after the goal line: the pack instant
+        (verbatim the manifest's packed_at) and the clock sentence, each
+        one emitted line; the goal line is untouched."""
         result = self.pack("--json", slug="opener-clock")
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         payload = json.loads(result.stdout.strip().splitlines()[0])
@@ -274,14 +305,15 @@ class PackOpenerBase(PackOpenerFixture):
         goal_lines = [ln for ln in lines if ln.startswith(GOAL_LINE_PREFIX)]
         self.assertEqual(goal_lines, [GOAL_LINE_PREFIX + GOAL],
                          msg="the goal line's single-line carriage is untouched")
-        # Order: identity, pack time, clock sentence, goal.
+        # Order: identity, goal, pack time, clock sentence — and the
+        # clock line immediately follows the pack-time line.
         sid_at = next(i for i, ln in enumerate(lines)
                       if payload["sid"] in ln)
-        self.assertLess(sid_at, lines.index(packed_lines[0]))
-        self.assertLess(lines.index(packed_lines[0]),
-                        lines.index(CLOCK_SENTENCE))
-        self.assertLess(lines.index(CLOCK_SENTENCE),
-                        lines.index(goal_lines[0]))
+        self.assertLess(sid_at, lines.index(goal_lines[0]))
+        self.assertLess(lines.index(goal_lines[0]),
+                        lines.index(packed_lines[0]))
+        self.assertEqual(lines.index(packed_lines[0]) + 1,
+                         lines.index(CLOCK_SENTENCE))
 
     def test_read_only_opener_carries_the_clock_too(self) -> None:
         """The read-only shape emits the same two lines."""
@@ -356,135 +388,158 @@ class PackOpenerBase(PackOpenerFixture):
         self.assert_ends_with_opener(result.stderr, label="stderr")
 
 
-class OpenerShapeSentenceTest(PackOpenerFixture):
-    """The opener's closing sentence is the shape rule (board 68 rider
-    4). Moved from tests/test_pack_guards.py at board pack-ux-micro —
-    one suite per surface — onto this suite's own opener_segment
-    helper, so the scissor-line constants are mirrored in one test
-    file only."""
+def expected_collapsed_block(sid: str, packed_at: str, *,
+                             read_only: bool, has_readme: bool) -> str:
+    """The whole opener, between the scissor lines, whitespace-
+    collapsed — built from this file's literals alone, never from the
+    module, so it is the independent statement of each variant."""
+    if read_only:
+        identity = (f"This message opens read-only bale session {sid} "
+                    "(empty write forecast: an orchestration/discussion "
+                    "session — no changes land from it).")
+    else:
+        identity = f"This message opens bale session {sid}."
+    reading = (OPENER_READING_WITH_README_SENTENCE if has_readme
+               else OPENER_READING_NO_README_SENTENCE)
+    deliverable = (OPENER_DELIVERABLE_PLANNER_SENTENCE if read_only
+                   else OPENER_DELIVERABLE_WORKER_SENTENCE)
+    return _collapse(" ".join((
+        USING_LINE,
+        identity,
+        GOAL_LINE_PREFIX + GOAL,
+        OPENER_AUTHORITY_SENTENCE,
+        reading,
+        OPENER_TOOLS_SENTENCE,
+        f"{PACKED_LINE_PREFIX}{packed_at}{PACKED_LINE_SUFFIX}",
+        CLOCK_SENTENCE,
+        OPENER_ASK_SENTENCE,
+        deliverable,
+    )))
 
-    def test_opener_closes_with_the_shape_sentence_verbatim(self) -> None:
-        result = self.pack(slug="opener-shape")
+
+# The four variants: (label, read_only, has_readme).
+VARIANTS = (
+    ("worker, no README", False, False),
+    ("worker, README", False, True),
+    ("planner, no README", True, False),
+    ("planner, README", True, True),
+)
+
+
+class OpenerVariantsTest(PackOpenerFixture):
+    """The four opener variants, end to end: each pack's rendered block
+    equals, whitespace-collapsed and whole, the block built from this
+    file's literals; the human report and the --json stream carry the
+    same block; and the retired sentences are gone."""
+
+    def packed_at_of(self, sid: str) -> str:
+        p = self.repo / ".bale" / "sessions" / sid / "manifest.json"
+        return json.loads(p.read_text(encoding="utf-8"))[
+            "provenance"]["packed_at"]
+
+    def run_variant(self, *, read_only: bool, has_readme: bool,
+                    json_mode: bool, slug: str):
+        """Pack one variant; return (sid, packed_at, opener segment)."""
+        extra = ["--read-only"] if read_only else []
+        if json_mode:
+            extra.append("--json")
+        result = self.pack(*extra, slug=slug, readme=has_readme)
         self.assertEqual(
             result.returncode, 0,
             msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-        collapsed = _collapse(self.opener_segment(result.stdout))
-        self.assertIn(OPENER_SHAPE_SENTENCE, collapsed)
-        # The preceding sentence stays intact, and the shape sentence
-        # is the last thing before the closing scissor line.
-        self.assertIn(OPENER_EXAMINE_SENTENCE, collapsed)
-        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
-                        msg=collapsed)
-        self.assertLess(collapsed.index(OPENER_EXAMINE_SENTENCE),
-                        collapsed.index(OPENER_SHAPE_SENTENCE))
-        self.assertNotIn(RETIRED_OPENER_TAIL, collapsed)
+        if json_mode:
+            sid = json.loads(result.stdout.strip().splitlines()[0])["sid"]
+            text = result.stderr
+        else:
+            sid = self.newest_sid(result.stdout)
+            text = result.stdout
+        self.assert_ends_with_opener(
+            text, label="stderr" if json_mode else "stdout")
+        packed_at = self.packed_at_of(sid)
+        # Close the session so the next variant's pack is not refused by
+        # the forecast-disjointness gate (every variant forecasts
+        # hello.txt).
+        unlocked = run_bale(self.install, ["unlock", sid],
+                            cwd=self.repo, env=self.env)
+        self.assertEqual(unlocked.returncode, 0,
+                         msg=f"unlock failed:\n{unlocked.stderr}")
+        return sid, packed_at, self.opener_segment(text)
 
-
-class OpenerOperatorVoiceTest(PackOpenerFixture):
-    """The operator's-voice pair (board 105): the authority sentence and
-    the tools sentence ride between the goal line and the examine
-    sentence, in that order, VERBATIM under whitespace collapse — on the
-    scoped shape and on the read-only shape, which share the trailer.
-    The read-only run also carries the whole shape sentence, so the
-    second half is pinned on both shapes too."""
-
-    def assert_operator_voice(self, segment: str, *, label: str) -> None:
-        collapsed = _collapse(segment)
-        for name, sentence in (("authority", OPENER_AUTHORITY_SENTENCE),
-                               ("tools", OPENER_TOOLS_SENTENCE)):
-            with self.subTest(shape=label, sentence=name):
+    def test_each_variant_is_the_pinned_block(self) -> None:
+        for n, (label, read_only, has_readme) in enumerate(VARIANTS):
+            with self.subTest(variant=label):
+                sid, packed_at, segment = self.run_variant(
+                    read_only=read_only, has_readme=has_readme,
+                    json_mode=False, slug=f"opener-v{n}")
                 self.assertEqual(
-                    collapsed.count(sentence), 1,
-                    msg=f"the {name} sentence must ride once, verbatim, "
-                        f"in the {label} opener:\n{collapsed}")
-        if not (OPENER_AUTHORITY_SENTENCE in collapsed
-                and OPENER_TOOLS_SENTENCE in collapsed):
-            # The subtests above already failed with the collapsed
-            # block; ordering is meaningless without both sentences.
-            return
-        goal_at = collapsed.index(GOAL_LINE_PREFIX.strip())
-        authority_at = collapsed.index(OPENER_AUTHORITY_SENTENCE)
-        tools_at = collapsed.index(OPENER_TOOLS_SENTENCE)
-        examine_at = collapsed.index(OPENER_EXAMINE_SENTENCE)
-        self.assertLess(goal_at, authority_at,
-                        msg=f"{label}: the pair follows the goal line")
-        self.assertLess(authority_at, tools_at,
-                        msg=f"{label}: authority precedes tools")
-        self.assertLess(tools_at, examine_at,
-                        msg=f"{label}: the pair precedes the examine "
-                            "sentence")
-        # The goal line's single-line carriage is untouched by the pair.
-        goal_lines = [ln for ln in segment.splitlines()
-                      if ln.startswith(GOAL_LINE_PREFIX)]
-        self.assertEqual(goal_lines, [GOAL_LINE_PREFIX + GOAL],
-                         msg=f"{label}: goal line must stay single-line")
+                    _collapse(segment),
+                    expected_collapsed_block(sid, packed_at,
+                                             read_only=read_only,
+                                             has_readme=has_readme))
+                collapsed = _collapse(segment)
+                for fragment in RETIRED_FRAGMENTS:
+                    self.assertNotIn(fragment, collapsed)
+                # Line structure the collapse cannot see: the goal and
+                # the clock sentence ride one emitted line each.
+                lines = segment.splitlines()
+                self.assertIn(GOAL_LINE_PREFIX + GOAL, lines)
+                self.assertIn(CLOCK_SENTENCE, lines)
 
-    def test_scoped_opener_carries_the_operator_voice(self) -> None:
-        result = self.pack(slug="opener-voice")
-        self.assertEqual(
-            result.returncode, 0,
-            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-        self.assert_operator_voice(self.opener_segment(result.stdout),
-                                   label="scoped")
+    def test_human_and_json_surfaces_agree(self) -> None:
+        """Same variant, both surfaces: once the sid and pack instant
+        (which differ per pack) are normalized, the blocks are
+        byte-identical — the two call sites cannot drift."""
+        for n, (label, read_only, has_readme) in enumerate(VARIANTS):
+            with self.subTest(variant=label):
+                blocks = []
+                for json_mode in (False, True):
+                    sid, packed_at, segment = self.run_variant(
+                        read_only=read_only, has_readme=has_readme,
+                        json_mode=json_mode,
+                        slug=f"opener-s{n}{'j' if json_mode else 'h'}")
+                    blocks.append(segment.replace(sid, "<sid>")
+                                  .replace(packed_at, "<packed_at>"))
+                self.assertEqual(blocks[0], blocks[1])
 
-    def test_read_only_opener_carries_the_operator_voice(self) -> None:
-        result = self.pack("--read-only", slug="opener-ro-voice")
-        self.assertEqual(
-            result.returncode, 0,
-            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-        segment = self.opener_segment(result.stdout)
-        self.assert_operator_voice(segment, label="read-only")
-        collapsed = _collapse(segment)
-        self.assertTrue(collapsed.endswith(OPENER_SHAPE_SENTENCE),
-                        msg=f"read-only opener must close with the whole "
-                            f"shape sentence:\n{collapsed}")
+    def test_readme_sentence_keys_on_the_shipped_readme(self) -> None:
+        """With a README the reading sentence names README.md as the
+        brief; without one, the block never mentions README.md."""
+        _, _, with_readme = self.run_variant(
+            read_only=False, has_readme=True, json_mode=False,
+            slug="opener-rd1")
+        _, _, without = self.run_variant(
+            read_only=False, has_readme=False, json_mode=False,
+            slug="opener-rd0")
+        self.assertIn(OPENER_READING_WITH_README_SENTENCE,
+                      _collapse(with_readme))
+        self.assertNotIn("README.md", without)
 
 
 class OpenerConstantsInProcessTest(unittest.TestCase):
-    """Board 106 (105's constants test): the opener is built from
-    bin/bale_pack.py's sentence constants, pinned in process — no
-    sandbox, no pack run. The E2E classes above pin the rendered text
-    against this file's restated literals; this class pins the module's
-    constants themselves, so the two cannot drift apart unnoticed."""
+    """Board 106's one-copy rule, carried onto the reworded opener: the
+    block is built from bin/bale_pack.py's sentence constants, pinned in
+    process — no sandbox, no pack run. The E2E classes above pin the
+    rendered text against this file's restated literals; this class pins
+    the module's constants themselves, so the two cannot drift apart
+    unnoticed."""
 
-    SID = "2026-09-17-opener-constants-001"
-    PACKED_AT = "2026-09-17T02:05:43+00:00"
+    SID = "2026-09-19-opener-constants-001"
+    PACKED_AT = "2026-09-19T01:36:19+00:00"
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.bp = _load_module("bale_pack")
 
-    def block(self, *, read_only: bool) -> list:
+    def block(self, *, read_only: bool, has_readme: bool) -> list:
         return self.bp.session_opener_block(
-            self.SID, GOAL, read_only=read_only, packed_at=self.PACKED_AT)
+            self.SID, GOAL, read_only=read_only, packed_at=self.PACKED_AT,
+            has_readme=has_readme)
 
     def segment(self, lines: list) -> list:
         begin = lines.index(self.bp.OPENER_BEGIN)
         end = lines.index(self.bp.OPENER_END)
         self.assertLess(begin, end)
         return lines[begin + 1:end]
-
-    def test_block_carries_the_module_constants_on_both_shapes(self) -> None:
-        sentences = (
-            ("authority", self.bp.OPENER_AUTHORITY_SENTENCE),
-            ("tools", self.bp.OPENER_TOOLS_SENTENCE),
-            ("examine", self.bp.OPENER_EXAMINE_SENTENCE),
-            ("shape", self.bp.OPENER_SHAPE_SENTENCE),
-        )
-        for read_only in (False, True):
-            collapsed = _collapse("\n".join(
-                self.segment(self.block(read_only=read_only))))
-            positions = []
-            for name, sentence in sentences:
-                with self.subTest(read_only=read_only, sentence=name):
-                    self.assertEqual(collapsed.count(sentence), 1,
-                                     msg=collapsed)
-                    positions.append(collapsed.index(sentence))
-            self.assertEqual(positions, sorted(positions),
-                             msg="authority, tools, examine, shape — in "
-                                 "that order")
-            self.assertTrue(
-                collapsed.endswith(self.bp.OPENER_SHAPE_SENTENCE))
 
     def test_module_constants_equal_the_pinned_literals(self) -> None:
         """The restated literals at the top of this file are the
@@ -494,56 +549,92 @@ class OpenerConstantsInProcessTest(unittest.TestCase):
                 ("OPENER_END", OPENER_END),
                 ("OPENER_CLOCK_SENTENCE", CLOCK_SENTENCE),
                 ("OPENER_AUTHORITY_SENTENCE", OPENER_AUTHORITY_SENTENCE),
+                ("OPENER_READING_WITH_README_SENTENCE",
+                 OPENER_READING_WITH_README_SENTENCE),
+                ("OPENER_READING_NO_README_SENTENCE",
+                 OPENER_READING_NO_README_SENTENCE),
                 ("OPENER_TOOLS_SENTENCE", OPENER_TOOLS_SENTENCE),
-                ("OPENER_EXAMINE_SENTENCE", OPENER_EXAMINE_SENTENCE),
-                ("OPENER_SHAPE_SENTENCE", OPENER_SHAPE_SENTENCE)):
+                ("OPENER_ASK_SENTENCE", OPENER_ASK_SENTENCE),
+                ("OPENER_DELIVERABLE_WORKER_SENTENCE",
+                 OPENER_DELIVERABLE_WORKER_SENTENCE),
+                ("OPENER_DELIVERABLE_PLANNER_SENTENCE",
+                 OPENER_DELIVERABLE_PLANNER_SENTENCE)):
             with self.subTest(constant=name):
                 self.assertEqual(getattr(self.bp, name), pinned)
 
+    def test_retired_constants_are_gone(self) -> None:
+        for name in ("OPENER_EXAMINE_SENTENCE", "OPENER_SHAPE_SENTENCE",
+                     "OPENER_VOICE_WORDS_PER_LINE",
+                     "OPENER_CLOSING_WORDS_PER_LINE"):
+            with self.subTest(constant=name):
+                self.assertFalse(hasattr(self.bp, name))
+
+    def test_each_variant_is_the_pinned_block(self) -> None:
+        for label, read_only, has_readme in VARIANTS:
+            with self.subTest(variant=label):
+                collapsed = _collapse("\n".join(self.segment(
+                    self.block(read_only=read_only,
+                               has_readme=has_readme))))
+                self.assertEqual(
+                    collapsed,
+                    expected_collapsed_block(self.SID, self.PACKED_AT,
+                                             read_only=read_only,
+                                             has_readme=has_readme))
+
     def test_each_sentence_has_one_copy_in_the_module_source(self) -> None:
-        """Before board 106 the emitted lines restated the sentences as
-        literals beside the constants. A fragment that sits inside one
-        string literal of each constant must now occur once in the
-        file."""
+        """The emitted lines are cut from the constants, never restated
+        beside them: a fragment that sits inside one string literal of
+        each constant occurs once in the file."""
         source = Path(self.bp.__file__).read_text(encoding="utf-8")
         for fragment in (
                 "The docs and tools in the tarball are mine",
+                "then README.md, my brief",
+                "Read manifest.json first, then CLAUDE.md; CLAUDE.md",
                 "response assembled by hand is just as valid.",
-                "manifest.json, and go from there.",
-                "ends in a block, so nothing is lost."):
+                "(a timezone gap, not an error)",
+                "which tends to get lost.",
+                "This is a worker session:",
+                "This is a planner session:",
+                "as PLANNER.md describes."):
             with self.subTest(fragment=fragment):
                 self.assertEqual(source.count(fragment), 1)
 
-    def test_paragraph_lines_keep_every_word_and_the_width(self) -> None:
-        """The cut never drops or duplicates a word, and the wrapped
-        paragraphs stay within the 70 columns board 105 authored them
-        at (the goal line, which is never wrapped, is excluded)."""
-        for text, counts in (
-                (f"{self.bp.OPENER_AUTHORITY_SENTENCE} "
-                 f"{self.bp.OPENER_TOOLS_SENTENCE}",
-                 self.bp.OPENER_VOICE_WORDS_PER_LINE),
-                (f"{self.bp.OPENER_EXAMINE_SENTENCE} "
-                 f"{self.bp.OPENER_SHAPE_SENTENCE}",
-                 self.bp.OPENER_CLOSING_WORDS_PER_LINE)):
-            lines = self.bp._opener_lines(text, counts)
-            self.assertEqual(" ".join(lines).split(), text.split())
-            self.assertEqual(len(lines), len(counts) + 1)
-            for line in lines:
-                self.assertLessEqual(len(line), 70, msg=line)
-        segment = self.segment(self.block(read_only=False))
-        goal_at = next(i for i, ln in enumerate(segment)
-                       if ln.startswith(GOAL_LINE_PREFIX))
-        for line in segment[goal_at + 1:]:
-            self.assertLessEqual(len(line), 70, msg=line)
+    def test_wrap_width_and_whitespace_only_breaks(self) -> None:
+        """Every wrapped line stays within the 70 columns (the goal and
+        clock lines are single lines and exempt), and no line ends or
+        begins mid-word — `stdlib-only`, the hyphenated word a
+        hyphen-breaking wrap would split, rides whole on one line."""
+        for label, read_only, has_readme in VARIANTS:
+            with self.subTest(variant=label):
+                segment = self.segment(self.block(
+                    read_only=read_only, has_readme=has_readme))
+                # The wrapped paragraphs follow the goal line; the
+                # identity lines above it are fixed text (the read-only
+                # two-liner predates the wrap and runs past 70 with a
+                # full sid), so only the lines after the goal are
+                # checked, as board 106's pin did.
+                goal_at = next(i for i, ln in enumerate(segment)
+                               if ln.startswith(GOAL_LINE_PREFIX))
+                for line in segment[goal_at + 1:]:
+                    if line == CLOCK_SENTENCE:
+                        continue
+                    self.assertLessEqual(len(line), 70, msg=line)
+                self.assertTrue(
+                    any("stdlib-only" in line.split() for line in segment),
+                    msg="\n".join(segment))
 
-    def test_remainder_forms_the_last_line(self) -> None:
-        """A reworded sentence reflows rather than losing words: words
-        past the pinned counts become one final line, and counts past
-        the end of the text stop cleanly."""
-        cut = self.bp._opener_lines
-        self.assertEqual(cut("a b c d e", (2, 2)), ["a b", "c d", "e"])
-        self.assertEqual(cut("a b c", (2, 5, 5)), ["a b", "c"])
-        self.assertEqual(cut("", (3,)), [])
+    def test_opener_lines_breaks_on_whitespace_only(self) -> None:
+        """The wrapper itself: a hyphenated word straddling the width
+        moves whole to the next line, and a word longer than the width
+        is never broken."""
+        wrap = self.bp._opener_lines
+        text = ("x" * 60) + " stdlib-only formatters"
+        self.assertEqual(wrap(text),
+                         ["x" * 60, "stdlib-only formatters"])
+        long_word = "tools/" + ("y" * 80)
+        self.assertEqual(wrap(f"a {long_word} b"), ["a", long_word, "b"])
+        words = f"{OPENER_ASK_SENTENCE} {OPENER_DELIVERABLE_PLANNER_SENTENCE}"
+        self.assertEqual(" ".join(wrap(words)).split(), words.split())
 
 
 if __name__ == "__main__":

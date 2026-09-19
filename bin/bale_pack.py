@@ -53,6 +53,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1109,6 +1110,23 @@ def format_projection_block(projection: PackProjection) -> str:
 # 4. Manifest and tarball construction
 # ---------------------------------------------------------------------------
 
+# The request-root name a shipped brief lands at, and the value the
+# manifest's `readme.path` always carries.
+REQUEST_README_NAME = "README.md"
+# Distinguishes "manifest has no readme key" from "readme: null" in
+# build_request_tarball's stamp check.
+_NO_README_STAMP = object()
+
+
+def shipped_readme_text(body: str) -> str:
+    """The exact text a README body ships as: trailing newline
+    normalized, so the tarball never ships a buffer that ends mid-line.
+    One definition for the three places that must agree — the bytes
+    build_request_tarball writes, the manifest's `readme.sha256`, and
+    the pack report's `readme sha256` echo. Pure."""
+    return body if body.endswith("\n") else body + "\n"
+
+
 def build_request_manifest(
     sid: str,
     project_name: str,
@@ -1121,6 +1139,7 @@ def build_request_manifest(
     provenance: Optional[dict] = None,
     *,
     resolved_scope: list[str],
+    readme_sha256: Optional[str] = None,
 ) -> dict:
     """Per TARBALL.md section 3.2. `depends_on` defaults to the v0.0.1 shape
     ({previous_response: None, previous_probe: None}); `bale handoff` passes
@@ -1158,7 +1177,24 @@ def build_request_manifest(
     build_provenance_block; both request-building paths pass one, so the
     key is present on every request bale builds. Optional here (and in
     request-manifest.schema.json) so hand-rolled requests and pre-0.3.8
-    manifests remain valid — the schema change is additive."""
+    manifests remain valid — the schema change is additive.
+
+    `readme` — whether a README brief ships, stamped by every request
+    bale builds, so a worker that reads manifest.json first (as the
+    opener and CLAUDE.md tell it to) learns from the manifest itself
+    that a brief exists. `readme_sha256` is the hex sha256 of the
+    README.md bytes the tarball ships (shipped_readme_text's output —
+    the same value pack's `readme sha256` report row echoes); when
+    given, the key is `{"path": "README.md", "sha256": <hex>}` — path
+    is always the request-root name — and when None the key is null.
+    `bale handoff` ships no README and passes nothing, so it stamps
+    null through this default. Top-level on purpose, not under
+    provenance: provenance is echoed verbatim by the response, and a
+    key there would drag the response schema, the lint's embedded copy,
+    and the echo-parity suite. Admitted by the request schema but not
+    required, on resolved_scope's additive model, so hand-rolled and
+    older requests stay valid. build_request_tarball re-checks the
+    stamp against the bytes it writes."""
     if depends_on is None:
         depends_on = {
             "previous_response": None,
@@ -1175,6 +1211,10 @@ def build_request_manifest(
         "expects_probe": expects_probe,
         "context_included": [f"context/{p}" for p in context_paths],
         "resolved_scope": list(resolved_scope),
+        "readme": (
+            None if readme_sha256 is None
+            else {"path": REQUEST_README_NAME, "sha256": readme_sha256}
+        ),
     }
     if provenance is not None:
         manifest["provenance"] = provenance
@@ -2498,11 +2538,35 @@ def build_request_tarball(
 
         # Optional README.md. Written when the wizard collected non-empty
         # prose; omitted otherwise. Trailing newline is normalized so the
-        # tarball doesn't ship the rare buffer that ends mid-line.
+        # tarball doesn't ship the rare buffer that ends mid-line
+        # (shipped_readme_text — the one definition the manifest stamp
+        # and the report echo share).
+        #
+        # The manifest's `readme` key, when the caller stamped one, must
+        # describe these exact bytes: a README with no stamp, a stamp
+        # with no README, or a hash disagreement is a construction bug
+        # in the caller, raised here — before the tarball exists — so
+        # the worker never reads a manifest that lies about its brief.
+        # A manifest with no `readme` key at all (a hand-rolled or
+        # future caller that predates the key) is not checked.
+        readme_stamp = manifest.get("readme", _NO_README_STAMP)
         if readme_body is not None:
             _trail("write README.md")
-            text = readme_body if readme_body.endswith("\n") else readme_body + "\n"
-            (request_dir / "README.md").write_text(text, encoding="utf-8")
+            text = shipped_readme_text(readme_body)
+            readme_bytes = text.encode("utf-8")
+            (request_dir / REQUEST_README_NAME).write_bytes(readme_bytes)
+            if readme_stamp is not _NO_README_STAMP:
+                shipped_sha = hashlib.sha256(readme_bytes).hexdigest()
+                stamped_sha = (readme_stamp or {}).get("sha256")
+                if stamped_sha != shipped_sha:
+                    raise ValueError(
+                        f"manifest readme stamp {readme_stamp!r} does not "
+                        f"match the shipped README.md (sha256 "
+                        f"{shipped_sha})")
+        elif readme_stamp not in (None, _NO_README_STAMP):
+            raise ValueError(
+                f"manifest readme stamp {readme_stamp!r} names a README "
+                f"but none ships")
 
         # context/<files>. copy2 + follow_symlinks=False preserves mode bits
         # so an executable script in the project arrives in context/ still
@@ -2747,6 +2811,12 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
 # wizard test can read it back and compare. The braces are replaced by
 # the wizard's collected answers; the comment text instructs the user
 # how to skip the file (empty buffer omits per BALE.md §7.3).
+#
+# The instruction comment is for the packer, never the worker: it is
+# stripped from the editor's output before the README ships
+# (_readme_from_editor), on both editor paths. Without the strip it
+# shipped whenever the packer didn't delete it by hand, telling the
+# worker the brief it was reading was "OPTIONAL".
 _PACK_README_SCAFFOLD = """\
 # {goal}
 
@@ -2766,6 +2836,50 @@ fields above will still ship in the manifest either way.
 -->
 
 """
+
+
+# The opening words of the scaffold's instruction comment — the marker
+# _readme_from_editor keys the strip on. Matched as the first words
+# inside an HTML comment, so a packer who edits the comment's body
+# still gets it stripped whole, and an unrelated comment of their own
+# ships untouched. tests/test_readme_identity.py pins that the scaffold
+# opens its comment with exactly this marker, so the two cannot drift.
+_PACK_README_SCAFFOLD_MARKER = "This README is OPTIONAL"
+_PACK_README_SCAFFOLD_COMMENT_RE = re.compile(
+    r"\n*<!--\s*" + re.escape(_PACK_README_SCAFFOLD_MARKER)
+    + r".*?-->[ \t]*\n*",
+    re.DOTALL,
+)
+
+
+def _readme_from_editor(body: str, *, scaffold_heading: str
+                        ) -> Optional[str]:
+    """Turn an $EDITOR buffer into the README body that ships, or None.
+
+    Two rules, both for the editor paths only (--edit and the wizard's
+    y/N — _resolve_readme_body calls this on each; --readme-file alone
+    ships the planner's file verbatim):
+
+    1. The scaffold's instruction comment never ships. Every HTML
+       comment that opens with _PACK_README_SCAFFOLD_MARKER is removed,
+       and the blank lines around the cut collapse to one paragraph
+       break; the packer's own prose — including any comment of their
+       own — ships as typed.
+    2. A buffer with no prose counts as no README: after the strip, if
+       nothing remains but whitespace and, optionally, the scaffold's
+       untouched heading line (`scaffold_heading`, the `# <goal>` the
+       scaffold opens with), return None — the same outcome as saving
+       an empty buffer, so the opener never names a brief that says
+       nothing. A heading the packer edited is prose and ships.
+
+    `body` arrives as open_in_editor returns it (trailing whitespace
+    already stripped); the result keeps that shape. Pure."""
+    stripped = _PACK_README_SCAFFOLD_COMMENT_RE.sub("\n\n", body)
+    stripped = stripped.lstrip("\n").rstrip()
+    lines = [ln for ln in stripped.splitlines() if ln.strip()]
+    if not lines or lines == [scaffold_heading]:
+        return None
+    return stripped
 
 
 def _wizard_input_required(prompt: str, *, validator=None,
@@ -3649,7 +3763,10 @@ def _resolve_readme_body(args: argparse.Namespace, *,
        buffer after editing yields None (per §7.3: "Saving an empty
        buffer omits the file") — in the editor, deliberate deletion is
        the omit gesture, unlike the --readme-file-alone path below where
-       an empty file is an upstream failure. cmd_pack has already
+       an empty file is an upstream failure. The buffer passes through
+       _readme_from_editor: the scaffold's instruction comment is
+       stripped, and a buffer left with no prose (only the untouched
+       heading) omits the file too. cmd_pack has already
        verified --edit's preconditions (TTY stdin, no --no-edit) before
        any prompt or editor could run.
     2. `--readme-file` alone — the file's contents verbatim, no editor.
@@ -3660,7 +3777,8 @@ def _resolve_readme_body(args: argparse.Namespace, *,
        not None.
     3. Wizard engaged and not --no-edit — the §7.3 y/N prompt; on y,
        $EDITOR opens with a scaffold pre-populated from the wizard
-       answers. Empty buffer omits, same as branch 1.
+       answers. Same _readme_from_editor pass as branch 1: the comment
+       never ships, and an empty or scaffold-only buffer omits.
     4. Otherwise None — the fully-specified path with no README flags
        has no README, exactly as before v0.2.4; `--no-edit` forces skip
        of the wizard's step regardless (per §7.3).
@@ -3669,6 +3787,9 @@ def _resolve_readme_body(args: argparse.Namespace, *,
         confirm_yn,
         open_in_editor,
     )
+    # The scaffold's first line — the heading _readme_from_editor treats
+    # as no prose when it is all a buffer holds.
+    scaffold_heading = f"# {args.goal}"
     scaffold = _PACK_README_SCAFFOLD.format(
         goal=args.goal,
         constraints=", ".join(args.constraint) if args.constraint else "(none)",
@@ -3695,7 +3816,7 @@ def _resolve_readme_body(args: argparse.Namespace, *,
             seed,
             abort_hint="drop --edit to pack without the editor step",
         )
-        return body if body else None
+        return _readme_from_editor(body, scaffold_heading=scaffold_heading)
 
     if args._readme_file_body is not None:
         return args._readme_file_body
@@ -3707,7 +3828,7 @@ def _resolve_readme_body(args: argparse.Namespace, *,
             scaffold,
             abort_hint="answer 'n' at the README prompt to skip it",
         )
-        return body if body else None
+        return _readme_from_editor(body, scaffold_heading=scaffold_heading)
 
     return None
 
@@ -4031,50 +4152,52 @@ OPENER_BEGIN = "--8<-- session opener (copy everything between the scissor lines
 OPENER_END = "--8<-- end session opener --8<--"
 
 
-# The clock sentence the opener carries (board 94, v0.4.30). VERBATIM:
-# one emitted line, no placeholder inside it — the worker reads it in
-# the very message that opens the session, which is the only surface
-# every session sees. TARBALL.md §1 carries the contract's twin
-# sentence; this one is the chat-facing wording.
-OPENER_CLOCK_SENTENCE = (
-    "Session ids and every bale timestamp are UTC and may run a day "
-    "ahead of the date this chat shows; date anything you write from "
-    "the session id, never from the chat."
-)
-
-# The shape sentence the opener closes with (board 68 rider, row 96's
-# one bin/bale_pack.py line; the doctrine it names lands in the global
-# docs in the same wave). VERBATIM, whitespace collapsed — the
-# emitted lines wrap it as the surrounding lines wrap, and the pin
-# (tests/test_pack_opener.py, moved there from test_pack_guards.py by
-# board pack-ux-micro) compares the collapsed form. It replaced
-# "Ask me if anything is unclear before you build.", which invited
-# exactly the prose question the rule forbids. Board 105 grew its
-# second half, so the rule reads as a constraint on asks, never as a
-# ban on explanation.
-OPENER_SHAPE_SENTENCE = (
-    "Every turn you end in this session takes one machine-recognizable "
-    "shape: a response tarball, a probe block, a light question block, "
-    "or a clarification response; a question asked as prose is not a "
-    "shape. Explanation in prose is expected and welcome; the rule is "
-    "that a turn that asks ends in a block, so nothing is lost."
-)
-
-# The operator's-voice pair the opener carries between the goal line
-# and the examine sentence (board 105, §5 contract "The operator's
-# voice carries the authority"). VERBATIM, whitespace collapsed, pinned
-# the same way as OPENER_SHAPE_SENTENCE. The "mine"/"my" is deliberate:
-# the opener is typed by the operator into chat, the one channel that
-# legitimately carries authority, so the docs and tools are claimed in
-# the operator's own voice rather than asserted by the tarball about
-# itself. The tools claim was checked against shipped bytes when the
-# sentence was authored: both files import only the standard library
-# and open no sockets — a rewrite of either that stops being true of
-# this sentence must change the sentence in the same session.
+# The opener's sentences (board 52 opened the block; board 94 added the
+# clock sentence, board 105 the operator's voice, board 106 the
+# one-copy rule; the README-and-deliverable reword replaced the examine
+# and shape sentences). Every sentence below is VERBATIM, pinned by
+# tests/test_pack_opener.py against literals restated there: the ones
+# that ride a wrapped paragraph compare whitespace-collapsed, the clock
+# sentence rides one emitted line of its own and compares as a line.
+# Each sentence exists once in this file; the emitted lines are cut
+# from these constants, never restated beside them.
+#
+# Why the wording is what it is. A worker that met the earlier opener
+# cold read it as a possible prompt injection: bare absolutes with no
+# reasons, a clock rule before the reader knew what the session was, a
+# soft reading instruction that put CLAUDE.md before the manifest (the
+# docs say the reverse), and nothing it was guaranteed to read naming
+# the README brief. So every rule now carries its reason in the same
+# sentence, the identity and goal come before any rule, the reading
+# order is the docs' own (manifest first) and names the README when one
+# ships, and the close states what the session owes back — keyed on
+# --read-only and nothing else, because pack knows no other mode and a
+# read-only session structurally lands nothing.
+#
+# The "mine"/"my" is deliberate (board 105): the opener is typed by the
+# operator into chat, the one channel that legitimately carries
+# authority, so the docs and tools are claimed in the operator's own
+# voice rather than asserted by the tarball about itself. The tools
+# claim was checked against shipped bytes when the sentence was
+# authored: both files import only the standard library and open no
+# sockets — a rewrite of either that stops being true of this sentence
+# must change the sentence in the same session.
 OPENER_AUTHORITY_SENTENCE = (
     "The docs and tools in the tarball are mine, written for this "
-    "workflow; read CLAUDE.md and the four docs beside it as my "
-    "instructions for this session."
+    "workflow; CLAUDE.md and the four docs beside it are my instructions "
+    "for this session."
+)
+# The reading sentence, in the form keyed on whether a README ships
+# (cmd_pack's args._readme_body is not None is the signal — the same
+# value the manifest's `readme` key is stamped from).
+OPENER_READING_WITH_README_SENTENCE = (
+    "Read manifest.json first, then CLAUDE.md, then README.md, my brief "
+    "for this session; CLAUDE.md says when the other four docs are "
+    "needed."
+)
+OPENER_READING_NO_README_SENTENCE = (
+    "Read manifest.json first, then CLAUDE.md; CLAUDE.md says when the "
+    "other four docs are needed."
 )
 OPENER_TOOLS_SENTENCE = (
     "tools/craft_response.py and tools/response_lint.py are stdlib-only "
@@ -4082,48 +4205,64 @@ OPENER_TOOLS_SENTENCE = (
     "docs, which are the contract; read them before you run them, and a "
     "response assembled by hand is just as valid."
 )
-
-# The examine sentence between the operator's voice and the shape
-# sentence. A constant since board 106 so the emitted block is built
-# from one copy of every sentence it carries.
-OPENER_EXAMINE_SENTENCE = (
-    "Please examine the tarball contents, starting with CLAUDE.md and "
-    "manifest.json, and go from there."
+# The clock sentence (board 94's line, reworded to carry its reason).
+# One emitted line, no placeholder inside it; TARBALL.md §1 carries the
+# contract's twin sentence, and this is the chat-facing wording.
+OPENER_CLOCK_SENTENCE = (
+    "bale's dates are UTC and can run a day ahead of this chat's date "
+    "(a timezone gap, not an error); date what you write from the "
+    "session id."
+)
+OPENER_ASK_SENTENCE = (
+    "If you need something from me, a fact from my machine or a "
+    "decision, end that turn with the matching block from TARBALL.md (a "
+    "probe, a light question block, or a clarification response) rather "
+    "than a question in prose, which tends to get lost."
+)
+# The deliverable sentence(s): one form per session mode. A pack with a
+# write forecast (every pack that is not --read-only) opens a worker
+# session; a --read-only pack opens a planner session, whose closing
+# says outright that no response tarball is owed — planners were
+# returning empty ones "to follow protocol". The planner form is two
+# sentences, pinned as one constant.
+OPENER_DELIVERABLE_WORKER_SENTENCE = (
+    "This is a worker session: what I need back is one response tarball "
+    "carrying the finished work."
+)
+OPENER_DELIVERABLE_PLANNER_SENTENCE = (
+    "This is a planner session: nothing lands from it, so don't build a "
+    "response tarball, even an empty one. What I need back is your "
+    "answer in chat and, for each session I ask you to author, a crafter "
+    "bundle with its bale open line, as PLANNER.md describes."
 )
 
-# The opener's two wrapped paragraphs, as words per emitted line (board
-# 106, 105's one-copy rider). The emitted lines are cut from the
-# sentence constants above rather than restated, so a sentence exists
-# once in this file. The layout is pinned here instead of computed by
-# textwrap because the voice paragraph was wrapped by hand when board
-# 105 authored it (its first line runs to 70 columns, its second to 65
-# — no single width reproduces both), and the opener's bytes must not
-# move. The last line of each paragraph takes whatever words remain, so
-# a reworded sentence can reflow but never loses a word.
-OPENER_VOICE_WORDS_PER_LINE = (13, 12, 6, 10, 13)
-OPENER_CLOSING_WORDS_PER_LINE = (9, 11, 8, 10, 12, 13)
+# The width the opener's wrapped paragraphs fill (the width board 105
+# authored them at). The goal line and the clock line are single
+# emitted lines and exempt.
+OPENER_WRAP_WIDTH = 70
 
 
-def _opener_lines(text: str, words_per_line: tuple) -> list:
-    """Cut `text` into lines of the given word counts, the remainder
-    forming the final line. Words are split on whitespace and rejoined
-    with single spaces — the collapsed form the opener's pins compare —
-    so the collapsed block always reads `text` verbatim. Pure."""
-    words = text.split()
-    lines = []
-    at = 0
-    for count in words_per_line:
-        if at >= len(words):
-            break
-        lines.append(" ".join(words[at:at + count]))
-        at += count
-    if at < len(words):
-        lines.append(" ".join(words[at:]))
-    return lines
+def _opener_lines(text: str) -> list:
+    """Wrap `text` to OPENER_WRAP_WIDTH columns, breaking on whitespace
+    only. Pure.
+
+    break_on_hyphens is off on purpose: textwrap's default would split
+    `stdlib-only` in the tools sentence across two lines, and a word
+    split at a hyphen no longer whitespace-collapses back to the
+    verbatim sentence the pins compare. break_long_words is off for the
+    same reason (a path longer than the width stays whole on its own
+    line). Words are otherwise rejoined with single spaces, so the
+    collapsed block always reads `text` verbatim."""
+    return textwrap.wrap(
+        text,
+        width=OPENER_WRAP_WIDTH,
+        break_on_hyphens=False,
+        break_long_words=False,
+    )
 
 
 def session_opener_block(sid: str, goal: str, *, read_only: bool,
-                         packed_at: str) -> list:
+                         packed_at: str, has_readme: bool) -> list:
     """The session-opening chat paragraph, as report lines (board 52).
 
     Pack's end-of-run report ends with this block on every pack shape —
@@ -4131,42 +4270,33 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
     appends it as the final trailer lines (format_summary_block emits
     trailer lines verbatim and never wraps them), and the --json path
     prints it after the one-line JSON report, where json-mode stream
-    discipline routes it to stderr.
+    discipline routes it to stderr. Both call sites pass the same
+    `read_only` and `has_readme`, so the two surfaces carry the same
+    block.
 
-    Identity carriage is the contract: the paragraph carries the sid and
-    the goal verbatim, so the opener names what was just packed and the
-    fresh session's manifest can be checked against the very message
-    that opened it. Two layout rules serve that contract:
+    Between the scissor lines, in order:
 
-    - The goal rides on a single line, never wrapped or truncated — a
-      hard wrap inserted into the goal would break verbatim carriage
-      (and any substring check keyed on it).
-    - The read-only shape's opener names the session read-only, so the
-      fresh session knows from its first line that nothing lands.
+    1. The "I'm using bale" line.
+    2. The identity: the sid (the read-only shape's two-liner names the
+       session read-only, so the fresh session knows from its first
+       line that nothing lands).
+    3. The goal line — one line, never wrapped or truncated, verbatim
+       (a hard wrap would break verbatim carriage and any substring
+       check keyed on it).
+    4. A wrapped paragraph: the authority sentence, the reading sentence
+       (the README form when `has_readme`, naming README.md as the
+       brief; the no-README form otherwise), then the tools sentence.
+    5. `Packed at <packed_at> (UTC).` — the same string the request
+       manifest's provenance.packed_at stamps — on its own line.
+    6. The clock sentence, on its own line.
+    7. A wrapped paragraph: the ask sentence, then the deliverable
+       sentence(s) — the planner form when `read_only`, the worker form
+       otherwise. --read-only is the only key: pack knows no other mode.
 
-    Two more lines ride after the identity (board 94, v0.4.30): the pack
-    time — `packed_at`, the same string the request manifest's
-    provenance.packed_at stamps, ISO 8601 UTC — on its own line, and the
-    VERBATIM clock sentence (OPENER_CLOCK_SENTENCE) on its own line.
-    Together they pre-empt the chat interface's own date: the worker's
-    chat may show the operator's local calendar day while the sid and
-    every bale timestamp are UTC, and without an anchor a worker dating
-    an ADR or a note from the chat writes yesterday's date. The goal
-    line's single-line verbatim carriage is untouched.
-
-    After the goal line, before the examine sentence, the operator's
-    voice (board 105): OPENER_AUTHORITY_SENTENCE then
-    OPENER_TOOLS_SENTENCE, wrapped as the surrounding lines wrap. The
-    closing shape sentence (OPENER_SHAPE_SENTENCE) carries its second
-    half, that prose explanation is welcome and only an ask must end in
-    a block. Both pack shapes share this trailer, so both carry all
-    three. The goal line's single-line carriage is untouched.
-
-    Since board 106 those paragraphs are cut from the sentence constants
-    (_opener_lines over OPENER_VOICE_WORDS_PER_LINE and
-    OPENER_CLOSING_WORDS_PER_LINE) rather than restated as literal
-    lines, so each sentence has one copy; the emitted bytes are
-    unchanged.
+    Identity and goal come first so the reader knows what the session
+    is before it meets any rule; the pack-time and clock lines follow
+    the reading instructions, still pre-empting the chat's own date
+    before the worker dates anything.
 
     Pure: builds the lines, prints nothing. The caller decides the
     surface (trailer vs post-JSON print).
@@ -4179,6 +4309,10 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         ]
     else:
         identity = [f"This message opens bale session {sid}."]
+    reading = (OPENER_READING_WITH_README_SENTENCE if has_readme
+               else OPENER_READING_NO_README_SENTENCE)
+    deliverable = (OPENER_DELIVERABLE_PLANNER_SENTENCE if read_only
+                   else OPENER_DELIVERABLE_WORKER_SENTENCE)
     return [
         "",
         "Open the session: paste the block below into a fresh Claude chat,",
@@ -4187,15 +4321,12 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         OPENER_BEGIN,
         "I'm using \"bale\", a CLI that packaged the attached request tarball.",
         *identity,
-        f"Packed at {packed_at} (UTC).",
-        OPENER_CLOCK_SENTENCE,
         f"Goal, verbatim from the request manifest: {goal}",
         *_opener_lines(
-            f"{OPENER_AUTHORITY_SENTENCE} {OPENER_TOOLS_SENTENCE}",
-            OPENER_VOICE_WORDS_PER_LINE),
-        *_opener_lines(
-            f"{OPENER_EXAMINE_SENTENCE} {OPENER_SHAPE_SENTENCE}",
-            OPENER_CLOSING_WORDS_PER_LINE),
+            f"{OPENER_AUTHORITY_SENTENCE} {reading} {OPENER_TOOLS_SENTENCE}"),
+        f"Packed at {packed_at} (UTC).",
+        OPENER_CLOCK_SENTENCE,
+        *_opener_lines(f"{OPENER_ASK_SENTENCE} {deliverable}"),
         OPENER_END,
     ]
 
@@ -4751,8 +4882,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # No-readme guard (v0.3.8, board 3): a pack shipping no prose is
     # either deliberate or an oversight, and the two must not look the
     # same. --no-readme is the deliberate spelling; a wizard-path user
-    # who answered 'n' at the README prompt (or saved an empty buffer)
-    # made the choice interactively. What remains is the un-asked case:
+    # who answered 'n' at the README prompt (or saved an empty or
+    # scaffold-only buffer — _readme_from_editor) made the choice
+    # interactively. What remains is the un-asked case:
     # on a TTY, warn — the user is watching and can Ctrl-C to repack;
     # piped, refuse — nobody reads a stderr warning in automation, the
     # same posture as the piped soft-breach refusal above. The wizard
@@ -4763,7 +4895,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         if args.no_readme:
             log("packing without a README (--no-readme)")
         elif wizard_engaged and not args.no_edit:
-            log("packing without a README (declined at the wizard prompt)")
+            log("packing without a README (declined at the wizard prompt, "
+                "or the editor buffer held no prose)")
         elif sys.stdin.isatty():
             print(
                 "[bale] warning: packing without a README — the request "
@@ -4796,9 +4929,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     readme_echo_heading: Optional[str] = None
     readme_echo_sha256: Optional[str] = None
     if args._readme_body is not None:
-        shipped_text = (args._readme_body
-                        if args._readme_body.endswith("\n")
-                        else args._readme_body + "\n")
+        shipped_text = shipped_readme_text(args._readme_body)
         readme_echo_sha256 = hashlib.sha256(
             shipped_text.encode("utf-8")).hexdigest()
         readme_echo_heading = next(
@@ -5283,6 +5414,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # persist_pack_session records below — one source, never a
         # re-derivation. [] for a read-only pack.
         resolved_scope=pack_scope,
+        # The readme stamp: the sha256 the report echoes (computed from
+        # shipped_readme_text above), or None when no README ships —
+        # one value, so manifest, report, and tarball agree.
+        readme_sha256=readme_echo_sha256,
     )
 
     # Pack pre-flight schema check (BALE.md §11 row 6, request side). bale
@@ -5333,6 +5468,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
     run_hook(repo, bale_config.merged_config(repo), "post_pack", sid)
 
+    # The opener's two keys, computed once so the human report and the
+    # --json path cannot disagree: whether a README ships (the reading
+    # sentence names README.md as the brief) and --read-only (which
+    # closing the block carries — planner or worker). Same README
+    # signal the manifest's `readme` key was stamped from.
+    opener_has_readme = args._readme_body is not None
+
     # User-facing summary. --json swaps the format of this one report
     # (everything above ran identically): pass-through to
     # bale_report.format_pack_json, which owns the rendering and the stable
@@ -5368,7 +5510,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # bale_report.py — proposed, not made; see notes.md.)
         print("\n".join(
             session_opener_block(sid, goal, read_only=args.read_only,
-                                 packed_at=provenance["packed_at"])))
+                                 packed_at=provenance["packed_at"],
+                                 has_readme=opener_has_readme)))
     else:
         rows = [
             ("session id", sid),
@@ -5429,7 +5572,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # keeps the sid and the goal line intact.
         trailer += session_opener_block(
             sid, goal, read_only=args.read_only,
-            packed_at=provenance["packed_at"])
+            packed_at=provenance["packed_at"],
+            has_readme=opener_has_readme)
         print(format_summary_block(
             rows,
             trailer=trailer,
