@@ -44,6 +44,16 @@ comparisons). Coverage, per the board-53 ruling ((b)-as-adjusted):
   fixture-defect fork carries the sid-ful amend line and a retry rung
   byte-identical to this verb's composed successor — one stamp, one
   line, never two that could disagree.
+- **The admissions ride the same line** (board 110, v0.4.37,
+  ``HeldAdmissionsE2ETest``): a HOLD admitted with
+  ``--allow-out-of-scope`` gets a fixture rung and an amend successor
+  that are one line re-stating the admission, and that line, pasted
+  after the amendment, lands the held tarball (the bare pre-0.4.37 line
+  is pinned REJECTED on the same state). A legacy, unreadable, or
+  unwritten admissions stamp keeps the line and adds one note saying
+  why; a second HOLD re-states only the latest attempt's admissions.
+  ``ComposeRetrySuccessorUnitTest`` (109's Proposal 2) pins
+  ``compose_retry_successor`` itself through ``harness._load_cli()``.
 
 Sandbox doctrine per ADR-0005 (fully hermetic) — the shared harness in
 ``tests/harness.py``; the per-sid fixture base comes from
@@ -60,6 +70,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 import subprocess
 import unittest
 from pathlib import Path
@@ -431,15 +442,375 @@ class HoldCardAgreementTest(AmendFixture):
         self.assertTrue(why_line.startswith(lead), msg=why_line)
         self.assertIn(NO_STAMP_PHRASE, why_line)
         why = why_line[len(lead):why_line.rindex("; ")]
+        # Board 110: a never-held session has no admissions stamp either,
+        # named on its own line above the path's.
+        adm_line = lines[-3]
+        adm_lead = "(the held apply's admissions could not be recovered: "
+        self.assertTrue(adm_line.startswith(adm_lead), msg=adm_line)
+        adm_why = adm_line[len(adm_lead):adm_line.index("; re-state")]
         br = _load_module("bale_report")
         forks = br.compose_hold_successors(
             sid=sid, judge_case=br.HOLD_JUDGE_CHECKPOINT,
-            held_tarball=None, held_tarball_why=why)
+            held_tarball=None, held_tarball_why=why,
+            held_admissions=None, held_admissions_why=adm_why)
         fixture = [f for f in forks
                    if f["ruling"] == br.RULING_FIXTURE_DEFECT]
         self.assertEqual(len(fixture), 1)
-        self.assertEqual(lines[-2:], fixture[0]["lines"][1:],
+        self.assertEqual(lines[-3:], fixture[0]["lines"][1:],
                          msg="the verb's degrade form is the card's")
+
+
+
+EXTRA_PATH = "extra dir/new file.txt"
+ADMISSIONS_STAMP = "held_admissions"
+ADMISSIONS_WHY_PHRASE = "admissions could not be recovered"
+NO_ADMISSIONS_STAMP_PHRASE = "no HOLD-time admissions stamp"
+
+
+class HeldAdmissionsE2ETest(AmendFixture):
+    """Board 110 (v0.4.37), driven for real — the desk's reproduction.
+
+    A session forecasting hello.txt, packed with a failing oracle, HOLDs
+    on a response that also creates ``extra dir/new file.txt``, applied
+    with ``--allow-out-of-scope`` for it. The HOLD card's fixture-defect
+    rung and `bale amend-checkpoint`'s closing line are then ONE line —
+    compared byte for byte, not by shape — that re-states the admission,
+    and that line, pasted as printed after the amendment, LANDS the held
+    tarball. The pre-0.4.37 bare line is proven REJECTED on the same
+    state, so the landing test cannot pass vacuously. Absence is named:
+    a legacy (stamp-less) or unreadable stamp keeps the line and adds
+    one note, and a failed stamp write says so on the card. A session
+    held twice re-states the latest held attempt's admissions only.
+    """
+
+    def open_failing(self, slug: str) -> str:
+        self.configure_base(CP_PATTERN)
+        failing = self.tmp / f"cp-{slug}.sh"
+        failing.write_text("#!/usr/bin/env bash\n"
+                           "echo \"[FAIL] oracle-probe-alpha\"\nexit 1\n",
+                           encoding="utf-8")
+        packed = self.pack(slug, "--include", "hello.txt",
+                           "--checkpoint-file", str(failing))
+        self.assertEqual(packed.returncode, 0, msg=packed.stderr)
+        return [s for s in self.open_sids() if f"-{slug}-" in s][0]
+
+    def response(self, sid: str, dirname: str, *, extra: bool):
+        entries = [{"path": "hello.txt", "action": "modified",
+                    "reason": "the goal's rewrite", "data": b"landed\n"}]
+        if extra:
+            entries.append({"path": EXTRA_PATH, "action": "created",
+                            "reason": "outside the forecast; admitted",
+                            "data": b"new\n"})
+        rdir = build_response_dir(
+            self.tmp / dirname, sid,
+            summary="board 110 fixture: a clean response the oracle holds",
+            entries=entries,
+            validation_sh=("#!/usr/bin/env bash\n"
+                           "echo \"[PASS] fixture check\"\nexit 0\n"))
+        return tar_response_dir(rdir)
+
+    def admitted_hold(self, sid: str, dirname: str = "held dir"):
+        tarball = self.response(sid, dirname, extra=True)
+        held = run_bale(self.install,
+                        ["apply", str(tarball),
+                         "--allow-out-of-scope", EXTRA_PATH],
+                        cwd=self.repo, env=self.env)
+        self.assertEqual(held.returncode, 1,
+                         msg=f"stdout:\n{held.stdout}\nstderr:\n{held.stderr}")
+        self.assertIn("[HOLD]", held.stdout)
+        return tarball, held
+
+    @staticmethod
+    def card_lines(stdout: str) -> list:
+        card = stdout[stdout.rindex("  [HOLD] "):]
+        return [ln.strip() for ln in card.splitlines()]
+
+    def fixture_rung(self, card_lines: list) -> str:
+        at = next(i for i, ln in enumerate(card_lines)
+                  if ln.startswith("bale amend-checkpoint "))
+        rung = next(ln for ln in card_lines[at + 1:]
+                    if ln.startswith("bale retry "))
+        return rung
+
+    def amend_v1(self, sid: str, name: str):
+        v1 = checkpoint_script(f"v1-{name}")
+        amendment = self.write_amendment(v1, name=f"amend-{name}.sh")
+        r = self.amend(str(amendment), "--sha256", sha256_text_lf(v1),
+                       "--sid", sid)
+        self.assertEqual(r.returncode, 0,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        return r
+
+    def paste(self, line: str):
+        argv = shlex.split(line)
+        self.assertEqual(argv[0], "bale", msg=line)
+        return run_bale(self.install, argv[1:], cwd=self.repo, env=self.env)
+
+    # -- the whole point ---------------------------------------------------
+
+    def test_card_and_amend_line_are_one_line_that_lands(self) -> None:
+        sid = self.open_failing("admitlands")
+        tarball, held = self.admitted_hold(sid)
+        card_rung = self.fixture_rung(self.card_lines(held.stdout))
+        expected = (f"bale retry {shlex.quote(str(tarball.resolve()))} "
+                    f"--allow-out-of-scope {shlex.quote(EXTRA_PATH)} "
+                    f"--accept-checkpoint-change --sid {sid}")
+        self.assertEqual(card_rung, expected)
+
+        r = self.amend_v1(sid, "admitlands")
+        last = self.assert_successor_is_last_line(r.stdout, sid)
+        self.assertEqual(last, card_rung,
+                         msg="the card and the amend report are one line")
+        self.assertNotIn(ADMISSIONS_WHY_PHRASE, r.stdout)
+
+        landed = self.paste(last)
+        self.assertEqual(landed.returncode, 0,
+                         msg=f"the pasted line must land;\nstdout:\n"
+                             f"{landed.stdout}\nstderr:\n{landed.stderr}")
+        self.assertIn("[PASS]", landed.stdout)
+        run_checked(["git", "rev-parse", "--verify",
+                     f"refs/tags/applied/{sid}"], cwd=self.repo,
+                    env=self.env)
+        self.assertEqual((self.repo / EXTRA_PATH).read_text(), "new\n")
+        self.assertNotIn(sid, self.open_sids())
+
+    def test_bare_pre_0437_line_is_rejected_on_the_same_state(self) -> None:
+        """The negative control: today's defect, reproduced. The line
+        with the admission dropped refuses at own-forecast drift — which
+        is what makes the landing test above mean something."""
+        sid = self.open_failing("admitbare")
+        tarball, _ = self.admitted_hold(sid)
+        self.amend_v1(sid, "admitbare")
+        bare = (f"bale retry {shlex.quote(str(tarball.resolve()))} "
+                f"--accept-checkpoint-change --sid {sid}")
+        refused = self.paste(bare)
+        self.assertNotEqual(refused.returncode, 0,
+                            msg=f"stdout:\n{refused.stdout}")
+        self.assertIn(EXTRA_PATH, refused.stdout + refused.stderr)
+        self.assertFalse((self.repo / EXTRA_PATH).exists())
+
+    def test_admissions_stamp_records_the_held_apply(self) -> None:
+        sid = self.open_failing("admitstamp")
+        self.admitted_hold(sid)
+        stamp = self.repo / ".bale" / "sessions" / sid / ADMISSIONS_STAMP
+        self.assertEqual(json.loads(stamp.read_text(encoding="utf-8")), {
+            "version": 1,
+            "allow_out_of_scope": [EXTRA_PATH],
+            "accept_base_drift": [],
+            "allow_missing_required_check": [],
+            "accept_checkpoint_change": False,
+            "no_sandbox": False})
+
+    # -- absence is named ---------------------------------------------------
+
+    def test_legacy_hold_without_admissions_stamp_says_so(self) -> None:
+        sid = self.open_failing("admitlegacy")
+        tarball, _ = self.admitted_hold(sid)
+        (self.repo / ".bale" / "sessions" / sid / ADMISSIONS_STAMP).unlink()
+        r = self.amend_v1(sid, "admitlegacy")
+        last = self.assert_successor_is_last_line(r.stdout, sid)
+        self.assertEqual(
+            last, f"bale retry {shlex.quote(str(tarball.resolve()))} "
+                  f"--accept-checkpoint-change --sid {sid}",
+            msg="the successor still prints, carrying what it always did")
+        lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+        self.assertIn(ADMISSIONS_WHY_PHRASE, lines[-2])
+        self.assertIn(NO_ADMISSIONS_STAMP_PHRASE, lines[-2])
+        self.assertEqual(
+            sum(ADMISSIONS_WHY_PHRASE in ln for ln in lines), 1,
+            msg="one line, not several")
+        self.assertIn("FORCE: successor cannot re-state", r.stdout)
+
+    def test_unreadable_admissions_stamp_says_why(self) -> None:
+        sid = self.open_failing("admitbad")
+        self.admitted_hold(sid)
+        stamp = self.repo / ".bale" / "sessions" / sid / ADMISSIONS_STAMP
+        stamp.write_text("{not json\n", encoding="utf-8")
+        r = self.amend_v1(sid, "admitbad")
+        self.assert_successor_is_last_line(r.stdout, sid)
+        lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+        self.assertIn(ADMISSIONS_WHY_PHRASE, lines[-2])
+        self.assertIn("is not JSON", lines[-2])
+
+    def test_failed_admissions_stamp_write_degrades_the_card(self) -> None:
+        sid = self.open_failing("admitnowrite")
+        # A directory where the stamp goes makes the write fail — the
+        # loud-never-fatal branch, reached without mocking.
+        (self.repo / ".bale" / "sessions" / sid / ADMISSIONS_STAMP).mkdir()
+        tarball, held = self.admitted_hold(sid)
+        lines = self.card_lines(held.stdout)
+        notes = [ln for ln in lines if ADMISSIONS_WHY_PHRASE in ln]
+        self.assertEqual(len(notes), 1, msg=lines)
+        self.assertIn("could not be written", notes[0])
+        self.assertEqual(
+            self.fixture_rung(lines),
+            f"bale retry {shlex.quote(str(tarball.resolve()))} "
+            f"--accept-checkpoint-change --sid {sid}")
+        base = [ln for ln in lines
+                if ln.startswith("bale retry ") and ln.endswith(f"--sid {sid}")
+                and "--accept-checkpoint-change" not in ln]
+        self.assertEqual(len(base), 1, msg=lines)
+        self.assertIn(f"--allow-out-of-scope {shlex.quote(EXTRA_PATH)}",
+                      base[0], msg="the base rung renders in-process")
+        self.assertIn("FORCE: could not write the HOLD-time admissions "
+                      "stamp", held.stdout + held.stderr)
+
+    # -- a session can HOLD more than once ------------------------------------
+
+    def test_second_hold_restates_the_latest_attempts_admissions(
+            self) -> None:
+        sid = self.open_failing("admittwice")
+        self.admitted_hold(sid)
+        second = self.response(sid, "second dir", extra=False)
+        again = run_bale(self.install, ["retry", str(second)],
+                         cwd=self.repo, env=self.env)
+        self.assertEqual(again.returncode, 1,
+                         msg=f"stdout:\n{again.stdout}\nstderr:\n"
+                             f"{again.stderr}")
+        card_rung = self.fixture_rung(self.card_lines(again.stdout))
+        expected = (f"bale retry {shlex.quote(str(second.resolve()))} "
+                    f"--accept-checkpoint-change --sid {sid}")
+        self.assertEqual(card_rung, expected,
+                         msg="the first HOLD's admission does not linger")
+        r = self.amend_v1(sid, "admittwice")
+        self.assertEqual(self.assert_successor_is_last_line(r.stdout, sid),
+                         expected)
+
+
+class ComposeRetrySuccessorUnitTest(unittest.TestCase):
+    """109's Proposal 2: ``compose_retry_successor`` unit-shaped, through
+    ``harness._load_cli()``. In reach per the loader's documented limit:
+    its call path — the two stamp readers, bin/bale's log(), and
+    bale_report's pure composer — never reaches back into ``__main__``.
+    The held state is the two HOLD-time stamps written into a scratch
+    ``.bale/sessions/<sid>/`` with the writer's own serializer
+    (bale_apply.format_held_admissions_stamp), so no git or apply is
+    needed to exercise every branch."""
+
+    SID = "2026-09-19-successor-unit-001"
+    HELD = "/tmp/held dir/response-2026-09-19-successor-unit-001.tar.gz"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from harness import _load_cli
+        cls.cli = _load_cli()
+        cls.br = _load_module("bale_report")
+        cls.ba = _load_module("bale_apply")
+
+    def setUp(self) -> None:
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-successor-")
+        self.repo = Path(self._tmp.name)
+        self.sdir = self.repo / ".bale" / "sessions" / self.SID
+        self.sdir.mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def stamp(self, *, held=True, admissions=None) -> None:
+        if held:
+            (self.sdir / "held_tarball").write_text(self.HELD + "\n")
+        if admissions is not None:
+            (self.sdir / ADMISSIONS_STAMP).write_text(
+                self.ba.format_held_admissions_stamp(admissions))
+
+    def composer_rung(self, **kw) -> list:
+        forks = self.br.compose_hold_successors(
+            sid=self.SID, judge_case=self.br.HOLD_JUDGE_CHECKPOINT, **kw)
+        (fixture,) = [f for f in forks
+                      if f["ruling"] == self.br.RULING_FIXTURE_DEFECT]
+        return fixture["lines"][1:]
+
+    def successor(self) -> list:
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            return self.cli.compose_retry_successor(self.repo, self.SID)
+
+    def test_composed_with_every_admission(self) -> None:
+        admissions = {"allow_out_of_scope": ["new dir/a.py"],
+                      "accept_base_drift": ["c.py"],
+                      "allow_missing_required_check": ["lint"],
+                      "accept_checkpoint_change": True,
+                      "no_sandbox": True}
+        self.stamp(admissions=admissions)
+        lines = self.successor()
+        self.assertEqual(lines, self.composer_rung(
+            held_tarball=self.HELD, held_admissions=admissions))
+        (line,) = lines
+        self.assertEqual(shlex.split(line), [
+            "bale", "retry", self.HELD,
+            "--allow-out-of-scope", "new dir/a.py",
+            "--accept-base-drift", "c.py",
+            "--allow-missing-required-check", "lint",
+            "--accept-checkpoint-change", "--no-sandbox",
+            "--sid", self.SID])
+
+    def test_no_admission_is_the_pre_0437_line(self) -> None:
+        self.stamp(admissions={})
+        self.assertEqual(self.successor(), [
+            f"bale retry {shlex.quote(self.HELD)} "
+            f"--accept-checkpoint-change --sid {self.SID}"])
+
+    def test_missing_admissions_stamp_is_named(self) -> None:
+        self.stamp()
+        lines = self.successor()
+        self.assertEqual(len(lines), 2, msg=lines)
+        self.assertIn(ADMISSIONS_WHY_PHRASE, lines[0])
+        self.assertIn(NO_ADMISSIONS_STAMP_PHRASE, lines[0])
+        why = lines[0][lines[0].index(": ") + 2:lines[0].index("; re-state")]
+        self.assertEqual(lines, self.composer_rung(
+            held_tarball=self.HELD, held_admissions_why=why))
+
+    def test_neither_stamp_names_both_absences(self) -> None:
+        lines = self.successor()
+        self.assertEqual(len(lines), 3, msg=lines)
+        self.assertIn(ADMISSIONS_WHY_PHRASE, lines[0])
+        self.assertIn("could not be filled in", lines[1])
+        self.assertTrue(lines[2].startswith("bale retry <response-tarball>"))
+
+    def test_malformed_stamps_are_refused_whole(self) -> None:
+        for text, phrase in (
+                ("[]", "is not a JSON object"),
+                ('{"version": 2}', "version 2"),
+                (json.dumps({"version": 1, "allow_out_of_scope": "a.py",
+                             "accept_base_drift": [],
+                             "allow_missing_required_check": [],
+                             "accept_checkpoint_change": False,
+                             "no_sandbox": False}), "'allow_out_of_scope'"),
+                (json.dumps({"version": 1, "allow_out_of_scope": [],
+                             "accept_base_drift": [],
+                             "allow_missing_required_check": [],
+                             "accept_checkpoint_change": False,
+                             "no_sandbox": False, "later": 1}),
+                 "unknown keys")):
+            with self.subTest(text=text):
+                self.stamp()
+                (self.sdir / ADMISSIONS_STAMP).write_text(text)
+                lines = self.successor()
+                self.assertIn(ADMISSIONS_WHY_PHRASE, lines[0])
+                self.assertIn(phrase, lines[0])
+                self.assertEqual(lines[-1],
+                                 f"bale retry {shlex.quote(self.HELD)} "
+                                 f"--accept-checkpoint-change --sid "
+                                 f"{self.SID}")
+
+    def test_stamp_round_trips_through_the_writer(self) -> None:
+        admissions = {"allow_out_of_scope": ["x y.txt"],
+                      "accept_base_drift": [],
+                      "allow_missing_required_check": [],
+                      "accept_checkpoint_change": False,
+                      "no_sandbox": True}
+        text = self.ba.format_held_admissions_stamp(admissions)
+        self.assertTrue(text.endswith("\n"))
+        self.assertEqual(self.ba.parse_held_admissions_stamp(text),
+                         (admissions, ""))
+        self.assertEqual(
+            self.ba.parse_held_admissions_stamp(
+                self.ba.format_held_admissions_stamp({}))[0],
+            {"allow_out_of_scope": [], "accept_base_drift": [],
+             "allow_missing_required_check": [],
+             "accept_checkpoint_change": False, "no_sandbox": False})
 
 
 class AmendCheckpointAccountingTest(AmendFixture):

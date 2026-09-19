@@ -595,6 +595,8 @@ def compose_hold_successors(
     held_tarball_why: str = "",
     literal_checkpoint_path: Optional[str] = None,
     readmissions: Optional[dict] = None,
+    held_admissions: Optional[dict] = None,
+    held_admissions_why: str = "",
 ) -> list:
     """The ruling-forked successors a HOLD card ends with, as data.
 
@@ -603,9 +605,10 @@ def compose_hold_successors(
     judge_case HOLD_JUDGE_CHECKPOINT or HOLD_JUDGE_BOTH), then the
     work-defect fork (always), then the base-defect fork (always;
     v0.4.36, board 47b). `lines` are complete physical lines
-    (TARBALL.md §1): commands, plus at most one note line per fork
-    where a value cannot be composed; every fork's LAST line is a
-    command. Paths go through shlex.quote.
+    (TARBALL.md §1): commands, plus at most one note line per value
+    that cannot be composed (the held tarball's path; on the fixture
+    fork, also its admissions); every fork's LAST line is a command.
+    Paths go through shlex.quote.
 
     `held_tarball` is the HOLD-time stamp's path when the stamp was
     written this HOLD, or None when the write failed — ratified
@@ -643,7 +646,31 @@ def compose_hold_successors(
     literal [validation] base (`literal_checkpoint_path` set) the amend
     verb refuses by design, so a one-line note to commit the amended
     bytes at that path directly replaces it (ratified [3]); the retry
-    rung beneath is identical either way. The work fork: `bale retry`
+    rung beneath is identical either way.
+
+    The fixture fork's retry rung re-states the held apply's admissions
+    (v0.4.37, board 110), for the base rung's reason: the same bytes,
+    no override carried forward — a held apply admitted with
+    --allow-out-of-scope otherwise refuses at own-forecast drift on the
+    retry. Same flag grammar and quoting as the base rung, with
+    --accept-checkpoint-change always present (once, whether or not the
+    held apply exercised it: after an amendment the stamp mismatch holds
+    by construction) and --sid last. Unlike the base rung, it composes
+    from the HOLD-time admissions STAMP's outcome, never the in-process
+    dict, because `bale amend-checkpoint` prints this same line later in
+    another process and the stamp is the one input both share — the
+    held_tarball rule, applied to the admissions. `held_admissions` is
+    the stamped dict (readmissions' keys); None with a non-empty
+    `held_admissions_why` degrades loudly: one note line saying the
+    admissions could not be recovered and why, then the rung with only
+    what it always carries, so the operator re-states the rest by hand.
+    None with an empty why is the pure-call default and re-states
+    nothing — the two production callers (bale_apply's HOLD branch,
+    bin/bale's compose_retry_successor) always pass one or the other,
+    so no real absence reaches that default. A HOLD that exercised no
+    admission composes the pre-0.4.37 line byte for byte.
+
+    The work fork: `bale retry`
     at the held tarball's own path — the re-attempt closing-line rule
     delivers the corrected `response-<sid>.tar.gz` to the same
     directory under the same name. Pure.
@@ -657,6 +684,17 @@ def compose_hold_successors(
                 f"{held_tarball_why}; substitute the path below)",
                 f"bale retry <response-tarball>{extra}"]
 
+    def admission_tokens(admit: dict, *, accept_checkpoint_change: bool
+                         ) -> list:
+        return _admission_flag_tokens(
+            allow_out_of_scope=admit.get("allow_out_of_scope") or (),
+            accept_base_drift=admit.get("accept_base_drift") or (),
+            allow_missing_required_check=(
+                admit.get("allow_missing_required_check") or ()),
+            accept_checkpoint_change=accept_checkpoint_change,
+            no_sandbox=bool(admit.get("no_sandbox")),
+            quote=shlex.quote)
+
     forks: list = []
     if judge_case in (HOLD_JUDGE_CHECKPOINT, HOLD_JUDGE_BOTH):
         if literal_checkpoint_path is not None:
@@ -669,12 +707,22 @@ def compose_hold_successors(
                      f"--sid {sid}  # <amendment> and <hex> are the desk's "
                      f"published file and sha256 — unknowable when this "
                      f"card renders")
+        fixture_notes: list = []
+        if held_admissions is None and held_admissions_why:
+            fixture_notes.append(
+                f"(the held apply's admissions could not be recovered: "
+                f"{held_admissions_why}; re-state any it exercised — "
+                f"--allow-out-of-scope, --accept-base-drift, "
+                f"--allow-missing-required-check, --no-sandbox — on the "
+                f"line below)")
+        fixture_tokens = admission_tokens(dict(held_admissions or {}),
+                                          accept_checkpoint_change=True)
         forks.append({
             "ruling": RULING_FIXTURE_DEFECT,
             "heading": ("fixture defect (the checkpoint is wrong) — amend "
                         "at the desk, then retry the held tarball:"),
-            "lines": [first] + retry_line(
-                f" --accept-checkpoint-change --sid {sid}"),
+            "lines": [first] + fixture_notes + retry_line(
+                "".join(f" {t}" for t in fixture_tokens) + f" --sid {sid}"),
         })
     forks.append({
         "ruling": RULING_WORK_DEFECT,
@@ -683,14 +731,9 @@ def compose_hold_successors(
         "lines": retry_line(""),
     })
     admit = dict(readmissions or {})
-    tokens = _admission_flag_tokens(
-        allow_out_of_scope=admit.get("allow_out_of_scope") or (),
-        accept_base_drift=admit.get("accept_base_drift") or (),
-        allow_missing_required_check=(
-            admit.get("allow_missing_required_check") or ()),
-        accept_checkpoint_change=bool(admit.get("accept_checkpoint_change")),
-        no_sandbox=bool(admit.get("no_sandbox")),
-        quote=shlex.quote)
+    tokens = admission_tokens(
+        admit,
+        accept_checkpoint_change=bool(admit.get("accept_checkpoint_change")))
     forks.append({
         "ruling": RULING_BASE_DEFECT,
         "heading": ("base defect (the target base was broken before the "
@@ -716,6 +759,8 @@ def format_hold_card(
     held_tarball_why: str = "",
     literal_checkpoint_path: Optional[str] = None,
     readmissions: Optional[dict] = None,
+    held_admissions: Optional[dict] = None,
+    held_admissions_why: str = "",
 ) -> str:
     """The closing [HOLD] card (BALE.md §8.8 inspect), as one string.
 
@@ -727,6 +772,9 @@ def format_hold_card(
     bytes `send first: planner`; the trailer is verbatim. The trailer
     then carries all three ruling forks, base defect last, and
     `readmissions` rides through to compose_hold_successors' base rung.
+    v0.4.37 (board 110): `held_admissions` / `held_admissions_why` — the
+    HOLD-time admissions stamp's outcome — ride through to its fixture
+    rung, which amend-checkpoint's report composes from the same stamp.
 
     Rows: `judge` (hold_judge's line), `failed probes` (only when a
     checkpoint ran: the labels joined by ` · ` in log order, or `none`),
@@ -764,7 +812,9 @@ def format_hold_card(
             sid=sid, judge_case=judge["case"], held_tarball=held_tarball,
             held_tarball_why=held_tarball_why,
             literal_checkpoint_path=literal_checkpoint_path,
-            readmissions=readmissions):
+            readmissions=readmissions,
+            held_admissions=held_admissions,
+            held_admissions_why=held_admissions_why):
         trailer.append(f"  {fork['heading']}")
         trailer.extend(f"    {line}" for line in fork["lines"])
     return format_summary_block(rows, status="HOLD", sid=sid,

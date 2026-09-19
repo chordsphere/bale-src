@@ -1100,6 +1100,83 @@ GENERATED_ARTIFACT_FILE_GLOBS = ("*.pyc", "*.pyo")
 # before this landed) has none, and the reader says so.
 HELD_TARBALL_STAMP = "held_tarball"
 
+# The HOLD-time admissions stamp (v0.4.37, board 110): the file beside
+# HELD_TARBALL_STAMP recording every admission the held apply exercised,
+# so the fixture-defect retry rung — on the HOLD card, and in `bale
+# amend-checkpoint`'s report, which runs later in another process — can
+# re-state them. The held tarball is the same bytes on that retry and no
+# override carries forward from a failed attempt, so a line without them
+# refuses at the gate the held apply was admitted through (evidence: a
+# HOLD admitted with --allow-out-of-scope, retried from the bare line,
+# REJECTED at own-forecast drift). Same lifecycle as HELD_TARBALL_STAMP
+# by construction: written at the same terminal action, wiped by the same
+# retry discard, so what it holds is always the latest held attempt's.
+# Always written on a HOLD, empty admissions included, so absence means
+# "held before v0.4.37 (or never held)" rather than "nothing exercised".
+# Wire shape: format_held_admissions_stamp / parse_held_admissions_stamp.
+HELD_ADMISSIONS_STAMP = "held_admissions"
+HELD_ADMISSIONS_VERSION = 1
+
+# The five admissions, in the one order the flag grammar renders them
+# (bale_report._admission_flag_tokens): three repeatable, value-carrying
+# flags stored as lists of strings, two switches stored as bools. The
+# keys are the `readmissions` keys bale_report.compose_hold_successors
+# takes, so the stamp round-trips into the composer unchanged.
+HELD_ADMISSION_LIST_KEYS = ("allow_out_of_scope", "accept_base_drift",
+                            "allow_missing_required_check")
+HELD_ADMISSION_BOOL_KEYS = ("accept_checkpoint_change", "no_sandbox")
+
+
+def format_held_admissions_stamp(admissions: dict) -> str:
+    """Serialize `admissions` (the readmissions dict) as the stamp's
+    bytes: one JSON object, sorted keys, trailing newline, carrying
+    `version` and exactly the five keys. A missing key is written as its
+    empty value, so the writer never produces a stamp the parser refuses.
+    Pure."""
+    record: dict = {"version": HELD_ADMISSIONS_VERSION}
+    for key in HELD_ADMISSION_LIST_KEYS:
+        record[key] = [str(v) for v in (admissions.get(key) or ())]
+    for key in HELD_ADMISSION_BOOL_KEYS:
+        record[key] = bool(admissions.get(key))
+    return json.dumps(record, sort_keys=True) + "\n"
+
+
+def parse_held_admissions_stamp(text: str) -> tuple[Optional[dict], str]:
+    """Parse the stamp's bytes back into the readmissions dict, or None
+    with the reason it cannot be used. Strict on shape: an unknown
+    version, a missing key, or a wrongly-typed value is refused rather
+    than half-read, because a line re-stating half the admissions is
+    exactly the silent failure the stamp exists to end. Unknown extra
+    keys are refused too — a newer writer's field this reader cannot
+    render would otherwise be dropped without a word. Pure; the reason
+    names the defect, and the caller prefixes the stamp's path."""
+    try:
+        record = json.loads(text)
+    except json.JSONDecodeError as e:
+        return None, f"is not JSON ({e})"
+    if not isinstance(record, dict):
+        return None, "is not a JSON object"
+    if record.get("version") != HELD_ADMISSIONS_VERSION:
+        return None, (f"has version {record.get('version')!r}; this bale "
+                      f"reads version {HELD_ADMISSIONS_VERSION}")
+    known = {"version", *HELD_ADMISSION_LIST_KEYS, *HELD_ADMISSION_BOOL_KEYS}
+    extra = sorted(set(record) - known)
+    if extra:
+        return None, f"carries unknown keys {extra}"
+    out: dict = {}
+    for key in HELD_ADMISSION_LIST_KEYS:
+        value = record.get(key)
+        if not (isinstance(value, list)
+                and all(isinstance(v, str) and v for v in value)):
+            return None, f"has no list of non-empty strings at {key!r}"
+        out[key] = list(value)
+    for key in HELD_ADMISSION_BOOL_KEYS:
+        value = record.get(key)
+        if not isinstance(value, bool):
+            return None, f"has no boolean at {key!r}"
+        out[key] = value
+    return out, ""
+
 
 def generated_artifact_paths(paths: Iterable[str]) -> list[str]:
     """Return the sorted subset of `paths` that name generated artifacts.
@@ -3480,6 +3557,46 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                 log(f"could not write the HOLD-time tarball stamp at "
                     f"{stamp_path} ({e}); `bale amend-checkpoint` will "
                     f"emit its successor in placeholder form", force=True)
+            # HOLD-time admissions stamp (v0.4.37, board 110): every
+            # admission this apply exercised, beside held_tarball. The
+            # fixture-defect retry rung retries these same bytes, so it
+            # must re-state them — and `bale amend-checkpoint` composes
+            # that rung later, in another process, with nothing else to
+            # read them from. One dict, built once: the stamp, the card's
+            # base rung, and (through the stamp's outcome) the card's
+            # fixture rung all carry it. Written even when empty, so an
+            # absent stamp always means "held before v0.4.37". Same
+            # loud-never-fatal posture and the same composed-from-the-
+            # outcome rule as held_tarball (board 47a): on a failed write
+            # the card's fixture rung says so, exactly as the amend
+            # report will, rather than quietly using the in-process dict.
+            readmissions = {
+                "allow_out_of_scope": list(overridden_paths),
+                "accept_base_drift": list(base_drift_overridden),
+                "allow_missing_required_check":
+                    list(required_check_overridden),
+                "accept_checkpoint_change":
+                    checkpoint_result is not None
+                    and checkpoint_stamp_matched is False,
+                "no_sandbox": sandbox_off_source == "flag",
+            }
+            admissions_path = sessions_dir / HELD_ADMISSIONS_STAMP
+            held_admissions: Optional[dict] = None
+            held_admissions_why = ""
+            try:
+                admissions_path.write_text(
+                    format_held_admissions_stamp(readmissions),
+                    encoding="utf-8")
+                held_admissions = dict(readmissions)
+                log(f"stamped held admissions at {admissions_path}")
+            except OSError as e:
+                held_admissions_why = (f"the HOLD-time admissions stamp "
+                                       f"could not be written at "
+                                       f"{admissions_path} ({e})")
+                log(f"could not write the HOLD-time admissions stamp at "
+                    f"{admissions_path} ({e}); the fixture-defect retry "
+                    f"line will say its admissions could not be "
+                    f"recovered", force=True)
             # Telemetry record (v0.3.9, B2 — BALE.md §8.9). The HOLD attempt
             # is appended now; a later retry appends its own attempt to the
             # same record rather than duplicating the file.
@@ -3546,17 +3663,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     else None),
                 # The base-defect rung retries the SAME bytes, so it
                 # re-states every admission this apply exercised (no
-                # override carries forward — BALE.md §8.8).
-                readmissions={
-                    "allow_out_of_scope": list(overridden_paths),
-                    "accept_base_drift": list(base_drift_overridden),
-                    "allow_missing_required_check":
-                        list(required_check_overridden),
-                    "accept_checkpoint_change":
-                        checkpoint_result is not None
-                        and checkpoint_stamp_matched is False,
-                    "no_sandbox": sandbox_off_source == "flag",
-                },
+                # override carries forward — BALE.md §8.8); it renders
+                # in-process. The fixture-defect rung retries the same
+                # bytes too, but its line is also amend-checkpoint's, so
+                # it composes from the admissions stamp's outcome (board
+                # 110) — the one input both processes share.
+                readmissions=readmissions,
+                held_admissions=held_admissions,
+                held_admissions_why=held_admissions_why,
             ))
             if json_mode():
                 # Emitted on the exit-1 path deliberately: a machine

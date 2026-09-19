@@ -252,6 +252,7 @@ from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
 # bale_apply; bale_pack never imports the apply path, and bale_apply never
 # imports bale_pack.
 from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
+    HELD_ADMISSIONS_STAMP,
     HELD_TARBALL_STAMP,
     apply_pipeline,
     clarifications_dir,
@@ -260,6 +261,7 @@ from bale_apply import (  # noqa: E402 — sys.path tweak above is load-bearing
     default_staging_dir,
     default_staging_root,
     read_request_checkpoint_stamp,
+    parse_held_admissions_stamp,
     record_rejected_attempt,
     refuse_dirty_on_target,
     resolve_no_interact,
@@ -1470,9 +1472,10 @@ def resolve_inbound_path(arg: str, cwd: Path, search_paths: list[str],
     fail_not_found — so `bale apply /abs/dir/response-X.tar.gz` lists
     the `response-X (1).tar.gz` twin beside it exactly as a relative
     search miss does. The refusal's first line is the caller's old
-    `<kind> not found: <resolved path>` byte for byte; the callers'
-    own post-resolution checks stay as defense in depth and are now
-    unreachable for a verb caller. Verb-less callers are unchanged:
+    `<kind> not found: <resolved path>` byte for byte. The verb
+    callers' own post-resolution checks were unreachable from then and
+    are retired (apply v0.4.36; retry and handoff v0.4.37), so a
+    returned path has passed is_file(). Verb-less callers are unchanged:
     they still receive the unchecked path and do their own read.
 
     The semantics are layered so that a user with no search_paths
@@ -1543,9 +1546,11 @@ def fail_not_found(kind: str, path, verb: Optional[str] = None, *,
 
     Callers with no verb to render (pack's --readme-file, open's bundle,
     amend-checkpoint's amendment file) pass None and keep the bare
-    refusal. Wording lives here only: resolve_inbound_path, retry's and
-    handoff's defensive checks, and amend-checkpoint's two refusals all
-    route through this function, so the not-found lines cannot drift.
+    refusal. Wording lives here only: resolve_inbound_path and
+    amend-checkpoint's two refusals route through this function, so the
+    not-found lines cannot drift. (apply's, retry's and handoff's own
+    post-resolution checks are retired — v0.4.36 and v0.4.37 — each
+    with its unreachability proof left in a comment at the call site.)
     """
     lines = [f"{kind} not found: {path}"]
     if search_paths is not None:
@@ -1835,7 +1840,7 @@ class BaleignoreMatcher:
             if stripped.startswith("!"):
                 raise ValueError(
                     f"negation patterns (lines starting with '!') are not "
-                    f"supported at v0.1. Offending line: "
+                    f"supported. Offending line: "
                     f"{stripped!r}. Narrow `--include` paths or remove "
                     f"the conflicting positive pattern instead."
                 )
@@ -2444,12 +2449,16 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # global+project config.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
+    # No post-resolution existence check (removed v0.4.37, the board-110
+    # rider; cmd_apply's twin went in v0.4.36). With a verb,
+    # resolve_inbound_path returns only from its last line, after both
+    # refusal branches: locate_inbound_path's None goes to
+    # fail_not_found, and so does a non-None path that fails is_file().
+    # fail_not_found ends in fail(), and fail() ends in sys.exit on every
+    # branch — so a returned path has passed is_file(), and the check
+    # that stood here could not run.
     tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                         verb="retry")
-    if not tarball_path.is_file():
-        # Unreachable since board 106 (the resolver refuses a verb's miss
-        # itself); kept as defense in depth, through the one wording home.
-        fail_not_found("tarball", tarball_path, "retry", cwd=cwd)
 
     # json output mode (v0.3.14, retry parity): same two-part contract as
     # `bale apply --json` (v0.2.8) — stdout carries exactly the one-line
@@ -2765,7 +2774,12 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
        stamp's real path and --sid <sid> — on both the amendment-proper
        and idempotent-re-run rungs (compose_retry_successor); a
        session held before the stamp existed degrades loudly to the
-       placeholder form with one line saying why. Never omitted.
+       placeholder form with one line saying why. Never omitted. Since
+       board 110 (v0.4.37) the line also re-states every admission the
+       held apply exercised, from the HOLD-time admissions stamp — the
+       same bytes as the HOLD card's fixture-defect rung; a session
+       held before that stamp existed gets one line saying its
+       admissions could not be recovered, and the line still prints.
     """
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
@@ -2952,7 +2966,9 @@ def cmd_amend_checkpoint(args: argparse.Namespace) -> int:
     # board 71 (v0.4.25) the line is fully composed from the HOLD-time
     # tarball stamp — real path, --sid filled — on both the amendment-
     # proper and idempotent-re-run rungs; a session with no stamp
-    # degrades loudly to the placeholder form, saying why.
+    # degrades loudly to the placeholder form, saying why. Since board
+    # 110 (v0.4.37) it re-states the held apply's admissions from their
+    # own HOLD-time stamp, degrading the same way when that is absent.
     successor_lines = compose_retry_successor(repo, sid)
     print(format_summary_block(
         [
@@ -3005,6 +3021,36 @@ def read_held_tarball_stamp(repo: Path, sid: str) -> tuple[Optional[str], str]:
     return text, ""
 
 
+def read_held_admissions_stamp(repo: Path,
+                               sid: str) -> tuple[Optional[dict], str]:
+    """Return (admissions, reason): the HOLD-time admissions stamp for
+    `sid` as the readmissions dict, or None with the reason it is absent
+    or unusable (board 110, v0.4.37).
+
+    Apply writes `.bale/sessions/<sid>/held_admissions` beside
+    `held_tarball` on every HOLD, empty admissions included — so a
+    missing stamp is a session held before v0.4.37 wrote one, or one
+    not held since pack, never "the held apply exercised nothing". The
+    shape is bale_apply's (format_/parse_held_admissions_stamp), so the
+    writer and this reader cannot disagree about it. Every absence is
+    named for the operator, read_held_tarball_stamp's posture.
+    """
+    stamp = sessions_root(repo) / sid / HELD_ADMISSIONS_STAMP
+    if not stamp.is_file():
+        return None, (f"no HOLD-time admissions stamp at {stamp} — the "
+                      f"session was held before v0.4.37 stamped one, or "
+                      f"has not reached HOLD since pack")
+    try:
+        text = stamp.read_text(encoding="utf-8")
+    except OSError as e:
+        return None, (f"the HOLD-time admissions stamp at {stamp} is "
+                      f"unreadable ({e})")
+    admissions, defect = parse_held_admissions_stamp(text)
+    if admissions is None:
+        return None, f"the HOLD-time admissions stamp at {stamp} {defect}"
+    return admissions, ""
+
+
 def compose_retry_successor(repo: Path, sid: str) -> list[str]:
     """The amend-checkpoint successor lines, composed from the HOLD-time
     stamp (board 71). Returns the trailer lines to append: the composed
@@ -3025,6 +3071,13 @@ def compose_retry_successor(repo: Path, sid: str) -> list[str]:
     amendment report and the card therefore agree by construction on
     both the composed line and the degrade form, not by a test that
     compares two copies.
+
+    Board 110 (v0.4.37): the rung re-states the held apply's admissions,
+    read from the HOLD-time admissions stamp (read_held_admissions_stamp)
+    — the same stamp outcome the card's fixture rung composed from, so
+    the agreement survives the admissions too. A missing or unusable
+    stamp degrades the same way the path does: a FORCE log here, and
+    the composer's one note line saying why, above the rung.
     """
     held, why = read_held_tarball_stamp(repo, sid)
     if held is not None:
@@ -3032,9 +3085,17 @@ def compose_retry_successor(repo: Path, sid: str) -> list[str]:
     else:
         log(f"successor degraded to the placeholder form — {why}",
             force=True)
+    admissions, admissions_why = read_held_admissions_stamp(repo, sid)
+    if admissions is not None:
+        log("successor re-states the HOLD-time admissions stamp's "
+            "admissions")
+    else:
+        log(f"successor cannot re-state the held apply's admissions — "
+            f"{admissions_why}", force=True)
     forks = compose_hold_successors(
         sid=sid, judge_case=HOLD_JUDGE_CHECKPOINT,
-        held_tarball=held, held_tarball_why=why)
+        held_tarball=held, held_tarball_why=why,
+        held_admissions=admissions, held_admissions_why=admissions_why)
     fixture = [f for f in forks if f["ruling"] == RULING_FIXTURE_DEFECT]
     if len(fixture) != 1 or len(fixture[0]["lines"]) < 2:
         # The composer's contract changed shape under us. Refuse loudly
@@ -3668,12 +3729,12 @@ def cmd_handoff(args: argparse.Namespace) -> int:
     # the muscle memory.
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
+    # No post-resolution existence check (removed v0.4.37, the board-110
+    # rider): the same proof as cmd_retry's — with a verb, the resolver
+    # returns only a path that passed is_file(); every miss exits through
+    # fail_not_found → fail() → sys.exit.
     tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                         verb="handoff")
-    if not tarball_path.is_file():
-        # Unreachable since board 106 (the resolver refuses a verb's miss
-        # itself); kept as defense in depth, through the one wording home.
-        fail_not_found("tarball", tarball_path, "handoff", cwd=cwd)
 
     # --checkpoint-file (v0.4.28, board 73 path 2): the same front-loaded
     # read and base-shape gate cmd_pack runs, sited pre-tarball so a
@@ -4439,9 +4500,9 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
     print(f"  env:    BALE_HOOK={name}")
     print(f"          BALE_SESSION_ID={sid}")
     print(f"          BALE_REPO_ROOT={repo}")
-    print(f"  This script runs as your user. It may write outside the repo,")
-    print(f"  install software, or perform any action its author chose.")
-    print(f"  Inspect the script before approving.")
+    print("  This script runs as your user. It may write outside the repo,")
+    print("  install software, or perform any action its author chose.")
+    print("  Inspect the script before approving.")
     if no_interact:
         # Non-interactive mode: the pre-hook confirmation resolves from
         # config instead of a prompt. The banner above still printed, so the
@@ -6583,7 +6644,9 @@ def build_parser() -> argparse.ArgumentParser:
             "session's per-sid checkpoint path as a pathspec-limited "
             "bale-prefixed commit, and end the report with the "
             "paste-ready `bale retry ... --accept-checkpoint-change` "
-            "line as the named successor. The verb mechanizes the "
+            "line as the named successor, re-stating every admission "
+            "the held apply exercised (the HOLD card's fixture-defect "
+            "line, byte for byte). The verb mechanizes the "
             "transport, never the deliberateness: the provenance gate "
             "still refuses at retry, the accept stays per-invocation, "
             "and stamp_matched: false remains the truthful record. "

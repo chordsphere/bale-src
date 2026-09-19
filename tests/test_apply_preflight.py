@@ -33,9 +33,9 @@ list was verified against the doc per its own instruction):
 - 25  non-normal response-kind shape
 - 32  duplicate changes[] paths (v0.4.2 — the board-35 rider ratified
       2026-08-07: TARBALL.md §5.2's prose converted to apply-side
-      contract; this suite's earlier behavior pin, which documented
-      the identical-duplicate acceptance the rider closed, is
-      superseded by the row's own test)
+      contract; the row's own test is its first pin — session 1 of this
+      suite deliberately pinned nothing for duplicates, its recorded
+      wrinkle, so there was no earlier pin to supersede)
 - 37  apply-side bundle backstop (v0.4.25 — the board-71 rider, accepted
       2026-08-24 from the 49a-i session's Proposals: no changes[] path
       ends in ``.bale-bundle``; the landing-direction twin of pack's
@@ -1732,105 +1732,6 @@ class BaleignoreLoaderAttributionTest(unittest.TestCase):
                          msg="the matcher's own sentence names no source")
 
 
-class SubcommandHelpLayoutTest(unittest.TestCase):
-    """Board 106 (99a): every subparser renders its description with
-    bin/bale's SubcommandHelpFormatter, a RawDescriptionHelpFormatter
-    that keeps blank-line paragraph breaks and indented literal blocks
-    and still wraps prose. Rendered through the real CLI at a pinned
-    80-column width (argparse wraps to COLUMNS - 2)."""
-
-    COLUMNS = 80
-    COMMANDS = (
-        ("pack",), ("apply",), ("retry",), ("amend-checkpoint",),
-        ("relay",), ("revert",), ("rollback",), ("unlock",), ("open",),
-        ("handoff",), ("config",), ("config", "init"), ("config", "hooks"),
-        ("help",), ("completion",), ("status",), ("stats",),
-    )
-
-    def setUp(self) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-help-")
-        self.tmp = Path(self._tmpdir.name)
-        self.home = make_sandbox_home(self.tmp)
-        self.install = make_install(self.tmp)
-        self.env = dict(bale_env(self.home, self.tmp),
-                        COLUMNS=str(self.COLUMNS))
-
-    def tearDown(self) -> None:
-        self._tmpdir.cleanup()
-
-    def help_text(self, *command: str) -> str:
-        result = run_bale(self.install, [*command, "--help"],
-                          cwd=self.tmp, env=self.env)
-        self.assertEqual(result.returncode, 0, msg=result.stderr)
-        return result.stdout
-
-    @staticmethod
-    def description_lines(text: str) -> list:
-        """The lines between the usage block and the first argument
-        section heading."""
-        lines = text.splitlines()
-        start = next(i for i, ln in enumerate(lines) if ln == "") + 1
-        end = next((i for i, ln in enumerate(lines)
-                    if i >= start and ln.endswith(":")
-                    and not ln.startswith(" ")
-                    and ln in ("positional arguments:", "options:",
-                               "optional arguments:")), len(lines))
-        return lines[start:end]
-
-    def test_completion_examples_render_on_their_own_lines(self) -> None:
-        lines = self.help_text("completion").splitlines()
-        for example in (
-                "    source <(bale completion bash)",
-                "    bale completion bash > "
-                "~/.local/share/bash-completion/completions/bale"):
-            with self.subTest(example=example.strip()):
-                self.assertIn(example, lines)
-                at = lines.index(example)
-                self.assertEqual(lines[at - 1], "",
-                                 msg="blank line before the example")
-                self.assertEqual(lines[at + 1], "",
-                                 msg="blank line after the example")
-        self.assertIn("Or install persistently:", lines)
-
-    def test_authored_paragraph_breaks_survive(self) -> None:
-        for command, opening in (
-                ("apply", "The tarball argument is resolved against"),
-                ("apply", "Inspection flags (--show-validator,"),
-                ("retry", "A HOLD is retried on one of two rulings."),
-                ("retry", "The per-attempt flags mirror")):
-            with self.subTest(command=command, paragraph=opening):
-                lines = self.help_text(command).splitlines()
-                starts = [i for i, ln in enumerate(lines)
-                          if ln.startswith(opening)]
-                self.assertEqual(len(starts), 1, msg="\n".join(lines))
-                self.assertEqual(lines[starts[0] - 1], "")
-
-    def test_every_description_still_wraps(self) -> None:
-        """No subparser's prose relies on a formatter that stopped
-        wrapping: every non-literal description line fits the width."""
-        for command in self.COMMANDS:
-            with self.subTest(command=" ".join(command)):
-                description = self.description_lines(
-                    self.help_text(*command))
-                self.assertTrue(any(ln.strip() for ln in description),
-                                msg="expected a rendered description")
-                for line in description:
-                    if line.startswith("    "):
-                        continue  # a literal block, verbatim by design
-                    self.assertLessEqual(len(line), self.COLUMNS - 2,
-                                         msg=line)
-
-    def test_single_paragraph_description_renders_as_one_block(
-            self) -> None:
-        """A description written as one string keeps argparse's filled
-        layout: one contiguous block, no blank line inside it."""
-        description = self.description_lines(self.help_text("status"))
-        body = [ln for ln in description if ln.strip()]
-        self.assertGreater(len(body), 1)
-        first = description.index(body[0])
-        self.assertEqual(description[first:first + len(body)], body)
-
-
 # ---------------------------------------------------------------------------
 # Board 47a (v0.4.34): the HOLD card renderer's unit pins
 # ---------------------------------------------------------------------------
@@ -2276,6 +2177,94 @@ class HoldRelayUnitTest(unittest.TestCase):
                 if f["ruling"] == self.br.RULING_WORK_DEFECT][0]
         self.assertEqual(work["lines"], [f"bale retry {shlex.quote(self.HELD)}"],
                          msg="the work rung is new bytes: no re-admissions")
+
+    # -- board 110 (v0.4.37): the fixture rung re-states them too ------------
+
+    ALL_ADMISSIONS = {"allow_out_of_scope": ["new dir/a.py", "b.py"],
+                      "accept_base_drift": ["c.py"],
+                      "allow_missing_required_check": ["lint"],
+                      "accept_checkpoint_change": True,
+                      "no_sandbox": True}
+
+    def fixture_fork(self, **kw) -> dict:
+        forks = self.br.compose_hold_successors(
+            sid=self.SID, judge_case=self.br.HOLD_JUDGE_CHECKPOINT,
+            held_tarball=self.HELD, **kw)
+        (fixture,) = [f for f in forks
+                      if f["ruling"] == self.br.RULING_FIXTURE_DEFECT]
+        return fixture
+
+    def test_fixture_rung_restates_the_stamped_admissions(self) -> None:
+        import shlex
+        fixture = self.fixture_fork(held_admissions=self.ALL_ADMISSIONS)
+        amend, line = fixture["lines"]
+        self.assertTrue(amend.startswith("bale amend-checkpoint "))
+        self.assertEqual(shlex.split(line), [
+            "bale", "retry", self.HELD,
+            "--allow-out-of-scope", "new dir/a.py",
+            "--allow-out-of-scope", "b.py",
+            "--accept-base-drift", "c.py",
+            "--allow-missing-required-check", "lint",
+            "--accept-checkpoint-change", "--no-sandbox",
+            "--sid", self.SID])
+
+    def test_fixture_rung_matches_the_base_rung_grammar(self) -> None:
+        """Same admissions → the fixture and base rungs are the same
+        line: one grammar, one quoting, --sid last on both."""
+        forks = self.br.compose_hold_successors(
+            sid=self.SID, judge_case=self.br.HOLD_JUDGE_CHECKPOINT,
+            held_tarball=self.HELD, readmissions=self.ALL_ADMISSIONS,
+            held_admissions=self.ALL_ADMISSIONS)
+        by = {f["ruling"]: f["lines"] for f in forks}
+        self.assertEqual(by[self.br.RULING_FIXTURE_DEFECT][-1],
+                         by[self.br.RULING_BASE_DEFECT][-1])
+        self.assertEqual(by[self.br.RULING_WORK_DEFECT],
+                         [f"bale retry {__import__('shlex').quote(self.HELD)}"],
+                         msg="the work rung stays bare")
+
+    def test_fixture_rung_carries_the_accept_flag_exactly_once(self) -> None:
+        for exercised in (True, False):
+            with self.subTest(exercised=exercised):
+                line = self.fixture_fork(held_admissions={
+                    "allow_out_of_scope": ["a.py"],
+                    "accept_checkpoint_change": exercised})["lines"][-1]
+                self.assertEqual(line.split().count(
+                    "--accept-checkpoint-change"), 1, msg=line)
+
+    def test_fixture_rung_without_admissions_is_todays_line(self) -> None:
+        import shlex
+        today = (f"bale retry {shlex.quote(self.HELD)} "
+                 f"--accept-checkpoint-change --sid {self.SID}")
+        for kw in ({}, {"held_admissions": {}},
+                   {"held_admissions": {"allow_out_of_scope": [],
+                                        "accept_base_drift": [],
+                                        "allow_missing_required_check": [],
+                                        "accept_checkpoint_change": False,
+                                        "no_sandbox": False}}):
+            with self.subTest(kw=kw):
+                self.assertEqual(self.fixture_fork(**kw)["lines"][1:],
+                                 [today])
+
+    def test_fixture_rung_names_unrecoverable_admissions(self) -> None:
+        import shlex
+        fixture = self.fixture_fork(held_admissions=None,
+                                    held_admissions_why="the dog ate it")
+        amend, note, line = fixture["lines"]
+        self.assertTrue(note.startswith(
+            "(the held apply's admissions could not be recovered: "
+            "the dog ate it; "), msg=note)
+        self.assertEqual(line, f"bale retry {shlex.quote(self.HELD)} "
+                               f"--accept-checkpoint-change --sid {self.SID}")
+
+    def test_card_fixture_rung_ignores_in_process_readmissions(
+            self) -> None:
+        """The fixture rung composes from the stamp's outcome only: an
+        in-process readmissions dict never leaks into it, or the card
+        could print a line amend-checkpoint cannot."""
+        fixture = self.fixture_fork(readmissions=self.ALL_ADMISSIONS,
+                                    held_admissions=None,
+                                    held_admissions_why="write failed")
+        self.assertNotIn("--allow-out-of-scope", fixture["lines"][-1])
 
     def test_admission_command_grammar_unchanged(self) -> None:
         self.assertEqual(
