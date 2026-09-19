@@ -61,6 +61,30 @@ pinned as TARBALL_SHAPE_SENTENCE against the §5.10 section body alone
 a constant-level check holds the two pinned copies to one shared
 second half, the half that was grown in step at board 105.
 
+Since the opener reword's doc sweep (session
+2026-09-19-opener-reword-docs-005, split from
+2026-09-19-opener-reword-doc-sweep-r2-003) the shape sentence is
+retired in both doc homes. Its successor is the re-scoped ask rule
+(DOC_ASK_SENTENCE): a turn that *needs something* ends in a probe
+block, a light question block, or a clarification response, and every
+other turn is ordinary prose. The ruling's core clause, "a question
+asked as prose is not a shape", survives verbatim inside it. The
+session opener no longer carries a copy of the doc sentence: it has
+its own chat-facing ask sentence, pinned by the opener's suite, so the
+doc pins here stand on the ruling of record, not on agreement with
+the opener. Beside it lands the deliverable ruling
+(DOC_DELIVERABLE_SENTENCE): a worker session owes one response
+tarball, a read-only planner session owes none. Both are VERBATIM in
+the brief of record and pinned byte-exact (whitespace-collapsed) in
+each home: DOC_ASK in docs/CLAUDE.md 3 and docs/TARBALL.md 5.10,
+DOC_DELIVERABLE in docs/CLAUDE.md 3 and docs/TARBALL.md 2, each
+against its section body alone. The retired sentence's fragments are
+pinned absent. The same sweep names the request README as the
+session's brief: docs/CLAUDE.md META's reading order lists it third
+and names the manifest's `readme` key, docs/TARBALL.md 3.2 documents
+the key, and 3.1's old "most sessions skip the README" claim stays
+gone.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -146,12 +170,11 @@ def subsection(text: str, number: str) -> str:
 BUNDLE_RULING_LEAD = "**The bundle is the delivery form of every planner-authored pack"
 SINGLE_LINE_BULLET = "**Commands are single-line"
 
-# The terminal-shapes ruling's text of record. The two TARBALL.md
-# sentences are verbatim-marked in the ruling and land byte-exact
-# (whitespace collapsed, since the docs wrap at 70); the CLAUDE.md
-# sentence agrees with the session opener's closing sentence that
-# bale emits. Keep these narrow — a sentence each — so unrelated
-# edits nearby never trip them.
+# The terminal-shapes ruling's text of record for the light tier. The
+# two TARBALL.md sentences are verbatim-marked in the ruling and land
+# byte-exact (whitespace collapsed, since the docs wrap at 70). Keep
+# these narrow — a sentence each — so unrelated edits nearby never
+# trip them.
 LIGHT_ADMISSION_SENTENCE = (
     "A question set is admitted to the light tier when it holds at "
     "most three questions, none multi-tiered, and each carries a "
@@ -161,32 +184,45 @@ LIGHT_REPLIES_SENTENCE = (
     "The packer replies in one of three ways: answer inline; "
     "\"as assumed\" to ratify every default at once; or \"formal\" to "
     "have the same questions returned as a clarification response.")
-# Board 105 grew the sentence's second half (explanation in prose is
-# welcome; only an ask ends in a block), in step with the opener's
-# OPENER_SHAPE_SENTENCE — the pin moves with both.
-EVERY_TURN_SENTENCE = (
-    "Every turn Claude ends in tarball mode takes one "
-    "machine-recognizable shape: a response tarball, a probe block, a "
-    "light question block, or a clarification response; a question "
-    "asked as prose is not a shape. Explanation in prose is expected "
-    "and welcome; the rule is that a turn that asks ends in a block, "
-    "so nothing is lost.")
-# The same ruling's third home, TARBALL.md 5.10, in that section's own
-# words (board 109, from 105's Proposals): the first half is worded for
-# the contract doc — "the worker", an em-dash, the 4.2 / 5.9 pointers —
-# while the second half is CLAUDE.md's verbatim. Pinned against the 5.10
-# body only; the point is that *this* home keeps its copy.
-TARBALL_SHAPE_SENTENCE = (
-    "Every turn the worker ends in tarball mode takes one "
-    "machine-recognizable shape — a response tarball, a probe block "
-    "(§4.2), a light question block, or a clarification response "
-    "(§5.9); a question asked as prose is not a shape. Explanation in "
-    "prose is expected and welcome; the rule is that a turn that asks "
-    "ends in a block, so nothing is lost.")
-# The second half both pinned copies must share, word for word.
-SHAPE_SENTENCE_SECOND_HALF = (
-    "Explanation in prose is expected and welcome; the rule is that a "
-    "turn that asks ends in a block, so nothing is lost.")
+# The re-scoped ask rule (opener reword, 2026-09-19): VERBATIM in the
+# brief of record, one wording in both homes (CLAUDE.md 3 and
+# TARBALL.md 5.10). It replaced the "Every turn ... takes one
+# machine-recognizable shape" sentence and that sentence's board-105
+# second half, in both homes at once.
+DOC_ASK_SENTENCE = (
+    "A turn that needs something from the packer, an environment fact "
+    "or a decision, ends in the matching shape: a probe block, a light "
+    "question block, or a clarification response; a question asked as "
+    "prose is not a shape, because it gets lost. Every other turn is "
+    "ordinary prose.")
+# The terminal-shapes ruling's core clause, which must survive inside
+# the re-scoped rule word for word.
+SHAPE_RULING_CORE_CLAUSE = "a question asked as prose is not a shape"
+# What each session mode owes back (opener reword, 2026-09-19):
+# VERBATIM in the brief of record, homed in CLAUDE.md 3 and TARBALL.md
+# 2. The backticks around `bale open` are part of the pinned bytes.
+DOC_DELIVERABLE_SENTENCE = (
+    "What a session owes back follows from how it was packed: a worker "
+    "session, any pack with a write forecast, owes one response tarball "
+    "carrying the finished work; a planner session, a read-only pack, "
+    "lands nothing and returns no response tarball, not even an empty "
+    "one — it owes its answer in chat and, for each session it is "
+    "asked to author, a crafter bundle beside its `bale open` line.")
+# Fragments of the retired shape sentence, by the docs it lived in. A
+# fragment coming back means a second, contradicting ask rule.
+RETIRED_SHAPE_FRAGMENTS = (
+    ("CLAUDE.md", "machine-recognizable shape"),
+    ("TARBALL.md", "machine-recognizable shape"),
+    ("CLAUDE.md", "Explanation in prose is expected and welcome"),
+    ("TARBALL.md", "Explanation in prose is expected and welcome"),
+)
+# The README sweep: the stale claim that retired from TARBALL.md 3.1,
+# and the phrase that named the brief vaguely in CLAUDE.md's reading
+# order and read-paths row.
+RETIRED_README_FRAGMENTS = (
+    ("TARBALL.md", "Most sessions skip the README"),
+    ("CLAUDE.md", "the session prompt"),
+)
 
 # The chat-invitation phrases the ruling struck, by the doc each lived
 # in. A phrase reappearing is the drift this pin exists to catch: a
@@ -301,10 +337,12 @@ class BundleRulingPins(unittest.TestCase):
 
 
 class TerminalShapePins(unittest.TestCase):
-    """The terminal-shapes ruling stays stated where the docs say it
-    is: the light question block's text of record in TARBALL.md
-    5.10, the every-turn rule in CLAUDE.md 3, and the struck chat
-    invitations absent."""
+    """The terminal-shapes ruling, as re-scoped by the opener reword,
+    stays stated where the docs say it is: the light question block's
+    text of record in TARBALL.md 5.10, the ask rule in CLAUDE.md 3 and
+    TARBALL.md 5.10, the deliverable rule in CLAUDE.md 3 and
+    TARBALL.md 2, and the retired sentence and struck chat invitations
+    absent."""
 
     def setUp(self):
         self.docs = load_docs()
@@ -333,18 +371,26 @@ class TerminalShapePins(unittest.TestCase):
                     "the ruling marked it verbatim; restore it rather "
                     f"than paraphrase it:\n  {sentence}")
 
-    def test_claude_states_every_turn_rule(self):
+    def test_claude_3_states_ask_rule(self):
+        """CLAUDE.md 3 carries the re-scoped ask rule, byte-exact
+        (whitespace aside), in the section — not merely the file."""
         self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
+        section = normalize(top_level_section(self.docs["CLAUDE.md"], 3))
         self.assertTrue(
-            normalize(EVERY_TURN_SENTENCE) in self.normalized["CLAUDE.md"],
-            "docs/CLAUDE.md no longer states the every-turn-ends-in-a-"
-            "shape rule beside its tarball-mode shapes — the sentence "
-            "must agree with the session opener bale emits:\n  "
-            f"{EVERY_TURN_SENTENCE}")
+            section,
+            "docs/CLAUDE.md has no `## 3.` heading — the modes section "
+            "moved; section numbers are stable (DOCS.md 6.4)")
+        self.assertTrue(
+            normalize(DOC_ASK_SENTENCE) in section,
+            "docs/CLAUDE.md 3 no longer states the ask rule byte-exact "
+            "(whitespace aside) — it is the ruling of record, VERBATIM "
+            "in the opener-reword brief, and CLAUDE.md 3 is one of its "
+            "two doc homes; restore it rather than paraphrase it:\n  "
+            f"{DOC_ASK_SENTENCE}")
 
-    def test_tarball_5_10_states_shape_sentence(self):
-        """TARBALL.md 5.10 keeps its own copy of the shape sentence,
-        second half included — in the section, not merely the file."""
+    def test_tarball_5_10_states_ask_rule(self):
+        """TARBALL.md 5.10 carries the same ask rule, same words, in
+        the section body alone."""
         self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
         section = normalize(subsection(self.docs["TARBALL.md"], "5.10"))
         self.assertTrue(
@@ -353,12 +399,47 @@ class TerminalShapePins(unittest.TestCase):
             "question block's home moved; section numbers are stable "
             "(DOCS.md 6.4)")
         self.assertTrue(
-            normalize(TARBALL_SHAPE_SENTENCE) in section,
-            "docs/TARBALL.md 5.10 no longer states the shape sentence "
-            "in its own words, second half included — the ruling lives "
-            "in three homes (the opener, CLAUDE.md 3, TARBALL.md 5.10) "
-            "and this is the third; restore it rather than paraphrase "
-            f"it:\n  {TARBALL_SHAPE_SENTENCE}")
+            normalize(DOC_ASK_SENTENCE) in section,
+            "docs/TARBALL.md 5.10 no longer states the ask rule "
+            "byte-exact (whitespace aside) — the rule has two doc homes "
+            "(CLAUDE.md 3, TARBALL.md 5.10), one wording; restore it "
+            f"rather than paraphrase it:\n  {DOC_ASK_SENTENCE}")
+
+    def test_claude_3_states_deliverable_rule(self):
+        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
+        section = normalize(top_level_section(self.docs["CLAUDE.md"], 3))
+        self.assertTrue(
+            normalize(DOC_DELIVERABLE_SENTENCE) in section,
+            "docs/CLAUDE.md 3 no longer states what each session mode "
+            "owes back, byte-exact (whitespace aside) — the ruling of "
+            "record, VERBATIM in the opener-reword brief:\n  "
+            f"{DOC_DELIVERABLE_SENTENCE}")
+
+    def test_tarball_2_states_deliverable_rule(self):
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        section = normalize(top_level_section(self.docs["TARBALL.md"], 2))
+        self.assertTrue(
+            section,
+            "docs/TARBALL.md has no `## 2.` heading — the exchanges "
+            "section moved; section numbers are stable (DOCS.md 6.4)")
+        self.assertTrue(
+            normalize(DOC_DELIVERABLE_SENTENCE) in section,
+            "docs/TARBALL.md 2 no longer states what each session mode "
+            "owes back, byte-exact (whitespace aside) — the ruling of "
+            "record, VERBATIM in the opener-reword brief:\n  "
+            f"{DOC_DELIVERABLE_SENTENCE}")
+
+    def test_retired_shape_sentence_stays_absent(self):
+        for doc, fragment in RETIRED_SHAPE_FRAGMENTS:
+            with self.subTest(doc=doc, fragment=fragment):
+                self.assertIn(doc, self.docs, f"docs/{doc} is missing")
+                self.assertFalse(
+                    normalize(fragment) in self.normalized[doc],
+                    f"docs/{doc} carries {fragment!r} again — the "
+                    "every-turn shape sentence retired in favor of the "
+                    "re-scoped ask rule, and a second copy would say "
+                    "every turn needs a shape when only a turn that asks "
+                    "does")
 
     def test_subsection_reads_5_10_alone(self):
         """Self-test on the extractor, so the 5.10 pin cannot pass by
@@ -376,19 +457,13 @@ class TerminalShapePins(unittest.TestCase):
                          "\nten body\n#### 5.10.1 Deep\ndeep body\n")
         self.assertEqual(subsection(synthetic, "5.2"), "")
 
-    def test_pinned_shape_sentences_share_second_half(self):
-        """The two pinned copies (CLAUDE.md 3's and TARBALL.md 5.10's)
-        end on the same second half — the half board 105 grew in step.
-        A later edit to one constant that forgets the other trips
-        here, before either doc is read."""
-        for label, sentence in (("CLAUDE.md 3", EVERY_TURN_SENTENCE),
-                                ("TARBALL.md 5.10", TARBALL_SHAPE_SENTENCE)):
-            with self.subTest(copy=label):
-                self.assertTrue(
-                    normalize(sentence).endswith(
-                        normalize(SHAPE_SENTENCE_SECOND_HALF)),
-                    f"the {label} pin no longer ends on the shared "
-                    "second half of the shape sentence")
+    def test_ask_rule_keeps_the_ruling_core_clause(self):
+        """Constant-level: the re-scoped rule still carries the
+        terminal-shapes ruling's core clause word for word, so a later
+        edit to the constant cannot quietly drop the ruling it
+        inherits. Trips before either doc is read."""
+        self.assertIn(normalize(SHAPE_RULING_CORE_CLAUSE),
+                      normalize(DOC_ASK_SENTENCE))
 
     def test_struck_chat_invitations_stay_absent(self):
         for doc, phrase in STRUCK_PHRASES:
@@ -402,6 +477,81 @@ class TerminalShapePins(unittest.TestCase):
                     "block (TARBALL.md 5.10), a blocking one a "
                     "clarification (TARBALL.md 5.9), and a question "
                     "asked as prose is not a shape")
+
+
+
+class ReadmeBriefPins(unittest.TestCase):
+    """The request README is named as the session's brief, third in the
+    reading order, and the manifest's `readme` key is documented
+    (opener reword's doc sweep, 2026-09-19)."""
+
+    def setUp(self):
+        self.docs = load_docs()
+        self.normalized = {name: normalize(text)
+                           for name, text in self.docs.items()}
+
+    def _reading_order(self) -> str:
+        text = self.docs["CLAUDE.md"]
+        m = re.search(r"^### Reading order\s*$", text, re.M)
+        self.assertIsNotNone(
+            m, "docs/CLAUDE.md META has no `### Reading order` heading")
+        rest = text[m.end():]
+        nxt = re.search(r"^#{2,3}\s", rest, re.M)
+        return rest if nxt is None else rest[:nxt.start()]
+
+    def test_reading_order_names_the_brief_third(self):
+        """manifest.json, then CLAUDE.md, then README.md — the order
+        the opener gives — as the list's first three items."""
+        items = re.findall(r"(?m)^(\d+)\.\s+\*\*(.+?)\*\*",
+                           self._reading_order())
+        heads = [head for _, head in items]
+        self.assertGreaterEqual(len(heads), 3, heads)
+        self.assertIn("`manifest.json`", heads[0])
+        self.assertIn("`CLAUDE.md`", heads[1])
+        self.assertIn("`README.md`", heads[2],
+                      "docs/CLAUDE.md META's reading order no longer "
+                      "names the request's README.md third, after "
+                      "manifest.json and CLAUDE.md")
+
+    def test_reading_order_and_index_row_name_the_readme_key(self):
+        order = normalize(self._reading_order())
+        self.assertIn("`readme` key", order,
+                      "docs/CLAUDE.md META's reading order no longer "
+                      "says the manifest's `readme` key is how a reader "
+                      "knows whether a brief ships")
+        row = next((line for line in self.docs["CLAUDE.md"].splitlines()
+                    if line.startswith("| Every session |")), "")
+        self.assertTrue(row, "docs/CLAUDE.md INDEX lost its Every session row")
+        for needle in ("`README.md`", "`readme` key"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, row)
+        self.assertLess(row.index("`CLAUDE.md`"), row.index("`README.md`"),
+                        "the Every session row names README.md before "
+                        "CLAUDE.md")
+
+    def test_tarball_3_2_documents_readme_key(self):
+        section = subsection(self.docs["TARBALL.md"], "3.2")
+        self.assertTrue(section, "docs/TARBALL.md has no `### 3.2` heading")
+        self.assertIn('"readme": {', section,
+                      "TARBALL.md 3.2's example manifest lost its readme key")
+        self.assertIn("- **`readme`**", section,
+                      "TARBALL.md 3.2's field semantics lost the readme bullet")
+        body = normalize(section)
+        for shape in ('`"path"`, always the string `README.md`',
+                      '`"sha256"`, the hex sha256 of the shipped '
+                      '`README.md` bytes',
+                      "`null` when no `README.md` ships"):
+            with self.subTest(shape=shape):
+                self.assertIn(normalize(shape), body)
+
+    def test_retired_readme_phrasing_stays_absent(self):
+        for doc, fragment in RETIRED_README_FRAGMENTS:
+            with self.subTest(doc=doc, fragment=fragment):
+                self.assertFalse(
+                    normalize(fragment) in self.normalized[doc],
+                    f"docs/{doc} carries {fragment!r} again — the README "
+                    "is the session's brief, named by the manifest's "
+                    "`readme` key and read third")
 
 
 if __name__ == "__main__":

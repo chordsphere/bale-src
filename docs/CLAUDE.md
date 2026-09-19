@@ -14,14 +14,21 @@ Every session, in this order:
 
 1. **`manifest.json`** — the session scope. Tells Claude in
    seconds whether this is conversational or tarball mode, what's
-   in scope, what context files are present, what to ignore. Read
-   first so the triggers below fire correctly.
+   in scope, what context files are present, what to ignore, and —
+   through its `readme` key — whether a brief ships. Read first so
+   the triggers below fire correctly.
 2. **This file (`CLAUDE.md`)** — the core in full: META through
    §11.2. §11.3–§11.6 are triggered reference, read only when a
    trigger in the INDEX read-paths table below fires.
-3. **The session prompt and any project docs** the manifest's
-   `context_included` names.
-4. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
+3. **The request's `README.md`** — the session's brief, when one
+   ships. The manifest's `readme` key is how Claude knows whether
+   one does: `null` when none ships, the brief's path and sha256
+   when one does (`TARBALL.md` §3.2). The brief is the planner's
+   prose — the intent, rulings, and reasons behind the manifest's
+   structured fields — and the session is read against it, so it
+   is read before any building starts, never skimmed past.
+4. **Any project docs** the manifest's `context_included` names.
+5. **Triggered drill-downs only** into `TARBALL.md`, `DOCS.md`,
    `CODE.md`, `PLANNER.md` — never pre-emptively. Most sessions
    don't touch most of them. The INDEX table below says when each one engages.
 
@@ -59,8 +66,8 @@ project-specific. Bale includes whatever the user names; nothing
 is auto-detected. Drill further into project docs only when the
 read-paths table says to. A casual project (one script, a data
 folder) may have none of the project-specific docs and ship just
-the five global docs + the session prompt + the relevant source
-files.
+the five global docs, the manifest, a brief if the planner wrote
+one, and the relevant source files.
 
 ---
 
@@ -73,7 +80,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the session prompt and any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
+| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the request's `README.md` — the session's brief, when one ships; the manifest's `readme` key says whether one does (`null` when none ships); then any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `claude/context/adr/NNNN-*.md` |
@@ -195,7 +202,8 @@ present (bale injects it), but the act of re-engaging with the
 contract before producing matters — drill-down beats recall.
 
 Within tarball mode, five response shapes are possible: a full
-response tarball (the default, when work landed), a probe
+response tarball (the default in a worker session, when work
+landed), a probe
 (`TARBALL.md` section 4, when an environment gap blocks the work),
 a clarification response (`TARBALL.md` §5.9, when a blocking intent
 gap in the request prevents trustworthy work — it opens an exchange
@@ -207,12 +215,26 @@ faster answered in chat than relayed — admitted by count, never by
 size; the packer answers inline, ratifies every default with "as
 assumed", or sends it "formal" to the exchange; the trail is the
 eventual response's `notes.md`, not a thread), and a bailout
-response (§11, when the budget won't carry the work through). Every
-turn Claude ends in tarball mode takes one machine-recognizable
-shape: a response tarball, a probe block, a light question block, or
-a clarification response; a question asked as prose is not a shape.
-Explanation in prose is expected and welcome; the rule is that a
-turn that asks ends in a block, so nothing is lost.
+response (§11, when the budget won't carry the work through).
+
+What a session owes back follows from how it was packed: a worker
+session, any pack with a write forecast, owes one response tarball
+carrying the finished work; a planner session, a read-only pack,
+lands nothing and returns no response tarball, not even an empty
+one — it owes its answer in chat and, for each session it is asked
+to author, a crafter bundle beside its `bale open` line.
+The manifest says which: a read-only pack stamps the empty
+forecast, `resolved_scope: []` (`TARBALL.md` §3.2), and the session
+opener bale emits closes by naming the kind. A planner session
+still asks through the shapes below when it needs something; what
+it never does is manufacture a response tarball to have something
+to return.
+
+A turn that needs something from the packer, an environment fact
+or a decision, ends in the matching shape: a probe block, a light
+question block, or a clarification response; a question asked as
+prose is not a shape, because it gets lost. Every other turn is
+ordinary prose.
 
 ### When Claude is unsure which mode
 
@@ -249,10 +271,10 @@ When a conversational exchange transitions to tarball mode mid-session
 — Claude names the transition explicitly (*"switching to tarball
 mode; let me re-read `TARBALL.md` before producing"*) and pauses for
 the request tarball. The design conversation may inform the new
-request's `README.md` — a shared prose-context tool authored by
-either party: the planner directly, or the worker on request,
-delivered as a member of the crafter bundle emitted beside the new
-request's `bale open` line (`PLANNER.md` §2), and shipped as a
+request's `README.md` — its brief, a shared prose-context tool
+authored by either party: the planner directly, or the worker on
+request, delivered as a member of the crafter bundle emitted beside
+the new request's `bale open` line (`PLANNER.md` §2), and shipped as a
 downloadable file via `--readme-file` (`TARBALL.md` §3.4) only when
 the crafter is unreachable.
 

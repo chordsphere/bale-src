@@ -88,9 +88,10 @@ practice section here:
   the rule). The flag
   surface and the solicited/unsolicited line live in `TARBALL.md`
   §3.4; this doc does not restate them.
-- **Request briefs** (§3) — the prose context a request ships as its
-  README, authored by the planner directly or by a worker on
-  request.
+- **Request briefs** (§3) — the session's brief, shipped as the
+  request's README and named by its manifest's `readme` key
+  (`TARBALL.md` §3.2), authored by the planner directly or by a
+  worker on request.
 - **Blind checkpoints** (§4) — the planner-authored oracle a
   configured project pins per session. The blindness contract is
   `TARBALL.md` §7's; this doc carries the authoring craft on top of
@@ -134,7 +135,11 @@ practice of exercising the planner's half well.
   base and an explicit null when it does not. The bare `bale pack`
   line with a `--readme-file` file is the fallback only when the
   crafter is unreachable, and the planner says so when it falls
-  back.
+  back. This is also what a planner session owes back: a read-only
+  pack lands nothing, so it returns its answer in chat and, for each
+  session it is asked to author, the bundle beside its `bale open`
+  line — never a response tarball, not even an empty one
+  (`TARBALL.md` §2).
 - **Commands are single-line and space-tolerant.** One line, no
   continuations, pasteable as-is (`TARBALL.md` §3.4 states the
   form); authored so that incidental whitespace differences don't
@@ -186,7 +191,11 @@ practice of exercising the planner's half well.
 ## 3. Brief Authoring
 
 A brief is a transport surface, and transport surfaces fail
-silently. The practices:
+silently. It is also the worker's third read, after `manifest.json`
+and `CLAUDE.md` (`CLAUDE.md` META's reading order): the manifest's
+`readme` key tells the worker one ships, and the session opener
+names it. Author it as the document the session is read against,
+not an afterthought to the flags. The practices:
 
 - **Briefs open by naming the session and sitting they serve.** The
   first lines identify which request the brief belongs to, so a
@@ -671,7 +680,8 @@ the fleet-scale rules below are this half's):
   with its firing condition, not presumed to fire.
 - **The orchestrator's own session packs scopeless** — empty
   recorded scope, forecasting nothing, so its read set locks no
-  worker out. Masters end sittings at milestones
+  worker out; landing nothing, it returns chat and bundles, never a
+  response tarball (§2). Masters end sittings at milestones
   rather than resolving open questions on a tired context.
 
 ---
