@@ -1,0 +1,259 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-19-board-111-tests-smalls-008",
+  "created_at": "2026-09-19T02:29:48+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-19T02:29:48+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_craft_response.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_thread_status.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-19-board-111-tests-smalls-008.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-19T02:57:04+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-19-board-111-tests-smalls-008.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: test_thread_status": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_craft_response": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_doc_crossrefs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: test_harness_cli_loader + test_sanctioned_pairs (unchanged neighbors)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: ad-hoc bin/bale loaders retired, _load_cli adopted": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: ExchangeBlockParity runs under the dotted form": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: loaders leave sys.path bin/ count unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: relay pin bites (doc re-addressed, paragraph struck, builder changed)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bumpless (changes[] holds tests/ only; no bin/VERSION, no changelog)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: test_thread_status": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_craft_response": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_doc_crossrefs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: test_harness_cli_loader + test_sanctioned_pairs (unchanged neighbors)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: ad-hoc bin/bale loaders retired, _load_cli adopted": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: ExchangeBlockParity runs under the dotted form": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: loaders leave sys.path bin/ count unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: relay pin bites (doc re-addressed, paragraph struck, builder changed)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bumpless (changes[] holds tests/ only; no bin/VERSION, no changelog)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (compile(), the 3 changed suites)",
+          "tests: test_thread_status",
+          "tests: test_craft_response",
+          "tests: test_doc_crossrefs",
+          "tests: test_harness_cli_loader + test_sanctioned_pairs (unchanged neighbors)",
+          "assert: ad-hoc bin/bale loaders retired, _load_cli adopted",
+          "assert: ExchangeBlockParity runs under the dotted form",
+          "assert: loaders leave sys.path bin/ count unchanged",
+          "assert: relay pin bites (doc re-addressed, paragraph struck, builder changed)",
+          "exec-bit assertions (tests/test_craft_response.py, tests/test_doc_crossrefs.py)",
+          "assert: bumpless (changes[] holds tests/ only; no bin/VERSION, no changelog)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "tests/test_craft_response.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py",
+        "tests/test_thread_status.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "tests/test_craft_response.py",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_thread_status.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.36",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-19-board-111-tests-smalls-008.sh",
+              "sha256": "cd6361a85850971371c143e95346b5c8cf57a875bb237aa34a1453bf9de44e46"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-19T02:29:47+00:00",
+            "base_files": {
+              "tests/test_craft_response.py": "4ec4959993e188b48db80382b8bb3f9ac9d3f199cda4d9640f728ee20b0faa59",
+              "tests/test_doc_crossrefs.py": "1fe7982b8463c17fde5ee74c81875276ea2bcd19aa12b34c64c48bd7f9bac213",
+              "tests/test_sanctioned_pairs.py": "93268e39ad18727568d7ef83956abe31d6c9865c135d4aa82be8cabb4dc250df",
+              "tests/test_thread_status.py": "d0076c3c00dfb8befe973cc2cab3393d627f5bf72b14f2867ef579865766935d"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the dotted run form (-m unittest tests.test_craft_response) is a supported way to run the craft suite, so the harness import was deferred to preserve it",
+            "a doc-pin suite importing bin/bale_report.py for a pure builder is acceptable in test_doc_crossrefs (docstring amended to say so)"
+          ],
+          "judgment_calls": [
+            "craft suite imports _load_cli lazily inside ExchangeBlockParity.setUpClass rather than at module top",
+            "thread-status inlines _load_cli() at its single call site instead of keeping load_bale_module as a wrapper",
+            "relay pin homed in test_doc_crossrefs.py, not test_sanctioned_pairs.py (doc-to-code, not a doc-to-doc twin pair)",
+            "relay pin compares against bale_report.relay_sentinels() plus a constant-level guard on the builder's to-worker form, not a doc-only literal",
+            "harness.py's stale comment about the ad-hoc loaders left as a Proposal, since harness.py was not forecast"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md (META through 11.2)",
+            "README.md (brief)",
+            "TARBALL.md INDEX, sections 1, 2, 5.1-5.5, 7, 10.1",
+            "tests/harness.py (_load_module, _load_cli, normalize)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-19-board-111-tests-smalls-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-19-board-111-tests-smalls-008.sh",
+          "sha256": "cd6361a85850971371c143e95346b5c8cf57a875bb237aa34a1453bf9de44e46"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-19T02:57:04+00:00",
+  "outcome": "applied"
+}
