@@ -7,7 +7,10 @@ pipelines: the shared end-of-run summary formatter every command finishes on
 the PASS/HOLD verdicts (`format_walkthrough_summary`), the §8.8 closing
 HOLD card (`format_hold_card`, v0.4.34 board 47a, over its structured
 pieces `hold_judge` / `parse_failed_probe_labels` /
-`compose_hold_successors`, which board 47b's relay blocks consume), the TARBALL.md §5.6.3
+`compose_hold_successors`) and — v0.4.36, board 47b — the addressed relay
+blocks built from those pieces (`format_hold_relay_blocks` over
+`format_hold_relay_planner` / `format_hold_relay_worker`, the clean-apply
+`format_apply_relay_planner`, and `split_attempt_bands`), the TARBALL.md §5.6.3
 bailout banner (`print_bailout_banner`), its §5.9.3 clarification sibling
 (`print_clarification_banner`), the `bale apply --dry-run` plan
 report (`format_dry_run_report`), the machine-readable pack report
@@ -428,17 +431,18 @@ def format_walkthrough_summary(
         # one row; the claims-count context stays because the claims
         # describe the WORKER's script only (the checkpoint has no
         # claims by construction — nothing to reconcile).
+        #
+        # v0.4.36 (board 47b fold-in): the checkpoint half comes from
+        # _checkpoint_attribution — the helper the HOLD card's judge line
+        # and the relay blocks use — so the vocabulary has one home. The
+        # walkthrough alone appends the exit-2 remedy tail, which is why
+        # the tail is added here rather than folded into the helper (the
+        # judge line has its own successor forks for the remedy).
         cp_exit = checkpoint.get("exit_code")
-        if cp_exit == 0:
-            cp_part = "checkpoint: PASS"
-        elif cp_exit == 2:
-            cp_part = ("checkpoint: errored (exit 2) — the planner's "
-                       "checkpoint itself errored; inspect the "
-                       "checkpoint script")
-        else:
-            cp_part = f"checkpoint: HOLD (exit {cp_exit})"
-        wk_part = ("worker validation: PASS" if exit_code == 0
-                   else f"worker validation: HOLD (exit {exit_code})")
+        cp_part = _checkpoint_attribution(cp_exit)
+        if cp_exit == 2:
+            cp_part += "; inspect the checkpoint script"
+        wk_part = _worker_attribution(exit_code)
         claims_note = (f"; {len(claims)} claim(s), per-check table "
                        f"above, verdict in log" if claims
                        else "; no project-level claims")
@@ -496,9 +500,16 @@ HOLD_JUDGE_CHECKPOINT = "blind checkpoint"
 HOLD_JUDGE_WORKER = "worker validation"
 HOLD_JUDGE_BOTH = "both"
 
-# The two rulings a successor fork answers (PLANNER.md §5 step 3).
+# The rulings a successor fork answers (PLANNER.md §5 step 3). The third,
+# base-defect (v0.4.36, board 47b; evidence entry 151), is the ruling the
+# sitting hit twice with no card line for it: the target base was already
+# broken before the response touched anything — a suite failing on the
+# base holding a correct response — so neither the fixture nor the work
+# is wrong. The ruling is "repair the base in its own session, then retry
+# the held tarball unchanged".
 RULING_FIXTURE_DEFECT = "fixture-defect"
 RULING_WORK_DEFECT = "work-defect"
+RULING_BASE_DEFECT = "base-defect"
 
 
 def parse_failed_probe_labels(output: Optional[str]) -> list:
@@ -522,13 +533,23 @@ def parse_failed_probe_labels(output: Optional[str]) -> list:
 
 
 def _checkpoint_attribution(cp_exit) -> str:
-    """The walkthrough's checkpoint half, same vocabulary (§8.6)."""
+    """The checkpoint half of the attribution vocabulary (BALE.md §8.6):
+    the one home the walkthrough summary, the HOLD card's judge line, and
+    the relay blocks' verdict lines all render through. The walkthrough
+    appends its own exit-2 remedy tail at its call site."""
     if cp_exit == 0:
         return "checkpoint: PASS"
     if cp_exit == 2:
         return ("checkpoint: errored (exit 2) — the planner's checkpoint "
                 "itself errored")
     return f"checkpoint: HOLD (exit {cp_exit})"
+
+
+def _worker_attribution(exit_code: int) -> str:
+    """The worker half of the same vocabulary (v0.4.36): `worker
+    validation: PASS` or `worker validation: HOLD (exit N)`."""
+    return ("worker validation: PASS" if exit_code == 0
+            else f"worker validation: HOLD (exit {exit_code})")
 
 
 def hold_judge(checkpoint: Optional[dict], exit_code: int) -> dict:
@@ -553,8 +574,7 @@ def hold_judge(checkpoint: Optional[dict], exit_code: int) -> dict:
     wk_held = exit_code != 0
     if not (cp_held or wk_held):
         raise ValueError("hold_judge: neither judgment held — not a HOLD")
-    wk_part = ("worker validation: PASS" if not wk_held
-               else f"worker validation: HOLD (exit {exit_code})")
+    wk_part = _worker_attribution(exit_code)
     cp_part = (_checkpoint_attribution(cp_exit) if ran
                else "no blind checkpoint configured")
     if cp_held and wk_held:
@@ -574,24 +594,46 @@ def compose_hold_successors(
     held_tarball: Optional[str],
     held_tarball_why: str = "",
     literal_checkpoint_path: Optional[str] = None,
+    readmissions: Optional[dict] = None,
 ) -> list:
     """The ruling-forked successors a HOLD card ends with, as data.
 
     Returns a list of forks, each `{"ruling", "heading", "lines"}`:
     the fixture-defect fork first (only when the checkpoint held —
     judge_case HOLD_JUDGE_CHECKPOINT or HOLD_JUDGE_BOTH), then the
-    work-defect fork (always). `lines` are complete physical lines
+    work-defect fork (always), then the base-defect fork (always;
+    v0.4.36, board 47b). `lines` are complete physical lines
     (TARBALL.md §1): commands, plus at most one note line per fork
-    where a value cannot be composed. Paths go through shlex.quote.
+    where a value cannot be composed; every fork's LAST line is a
+    command. Paths go through shlex.quote.
 
     `held_tarball` is the HOLD-time stamp's path when the stamp was
     written this HOLD, or None when the write failed — ratified
     (session notes, [1]): the card composes from the stamp outcome, so
     it and `bale amend-checkpoint`'s report can never disagree, and a
     failed stamp is said, never papered over with the in-process path.
-    `held_tarball_why` is the reason, rendered on the degrade line in
-    compose_retry_successor's shape (bin/bale): one line saying why,
-    then the placeholder form.
+    `held_tarball_why` is the reason, rendered on this function's own
+    degrade line: one line saying why, then the placeholder form. Since
+    board 106, bin/bale's compose_retry_successor delegates to this
+    function and returns the fixture fork's retry rung verbatim, so the
+    degrade shape has exactly one home — here.
+
+    The base-defect fork (the target base was broken before the
+    response touched it — evidence entry 151): the ruling is "repair the
+    base in its own session, land it, then retry the held tarball
+    UNCHANGED". Nothing about the repaired base itself needs a flag: a
+    repair session packed while this one is open must be disjoint from
+    this session's forecast, and the base-drift gate stamps only
+    forecast paths, so the gate has nothing to refuse. What the retry
+    does need is every admission the held apply exercised, because the
+    tarball is the same bytes and no override carries forward from a
+    failed attempt: `readmissions` carries them (keys
+    `allow_out_of_scope`, `accept_base_drift`,
+    `allow_missing_required_check` — lists — and
+    `accept_checkpoint_change`, `no_sandbox` — bools), rendered by the
+    same flag grammar compose_admission_command uses. `--sid <sid>`
+    rides last as vetting, as on the fixture rung (the work rung omits
+    it: that tarball is new bytes the worker names).
 
     The fixture fork (PLANNER.md §5 steps 4–5): amend at the desk, then
     retry the SAME held tarball through the provenance gate. The amend
@@ -640,6 +682,24 @@ def compose_hold_successors(
                     "corrected tarball, delivered where the held one is:"),
         "lines": retry_line(""),
     })
+    admit = dict(readmissions or {})
+    tokens = _admission_flag_tokens(
+        allow_out_of_scope=admit.get("allow_out_of_scope") or (),
+        accept_base_drift=admit.get("accept_base_drift") or (),
+        allow_missing_required_check=(
+            admit.get("allow_missing_required_check") or ()),
+        accept_checkpoint_change=bool(admit.get("accept_checkpoint_change")),
+        no_sandbox=bool(admit.get("no_sandbox")),
+        quote=shlex.quote)
+    forks.append({
+        "ruling": RULING_BASE_DEFECT,
+        "heading": ("base defect (the target base was broken before the "
+                    "response touched it) — land the base repair in its "
+                    "own session, then retry the held tarball unchanged, "
+                    "re-stating this apply's admissions:"),
+        "lines": retry_line("".join(f" {t}" for t in tokens)
+                            + f" --sid {sid}"),
+    })
     return forks
 
 
@@ -655,8 +715,18 @@ def format_hold_card(
     held_tarball: Optional[str],
     held_tarball_why: str = "",
     literal_checkpoint_path: Optional[str] = None,
+    readmissions: Optional[dict] = None,
 ) -> str:
     """The closing [HOLD] card (BALE.md §8.8 inspect), as one string.
+
+    v0.4.36 (board 47b): the trailer opens with the `send first:
+    <planner|worker>` line (relay_send_first) naming which relay block
+    printed above the card goes out first. It is a trailer line rather
+    than an aligned row on purpose: the rows pad every label to the
+    longest (`failed probes`), which would put spaces inside the wire
+    bytes `send first: planner`; the trailer is verbatim. The trailer
+    then carries all three ruling forks, base defect last, and
+    `readmissions` rides through to compose_hold_successors' base rung.
 
     Rows: `judge` (hold_judge's line), `failed probes` (only when a
     checkpoint ran: the labels joined by ` · ` in log order, or `none`),
@@ -686,15 +756,353 @@ def format_hold_card(
          else "write failed — see log"),
         ("discard", f"bale revert {sid}"),
     ])
-    trailer = ["  Next step, by the desk's ruling:"]
+    first = relay_send_first(judge["case"])
+    trailer = [f"  send first: {first} — {RELAY_SEND_FIRST_WHY[first]}",
+               "",
+               "  Next step, by the desk's ruling:"]
     for fork in compose_hold_successors(
             sid=sid, judge_case=judge["case"], held_tarball=held_tarball,
             held_tarball_why=held_tarball_why,
-            literal_checkpoint_path=literal_checkpoint_path):
+            literal_checkpoint_path=literal_checkpoint_path,
+            readmissions=readmissions):
         trailer.append(f"  {fork['heading']}")
         trailer.extend(f"    {line}" for line in fork["lines"])
     return format_summary_block(rows, status="HOLD", sid=sid,
                                 trailer=trailer)
+
+
+# ---------------------------------------------------------------------------
+# Addressed relay blocks (board 47b, v0.4.36)
+# ---------------------------------------------------------------------------
+#
+# The operator used to copy the [HOLD] card, `cat` the session log, and
+# paste all of it to the worker — then to the planner if the checkpoint
+# turned out to be the issue. The log's checkpoint band is the oracle's
+# output, so that habit taught the worker the grader. These builders hand
+# the operator addressed blocks instead, each bracketed by whole-line
+# sentinels (wire format, verbatim):
+#
+#     === RELAY BEGIN <sid> to planner ===   ...   === RELAY END <sid> to planner ===
+#     === RELAY BEGIN <sid> to worker ===    ...   === RELAY END <sid> to worker ===
+#
+# THE WORKER BLOCK IS SPEC-SAFE BY CONSTRUCTION. format_hold_relay_worker
+# takes the judge line, the parsed failed-probe labels, and the worker's
+# own validation.sh output — and no parameter through which the
+# checkpoint's output, the checkpoint band, or the session log could
+# arrive. Nothing is filtered: nothing forbidden is ever in hand. (The
+# log's worker band is not used for it either: bale journals its own
+# `blind checkpoint exit code: N (<path>)` line inside that band.)
+#
+# The planner block inlines both session-log bands as the log has them;
+# bale_apply cuts them by byte offset (split_attempt_bands), so they are
+# this attempt's bands however many attempts the log already holds.
+
+RELAY_TO_PLANNER = "planner"
+RELAY_TO_WORKER = "worker"
+
+# Why each addressee goes first — the tail of the card's `send first:`
+# line (the desk ruling at 2026-09-18-continue-plan-001).
+RELAY_SEND_FIRST_WHY = {
+    RELAY_TO_PLANNER: ("the checkpoint held; the worker block waits for "
+                       "the planner's ruling"),
+    RELAY_TO_WORKER: ("only the worker's own validation held; its block "
+                      "is the worker's own output"),
+}
+
+# The band header bale_staging writes between the checkpoint band and the
+# worker's run (the tail of run_blind_checkpoint's single log write).
+WORKER_BAND_HEADER = "=== worker validation.sh ==="
+CHECKPOINT_BAND_PREFIX = "=== blind checkpoint ("
+
+_RELAY_SENTINEL_PREFIX = "=== RELAY "
+
+
+def relay_sentinels(sid: str, addressee: str) -> tuple:
+    """The BEGIN/END sentinel lines for one addressed block. Pure."""
+    if addressee not in (RELAY_TO_PLANNER, RELAY_TO_WORKER):
+        raise ValueError(f"relay_sentinels: addressee must be "
+                         f"{RELAY_TO_PLANNER!r} or {RELAY_TO_WORKER!r}, "
+                         f"got {addressee!r}")
+    return (f"=== RELAY BEGIN {sid} to {addressee} ===",
+            f"=== RELAY END {sid} to {addressee} ===")
+
+
+def relay_send_first(judge_case: str) -> str:
+    """Which block goes first on a HOLD: the planner's when the
+    checkpoint held (alone or with the worker), the worker's when only
+    the worker's validation held. Pure."""
+    if judge_case in (HOLD_JUDGE_CHECKPOINT, HOLD_JUDGE_BOTH):
+        return RELAY_TO_PLANNER
+    if judge_case == HOLD_JUDGE_WORKER:
+        return RELAY_TO_WORKER
+    raise ValueError(f"relay_send_first: unknown judge case {judge_case!r}")
+
+
+def _inline_lines(text: Optional[str]) -> list:
+    """`text` as lines for inlining inside a relay block, verbatim except
+    that a line which would read as a relay sentinel gets a two-space
+    indent — sentinels are whole lines, so an inlined output line can
+    never close or open a block early. Trailing blank lines dropped."""
+    lines = (text or "").splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop()
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    return [f"  {ln}" if ln.startswith(_RELAY_SENTINEL_PREFIX) else ln
+            for ln in lines]
+
+
+def split_attempt_bands(checkpoint_chunk: Optional[str],
+                        worker_chunk: Optional[str]) -> dict:
+    """This attempt's two session-log bands, from the byte-offset cuts
+    bale_apply takes around the scripts: {"checkpoint", "worker"}.
+
+    `checkpoint_chunk` is what the log gained while the blind checkpoint
+    ran (None when none ran): bale's own pre-run lines, then the band
+    bale_staging writes in ONE write — its `=== blind checkpoint (…) ===`
+    header, the output, the exit-code line — ending in the
+    `=== worker validation.sh ===` header. The checkpoint band starts at
+    the first band header (only bale's lines precede it, so the first
+    match is the real one) and the trailing worker header is removed by
+    an exact suffix test on the final bytes, never a search that script
+    output could spoof. `worker_chunk` is what the log gained from the
+    checkpoint's end through validation.sh's end; the worker band is
+    that chunk, under the worker header when a checkpoint ran. Pure.
+    """
+    cp_band = None
+    worker_header = None
+    if checkpoint_chunk is not None:
+        chunk = checkpoint_chunk.rstrip("\n")
+        if chunk.endswith(WORKER_BAND_HEADER):
+            chunk = chunk[:-len(WORKER_BAND_HEADER)]
+            worker_header = WORKER_BAND_HEADER
+        start = None
+        pos = 0
+        for line in chunk.splitlines(keepends=True):
+            if line.startswith(CHECKPOINT_BAND_PREFIX):
+                start = pos
+                break
+            pos += len(line)
+        cp_band = (chunk[start:] if start is not None else chunk).strip("\n")
+    worker = (worker_chunk or "").strip("\n")
+    if worker_header is not None:
+        worker = worker_header + ("\n" + worker if worker else "")
+    return {"checkpoint": cp_band, "worker": worker}
+
+
+def _checkpoint_stamp_state(checkpoint: Optional[dict]) -> str:
+    """The checkpoint stamp state, as the planner block's row value."""
+    if not (checkpoint and checkpoint.get("configured")):
+        return "no blind checkpoint configured"
+    script = checkpoint.get("script") or {}
+    ident = f"{script.get('path')} ({str(script.get('sha256') or '')[:12]})"
+    matched = checkpoint.get("stamp_matched")
+    if matched is True:
+        return f"{ident} — matched the pack-time provenance stamp"
+    if matched is False:
+        return (f"{ident} — CHANGED since pack, run under "
+                f"--accept-checkpoint-change (the current base-tree bytes)")
+    return (f"{ident} — no pack-time provenance stamp (hand-rolled, or "
+            f"packed before 0.3.28)")
+
+
+def _labels_value(labels) -> str:
+    return (" · ".join(label or "(unlabeled [FAIL] line)" for label in labels)
+            if labels else "none")
+
+
+def format_hold_relay_planner(*, sid: str, exit_code: int,
+                              checkpoint: Optional[dict],
+                              held_tarball: Optional[str],
+                              held_tarball_why: str = "",
+                              bands: dict) -> str:
+    """The planner-addressed block on a HOLD: everything the desk needs
+    to rule without asking — judge line, failed probe labels, both exit
+    codes, the checkpoint stamp state, the held tarball's path, and both
+    session-log bands inlined (`bands` from split_attempt_bands). It
+    replaces card-plus-`cat`-the-log. Pure."""
+    begin, end = relay_sentinels(sid, RELAY_TO_PLANNER)
+    judge = hold_judge(checkpoint, exit_code)
+    ran = bool(checkpoint) and bool(checkpoint.get("configured"))
+    first = relay_send_first(judge["case"])
+    out = [begin,
+           "PASTE THIS WHOLE BLOCK INTO THE PLANNER'S (MASTER'S) CHAT — "
+           "not the worker's.",
+           ("Send it now: it goes first." if first == RELAY_TO_PLANNER
+            else "Send it after the worker block: only the worker's own "
+                 "validation held, so this is for the desk's record."),
+           "",
+           f"HOLD — session {sid}",
+           f"judge: {judge['line']}"]
+    if ran:
+        out.append(f"failed probes: "
+                   f"{_labels_value(checkpoint.get('failed_probes') or [])}")
+    out.append("exit codes: "
+               + (f"checkpoint {checkpoint.get('exit_code')}" if ran
+                  else "checkpoint not run")
+               + f" · worker validation.sh {exit_code}")
+    out.append(f"checkpoint stamp: {_checkpoint_stamp_state(checkpoint)}")
+    out.append("held tarball: " + (held_tarball if held_tarball is not None
+                                   else f"(not recorded: {held_tarball_why})"))
+    if ran:
+        out.append("")
+        out.append("--- session log: checkpoint band ---")
+        cp = bands.get("checkpoint")
+        out.extend(_inline_lines(cp) if cp else
+                   ["(the checkpoint band could not be read from the "
+                    "session log — see .bale/logs/" + sid + ".log)"])
+        out.append("--- end checkpoint band ---")
+    out.append("")
+    out.append("--- session log: worker band ---")
+    wk = bands.get("worker")
+    out.extend(_inline_lines(wk) if wk else
+               ["(the worker band could not be read from the session log "
+                "— see .bale/logs/" + sid + ".log)"])
+    out.append("--- end worker band ---")
+    out.append(end)
+    return "\n".join(out)
+
+
+def format_hold_relay_worker(*, sid: str, judge_line: str, judge_case: str,
+                             failed_probes: Optional[list],
+                             worker_exit: int, worker_output: str,
+                             held_tarball: Optional[str],
+                             held_tarball_why: str = "") -> str:
+    """The worker-addressed block on a HOLD — spec-safe by construction.
+
+    Its only inputs are the judge line (hold_judge's: which side held,
+    in the attribution vocabulary), the failed probe LABELS
+    (`failed_probes`, None when no checkpoint ran — PLANNER.md §5 step
+    1: the worker diagnoses from the reveal label alone), the worker's
+    own validation.sh output and exit, and the held tarball's path for
+    the closing line. There is no parameter for the checkpoint's output
+    or the session log, so no line of either can reach this block, in
+    any judge case, including a checkpoint that passed. Pure.
+    """
+    begin, end = relay_sentinels(sid, RELAY_TO_WORKER)
+    first = relay_send_first(judge_case)
+    out = [begin,
+           f"PASTE THIS WHOLE BLOCK INTO THE WORKER'S CHAT FOR SESSION "
+           f"{sid} — not the planner's.",
+           ("Send it now: it goes first." if first == RELAY_TO_WORKER
+            else "WAIT: send it only after the planner has ruled, and only "
+                 "if the ruling is a work defect."),
+           "",
+           f"Your response for session {sid} was held (HOLD).",
+           f"judge: {judge_line}"]
+    if failed_probes is not None:
+        out.append(f"failed probes: {_labels_value(failed_probes)}")
+        out.append("The blind checkpoint's output is not shared — diagnose "
+                   "from the probe labels alone. If your evidence points at "
+                   "the checkpoint rather than your work, ask the planner "
+                   "for the spec from these labels (PLANNER.md §5).")
+    out.append("You do not need the session log; do not ask for it — "
+               "this block is the whole of the failure context.")
+    out.append("")
+    out.append(f"--- your validation.sh output (exit {worker_exit}) ---")
+    out.extend(_inline_lines(worker_output) or ["(no output)"])
+    out.append("--- end validation.sh output ---")
+    out.append("")
+    out.append(f"A re-attempt ships response-{sid}.tar.gz with \"corrects\": "
+               f"\"{sid}\" in its manifest, delivered to the directory the "
+               f"held tarball came from, and ends its turn with this line:")
+    if held_tarball is not None:
+        out.append(f"bale retry {_always_quoted(held_tarball)}")
+    else:
+        out.append(f"(the held tarball's path was not recorded: "
+                   f"{held_tarball_why}; the operator substitutes it)")
+        out.append("bale retry '<response-tarball>'")
+    out.append(end)
+    return "\n".join(out)
+
+
+def format_hold_relay_blocks(*, sid: str, exit_code: int,
+                             checkpoint: Optional[dict],
+                             worker_output: str,
+                             held_tarball: Optional[str],
+                             held_tarball_why: str = "",
+                             bands: dict) -> list:
+    """Both HOLD blocks, in send order (relay_send_first). The worker
+    block receives the labels from the stamp's `failed_probes` — the
+    same list the card and telemetry carry — never the stamp's output.
+    Pure."""
+    judge = hold_judge(checkpoint, exit_code)
+    ran = bool(checkpoint) and bool(checkpoint.get("configured"))
+    planner = format_hold_relay_planner(
+        sid=sid, exit_code=exit_code, checkpoint=checkpoint,
+        held_tarball=held_tarball, held_tarball_why=held_tarball_why,
+        bands=bands)
+    worker = format_hold_relay_worker(
+        sid=sid, judge_line=judge["line"], judge_case=judge["case"],
+        failed_probes=(list(checkpoint.get("failed_probes") or [])
+                       if ran else None),
+        worker_exit=exit_code, worker_output=worker_output,
+        held_tarball=held_tarball, held_tarball_why=held_tarball_why)
+    if relay_send_first(judge["case"]) == RELAY_TO_PLANNER:
+        return [planner, worker]
+    return [worker, planner]
+
+
+def format_apply_relay_planner(*, sid: str, origin_branch: str,
+                               exit_code: int, checkpoint: Optional[dict],
+                               notes: Optional[str],
+                               notes_problem: str = "",
+                               admissions: Optional[dict] = None) -> str:
+    """The planner-addressed block on a clean apply — the ratification
+    relay, pre-assembled: the response's notes.md verbatim (or a plain
+    line saying it shipped none, or why it could not be read), the
+    verdict in the walkthrough's attribution vocabulary, and every
+    admission the apply exercised. `admissions` keys: overridden_paths
+    (with overridden_path_sources, parallel), required_check_overrides,
+    base_drift_overrides (lists), checkpoint_change_accepted (bool).
+    No worker block exists on a clean apply. Pure."""
+    begin, end = relay_sentinels(sid, RELAY_TO_PLANNER)
+    ran = bool(checkpoint) and bool(checkpoint.get("configured"))
+    verdict = (f"{_checkpoint_attribution(checkpoint.get('exit_code'))} · "
+               f"{_worker_attribution(exit_code)}" if ran else
+               f"{_worker_attribution(exit_code)} · no blind checkpoint "
+               f"configured")
+    a = dict(admissions or {})
+    rows: list = []
+    paths = list(a.get("overridden_paths") or [])
+    sources = list(a.get("overridden_path_sources") or [])
+    if paths:
+        rendered = [f"{p} ({sources[i]})" if i < len(sources) and sources[i]
+                    else p for i, p in enumerate(paths)]
+        rows.append("out-of-forecast paths admitted: " + ", ".join(rendered))
+    if a.get("required_check_overrides"):
+        rows.append("required-check overrides: "
+                    + ", ".join(a["required_check_overrides"]))
+    if a.get("base_drift_overrides"):
+        rows.append("base-drift overrides: "
+                    + ", ".join(a["base_drift_overrides"]))
+    if a.get("checkpoint_change_accepted"):
+        rows.append("checkpoint change accepted: yes (the checkpoint "
+                    "differed from its pack-time stamp; "
+                    "--accept-checkpoint-change ran the current bytes)")
+    out = [begin,
+           "PASTE THIS WHOLE BLOCK INTO THE PLANNER'S (MASTER'S) CHAT. It is "
+           "the ratification relay — nothing needs typing beside it.",
+           "",
+           f"APPLIED — session {sid}, merged into {origin_branch} "
+           f"(tag applied/{sid}).",
+           f"verdict: {verdict}"]
+    if rows:
+        out.append("admissions:")
+        out.extend(f"  {r}" for r in rows)
+    else:
+        out.append("admissions: none")
+    out.append("")
+    if notes is not None and notes.strip():
+        out.append("--- notes.md ---")
+        out.extend(_inline_lines(notes))
+        out.append("--- end notes.md ---")
+    elif notes_problem:
+        out.append(f"notes.md: could not be read ({notes_problem}).")
+    else:
+        out.append("The response shipped no notes.md.")
+    out.append(end)
+    return "\n".join(out)
 
 
 def print_bailout_banner(manifest: dict, handoff_path: Path,
@@ -2857,25 +3265,47 @@ def compose_admission_command(*, verb: str, tarball_name: str,
         raise ValueError(f"compose_admission_command: verb must be "
                          f"'apply' or 'retry', got {verb!r}")
     parts = ["bale", verb, _always_quoted(tarball_name)]
+    parts.extend(_admission_flag_tokens(
+        allow_out_of_scope=allow_out_of_scope,
+        accept_base_drift=accept_base_drift,
+        allow_missing_required_check=allow_missing_required_check,
+        accept_checkpoint_change=accept_checkpoint_change,
+        no_sandbox=no_sandbox,
+        quote=_always_quoted))
+    return " ".join(parts)
+
+
+def _admission_flag_tokens(*, allow_out_of_scope=(), accept_base_drift=(),
+                           allow_missing_required_check=(),
+                           accept_checkpoint_change: bool = False,
+                           no_sandbox: bool = False, quote) -> list:
+    """The admission flags as shell tokens, in the one order both
+    composers use (v0.4.36: extracted from compose_admission_command so
+    the HOLD card's base-defect rung renders the same grammar).
+    Repeatable flags render one occurrence per value, in the order
+    given, deduplicated; `quote` renders each value (_always_quoted for
+    the refusal remedy's filename-first line, shlex.quote for the
+    card's path-quoted lines). Pure."""
+    tokens: list = []
 
     def _extend(flag: str, values) -> None:
-        seen: set[str] = set()
+        seen: set = set()
         for v in values or ():
             v = str(v)
             if v in seen:
                 continue
             seen.add(v)
-            parts.append(flag)
-            parts.append(_always_quoted(v))
+            tokens.append(flag)
+            tokens.append(quote(v))
 
     _extend("--allow-out-of-scope", allow_out_of_scope)
     _extend("--accept-base-drift", accept_base_drift)
     _extend("--allow-missing-required-check", allow_missing_required_check)
     if accept_checkpoint_change:
-        parts.append("--accept-checkpoint-change")
+        tokens.append("--accept-checkpoint-change")
     if no_sandbox:
-        parts.append("--no-sandbox")
-    return " ".join(parts)
+        tokens.append("--no-sandbox")
+    return tokens
 
 
 # The three decline branches of a confirm_yn_decision prompt (v0.4.29,
@@ -4239,7 +4669,8 @@ def format_session_dossier_json(dossier: dict) -> str:
       attempts    one view per attempts[] entry, in order: at,
                   command, outcome, closure_reason, tarball,
                   scope_kind, scope, change_paths, overridden_paths,
-                  required_check_overrides, forecast_drift_paths
+                  required_check_overrides, base_drift_overrides,
+                  forecast_drift_paths
                   (computed for post-epoch response attempts, null
                   otherwise), validation (null, or {state, exit_code,
                   reconciliation_parsed, claims_declared, checks:

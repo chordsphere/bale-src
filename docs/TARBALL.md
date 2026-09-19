@@ -434,7 +434,13 @@ ADR-0013):
   are never seeded by the crafter: absence is the honest default, and
   a worker who emitted a block or carried a round by paste writes the
   number. Honest empties are meaningful: `[]` asserts
-  *none arose*, and the lint checks shape only, never content.
+  *none arose*, and the lint checks shape only, never content. One
+  field is the exception to that rule: `docs_read` (optional — the
+  docs and sections the session actually read) is seeded `[]` by the
+  crafter for scaffold presence, so a shipped `[]` is indistinguishable
+  from an unfilled stub, and `tools/response_lint.py` warns
+  `DOCS_READ_EMPTY_STUB` on it — fill the list, or delete the key
+  (omission means *reported nothing*).
 
 One member has been documented by its schema description alone
 until now: `forecast_departures` — the block's structured record of
@@ -1104,6 +1110,17 @@ and the worker neither writes, edits, nor declares it:
 only. A project may also pin required check names the worker's
 `validation_will_run` must include; apply refuses an omission, and a
 declared check may still `[SKIP]` with a reason at runtime.
+
+A HOLD reaches the worker as one addressed block that `bale apply`
+prints between the whole-line sentinels `=== RELAY BEGIN <sid> to
+worker ===` and `=== RELAY END <sid> to worker ===`: the judge line
+naming which judgment held, the failed checkpoint probes by label
+alone, the worker's own `validation.sh` output, and the `bale retry`
+line a re-attempt ends its turn with. That block is the whole of the
+failure context — it carries nothing else of the checkpoint's output,
+by construction — so the worker diagnoses from it and never asks for
+the session log; if the labels point at the checkpoint rather than the
+work, the ask is for the spec from those labels (`PLANNER.md` §5).
 
 ### 7.1 The staging-copy approach
 

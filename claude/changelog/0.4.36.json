@@ -1,0 +1,37 @@
+{
+  "record_version": 1,
+  "version": "0.4.36",
+  "session_id": "2026-09-18-board-47b-relay-blocks-003",
+  "at": "2026-09-18T23:26:46+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_report.py",
+      "change": "new addressed relay block builders: format_hold_relay_blocks over format_hold_relay_planner / format_hold_relay_worker, the clean-apply format_apply_relay_planner, split_attempt_bands, relay_sentinels, relay_send_first; the worker builder takes no parameter the checkpoint's output could arrive through"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "HOLD card: trailer opens with `send first: planner|worker`; compose_hold_successors gains the base-defect fork (RULING_BASE_DEFECT) re-stating the held apply's admissions via the new optional readmissions argument; _admission_flag_tokens extracted from compose_admission_command (output unchanged)"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "format_walkthrough_summary renders its checkpoint attribution through _checkpoint_attribution (exit-2 tail kept); docstring fixes for compose_hold_successors and format_session_dossier_json (base_drift_overrides)"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "HOLD prints the planner and worker relay blocks before the card, in send order, with this attempt's log bands cut by byte offsets; a clean apply prints the planner-addressed ratification relay before the [PASS] banner; --json output unchanged"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "cmd_apply's unreachable post-resolution tarball existence check removed (resolve_inbound_path with a verb already refuses a miss)"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "section 7 gains the worker-facing statement that a HOLD arrives as a RELAY ... to worker block and the worker never asks for the session log; section 5.2.2 names the DOCS_READ_EMPTY_STUB warning"
+    },
+    {
+      "path": "BALE.md",
+      "change": "section 8.8 documents the relay blocks, the send-first line, the base-defect fork, and the clean-apply ratification relay"
+    }
+  ],
+  "notes": "One-apply-behind: the apply that lands 0.4.36 still renders the 0.4.35 card and prints no relay blocks."
+}

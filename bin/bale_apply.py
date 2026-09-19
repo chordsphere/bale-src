@@ -1660,8 +1660,10 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_base_drift_refusal,
         format_checkpoint_stamp_refusal,
         format_decline_line,
+        format_apply_relay_planner,
         format_dry_run_report,
         format_hold_card,
+        format_hold_relay_blocks,
         format_required_check_refusal,
         format_sandbox_unavailable_refusal,
         format_scope_drift_refusal,
@@ -1671,6 +1673,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         json_mode,
         parse_failed_probe_labels,
         read_clarification_summary,
+        split_attempt_bands,
         write_telemetry_record,
     )
     # The session log path as the json reports cite it (absolute) — the
@@ -3013,12 +3016,20 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # PASS is precisely the misunderstanding-with-calibrated-worker
         # signal the dual stream exists to surface), and the worker's
         # run below is unconditional.
+        #
+        # Board 47b (v0.4.36): the session log's byte size is taken before
+        # the checkpoint, after it, and after validation.sh, so the HOLD's
+        # planner relay block can inline exactly THIS attempt's two bands
+        # (split_attempt_bands) however many attempts the log holds.
+        log_offsets = {"start": _log_size(session_log)}
         checkpoint_result = None
         if checkpoint_path is not None:
             checkpoint_result = run_blind_checkpoint(
                 repo, staging, base_sha, checkpoint_path,
                 locked_sid, verbose=verbose, sandbox=sandbox_on,
                 network=sandbox_network)
+        log_offsets["mid"] = _log_size(session_log)
+        if checkpoint_result is not None:
             log(f"blind checkpoint exit code: "
                 f"{checkpoint_result['exit_code']} ({checkpoint_path})")
 
@@ -3028,6 +3039,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             repo, response_dir, staging, manifest,
             locked_sid, verbose=verbose, sandbox=sandbox_on,
             network=sandbox_network)
+        log_offsets["end"] = _log_size(session_log)
         log(f"validation.sh exit code: {exit_code}")
 
         # The D4 telemetry stamp for every validated attempt this apply
@@ -3368,6 +3380,31 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # nothing-to-commit, or the skip with its reason.
             if sweep_result is not None:
                 summary_rows.append(("sweep", sweep_result["detail"]))
+            # Board 47b (v0.4.36): the ratification relay, pre-assembled
+            # — one planner-addressed block carrying notes.md verbatim,
+            # the verdict, and the admissions this apply exercised.
+            # Reference material, so it prints before the [PASS] banner
+            # (the summary-last rule); under --json it lands on stderr
+            # with every other human line.
+            notes_text, notes_problem = _read_response_notes(response_dir)
+            print(format_apply_relay_planner(
+                sid=locked_sid, origin_branch=origin_branch,
+                exit_code=exit_code,
+                checkpoint=(checkpoint_stamp if checkpoint_result is not None
+                            else None),
+                notes=notes_text, notes_problem=notes_problem,
+                admissions={
+                    "overridden_paths": list(overridden_paths),
+                    "overridden_path_sources": [
+                        overridden_path_sources.get(p, "")
+                        for p in overridden_paths],
+                    "required_check_overrides":
+                        list(required_check_overridden),
+                    "base_drift_overrides": list(base_drift_overridden),
+                    "checkpoint_change_accepted":
+                        checkpoint_result is not None
+                        and checkpoint_stamp_matched is False,
+                }))
             print(format_summary_block(
                 summary_rows,
                 status="PASS",
@@ -3472,6 +3509,25 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # base cannot take `bale amend-checkpoint`; the raw base key
             # (unresolved) tells the two apart: resolution changed
             # nothing exactly when the base carries no {sid}.
+            # Board 47b (v0.4.36): the addressed relay blocks, printed
+            # before the card (reference first, card last) in send order;
+            # the card's `send first:` line names which goes first. The
+            # worker block is built from the stamp's parsed labels and
+            # val_output only (format_hold_relay_worker's contract); the
+            # planner block inlines this attempt's log bands.
+            hold_checkpoint = (checkpoint_stamp
+                               if checkpoint_result is not None else None)
+            for block in format_hold_relay_blocks(
+                    sid=locked_sid, exit_code=exit_code,
+                    checkpoint=hold_checkpoint,
+                    worker_output=val_output,
+                    held_tarball=held_tarball,
+                    held_tarball_why=held_tarball_why,
+                    bands=_read_attempt_bands(
+                        session_log, log_offsets,
+                        checkpoint_ran=checkpoint_result is not None)):
+                print("")
+                print(block)
             print(format_hold_card(
                 sid=locked_sid,
                 exit_code=exit_code,
@@ -3488,6 +3544,19 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     if checkpoint_result is not None
                     and "{sid}" not in (checkpoint_base_raw or "")
                     else None),
+                # The base-defect rung retries the SAME bytes, so it
+                # re-states every admission this apply exercised (no
+                # override carries forward — BALE.md §8.8).
+                readmissions={
+                    "allow_out_of_scope": list(overridden_paths),
+                    "accept_base_drift": list(base_drift_overridden),
+                    "allow_missing_required_check":
+                        list(required_check_overridden),
+                    "accept_checkpoint_change":
+                        checkpoint_result is not None
+                        and checkpoint_stamp_matched is False,
+                    "no_sandbox": sandbox_off_source == "flag",
+                },
             ))
             if json_mode():
                 # Emitted on the exit-1 path deliberately: a machine
@@ -3612,6 +3681,65 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
 # ---------------------------------------------------------------------------
 # 3. Apply
 # ---------------------------------------------------------------------------
+
+def _log_size(path: Path) -> int:
+    """The session log's current byte size — an offset for
+    _read_attempt_bands (board 47b). A log not yet written is size 0; an
+    unreadable one is -1, which _read_attempt_bands reports as an
+    unreadable band rather than guessing."""
+    try:
+        return path.stat().st_size
+    except FileNotFoundError:
+        return 0
+    except OSError:
+        return -1
+
+
+def _read_attempt_bands(log_path: Path, offsets: dict, *,
+                        checkpoint_ran: bool) -> dict:
+    """This attempt's checkpoint and worker bands, read from the session
+    log between the offsets apply_pipeline took around the scripts, and
+    split by bale_report.split_attempt_bands. A read failure yields empty
+    bands (the planner block then says the band could not be read and
+    names the log) and is logged — loud, never fatal, since the HOLD's
+    git work is already complete."""
+    from __main__ import log  # lazy — see module docstring
+    from bale_report import split_attempt_bands
+    start, mid, end = (offsets.get("start"), offsets.get("mid"),
+                       offsets.get("end"))
+    if None in (start, mid, end) or min(start, mid, end) < 0 \
+            or not start <= mid <= end:
+        log(f"relay block: session-log offsets unusable ({offsets}); the "
+            f"planner block will point at {log_path} instead of inlining "
+            f"the bands")
+        return {"checkpoint": None, "worker": ""}
+    try:
+        with log_path.open("rb") as f:
+            f.seek(start)
+            raw = f.read(end - start)
+    except OSError as e:
+        log(f"relay block: could not read {log_path} ({e}); the planner "
+            f"block will point at the log instead of inlining the bands")
+        return {"checkpoint": None, "worker": ""}
+    cut = mid - start
+    cp_chunk = (raw[:cut].decode("utf-8", errors="replace")
+                if checkpoint_ran else None)
+    wk_chunk = raw[cut:].decode("utf-8", errors="replace")
+    return split_attempt_bands(cp_chunk, wk_chunk)
+
+
+def _read_response_notes(response_dir: Path) -> tuple:
+    """(text, problem) for the response's notes.md: (None, "") when the
+    response shipped none, (text, "") when read, (None, reason) when
+    present but unreadable — the clean-apply relay block says which."""
+    path = response_dir / "notes.md"
+    if not path.is_file():
+        return None, ""
+    try:
+        return path.read_text(encoding="utf-8"), ""
+    except (OSError, UnicodeDecodeError) as e:
+        return None, str(e)
+
 
 def record_rejected_attempt(repo: Path, sid: str, command: str,
                              tarball_basename: str, exc: SystemExit) -> None:
@@ -3753,14 +3881,13 @@ def cmd_apply(args: argparse.Namespace) -> int:
     cfg = bale_config.merged_config(repo)
     search_paths = bale_config.get_apply_search_paths(cfg)
     if args.tarball is not None:
+        # No post-resolution existence check (removed v0.4.36, the
+        # board-106 rider): with a verb, resolve_inbound_path either
+        # returns a path that passed is_file() or exits through
+        # fail_not_found — fail() ends in sys.exit on every branch — so
+        # the check that stood here could not run.
         tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
                                             verb="apply")
-        if not tarball_path.is_file():
-            # Only reachable for the absolute-path branch (relative + search
-            # paths configured already fails inside the helper); the empty-
-            # search-paths relative branch reaches here only if (cwd/arg)
-            # doesn't exist. Either way, the existing message is right.
-            fail(f"tarball not found: {tarball_path}")
     else:
         # Bare form (board 51): resolved below, after the inspection and
         # json branches — the inspection flags refuse the bare form (they
