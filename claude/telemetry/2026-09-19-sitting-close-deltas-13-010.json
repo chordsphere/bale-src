@@ -1,0 +1,228 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-19-sitting-close-deltas-13-010",
+  "created_at": "2026-09-19T03:28:52+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-19T03:28:52+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-19-sitting-close-deltas-13-010.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-19T23:33:30+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-19-sitting-close-deltas-13-010.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "header: last-landed-by names this session": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "close blocks: two Landed 2026-09-19 blocks follow close 12's and end \u00a73": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "registry: five 2026-09-19 brackets, six new entries end the list": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board: rows 104, 109, 110, 111 end on a 2026-09-19 bracket": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board: rows 112 and 113 follow row 111 and end \u00a74": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "contracts: 2026-09-19 heading over four contracts ends \u00a75": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "evidence: entries 164-170 follow entry 163 and end \u00a76": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "standing facts: 0.4.37 landmark and the new bullets in \u00a77": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "insertions only against the base MASTER.md, plus the header line": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "every cited sid has a telemetry record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "inserted dates never exceed the session id's date": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "response declares claude/MASTER.md only, no bin/VERSION": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false,
+        "validation_will_run": [
+          "header: last-landed-by names this session",
+          "close blocks: two Landed 2026-09-19 blocks follow close 12's and end \u00a73",
+          "registry: five 2026-09-19 brackets, six new entries end the list",
+          "board: rows 104, 109, 110, 111 end on a 2026-09-19 bracket",
+          "board: rows 112 and 113 follow row 111 and end \u00a74",
+          "contracts: 2026-09-19 heading over four contracts ends \u00a75",
+          "evidence: entries 164-170 follow entry 163 and end \u00a76",
+          "standing facts: 0.4.37 landmark and the new bullets in \u00a77",
+          "insertions only against the base MASTER.md, plus the header line",
+          "every cited sid has a telemetry record",
+          "inserted dates never exceed the session id's date",
+          "response declares claude/MASTER.md only, no bin/VERSION"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.37",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-19-sitting-close-deltas-13-010.sh",
+              "sha256": "c059d2acefd93920f2cc7a514688e304dec3d79423e072ff239fb214ddbc2af4"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-19T03:28:52+00:00",
+            "base_files": {
+              "claude/MASTER.md": "5bc53cce6ee7bc4fb4406327dca77c2700a60b28fb915fdd9846898ac7ed0ca7"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "validation.sh's staging is target-base: HEAD:claude/MASTER.md is the stamped base and no record exists for this session or 2026-09-19-continue-plan-009; otherwise the three diff-derived checks SKIP by name",
+            "the brief's desk-side facts that nothing shipped can check (110's reproduction and dry runs, the OPENER_SHAPE_SENTENCE and _section_29 greps, resolve_write_forecast's read-only [], the 55-suite count, the [sandbox] setting) are taken as stated",
+            "002's and 006's closing packs are left unattributed or attributed as the desk's account, because no record names the pack that closed them"
+          ],
+          "judgment_calls": [
+            "records over brief: 110/111 pack instants from provenance.packed_at (02:29:06Z, 02:29:47Z), not created_at; 006 'opened per its record', no pack second asserted",
+            "entry 165 records 004 opening 9.5 minutes after 003's supersession close, without a cause; entry 169 says four words, not five",
+            "each \u00a73 block closes on board then registry deltas, with block B's verbatim sequencing just before them (close 12 ended on sequencing)",
+            "the _section_29 renames bracket points at the neighbouring entry's 2026-09-16 bracket, which already records them consumed",
+            "the sandbox bullet sits beside the scratch-repo note mid-\u00a77; the other four new bullets end \u00a77, 0.4.37 first",
+            "homes named for the readme-key contract (TARBALL.md \u00a73.2) and the held-admissions contract (BALE.md \u00a78.8)"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md",
+            "README.md",
+            "TARBALL.md \u00a71, \u00a72, \u00a75.1-\u00a75.5, \u00a77, \u00a710.1",
+            "PLANNER.md META, INDEX, \u00a76",
+            "DOCS.md INDEX, \u00a79, \u00a710",
+            "claude/MASTER.md (header, \u00a73 registry entries touched, close 12 block, \u00a74 rows 67 and 104-111, \u00a75 tail, \u00a76 159-163, \u00a77 tail)",
+            "claude/responses/2026-09-19-sitting-close-deltas-12-001/notes.md",
+            "claude/responses/2026-09-19-opener-reword-code-004/notes.md",
+            "claude/responses/2026-09-19-opener-reword-docs-005/notes.md",
+            "claude/responses/2026-09-19-board-110-held-admissions-007/notes.md",
+            "claude/responses/2026-09-19-board-111-tests-smalls-008/notes.md",
+            "claude/changelog/0.4.37.json",
+            "claude/telemetry/ (all nine shipped records)",
+            "tools/response_lint.py (header, main, import and write-site audit)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-19-sitting-close-deltas-13-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-19-sitting-close-deltas-13-010.sh",
+          "sha256": "c059d2acefd93920f2cc7a514688e304dec3d79423e072ff239fb214ddbc2af4"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-19T23:33:30+00:00",
+  "outcome": "applied"
+}
