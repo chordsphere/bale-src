@@ -1,0 +1,361 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-20-board-104b-pack-telemetry-008",
+  "created_at": "2026-09-20T03:08:02+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-20T03:08:02+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-20-board-104b-pack-telemetry-008.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-20T03:45:15+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-20-board-104b-pack-telemetry-008.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: pack/report suites touched by 104b": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: schema and doc-pin guards": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest -k stdlib_only selects and passes the tools pin": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh install self-check": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions: 104b surfaces": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: pack/report suites touched by 104b": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: schema and doc-pin guards": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest -k stdlib_only selects and passes the tools pin": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "validate.sh install self-check": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: 104b surfaces": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (py, json, sh)",
+          "unittest: pack/report suites touched by 104b",
+          "unittest: schema and doc-pin guards",
+          "unittest -k stdlib_only selects and passes the tools pin",
+          "validate.sh install self-check",
+          "session assertions: 104b surfaces",
+          "unittest: full suite (--slow)",
+          "exec bits: validate.sh, tests/test_craft_response.py",
+          "claims reconciliation"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "claude/changelog/0.4.40.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_include_group.py",
+        "tests/test_pack_telemetry_104b.py",
+        "tests/test_provenance_at_open.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.39",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "b72654758edbd7be23587244afd478f67364e55f8f674cd438386fa938e1b4ae",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "4788573841f7690ef5dfbbcd24b140b0683c6e1b1cafcb5bc81d0af04b457861"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-20-board-104b-pack-telemetry-008.sh",
+              "sha256": "f5bb8388c7fe5306675be29e0917d7636ac434be0dfb0453404c5cc796bb1ab1"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-20T03:08:01+00:00",
+            "base_files": {
+              "BALE.md": "252e1db29da6cbaf167aa71d93920b2c2b4013d32b9c31ae5ca7228a6236e7f3",
+              "bin/VERSION": "5557f8ccb9689c28346d3f1e0359b4574078a5901912b5d2d1d95653fba77bda",
+              "bin/bale_pack.py": "b4d9733f47c67cfb46cc0c7323362d33f63b4b38f8b894e9e4a6b549b6f9e53e",
+              "bin/bale_report.py": "6640a245e23135d29841f94ee9fb02996a1979490a78f65f4489bcda55a8465e",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "schemas/telemetry-record.schema.json": "6bd3c9eb3fcd5f7da60b488319589fc2e1f3c35514ff3a59a523093c27fba1a7",
+              "tests/__init__.py": "0c44c07eb437099ccf549130ff801e000c31117eefaabca2ae20373f88606802",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json": "0f2e4a0165fa4123aee88f0a88a6cbd68d4ce9ac376e28d96b3f85c1ae62ea19",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json": "7d1779afb4224f1aa1bc32410f85a370949b77521f69d7bc7a0a2711e23c2e32",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "9a53cf1d9d64f3f88d417f60d87a69a5c59e895e10eb38221edf3c838a65c7f0",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "48ba518bea6d5ac3161c9af4022fdd592b309e5d5eb9ef6081d22da6c6a6bfe2",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "e1fe2d5ed22c83b209d946a739f3574d0455f1ab73207e2d77ff04e5219d20d6",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4b1605d20917a49eaad48a5c8418c33264355dcb6d171a1ea7ada27dd2aa90d8",
+              "tests/test_changelog_record.py": "4c341a8b6d39d0a9b069096bb12e607a7cb8b005d72ba35b569a396bbf0d6ef5",
+              "tests/test_checkpoint_file_flag.py": "875e3ac2a54901aee5822100857f8a04548c4278d7525ebc7ac40002b8a2b96d",
+              "tests/test_checkpoint_provenance.py": "3a5ec190d58ae465037d575539b65a3811f91ae89796099edba4358c43cfeda2",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_cli_help.py": "4b9780fbd76905c04026d01e8d9d33e45e438b559f90c6f55b0c843e18c65956",
+              "tests/test_clock_discipline.py": "578106c0db3255d4ba8f44f8d1c75843b5b277901de35635bc33d7451ea5120a",
+              "tests/test_closure_telemetry.py": "40538646717a5ab860103a4abbb312db1c834056c9fb17f02953b7a994ef4411",
+              "tests/test_context_pack.py": "17a42b69c86e6d6bd0581bfd1ee4573c3d51eb51c183c219afea90df74ce7124",
+              "tests/test_craft_response.py": "2be2df60c3dbfe20ccd4b03f140d3d61aa27e337289f923dff9c6f1c71c80190",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "d2f7f6176a910e768cc17884a08c61b5f1214f34993f4c473b63ad502a6c58d8",
+              "tests/test_dotted_run_form.py": "ce5b7c303857d3ff61aba0b6d362961318f9b9068cba0dd9dd3952336f1a3a6c",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "a25a9fde13d0191ba531ddb89c687ef7bcc0313b3fd08d4d93b9be1019936e6c",
+              "tests/test_global_doc_selfcontainment.py": "850c9122960325f4eed6ab05a915ec9801505e959744ebeda5c1cd15afa3cfd5",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "f7a4c926e103bccb30734480c67ecf128338c0a48bef982127180c7f0eb953cc",
+              "tests/test_handoff_happy.py": "ca926c81d0639f5104b67807bb2853d99e1b507a5f6d71637b10d28587de24ae",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_harness_cli_loader.py": "649fadbc43c1690d87d62d862bc4cc1caacade1969a84c89e6792d473fef0110",
+              "tests/test_hold_retry_e2e.py": "5842725a36cea7dc6aba385ed7b75beb66ff6d4a34aa8133d10bc668ffcdc47a",
+              "tests/test_hook_acceptance.py": "a0c63f4a575d94fc92e9882f26b6bdf96462a466e1dd4ce38232a7bc63bf8299",
+              "tests/test_include_group.py": "20d3537c565aea0cc17689cc15ec3cf33a869ed0710eeaba2838795f69bad9b3",
+              "tests/test_install_precheck.py": "be11f2c334512e06333eb34ac6da090d7202bf5115c21333325e0d944c6f61a3",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_verb.py": "9d212baa4e819bcc760a5303083d818b2d99de8100ec1c45da12feedbdc66e4a",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_pack_opener.py": "74711c055d6ceff4c8db8b3ce158330cf1eac5c834cdc576407601d8c72059e3",
+              "tests/test_per_sid_checkpoint.py": "9562f22259f89e7b6d69d86027e1398f3570f11d44096da40229b2480ba2042c",
+              "tests/test_planner_admission.py": "343efd7b7a5136867d1eec5f8dac890587a15344a22110805049e3b3c4679e7b",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_probe_clipboard_config.py": "fb7aa74ae72623a1d06adc0fca00296c7168e493adda6cf6468322db70919488",
+              "tests/test_provenance_at_open.py": "0fdf880c1106d708a121ac23cf691ae99b470b66f9b4bdc6034426e384f322fa",
+              "tests/test_readme_identity.py": "edf16ba55fd7fa019a5afe437cd3b412457e2e0d8031f0ac919415b7b7c0d1e6",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_relay_verb.py": "809d41078576afd642993e9c8d3d990f1d3afd377d599202143f7cfc28813c6a",
+              "tests/test_release_packaging.py": "2aebca82000627ea9da6e9a609139c102cda6b8539578a1e567655d6c7ee88b8",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "a26f022ea0ce138152bb153a5aa0188c8244cdab482465a5424312e58d8e0b6f",
+              "tests/test_revert_json.py": "bc27e13b1234963e33244f4e1d9e3895078a2c3bf88538ae970efa6fa9dc063c",
+              "tests/test_rollback_telemetry.py": "6adfcd2ffcd0ff1d42c789762595510c0eeb6c789dabbe866e7878435652d9f7",
+              "tests/test_sanctioned_pairs.py": "93268e39ad18727568d7ef83956abe31d6c9865c135d4aa82be8cabb4dc250df",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "695474fd7875a9d77b6a12387237dace314dceefae8b407cdd75aa04ea4b0f23",
+              "tests/test_stats_compaction.py": "eb5722d05428558bbbe4aff7c003c2e5c8d09d0ee1e9678881a1d23f165014a1",
+              "tests/test_stats_drilldown.py": "19408f51cbabdc999725951026d5ced65457343f6c94101dbf54e749d62b7b3d",
+              "tests/test_stats_linkage.py": "47e319560c4679a9a5783685c844aca6a8aaa9b1bfdde1e1ff4a85971e46817f",
+              "tests/test_supersession_pack.py": "462471b3f7b3fe0ad9c445f8133b705bb07a9391d9e7d1b8f3226893e27dd832",
+              "tests/test_telemetry_extensions.py": "9dfae1d263912875a6e7ad4df8f45ae1f03c1033a1fabe95e152fccbf66d54f9",
+              "tests/test_telemetry_fields_wave1.py": "d9fe9098fede01f58c92b1e761188271e7c32684fd49fc728beb94d6c00e93a0",
+              "tests/test_telemetry_promotion.py": "83e1d6c47bcb0ebc87631db1f8398458205eeba7da5af1cc13a86fef25b78f23",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "014da4e11e891c1a312bc8636fb9cd2a922dc8b6ab7c69ab8af22eed5189b16b",
+              "tests/test_verbose_thread.py": "4d8f9d16413886cf7bf3e2ae3abec49bd75c75944d466e998418beb87d15c520",
+              "tests/test_write_forecast.py": "ceced962e27ba328a64e82f87d1e8ee1cc5818a7a9cb8e29e674302976088c52",
+              "validate.sh": "21165c7e73ce31e2542779f47425ad965e463f8045b4cb463446fb0acfe302ac"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "sweep entries may carry one key beyond the pinned five (event); the pin reads as a floor",
+            "with [apply] sweep off, an entry with nulled sweep keys is more useful than no entry",
+            "the existing ToolsHermeticPin (board 69 d) satisfies item 4; renaming its methods beats a second walker"
+          ],
+          "judgment_calls": [
+            "packed_at homed in the opened attempt's provenance block; registry provenance.json kept to the pair by copying the dict",
+            "field named swept_by, stamped post-sid by a writer shared with stamp_superseded_by, swept as its own event",
+            "include_group non-null shape is structured ({name, state, triggers, pulled, row}) with the human row verbatim inside",
+            "droppable cap-loop rider not taken"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (brief)",
+            "TARBALL.md INDEX, 1, 2, 5.1-5.5, 7, 10.1",
+            "claude/responses/2026-09-20-board-104a-context-pack-005/notes.md",
+            "BALE.md 7.7, 7.8, 8.9 (targeted)",
+            "schemas/telemetry-record.schema.json (attempt provenance, superseded_by)"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-09-20-board-104b-pack-telemetry-008.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-20-board-104b-pack-telemetry-008.sh",
+          "sha256": "f5bb8388c7fe5306675be29e0917d7636ac434be0dfb0453404c5cc796bb1ab1"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-20T03:45:15+00:00",
+  "outcome": "applied"
+}
