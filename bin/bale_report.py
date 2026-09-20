@@ -4320,7 +4320,19 @@ def format_stats_json(stats: dict) -> str:
                                   promoted_only}
                   budget         {pressure: {value: count, plus
                                   "unreported"},
-                                  bailed_with_pressure_none}
+                                  bailed_with_pressure_none,
+                                  compaction (v0.4.38, board 37,
+                                  additive): {reporting_sessions,
+                                  occurred_sessions}}
+                                 — compaction counts sessions whose
+                                 feedback.self_reported
+                                 .compaction_occurred is readable (a
+                                 bool, or an object whose occurred is
+                                 a bool) on any attempt, and those
+                                 where any attempt's value is true;
+                                 anything else neither reports nor
+                                 discloses. Same filtered membership
+                                 as pressure.
                   forecast_departures (v0.4.2, ADR-0015 board 13
                                   session B, additive)
                                  {declared_paths, admitted_paths,
@@ -4364,8 +4376,11 @@ def format_stats_json(stats: dict) -> str:
                 crash_debris, clarification_self_only,
                 clarification_promoted_only, forecast_admitted_only,
                 forecast_declared_only (sessions with at least one
-                such path), and bailed_with_pressure_none. The counts
-                these compose are unchanged and stay where they were.
+                such path), bailed_with_pressure_none, and
+                compaction_occurred (v0.4.38, board 37, additive — the
+                sids behind cross_checks.budget.compaction
+                .occurred_sessions). The counts these compose are
+                unchanged and stay where they were.
 
     Emitted as a single compact line (no indent) so the consumer
     contract stays line-oriented. Pure: builds a string, prints
@@ -4604,6 +4619,15 @@ def format_stats_report(stats: dict) -> str:
     lines.append(f"  cross-check budget: pressure [{pressure or 'none'}]"
                  f", bailed with pressure 'none': "
                  f"{budget['bailed_with_pressure_none']}")
+    # Board 37: the compaction half of the budget cross-check, on its own
+    # line directly under the pressure line so the existing line's text
+    # stays byte-stable for anyone grepping it. The sids ride the
+    # corpus-members block below (compaction_occurred), rendered there
+    # only when non-empty like every corpus bucket.
+    compaction = budget["compaction"]
+    lines.append(f"  cross-check compaction: disclosed "
+                 f"{compaction['occurred_sessions']} of "
+                 f"{compaction['reporting_sessions']} reporting sessions")
     departures = stats["cross_checks"]["forecast_departures"]
     lines.append(f"  cross-check forecast departures: declared "
                  f"{departures['declared_paths']}, admitted "

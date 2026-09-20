@@ -51,7 +51,8 @@ whole over the same one substrate, with `telemetry_dir_problem` the
 gate `bale stats --sid` fails through before computing it; the loaders
 and classifiers below them — the stats micro's session readers
 (is_handoff_origin, session_docs_read, session_self_reported_count,
-session_clarification_rounds, normalize_docs_read_token) among them —
+session_clarification_rounds, normalize_docs_read_token) and board 37's
+session_compaction among them —
 are importable for tests. The payload's *key
 list* as a consumer contract is owned by the `format_stats_json`
 docstring in `bin/bale_report.py` (one-home rule; the dossier line's
@@ -550,6 +551,62 @@ def session_clarification_rounds(record: dict) -> int:
             rounds = value
     return rounds + session_self_reported_count(record,
                                                 "paste_carried_rounds")
+
+
+# ---------------------------------------------------------------------------
+# The compaction read side (board 37)
+# ---------------------------------------------------------------------------
+
+# The self-reported key a worker fills when the runtime compacted its
+# context mid-session (TARBALL.md §5.2.2; CLAUDE.md §11.6 is the recovery
+# path the disclosure points at). Named once so the reader and its tests
+# spell it the same way.
+COMPACTION_KEY = "compaction_occurred"
+
+
+def _attempt_compaction(attempt: dict) -> Optional[bool]:
+    """One attempt's compaction self-report as a bool, or None when the
+    attempt reports nothing readable.
+
+    Two shapes are real and both are read. The response-manifest schema
+    makes the field an object whose `occurred` is the bool (every real
+    record carries that shape); the older fixture corpus carries a bare
+    bool. Anything else — absent, null, a string, a number, an object
+    without a bool `occurred` — is no report: None, never a crash and
+    never a guessed value. Bool is checked with isinstance, so a JSON
+    0/1 is not mistaken for false/true.
+    """
+    reported = _self_reported(attempt)
+    if reported is None:
+        return None
+    value = reported.get(COMPACTION_KEY)
+    if isinstance(value, dict):
+        value = value.get("occurred")
+    return value if isinstance(value, bool) else None
+
+
+def session_compaction(record: dict) -> tuple[bool, bool]:
+    """Board 37: (reports, discloses) for one session.
+
+    A session REPORTS when any of its feedback-bearing attempts carries a
+    readable compaction self-report (_attempt_compaction), and DISCLOSES
+    when any attempt's report is true. Any-attempt, deliberately not
+    latest-carrier: a compaction is an event that happened in the
+    session, and a HOLD→retry whose retry manifest says false does not
+    un-happen the first attempt's disclosure. (On the corpus of record
+    the two readings agree; the choice matters only where they would
+    not, and there the event reading is the honest one.)
+    """
+    reports = False
+    discloses = False
+    for attempt in record["attempts"]:
+        value = _attempt_compaction(attempt)
+        if value is None:
+            continue
+        reports = True
+        if value:
+            discloses = True
+    return reports, discloses
 
 
 def _rate(numerator: int, denominator: int) -> Optional[float]:
@@ -1270,10 +1327,23 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
       in_flight, read_only, crash_debris, the clarification
       cross-check's self_only / promoted_only disagreement sets, the
       forecast-departures smells (admitted_only / declared_only —
-      sids of sessions with at least one such path), and
-      bailed_with_pressure_none. Sorted, sid-granular, emitted beside
-      the counts they compose — the existing cross_checks counts are
-      unchanged.
+      sids of sessions with at least one such path),
+      bailed_with_pressure_none, and (board 37) compaction_occurred.
+      Sorted, sid-granular, emitted beside the counts they compose —
+      the existing cross_checks counts are unchanged.
+
+    Board 37 adds the compaction half of the budget cross-check, over
+    the same filtered membership as the pressure pass beside it:
+    - **`cross_checks.budget.compaction`** — `{reporting_sessions,
+      occurred_sessions}`: sessions with any attempt carrying a readable
+      compaction self-report, and sessions with any attempt disclosing
+      one (session_compaction carries the definition, both accepted
+      shapes, and why any-attempt rather than latest-carrier).
+      Counts, not a rate: a disclosure rate over self-reporters would
+      read as calibrated when the field is the least-checkable one on
+      the manifest, and the two counts keep both halves in view.
+    - **`members.compaction_occurred`** — the sorted sids behind
+      occurred_sessions.
 
     The stats micro adds five corpus totals over the same filtered
     membership (so both filters reach them like every membership total):
@@ -1419,14 +1489,30 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
     pressure: dict[str, int] = {}
     bailed_with_none = 0
     bailed_with_none_sids: set = set()
+    # The compaction half of the budget cross-check (board 37): sessions
+    # whose self-report is readable, and the sids of those disclosing a
+    # compaction. Same loop, same membership as the pressure pass — the
+    # two are one cross-check's two self-reported budget signals.
+    compaction_reporting = 0
+    compaction_occurred_sids: set = set()
     for record in membership:
+        reports, discloses = session_compaction(record)
+        if reports:
+            compaction_reporting += 1
+        if discloses:
+            compaction_occurred_sids.add(record["session_id"])
         feedback = _latest_feedback(record)
         value = None
         if feedback is not None:
-            reported = (feedback.get("self_reported") or {})
-            candidate = reported.get("budget_pressure")
-            if isinstance(candidate, str) and candidate:
-                value = candidate
+            # Tolerant like every other self_reported read (board 37):
+            # a truthy non-dict block used to raise here and take the
+            # whole run down; it now reads as no report. Every value
+            # that computed before buckets exactly as it did.
+            reported = feedback.get("self_reported")
+            if isinstance(reported, dict):
+                candidate = reported.get("budget_pressure")
+                if isinstance(candidate, str) and candidate:
+                    value = candidate
         bucket = value if value is not None else "unreported"
         pressure[bucket] = pressure.get(bucket, 0) + 1
         category = closure_category(record)
@@ -1564,6 +1650,10 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "budget": {
                 "pressure": dict(sorted(pressure.items())),
                 "bailed_with_pressure_none": bailed_with_none,
+                "compaction": {
+                    "reporting_sessions": compaction_reporting,
+                    "occurred_sessions": len(compaction_occurred_sids),
+                },
             },
             "forecast_departures": {
                 "declared_paths": fd_declared,
@@ -1586,6 +1676,7 @@ def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
             "forecast_admitted_only": sorted(fd_admitted_only_sids),
             "forecast_declared_only": sorted(fd_declared_only_sids),
             "bailed_with_pressure_none": sorted(bailed_with_none_sids),
+            "compaction_occurred": sorted(compaction_occurred_sids),
         },
     }
 

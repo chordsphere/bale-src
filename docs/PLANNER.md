@@ -355,11 +355,13 @@ traffic — is the contract:
    checkpoint path — `bale amend-checkpoint` is the verb that
    performs it, verifying the delivered file against the published
    sha256 before committing — and retries the same response
-   tarball; the provenance gate refuses on the stamp mismatch, the
-   operator
-   accepts deliberately with the per-invocation flag, and the
-   recorded stamp mismatch plus a prose mention at the next doc
-   landing is the truthful double record.
+   tarball, re-stating the held apply's admissions (none carries
+   forward from a failed attempt, and the retry line bale prints
+   already carries those admissions); the provenance gate refuses
+   on the stamp mismatch, the operator accepts deliberately with
+   the per-invocation flag, and the recorded stamp mismatch plus a
+   prose mention at the next doc landing is the truthful double
+   record.
 6. Every fixture defect is a ledger specimen, feeding the standing
    fixture-defect watch and the checkpoint-authoring practice (§4).
 
@@ -683,6 +685,26 @@ the fleet-scale rules below are this half's):
   worker out; landing nothing, it returns chat and bundles, never a
   response tarball (§2). Masters end sittings at milestones
   rather than resolving open questions on a tired context.
+
+Every rule above rests on one premise, and it is a bet rather than a
+law: that each session completes inside a single context window
+(`CLAUDE.md` §1), so the window is the unit a decomposition cuts to.
+The bail machinery is this premise's machinery — the pre-flight
+split before reading, the handoff when a build outgrows its budget —
+and live traffic has shown where the load actually falls: on
+auto-compacting surfaces, compaction recovery (`CLAUDE.md` §11.6),
+not the reactive bail, has proved the de facto primary defense, while
+the pre-flight check (`CLAUDE.md` §11.2) stands as written. The bet
+is revisitable, and three conditions would soften it:
+**window growth**, which shrinks the set of goals the premise forces
+to split; **caching economics**, which, once re-feeding a session's
+prior context into a fresh window is cheap, stops spanning windows
+from costing a full re-read; and **session persistence**, a runtime
+that carries working state across windows faithfully enough that
+continuation is a capability rather than the failure `CLAUDE.md`
+§11.1 names. An orchestrator treats any of the three as a prompt to
+re-examine split economics against the evidence, never as license to
+plan a session past the window it actually has.
 
 ---
 
