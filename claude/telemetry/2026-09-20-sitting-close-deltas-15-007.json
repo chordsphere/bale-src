@@ -1,0 +1,236 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-20-sitting-close-deltas-15-007",
+  "created_at": "2026-09-20T03:07:54+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-20T03:07:54+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-20-sitting-close-deltas-15-007.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-20T03:27:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-20-sitting-close-deltas-15-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "header names this session": "pass",
+          "insertions only against the stamped base, but for line 14": "pass",
+          "two close-15 blocks end section 3, 001 then 004": "pass",
+          "registry brackets and three new entries": "pass",
+          "board brackets on rows 37, 99 and 104, the board ending at row 113": "pass",
+          "section 5 hand-count bracket and the 2026-09-20 contracts": "pass",
+          "entry 176 bracket and entries 177 to 187 end section 6": "pass",
+          "section 7 ends on the 0.4.39 landmark and three bullets": "pass",
+          "every sid cited in the insertions has a record or a named tolerance": "pass",
+          "no trailing whitespace or tabs in the doc": "pass"
+        },
+        "claim_verdict": {
+          "header names this session": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "insertions only against the stamped base, but for line 14": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "two close-15 blocks end section 3, 001 then 004": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "registry brackets and three new entries": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board brackets on rows 37, 99 and 104, the board ending at row 113": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 5 hand-count bracket and the 2026-09-20 contracts": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "entry 176 bracket and entries 177 to 187 end section 6": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 7 ends on the 0.4.39 landmark and three bullets": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "every sid cited in the insertions has a record or a named tolerance": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no trailing whitespace or tabs in the doc": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "header names this session",
+          "insertions only against the stamped base, but for line 14",
+          "two close-15 blocks end section 3, 001 then 004",
+          "registry brackets and three new entries",
+          "board brackets on rows 37, 99 and 104, the board ending at row 113",
+          "section 5 hand-count bracket and the 2026-09-20 contracts",
+          "entry 176 bracket and entries 177 to 187 end section 6",
+          "section 7 ends on the 0.4.39 landmark and three bullets",
+          "every sid cited in the insertions has a record or a named tolerance",
+          "no trailing whitespace or tabs in the doc"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.39",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "b72654758edbd7be23587244afd478f67364e55f8f674cd438386fa938e1b4ae",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "4788573841f7690ef5dfbbcd24b140b0683c6e1b1cafcb5bc81d0af04b457861"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-20-sitting-close-deltas-15-007.sh",
+              "sha256": "ff44b69bfdeeef57fd296b9402d4c02063040a382387634faa507fad3e895a55"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-20T03:07:54+00:00",
+            "base_files": {
+              "claude/MASTER.md": "77efdd476c605bb4f87f6faa39e607222bcd9948a64830df950f2ab4e4fb8583"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5), self-reported"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the insertions-only check needs HEAD:claude/MASTER.md to be the stamped base (77efdd...); otherwise it SKIPs by name",
+            "records for this session and 2026-09-20-continue-plan-006 may be absent from staging (open, untracked); the sid check tolerates both by name",
+            "desk-side facts no shipped file carries (the desks' pauses, light blocks and replies, oracle rehearsals, packed_at seconds of 001, 004 and 006, the 006 desk's code read) are written as the brief states them, attributed"
+          ],
+          "judgment_calls": [
+            "records over brief: the 004 sitting did not end before its wave landed; 104a applied at 02:35:51Z, six minutes before the 004 master closed",
+            "the 001 desk's standing line never reached this session; the 001 block quotes the 009 line close 14 records, and entry 177 takes this as a second specimen",
+            "37's rejected attempt taken as evidence entry 187",
+            "four unpinned registry brackets: stale comment consumed at 104a; craft guard to its file's next holder; older pack-json sweep entry pointed at the newer; 105's stdlib pin marked carrier unconfirmed",
+            "the 006 desk's dispatch rulings recorded because the brief pins them, which sits near the manifest's out_of_scope line on the 006 sitting",
+            "entry 179 merges the two answered-first-time candidates and adds the 006 desk's three-question block as a counter-specimen",
+            "the verbatim convention sentence and the 004 reply are each kept on one physical line, so a raw-substring oracle can find them"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "light_blocks": 0,
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through \u00a711.2",
+            "README.md (request brief)",
+            "TARBALL.md META, INDEX, \u00a71, \u00a72, \u00a75.1-\u00a75.5, \u00a77, \u00a710.1",
+            "DOCS.md META, INDEX, \u00a71, \u00a79-\u00a710",
+            "PLANNER.md heading map, \u00a74's last bullet, \u00a76",
+            "claude/MASTER.md (targeted: header, \u00a73 registry entries touched, closes 13 and 14 blocks, \u00a74 rows 37, 99, 104, 113, \u00a75 calibration ruling and tail, \u00a76 entries 163-176, \u00a77 tail)",
+            "claude/responses: close 14's, 37's and 104a's notes.md",
+            "claude/telemetry/ (all eight shipped records)",
+            "tools/craft_response.py (header, imports, write sites, main tail, --help) and tools/response_lint.py (imports)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-20-sitting-close-deltas-15-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-20-sitting-close-deltas-15-007.sh",
+          "sha256": "ff44b69bfdeeef57fd296b9402d4c02063040a382387634faa507fad3e895a55"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-20T03:27:13+00:00",
+  "outcome": "applied"
+}
