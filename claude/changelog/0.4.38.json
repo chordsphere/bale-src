@@ -1,0 +1,28 @@
+{
+  "record_version": 1,
+  "version": "0.4.38",
+  "session_id": "2026-09-20-board-37-compaction-read-side-003",
+  "at": "2026-09-20T01:00:07+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_report.py",
+      "change": "bale stats --json gains cross_checks.budget.compaction {reporting_sessions, occurred_sessions} and members.compaction_occurred (sorted sids), additive; no existing key renamed, removed or redefined; format_stats_json's docstring owns the new keys; the human report gains a 'cross-check compaction: disclosed N of M reporting sessions' line under the budget line, and a compaction_occurred corpus-members line when non-empty"
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "new session_compaction (and _attempt_compaction, COMPACTION_KEY): reads feedback.self_reported.compaction_occurred as a bare bool or an object whose occurred is a bool, any attempt per session; any other shape neither reports nor discloses and never fails the run; compute_stats folds it into the budget pass over the same filtered membership; rider: the budget pressure pass reads self_reported tolerantly \u2014 a truthy non-dict block, which used to raise and fail the whole run, now buckets as unreported (every value that computed before buckets unchanged)"
+    },
+    {
+      "path": "docs/PLANNER.md",
+      "change": "section 11 gains the single-window-premise paragraph (a revisitable bet; softening conditions window growth, caching economics, session persistence); section 5 step 5 says the retry re-states the held apply's admissions, which the line bale prints already carries"
+    },
+    {
+      "path": "tests/test_stats_compaction.py",
+      "change": "new: the compaction read side over its own synthetic corpus, unit and end to end in both output modes"
+    },
+    {
+      "path": "tests/test_stats_aggregation.py",
+      "change": "the shared corpus's budget expectation gains its compaction counts (shared fixtures untouched: none discloses)"
+    }
+  ]
+}

@@ -344,10 +344,20 @@ class StatsAggregationTest(unittest.TestCase):
             "self_only": 1,
             "promoted_only": 1,
         })
+        # The compaction half (board 37, additive): every feedback-
+        # bearing member carries a bare-bool compaction_occurred false,
+        # so the reporting sessions are exactly the pressure-reporting
+        # ones (23 none + 2 tight — the two "unreported" sessions carry
+        # no feedback at all) and none discloses. The disclosing shapes
+        # live in test_stats_compaction.py's own synthetic corpus; this
+        # shared corpus is left untouched.
         self.assertEqual(stats["cross_checks"]["budget"], {
             "pressure": {"none": 23, "tight": 2, "unreported": 2},
             "bailed_with_pressure_none": 1,
+            "compaction": {"reporting_sessions": 25,
+                           "occurred_sessions": 0},
         })
+        self.assertEqual(stats["members"]["compaction_occurred"], [])
 
         # Loader diagnostics: skipped and filtered files are counted AND
         # named on stderr — never a crash, never a silent skip.
