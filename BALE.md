@@ -487,7 +487,7 @@ forward-looking entry.
 
 | Command | Purpose | Phase |
 |---------|---------|-------|
-| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. | v0.0.1 |
+| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. `--context` writes a session-less context tarball of the current directory's tree instead of a request — no sid, no session, no opener (v0.4.39, §7.8). | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
 | `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball> --accept-checkpoint-change --sid <sid>` line as its named successor — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs, re-stating every admission the held apply exercised from the HOLD-time `held_admissions` stamp (v0.4.37, board 110); a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor, and a session with no readable admissions stamp gets one line saying they could not be recovered. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
@@ -2250,6 +2250,125 @@ operator can, once the fact is in front of them. `bale status`
 remains the ground-truth consultation surface (its applied row also
 carries the count and the `bale rollback --list` pointer, which the
 echo deliberately does not duplicate).
+
+### 7.8 The context pack (`bale pack --context`)
+
+`bale pack --context` (v0.4.39) writes a **context tarball**: a
+session-less, gzipped tarball of the current directory's tree, made to
+travel beside *another* project's request as reading material — the
+hand-rolled "tar the tree, attach it next to the request" the operator
+did for months, as a command. It is not a request and is not part of
+this pipeline's session flow: none of §7.1 steps 3–6's session
+machinery, §7.2's exchanges, §7.3's wizard, §7.6's persistence, or
+§7.7's opener runs. The receiving side — what a worker makes of one it
+finds beside its request — is stated in the global docs (`TARBALL.md`
+§3.1, and the `--context` row of its §3.4 flag table), because this
+doc does not travel.
+
+**Dispatch.** `cmd_pack` branches to `cmd_pack_context` immediately
+after json mode engages and the §7.1 step 1–2 system/home-directory
+refusals run (both shared, `--force` still bypassing the home
+refusal). Everything after that point in `cmd_pack` is session
+machinery the context pack never reaches: the git-init walkthrough,
+the detached-HEAD refusal, the tree-position echo, the include group,
+the supersession exchange, the checkpoint-blindness and disjointness
+gates, the wizard, the read-only sweep, the no-README guard, the
+`.gitignore` edit, sid minting, the registry, the lock, telemetry, the
+session log, and the opener.
+
+**Session-less, precisely.** No session id is assigned or consumed
+(the `.bale/counter-<date>` day counter does not advance); nothing is
+written under `.bale/sessions/`, `.bale/logs/`, or `claude/telemetry/`;
+no commit is made and `.gitignore` is never edited (where `.bale/` is
+not already ignored, the report says the tarball shows as untracked);
+the report carries no opener. The read-only sweep never runs, so a
+context pack closes nothing. The one thing it writes is the tarball.
+
+**Where it lands, and its name.**
+`<dir>/.bale/outbox/context-<name>.tar.gz`, where `<dir>` is the
+directory pack ran in and `<name>` is that directory's basename made
+filename-safe (`context_tree_name`: runs of characters outside
+`[A-Za-z0-9._-]` become one hyphen, leading/trailing dots and hyphens
+are stripped, `tree` if nothing survives). A re-run replaces the
+previous tarball (the report says `replaced`); the archive is built
+at a temporary name in the same directory and moved into place only
+when complete. `.bale/` is a baked-in excluded directory (§6.4), so a
+context pack never ships an earlier one, and `bale status` lists only
+`request-*.tar.gz`, so a context tarball never appears as a session's
+outbox entry. Inside a repo subdirectory the tarball lands under that
+subdirectory's own `.bale/outbox/`, not the repo root's.
+
+**Layout.** One top-level folder, `<name>/`, holding the surviving
+files at their paths relative to the directory. Entries are added one
+by one without dereferencing: regular files travel byte for byte with
+their mode bits, symlinks as symlinks — the request build's
+`copy2(follow_symlinks=False)` semantics. No `manifest.json`, none of
+the five injected docs, neither injected tool: the tarball is the tree
+and nothing else.
+
+**Listing.** Inside a git work tree: `git ls-files -z --cached --others
+--exclude-standard` run *from the directory*, so the listing is the
+directory's subtree and every applicable `.gitignore` (the repo
+root's included) is honored — the same listing a session pack uses,
+restricted to the subtree. Outside one: a filesystem walk
+(`list_context_candidates`), pruning the baked-in excluded directories
+as it goes and not following directory symlinks. There is no git-init
+walkthrough: reading material is packed as-is, and with no git there
+is no `.gitignore` to honor (`.baleignore` and the built-in filters
+still apply).
+
+**Filters.** The listing feeds `walk_for_pack` through its `listed=`
+parameter, so every later step of the session pack's filter chain runs
+— one implementation: the §6.4 baked-in directories, the secret
+patterns, the planner-bundle auto-exclusion (§6.7), the
+`.baleignore`-plus-`--exclude` matcher (the `.baleignore` at the
+directory's root), `--include`, and the §7.4 caps with the same
+hard/soft/`--force` behavior (a soft breach prompts y/e/n on a TTY and
+refuses piped). Two exclusions are keyed on the enclosing repo's
+root, and `_context_enclosing_prefilter` applies them on the
+repo-relative path before the walk: the repo root's `.baleignore`
+when the directory is a subdirectory of the repo, and the configured
+blind checkpoint (§7.1 step 4b's exclusion basis), dropped loudly at
+the walk's per-file/summary grain. A context tarball has no admission
+path for oracle bytes; `--allow-checkpoint-in-scope` refuses beside
+it.
+
+**Flags.** Composing: `--include` (relative paths inside the
+directory, which must exist; an absolute entry or a `..` segment
+refuses, and an entry that names a bundle refuses as §6.7's explicit
+ask), `--exclude`, `--max-files`/`--max-size`/`--max-depth`,
+`--force`, `--verbose`, `--json`. Every other pack flag is
+session-only and refuses fail-fast beside `--context`, naming every
+offender in one message, before any work: the goal, `--slug`,
+`--write`, `--read-only`, `--supersedes`, `--checkpoint-file`,
+`--readme-file`, `--edit`, `--no-edit`, `--no-readme`, `--constraint`,
+`--out-of-scope`, `--expects-probe`, `--packer`, `--work-class`,
+`--allow-checkpoint-in-scope`, `--no-include-group`. Detection is
+"value differs from the parser default", so `--expects-probe
+claude-decides` typed at its default is a no-op. The two tables
+(`CONTEXT_SESSION_ONLY_FLAGS`, `CONTEXT_COMPOSING_FLAGS` in
+`bin/bale_pack.py`) partition the pack parser, and
+`tests/test_context_pack.py` pins the partition and the defaults, so a
+flag added to pack later must be classified before the suite passes.
+Goal-less `bale pack` is unchanged — the wizard on a TTY, the
+missing-args refusal when piped; the context pack is only ever the
+typed flag.
+
+**`bale open`.** `pack_argv_preflight` refuses a stored bundle argv
+that carries `--context`, before the checkpoint dry-run spends the
+oracle: a bundle exists to open a session, and a context pack opens
+none.
+
+**Report.** Human: the directory and listing source up front, then
+`wrote` (or `replaced`) with the tarball path, the file count and
+size, and one line saying what the tarball is for and that it opens
+no session. `--json`: one line on stdout rendered by
+`format_context_pack_json` (`bin/bale_pack.py`), whose docstring owns
+its keys — `outcome` (`context-packed`), `tarball`, `directory`,
+`tree_name`, `context_files`, `total_bytes`, `git`. It is a separate
+report from `format_pack_json`'s, since a context pack has none of the
+session keys that contract carries; its home sits outside
+`bale_report.py` for now, where the other outcome words live.
 
 ---
 

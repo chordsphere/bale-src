@@ -1,0 +1,28 @@
+{
+  "record_version": 1,
+  "version": "0.4.39",
+  "session_id": "2026-09-20-board-104a-context-pack-005",
+  "at": "2026-09-20T02:25:04+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale",
+      "change": "bale pack gains --context (store_true): writes a session-less context tarball of the current directory's tree instead of a request; pack's description gains one sentence naming it; every other pack flag is unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "new format_context_pack_json: the bale pack --context --json report, one line, keys outcome ('context-packed', a new outcome word), tarball, directory, tree_name, context_files, total_bytes, git; separate from format_pack_json, whose keys are unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "new release artifact name: <dir>/.bale/outbox/context-<name>.tar.gz, one top-level <name>/ folder, no manifest.json, injected docs or tools; request-*.tar.gz naming and bale status's outbox listing unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "CLI-accepted combinations: beside --context every session-only pack flag refuses (a goal, --slug, --write, --read-only, --supersedes, --checkpoint-file, --readme-file, --edit, --no-edit, --no-readme, --constraint, --out-of-scope, a non-default --expects-probe, --packer, --work-class, --allow-checkpoint-in-scope, --no-include-group); pack_argv_preflight (bale open) refuses a stored argv carrying --context"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "section 3.1 gains the context-tarball passage (the receiving side); the section 3.4 flag table gains a --context row; section 5.8's closing sentence names bale stats as the aggregation's home"
+    }
+  ]
+}

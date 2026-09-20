@@ -5969,14 +5969,38 @@ def build_parser() -> argparse.ArgumentParser:
             "the interactive wizard; piped, both are required. Pack "
             "writes .bale/outbox/request-<sid>.tar.gz, and its report "
             "ends with a paste-ready session opener for the worker's "
-            "chat. The flag surface's canonical description is "
-            "TARBALL.md §3.4."
+            "chat. --context instead writes a session-less context "
+            "tarball of the current directory's tree (no session id, no "
+            "session, no opener), to travel beside another project's "
+            "request as reading material. The flag surface's canonical "
+            "description is TARBALL.md §3.4."
         ),
     )
     p_pack.add_argument(
         "goal", nargs="?", default=None,
         help="One-sentence goal for the session. Omit on a TTY to enter "
              "the interactive wizard (BALE.md §7.3); required when piped.",
+    )
+    p_pack.add_argument(
+        "--context", action="store_true",
+        help="Write a session-less context tarball of the current "
+             "directory's tree instead of a request (v0.4.39; BALE.md "
+             "§7.8): .bale/outbox/context-<dir>.tar.gz under the "
+             "directory, holding the tree's files under one <dir>/ "
+             "folder, for attaching beside another project's request as "
+             "reading material. No session id is minted, no session "
+             "opens, no lock, telemetry, session log, or opener; the "
+             "read-only sweep does not run; outside a git work tree it "
+             "packs the tree as-is (no git-init walkthrough). The pack "
+             "filters still apply: .baleignore, --exclude, the built-in "
+             "directory and secret-pattern filters, and the planner-"
+             "bundle deny. Composes with --include (paths inside the "
+             "directory), --exclude, --max-*, --force, --verbose, and "
+             "--json; every session-only flag (a goal, --slug, --write, "
+             "--read-only, --supersedes, --checkpoint-file, the README "
+             "flags, --constraint, --out-of-scope, --expects-probe, "
+             "--packer, --work-class, --allow-checkpoint-in-scope, "
+             "--no-include-group) refuses beside it.",
     )
     p_pack.add_argument(
         "--slug", default=None,
