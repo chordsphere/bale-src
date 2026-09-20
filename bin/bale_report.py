@@ -1975,6 +1975,8 @@ def format_pack_json(
     checkpoint_file_sha256: Optional[str] = None,
     branch: Optional[str] = None,
     applied_latest: Optional[str] = None,
+    sweep: Optional[list] = None,
+    include_group: Optional[dict] = None,
 ) -> str:
     """Render the `bale pack --json` end-of-run report as ONE line of JSON.
 
@@ -1993,7 +1995,9 @@ def format_pack_json(
                      "status" in format_status_json (v0.2.9); "unlocked",
                      "no-op" in format_unlock_json (v0.3.18); "reverted"
                      again in format_revert_json (v0.3.19), the revert
-                     command's own single reporting point —
+                     command's own single reporting point; "context-packed"
+                     in format_context_pack_json (v0.4.39, homed here
+                     v0.4.40) —
                      so new outcomes extend an enum in one place rather
                      than scattering literals across callers.
       sid            the session id, `YYYY-MM-DD-<slug>-NNN`.
@@ -2043,6 +2047,40 @@ def format_pack_json(
                      yet. The human summary renders that null as
                      "none yet" (tree_position_rows); here it stays
                      null so a consumer tests a value, not a phrase.
+      sweep          the pack's auto-sweep ledger (v0.4.40, board 104b;
+                     additive, per the stable-contract rule above).
+                     ALWAYS present and ALWAYS a list, in the order the
+                     events ran; [] when the pack closed nothing and
+                     stamped nothing. One entry per bookkeeping write
+                     the auto-sweep covers (BALE.md §8.8), each built by
+                     format_pack_sweep_entry: `sid` (the session whose
+                     telemetry record was written — never this pack's
+                     own sid, which is the top-level key), `event`
+                     (PACK_SWEEP_EVENTS — which write: a close or a
+                     post-sid stamp), then apply's and unlock's four
+                     sweep keys, normalized by format_sweep_json:
+                     `status`, `detail`, `sha`, `files`. A supersession
+                     parent appears twice — its `superseded-by-split`
+                     close, then its `superseded_by` stamp — and each
+                     read-only-swept sid twice, `closed-read-only` then
+                     `swept_by`; `event` is what tells them apart.
+                     With `[apply] sweep` unset/false every entry is
+                     still listed (the write happened) with `status`,
+                     `detail`, `sha` null and `files` [] — apply's own
+                     null-sweep meaning, "the sweep did not run",
+                     carried per entry.
+      include_group  the include group's durable row as data (v0.4.40,
+                     board 104b; additive): null exactly when the human
+                     report prints no "include group" row (no group
+                     configured, or a configured group this pack's
+                     includes never trigger); otherwise the object
+                     format_include_group_json builds — `name`, `state`
+                     ("engaged" | "opt-out"), `triggers` (the
+                     configured trigger entries this pack's includes
+                     hit, config order; [] on opt-out),
+                     `pulled` (the paths the group added to context; []
+                     when already covered or on opt-out), and `row`, the
+                     human row's string verbatim.
 
     Emitted as a single compact line (no indent) so the consumer contract
     stays line-oriented. Since v0.2.8 json mode carries stream discipline
@@ -2070,8 +2108,113 @@ def format_pack_json(
         "checkpoint_file_sha256": checkpoint_file_sha256,
         "branch": branch,
         "applied_latest": applied_latest,
+        "sweep": [dict(entry) for entry in (sweep or [])],
+        "include_group": (dict(include_group)
+                          if include_group is not None else None),
     }
     return json.dumps(payload)
+
+
+# The `event` vocabulary of pack's --json `sweep` entries (v0.4.40,
+# board 104b; owned here beside format_pack_json's docstring, which
+# states the key contract). The two closure reasons are the close
+# events' own closure_reason values (and the events stamped into
+# their sweep commits' messages); the two attribute names are the
+# post-sid stamps, named for the attempt field each writes.
+PACK_SWEEP_EVENTS = (
+    "superseded-by-split",  # --supersedes close (pre-sid)
+    "closed-read-only",     # the read-only sweep's close (pre-sid)
+    "superseded_by",        # reverse-lineage stamp on the parent (post-sid)
+    "swept_by",             # sweeping pack's sid on the swept close (post-sid)
+)
+
+
+def format_pack_sweep_entry(sid: str, event: str,
+                            sweep_result: Optional[dict]) -> dict:
+    """One entry of pack's --json `sweep` list (v0.4.40, board 104b).
+
+    `sid` is the session whose record the event wrote; `event` is one
+    of PACK_SWEEP_EVENTS (anything else is a caller bug and raises
+    ValueError — the vocabulary is a stable surface); the remaining
+    four keys are format_sweep_json's normalization of the
+    sweep_commit return, so the object cannot drift from apply's and
+    unlock's. A None result (`[apply] sweep` unset/false: no commit
+    ran) keeps the entry and nulls the four keys — status, detail and
+    sha null, files [] — because the write it records did happen;
+    only the commit did not.
+
+    Pure: builds a dict, prints nothing.
+    """
+    if event not in PACK_SWEEP_EVENTS:
+        raise ValueError(f"unknown pack sweep event {event!r}; expected "
+                         f"one of {', '.join(PACK_SWEEP_EVENTS)}")
+    normalized = format_sweep_json(sweep_result)
+    if normalized is None:
+        normalized = {"status": None, "detail": None, "sha": None,
+                      "files": []}
+    return {"sid": sid, "event": event, **normalized}
+
+
+def format_include_group_json(*, name: str, state: str,
+                              triggers: list, pulled: list,
+                              row: str) -> dict:
+    """The non-null `include_group` object of pack's --json report
+    (v0.4.40, board 104b). `state` is "engaged" or "opt-out" (the two
+    cases in which the human report prints an "include group" row);
+    `row` is that row's string verbatim, so a consumer holding the
+    object can render exactly what the human saw. Pure.
+    """
+    if state not in ("engaged", "opt-out"):
+        raise ValueError(f"unknown include group state {state!r}")
+    return {
+        "name": name,
+        "state": state,
+        "triggers": list(triggers),
+        "pulled": list(pulled),
+        "row": row,
+    }
+
+
+def format_context_pack_json(*, tarball: Path, directory: Path,
+                             tree_name: str, context_files: int,
+                             total_bytes: int, in_git: bool) -> str:
+    """Render the `bale pack --context --json` report as ONE line of JSON.
+
+    A separate report from format_pack_json's (above): a
+    context pack has no sid, log, session_dir, README or tree position,
+    so it shares none of that contract's session keys and pretending
+    otherwise would hand a consumer nulls where the session fields
+    live. Stable keys, additions only:
+
+      outcome        "context-packed" — the only state that reaches this
+                     report (every failure exits through fail()).
+      tarball        absolute path to the written context tarball.
+      directory      absolute path of the packed directory.
+      tree_name      the top-level directory name inside the tarball
+                     (context_tree_name).
+      context_files  number of files in the tarball.
+      total_bytes    their summed size, as the walk measured it.
+      git            true when the listing came from git ls-files (the
+                     directory is inside a work tree), false when it
+                     came from a filesystem walk.
+
+    Home (v0.4.40, board 104b rider): moved here from bin/bale_pack.py
+    so the `context-packed` outcome word lives where format_pack_json's
+    docstring says the outcome vocabulary is owned. The move is
+    behavior-free: the same keys, the same compact separators, byte for
+    byte; cmd_pack_context imports it from here.
+
+    Pure; the caller emits it via emit_json_line.
+    """
+    return json.dumps({
+        "outcome": "context-packed",
+        "tarball": str(tarball),
+        "directory": str(directory),
+        "tree_name": tree_name,
+        "context_files": context_files,
+        "total_bytes": total_bytes,
+        "git": in_git,
+    }, separators=(",", ":"))
 
 
 def format_sweep_json(sweep_result: Optional[dict]) -> Optional[dict]:
@@ -2079,7 +2222,8 @@ def format_sweep_json(sweep_result: Optional[dict]) -> Optional[dict]:
     object the surfaces below carry (v0.3.34).
 
     One normalizer for every surface so the object's shape cannot drift
-    between apply, unlock, and revert: sweep_commit's dict carries
+    between apply, unlock, revert, and (v0.4.40) each entry of pack's
+    `sweep` list (format_pack_sweep_entry): sweep_commit's dict carries
     `sha`/`files` only on the committed form, and a machine consumer
     wants stable keys — so the absent members normalize to null / [].
     None passes through as None (json null): the sweep did not run,
@@ -3922,6 +4066,51 @@ def read_clarification_summary(repo: Path, sid: str) -> dict:
     return summary
 
 
+def _stamp_closure_attempt(repo: Path, sid: str, *, closure_reason: str,
+                           key: str, value: str) -> Optional[str]:
+    """Set `key: value` on `sid`'s LATEST telemetry attempt whose
+    closure_reason is `closure_reason`, rewriting the record in place;
+    the one writer behind stamp_superseded_by and stamp_swept_by
+    (extracted v0.4.40, board 104b, when the second stamp arrived).
+
+    Enrich, never append: the record's envelope (`outcome`,
+    `updated_at`) and attempt count are untouched, and setting the key
+    again overwrites in place. Best-effort like every telemetry write:
+    a missing, unreadable, or stampless record is logged (force=True,
+    the write-failure posture) and returns None; the caller's primary
+    work stands. Returns the record's repo-relative path on success.
+    The log lines keep the pre-extraction superseded_by wording, with
+    the key and the closure reason substituted.
+    """
+    from __main__ import log  # lazy — the siblings' established mechanism
+    path = telemetry_record_path(repo, sid)
+    rel = str(path.relative_to(repo))
+    record = read_telemetry_record(repo, sid)
+    if record is None:
+        log(f"telemetry: no readable record at {rel}; {key} "
+            f"lineage for {value} not stamped", force=True)
+        return None
+    target = None
+    for attempt in record["attempts"]:
+        if attempt.get("closure_reason") == closure_reason:
+            target = attempt
+    if target is None:
+        log(f"telemetry: {rel} has no {closure_reason} closure "
+            f"attempt; {key} lineage for {value} not "
+            f"stamped", force=True)
+        return None
+    target[key] = value
+    try:
+        path.write_text(json.dumps(record, indent=2) + "\n",
+                        encoding="utf-8")
+        return rel
+    except OSError as e:
+        log(f"telemetry: could not stamp {key} on {rel}: {e} — "
+            f"the pack stands; the lineage edge for this close is lost",
+            force=True)
+        return None
+
+
 def stamp_superseded_by(repo: Path, parent_sid: str,
                         child_sid: str) -> Optional[str]:
     """Stamp `superseded_by: <child-sid>` onto the parent's
@@ -3942,35 +4131,38 @@ def stamp_superseded_by(repo: Path, parent_sid: str,
     Best-effort like every telemetry write: a missing, unreadable, or
     stampless record is logged (force=True, the write-failure posture)
     and returns None — pack's primary work stands. Returns the
-    record's repo-relative path on success.
+    record's repo-relative path on success. The write itself is
+    _stamp_closure_attempt's (since v0.4.40).
     """
-    from __main__ import log  # lazy — the siblings' established mechanism
-    path = telemetry_record_path(repo, parent_sid)
-    rel = str(path.relative_to(repo))
-    record = read_telemetry_record(repo, parent_sid)
-    if record is None:
-        log(f"telemetry: no readable record at {rel}; superseded_by "
-            f"lineage for {child_sid} not stamped", force=True)
-        return None
-    target = None
-    for attempt in record["attempts"]:
-        if attempt.get("closure_reason") == "superseded-by-split":
-            target = attempt
-    if target is None:
-        log(f"telemetry: {rel} has no superseded-by-split closure "
-            f"attempt; superseded_by lineage for {child_sid} not "
-            f"stamped", force=True)
-        return None
-    target["superseded_by"] = child_sid
-    try:
-        path.write_text(json.dumps(record, indent=2) + "\n",
-                        encoding="utf-8")
-        return rel
-    except OSError as e:
-        log(f"telemetry: could not stamp superseded_by on {rel}: {e} — "
-            f"the pack stands; the lineage edge for this close is lost",
-            force=True)
-        return None
+    return _stamp_closure_attempt(repo, parent_sid,
+                                  closure_reason="superseded-by-split",
+                                  key="superseded_by", value=child_sid)
+
+
+def stamp_swept_by(repo: Path, swept_sid: str,
+                   pack_sid: str) -> Optional[str]:
+    """Stamp `swept_by: <pack-sid>` onto a read-only-swept session's
+    closed-read-only closure attempt (v0.4.40, board 104b item 3).
+
+    The read-only sweep (_run_readonly_sweep in bin/bale_pack.py)
+    closes sessions BEFORE the sweeping pack's sid is minted, so the
+    closure attempt is written without it; cmd_pack calls this once
+    the sid exists, per swept sid — superseded_by's single-writer
+    enrichment applied to the second pack-side close. Targets the
+    LATEST closed-read-only attempt; the envelope is untouched.
+
+    Best-effort (_stamp_closure_attempt): a failure is logged loudly
+    and returns None, the pack stands, and the closure attempt simply
+    lacks the field — absent reads as "sweeping pack unrecorded",
+    exactly as on every pre-v0.4.40 closed-read-only attempt. A pack
+    that aborts between the sweep and the sid mint (a cap refusal, the
+    no-readme guard) never reaches this call and never has a sid to
+    stamp; the closes it made stand unattributed, the same window the
+    supersession close already has.
+    """
+    return _stamp_closure_attempt(repo, swept_sid,
+                                  closure_reason="closed-read-only",
+                                  key="swept_by", value=pack_sid)
 
 
 def read_telemetry_record(repo: Path, sid: str) -> Optional[dict]:

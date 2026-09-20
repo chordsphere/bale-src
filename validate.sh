@@ -381,6 +381,8 @@ check_output "pack --help mentions --no-edit"   "--no-edit"   "$BALE" pack --hel
 check_output "pack --help mentions --no-readme"  "--no-readme"  "$BALE" pack --help
 check_output "pack --help mentions --packer"     "--packer"     "$BALE" pack --help
 check_output "pack --help mentions --work-class" "--work-class" "$BALE" pack --help
+# --context (v0.4.39, board 104a): the session-less context tarball.
+check_output "pack --help mentions --context"    "--context"    "$BALE" pack --help
 
 # unlock --help should mention --force (the only flag it takes; if the
 # parser wiring regressed and --force went missing, callers stuck in the

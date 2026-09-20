@@ -2240,7 +2240,30 @@ json key contract's one home is `format_pack_json`'s docstring in
 `bale_report.py`, as for every other pack-report key.
 
 **The include-group row** (board 64). When the `release-surface`
-group engages, pack output carries an include-group row.
+group engages, pack output carries an include-group row. Under
+`--json` the same row is the additive `include_group` key (v0.4.40,
+board 104b): always present, null exactly when the human report prints
+no row (no group configured, or a group this pack's includes never
+trigger), otherwise an object carrying the group's `name`, its `state`
+(`engaged` or `opt-out`), the `triggers` hit and the paths `pulled`,
+and `row`, the human row's string verbatim.
+
+**The sweep ledger** (v0.4.40, board 104b). Pack closes other sessions
+as a side effect — the `--supersedes` close (§7.2) and the read-only
+sweep (§7.2, board 33) — and then stamps those closures once its own
+sid exists (`superseded_by`, `swept_by`; §8.9). Each of those writes
+is swept by the §8.8 auto-sweep as its own event, and under `--json`
+the additive `sweep` key lists them: always present, `[]` when the
+pack closed nothing, otherwise one entry per write, in the order the
+events ran, carrying the written session's `sid`, an `event` word
+(`superseded-by-split`, `closed-read-only`, `superseded_by`,
+`swept_by`) and apply's and unlock's four sweep keys (`status`,
+`detail`, `sha`, `files`). The `event` is what tells a supersession
+parent's close from its stamp, since the parent appears twice. With
+`[apply] sweep` unset or false every entry is still listed, its four
+sweep keys null (`files` `[]`): the write happened; the commit did
+not. As for every pack-report key, the contract's one home is
+`format_pack_json`'s docstring in `bale_report.py`.
 
 The latest-applied fact is the same one the status applied row
 renders, read from the same source (`applied_tags` in `bin/bale`;
@@ -2363,12 +2386,13 @@ none.
 `wrote` (or `replaced`) with the tarball path, the file count and
 size, and one line saying what the tarball is for and that it opens
 no session. `--json`: one line on stdout rendered by
-`format_context_pack_json` (`bin/bale_pack.py`), whose docstring owns
+`format_context_pack_json` (`bin/bale_report.py`), whose docstring owns
 its keys — `outcome` (`context-packed`), `tarball`, `directory`,
 `tree_name`, `context_files`, `total_bytes`, `git`. It is a separate
 report from `format_pack_json`'s, since a context pack has none of the
-session keys that contract carries; its home sits outside
-`bale_report.py` for now, where the other outcome words live.
+session keys that contract carries; since v0.4.40 it lives beside it
+in `bale_report.py`, where the other outcome words live (it shipped in
+`bin/bale_pack.py` at v0.4.39; the move changed no byte of output).
 
 ---
 
@@ -3647,6 +3671,26 @@ step 2). Revert stamps `--reason` when given and null otherwise —
 `reverted` already names the event, and a null reason is honest
 rather than a guessed one. Apply and retry attempts record null:
 they are apply-close events, not closures.
+
+**Pack-side stamps.** Pack writes three things onto records, each
+described field by field in `telemetry-record.schema.json`, the
+fields' one home. At open, the `opened` attempt's `provenance` block
+carries `work_class` and `packer` (v0.4.21, board 63) and, since
+v0.4.40 (board 104b), `packed_at`: the request manifest's
+`provenance.packed_at` verbatim, so the close desk's reconstruction of
+a sitting dates a read-only master's pack from its own record rather
+than from `created_at`, whose lag behind the pack is not fixed. The
+registry-side `provenance.json` stays the pair. On a closure a pack
+makes as a side effect, the closing pack's sid is stamped once it
+exists, because both closes run before the sid is minted:
+`superseded_by` on a `superseded-by-split` attempt (v0.3.23), and
+`swept_by` on a `closed-read-only` attempt the read-only sweep wrote
+(v0.4.40). Each stamp enriches the closure in place (no new attempt,
+envelope untouched), is best-effort (a failure logs loudly and leaves
+the field absent), and with `[apply] sweep` on is committed as its own
+`[bale sweep <sid>] superseded_by <child>` or `swept_by <pack>` event
+(§8.8), so the record the close already committed is not left
+modified.
 
 **Update semantics: one file per sid, append per event.** The first
 apply-close event creates the record; every later one against the

@@ -2735,7 +2735,17 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
        `provenance` key; values are stamped VERBATIM from the
        manifest — no normalization (the spelling-consolidation rider
        is deferred: normalizing without a ratified canonical map
-       risks silent mis-attribution).
+       risks silent mis-attribution). Since v0.4.40 (board 104b) the
+       attempt's block also carries `packed_at`, the manifest's
+       `provenance.packed_at` verbatim — the pack instant, beside the
+       neighbours it has in the manifest, so the close desk's
+       reconstruction of a sitting dates a read-only master's pack
+       from its own record instead of reasoning back from the
+       record's `created_at` (whose lag behind the pack is 0–2 s, no
+       fixed offset). Telemetry-only: the registry-side
+       provenance.json stays exactly the pair above. A manifest
+       whose block lacks a usable `packed_at` stamps the pair alone
+       and logs the omission.
 
     A manifest with no usable provenance block (hand-rolled request,
     or a block missing either field) skips both writes with a logged
@@ -2793,7 +2803,15 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
         scope=list(scope) if scope is not None else [],
         log_path=f".bale/logs/{sid}.log",
     )
-    attempt["provenance"] = stamp
+    attempt_stamp = dict(stamp)
+    packed_at = provenance.get("packed_at")
+    if isinstance(packed_at, str) and packed_at:
+        attempt_stamp["packed_at"] = packed_at
+    else:
+        log(f"open provenance: manifest provenance block for {sid} has "
+            f"no usable packed_at ({packed_at!r}); the opened attempt "
+            f"carries work_class and packer only")
+    attempt["provenance"] = attempt_stamp
     rel = write_telemetry_record(repo, sid, attempt)
     if rel:
         log(f"open provenance: telemetry record opened at {rel} "
@@ -3368,6 +3386,7 @@ def _resolve_supersession(args: argparse.Namespace,
                           repo: Path,
                           pre_answered: Optional[
                               list[PreAnsweredIntent]] = None,
+                          sweep_log: Optional[list] = None,
                           ) -> tuple[Optional[str], Optional[str]]:
     """Resolve `--supersedes` and run the exchange (v0.3.17, board 26).
 
@@ -3435,6 +3454,13 @@ def _resolve_supersession(args: argparse.Namespace,
     — the child sid doesn't exist); the durable record is the parent's
     telemetry entry, and cmd_pack journals the outcome into the child's
     session log once it opens, beside the gate journal line.
+
+    `sweep_log` (v0.4.40, board 104b): when a list is passed, an
+    accepted close appends its `superseded-by-split` entry
+    (bale_report.format_pack_sweep_entry over the close's sweep_commit
+    result) for pack's --json `sweep` key. None — every caller before
+    v0.4.40 — appends nothing; the tuple returned is unchanged either
+    way.
     """
     from __main__ import (  # lazy — see module docstring
         close_session_with_record,
@@ -3526,12 +3552,16 @@ def _resolve_supersession(args: argparse.Namespace,
         log(f"supersession of {sid} declined; nothing closed")
 
     if accepted:
-        telemetry_rel, _, _ = close_session_with_record(
+        telemetry_rel, _, close_sweep = close_session_with_record(
             repo, sid,
             closure_reason="superseded-by-split",
             command="pack",
             log_path=f".bale/logs/{sid}.log",
         )
+        if sweep_log is not None:
+            from bale_report import format_pack_sweep_entry  # lazy — see module docstring
+            sweep_log.append(format_pack_sweep_entry(
+                sid, "superseded-by-split", close_sweep))
         log(f"superseded {sid} (closure record: "
             f"{telemetry_rel if telemetry_rel else 'write failed — see log'})")
         return sid, None
@@ -3594,7 +3624,36 @@ def sweep_superseded_by_stamp(repo: Path, parent_sid: str,
                         [stamp_rel] if stamp_rel else [])
 
 
-def _run_readonly_sweep(repo: Path) -> list[str]:
+def sweep_swept_by_stamp(repo: Path, swept_sid: str, pack_sid: str,
+                         stamp_rel: Optional[str]) -> Optional[dict]:
+    """Commit the swept_by stamp through the auto-sweep (v0.4.40,
+    board 104b item 3) — board 107's lesson applied to the read-only
+    sweep, sweep_superseded_by_stamp's twin.
+
+    The read-only sweep closes a session pre-sid through
+    close_session_with_record, whose step 5 commits the closure record
+    as `[bale sweep <swept>] closed-read-only`. Once the sweeping
+    pack's sid exists, stamp_swept_by rewrites that committed record
+    to add `swept_by: <pack-sid>`; without this second sweep the pack
+    would leave ` M claude/telemetry/<swept>.json` behind for the next
+    apply's dirty-target pre-flight to refuse.
+
+    Same contract as every sweep: pathspec-only on the one rewritten
+    path, `[bale sweep <swept>] swept_by <pack-sid>` in the message
+    family, loud either way, never fatal, and with `[apply] sweep`
+    unset/false no output and no commit. A failed stamp (stamp_rel
+    None, already logged by the stamper) sweeps an empty path list,
+    which sweep_commit reports as `sweep: nothing to commit`.
+
+    Returns sweep_commit's result (None when the key is unset/false).
+    """
+    from __main__ import sweep_commit  # lazy — see module docstring
+    return sweep_commit(repo, swept_sid, f"swept_by {pack_sid}",
+                        [stamp_rel] if stamp_rel else [])
+
+
+def _run_readonly_sweep(repo: Path,
+                        sweep_log: Optional[list] = None) -> list[str]:
     """The read-only sweep (v0.3.21, board 33): a read-only pack offers
     to close each open session whose recorded scope is exactly [].
 
@@ -3637,7 +3696,14 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
     Runs pre-sid (no session log is open yet), so these lines reach
     stdout/stderr only; cmd_pack journals the outcome into the child's
     session log once it opens, beside the gate and supersession journal
-    lines. Returns the closed sids for that journal entry.
+    lines. Returns the closed sids for that journal entry — and, since
+    v0.4.40 (board 104b), for the post-sid swept_by stamp, which names
+    this pack's sid on each closure attempt once the sid exists.
+
+    `sweep_log` (v0.4.40): when a list is passed, each close appends
+    its `closed-read-only` entry (bale_report.format_pack_sweep_entry
+    over the close's sweep_commit result) for pack's --json `sweep`
+    key; None appends nothing.
     """
     from __main__ import (  # lazy — see module docstring
         close_session_with_record,
@@ -3687,13 +3753,17 @@ def _run_readonly_sweep(repo: Path) -> list[str]:
                 log(format_decline_line(READONLY_SWEEP_DECLINE_LINES,
                                         decision, sid=sid))
             continue
-        telemetry_rel, _, _ = close_session_with_record(
+        telemetry_rel, _, close_sweep = close_session_with_record(
             repo, sid,
             closure_reason="closed-read-only",
             command="pack",
             scope=[],
             log_path=f".bale/logs/{sid}.log",
         )
+        if sweep_log is not None:
+            from bale_report import format_pack_sweep_entry  # lazy — see module docstring
+            sweep_log.append(format_pack_sweep_entry(
+                sid, "closed-read-only", close_sweep))
         log(f"read-only sweep: closed {sid} (closure record: "
             f"{telemetry_rel if telemetry_rel else 'write failed — see log'})")
         closed.append(sid)
@@ -4543,42 +4613,6 @@ def refuse_context_include_entries(directory: Path, includes: list) -> None:
                  f"--context, relative to {directory})")
 
 
-def format_context_pack_json(*, tarball: Path, directory: Path,
-                             tree_name: str, context_files: int,
-                             total_bytes: int, in_git: bool) -> str:
-    """Render the `bale pack --context --json` report as ONE line of JSON.
-
-    A separate report from format_pack_json's (bale_report.py): a
-    context pack has no sid, log, session_dir, README or tree position,
-    so it shares none of that contract's session keys and pretending
-    otherwise would hand a consumer nulls where the session fields
-    live. Stable keys, additions only:
-
-      outcome        "context-packed" — the only state that reaches this
-                     report (every failure exits through fail()).
-      tarball        absolute path to the written context tarball.
-      directory      absolute path of the packed directory.
-      tree_name      the top-level directory name inside the tarball
-                     (context_tree_name).
-      context_files  number of files in the tarball.
-      total_bytes    their summed size, as the walk measured it.
-      git            true when the listing came from git ls-files (the
-                     directory is inside a work tree), false when it
-                     came from a filesystem walk.
-
-    Pure; the caller emits it via emit_json_line.
-    """
-    return json.dumps({
-        "outcome": "context-packed",
-        "tarball": str(tarball),
-        "directory": str(directory),
-        "tree_name": tree_name,
-        "context_files": context_files,
-        "total_bytes": total_bytes,
-        "git": in_git,
-    }, separators=(",", ":"))
-
-
 def write_context_tarball(directory: Path, files: list[str],
                           out_path: Path, *, tree_name: str) -> None:
     """Write `files` (relative to `directory`) into a gzipped tarball at
@@ -4620,7 +4654,10 @@ def cmd_pack_context(args: argparse.Namespace, cwd: Path) -> int:
     """
     from __main__ import fail, log, repo_root, run  # lazy — see module docstring
     import bale_config  # lazy — see module docstring
-    from bale_report import emit_json_line  # lazy — see module docstring
+    from bale_report import (  # lazy — see module docstring
+        emit_json_line,
+        format_context_pack_json,
+    )
 
     # Session-only flags refuse first, before any work: a doomed command
     # line costs zero keystrokes (the contradiction-pair posture).
@@ -4812,6 +4849,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         emit_json_line,
         enable_json_mode,
         format_pack_json,
+        format_pack_sweep_entry,
         format_summary_block,
         format_tree_position,
         tree_position_rows,
@@ -5066,6 +5104,12 @@ def cmd_pack(args: argparse.Namespace) -> int:
         bale_config.merged_config(repo))
     group_adds: list[str] = []
     group_report: Optional[str] = None
+    # The same row as data, for pack's --json `include_group` key
+    # (v0.4.40, board 104b): set in exactly the branches that set
+    # group_report, so the key is null exactly when the human report
+    # prints no "include group" row. bale_report owns the shape.
+    from bale_report import format_include_group_json  # lazy — see module docstring
+    group_json: Optional[dict] = None
     if args.no_include_group is not None:
         # Opt-out validation is strict in both directions: a flag with
         # no configured group, or naming a group that is not the
@@ -5095,6 +5139,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
             f"(--no-include-group): automatic engagement disabled for "
             f"this pack", force=True)
         group_report = f"{group_cfg['name']} opt-out (--no-include-group)"
+        group_json = format_include_group_json(
+            name=group_cfg["name"], state="opt-out", triggers=[],
+            pulled=[], row=group_report)
     elif group_cfg is not None:
         engagement = evaluate_include_group(
             repo, list(args.include), group_cfg)
@@ -5116,6 +5163,10 @@ def cmd_pack(args: argparse.Namespace) -> int:
                     f"covered by the includes")
                 group_report = (f"{group_cfg['name']} engaged "
                                 f"(already covered)")
+            group_json = format_include_group_json(
+                name=group_cfg["name"], state="engaged",
+                triggers=engagement["trigger_hits"], pulled=group_adds,
+                row=group_report)
 
     # Split supersession (v0.3.17, board 26): resolve --supersedes and
     # run its exchange BEFORE the disjointness gate on both paths — the
@@ -5143,8 +5194,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
             getattr(args, "pre_answered", None))
     except ValueError as e:
         fail(f"pre-answered intents rejected: {e}")
+    # Pack's auto-sweep ledger (v0.4.40, board 104b): every close and
+    # post-sid stamp this pack writes onto another session's telemetry
+    # record appends one entry, in event order, for the --json `sweep`
+    # key (format_pack_json owns the contract). Filled by the
+    # supersession close, the read-only sweep, and the two post-sid
+    # stamps below; [] when the pack closes nothing.
+    sweep_entries: list[dict] = []
     superseded_sid, declined_supersession = _resolve_supersession(
-        args, repo, pre_answered=pre_answered_intents)
+        args, repo, pre_answered=pre_answered_intents,
+        sweep_log=sweep_entries)
     # An intent no prompt consumed changes nothing — the decline
     # default governed wherever a prompt actually ran, exactly as if
     # the intent were absent — but it never passes silently: the
@@ -5324,7 +5383,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # piped decline, HOLD skip — live in _run_readonly_sweep.
     swept_sids: list[str] = []
     if args.read_only:
-        swept_sids = _run_readonly_sweep(repo)
+        swept_sids = _run_readonly_sweep(repo, sweep_log=sweep_entries)
 
     # README resolution (BALE.md §7.3; precedence lives in the resolver's
     # docstring). Runs after the wizard so a wizard-collected goal /
@@ -5794,13 +5853,33 @@ def cmd_pack(args: argparse.Namespace) -> int:
                 f"({stamp_rel})")
         # Board 107: the stamp rewrote a record the close already
         # swept; sweep the rewrite too, or the tree is left dirty.
-        sweep_superseded_by_stamp(repo, superseded_sid, sid, stamp_rel)
+        sweep_entries.append(format_pack_sweep_entry(
+            superseded_sid, "superseded_by",
+            sweep_superseded_by_stamp(repo, superseded_sid, sid,
+                                      stamp_rel)))
     if swept_sids:
         # Same journaling rationale for the read-only sweep (v0.3.21):
         # the close events ran pre-sid; the durable closure lives in
         # each swept sid's telemetry record.
         log(f"read-only sweep: closed {', '.join(swept_sids)} as "
             f"closed-read-only (closure record(s) under claude/telemetry/)")
+        # The sweeping pack's sid on each closure (v0.4.40, board 104b
+        # item 3): the sweep ran pre-sid, so the closed-read-only
+        # attempts were written without it — enrich each now, the
+        # superseded_by pattern above, and sweep each rewrite as its
+        # own event (board 107's lesson: the close already committed
+        # the record, so an unswept stamp would leave it dirty).
+        # Best-effort per sid: a failed stamp is logged by the stamper,
+        # sweeps nothing, and leaves that attempt without the field.
+        from bale_report import stamp_swept_by  # lazy — see module docstring
+        for swept_sid in swept_sids:
+            swept_rel = stamp_swept_by(repo, swept_sid, sid)
+            if swept_rel:
+                log(f"read-only sweep: swept_by={sid} stamped on "
+                    f"{swept_sid}'s closure attempt ({swept_rel})")
+            sweep_entries.append(format_pack_sweep_entry(
+                swept_sid, "swept_by",
+                sweep_swept_by_stamp(repo, swept_sid, sid, swept_rel)))
 
     # Manifest, with the pack-time provenance stamp (v0.3.8, B1):
     # bale_version + contract-doc hashes + packer (--packer > [identity].
@@ -5959,6 +6038,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
             checkpoint_file_sha256=checkpoint_echo_sha256,
             branch=pack_branch,
             applied_latest=applied_latest,
+            sweep=sweep_entries,
+            include_group=group_json,
         ))
         # Board 52 --json interplay: stdout keeps its one-JSON-line
         # contract untouched; the opener block prints here, after the
@@ -5966,8 +6047,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # sys.stdout to stderr, the same route as every other
         # human-facing line under json mode. It still ends the run:
         # nothing prints after it. (A structured `opener` key in the
-        # JSON report needs a format_pack_json change in
-        # bale_report.py — proposed, not made; see notes.md.)
+        # JSON report would need a format_pack_json change in
+        # bale_report.py; proposed by board 52, not made.)
         print("\n".join(
             session_opener_block(sid, goal, read_only=args.read_only,
                                  packed_at=provenance["packed_at"],
@@ -5981,9 +6062,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
         if group_report is not None:
             # Board 64: the durable half of the engagement/opt-out
             # line — the log line above is visibility at paste time,
-            # this row is the record beside the sid. (A --json key
-            # needs a format_pack_json change in bale_report.py —
-            # proposed, not made; see notes.md.)
+            # this row is the record beside the sid. Its --json twin is
+            # the `include_group` key (v0.4.40, board 104b), built from
+            # the same branch as group_json.
             rows.append(("include group", group_report))
         if readme_echo_sha256 is not None:
             # The board-33 identity echo: path, first heading, sha256

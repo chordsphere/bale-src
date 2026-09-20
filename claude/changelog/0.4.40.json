@@ -1,0 +1,36 @@
+{
+  "record_version": 1,
+  "version": "0.4.40",
+  "session_id": "2026-09-20-board-104b-pack-telemetry-008",
+  "at": "2026-09-20T03:28:09+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_report.py",
+      "change": "bale pack --json gains two always-present keys, additive: sweep (a list, [] when the pack closed nothing; one entry per close or post-sid stamp this pack wrote onto another session's record, {sid, event, status, detail, sha, files}, event one of superseded-by-split, closed-read-only, superseded_by, swept_by; with [apply] sweep unset/false entries stay listed with status/detail/sha null and files []) and include_group (null exactly when the human report prints no include group row; else {name, state engaged|opt-out, triggers, pulled, row}); no existing key renamed, removed or redefined; new PACK_SWEEP_EVENTS, format_pack_sweep_entry, format_include_group_json; format_pack_json's docstring owns the keys"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "format_context_pack_json and the context-packed outcome word move here from bin/bale_pack.py; bale pack --context --json output byte-identical"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new stamp_swept_by: after a sweeping read-only pack, each swept session's closed-read-only closure attempt gains swept_by: <the sweeping pack's sid>; stamp_superseded_by now shares its writer (_stamp_closure_attempt), log wording unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "a sweeping read-only pack stamps swept_by on each swept closure once its sid is minted and, with [apply] sweep on, commits each rewrite as its own [bale sweep <swept>] swept_by <pack-sid> event, leaving no tracked file modified; the opened telemetry attempt's provenance block gains packed_at, the request manifest's provenance.packed_at verbatim (registry-side provenance.json unchanged)"
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "declares attempts[].provenance.packed_at (optional string) and attempts[].swept_by (optional string), additive; record_version stays 1"
+    },
+    {
+      "path": "validate.sh",
+      "change": "the install self-check's pack --help list gains --context (92 checks)"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "ToolsHermeticPin's methods renamed test_stdlib_only_*, so unittest -k stdlib_only selects the tools' stdlib-only/no-network pin; assertions unchanged"
+    }
+  ]
+}

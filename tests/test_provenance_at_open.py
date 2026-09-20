@@ -141,10 +141,16 @@ class ProvenanceAtOpenTest(unittest.TestCase):
         attempt = record["attempts"][0]
         self.assertEqual(attempt["outcome"], "opened")
         self.assertEqual(attempt["command"], "pack")
+        manifest = json.loads(
+            (self.repo / ".bale" / "sessions" / sid /
+             "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(attempt["provenance"],
-                         {"work_class": "code", "packer": "alice"},
+                         {"work_class": "code", "packer": "alice",
+                          "packed_at":
+                              manifest["provenance"]["packed_at"]},
                          msg="verbatim from the request manifest — no "
-                             "normalization")
+                             "normalization; packed_at joins the pair "
+                             "since v0.4.40 (board 104b)")
         self.assertEqual(attempt["scope"], ["hello.txt"],
                          msg="the recorded write forecast (defaulted from "
                              "the include set) stamps onto the open event")

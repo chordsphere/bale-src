@@ -285,6 +285,78 @@ class TestConfigCoherence(IncludeGroupBase):
         self.assertIn(HALF_CONFIGURED_MARKER, r.stderr)
 
 
+class TestJsonReport(IncludeGroupBase):
+    """Pack's --json `include_group` key (v0.4.40, board 104b): always
+    present; null exactly when the human report prints no "include
+    group" row; otherwise the row as data, with the row string
+    verbatim."""
+
+    def json_report(self, r) -> dict:
+        self.assert_pack_ok(r)
+        lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+        self.assertEqual(len(lines), 1,
+                         f"--json stdout must be one line: {r.stdout!r}")
+        return json.loads(lines[0])
+
+    def test_engaged_with_pulls(self) -> None:
+        self.write_config()
+        report = self.json_report(
+            self.pack("--include", "bin/tool.py", "--json"))
+        self.assertEqual(report["include_group"], {
+            "name": GROUP_NAME, "state": "engaged",
+            "triggers": ["bin"], "pulled": ["install.sh", "docs"],
+            "row": f"{GROUP_NAME} engaged: pulled 2 path(s)",
+        })
+
+    def test_engaged_already_covered(self) -> None:
+        self.write_config()
+        group = self.json_report(self.pack("--json"))["include_group"]
+        self.assertEqual(group["state"], "engaged")
+        self.assertEqual(group["pulled"], [])
+        self.assertEqual(group["row"],
+                         f"{GROUP_NAME} engaged (already covered)")
+
+    def test_opt_out(self) -> None:
+        self.write_config()
+        group = self.json_report(self.pack(
+            "--include", "bin/tool.py", "--no-include-group", GROUP_NAME,
+            "--json"))["include_group"]
+        self.assertEqual(group, {
+            "name": GROUP_NAME, "state": "opt-out", "triggers": [],
+            "pulled": [],
+            "row": f"{GROUP_NAME} opt-out (--no-include-group)"})
+
+    def test_null_when_no_row(self) -> None:
+        """Both no-row cases: a group the includes never trigger, and
+        no group configured at all. The key is present and null."""
+        self.write_config()
+        report = self.json_report(
+            self.pack("--include", "lib/other.txt", "--json"))
+        self.assertIn("include_group", report)
+        self.assertIsNone(report["include_group"])
+
+    def test_null_when_unconfigured(self) -> None:
+        report = self.json_report(
+            self.pack("--include", "bin/tool.py", "--json"))
+        self.assertIn("include_group", report)
+        self.assertIsNone(report["include_group"])
+
+    def test_row_matches_human_report(self) -> None:
+        """The json `row` is the human row's string, byte for byte."""
+        self.write_config()
+        human = self.pack("--include", "bin/tool.py", slug="session-h")
+        self.assert_pack_ok(human)
+        row_lines = [ln for ln in human.stdout.splitlines()
+                     if REPORT_ROW_LABEL in ln and "engaged:" in ln
+                     and "[bale]" not in ln]
+        self.assertTrue(row_lines, human.stdout)
+        report = self.json_report(self.pack(
+            "--include", "tests/test_tool.py", "--json",
+            slug="session-j"))
+        self.assertTrue(row_lines[0].rstrip().endswith(
+            report["include_group"]["row"]), (row_lines, report))
+
+
 class TestThisRepoGroup(unittest.TestCase):
     """Pins on THIS repo's configured group (bale.toml [pack]), read
     off disk — the only test here that looks at the real config rather

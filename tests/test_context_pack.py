@@ -460,12 +460,26 @@ class PureHelpersTest(unittest.TestCase):
                          ["--slug", "--constraint"])
 
     def test_json_renderer(self) -> None:
-        line = self.m.format_context_pack_json(
+        # Homed in bin/bale_report.py since v0.4.40 (board 104b rider):
+        # the outcome vocabulary's one home. Same keys, same compact
+        # separators as when it lived in bale_pack.
+        report = _load_module("bale_report")
+        line = report.format_context_pack_json(
             tarball=Path("/d/.bale/outbox/context-d.tar.gz"),
             directory=Path("/d"), tree_name="d", context_files=2,
             total_bytes=10, in_git=True)
         self.assertNotIn("\n", line)
-        self.assertEqual(json.loads(line)["outcome"], "context-packed")
+        self.assertEqual(
+            line,
+            '{"outcome":"context-packed",'
+            '"tarball":"/d/.bale/outbox/context-d.tar.gz",'
+            '"directory":"/d","tree_name":"d","context_files":2,'
+            '"total_bytes":10,"git":true}')
+
+    def test_json_renderer_has_one_home(self) -> None:
+        # The pack module no longer defines the renderer: two homes for
+        # one outcome word is the drift the move exists to prevent.
+        self.assertFalse(hasattr(self.m, "format_context_pack_json"))
 
 
 # ---------------------------------------------------------------------------
