@@ -72,7 +72,7 @@
             "type": "object",
             "additionalProperties": true,
             "required": ["work_class", "packer"],
-            "description": "The open-time provenance stamp (v0.4.21 — additive; record_version stays 1). PRESENT on 'opened' attempts written post-epoch and ABSENT everywhere else — key presence is epoch membership, the reconciliation_parsed disambiguation doctrine applied again: absence means the session opened pre-epoch (or the request carried no usable provenance block — hand-rolled requests skip the stamp with a logged line), never that the class was empty. Values are stamped VERBATIM from the request manifest's provenance block — no normalization (the packer/model_identity spelling-consolidation rider is deferred; normalize-at-stamp without a ratified canonical map risks silent mis-attribution, and history is never rewritten either way). This stamp is what closes the unlocked-session blind spot: session-class resolution can read it for sessions that never carried a feedback echo. Write-only per the established deferral — the `bale stats` read side (per-class and per-packer drill-downs over the stamp) lands when data accrues.",
+            "description": "The open-time provenance stamp (v0.4.21 — additive; record_version stays 1). PRESENT on 'opened' attempts written post-epoch and ABSENT everywhere else — key presence is epoch membership, the reconciliation_parsed disambiguation doctrine applied again: absence means the session opened pre-epoch (or the request carried no usable provenance block — hand-rolled requests skip the stamp with a logged line), never that the class was empty. Values are stamped VERBATIM from the request manifest's provenance block — no normalization (the packer/model_identity spelling-consolidation rider is deferred; normalize-at-stamp without a ratified canonical map risks silent mis-attribution, and history is never rewritten either way). This stamp is what closes the unlocked-session blind spot: session-class resolution can read it for sessions that never carried a feedback echo. Write-only per the established deferral — the `bale stats` read side (per-class and per-packer drill-downs over the stamp) lands when data accrues. Since v0.4.40 the block also carries the optional packed_at (below) — the pack instant beside the pair, as the manifest's provenance block holds them; work_class and packer stay the only required keys.",
             "properties": {
               "work_class": {
                 "type": "string",
@@ -83,6 +83,11 @@
                 "type": "string",
                 "minLength": 1,
                 "description": "The pack-time packer identity, verbatim from provenance.packer (--packer > [identity].packer > the literal 'unconfigured')."
+              },
+              "packed_at": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The pack instant (v0.4.40 — additive and optional; record_version stays 1), stamped VERBATIM from the request manifest's provenance.packed_at (UTC ISO-8601, seconds) — the same clock instant the sid's date is read from. Absent on opened attempts written before v0.4.40, and on any whose manifest carried no usable packed_at (logged at the stamp). Named consumer, per the telemetry rule that every new field names its query at birth: the close desk's reconstruction of a sitting, which reads attempts[].provenance.packed_at on a master's 'opened' attempt to date that master's pack — in place of reasoning back from the record's created_at, whose lag behind the pack instant is not fixed (observed 1–2 seconds, sometimes 0). A read-only master produces no response feedback echo, so this stamp is its only record-side home. Telemetry-only: the registry-side .bale/sessions/<sid>/provenance.json stays exactly work_class and packer. No `bale stats` read side yet."
               }
             }
           },
@@ -309,6 +314,11 @@
                 }
               }
             }
+          },
+          "swept_by": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The sweeping pack's session id, stamped onto a closed-read-only closure attempt (v0.4.40 — additive; record_version stays 1). The read-only sweep closes open []-scope sessions before the sweeping pack's sid is minted, so the closure is written without it; once the sid exists the same pack enriches each swept session's latest closed-read-only attempt in place (stamp_swept_by in bin/bale_report.py), superseded_by's single-writer pattern, and with [apply] sweep on commits the rewrite as its own `[bale sweep <swept>] swept_by <pack-sid>` event so the record is left clean. Present only on that closure attempt; absent on pre-v0.4.40 closed-read-only attempts (not backfilled), on a stamp that failed (logged loudly, never fatal), and when the sweeping pack aborted between the sweep and the sid mint. The supersession close needs no counterpart: its attempt already carries the closing pack's sid as superseded_by."
           },
           "superseded_by": {
             "type": "string",

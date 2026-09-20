@@ -156,7 +156,8 @@ is the standing form of 105's one-off check on the opener's claim
 both request-carried tools asserting the property — stdlib-only, no
 network-capable module or process/FFI escape hatch, no dynamic import —
 never the inventory (105's import set rides as a comment), with a
-walker self-test so the pin cannot pass vacuously.
+walker self-test so the pin cannot pass vacuously. Its methods are all
+named test_stdlib_only_* (v0.4.40), so `-k stdlib_only` selects it.
 
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
@@ -3070,6 +3071,13 @@ class ToolsHermeticPin(unittest.TestCase):
     here, in the tools' own lane. A walker self-test proves each
     detector fires on synthetic source, so the pin can never pass
     vacuously.
+
+    Selector (v0.4.40, board 104b item 4): every method is named
+    `test_stdlib_only_*`, so `python3 -m unittest discover -s tests -t .
+    -k stdlib_only` runs exactly this pin — the standing form of board
+    105's proposal, which board 69 (d) had already landed here under
+    other method names. Renamed rather than duplicated: a second walker
+    beside this one would be two copies of one rule.
     """
 
     TOOLS = (CRAFT, LINT)
@@ -3146,12 +3154,12 @@ class ToolsHermeticPin(unittest.TestCase):
                     hits.add(name)
         return hits
 
-    def test_both_tools_are_present(self):
+    def test_stdlib_only_both_tools_are_present(self):
         for path in self.TOOLS:
             self.assertTrue(path.is_file(), f"{path} missing — the pin "
                             "covers the two request-carried tools by name")
 
-    def test_every_import_is_stdlib(self):
+    def test_stdlib_only_every_import_is_stdlib(self):
         stdlib = set(sys.stdlib_module_names)
         for path, found in self.scans():
             with self.subTest(tool=path.name):
@@ -3165,7 +3173,7 @@ class ToolsHermeticPin(unittest.TestCase):
                                  "stdlib-only (they run in request "
                                  "tarballs with no install)")
 
-    def test_no_network_capable_module_or_escape_hatch(self):
+    def test_stdlib_only_no_network_capable_module_or_escape_hatch(self):
         for path, found in self.scans():
             with self.subTest(tool=path.name):
                 self.assertEqual(
@@ -3175,7 +3183,7 @@ class ToolsHermeticPin(unittest.TestCase):
                     "opener tells every worker these tools have no "
                     "network access")
 
-    def test_no_dynamic_import(self):
+    def test_stdlib_only_no_dynamic_import(self):
         for path, found in self.scans():
             with self.subTest(tool=path.name):
                 self.assertEqual(
@@ -3184,7 +3192,7 @@ class ToolsHermeticPin(unittest.TestCase):
                     "cannot see what a dynamic import loads, so the "
                     "hermetic claim would stop being checkable")
 
-    def test_walker_detects_each_violation_shape(self):
+    def test_stdlib_only_walker_detects_each_violation_shape(self):
         """The pin's own self-test: every detector fires on synthetic
         source, including an import nested in a function body — so a
         broken walker fails here instead of passing the tools
