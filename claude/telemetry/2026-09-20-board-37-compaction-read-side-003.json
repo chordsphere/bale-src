@@ -1,0 +1,546 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-20-board-37-compaction-read-side-003",
+  "created_at": "2026-09-20T00:50:10+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-20T00:50:10+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-20-board-37-compaction-read-side-003.log",
+      "provenance": {
+        "work_class": "mixed",
+        "packer": "chordsphere"
+      }
+    },
+    {
+      "at": "2026-09-20T01:10:37+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-20-board-37-compaction-read-side-003.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: release surface (changelog_record, include_group, release_packaging)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "install validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "version bump: VERSION is next after the prior changelog record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "stats read side on claude/telemetry: keys additive and consistent": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "format_stats_json docstring owns the new keys": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "PLANNER.md: single-window paragraph and step 5 admissions clause": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: release surface (changelog_record, include_group, release_packaging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "install validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version bump: VERSION is next after the prior changelog record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stats read side on claude/telemetry: keys additive and consistent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "format_stats_json docstring owns the new keys": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "PLANNER.md: single-window paragraph and step 5 admissions clause": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python, json)",
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)",
+          "unittest: release surface (changelog_record, include_group, release_packaging)",
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)",
+          "install validate.sh",
+          "version bump: VERSION is next after the prior changelog record",
+          "stats read side on claude/telemetry: keys additive and consistent",
+          "format_stats_json docstring owns the new keys",
+          "PLANNER.md: single-window paragraph and step 5 admissions clause",
+          "unittest: full suite (--slow)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [
+        "tests/test_stats_compaction.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_stats_compaction.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog/0.4.38.json",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_compaction.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.37",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-20-board-37-compaction-read-side-003.sh",
+              "sha256": "1713fb6206fbaf20b407234cb7be98b7b39ed3bdad4b35d97e3c72a1f8768ecd"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-20T00:50:10+00:00",
+            "base_files": {
+              "bin/VERSION": "9f1347ce1ed3cc5c0f8c037c540b6eb6da327d4a5d97255e95f57789e2e7e82b",
+              "bin/bale_report.py": "0f91b3277ab81e4f56858192cbea1bc63b4ab0fe8f60f98bb55aa3524ba96640",
+              "bin/bale_stats.py": "69d7287d68d939848d400946b099afa96886a976f357bed8d2794f6c9ce68eab",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "docs/PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35",
+              "tests/test_stats_aggregation.py": "4d7e1de8db984a01a0b5740f8dabd5583121a8014da0acbcf888a058d5324008"
+            },
+            "model_identity": "claude-opus-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Any-attempt rather than latest-carrier for a session's disclosure, per the brief's definition; they agree on the real corpus today.",
+            "The count renders as its own line under the budget line rather than appended to it, so the existing line's text stays byte-stable."
+          ],
+          "judgment_calls": [
+            "Fixed the pre-existing crash in the budget pressure pass (a truthy non-dict self_reported raised AttributeError); needed for the brief's never-crashes-the-run definition to hold; flagged in notes.md for ratification.",
+            "Placed the single-window paragraph at the end of PLANNER.md section 11 (Decomposition at Seams), since the window is the unit decomposition cuts to.",
+            "New suite tests/test_stats_compaction.py rather than new fixtures in the shared corpus; the post-epoch fixtures rider is not carried."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md",
+            "README.md",
+            "TARBALL.md sections 1, 2, 5, 7, 10.1",
+            "PLANNER.md (sections 1, 5, 7, 8-19)",
+            "DOCS.md (META, INDEX, 9-11)",
+            "CODE.md section 8.5"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_stats_compaction.py",
+              "why": "the disclosing shapes need a corpus that discloses; putting one in the shared fixture corpus would recompute its expectations and half-carry the declined post-epoch fixtures rider, so the brief's own-suite path was taken (board 44 / test_stats_linkage.py precedent)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-20-board-37-compaction-read-side-003.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-20-board-37-compaction-read-side-003.sh",
+          "sha256": "1713fb6206fbaf20b407234cb7be98b7b39ed3bdad4b35d97e3c72a1f8768ecd"
+        },
+        "stamp_matched": true,
+        "failed_probes": [
+          "PLANNER.md \u00a75 step 5: the retry clause mentions the held apply's admissions"
+        ]
+      }
+    },
+    {
+      "at": "2026-09-20T01:15:01+00:00",
+      "outcome": "rejected",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-20-board-37-compaction-read-side-003 (1).tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-20-board-37-compaction-read-side-003.log"
+    },
+    {
+      "at": "2026-09-20T01:16:21+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-20-board-37-compaction-read-side-003 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: release surface (changelog_record, include_group, release_packaging)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "install validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "version bump: VERSION is next after the prior changelog record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "stats read side on claude/telemetry: keys additive and consistent": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "format_stats_json docstring owns the new keys": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "PLANNER.md: single-window paragraph and step 5 admissions clause": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full suite (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: release surface (changelog_record, include_group, release_packaging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "install validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version bump: VERSION is next after the prior changelog record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "stats read side on claude/telemetry: keys additive and consistent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "format_stats_json docstring owns the new keys": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "PLANNER.md: single-window paragraph and step 5 admissions clause": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full suite (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python, json)",
+          "unittest: stats suites (compaction, aggregation, linkage, drilldown)",
+          "unittest: release surface (changelog_record, include_group, release_packaging)",
+          "unittest: doc pins (doc_crossrefs, global_doc_selfcontainment, sanctioned_pairs)",
+          "install validate.sh",
+          "version bump: VERSION is next after the prior changelog record",
+          "stats read side on claude/telemetry: keys additive and consistent",
+          "format_stats_json docstring owns the new keys",
+          "PLANNER.md: single-window paragraph and step 5 admissions clause",
+          "unittest: full suite (--slow)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py"
+      ],
+      "overridden_paths": [
+        "tests/test_stats_compaction.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_stats_compaction.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog/0.4.38.json",
+        "docs/PLANNER.md",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_compaction.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.37",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "ccc494c1790a9d2860bc6f32a572b1fe887c0f8f2aafd8ad6e3f195cd17f3402",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-20-board-37-compaction-read-side-003.sh",
+              "sha256": "1713fb6206fbaf20b407234cb7be98b7b39ed3bdad4b35d97e3c72a1f8768ecd"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-20T00:50:10+00:00",
+            "base_files": {
+              "bin/VERSION": "9f1347ce1ed3cc5c0f8c037c540b6eb6da327d4a5d97255e95f57789e2e7e82b",
+              "bin/bale_report.py": "0f91b3277ab81e4f56858192cbea1bc63b4ab0fe8f60f98bb55aa3524ba96640",
+              "bin/bale_stats.py": "69d7287d68d939848d400946b099afa96886a976f357bed8d2794f6c9ce68eab",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "docs/PLANNER.md": "c264fdffde027f8485855f164fe7938729ffc9da73e549161f577d56fd2e3d35",
+              "tests/test_stats_aggregation.py": "4d7e1de8db984a01a0b5740f8dabd5583121a8014da0acbcf888a058d5324008"
+            },
+            "model_identity": "claude-opus-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Any-attempt rather than latest-carrier for a session's disclosure, per the brief's definition; they agree on the real corpus today.",
+            "The count renders as its own line under the budget line rather than appended to it, so the existing line's text stays byte-stable."
+          ],
+          "judgment_calls": [
+            "Fixed the pre-existing crash in the budget pressure pass (a truthy non-dict self_reported raised AttributeError); needed for the brief's never-crashes-the-run definition to hold; flagged in notes.md for ratification.",
+            "Placed the single-window paragraph at the end of PLANNER.md section 11 (Decomposition at Seams), since the window is the unit decomposition cuts to.",
+            "New suite tests/test_stats_compaction.py rather than new fixtures in the shared corpus; the post-epoch fixtures rider is not carried.",
+            "Retry: the HOLD was a work defect. The brief pinned the word admissions and my clause used only the singular; my own check tested the substring admission and passed on it. Fixed the clause in the rider's words and tightened the check to the plural phrase."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md",
+            "README.md",
+            "TARBALL.md sections 1, 2, 5, 7, 10.1",
+            "PLANNER.md (sections 1, 5, 7, 8-19)",
+            "DOCS.md (META, INDEX, 9-11)",
+            "CODE.md section 8.5"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_stats_compaction.py",
+              "why": "the disclosing shapes need a corpus that discloses; putting one in the shared fixture corpus would recompute its expectations and half-carry the declined post-epoch fixtures rider, so the brief's own-suite path was taken (board 44 / test_stats_linkage.py precedent)"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-20-board-37-compaction-read-side-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": "2026-09-20-board-37-compaction-read-side-003",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-20-board-37-compaction-read-side-003.sh",
+          "sha256": "1713fb6206fbaf20b407234cb7be98b7b39ed3bdad4b35d97e3c72a1f8768ecd"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-20T01:16:21+00:00",
+  "outcome": "applied"
+}
