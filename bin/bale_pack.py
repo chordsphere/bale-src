@@ -47,6 +47,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -743,9 +744,19 @@ def walk_for_pack(
     matcher: Optional[BaleignoreMatcher] = None,
     verbose: bool = False,
     checkpoint_exclude: Optional[str] = None,
+    listed: Optional[list[str]] = None,
 ) -> PackProjection:
     """Enumerate files for pack, applying the filter chain, while accumulating
     file count, total size, max depth, and per-top-level-dir totals.
+
+    `listed` (v0.4.39, the context pack) replaces the chain's first
+    step: when given, it is the candidate path list (relative to
+    `repo`), and git ls-files is not run. `bale pack --context` passes
+    its own listing — git ls-files from the packed directory inside a
+    work tree, a filesystem walk outside one (list_context_candidates)
+    — so a context pack runs every later filter in this chain, one
+    implementation, rather than a copy of it. None (every session
+    caller) is byte-for-byte the old behavior.
 
     Filter chain (BALE.md sections 6.4, 7.5 step 5): git ls-files → drop
     non-files → drop baked-in excluded dirs → drop secrets → drop the
@@ -825,7 +836,8 @@ def walk_for_pack(
     checkpoint_drops: list[str] = []
     bundle_drops: list[str] = []
 
-    listed = list_git_files(repo)
+    if listed is None:
+        listed = list_git_files(repo)
     for rel in listed:
         # Filter chain — matches gather_files_for_pack's body so the
         # surviving set on a no-cap run is consistent across entry points.
@@ -1744,7 +1756,9 @@ def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
     replay argv, parsed by the real CLI parser, BEFORE the checkpoint
     dry-run — cheap gates before the oracle execution.
 
-    Two gates, each the one implementation cmd_pack itself runs:
+    First a guard (v0.4.39): an argv carrying --context refuses — a
+    bundle opens a session and a context pack opens none. Then two
+    gates, each the one implementation cmd_pack itself runs:
 
     1. forecast existence — refuse_missing_scope_paths over the
        --include and --write entries;
@@ -1767,6 +1781,16 @@ def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
     session state existing yet. Journal tuples the gate returns are
     discarded here — the replay's run is the one that journals.
     """
+    # A planner bundle opens a session; a context pack opens none
+    # (v0.4.39). A stored argv carrying --context is a bundle/argv
+    # coherence defect, refused here — before the checkpoint dry-run
+    # spends the oracle — rather than at replay, where the injected
+    # README flag would refuse it later and less legibly.
+    if getattr(args, "context", False):
+        from __main__ import fail  # lazy — see module docstring
+        fail("the stored pack argv carries --context, but a context "
+             "pack opens no session and a planner bundle exists to "
+             "open one. Re-author the bundle without --context.")
     refuse_missing_scope_paths(repo, list(args.include), list(args.write))
     if forecast_final_at_parse(args):
         run_forecast_disjointness_gate(
@@ -4333,6 +4357,429 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
 
 # --- cmd_pack ----------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# The context pack (`bale pack --context`, v0.4.39; BALE.md §7.8)
+# ---------------------------------------------------------------------------
+#
+# A session-less tarball of the current directory's tree, made to travel
+# beside ANOTHER project's request as reading material (TARBALL.md §3.1
+# states the receiving side). It is not a request: no sid is minted or
+# consumed, nothing is registered under .bale/sessions/, no lock, no
+# telemetry record, no session log, no opener. What it shares with a
+# session pack is the part that keeps secrets and junk out: the walk's
+# filter chain (walk_for_pack, fed a listing of its own via `listed=`),
+# .baleignore plus --exclude, the planner-bundle deny, and the caps.
+
+# Where the tarball lands, relative to the packed directory, and its
+# filename prefix. .bale/ is a baked-in excluded directory, so a later
+# context pack of the same tree never ships an earlier one; `bale
+# status` lists only request-*.tar.gz, so the prefix keeps it out of the
+# session outbox listing.
+CONTEXT_OUTBOX_REL = Path(".bale") / "outbox"
+CONTEXT_TARBALL_PREFIX = "context-"
+
+# Flags that only mean something for a session, as (argparse dest,
+# spelling, default). A value that differs from the default refuses
+# beside --context (cmd_pack_context), fail-fast in the house style of
+# cmd_pack's contradiction pairs. A flag typed AT its default value is
+# indistinguishable from an absent one and so is a no-op (the one case
+# is `--expects-probe claude-decides`).
+CONTEXT_SESSION_ONLY_FLAGS = (
+    ("goal", "a goal", None),
+    ("slug", "--slug", None),
+    ("write", "--write", []),
+    ("read_only", "--read-only", False),
+    ("supersedes", "--supersedes", None),
+    ("checkpoint_file", "--checkpoint-file", None),
+    ("readme_file", "--readme-file", None),
+    ("edit", "--edit", False),
+    ("no_edit", "--no-edit", False),
+    ("no_readme", "--no-readme", False),
+    ("constraint", "--constraint", []),
+    ("out_of_scope", "--out-of-scope", []),
+    ("expects_probe", "--expects-probe", "claude-decides"),
+    ("packer", "--packer", None),
+    ("work_class", "--work-class", None),
+    ("allow_checkpoint_in_scope", "--allow-checkpoint-in-scope", False),
+    ("no_include_group", "--no-include-group", None),
+)
+
+# Flags that compose with --context (argparse dests). Together with the
+# session-only table above, this classifies every `bale pack` flag;
+# tests/test_context_pack.py pins that the two tables partition the
+# parser, so a flag added later must be classified here first.
+CONTEXT_COMPOSING_FLAGS = (
+    "context", "include", "exclude", "max_files", "max_size",
+    "max_depth", "force", "verbose", "json",
+)
+
+_CONTEXT_NAME_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def context_session_only_flags(args: argparse.Namespace) -> list[str]:
+    """Return the spellings of the session-only flags `args` carries
+    (value differs from the default), in table order. Pure."""
+    typed: list[str] = []
+    for dest, spelling, default in CONTEXT_SESSION_ONLY_FLAGS:
+        if getattr(args, dest, default) != default:
+            typed.append(spelling)
+    return typed
+
+
+def context_tree_name(directory: Path) -> str:
+    """The directory's name as the context tarball carries it: the
+    basename with every run of characters outside [A-Za-z0-9._-]
+    replaced by one hyphen, and leading/trailing dots and hyphens
+    stripped (so the result is never a hidden name, never empty, and
+    always safe as both a filename component and a tar arcname). An
+    ordinary directory name passes through unchanged; "tree" is the
+    fallback for a name with no safe character at all. Pure."""
+    safe = _CONTEXT_NAME_UNSAFE_RE.sub("-", directory.name).strip(".-")
+    return safe or "tree"
+
+
+def context_tarball_filename(directory: Path) -> str:
+    """`context-<name>.tar.gz`, <name> per context_tree_name. Pure."""
+    return f"{CONTEXT_TARBALL_PREFIX}{context_tree_name(directory)}.tar.gz"
+
+
+def list_context_candidates(directory: Path, *, in_git: bool) -> list[str]:
+    """The context pack's candidate listing, relative to `directory`.
+
+    Inside a git work tree: `git ls-files -z --cached --others
+    --exclude-standard`, run FROM the directory — git restricts the
+    listing to the directory's subtree, prints paths relative to it,
+    and honors every .gitignore that applies (the repo root's included),
+    exactly as a session pack's listing does. -z keeps non-ASCII names
+    byte-true instead of octal-quoted.
+
+    Outside one: a plain filesystem walk. Nothing is git-initialized —
+    this is somebody's reading material, not a project bale will manage
+    — and there is no .gitignore to honor, so the walk prunes the
+    baked-in excluded directories as it goes (an optimization: the
+    filter chain drops them anyway) and does not follow directory
+    symlinks. Sorted, for a deterministic walk order.
+    """
+    from __main__ import fail, run  # lazy — see module docstring
+    if in_git:
+        try:
+            r = run(["git", "ls-files", "-z", "--cached", "--others",
+                     "--exclude-standard"], cwd=directory, check=True)
+        except subprocess.CalledProcessError as e:
+            fail(f"--context: git ls-files failed in {directory} (exit "
+                 f"{e.returncode}): {(e.stderr or '').strip()}")
+        return sorted(p for p in r.stdout.split("\0") if p)
+    listed: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(directory):
+        dirnames[:] = sorted(d for d in dirnames
+                             if d not in BAKED_IN_EXCLUDE_DIRS)
+        base = Path(dirpath).relative_to(directory)
+        for name in filenames:
+            listed.append((base / name).as_posix())
+    return sorted(listed)
+
+
+def _context_enclosing_prefilter(listed: list[str], *, prefix: str,
+                                 root_matcher, checkpoint_basis:
+                                 Optional[str], verbose: bool
+                                 ) -> list[str]:
+    """Drop the candidates the enclosing project's own exclusions name.
+
+    Two filters are keyed on the enclosing repo's root rather than on the
+    packed directory, so they are evaluated here on the repo-relative
+    path (`prefix` + rel; `prefix` is "" at the root or outside git):
+
+    - the repo root's .baleignore, when the packed directory is a
+      subdirectory of the repo (at the root it IS the directory's own
+      .baleignore, which walk_for_pack's matcher already applies);
+    - the configured blind checkpoint (checkpoint_auto_excluded), the
+      structural exclusion a session pack applies at its walk. There is
+      no admission flag here: a context tarball has no deliberate path
+      for oracle bytes. Logged loudly, per-file for one drop and one
+      summary line for several — the walk's own grain.
+    """
+    from __main__ import log  # lazy — see module docstring
+    kept: list[str] = []
+    cp_drops: list[str] = []
+    for rel in listed:
+        repo_rel = f"{prefix}/{rel}" if prefix else rel
+        if root_matcher is not None and root_matcher.matches(repo_rel):
+            if verbose:
+                log(f"verbose: skip {rel} (enclosing repo .baleignore)")
+            continue
+        if checkpoint_basis is not None and checkpoint_auto_excluded(
+                repo_rel, checkpoint_basis):
+            if verbose:
+                log(f"verbose: skip {rel} (checkpoint auto-exclusion)")
+            cp_drops.append(rel)
+            continue
+        kept.append(rel)
+    if len(cp_drops) == 1:
+        log(f"auto-excluded {cp_drops[0]} from the context tarball: it "
+            f"is the project's configured blind checkpoint "
+            f"({checkpoint_basis}), and a context tarball never ships one")
+    elif cp_drops:
+        log(f"auto-excluded {len(cp_drops)} files under the project's "
+            f"configured blind checkpoint ({checkpoint_basis}/) from the "
+            f"context tarball: a context tarball never ships one")
+    return kept
+
+
+def refuse_context_include_entries(directory: Path, includes: list) -> None:
+    """--include under --context names paths relative to the packed
+    directory, inside it, that exist. An absolute entry or one with a
+    `..` segment refuses (it would reach outside the tree being packed);
+    a missing one refuses with the session pack's own wording shape."""
+    from __main__ import fail  # lazy — see module docstring
+    for inc in includes:
+        p = Path(inc)
+        if p.is_absolute() or ".." in p.parts:
+            fail(f"--include {inc!r}: under --context, include entries "
+                 f"are relative paths inside the packed directory "
+                 f"({directory}); an absolute path or a '..' segment "
+                 f"would reach outside it.")
+        if not (directory / p).exists():
+            fail(f"--include path does not exist: {inc} (under "
+                 f"--context, relative to {directory})")
+
+
+def format_context_pack_json(*, tarball: Path, directory: Path,
+                             tree_name: str, context_files: int,
+                             total_bytes: int, in_git: bool) -> str:
+    """Render the `bale pack --context --json` report as ONE line of JSON.
+
+    A separate report from format_pack_json's (bale_report.py): a
+    context pack has no sid, log, session_dir, README or tree position,
+    so it shares none of that contract's session keys and pretending
+    otherwise would hand a consumer nulls where the session fields
+    live. Stable keys, additions only:
+
+      outcome        "context-packed" — the only state that reaches this
+                     report (every failure exits through fail()).
+      tarball        absolute path to the written context tarball.
+      directory      absolute path of the packed directory.
+      tree_name      the top-level directory name inside the tarball
+                     (context_tree_name).
+      context_files  number of files in the tarball.
+      total_bytes    their summed size, as the walk measured it.
+      git            true when the listing came from git ls-files (the
+                     directory is inside a work tree), false when it
+                     came from a filesystem walk.
+
+    Pure; the caller emits it via emit_json_line.
+    """
+    return json.dumps({
+        "outcome": "context-packed",
+        "tarball": str(tarball),
+        "directory": str(directory),
+        "tree_name": tree_name,
+        "context_files": context_files,
+        "total_bytes": total_bytes,
+        "git": in_git,
+    }, separators=(",", ":"))
+
+
+def write_context_tarball(directory: Path, files: list[str],
+                          out_path: Path, *, tree_name: str) -> None:
+    """Write `files` (relative to `directory`) into a gzipped tarball at
+    out_path, each under `<tree_name>/<rel>`. Entries are added one by
+    one, non-recursively and without dereferencing, so a regular file's
+    bytes and mode travel unchanged and a symlink travels as a symlink
+    — the session pack's copy2(follow_symlinks=False) semantics. The
+    archive is built at a temporary name beside out_path and moved into
+    place only when complete, so a failed build never leaves a truncated
+    tarball under the final name. Raises OSError / tarfile.TarError;
+    the caller reports."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=".partial-", suffix=".tar.gz",
+                                    dir=str(out_path.parent))
+    os.close(fd)
+    tmp = Path(tmp_name)
+    try:
+        with tarfile.open(tmp, "w:gz") as tf:
+            for rel in files:
+                tf.add(str(directory / rel), arcname=f"{tree_name}/{rel}",
+                       recursive=False)
+        os.replace(tmp, out_path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def cmd_pack_context(args: argparse.Namespace, cwd: Path) -> int:
+    """`bale pack --context`: write the session-less context tarball.
+
+    Called from the top of cmd_pack, after json mode engaged and the
+    system/home-directory refusal ran, and BEFORE anything a session
+    pack does — so none of the session machinery can run: no repo
+    walkthrough, no detached-HEAD refusal (nothing is stamped), no
+    tree-position echo, no supersession exchange, no disjointness
+    gate, no wizard, no read-only sweep, no .gitignore edit, no sid,
+    no registry, no lock, no telemetry, no session log, no opener.
+    BALE.md §7.8 is the design; the receiving side is TARBALL.md §3.1.
+    """
+    from __main__ import fail, log, repo_root, run  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+    from bale_report import emit_json_line  # lazy — see module docstring
+
+    # Session-only flags refuse first, before any work: a doomed command
+    # line costs zero keystrokes (the contradiction-pair posture).
+    typed = context_session_only_flags(args)
+    if typed:
+        fail(
+            f"--context writes a session-less context tarball, so "
+            f"{', '.join(typed)} "
+            f"{'(which only means' if len(typed) == 1 else '(which only mean'}"
+            f" something for a session) cannot accompany it. Drop "
+            f"{'it' if len(typed) == 1 else 'them'}, or drop --context "
+            f"to pack a request."
+        )
+
+    # Caps: the session pack's parsing and floors, verbatim in effect.
+    caps_kwargs: dict = {}
+    if args.max_files is not None:
+        if args.max_files < 1:
+            fail(f"--max-files must be >= 1; got {args.max_files}")
+        caps_kwargs["max_files_hard"] = args.max_files
+    if args.max_size is not None:
+        try:
+            caps_kwargs["max_size_hard"] = parse_size_arg(args.max_size)
+        except ValueError as e:
+            fail(str(e))
+    if args.max_depth is not None:
+        if args.max_depth < 0:
+            fail(f"--max-depth must be >= 0; got {args.max_depth}")
+        caps_kwargs["max_depth"] = args.max_depth
+    caps = PackCaps(**caps_kwargs)
+
+    includes = [Path(i).as_posix() for i in args.include]
+    refuse_context_include_entries(cwd, includes)
+    offenders = bundle_named_entries(includes)
+    if offenders:
+        fail(
+            f"planner-bundle blindness: --include "
+            f"{', '.join(offenders)} explicitly names a planner bundle "
+            f"({BUNDLE_SUFFIX} is the reserved bundle suffix). Bundles "
+            f"carry a blind checkpoint and never ship, a context "
+            f"tarball included; there is no admission flag. Drop the "
+            f"entry (a broader directory entry is fine: covered bundle "
+            f"files auto-exclude at the walk)."
+        )
+
+    repo = repo_root(cwd)
+    in_git = repo is not None
+    prefix = ""
+    if in_git:
+        prefix = cwd.relative_to(repo.resolve()).as_posix()
+        if prefix == ".":
+            prefix = ""
+    log(f"context pack of {cwd} ("
+        + (f"inside the git work tree at {repo}; listing via git "
+           f"ls-files" if in_git else
+           "not a git work tree; listing via a filesystem walk, no "
+           ".gitignore to honor")
+        + ") — no session is opened")
+
+    listed = list_context_candidates(cwd, in_git=in_git)
+    config_root = repo if in_git else cwd
+    checkpoint_basis = checkpoint_exclusion_basis(
+        bale_config.get_validation_base(
+            bale_config.merged_config(config_root)))
+    root_matcher = (build_pack_matcher(repo, []) if in_git and prefix
+                    else None)
+    listed = _context_enclosing_prefilter(
+        listed, prefix=prefix, root_matcher=root_matcher,
+        checkpoint_basis=checkpoint_basis, verbose=args.verbose)
+
+    session_excludes: list[str] = list(args.exclude)
+    matcher = build_pack_matcher(cwd, session_excludes)
+    while True:
+        projection = walk_for_pack(
+            cwd, includes, caps=caps, force=args.force, matcher=matcher,
+            verbose=args.verbose, checkpoint_exclude=None, listed=listed,
+        )
+        if not projection.files:
+            fail("no files would be included in the context tarball "
+                 "after exclusions; widen --include or relax "
+                 ".baleignore / --exclude patterns (inside a git work "
+                 "tree, .gitignored files are never listed).")
+        if projection.hard_breach is not None:
+            sys.stderr.write(format_projection_block(projection) + "\n\n")
+            fail(
+                f"hard threshold breach: {projection.hard_breach}. Re-run "
+                f"with the appropriate --max-* flag to raise the cap, or "
+                f"with --force to bypass all caps."
+            )
+        if args.force:
+            bypassed = projection.hard_breaches_seen + projection.soft_breaches
+            log(("bypassing threshold breach(es): " + "; ".join(bypassed)
+                 if bypassed else "--force active; no thresholds tripped")
+                + f". Final scope: {len(projection.files):,} files, "
+                  f"{format_bytes(projection.total_bytes)}.", force=True)
+            break
+        if not projection.soft_breaches:
+            break
+        sys.stderr.write(format_projection_block(projection) + "\n\n")
+        sys.stderr.write("Soft threshold breach: "
+                         + "; ".join(projection.soft_breaches) + ".\n")
+        if not sys.stdin.isatty():
+            fail(
+                "soft threshold breach: "
+                + "; ".join(projection.soft_breaches)
+                + ". stdin is not a TTY, so the [y]/[e]/[n] prompt cannot "
+                "run. Narrow the pack with --exclude or .baleignore, or "
+                "re-run with --force to proceed at this scope "
+                "deliberately."
+            )
+        action = _prompt_soft_breach_action()
+        if action == "n":
+            print("[bale] aborted at threshold prompt", file=sys.stderr)
+            return 1
+        if action == "y":
+            break
+        print("Adding exclusions for this context pack only; one "
+              "gitignore-style pattern per line, blank to finish:")
+        additions = _wizard_input_list("> ")
+        if additions:
+            session_excludes.extend(additions)
+            matcher = build_pack_matcher(cwd, session_excludes)
+
+    tree_name = context_tree_name(cwd)
+    out_path = cwd / CONTEXT_OUTBOX_REL / context_tarball_filename(cwd)
+    replacing = out_path.exists()
+    try:
+        write_context_tarball(cwd, projection.files, out_path,
+                              tree_name=tree_name)
+    except (OSError, tarfile.TarError) as e:
+        fail(f"failed to write the context tarball {out_path}: {e}")
+
+    # A context pack never edits .gitignore (it touches nothing tracked).
+    # Where .bale/ is not already ignored the tarball shows as untracked;
+    # say so rather than leave the operator to discover it.
+    if in_git:
+        ignored = run(["git", "check-ignore", "-q", str(out_path)],
+                      cwd=cwd, check=False)
+        if ignored.returncode != 0:
+            log(f"note: {out_path.parent.relative_to(cwd)}/ is not "
+                f"gitignored here, so the tarball shows as untracked; "
+                f"--context never edits .gitignore")
+
+    if args.json:
+        emit_json_line(format_context_pack_json(
+            tarball=out_path, directory=cwd, tree_name=tree_name,
+            context_files=len(projection.files),
+            total_bytes=projection.total_bytes, in_git=in_git))
+    else:
+        log(f"{'replaced' if replacing else 'wrote'} context tarball: "
+            f"{out_path}")
+        log(f"  {len(projection.files):,} files, "
+            f"{format_bytes(projection.total_bytes)}, under {tree_name}/")
+        log("  reading material for another project's request: attach "
+            "it beside that request. It opens no session and carries no "
+            "session id; nothing comes back for it.")
+    return 0
+
+
 def cmd_pack(args: argparse.Namespace) -> int:
     from __main__ import (  # lazy — see module docstring
         BALEIGNORE_FILE,
@@ -4379,6 +4826,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
         enable_json_mode()
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd, force=args.force)
+
+    # The context pack (v0.4.39; BALE.md §7.8) branches off here —
+    # after json mode and the system/home-directory refusal, which it
+    # shares, and before everything else below, all of which is session
+    # machinery a context pack never runs. getattr: a namespace built
+    # without the flag (an in-process caller) is a session pack.
+    if getattr(args, "context", False):
+        return cmd_pack_context(args, cwd)
 
     # README-flag validation, before anything can prompt (the git-init
     # walkthrough below is interactive) and before the wizard could
@@ -5402,10 +5857,15 @@ def cmd_pack(args: argparse.Namespace) -> int:
             # The child→parent lineage stamp (v0.3.17, board 26): the
             # sid this pack closed as superseded-by-split (or accepted
             # as already so closed on the idempotent re-run), null on
-            # every non-supersession pack. One-directional by design:
-            # the child sid did not exist when the parent closed, so
-            # the parent's closure record carries no successor pointer
-            # — the manifest field here is the lineage's single home.
+            # every non-supersession pack. This is one half of a
+            # two-way lineage: the child sid did not exist when the
+            # parent closed, so the closure attempt was written without
+            # a successor, and since v0.3.23 this same pack enriches it
+            # once the sid is minted — stamp_superseded_by writes
+            # `superseded_by: <child>` onto the parent's closure
+            # attempt (the reverse-lineage block above). This field is
+            # the child->parent direction's home; that stamp is the
+            # parent->child direction's.
             "superseded_session": superseded_sid,
         },
         provenance=provenance,
