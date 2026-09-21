@@ -1679,6 +1679,20 @@ with no successor. Pipeline order, the HOLD-state refusal, and the
 idempotent re-run of an aborted supersession are the bale tool's
 own behavior, covered in its documentation.
 
+**The split is a role transition.** A pre-flight split
+(`CLAUDE.md` §11.2) is a role transition in every project
+(`PLANNER.md` §20): the offering session, as sub-master for its
+subtree, authors the split sessions' materials — their commands and
+briefs always, and the children's checkpoints where the project pins
+one, which the paragraph below covers — and holds its decomposition
+for the parent's ratification before anything spawns
+(`PLANNER.md` §20.1); the operator carries artifacts, never authors
+them. The rescope command itself is unchanged by this: the bare line
+stays the offer's content, the line a planner consuming the offer
+re-derives from, and the bundle is how it travels. Each child's
+command is delivered as one crafter bundle emitted beside its
+`bale open` line (`PLANNER.md` §2).
+
 **Checkpoint-configured projects.** In a project that pins a blind
 checkpoint (§7), a scoped pack requires the planner's checkpoint
 committed at the per-session path — or delivered at pack time via
@@ -1690,9 +1704,7 @@ that contract, and this section does not restate it. A split's
 child sessions each need their own checkpoint, re-derived for the
 narrowed scope; the offering session authors them as
 sub-master (PLANNER.md carries the doctrine), and the operator
-delivers, never authors. Each child's command is delivered as one
-crafter bundle emitted beside its `bale open` line
-(`PLANNER.md` §2).
+delivers, never authors.
 
 **Planner bundles are oracle-bearing and never ship.** A planner
 bundle is a single planner-emitted file — reserved filename suffix
@@ -1777,6 +1789,10 @@ the deferred half named in `--out-of-scope`:
 ```
 bale pack "Migrate the auth module to the new token format — types and store only" --slug auth-token-types --include src/auth/types.ts --include src/auth/store.ts --out-of-scope "endpoint wiring" --out-of-scope "tests for the endpoint layer" --expects-probe no
 ```
+
+That line is the offer's content, not the form it travels in: in
+every project it is delivered as the stored pack argv of a crafter
+bundle emitted beside its `bale open` line (`PLANNER.md` §2).
 
 ---
 

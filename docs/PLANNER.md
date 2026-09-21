@@ -216,6 +216,13 @@ not an afterthought to the flags. The practices:
   section number and says why. The worker's ratified default on a
   cite/phrase conflict: unambiguous-phrase-match wins over section
   number, flagged in `notes.md`, never silently.
+- **A master's brief keeps the ratified order inside its sitting
+  record.** A brief that opens a master session carries the
+  operator's ratified order of upcoming work inside its sitting
+  record, never under a later heading: the sitting record is the
+  span a successor quotes verbatim (§2's transported-decisions
+  rule), and a quotation that stops where the record ends drops
+  whatever sits past it, silently.
 - **Digest over dump.** A master-authored pack prefers a stats
   digest plus the notes relevant to its deltas over wholesale
   telemetry: the worker's budget is the scarce resource the brief
@@ -292,6 +299,16 @@ of it, the authoring craft:
   Earned from a live fixture-defect HOLD: a connective phrase
   pinned on authored-not-preserved text HOLDs correct work for
   phrasing the worker was free to choose.
+- **A failed control exits 2.** A checkpoint's control — the check
+  that proves its own detectors work — is not a probe: when it
+  fails the script exits 2, not 1, and the control does not fail by
+  name among the probes. A failed control says the oracle is
+  broken, not the work, and 2 is the code bale reads that way:
+  `TARBALL.md` §7.5 gives 2 to "the script itself errored",
+  `bale open` refuses the whole open as a defective oracle when the
+  dry-run exits 2, and a HOLD at `bale apply` counts an exit 2 as
+  the checkpoint side — the planner's artifact, not the worker's.
+  Exit 1 would read as a verdict on work the oracle never graded.
 - **Version-suffixed filenames; publish the hash; compare the
   echo.** Checkpoint files carry a version suffix in the filename so
   revisions never collide under first-match resolution (§2);
@@ -443,17 +460,18 @@ moment before the split gate fired is, from the split onward, the
 planner of the sessions the split creates.
 
 In practice: a session that hits the split gate (`CLAUDE.md` §11.2)
-in a checkpoint-configured project does not emit an offer and hand
-authoring back to the operator. It authors its children's spawn
-materials in full — commands, briefs, and checkpoints — under
-META's grant, because it never builds against its children's
-oracles; its children do. `TARBALL.md` §7's blindness contract is
-met in its own terms: each child's checkpoint is authored blind,
-from that child's request, before the child's implementation
-exists, by a session that will not build against it — and
-re-derived for the narrowed scope, per §4's standing rule. The
-operator carries the authored artifacts between sessions; the
-operator does not author them.
+does not emit an offer and hand authoring back to the operator. It
+authors its children's spawn materials in full — commands, briefs,
+and, in a checkpoint-configured project, checkpoints — under META's
+grant, which reaches the checkpoints because it never builds
+against its children's oracles; its children do. Where a child has
+a checkpoint, `TARBALL.md` §7's blindness contract is met in its
+own terms: each child's checkpoint is authored blind, from that
+child's request, before the child's implementation exists, by a
+session that will not build against it — and re-derived for the
+narrowed scope, per §4's standing rule. The operator carries the
+authored artifacts between sessions; the operator does not author
+them.
 
 ### 20.1 The upward contract
 
