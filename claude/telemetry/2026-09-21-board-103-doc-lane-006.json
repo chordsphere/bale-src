@@ -1,0 +1,254 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-21-board-103-doc-lane-006",
+  "created_at": "2026-09-21T12:33:28+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-21T12:33:28+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-21-board-103-doc-lane-006.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-21T12:33:27+00:00"
+      }
+    },
+    {
+      "at": "2026-09-21T12:47:32+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-21-board-103-doc-lane-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "doc suites (test_doc_crossrefs, test_global_doc_selfcontainment, test_sanctioned_pairs)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim sentences land byte for byte in their homes": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "required spellings land in their named sections": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no section, step or item renumbered": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no model or run name in the two docs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bumpless (no bin/VERSION entry, no changelog record)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "changes stay in the forecast; out-of-scope files unshipped": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "no interpreter cache written by this script": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "doc suites (test_doc_crossrefs, test_global_doc_selfcontainment, test_sanctioned_pairs)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim sentences land byte for byte in their homes": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "required spellings land in their named sections": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no section, step or item renumbered": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no model or run name in the two docs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bumpless (no bin/VERSION entry, no changelog record)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "changes stay in the forecast; out-of-scope files unshipped": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "no interpreter cache written by this script": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast; markdown utf-8, fences, line endings)",
+          "doc suites (test_doc_crossrefs, test_global_doc_selfcontainment, test_sanctioned_pairs)",
+          "verbatim sentences land byte for byte in their homes",
+          "required spellings land in their named sections",
+          "no section, step or item renumbered",
+          "no model or run name in the two docs",
+          "bumpless (no bin/VERSION entry, no changelog record)",
+          "changes stay in the forecast; out-of-scope files unshipped",
+          "no interpreter cache written by this script"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "TARBALL.md": "b72654758edbd7be23587244afd478f67364e55f8f674cd438386fa938e1b4ae",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "4788573841f7690ef5dfbbcd24b140b0683c6e1b1cafcb5bc81d0af04b457861"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-21-board-103-doc-lane-006.sh",
+              "sha256": "d409b23a43520d1cf6f252fcd0cba2177d2f2afa1e8eddfb349747240b8419a9"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-21T12:33:27+00:00",
+            "base_files": {
+              "docs/CLAUDE.md": "52c8771db767c5ec764157e42c29cef767af4bfaa1d5e86f874c0e6dcb2b00c0",
+              "docs/TARBALL.md": "b72654758edbd7be23587244afd478f67364e55f8f674cd438386fa938e1b4ae",
+              "tests/test_doc_crossrefs.py": "d2f7f6176a910e768cc17884a08c61b5f1214f34993f4c473b63ad502a6c58d8"
+            },
+            "model_identity": "Claude Fable 5.1 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The pinned texts are compared after collapsing whitespace runs and nothing else, per the brief's 'line wrapping aside'; the required spellings are matched with their backticks where the brief fenced them with backticks.",
+            "Changelog records live under claude/changelog/ (read from tests/test_changelog_record.py), so the bumpless assertion tests that prefix and bin/VERSION, never a version number."
+          ],
+          "judgment_calls": [
+            "Rider: chose the clause over nothing, folded into 11.4's existing sentence at TARBALL.md 5.6.1 and naming no flag spelling; reasoning in notes.md.",
+            "Delta 6: stated the rule at its home (5.9.2's lead) as well as in 10.3 step 3, because 10's banner says the cited section wins and the checklist would otherwise carry a rule its section lacked.",
+            "Delta 5: marked the pointer planner-side AND inlined the two sentences an asker needs (batched proceeds on its default_assumption; blocking suspends), so stopping at 5.9.2 costs the worker nothing.",
+            "Delta 3, 7.1: added one sentence saying nothing mechanical catches an unannounced validation-time write, derived from 7.1's own step order and checked against bin/bale_staging.py at 0.4.40.",
+            "Delta 7: homed in 7.2 after the checklist, worded for 'a worker that can run its script', since 5.3 says Claude does not run validators and claim_basis 'observed' is the documented exception.",
+            "VERBATIM-1 sits as its own paragraph between the worker-side flow and the parity paragraph; the parity paragraph's closing 'never the bytes' is left untouched \u2014 I read the two as compatible, as the brief does.",
+            "Pinned only the two VERBATIM sentences and the field's homes in the suite; the other deltas are authored wording around a required spelling and got no connective-phrase pin."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "CLAUDE.md (full)",
+            "README.md (full)",
+            "TARBALL.md INDEX, 1, 2, 5.1-5.6, 5.9, 5.10, 7, 8, 9, 10",
+            "DOCS.md (full)",
+            "PLANNER.md 2 (the verbatim self-check bullet), 4 (split probes by provenance), 15",
+            "docs/TARBALL.md, docs/CLAUDE.md (the edit surfaces)",
+            "tests/test_doc_crossrefs.py (full), tests/test_global_doc_selfcontainment.py (docstring)",
+            "bin/bale_staging.py (run_validation_sh, reconcile_staging_against_manifest, build_session_commit)",
+            "schemas/response-manifest.schema.json (forecast_departures, self_reported)",
+            "tools/craft_response.py (docstring, write path, emit-block constants), tools/response_lint.py (docstring)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-21-board-103-doc-lane-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-21-board-103-doc-lane-006.sh",
+          "sha256": "d409b23a43520d1cf6f252fcd0cba2177d2f2afa1e8eddfb349747240b8419a9"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-21T12:47:32+00:00",
+  "outcome": "applied"
+}
