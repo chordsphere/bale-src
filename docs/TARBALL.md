@@ -568,6 +568,12 @@ Conversational when included. Use it for:
   each such path explicitly, with why the goal required it, so the
   operator can admit it at apply (§3.2). An unenumerated
   out-of-forecast path surfaces as a refusal instead of a decision.
+  Each path listed here is also recorded in the manifest, as
+  `forecast_departures` under `feedback.self_reported`: one object
+  per path, with exactly two keys — `path`, the `changes[]` path,
+  and `why`, the same reason in a sentence (§5.2.2). The crafter
+  does not seed the field, so it is the worker's to add; a session
+  with no such path omits it.
 - Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
 If a session has any of the above, write the file. If a session is
@@ -869,7 +875,10 @@ the manifest's own `questions[]` block — required and non-empty on
 this kind, forbidden (or empty) on every other. `README.md` is
 absent on a clarification in either direction — the questions are
 the payload and `notes.md` (optional, addressed to the planner) is
-the prose channel.
+the prose channel. That channel rides the tarball courier only: the
+paste block's body is the record and nothing else, so anything the
+planner must see before answering goes in the question row's
+`context`, which both couriers carry.
 
 The manifest travels by one of two couriers, the operator's choice,
 and the record is the same either way. **The tarball** is the
@@ -947,6 +956,12 @@ contradicts a record's own `round` refuses rather than rewrites it.
 stdout is the block and only the block, so a redirect captures it
 clean.
 
+The block reaches chat as a file: redirect `--emit-block` to a file
+and present that file. A block typed inline instead must keep every
+`\uXXXX` escape as an escape, because the body is ASCII-escaped and
+the trailer hashes those bytes; and on a trailer refusal the worker
+re-presents the file and never retypes the block.
+
 The two emissions of the same block — the worker's here and
 `bale relay`'s on the other side — are byte-identical for the same
 record, and that is a pinned property rather than a coincidence: the
@@ -963,8 +978,13 @@ candidate answers, at least one when present. **`recommendation`**
 `blocking` | `batched`: only critical-path blockers interrupt;
 everything else batches. The doctrine behind all three — why
 questions arrive answerable, and what the two priority classes mean
-for the asker — has one home in `PLANNER.md` §15; this section
-names the fields and stops there.
+for the asker — has one home in `PLANNER.md` §15, and that read is
+planner-side: a worker filling the fields does not follow the
+pointer. What the asker needs from it is this much — a `batched`
+question leaves the worker proceeding on its named
+`default_assumption`, and a `blocking` one suspends the session the
+way a clarification already does (§5.9.4). This section names the
+fields and stops there.
 
 #### 5.9.3 Apply-time UX (moved)
 
@@ -1157,7 +1177,14 @@ Validation never writes to the real project. The full pipeline:
    `--clean` is passed.
 
 The script prints, at the top of its output, every location it will
-write to. No surprise writes.
+write to. No surprise writes. The usual offender is an interpreter
+cache: a Python suite run in staging leaves `__pycache__/`
+directories beside the sources it imports. Suppress the cache —
+`PYTHONDONTWRITEBYTECODE=1` in the script's environment, or
+`python3 -B` — or announce it with the other locations. The
+reconciliation of step 4 has already run by the time the script
+does, so nothing mechanical catches a write the script did not
+announce; the printed list is the whole of the check.
 
 ### 7.2 Check sequence
 
@@ -1187,14 +1214,25 @@ mandatory:
    returns what the goal called for, that a removed feature really
    is gone, that an INDEX entry exists for a new doc, etc. These
    are inline in `validation.sh` rather than invocations of
-   external tooling. When the session enforces a project's
-   doc-contract rows, `tools/craft_response.py --doc-assertions`
-   (shipped in every request per §3.1) emits those blocks
-   paste-ready; the rows' full homes remain `DOCS.md` §9 and
-   `CODE.md` §10.
+   external tooling. Every outcome the brief pins — a verbatim
+   block, a byte-for-byte constraint, an untouched file — gets an
+   assertion that compares bytes; a comparison made through `$(...)`
+   is newline-blind, because command substitution strips trailing
+   newlines. Compare the files themselves (`cmp`), or a hash of
+   each, never two captured strings. When the session enforces a
+   project's doc-contract rows,
+   `tools/craft_response.py --doc-assertions` (shipped in every
+   request per §3.1) emits those blocks paste-ready; the rows' full
+   homes remain `DOCS.md` §9 and `CODE.md` §10.
 
 If a check's tool isn't installed, it prints `[SKIP] <check>: <tool>
 not found`. Never silently passes. Never installs anything.
+
+A worker that can run its script before shipping runs it twice: on
+the tree with the change applied, and on the unmodified tree. The
+session-specific assertions (item 6) should fail on the unmodified
+tree and pass with the change; an assertion that passes on both is
+not testing the change, and is rewritten or dropped.
 
 ### 7.3 Claim/verdict reconciliation
 
@@ -2056,7 +2094,10 @@ no response tarball and skips it (§2).
 6. Write `validation.sh` honoring the contract in section 7.
 7. Optionally write `notes.md` if there are surprises, decisions,
    `unknown` claims, or follow-up proposals (§5.4.1) to surface. Skip
-   the file otherwise.
+   the file otherwise. A `changes[]` path outside the write forecast
+   makes the file required, and the path is declared twice:
+   enumerated here with its reason, and recorded in the manifest's
+   `forecast_departures` as a `path` and `why` pair (§5.4).
 8. Do not write `next-prompt.md` — retired (§5.5). Follow-up
    suggestions go in the Proposals section of `notes.md`, as prose
    with rationale, never as a pack command.
@@ -2119,13 +2160,19 @@ no response tarball and skips it (§2).
    question, context, default_assumption, why_blocked (§5.9.2).
 3. Ship no `files/`, a no-op `apply.sh`, and a no-op
    `validation.sh`. `notes.md` is optional, addressed to the
-   planner.
+   planner — and it rides the tarball only. The paste courier
+   carries the question rows and nothing else, so anything the
+   planner must see before answering goes in a row's `context`
+   (§5.9.2).
 4. Deliver both couriers — the tarball, and the same manifest
    wrapped in a `BALE EXCHANGE BEGIN <sid>` / `BALE EXCHANGE END`
    paste block with its purpose header and sha256 trailer, rendered
    by `tools/craft_response.py --emit-block` (§5.9.2) — so the
    operator picks the route at carry time. Never as a chat aside
-   (§5.9.1).
+   (§5.9.1). The paste block itself reaches chat as a file —
+   `--emit-block` redirected and the file presented, never retyped
+   into the reply; §5.9.2 says why, and what a trailer refusal
+   calls for.
 5. Stop. The answers arrive as an exchange record's paste block,
    emitted by `bale relay` (§5.9.4); verify its trailer before
    reading it. The session stays suspended and continues to a
