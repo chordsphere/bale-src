@@ -99,9 +99,28 @@ a code change to what apply prints. Two narrow clauses of the same
 paragraph ride beside it: the lead clause that names the sentinels as
 whole-line, and the whole-of-the-failure-context sentence.
 
-Hermetic and stdlib-only: the docs are read from this repo, and the
-one code import is bin/bale_report.py for the pure relay_sentinels()
-builder (stdlib-only at module scope); nothing else runs.
+Since session 2026-09-21-board-103-doc-lane-006 the suite also pins two
+byte-discipline sentences and one field's doc homes, all in
+docs/TARBALL.md. Both sentences are VERBATIM in that session's brief of
+record and pinned byte-exact (whitespace-collapsed), each against its
+home alone: PASTE_BLOCK_FILE_SENTENCE in 5.9.2 (a paste block reaches
+chat as a file, and a block typed inline keeps its escapes as escapes)
+and BYTE_ASSERTION_SENTENCE in 7.2's item 6 (every pinned outcome gets
+a byte-comparing assertion, and `$(...)` is newline-blind), which must
+still be item 6 of a six-item list. The field is
+`forecast_departures`: 5.4's bullets (the prose before `#### 5.4.1`)
+and 10.1's checklist both name it, and 5.4 names its keys. The keys are
+NOT constants here: they are read from
+schemas/response-manifest.schema.json's `required` list, so the doc is
+held to the schema the way the relay paragraph is held to the code, and
+the pin goes red when either side moves. The session's other deltas are
+authored wording around a required spelling, and authored text gets no
+connective-phrase pin (PLANNER.md 4), so none is pinned here.
+
+Hermetic and stdlib-only: the docs and the one schema are read from
+this repo, and the one code import is bin/bale_report.py for the pure
+relay_sentinels() builder (stdlib-only at module scope); nothing else
+runs.
 
 Run:  python3 -m unittest tests.test_doc_crossrefs -v
   or: python3 -m unittest discover -s tests -p 'test_doc_crossrefs.py'
@@ -109,6 +128,7 @@ Run:  python3 -m unittest tests.test_doc_crossrefs -v
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import unittest
@@ -127,6 +147,8 @@ from harness import _load_module, normalize  # noqa: E402 — path guard above
 
 REPO = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO / "docs"
+RESPONSE_MANIFEST_SCHEMA = (
+    REPO / "schemas" / "response-manifest.schema.json")
 
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
@@ -190,6 +212,51 @@ def section_lead(text: str, number: int) -> str:
     body = top_level_section(text, number)
     nxt = re.search(r"^#{3,6}\s", body, re.M)
     return body if nxt is None else body[:nxt.start()]
+
+
+def deep_subsection(text: str, number: str) -> str:
+    """The body of `#### N.N.N …` up to the next heading of the same
+    level or shallower (`##`, `###`, `####`), or '' when no such
+    heading exists (the caller asserts on that). `number` is matched
+    literally, like subsection()'s."""
+    m = re.search(rf"^####\s+{re.escape(number)}\s.*$", text, re.M)
+    if m is None:
+        return ""
+    rest = text[m.end():]
+    nxt = re.search(r"^#{2,4}\s", rest, re.M)
+    return rest if nxt is None else rest[:nxt.start()]
+
+
+def subsection_head(text: str, number: str) -> str:
+    """The part of `### N.N …` before its first deeper heading: 5.4's
+    bullets without 5.4.1's Proposals prose. '' when the subsection is
+    absent."""
+    body = subsection(text, number)
+    nxt = re.search(r"^#{4,6}\s", body, re.M)
+    return body if nxt is None else body[:nxt.start()]
+
+
+def numbered_items(body: str) -> dict[int, str]:
+    """The top-level numbered list items of a section body, by number:
+    each item runs from its `N. ` line (flush left) through its
+    indented continuation lines, and stops at the first blank or
+    flush-left line. A body with two lists keeps the first item seen
+    for a number, so callers pass a body holding one list."""
+    items: dict[int, str] = {}
+    current = None
+    for line in body.splitlines(keepends=True):
+        m = re.match(r"(\d+)\.\s", line)
+        if m:
+            current = int(m.group(1))
+            if current in items:
+                current = None
+                continue
+            items[current] = line
+        elif current is not None and line.startswith(" ") and line.strip():
+            items[current] += line
+        else:
+            current = None
+    return items
 
 
 # The bundle-delivery ruling's lead phrase (PLANNER.md §2) and the
@@ -279,6 +346,37 @@ RELAY_WORKER_CONTEXT_CLAUSE = (
     "That block is the whole of the failure context — it carries nothing "
     "else of the checkpoint's output, by construction — so the worker "
     "diagnoses from it and never asks for the session log")
+
+
+# The byte-discipline sentences (session
+# 2026-09-21-board-103-doc-lane-006): VERBATIM in the brief of record,
+# each pinned against its home alone. The backticks, the backslash in
+# `\uXXXX`, and the em-dashes are part of the pinned bytes.
+PASTE_BLOCK_FILE_SENTENCE = (
+    "The block reaches chat as a file: redirect `--emit-block` to a "
+    "file and present that file. A block typed inline instead must keep "
+    "every `\\uXXXX` escape as an escape, because the body is "
+    "ASCII-escaped and the trailer hashes those bytes; and on a trailer "
+    "refusal the worker re-presents the file and never retypes the "
+    "block.")
+BYTE_ASSERTION_SENTENCE = (
+    "Every outcome the brief pins — a verbatim block, a byte-for-byte "
+    "constraint, an untouched file — gets an assertion that compares "
+    "bytes; a comparison made through `$(...)` is newline-blind, "
+    "because command substitution strips trailing newlines.")
+# `forecast_departures` is named where workers look, and 5.4 names its
+# keys. The keys come from the schema's own `required` list (see
+# forecast_departure_keys()), never from a constant here.
+FORECAST_DEPARTURES_FIELD = "`forecast_departures`"
+
+
+def forecast_departure_keys() -> list[str]:
+    """The required keys of one `forecast_departures` entry, as
+    schemas/response-manifest.schema.json states them."""
+    schema = json.loads(RESPONSE_MANIFEST_SCHEMA.read_text(encoding="utf-8"))
+    entry = (schema["properties"]["feedback"]["properties"]["self_reported"]
+             ["properties"]["forecast_departures"]["items"])
+    return list(entry["required"])
 
 
 def relay_worker_gaps(lead: str, begin: str, end: str) -> list[str]:
@@ -710,6 +808,133 @@ class RelayParagraphPins(unittest.TestCase):
         self.assertEqual(section_lead("## 7. Seven\nonly lead\n", 7),
                          "\nonly lead\n")
         self.assertEqual(section_lead(synthetic, 9), "")
+
+
+class ByteDisciplinePins(unittest.TestCase):
+    """TARBALL.md states the two byte-discipline sentences in their
+    homes, byte-exact (whitespace aside), and names
+    `forecast_departures` where a worker looks for it (session
+    2026-09-21-board-103-doc-lane-006)."""
+
+    def setUp(self):
+        self.docs = load_docs()
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        self.tarball = self.docs["TARBALL.md"]
+
+    def _item_6(self) -> str:
+        section = subsection(self.tarball, "7.2")
+        self.assertTrue(section, "docs/TARBALL.md has no `### 7.2` heading")
+        items = numbered_items(section)
+        self.assertEqual(
+            sorted(items), [1, 2, 3, 4, 5, 6],
+            "docs/TARBALL.md 7.2's check sequence is no longer items 1-6 "
+            "— `7.2 item 6` is cited by number elsewhere in the docs, so "
+            "the list neither grows in the middle nor renumbers")
+        return items[6]
+
+    def test_paste_block_sentence_verbatim_in_5_9_2(self):
+        section = normalize(deep_subsection(self.tarball, "5.9.2"))
+        self.assertTrue(
+            section,
+            "docs/TARBALL.md has no `#### 5.9.2` heading — the "
+            "clarification shape's home moved; section numbers are "
+            "stable (DOCS.md 6.4)")
+        self.assertTrue(
+            normalize(PASTE_BLOCK_FILE_SENTENCE) in section,
+            "docs/TARBALL.md 5.9.2 no longer states how the paste block "
+            "reaches chat, byte-exact (whitespace aside) — VERBATIM in "
+            "the brief of record; restore it rather than paraphrase "
+            f"it:\n  {PASTE_BLOCK_FILE_SENTENCE}")
+
+    def test_byte_assertion_sentence_verbatim_in_7_2_item_6(self):
+        item = normalize(self._item_6())
+        self.assertIn(
+            normalize("**Session-specific assertions**"), item,
+            "docs/TARBALL.md 7.2 item 6 is no longer the "
+            "session-specific-assertions item")
+        self.assertTrue(
+            normalize(BYTE_ASSERTION_SENTENCE) in item,
+            "docs/TARBALL.md 7.2 item 6 no longer states the "
+            "byte-comparison rule byte-exact (whitespace aside) — "
+            "VERBATIM in the brief of record; restore it rather than "
+            f"paraphrase it:\n  {BYTE_ASSERTION_SENTENCE}")
+
+    def test_forecast_departures_is_named_where_workers_look(self):
+        keys = forecast_departure_keys()
+        self.assertEqual(
+            sorted(keys), ["path", "why"],
+            "schemas/response-manifest.schema.json's forecast_departures "
+            "entry no longer requires exactly `path` and `why` — if the "
+            "schema moved on purpose, TARBALL.md 5.4 and 10.1 follow in "
+            "the same response, then this expectation")
+        head = normalize(subsection_head(self.tarball, "5.4"))
+        self.assertTrue(head, "docs/TARBALL.md has no `### 5.4` heading")
+        for needle in [FORECAST_DEPARTURES_FIELD] + [f"`{k}`" for k in keys]:
+            with self.subTest(home="5.4", needle=needle):
+                self.assertTrue(
+                    needle in head,
+                    f"docs/TARBALL.md 5.4 (before 5.4.1) no longer names "
+                    f"{needle} — the out-of-forecast bullet is where a "
+                    "worker enumerating a departure in notes.md learns "
+                    "the manifest twin exists, and its two-key shape")
+        checklist = normalize(subsection(self.tarball, "10.1"))
+        self.assertTrue(checklist,
+                        "docs/TARBALL.md has no `### 10.1` heading")
+        self.assertTrue(
+            FORECAST_DEPARTURES_FIELD in checklist,
+            "docs/TARBALL.md 10.1 no longer names "
+            f"{FORECAST_DEPARTURES_FIELD} — the build checklist is the "
+            "other place a worker looks")
+
+    def test_pins_bite(self):
+        """Each sentence pin fails against a home that lost one pinned
+        byte-level detail, so the check is not vacuous. Every mutation
+        starts from the real home."""
+        home_592 = deep_subsection(self.tarball, "5.9.2")
+        item_6 = self._item_6()
+        cases = (
+            ("escape unbackslashed", home_592, PASTE_BLOCK_FILE_SENTENCE,
+             "`\\uXXXX`", "`uXXXX`"),
+            ("retyping allowed", home_592, PASTE_BLOCK_FILE_SENTENCE,
+             "never retypes", "may retype"),
+            ("em-dash flattened", item_6, BYTE_ASSERTION_SENTENCE,
+             "pins —", "pins -"),
+            ("substitution unbackticked", item_6, BYTE_ASSERTION_SENTENCE,
+             "`$(...)`", "$(...)"),
+        )
+        for label, home, sentence, old, new in cases:
+            with self.subTest(mutation=label):
+                self.assertIn(normalize(sentence), normalize(home))
+                mutated = home.replace(old, new)
+                self.assertNotEqual(mutated, home, "mutation was a no-op")
+                self.assertNotIn(normalize(sentence), normalize(mutated))
+
+    def test_extractors_read_their_homes_alone(self):
+        """Self-test on the three extractors, so no pin above can pass
+        by reading past its home."""
+        body = deep_subsection(self.tarball, "5.9.2")
+        self.assertIn("--emit-block", body)
+        self.assertNotRegex(body, r"(?m)^#{2,4}\s",
+                            "the 5.9.2 body ran into another heading")
+        self.assertNotIn("Apply-time UX (moved)", body)
+        head = subsection_head(self.tarball, "5.4")
+        self.assertIn("Conversational when included", head)
+        self.assertNotIn("Scope hints", head,
+                         "the 5.4 head read into 5.4.1")
+        synthetic = ("### 5.9 Nine\nlead\n#### 5.9.1 One\none body\n"
+                     "#### 5.9.2 Two\ntwo body\n##### deep\ndeeper\n"
+                     "#### 5.9.3 Three\nthree\n### 5.10 Ten\nten\n")
+        self.assertEqual(deep_subsection(synthetic, "5.9.2"),
+                         "\ntwo body\n##### deep\ndeeper\n")
+        self.assertEqual(deep_subsection(synthetic, "5.9.3"), "\nthree\n")
+        self.assertEqual(deep_subsection(synthetic, "5.9.4"), "")
+        self.assertEqual(subsection_head(synthetic, "5.9"), "\nlead\n")
+        self.assertEqual(subsection_head(synthetic, "5.11"), "")
+        listing = ("intro\n\n1. one\n   more one\n2. two\n\n"
+                   "A flush paragraph naming 3. nothing.\n"
+                   "   indented but after a break\n")
+        self.assertEqual(numbered_items(listing),
+                         {1: "1. one\n   more one\n", 2: "2. two\n"})
 
 if __name__ == "__main__":
     unittest.main()

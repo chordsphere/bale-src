@@ -88,7 +88,7 @@ The minimum context for the task. Default at every threshold:
 | Task modifies source files | + those files (named in the request) |
 | Code is meant to land in the project | Re-read `TARBALL.md` per its INDEX read-paths before producing |
 | Authoring is the work — a pack command, a request brief, a checkpoint oracle, a rescope offer, or a sitting | Re-read `PLANNER.md` before producing; a pack command (on request, or unsolicited only as a §11.2 rescope offer) additionally re-reads `TARBALL.md` §3.4, the flag surface |
-| Documentation is the work — adding, splitting, pruning, updating, or auditing docs | Re-read `DOCS.md` before producing |
+| Documentation is the work — adding, splitting, pruning, updating, or auditing docs. A code session that edits a project's user-facing doc along the way — a README, a usage page, help text — does not fire this row: `DOCS.md` governs the doc inventory and holds nothing for that edit | Re-read `DOCS.md` before producing |
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | A blocking intent gap in the request | Open the exchange thread with a clarification response — the artifact, never a chat aside — and continue under the same session when the planner's answer arrives via `bale relay`; see `TARBALL.md` §5.9 |
@@ -667,9 +667,11 @@ Two artifacts are mandatory in a bailout:
   sessions as a calibration signal. Spec: `TARBALL.md` section 5.8.
 
 The bailout response's empty change surfaces are specified in
-`TARBALL.md` §5.6.1. Nothing is applied to the project. The
-follow-on action is `bale handoff <response-NNN>` to package the
-handoff into a fresh session with full budget.
+`TARBALL.md` §5.6.1, which also mechanizes the whole artifact set:
+the crafter emits it, so a bailing worker fills judgment, never
+shape. Nothing is applied to the project. The follow-on action is
+`bale handoff <response-NNN>` to package the handoff into a fresh
+session with full budget.
 
 ### 11.5 Bailout is not a fallback for laziness
 
