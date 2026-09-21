@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-20-sitting-close-deltas-15-007`.
+Last landed by: `2026-09-21-sitting-close-deltas-16-004`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -421,6 +421,8 @@ with the unverifiable ones carried verbatim and marked):
   stamp sweep's result joins the key.]
   [2026-09-20: row 104 cut in two; this key rides 104b, recorded on the
   `sweep`/`include_group` entry below.]
+  [2026-09-20: landed with 104b (0.4.40). The closing bracket, and the
+  key's shape, are on the `sweep`/`include_group` entry below.]
 - BALE.md §7/§7.2 includes-as-scope true-up — rides the next
   BALE.md-touching session. Text verbatim from
   `2026-08-07-board-13c-contract-docs-006`'s Proposals: "**What:**
@@ -1046,6 +1048,14 @@ with the unverifiable ones carried verbatim and marked):
   [2026-09-20: carrier now 104b, with the stamp sweep's result:
   dispatched by the `2026-09-20-continue-plan-006` desk as
   `2026-09-20-board-104b-pack-telemetry` beside close 15.]
+  [2026-09-20: consumed at `2026-09-20-board-104b-pack-telemetry-008`
+  (0.4.40): `bale pack --json` gains two always-present keys, `sweep`
+  and `include_group`, additive, with the stamp sweep's result among
+  `sweep`'s events (107's Proposal 1) and the older `sweep` entry's list
+  shape kept. The six-key entry was ratified at the
+  `2026-09-20-continue-plan-009` desk, the brief's pin having been a
+  floor. Shapes in §5, "A pack records what it swept, and when it was
+  packed"; home BALE.md §7.7 and `format_pack_json`'s docstring.]
 - Four sibling precedence sentences — the META "this file wins"
   sentences of TARBALL.md, DOCS.md, CODE.md, and PLANNER.md, siblings
   of CLAUDE.md's reworded one — ride the 100 arc's doc-injection
@@ -1124,6 +1134,18 @@ with the unverifiable ones carried verbatim and marked):
   104b; the 006 desk's registry dispatch names three other entries for
   104b and not this one, so whether 104b carries it is for its notes.md
   to say.]
+  [2026-09-20: consumed at `2026-09-20-board-104b-pack-telemetry-008`,
+  by its item 4, and the carrier question closed with it: the pin
+  already existed. By 104b's notes.md, board 69 (d) landed it as
+  `ToolsHermeticPin` in `tests/test_craft_response.py`, covering
+  non-stdlib and relative imports, network-capable modules, process and
+  FFI escape hatches, `__import__`, `import_module`, `exec` and `eval`,
+  with a walker self-test; `-k stdlib_only` selected nothing only
+  because of its method names. 104b renamed its five methods
+  `test_stdlib_only_*` and changed no assertion, rather than write a
+  second walker. Accepted at the `2026-09-20-continue-plan-009` desk
+  (ruling 4). This entry asked for a pin the tree already had (§6 entry
+  188).]
 - Proposals of the `2026-09-18-continue-plan-001` sitting's workers
   (107, 109, 47b), dispositions: 107's 1 → the pack-json key (row 104),
   2 → 99b (the §8.8 entry above); 109's 1 → row 111, 2 → row 110, 3 →
@@ -1260,6 +1282,20 @@ with the unverifiable ones carried verbatim and marked):
   desk's account, the 001 master's record opens at 00:17:08Z against the
   00:17:07Z its brief gives as its `packed_at`; close 14's and 37's are
   equal to theirs.]
+  [2026-09-20: consumed at `2026-09-20-board-104b-pack-telemetry-008`
+  (0.4.40): `packed_at`, the request manifest's `provenance.packed_at`
+  verbatim, rides the `opened` attempt's copy of provenance; the
+  registry-side `provenance.json` stays the pair, and a manifest with no
+  usable `packed_at` leaves the attempt with the pair alone, logged (its
+  notes.md; §5). Named consumer, in the schema's words by 104b's
+  notes.md: the close desk's reconstruction of a sitting. Two more
+  specimens from before it landed: 104b's own record reads `created_at`
+  03:08:02Z against a `packed_at` of 03:08:01Z in its echoed provenance,
+  and the `2026-09-20-continue-plan-009` master's 03:08:08Z against the
+  03:08:07Z its desk gives. First live records:
+  `2026-09-20-board-103-probe-design-010`, three seconds (03:52:14Z
+  against 03:52:11Z), and `2026-09-21-board-103-probe-design-001`, one
+  second (§6 entry 194).]
 - The closing pack's sid on a swept or superseded attempt: accepted at
   the 009 sitting as a rider on row 104. Close 13's Proposal 2; text
   verbatim from `2026-09-19-sitting-close-deltas-13-010`'s notes.md:
@@ -1281,6 +1317,18 @@ with the unverifiable ones carried verbatim and marked):
   00:50:20Z and the 004 master's at 02:41:52Z, the latter one second
   before the 006 pack's `packed_at`, as a sweep that runs before the
   mint would read.]
+  [2026-09-20: consumed at `2026-09-20-board-104b-pack-telemetry-008`
+  (0.4.40), as `swept_by`: the read-only sweep still runs before the sid
+  is minted, and once it is minted the pack stamps `swept_by` on each
+  swept session's latest `closed-read-only` attempt and commits each
+  rewrite as its own sweep event, board 107's fix applied to this sweep.
+  The supersession half was already met by `superseded_by`, and 104b
+  added nothing beside it. A stamp that fails, or a pack that aborts
+  between the sweep and the sid, leaves the field absent, which reads as
+  "sweeping pack unrecorded" (its notes.md; §5). The 006 master's
+  closure at 03:08:07Z, swept by a 0.4.39 pack, is the last specimen
+  without it; the `2026-09-20-continue-plan-009` master's at 03:52:11Z
+  is the first with it (§6 entry 194).]
 - Proposals of the `2026-09-19-continue-plan-009` sitting's workers
   (close 13; 113), dispositions: close 13's 1 → the `packed_at` entry
   above, 2 → the closing-pack sid entry above, both riding row 104;
@@ -1314,6 +1362,13 @@ with the unverifiable ones carried verbatim and marked):
   mentions" list. Why: the list enumerates pack's flags, and
   `validate.sh` was not in this forecast. The suite pins the help
   listing meanwhile. Scope hints: `validate.sh`, one line."
+  [2026-09-20: consumed at `2026-09-20-board-104b-pack-telemetry-008`:
+  Proposal 1 (`format_context_pack_json` and the `context-packed`
+  outcome word now live in `bin/bale_report.py`, output byte-identical,
+  BALE.md §7.8 updated) and Proposal 3 (`validate.sh`'s "pack --help
+  mentions" list gains `--context`, 92 checks). Proposal 2, the
+  droppable rider, was not taken and is back on this list under its own
+  entry, at the list's end.]
 - A context-pack line in `bale status`: 104a's Proposal 4, unscheduled,
   registry only, by the 004 desk's recommendation as ratified at the 006
   desk. Text verbatim from `2026-09-20-board-104a-context-pack-005`'s
@@ -1329,6 +1384,72 @@ with the unverifiable ones carried verbatim and marked):
   Proposals 1 to 3 entry above, riding 104b; 104a's 4 → the `bale status` entry above,
   unscheduled. Anything not named here or on those rows stands as
   shipped.
+- A cause on a `rejected` attempt: rides the next apply-side telemetry
+  touch (the apply refusal path and the telemetry record schema). Close
+  15's Proposal 1, sent here at the `2026-09-20-continue-plan-009` desk
+  (ruling 4). Text verbatim from
+  `2026-09-20-sitting-close-deltas-15-007`'s notes.md, its nested
+  markers flattened: "1. **Stamp a cause on a `rejected` attempt.**
+  What: when apply refuses a tarball, record why on the attempt, e.g.
+  the refusal's first line or a short code. Why: 37's `rejected` attempt
+  carries no cause, admission or validation. Close 15 had to leave it as
+  two readings (§6 entry 187), and it is entry 174's gap on the apply
+  side. Scope hints: the apply refusal path and the telemetry record
+  schema. It is additive. Named consumer: the close desk's
+  reconstruction, per DOCS.md §9's telemetry rule. I haven't seen the
+  code. It would sit naturally beside 104b's `packed_at` and
+  closing-pack-sid riders, but 104b is pack-side, so this probably wants
+  an apply-side carrier."
+- A `swept_by` line in the `bale stats` dossier: rides the next
+  `bin/bale_stats.py` holder. 104b's Proposal 1, sent here at the
+  `2026-09-20-continue-plan-009` desk (ruling 4). Text verbatim from
+  `2026-09-20-board-104b-pack-telemetry-008`'s notes.md, its nested
+  markers flattened: "1. **A `bale stats` dossier line for `swept_by`.**
+  What: render "swept by <sid>" beside the existing "superseded by" line
+  in the per-session dossier, and carry the field in the attempt view.
+  Why: `_attempt_view` in `bin/bale_stats.py` already surfaces
+  `superseded_by` by name. `swept_by` now has the same meaning for the
+  other pack-side close, but the drill-down cannot show it. Scope hints:
+  `bin/bale_stats.py`, `bin/bale_report.py` (the dossier renderer), and
+  `tests/test_stats_drilldown.py`."
+- The cap/breach loop in `bin/bale_pack.py`: 104a's Proposal 2, the
+  droppable last rider on 104b, not taken there and back on this list,
+  in its worker's words: "The droppable rider (cap-loop extraction) was
+  not taken. It goes back to the registry." Rides the next
+  `bin/bale_pack.py` holder, still droppable. Its text is verbatim in
+  the "104a's Proposals 1 to 3" entry above.
+- The `docs/CLAUDE.md` §11.4 pointer: the part of row 37 that was not
+  built, since 37 did not hold the file (row 37's DONE bracket). The
+  2026-09-19 re-scope asked for a pointer in §11.4 at the crafter's
+  bailout kind (the 009 desk's light block of that date, [2], in §3);
+  row 37's bracket of the same date found §11.4 already routing to
+  TARBALL.md §5.6 for the shape, with §5.6.1 naming
+  `tools/craft_response.py --kind bailout --write`, and says the pointer
+  "shrinks to at most a clause and may be nothing". Rides the next
+  `docs/CLAUDE.md` holder, which decides between the clause and nothing
+  and closes this entry either way. No entry carried it until the
+  `2026-09-20-continue-plan-009` desk asked for the check and the
+  `2026-09-21-continue-plan-002` desk made it.
+- A failed oracle control exits 2, for PLANNER.md §4: a rider for the
+  next `docs/PLANNER.md` holder, so that §5's contract of 2026-09-20
+  gets its doc home. One bullet in §4, Checkpoint Authoring: a
+  checkpoint's failed control exits 2, not 1 and not a probe failing by
+  name, with the reason the `2026-09-20-continue-plan-009` desk gave
+  (bale reads exit 2 as a defective oracle at `bale open` and as the
+  checkpoint side on the hold card, and TARBALL.md §7.5 gives 2 to "the
+  script itself errored"). Ruled by the operator's "as assumed" to that
+  desk's light block one, [2]. PLANNER.md is a global doc, so the bullet
+  cites only the five docs, the two tools and bale's own verbs.
+- Proposals of the `2026-09-20-continue-plan-006` and
+  `2026-09-20-continue-plan-009` sittings' workers (close 15; 104b),
+  dispositions, by ruling 4 at the 009 desk: close 15's 1 → the
+  `rejected`-cause entry above, riding the next apply-side telemetry
+  touch; 104b's 1 → the `swept_by` dossier entry above, riding the next
+  `bin/bale_stats.py` holder. Returned with them: 104a's 2 → the
+  cap/breach entry above. 104a's 4 stays on the `bale status` entry,
+  unscheduled. The 009 sitting dispatched no worker of its own: 103's
+  design sitting was read-only, and what it proposes is close 17's.
+  Anything not named here or on those rows stands as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -3311,6 +3432,385 @@ only what has no row home; close recorded by
   entries — 104a's Proposals 1 to 3 (riding 104b), a context-pack line
   in `bale status` (104a's Proposal 4, unscheduled), and a dispositions
   entry for both sittings' workers.
+
+Landed 2026-09-20, the continue-plan-006 sitting (master
+`2026-09-20-continue-plan-006`, read-only; bale 0.4.39; packed 02:41:53Z
+by that desk's account of its own manifest's `packed_at`, equal to its
+record's `created_at`, and one second after the 004 master closed
+(previous block); `closed-read-only` itself at 03:08:07Z by a pack, the
+`2026-09-20-continue-plan-009` pack by that desk's account, whose
+manifest's `packed_at` is the same second; the closure carries no
+`swept_by`, the pack that swept it having run at 0.4.39). Two turns. The
+sitting ended at delivery, so its desk could not close it: by the
+records both its bundles were opened in its last thirteen seconds, at
+03:07:54Z and 03:08:02Z, and by its own account it knew of neither. Its
+record reached this close only as a quotation, byte for byte, inside the
+009 desk's brief to the `2026-09-21-continue-plan-002` desk, carried
+byte for byte again in this close's brief. Wave 8 landed whole — close
+15 landed and 104b DONE; this block carries only what has no row home;
+close recorded by `2026-09-21-sitting-close-deltas-16-004`:
+- Landing record, in apply order from telemetry, both workers'
+  provenance stamps reading 0.4.39:
+  `2026-09-20-sitting-close-deltas-15-007` (packed 03:07:54Z by its
+  echoed provenance, equal to its record's `created_at`; stamped base
+  `77efdd47…`; applied 03:27:13Z; one apply attempt, confined, worker
+  validation PASS and blind checkpoint PASS, exit 0, with the stamp
+  matched, sha256 `ff44b69b…5a55`, equal to the sha the 006 desk
+  published; no admissions; changed `claude/MASTER.md` alone; ten
+  claims, all `agree`, reconciliation parsed, its epilogue the crafter's
+  by its notes.md, one more data point for §6 entry 176's bracket), then
+  `2026-09-20-board-104b-pack-telemetry-008` (packed 03:08:01Z by its
+  echoed provenance, and its record's `created_at` reads 03:08:02Z, one
+  second later, a fifth specimen for the §3 registry's `packed_at`
+  entry; applied 03:45:15Z; one apply attempt, confined, worker
+  validation PASS and blind checkpoint PASS, exit 0, with the stamp
+  matched, sha256 `f5bb8388…b1ab1`, equal to the published sha; no
+  admissions; the wave's bumper, 0.4.40 with
+  `claude/changelog/0.4.40.json`, whose `at` reads 03:28:09Z; twelve
+  `change_paths`, all under its forecast: `BALE.md`, `bin/VERSION`,
+  `bin/bale_pack.py`, `bin/bale_report.py`, the changelog record,
+  `schemas/telemetry-record.schema.json`, `validate.sh`, and five suites
+  under `tests`, `test_context_pack.py`, `test_craft_response.py`,
+  `test_include_group.py`, `test_provenance_at_open.py` and the new
+  `test_pack_telemetry_104b.py`; six claims, each annotated
+  `claim_basis: observed`, five `agree` and the `--slow` full suite
+  `n/a`, reconciliation parsed). The two packed seven seconds apart and
+  ran beside each other; close 15 applied eighteen minutes before 104b,
+  and neither held. By their notes.md, each worker paused once on a
+  tool-call limit and resumed with context intact (entry 163's class),
+  and 104b took the suite from 1392 tests to 1419, 48 skipped by the
+  slow gate both times, and `validate.sh` from 91 checks to 92. 104b's
+  record reports `budget_pressure: tight`, close 15's `none`.
+- Wave 8 as dispatched, from the 006 desk's record: two bundles,
+  forecast-disjoint, meant to run beside each other.
+  `2026-09-20-sitting-close-deltas-15` (close 15, `claude/MASTER.md`
+  only, contract-doc, bumpless, covering the 001 and 004 sittings and
+  recording that desk's one ruling; brief sha256 `09df1d16…e395f`) and
+  `2026-09-20-board-104b-pack-telemetry` (row 104's second half, the
+  bumper; forecast `bin/bale_pack.py`, `bin/bale_report.py`,
+  `schemas/telemetry-record.schema.json`, `BALE.md`, `tests`,
+  `validate.sh`, `bin/VERSION`, `claude/changelog`; brief sha256
+  `5289ec80…4bd33`). Both checkpoint shas are in the landing record
+  above, and the scope on 008's `opened` attempt is that forecast, path
+  for path.
+- Turn one, from the 006 desk's record. It read the contract in order,
+  reordered its jobs (104b first, because close 15 needed rulings and
+  104b did not), drafted 104b's oracle and ran it on the base, and hit
+  the tool-use limit with no bundle built. The desk named the pause,
+  said no bundle was ready, and closed the turn on one light block,
+  three questions; the operator's next message, whole and verbatim, was
+  "as assumed". The previous block's "Ratified at" bullet carries the
+  three questions and what each settled. A pause with nothing built is
+  the plain case beside entry 173's: nothing was caught between its
+  write and its gate, and the desk used the pause to ask (§6 entry 179's
+  bracket). A background full-suite run started in this turn did not
+  survive the pause, 31 tests in. NOT done at the desk: a base suite
+  run. 104b's brief attributed its baseline to 104a's notes.md and said
+  so, and 104b's worker then ran it: 1392 tests OK, matching 104a's
+  numbers (its notes.md). Turn two authored and delivered both bundles
+  and the next master's.
+- What the desk found in the code and the records, beyond what close 15
+  already carries (37's four attempts, entry 187; close 14's parsed
+  claims, entry 176's bracket; the one-second lags of 104a and the 001
+  master, and the 004 master's closure one second before this desk's
+  `packed_at`, all on the §3 registry's two close-13 entries): close
+  13's Proposal 2 was half met before it was written, since a superseded
+  attempt has carried `superseded_by` since 0.3.23 and only the
+  read-only sweep lacked the closing pack's sid; that sweep runs before
+  the sid is minted, so board 107's second-sweep lesson applied, and
+  104b's brief carried both facts (§6 entry 188). And §5's calibration
+  ruling is six lines, not two: the desk's first draft of close 15's pin
+  said two, and the oracle's base run caught it (§6 entry 191).
+- Desk verification before delivery, in the 006 desk's words, shortened.
+  104b's oracle: a control block and fifteen probes, driving the real
+  CLI in four fresh scratch repos under one scratch directory beside the
+  tree, isolated `HOME`, `python3 -B`, removed on exit; one control
+  drives the read-only sweep's accept prompt through a pty on stdin
+  only, so the JSON line stays clean; a failed control exits 2 (§5).
+  Base: exit 1, two invariant probes passing. A landing whose pinned
+  names were pulled from the brief's bytes by regex, over a throwaway
+  stub of the feature (the desk's, not the brief's): exit 0. Five
+  negative landings each failed exactly one probe. The rehearsal caught
+  one oracle defect: the non-stdlib mutation was `import requests`,
+  which a network denylist alone catches; it is now `import yaml`. Close
+  15's oracle: twenty anchors, twenty-two probes. Base: exit 1, three
+  passing (row 113 last, insertions-only, cited sids). A landing built
+  from the brief's pinned openings, pulled by regex: exit 0. Seven
+  negative landings bit. A HEAD that is not the authored base: the two
+  base-relative probes SKIP by name. A removed heading: exit 2. The
+  rehearsals caught three oracle defects (the six-line ruling; the sid
+  probe cascading off a lost base line; the sid regex taking the row
+  number inside 104b's bundle stem for a counter) and none in the brief
+  (§6 entry 191). Both bundles were dress-rehearsed with `bale open` in
+  one scratch repo beside a read-only master: admitted together,
+  expected-HOLD proofs fired (exit 1), and both oracles ran confined
+  under the real sandbox, the pty control included; that desk's
+  container runs `unshare` (§6 entry 190; §7). Both oracles print the
+  label alone on a verdict line and detail on a following `  detail:`
+  line (§6 entry 180).
+- Ratified at the `2026-09-20-continue-plan-009` desk: this desk's ten
+  judgment calls "for the operator", as shipped, after that desk's
+  review of them against the tree, by the operator's
+  "ratify the outstanding questions" and his "as assumed" to that desk's
+  light block one, [1] (next block, ruling 1). The ten, from this desk's
+  record: reordering the jobs; 104b as one session rather than two;
+  leaving `bin/bale` out of its forecast; riding 104a's Proposals 1 to 3
+  on it before the light block was answered (it was answered before
+  delivery); pinning the pack-json key names, `sid` on sweep entries and
+  the `-k stdlib_only` selector, while leaving `packed_at`'s home and
+  the sweeping-pack field's name to the worker; declining the
+  `format_hold_relay_planner` rider again and rewording its ride
+  condition; a control failure exiting 2 rather than failing by name,
+  where the 004 desk chose the other way; close 15 as two blocks; the §5
+  contract bullets' wording; and not putting the 001 and 004 desks' own
+  judgment calls to the operator. How three of them fell: 104b changed
+  nothing in `bin/bale`, which already returned the sweep result its two
+  pack call sites discarded (its notes.md); the `-k stdlib_only`
+  selector was pinned without `tests/test_craft_response.py` read, and
+  the pin it was to select already existed (§6 entry 188); and the
+  exit-2 control is now the rule (§5).
+- Where the records part from this desk's account. Its brief to close 15
+  said each of the 001 and 004 sittings ended before its wave landed;
+  close 15 found the 004 sitting did not (previous block), and the 009
+  desk's records agree. Its stdlib-only rider asked for a pin the tree
+  already had (the §3 registry's bracket on 105's pin). It expected
+  0.4.40 and could not know it; the changelog record confirms it.
+- Ratification debt this sitting carried forward: close 15's and 104b's
+  notes.md, ruled wholesale at the `2026-09-20-continue-plan-009` desk
+  (next block, ruling 4); the 001 and 004 desks' judgment calls and this
+  desk's own, ruled there too (ruling 1). Nothing of this sitting's
+  queues on.
+- Sequencing for the next desk: the 006 desk's own sequencing did not
+  reach this close. The 009 brief quotes the 006 brief only from its
+  "Wave 8, as dispatched" heading to the line before its "Second job"
+  heading, the range that lost the 001 desk's line at close 15 (§6 entry
+  177). What the range does carry is a condition, verbatim: "If close 15
+  has not landed when you open, do not author close 16; that is the 004
+  desk's lesson (its first job was unbuildable by construction)." The
+  009 desk met exactly that. The standing line that did travel is in the
+  next block.
+- Board deltas of this sitting's work: row 104's 104b DONE bracket,
+  which completes the row as narrowed; the second contract of §5's new
+  2026-09-20 block, a pack recording what it swept and when it was
+  packed; in §6, evidence entries 190 and 191, entry 188 shared with the
+  next block, entry 179's bracket, and entry 194, which reads 104b's two
+  fields on their first live records; in §7, the 0.4.40 landmark, what
+  `bale pack --json` and a record now carry, the `-k stdlib_only`
+  selector, and the real-sandbox rehearsal.
+- Registry deltas of this sitting's work: consumed at 104b — the
+  pack-json `sweep`/`include_group` key, `packed_at` on a pack's
+  `opened` attempt, the closing pack's sid (as `swept_by`), 104a's
+  Proposals 1 and 3, and 105's stdlib-only pin, its carrier settled by
+  104b's item 4; the older pack-json `sweep` entry pointed at the
+  consumed one; three new entries from its two workers — a cause on a
+  `rejected` attempt (close 15's Proposal 1), a `swept_by` line in the
+  `bale stats` dossier (104b's Proposal 1), and the cap/breach loop
+  (104a's Proposal 2, not taken at 104b and back on the list); the
+  dispositions entry at the list's end covers both sittings.
+
+Landed 2026-09-20, the continue-plan-009 sitting (master
+`2026-09-20-continue-plan-009`, read-only; bale 0.4.39 at its open;
+packed 03:08:07Z by that desk's account of its own manifest's
+`packed_at`, the second its pack closed the 006 master
+`closed-read-only`, and its record's `created_at` reads 03:08:08Z, one
+second later; `closed-read-only` itself at 03:52:11Z by a pack, and for
+the first time the record says which: the closure's `swept_by` names
+`2026-09-20-board-103-probe-design-010`, the pack that opened 103's
+design sitting that second, §6 entry 194). Four turns, no tool-use
+pause. It packed thirteen seconds after close 15 was packed and six
+after 104b; both applied under it, at 03:27:13Z and 03:45:15Z, and its
+tarball could show neither (§6 entry 182's bracket). The desk ended its
+sitting at the wave-8 landing milestone and handed the close forward;
+its brief to the `2026-09-21-continue-plan-002` desk is this close's
+source, carried byte for byte in this close's brief, and that desk
+authored this close. This block carries only what has no row home; close
+recorded by `2026-09-21-sitting-close-deltas-16-004`:
+- Turn one. The operator's message beside the opener, whole and
+  verbatim: "ratify the outstanding questions". The desk read the
+  contract in order, found 007 and 008 `opened` with no apply attempt,
+  and did not author close 16 (the 006 desk's condition, previous
+  block). It read the message as the operator's ruling, reviewed the 006
+  desk's ten judgment calls against the tree, and closed the turn on
+  light block one, three questions, verbatim, its rows joined by " / ":
+  "[1] question: Does "ratify the outstanding questions" cover the 001,
+  004 and 006 desks' judgment calls, and stop short of close 15's and
+  104b's notes.md? / while doing: recording your ruling verbatim for
+  close 16's brief / would assume: yes; the two notes.md queue to the
+  first open after they land / why blocked: neither notes.md exists yet,
+  so ratifying them now would be a blank cheque / [2] question: From
+  here on, does a failed oracle control exit 2 (the 006 desk's way)
+  rather than fail by name (the 004 desk's)? / while doing: ratifying
+  both desks' calls as shipped, which leaves the next oracle two
+  conventions / would assume: yes, exit 2 / why blocked: bale already
+  reads exit 2 as a defective oracle at open and as the checkpoint side
+  on the hold card / [3] question: Author 103's design-sitting bundle
+  next, to open beside wave 8? / while doing: the brief's second job;
+  close 16 waits on close 15 landing / would assume: yes / why blocked:
+  this turn asked for the ratification only, and I author sessions on
+  your request". The operator's next message, whole and verbatim:
+  "as assumed, still waiting on 104b and close 15 to finish". Answered
+  first time (§6 entry 179's bracket).
+- Rulings at the desk, by its record. 1, by light block one's [1]:
+  "ratify the outstanding questions" covers the 001, 004 and 006 desks'
+  judgment calls "for the operator", and stops short of the two notes.md
+  that did not exist yet. The 006 desk's ten are ratified as shipped
+  after this desk's review (previous block). The 001 and 004 desks'
+  calls were ratified sight unseen, their text being in no file this
+  desk held, and its brief asked this close to cite them from close 15's
+  landed blocks or to say they are not there. They are there: the 004
+  block's debt bullet lists both desks' calls as unruled, four of the
+  001 desk's and seven of the 004 desk's, and ruling 1 ratifies the
+  eleven as that bullet lists them. 2, by [2]: from here on a failed
+  oracle control exits 2; the desk's reason and the contract are in §5.
+  3, by [3]: 103's design sitting authored at this desk. 4, by light
+  block two's [1]: close 15's and 104b's notes.md ratified wholesale,
+  with the dispositions below. 5, by its [2]: the sitting ends, and the
+  next master authors close 16.
+- Turn two authored 103's design-sitting bundle, revision 1. Turn three:
+  the operator pasted both ratification relays under the one word
+  "applied:", each reading PASS on both judgments with no admissions, as
+  the records do (previous block). The desk reviewed both notes.md, gave
+  its dispositions in chat, and closed the turn on light block two, two
+  questions, verbatim, rows joined as above: "[1] question: Ratify close
+  15's and 104b's notes.md wholesale, with the dispositions in the reply
+  above (three Proposals and riders to the registry, 105's pin consumed
+  at 104b, no bracket for the 001 desk's standing line)? / while doing:
+  the ratification debt the 006 desk's brief queued to this open, now
+  that both have applied / would assume: yes / why blocked: notes.md
+  ratification is yours, and silence is not "as assumed" / [2] question:
+  End this sitting here, and have the next master author close 16 from
+  the landed tree? / while doing: close 16 needs the landed
+  claude/MASTER.md and the 007, 008 and 009 records, none of which this
+  tarball holds / would assume: yes; on your reply I author the next
+  master's bundle, its brief carrying this sitting's record / why
+  blocked: a repack ships the landed tree with a fresh budget, and this
+  context is already long for a twenty-anchor oracle and its
+  rehearsals". The operator's next message, whole and verbatim:
+  "i haven't opened the 103 bundle so reauthor, and closing is fine, i'll append my 103 notes to the opening of the next master. Otherwise, as assumed".
+  Answered first time, with one inline change and "Otherwise, as
+  assumed", the mixed reply TARBALL.md §5.10 draws. The block followed
+  the "applied:" paste rather than preceding it, so entry 175's loss had
+  no room to happen. Turn four authored 103's revision 2 and the next
+  master's bundle.
+- Dispositions, ratified by ruling 4, from the desk's record, shortened.
+  Close 15's notes.md: both partings accepted, the records having won,
+  and no correcting bracket for the 001 desk's standing line, since the
+  line that traveled is the same one; entry 187 stays on two readings,
+  and its bracket carries this desk's read of 37's record, which does
+  not settle it; its Proposal 1 to the §3 registry; the 006 content it
+  landed under the manifest's out-of-scope line accepted as shipped, the
+  contradiction being the 006 desk's, whose manifest said one thing
+  while its brief and oracle pinned another; its four unpinned brackets,
+  the entry-179 counter-specimen, the block split, the one-line
+  verbatims and the post-epoch bracket accepted as shipped; and row 37's
+  unbuilt §11.4 pointer to be checked for a registry home, which it
+  lacked and now has. 104b's notes.md: the six-key sweep entry ratified
+  at the desk, the pin having been a floor; the kept-but-nulled entry
+  under `[apply] sweep` off, the structured `include_group` with `row`
+  verbatim, `packed_at` on the attempt's copy of provenance only, and
+  `swept_by` stamped after the sid and committed, all accepted as
+  shipped (§5); item 4, the rename in place of a second walker,
+  accepted, which consumes 105's pin; "desk" and "sitting" stand in the
+  two schema descriptions, since PLANNER.md uses both words; its
+  Proposal 1 to the registry; 104a's Proposal 2 not taken and back on
+  the registry, and 104a's Proposal 4 still unscheduled.
+- What the desk found. Row 103 names `cost.model_tier` as its telemetry
+  home, and `bin/bale_report.py` at 0.4.39 stamps the cost block
+  all-null and reserves it for the harness, in the code's words as the
+  desk quotes them, "never a worker self-estimate, never typed by a
+  human"; what exists is the self-reported `model_identity` in the
+  response manifest's provenance echo. The row's "identical argv" N ways
+  meets the pack-time disjointness gate, and the tree moves once any run
+  applies. Both went to 103's design desk in its brief (row 103's
+  bracket; §6 entry 189). The `format_hold_relay_planner` rider: the
+  registry text this desk held still said it "rides the next
+  `bin/bale_report.py` touch", 104b held that file, and the desk never
+  saw the 006 desk's rewording; the `2026-09-21-continue-plan-002` desk
+  read the reworded condition on the landed tree and found that neither
+  wave-8 session met it, so the entry stands untouched. And a bundle the
+  desk did not write appeared in its outputs directory at 03:25:14Z,
+  three minutes before its own 103 bundle (§6 entry 193).
+- 103's design sitting, as delivered, by the desk's record: revision 1,
+  `2026-09-20-board-103-probe-design`, brief sha256 `23eb1d75…584eb`,
+  never opened and stale once wave 8 applied; revision 2,
+  `2026-09-20-board-103-probe-design-r2`, the same slug and argv (the
+  goal, `--slug board-103-probe-design`, `--read-only`,
+  `--work-class meta`, whole-tree includes), checkpoint member null,
+  derived from revision 1 by asserted string edits (the wave-8 section
+  trued to "landed", find-by-phrase for the row, a line about the
+  operator's notes, the sweep paragraph). Its brief's sha256 was given
+  in that desk's chat and did not travel. What the records show of the
+  sitting being opened is on row 103's bracket.
+- The sweep at the next open. The 009 brief told its successor that the
+  operator had been told to decline the read-only sweep while 103's
+  sitting and the next master were both live. The record shows the
+  `2026-09-21-continue-plan-002` pack swept
+  `2026-09-21-board-103-probe-design-001` at 02:59:37Z, and its
+  `swept_by` says so. By that desk's brief to this close, the operator
+  has since ratified, by "as assumed" to a light block there, that the
+  sweep was intended and the sitting was over; and his 103 notes,
+  promised beside that desk's opener, arrived with his next message.
+  Both are recorded as facts, not as findings against anyone.
+- Desk verification before delivery, in the 009 desk's words, shortened.
+  Both of 103's revisions and the next master's bundle were
+  dress-rehearsed with the real `bale open` in a scratch repo built from
+  the desk's tarball tree, isolated `HOME`, stdin piped: each packed
+  clean, and the report echoed the brief's heading and the published
+  sha256. The crafter warns that a checkpoint-configured project refuses
+  an oracle-less bundle; under `--read-only` it does not. Revision 2 was
+  opened first and the master's bundle second in the same scratch repo:
+  the read-only sweep found the 103 session and, stdin not being a TTY,
+  declined without a prompt. NOT exercised: the sweep's accept path at a
+  TTY, `swept_by`, and anything on the landed tree. No oracle was
+  authored at this desk.
+- Why the sitting ended here, by the desk's record: close 16 needs the
+  landed tree, which a repack ships, and the desk had spent context
+  carelessly on two reads, a telemetry dump of all of 2026-09-20's
+  records where three were needed, and a heading-to-heading range over
+  TARBALL.md from `### 5.10` to `## 6` that printed §7, §3 and §4 as
+  well (§6 entry 192).
+- Where the briefs and the records part, found at this close. The 009
+  desk expected 0.4.40 and could not confirm it;
+  `claude/changelog/0.4.40.json` confirms it. It did not know apply
+  times, attempt counts or whether either session held; the records say
+  one apply attempt each and no hold (previous block). It could not know
+  whether revision 2 was opened, and no record names a bundle, so that
+  is still in no record (row 103's bracket). Its sweep instruction and
+  the record part as the bullet above says. And this close's own brief
+  calls the `base_files` map in 008's record a 100-entry map, where the
+  record's echo holds 115 (§6 entry 192).
+- Ratification debt carried forward. Unruled, the 009 desk's judgment
+  calls, from its record: reading "ratify the outstanding questions" as
+  a ruling and then asking its reach in a block; ratifying the 001 and
+  004 desks' calls sight unseen rather than probing for close 15's
+  brief; whole-tree includes for 103's sitting; telling 103's desk it is
+  not a master; a `-r2` stem over the same slug; ratifying 104b's
+  six-key entry at the desk instead of putting it to the operator;
+  ending the sitting instead of asking for the landed `claude/MASTER.md`
+  by upload; carrying the 006 record verbatim instead of digesting it.
+  Wave 8's two notes.md are ratified and carry nothing forward. The
+  `2026-09-21-continue-plan-002` desk's own calls belong to its sitting,
+  which is still open, and that sitting's close records them.
+  Ratification debt carried forward, per convention: THIS close's notes.md queues to the following open.
+- Sequencing for the next desk, verbatim from the 009 desk's brief:
+  "Standing line, verbatim from the 2026-09-19 009 desk: "103 (design
+  sitting) → the 100 arc → 43 → 45 → S6. Row 93 stands until the ledger
+  shows its case."" 103's design sitting has since run (row 103's
+  bracket), and what it found is close 17's to record.
+- Board deltas of this sitting's work: row 103's bracket; the first
+  contract of §5's new 2026-09-20 block, a failed oracle control exiting
+  2; in §6, entry 187's bracket, the brackets on entries 174, 179
+  (shared) and 182, and evidence entries 188 (shared), 189, 192, 193 and
+  194. No new rows: the board still ends at row 113, both wave-8
+  Proposals having gone to the registry by ruling 4.
+- Registry deltas of this sitting's work: the previous block's five
+  consumed brackets and three new entries are this desk's dispositions
+  of the 006 desk's wave (ruling 4); two new entries of its own — the
+  `docs/CLAUDE.md` §11.4 pointer that row 37 left unbuilt, which no
+  entry carried, and a rider for the next `docs/PLANNER.md` holder, so
+  that ruling 2's contract gets a home in PLANNER.md §4; the
+  `format_hold_relay_planner` entry left as close 15 reworded it; the
+  dispositions entry at the list's end covers both sittings.
 
 ## 4. The board
 
@@ -5621,6 +6121,33 @@ and §8, so done items keep their numbers as one-line pointers.
     for weaker models. Runs after 99a and before the 100 arc's design
     sitting so the findings feed the sweep. The desk writes the probe
     request at the design sitting.
+    [2026-09-20: the design sitting's bundle was authored at the
+    `2026-09-20-continue-plan-009` desk, in two revisions:
+    `2026-09-20-board-103-probe-design`, never opened and stale once
+    wave 8 applied, and `2026-09-20-board-103-probe-design-r2`,
+    reauthored at the operator's word (§3's close-16 block for the 009
+    sitting). What that desk found about this row's own text, and handed
+    to the design desk in the brief: `cost.model_tier` is not a home a
+    probe run can fill, since `bin/bale_report.py` at 0.4.39 stamps the
+    cost block all-null and reserves it for the harness, and what exists
+    is the self-reported `model_identity` in the response manifest's
+    provenance echo; and "identical argv" N ways meets the pack-time
+    disjointness gate, and the tree moves once any run applies (§6 entry
+    189). What the records show of the sitting being opened, the
+    2026-09-21 facts dated here in the text, as close 14 dated row 37's:
+    `2026-09-20-board-103-probe-design-010` opened 2026-09-20T03:52:14Z,
+    read-only, work class meta, its `packed_at` 03:52:11Z, the second
+    its pack swept the 009 master; it closed `closed-read-only` at
+    2026-09-21T01:18:25Z by command `unlock`, which stamps no
+    `swept_by`. `2026-09-21-board-103-probe-design-001` opened
+    2026-09-21T01:18:56Z, 31 seconds later (`packed_at` 01:18:55Z), and
+    closed `closed-read-only` at 02:59:37Z by a pack, the
+    `2026-09-21-continue-plan-002` pack, as its `swept_by` says. Neither
+    record names a bundle, so which revision either open used is in no
+    record. By the operator's word at the `2026-09-21-continue-plan-002`
+    desk, the sitting ran this row's first wave on 2026-09-21, four runs
+    in clones of a seed project outside this repo, so the runs have no
+    records here; that wave's record belongs to close 17.]
 
 104. **Session kinds, switchable; the context pack** — queued
     2026-09-16 (pack + manifest + opener + docs). A session declares a
@@ -5718,6 +6245,24 @@ and §8, so done items keep their numbers as one-line pointers.
     repo subdirectory lands under that subdirectory's `.bale/outbox/`, as
     shipped. `--kind`, the manifest kind field and the light injection
     stay with the 100 arc, per the bracket above.]
+    [2026-09-20: 104b DONE at `2026-09-20-board-104b-pack-telemetry-008`
+    (0.4.40; one apply attempt, no hold, no admissions; §3's close-16
+    block for the 006 sitting). Built: `bale pack --json`'s two
+    always-present keys, `sweep` and `include_group`, with the stamp
+    sweep's result among `sweep`'s events (107's Proposal 1);
+    `packed_at` on a pack's `opened` attempt, and `swept_by` on a
+    closure the read-only sweep wrote, stamped once the sid is minted
+    and committed as its own sweep event (close 13's two Proposals);
+    104a's Proposals 1 and 3 (the context report homed in
+    `bin/bale_report.py`; `validate.sh`'s `--context` check). 105's
+    Proposal 2 turned out to be built already: by 104b's notes.md, board
+    69 (d)'s `ToolsHermeticPin`, which 104b renamed so that
+    `-k stdlib_only` selects it, no assertion changed. Not taken: 104a's
+    Proposal 2, the cap/breach loop, back on the §3 registry. Shapes in
+    §5, the 009 desk's block; homes BALE.md §7.7, §7.8 and §8.9 and the
+    telemetry schema. With 104a, that completes this row as narrowed:
+    `--kind`, the manifest kind field and the light injection stay with
+    the 100 arc, per the brackets above.]
 
 105. **Operator-voice authority framing** — queued 2026-09-16 (doc
     lane with one `bin/bale_pack.py` string). Three edits that change
@@ -6754,6 +7299,46 @@ a ruling of record with one home; recorded at close 15):
   occurred. Counts, not a rate, rendered on their own line under the
   budget line. Home: `bin/bale_stats.py`'s docstring; 37 made no
   BALE.md edit (99b's input). Landed at row 37.
+
+New, ratified 2026-09-20 (the `2026-09-20-continue-plan-009` desk, the
+second as that desk ratified 104b's landing; each a ruling of record
+with one home; recorded at close 16):
+
+- **A failed oracle control exits 2.** A blind checkpoint whose control
+  fails, the check that proves its own detectors work, exits 2; it does
+  not exit 1, and it does not fail by name among the probes. Ruled at
+  the 009 desk by the operator's "as assumed" to its light block one,
+  [2], which closed a split between two desks: the 004 desk's control
+  failed by name, and the 006 desk's exited 2. The desk's reason: bale
+  reads exit 2 as a defective oracle at `bale open` and as the
+  checkpoint side on the hold card, and TARBALL.md §7.5 gives 2 to "the
+  script itself errored". Home: this section, until a `docs/PLANNER.md`
+  holder carries it to §4 (the §3 registry's rider).
+- **A pack records what it swept, and when it was packed.**
+  `bale pack --json` carries two always-present keys, additive. `sweep`
+  is a list, `[]` strictly when the pack closed nothing, with one entry
+  per close or post-sid stamp the pack wrote onto another session's
+  record: six keys, `sid, event, status, detail, sha, files`, where
+  `event` is one of `superseded-by-split`, `closed-read-only`,
+  `superseded_by` and `swept_by`, and entries run in event order, every
+  pre-sid close before every post-sid stamp. Under `[apply] sweep` off
+  an entry is kept and its four sweep keys nulled (`status`, `detail`
+  and `sha` null, `files` `[]`), because the write it records did
+  happen. `include_group` is null exactly when the human report prints
+  no include-group row, and otherwise structured,
+  `{name, state, triggers, pulled, row}`, `state` one of `engaged` and
+  `opt-out`, `row` the human row verbatim. `packed_at`, the request
+  manifest's `provenance.packed_at` verbatim, rides the `opened`
+  attempt's copy of provenance only; the registry-side `provenance.json`
+  stays the pair. `swept_by` names the sweeping pack on each closure a
+  read-only sweep wrote, stamped after the sid is minted and committed
+  as its own sweep event, `[bale sweep <swept>] swept_by <sid>`; absent,
+  it reads as "sweeping pack unrecorded", and a supersession close
+  carries `superseded_by` instead. The brief pinned `sid` plus four
+  keys, and the six-key entry was ratified at the 009 desk as a floor
+  met (ruling 4). Homes: BALE.md §7.7 and §8.9 and
+  `schemas/telemetry-record.schema.json`, by 104b's notes.md. Landed at
+  row 104 (104b).
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -8318,6 +8903,8 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     Close 13's Proposal 2 is the remedy (§3 registry, riding row 104);
     until it lands, a sweep is attributed only as a desk's account.
     (From the records.)
+    [2026-09-20: the remedy landed at 104b as `swept_by` (0.4.40), and
+    the next close read it: entry 194.]
 
 175. **A light block unanswered behind an "applied:" paste.** The 009
     desk's light block went out with two questions; the operator's next
@@ -8392,6 +8979,20 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     pause; so the count alone is not the variable, and the records do
     not say what is. (Desk-side, the 001, 004 and 006 sittings; two
     candidates merged at close 15.)
+    [2026-09-20: three more blocks, at close 16. The 006 desk's, already
+    counted above, went out at a pause with nothing built: the desk said
+    no bundle was ready and used the pause to ask, the plain case beside
+    entry 173's. The 009 desk's two, three questions and two, were each
+    answered first time, neither at a pause; the second reply made one
+    inline change and closed "Otherwise, as assumed", the mixed reply
+    TARBALL.md §5.10 draws, and that block followed an "applied:" paste
+    where entry 175's preceded one. The 006 desk's record calls its own
+    the third sitting running answered first time at a pause; by this
+    entry the 004 desk's block had no pause, so the run is of first-time
+    answers, not of pauses. Four blocks running, with one question and
+    with three, at a pause and away from one; the records still do not
+    say what the variable is. (Desk-side, the 006 and 009 sittings; two
+    candidates merged at close 16.)]
 
 180. **Oracle detail kept off verdict lines.** The 001 desk's two
     oracles and the 004 desk's print the label alone on a verdict line
@@ -8423,6 +9024,18 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     author the close. CLAUDE.md §11.5 reads a cluster like that as a
     scoping signal: the close is cheap only for a desk that holds the
     landed tree. (Desk-side, the 004 sitting.)
+    [2026-09-20: a second specimen, at close 16. The 009 master packed
+    at 03:08:07Z, thirteen seconds after close 15 was packed and six
+    after 104b, so close 16 was unbuildable at its open, as the 006
+    desk's brief had warned. Both then applied under it, at 03:27:13Z
+    and 03:45:15Z, and the desk still could not author the close: a
+    master's tarball is a snapshot, and a wave that lands under it is
+    invisible to it. It ended the sitting rather than ask for the landed
+    `claude/MASTER.md` by upload, and the `2026-09-21-continue-plan-002`
+    desk, packed after the landing, authored close 16. By the 009 desk's
+    count, the second master in three to end with its first job unbuilt.
+    A master opened beside its wave can dispatch; the close falls to the
+    desk packed after the landing. (Desk-side, the 009 sitting.)]
 
 183. **A board row that named a command surface nobody had read the
     parser for.** Row 104 said "bare `bale pack`" produces the context
@@ -8474,6 +9087,140 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     record, not from an account, and a rejection with no recorded cause
     is a gap of entry 174's family. (From the records, found at the 006
     desk.)
+    [2026-09-20: the 009 desk's read of 37's record: the same ` (1)`
+    tarball was `rejected` under `apply` at 01:15:01Z and `applied`
+    under `retry` at 01:16:21Z, and `tests/test_stats_compaction.py` was
+    admitted with source `prompt` on both scored attempts, so a missing
+    admission looks the less likely reading. It does not settle the
+    entry, which stays on two readings (ruling 4's dispositions, §3);
+    the session log would, and close 15's Proposal 1 is the remedy (§3
+    registry). How the attempt was found, by the 006 desk's record: by a
+    script over the attempts, not by reading the accounts, after two
+    desk briefs had missed it.]
+
+188. **Text about code or records that nobody had read.** Four specimens
+    in one wave. Close 13's Proposal 2 asked for the closing pack's sid
+    on a swept or superseded attempt; a superseded attempt had carried
+    `superseded_by` since 0.3.23, so half of it was met before it was
+    written. Its worker wrote "I have not seen the code", the desk that
+    accepted it had not read the code either, and it was carried two
+    closes before the 006 desk read the code to dispatch it. The 006
+    desk's own stdlib-only rider and its `-k stdlib_only` selector pin
+    were written without `tests/test_craft_response.py` read: by 104b's
+    notes.md the pin already existed as `ToolsHermeticPin`, and the
+    worker renamed five methods rather than write a second walker. The
+    registry had carried 105's Proposal 2 since 2026-09-18 on the same
+    footing. And the 006 desk's brief to close 15 said both earlier
+    sittings ended before their waves landed, where the records show the
+    004 sitting did not. Each was cheap to catch for the first session
+    that held the file, and each cost a bracket to correct. Entry 183's
+    family: a Proposal, a rider or a claim about a surface is read
+    against that surface when it is accepted, not only when it is built.
+    (Desk-side and worker-side, close 13 and the 006 and 009 sittings;
+    two candidates merged at close 16.)
+
+189. **A board row naming a home the code reserves for someone else.**
+    Row 103 names `cost.model_tier` per attempt as its telemetry home.
+    `bin/bale_report.py` at 0.4.39 stamps the cost block all-null and
+    reserves it for the harness, "never a worker self-estimate, never
+    typed by a human" in the code's words as the 009 desk quotes them,
+    and every attempt in the six records this close read carries it
+    null. What a probe run can leave behind is the self-reported
+    `model_identity` in the response manifest's provenance echo. The
+    same row's "identical argv" N ways meets the pack-time disjointness
+    gate, and the tree moves once any run applies. The row was written
+    without the code read; the desk authoring its design sitting found
+    both by reading before it wrote the brief, and handed both to the
+    design desk. Entry 183's class on the telemetry side: a row that
+    names a field is checked against the code that stamps it, and one
+    that names a run shape against the gates the runs must pass.
+    (Desk-side, the 009 sitting; the row, 2026-09-15.)
+
+190. **A dress rehearsal under the real sandbox, with a pty inside it.**
+    The 006 desk dress-rehearsed both wave-8 bundles with `bale open` in
+    one scratch repo beside a read-only master: admitted together,
+    expected-HOLD proofs fired, and both oracles ran confined under the
+    real sandbox, because that desk's container runs `unshare`; by its
+    record the two desks before it could not, or did not try. One of
+    104b's controls drives the read-only sweep's accept prompt through a
+    pty on stdin only, so the JSON line stays clean, and it ran inside
+    the sandbox too. The 001 and 004 desks had each listed the sandboxed
+    run as NOT done and left it to be retired by exercise at apply; here
+    it was retired before delivery, and both applies then ran confined
+    with no hold. The rehearsal ran over the desk's throwaway stub of
+    the feature, not the feature: the 009 desk's own rehearsal declined
+    the sweep for want of a TTY, and the first real `swept_by` was a
+    live one (entry 194). (Desk-side, the 006 sitting.)
+
+191. **Rehearsals that caught the oracle and not the brief.** The 006
+    desk's rehearsals caught four defects, all in its oracles and none
+    in its briefs. In close 15's: a pin that §5's calibration ruling
+    runs two lines, where it runs six, caught by the oracle's base run;
+    the sid probe cascading off a lost base line; and the sid regex
+    taking the row number inside 104b's bundle stem for a counter. In
+    104b's: a non-stdlib mutation, `import requests`, that a network
+    denylist alone would catch, now `import yaml`. The first is
+    PLANNER.md §4's imagined-surface class in a file the desk had open:
+    the ruling was in `claude/MASTER.md`, in the desk's own tarball, and
+    the pin was written from memory of it. Both bundles then landed on a
+    first apply with no hold. A base run, a landing from the brief's
+    bytes and a negative landing per probe find an oracle's defects
+    before a worker pays for them; having the file open is not having
+    read the line. (Desk-side, the 006 sitting.)
+
+192. **Context spent on a careless read, three desks running.** Entry
+    185 was the 004 desk's `awk` range past the core banner. The 009
+    desk did it twice: a telemetry dump of all of 2026-09-20's records
+    where three were needed, and a heading-to-heading range over
+    TARBALL.md from `### 5.10` to `## 6`, which printed §7, §3 and §4 as
+    well, because DOCS.md §6.4 keeps section numbers stable while the
+    core-first layout moves the sections; it named the two reads among
+    its reasons for ending the sitting. The
+    `2026-09-21-continue-plan-002` desk, with entry 185 and §7's range
+    rule landed in the file it was reading, dumped the `base_files` map
+    of 104b's record into its own context: a 100-entry map by its brief,
+    115 by the record. The rule that landed was narrower than the
+    failure. A read is bounded before it runs: a doc range by line
+    numbers from a heading grep, or heading to next heading of any
+    level; a record by the keys wanted, its maps counted before they are
+    printed; a day's records by name. (Desk-side, the 009 sitting and
+    the `2026-09-21-continue-plan-002` desk; two candidates merged at
+    close 16.)
+
+193. **A planner bundle nobody wrote.** At 03:25:14Z, three minutes
+    before the 009 desk wrote its own 103 bundle, a file appeared in its
+    outputs directory:
+    `2026-09-20-board-103-capability-probe-design.bale-bundle`, sha256
+    `68cc9188…`, its brief (sha256 `0e6666d9…`) claiming that desk as
+    author, under a different slug and with an `--include` list. Nothing
+    in the desk's conversation produced it; the likeliest cause, by the
+    desk's account, is a regenerated reply whose files outlived it. The
+    desk told the operator, left the file alone, and did not vouch for
+    it. A bundle's claimed author is a string in its brief. What vouches
+    for a bundle is the sha256 its desk publishes beside the `bale open`
+    line (PLANNER.md §4), and a file without one has not been delivered.
+    (Desk-side, the 009 sitting.)
+
+194. **Two record fields read at the first close after they landed.**
+    104b applied at 03:45:15Z. Seven minutes later the pack that opened
+    103's design sitting swept the 009 master, and the closure's
+    `swept_by` names it, `2026-09-20-board-103-probe-design-010`: the
+    first live specimen, on a closure that earlier closes could have
+    attributed only as a desk's account (entry 174). The 006 master's
+    closure, 44 minutes earlier and swept at 0.4.39, is the last without
+    the field. The same pack's `opened` attempt carries `packed_at`
+    03:52:11Z against a `created_at` of 03:52:14Z, three seconds, the
+    widest lag yet, on the field's first live record; the next,
+    `2026-09-21-board-103-probe-design-001`, reads one second. Zero,
+    one, two and three seconds are all on record now, so close 13's
+    reason for the field holds: no fixed lag recovers a pack second from
+    `created_at`. What the fields do not cover showed at once too: a
+    closure by `unlock` carries no `swept_by` (103's first session), and
+    neither record names the bundle it was opened from. Close 13
+    proposed both fields with the close desk's reconstruction as their
+    named consumer (DOCS.md §9), and that consumer read them one wave
+    after they landed. (From the records, at the
+    `2026-09-21-continue-plan-002` desk and at this close.)
 
 ## 7. Standing environment facts
 
@@ -8759,6 +9506,32 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
 - A range in a core-first doc is bounded by line numbers from a heading
   grep, not by section number or an end pattern: section order there is
   not numeric (§6 entry 185).
+- Version landmark: 0.4.40 (`2026-09-20-board-104b-pack-telemetry-008`);
+  close 15 and close 16 are bumpless. The suite stands at 1419 tests, 48
+  skipped by the slow gate, and `validate.sh` at 92 checks, by 104b's
+  notes.md.
+- `bale pack --json` carries two always-present keys since 0.4.40:
+  `sweep`, a list that is `[]` when the pack closed nothing, and
+  `include_group`, null when the human report prints no include-group
+  row (§5). A desk scripting a pack can read what the pack swept from
+  the JSON line.
+- In records written since 0.4.40, a pack's `opened` attempt carries
+  `provenance.packed_at`, and a closure written by a read-only sweep
+  carries `swept_by`, the sweeping pack's sid. Earlier records carry
+  neither, a closure by `unlock` carries no `swept_by`, and absence
+  reads as unrecorded, not as no sweep. No record names the bundle a
+  session was opened from (§6 entry 194).
+- `python3 -m unittest -k stdlib_only` selects the tools' stdlib-only,
+  no-network pin, `ToolsHermeticPin` in `tests/test_craft_response.py`,
+  five tests (104b).
+- A desk whose container runs `unshare` can dress-rehearse an oracle
+  confined under the real sandbox before delivery, and a control can
+  drive a TTY prompt through a pty on stdin only, inside it; the 006
+  desk of 2026-09-20 did both. Not every desk's container can (§6 entry
+  190).
+- A record's `base_files` map can run past a hundred entries. Read a
+  record by the keys wanted, and count a map before printing it (§6
+  entry 192).
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
