@@ -563,19 +563,20 @@ in chat:
    typically the very session being split — the command carries
    `--supersedes <parent-sid>` per `TARBALL.md` §3.4's
    split-supersession flow. Framing goes in the prose around the
-   command, never inside the fenced block. In a checkpoint-configured
-   project the offering session delivers that command bundled — as
-   the stored pack argv of a crafter bundle emitted beside its
-   `bale open` line — per `PLANNER.md` §20 and §2; the bare line
-   stays the offer's content, which the planner re-derives from
+   command, never inside the fenced block. The offering session
+   delivers that command bundled, in every project — as the stored
+   pack argv of a crafter bundle emitted beside its `bale open`
+   line — per `PLANNER.md` §20 and §2; the bare line stays the
+   offer's content, which the planner re-derives from
    (`TARBALL.md` §3.4).
 
-In a checkpoint-configured project the split is also a role
-transition: the offering session, as sub-master for its subtree,
-authors the split sessions' materials — commands, briefs, and
-re-derived checkpoints for children it will not build against —
-per PLANNER.md; the operator carries artifacts, never authors
-them.
+The split is always a role transition (`PLANNER.md` §20): the
+offering session, as sub-master for its subtree, authors the split
+sessions' materials — commands, briefs, and, in a
+checkpoint-configured project, re-derived checkpoints for children
+it will not build against — and holds its decomposition for the
+parent's ratification before anything spawns (`PLANNER.md` §20.1);
+the operator carries artifacts, never authors them.
 
 This is **not** a bailout (§11.4): the check precedes the reading
 and spends almost nothing, so its output is an ordinary chat reply,

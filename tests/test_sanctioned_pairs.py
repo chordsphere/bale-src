@@ -22,6 +22,22 @@ Whitespace is normalized (all runs collapse to single spaces) before
 matching, so innocent markdown rewrapping never trips a pin — the
 extracts pin words, not line breaks.
 
+Since session 2026-09-21-split-transition-unconditional-007 the
+CLAUDE.md 11.2 / TARBALL.md 3.4 pair states the split's role transition
+and its bundled delivery for every project, with the checkpoint
+condition attached to the children's checkpoints alone. Both CLAUDE.md
+extracts are VERBATIM in that session's brief of record and pinned
+whole; TARBALL.md's twins are its own wording, pinned by their
+load-bearing clauses. The pair had been pinned in its conditional form
+(the bundled-delivery group's CLAUDE.md extract opened "In a
+checkpoint-configured project"), so the suite held in place the very
+reading the bundle-delivery ruling was written to retire. A positive
+pin cannot see a condition coming back beside it, so
+RetiredSplitConditions pins the absence: the conditional openings stay
+gone from the three docs that carried them, and TARBALL.md 3.4's
+"**Checkpoint-configured projects.**" paragraph stays about
+checkpoints, with no bundle sentence filed under it.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -127,12 +143,32 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "closing the parent by hand first."),
         # The sub-master rider on the same pair (session
         # 2026-08-18-010): the split-as-role-transition sentence,
-        # stated from both ends of the same command.
-        ("CLAUDE.md", "the offering session, as sub-master for its "
-                      "subtree, authors the split sessions' "
-                      "materials — commands, briefs, and re-derived "
+        # stated from both ends of the same command. Unconditional
+        # since 2026-09-21-split-transition-unconditional-007: the
+        # transition is owed in every project, and the checkpoint
+        # condition attaches to the children's checkpoints alone. The
+        # CLAUDE.md sentence is VERBATIM in that session's brief and
+        # pinned whole; TARBALL.md states the same rule in its own
+        # words, pinned by the clause that makes it general and
+        # carries the `PLANNER.md` §20 pointer.
+        ("CLAUDE.md", "The split is always a role transition "
+                      "(`PLANNER.md` §20): the offering session, as "
+                      "sub-master for its subtree, authors the split "
+                      "sessions' materials — commands, briefs, and, "
+                      "in a checkpoint-configured project, re-derived "
                       "checkpoints for children it will not build "
-                      "against"),
+                      "against — and holds its decomposition for the "
+                      "parent's ratification before anything spawns "
+                      "(`PLANNER.md` §20.1); the operator carries "
+                      "artifacts, never authors them."),
+        ("TARBALL.md", "A pre-flight split (`CLAUDE.md` §11.2) is a "
+                       "role transition in every project "
+                       "(`PLANNER.md` §20): the offering session, as "
+                       "sub-master for its subtree, authors the split "
+                       "sessions' materials"),
+        # The children's-checkpoints half of the same rider: TARBALL.md
+        # 3.4's checkpoint paragraph, where "them" is the children's
+        # checkpoints. Unchanged since 2026-08-18-010.
         ("TARBALL.md", "the offering session authors them as "
                        "sub-master (PLANNER.md carries the "
                        "doctrine), and the operator delivers, never "
@@ -145,13 +181,28 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
     # from both ends. A second pin group over an already-enumerated
     # pair, not a sixth pair — see test_pairs_match_the_docs_enumeration.
     "bundled delivery (CLAUDE.md 11.2 / TARBALL.md 3.4)": [
-        ("CLAUDE.md", "In a checkpoint-configured project the offering "
-                      "session delivers that command bundled — as the "
-                      "stored pack argv of a crafter bundle emitted "
-                      "beside its `bale open` line"),
+        # Unconditional since
+        # 2026-09-21-split-transition-unconditional-007. The CLAUDE.md
+        # sentence is VERBATIM in that session's brief and pinned
+        # whole. TARBALL.md's first extract is byte-for-byte the one
+        # pinned before: the sentence moved out from under 3.4's
+        # "**Checkpoint-configured projects.**" lead unchanged (its
+        # position is RetiredSplitConditions' to hold). The second is
+        # the sentence under 3.4's rescope worked example, so the
+        # example and the rule stop disagreeing by omission.
+        ("CLAUDE.md", "The offering session delivers that command "
+                      "bundled, in every project — as the stored pack "
+                      "argv of a crafter bundle emitted beside its "
+                      "`bale open` line — per `PLANNER.md` §20 and §2; "
+                      "the bare line stays the offer's content, which "
+                      "the planner re-derives from (`TARBALL.md` "
+                      "§3.4)."),
         ("TARBALL.md", "Each child's command is delivered as one "
                        "crafter bundle emitted beside its `bale open` "
                        "line (`PLANNER.md` §2)."),
+        ("TARBALL.md", "in every project it is delivered as the stored "
+                       "pack argv of a crafter bundle emitted beside "
+                       "its `bale open` line (`PLANNER.md` §2)."),
     ],
     # DOCS.md §9's fifth pair: PLANNER.md §10's four-controls floor
     # with the project-side planning record that ratified it. The pin
@@ -163,6 +214,40 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "half stands alone for its citers"),
     ],
 }
+
+# The conditional openings session
+# 2026-09-21-split-transition-unconditional-007 retired, by the doc
+# each lived in. Each sentence was true and none said "only", but a
+# worker in a project with no checkpoint read the condition as
+# excluding it and skipped the transition. An opening coming back is
+# that misreading coming back, whatever the positive pins above say.
+RETIRED_SPLIT_CONDITIONS = (
+    ("CLAUDE.md", "In a checkpoint-configured project the offering "
+                  "session delivers that command bundled"),
+    ("CLAUDE.md", "In a checkpoint-configured project the split is "
+                  "also a role transition"),
+    ("PLANNER.md", "in a checkpoint-configured project does not emit "
+                   "an offer"),
+)
+
+# TARBALL.md 3.4's checkpoint paragraph, by its bold lead, and the
+# general facts that must not be filed under it: the bundle sentence
+# (the bundled-delivery group's unchanged TARBALL.md extract) and the
+# transition itself.
+CHECKPOINT_PARAGRAPH_LEAD = "**Checkpoint-configured projects.**"
+NOT_UNDER_THE_CHECKPOINT_LEAD = (
+    "Each child's command is delivered as one crafter bundle",
+    "role transition",
+)
+
+
+def paragraph_led_by(text: str, lead: str) -> str:
+    """The one blank-line-delimited paragraph of `text` that opens with
+    `lead`, whitespace-normalized; '' when none or several do (the
+    caller asserts on that, so a duplicated lead fails loudly instead
+    of being judged by its first copy)."""
+    hits = [p for p in text.split("\n\n") if p.lstrip().startswith(lead)]
+    return normalize(hits[0]) if len(hits) == 1 else ""
 
 
 class SanctionedPairPins(unittest.TestCase):
@@ -218,6 +303,46 @@ class SanctionedPairPins(unittest.TestCase):
                         "(DOCS.md 9) — propagate the edit to the "
                         "twin doc, then update BOTH sides' extracts "
                         "in this table in the same response.")
+
+
+class RetiredSplitConditions(unittest.TestCase):
+    """The split's role transition and its bundled delivery stay
+    stated for every project: the retired conditional openings stay
+    absent, and TARBALL.md 3.4's checkpoint paragraph stays about
+    checkpoints."""
+
+    def test_conditional_openings_stay_retired(self):
+        for doc, fragment in RETIRED_SPLIT_CONDITIONS:
+            with self.subTest(doc=doc, fragment=fragment[:50] + "…"):
+                body = normalize(
+                    (DOCS_DIR / doc).read_text(encoding="utf-8"))
+                self.assertFalse(
+                    normalize(fragment) in body,
+                    f"docs/{doc} again opens a split rule with a "
+                    f"checkpoint condition:\n  {fragment}\nThe "
+                    "transition and the bundled delivery are owed in "
+                    "every project; only the children's checkpoints "
+                    "are conditional on the project pinning one. "
+                    "Attach the condition to the checkpoints, not to "
+                    "the sentence.")
+
+    def test_checkpoint_paragraph_is_about_checkpoints_only(self):
+        text = (DOCS_DIR / "TARBALL.md").read_text(encoding="utf-8")
+        paragraph = paragraph_led_by(text, CHECKPOINT_PARAGRAPH_LEAD)
+        self.assertTrue(
+            paragraph,
+            "docs/TARBALL.md should carry exactly one paragraph led "
+            f"{CHECKPOINT_PARAGRAPH_LEAD} — it moved, was renamed, or "
+            "was duplicated; update this pin if that was deliberate")
+        for general_fact in NOT_UNDER_THE_CHECKPOINT_LEAD:
+            with self.subTest(general_fact=general_fact):
+                self.assertFalse(
+                    normalize(general_fact) in paragraph,
+                    "docs/TARBALL.md 3.4 files a general fact under "
+                    f"{CHECKPOINT_PARAGRAPH_LEAD}:\n  {general_fact}\n"
+                    "A reader in a project with no checkpoint skips "
+                    "that paragraph, and the fact with it. State it "
+                    "in 3.4's role-transition paragraph instead.")
 
 
 if __name__ == "__main__":
