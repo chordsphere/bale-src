@@ -1,0 +1,259 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-21-split-transition-unconditional-007",
+  "created_at": "2026-09-21T12:59:58+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-21T12:59:58+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-21-split-transition-unconditional-007.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-21T12:59:58+00:00"
+      }
+    },
+    {
+      "at": "2026-09-21T13:18:33+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-21-split-transition-unconditional-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "verbatim sentences A, B and D, byte-exact in their sections": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 3.4: transition stated generally, bundle sentence moved unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 3.4 worked example: bare line kept, bundle sentence added": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "PLANNER.md riders: exits 2 in section 4, sitting record in section 3": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "retired conditional openings stay absent": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "invariants: nothing renumbered, bumpless, inside the forecast": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "doc suites: test_sanctioned_pairs, test_doc_crossrefs, test_global_doc_selfcontainment": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "exec bit on tests/test_sanctioned_pairs.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "verbatim sentences A, B and D, byte-exact in their sections": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 3.4: transition stated generally, bundle sentence moved unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 3.4 worked example: bare line kept, bundle sentence added": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "PLANNER.md riders: exits 2 in section 4, sitting record in section 3": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "retired conditional openings stay absent": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "invariants: nothing renumbered, bumpless, inside the forecast": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "doc suites: test_sanctioned_pairs, test_doc_crossrefs, test_global_doc_selfcontainment": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "exec bit on tests/test_sanctioned_pairs.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python compile, bash -n)",
+          "verbatim sentences A, B and D, byte-exact in their sections",
+          "TARBALL.md 3.4: transition stated generally, bundle sentence moved unchanged",
+          "TARBALL.md 3.4 worked example: bare line kept, bundle sentence added",
+          "PLANNER.md riders: exits 2 in section 4, sitting record in section 3",
+          "retired conditional openings stay absent",
+          "invariants: nothing renumbered, bumpless, inside the forecast",
+          "doc suites: test_sanctioned_pairs, test_doc_crossrefs, test_global_doc_selfcontainment",
+          "exec bit on tests/test_sanctioned_pairs.py"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/CLAUDE.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "214639ce16750a9c769b5b05aa7b99cf97e1872174757b14c838d59a68964be5",
+              "TARBALL.md": "29ecbbae385da13711c2e38973841c639dbe169175d827b5112c69b41d7d093a",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "4788573841f7690ef5dfbbcd24b140b0683c6e1b1cafcb5bc81d0af04b457861"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-21-split-transition-unconditional-007.sh",
+              "sha256": "85bf13b524b25631f83a48df3223ebe561953145e3b20c8c233085b269d1308b"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-21T12:59:58+00:00",
+            "base_files": {
+              "docs/CLAUDE.md": "214639ce16750a9c769b5b05aa7b99cf97e1872174757b14c838d59a68964be5",
+              "docs/PLANNER.md": "4788573841f7690ef5dfbbcd24b140b0683c6e1b1cafcb5bc81d0af04b457861",
+              "docs/TARBALL.md": "29ecbbae385da13711c2e38973841c639dbe169175d827b5112c69b41d7d093a",
+              "tests/test_sanctioned_pairs.py": "93268e39ad18727568d7ef83956abe31d6c9865c135d4aa82be8cabb4dc250df"
+            },
+            "model_identity": "Claude (Anthropic); exact model string not visible to the session"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "tests/test_sanctioned_pairs.py is executable in the repo, as it is in the request tarball (mode 755), so apply.sh restores the bit and validation.sh asserts it.",
+            "Rider two's 'sitting record' needs no definition in PLANNER.md: section 4 already uses the term undefined, and the bullet describes it only as the span a successor quotes."
+          ],
+          "judgment_calls": [
+            "Added two TARBALL.md-side pins (the general statement's lead clause, the worked-example sentence) though the brief listed pins 7 and 9 as simply surviving: the constraint and the suite's own docstring both say a pair update moves both sides' extracts.",
+            "Added a RetiredSplitConditions test class (negative pins) inside the forecast file: the finding's section 6 shows a positive pin held the conditional in place, and a positive pin cannot see a condition return beside it.",
+            "Placed TARBALL.md 3.4's general statement as its own bold-led paragraph between 'Split supersession' and 'Checkpoint-configured projects', ending on the moved bundle sentence.",
+            "Put rider two in PLANNER.md 3 rather than 6: a brief's layout is governed where brief authors are sent by the INDEX.",
+            "PLANNER.md 20: besides attaching the condition in the materials list, scoped the blindness sentence with 'Where a child has a checkpoint' so the paragraph stays true in a project with none.",
+            "Pinned VERBATIM-A and VERBATIM-B whole in the test table rather than by clause, since the brief makes each sentence VERBATIM."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "CLAUDE.md META-11.2",
+            "README.md (brief and appendix, whole)",
+            "TARBALL.md META, INDEX, 1, 2, 5.1-5.5, 7, 3.4, 8, 9, 10.1",
+            "DOCS.md META, INDEX, 1, 6.4, 9, 10, 11",
+            "PLANNER.md META, INDEX, 1-7, 20, 16 (skim, for successor vocabulary)",
+            "tests/test_sanctioned_pairs.py (whole)",
+            "tests/test_doc_crossrefs.py (docstring, helpers, constants)",
+            "tests/test_global_doc_selfcontainment.py (docstring)",
+            "tools/craft_response.py (docstring, path handling, write path, CLI tail)",
+            "tools/response_lint.py (docstring, imports)",
+            "bin/bale_open.py (dry-run exit-code contract)",
+            "bin/bale_report.py (checkpoint attribution, hold judge)",
+            "bin/bale_staging.py (files/ overlay)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-21-split-transition-unconditional-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-21-split-transition-unconditional-007.sh",
+          "sha256": "85bf13b524b25631f83a48df3223ebe561953145e3b20c8c233085b269d1308b"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-21T13:18:33+00:00",
+  "outcome": "applied"
+}
