@@ -1,0 +1,368 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-22-rider-micro-003",
+  "created_at": "2026-09-22T12:36:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-22T12:36:36+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_preflight.py",
+        "tests/test_open_verb.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_relay_verb.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_telemetry_promotion.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-22-rider-micro-003.log",
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-22T12:36:35+00:00"
+      }
+    },
+    {
+      "at": "2026-09-22T14:42:50+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-22-rider-micro-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_apply_preflight": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_stats_drilldown": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_stats_aggregation": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_relay_verb": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_provenance_at_open": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_open_verb": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_rollback_telemetry": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_telemetry_promotion": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_changelog_record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "version bump: bin/VERSION and changelog agree on 0.4.41": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "refused apply stamps cause on its rejected attempt (scratch repo)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unescaped paste block: re-escape refusal and relay-refused attempt (scratch repo)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "dossier renders swept by for the live specimen": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_apply_preflight": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_stats_drilldown": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_stats_aggregation": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_relay_verb": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_provenance_at_open": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_open_verb": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_rollback_telemetry": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_telemetry_promotion": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_changelog_record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "version bump: bin/VERSION and changelog agree on 0.4.41": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "refused apply stamps cause on its rejected attempt (scratch repo)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unescaped paste block: re-escape refusal and relay-refused attempt (scratch repo)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "dossier renders swept by for the live specimen": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (changed bin/ and tests/ files)",
+          "json syntax (schema, changelog)",
+          "tests.test_apply_preflight",
+          "tests.test_stats_drilldown",
+          "tests.test_stats_aggregation",
+          "tests.test_relay_verb",
+          "tests.test_provenance_at_open",
+          "tests.test_open_verb",
+          "tests.test_rollback_telemetry",
+          "tests.test_telemetry_promotion",
+          "tests.test_changelog_record",
+          "version bump: bin/VERSION and changelog agree on 0.4.41",
+          "refused apply stamps cause on its rejected attempt (scratch repo)",
+          "unescaped paste block: re-escape refusal and relay-refused attempt (scratch repo)",
+          "dossier renders swept by for the live specimen",
+          "bin/bale is executable"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_preflight.py",
+        "tests/test_open_verb.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_relay_verb.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_telemetry_promotion.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog/0.4.41.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_apply_preflight.py",
+        "tests/test_open_verb.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_relay_verb.py",
+        "tests/test_rollback_telemetry.py",
+        "tests/test_stats_aggregation.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_telemetry_promotion.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-22-rider-micro-003.sh",
+              "sha256": "bcd2a6c3a4334e4000ac7d20eda485b427fe65c009b4b1f6fcf1008b56b75ffe"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-22T12:36:35+00:00",
+            "base_files": {
+              "BALE.md": "7d5657a6fc4e45c9c7f33f7cb7e4bdc4ba4007aefc87e22a75d5d1e99d99a475",
+              "bin/VERSION": "ab72ab790222ca39b6dab33d27377dc2392c09dd576b58061864addecb8b89de",
+              "bin/bale": "2f33aec90bd615c836ac533ecf2ff00c9a5118f3f1c84dcba6a59a6742be8e4f",
+              "bin/bale_apply.py": "55ce02c659bfe1cc4f81960fb6b4bc64b17613db9750f18b1cc742fc311050cb",
+              "bin/bale_open.py": "a38d5a67fc10e670252bc3a9abc3b9b9741b22f11675722d397cd3d074056234",
+              "bin/bale_pack.py": "c72d13dd406d22313f3e7b00bdc1f6fd2235a8747d55c042f5eee6c3ba015625",
+              "bin/bale_relay.py": "f1812c8268aed5a77615453fc4b09d25fc99bbbc26674086f7c6541bf05c2dd9",
+              "bin/bale_report.py": "2eca4788fc4a872dea26931428a5aa6f1a0e32b087e3f2f76e136dd492db9f63",
+              "bin/bale_stats.py": "7734236c319eed862a9ca2ca23779a83988bfd4d58877acd781b9054f9886808",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "schemas/telemetry-record.schema.json": "06d69f838f8776305ff09b15466c2debd7a4cca3a5431857a2ce260fe0252dcf",
+              "tests/test_apply_preflight.py": "e1fe2d5ed22c83b209d946a739f3574d0455f1ab73207e2d77ff04e5219d20d6",
+              "tests/test_open_verb.py": "9d212baa4e819bcc760a5303083d818b2d99de8100ec1c45da12feedbdc66e4a",
+              "tests/test_provenance_at_open.py": "2e26b122016bf7e793c16ec42311195b7682467a145b6a6aa102758f137c0824",
+              "tests/test_relay_verb.py": "809d41078576afd642993e9c8d3d990f1d3afd377d599202143f7cfc28813c6a",
+              "tests/test_rollback_telemetry.py": "6adfcd2ffcd0ff1d42c789762595510c0eeb6c789dabbe866e7878435652d9f7",
+              "tests/test_stats_aggregation.py": "695474fd7875a9d77b6a12387237dace314dceefae8b407cdd75aa04ea4b0f23",
+              "tests/test_stats_drilldown.py": "19408f51cbabdc999725951026d5ced65457343f6c94101dbf54e749d62b7b3d",
+              "tests/test_telemetry_promotion.py": "83e1d6c47bcb0ebc87631db1f8398458205eeba7da5af1cc13a86fef25b78f23"
+            },
+            "model_identity": "Claude Opus 5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the pinned human spelling is literally `swept by <sid>` (no colon), though the neighbouring line is `superseded by: <sid>`",
+            "bale relay's session-gate refusals (sid not open, held branch) and a missing input file are not 'refusing a paste block' and so record nothing"
+          ],
+          "judgment_calls": [
+            "cause travels on the SystemExit fail() raises (bale_cause), not a module-level slot or the log's last line",
+            "open reaches pack through the namespace attribute open_bundle, the pre_answered channel, not an env var or a post-sid stamp",
+            "bundle keys: stem, brief_sha256, checkpoint_sha256 (published member hashes) and manifest_sha256 (re-read of bundle.json); 'unreadable' fallback never refuses the open",
+            "all relay input refusals (steps 2-5) record, not only the trailer mismatch; a successful relay stays silent",
+            "the dossier also surfaces cause and bundle beside swept_by",
+            "relay_admission_rows extracted so the HOLD and clean-apply planner blocks share wording"
+          ],
+          "budget_pressure": "tight",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through \u00a711.2",
+            "README.md (brief)",
+            "TARBALL.md \u00a71, \u00a72, \u00a75.1-\u00a75.5, \u00a77, \u00a710.1",
+            "BALE.md \u00a75.6 (dossier), \u00a75.8, \u00a78.8, \u00a78.9, \u00a78.11 (edited passages)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-22-rider-micro-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-22-rider-micro-003.sh",
+          "sha256": "bcd2a6c3a4334e4000ac7d20eda485b427fe65c009b4b1f6fcf1008b56b75ffe"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-22T14:42:50+00:00",
+  "outcome": "applied"
+}
