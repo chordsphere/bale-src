@@ -15,7 +15,7 @@ of the self-oracle, applied to pre-pack linting).
 
 Usage:
     response_lint.py <response-dir> [--json | --emit-feedback-mechanical]
-                     [--schema-dir DIR]
+                     [--request FILE] [--schema-dir DIR]
 
 --emit-feedback-mechanical prints the paste-ready feedback.mechanical
 object on stdout (the TARBALL.md §5.2.2 fill-by-running-the-lint
@@ -28,13 +28,33 @@ tools/craft_response.py's --request (the request's provenance echoed
 verbatim plus an empty model_identity the worker fills), and linkage
 the worker adds by hand when the session went through a probe or
 clarification round. Pasting this object over the seeded block's four
-lint-computable placeholders, key for key, leaves both in place.
+lint-computable placeholders, key for key, leaves both in place. The
+flag exits 0 whenever the object was written, findings or not: its
+typical input is a crafter-seeded block whose four placeholders are
+the run's only findings, and a worker chaining `emit && paste` must
+reach the paste. The findings still print on stderr and the plain
+re-run after the paste is the verdict; when no object could be
+emitted (manifest.json unavailable) it exits 1 (wave 10's tools micro).
+
+--request FILE names the request's manifest.json, the lint's only view
+of the request, and enables two warning-tier checks (TARBALL.md §3.2,
+§5.4): `forecast-departures` names every changes[] path outside the
+request's resolved_scope (directory entries covering their subtrees)
+that no feedback.self_reported.forecast_departures entry names
+(FORECAST_DEPARTURE_UNDECLARED — a warning, because the path may be
+drift the operator admits at apply, where bale's own-forecast gate
+enforces), and `readme-in-docs-read` warns README_NOT_IN_DOCS_READ
+when the request's `readme` key is non-null (a brief shipped) and no
+docs_read entry names README.md. Without the flag both report [SKIP].
 
 Exit codes:
     0  clean — every check passed (warnings, if any, are printed but
-       never flip the exit code or the report's `ok`)
-    1  findings — at least one contract violation, all of them named
-    2  the lint itself errored (bad usage, unreadable dir)
+       never flip the exit code or the report's `ok`); under
+       --emit-feedback-mechanical, the object was written
+    1  findings — at least one contract violation, all of them named;
+       under --emit-feedback-mechanical, no object could be emitted
+    2  the lint itself errored (bad usage, unreadable dir, unreadable
+       --request file)
 
 Two checks guard the self-check against the request's own layout and
 clock (v0.4.30; TARBALL.md §1 and §3.1): `context-prefix`
@@ -704,9 +724,19 @@ def finding(code: str, path, expected, got, message: str, *,
     }
 
 
-def warning(code: str, path, expected, got, message: str) -> dict:
-    """A warning-tier finding (see `finding`)."""
-    return finding(code, path, expected, got, message, severity="warning")
+def warning(code: str, path, expected, got, message: str, *,
+            headline: str | None = None) -> dict:
+    """A warning-tier finding (see `finding`).
+
+    `headline`, when given, is the short subject the runner puts on the
+    check's own [WARN] line (e.g. naming README.md) — so a check whose
+    subject word must appear only when it warns keeps that word out of
+    its registry description, which the [PASS] line prints.
+    """
+    w = finding(code, path, expected, got, message, severity="warning")
+    if headline is not None:
+        w["headline"] = headline
+    return w
 
 
 def _sha256_of(path: Path) -> str:
@@ -1320,6 +1350,142 @@ def check_docs_read_stub(ctx: dict) -> list[dict]:
     )]
 
 
+class CheckSkipped(Exception):
+    """Raised by a check that cannot run on this invocation — the runner
+    reports it as [SKIP] with the reason, never as a silent [PASS]."""
+
+
+# The request manifest (--request) is the lint's only view of the
+# request: the two checks below read it, and without the flag they
+# report [SKIP] naming the flag rather than passing vacuously.
+REQUEST_FLAG_SKIP = "no --request given (the request's manifest.json)"
+
+
+def path_in_forecast(path: str, scope: list[str]) -> bool:
+    """True when `path` lies inside the write forecast `scope`.
+
+    TARBALL.md §3.2's path semantics: an entry equal to the path covers
+    it, and a directory entry covers its whole subtree, matched on whole
+    path components (`tools` covers `tools/a.py`, never `toolsmith.py`).
+    A trailing slash is tolerated and a whole-tree entry (`.`) covers
+    everything. Restated independently of tools/craft_response.py's
+    predicate of the same name (the lint imports nothing), and pinned
+    to it behaviorally by the two suites' shared cases.
+    """
+    for entry in scope:
+        norm = entry.rstrip("/")
+        if norm in ("", "."):
+            return True
+        if path == norm or path.startswith(norm + "/"):
+            return True
+    return False
+
+
+def _self_reported(manifest: dict) -> dict | None:
+    fb = manifest.get("feedback")
+    sr = fb.get("self_reported") if isinstance(fb, dict) else None
+    return sr if isinstance(sr, dict) else None
+
+
+def check_forecast_departures(ctx: dict) -> list[dict]:
+    """With --request: every changes[] path outside the request's
+    resolved_scope carries a feedback.self_reported.forecast_departures
+    entry naming it.
+
+    The request's resolved_scope is the session's write forecast
+    (TARBALL.md §3.2); a path outside it is drift that bale's apply
+    refuses unless the operator admits it, and TARBALL.md §5.4 asks the
+    worker to enumerate each such path in notes.md and record it in
+    forecast_departures. Warning tier: the path may be legitimate drift
+    the operator admits at apply — bale's own-forecast gate is the
+    enforcement, and this check only makes an undeclared departure
+    visible before packing. An entry's `why` is the schema's to judge
+    (minLength 1), so a crafter-seeded stub left unfilled is a schema
+    finding, not this check's.
+    """
+    request = ctx.get("request")
+    if request is None:
+        raise CheckSkipped(REQUEST_FLAG_SKIP)
+    scope = request.get("resolved_scope")
+    if not (isinstance(scope, list)
+            and all(isinstance(e, str) for e in scope)):
+        raise CheckSkipped("the request carries no resolved_scope list "
+                           "(a pack predating the key)")
+    changes = ctx["manifest"].get("changes")
+    if not isinstance(changes, list):
+        return []  # the schema check filed it
+    sr = _self_reported(ctx["manifest"]) or {}
+    declared_raw = sr.get("forecast_departures")
+    declared = {d.get("path") for d in declared_raw
+                if isinstance(d, dict)} if isinstance(declared_raw,
+                                                      list) else set()
+    out = []
+    for i, entry in enumerate(changes):
+        path = entry.get("path") if isinstance(entry, dict) else None
+        if not isinstance(path, str) or not path:
+            continue  # the schema check filed it
+        if path_in_forecast(path, scope) or path in declared:
+            continue
+        out.append(warning(
+            "FORECAST_DEPARTURE_UNDECLARED",
+            f"manifest.json:$.changes[{i}].path",
+            "a path inside resolved_scope, or a "
+            "feedback.self_reported.forecast_departures entry naming it",
+            path,
+            f"{path} lies outside the request's resolved_scope "
+            f"{scope!r} and no forecast_departures entry names it — add "
+            f"{{\"path\": {path!r}, \"why\": ...}} to "
+            "feedback.self_reported.forecast_departures and enumerate it "
+            "in notes.md so the operator can admit it at apply "
+            "(TARBALL.md 5.4)",
+            headline=f"{path} has no forecast_departures entry",
+        ))
+    return out
+
+
+README_DOC_NAME = "README.md"
+
+
+def check_readme_in_docs_read(ctx: dict) -> list[dict]:
+    """With --request: when the request shipped a brief (its `readme`
+    key non-null, TARBALL.md §3.2), some docs_read entry names
+    README.md.
+
+    The key exists so a worker learns a brief ships, and CLAUDE.md's
+    reading order puts the brief before any building. The lint cannot
+    attest the reading happened — docs_read is self-report — but a
+    docs_read that omits the brief, or no docs_read at all, makes a
+    skipped brief visible in telemetry. An entry names README.md when
+    the file name appears in it (`README.md`, `README.md (the brief)`).
+    Warning tier, never a finding: warnings never flip the exit code.
+    """
+    request = ctx.get("request")
+    if request is None:
+        raise CheckSkipped(REQUEST_FLAG_SKIP)
+    if request.get("readme") is None:
+        return []  # no brief shipped (or a pack predating the key)
+    sr = _self_reported(ctx["manifest"]) or {}
+    docs_read = sr.get("docs_read")
+    entries = docs_read if isinstance(docs_read, list) else []
+    if any(isinstance(e, str) and README_DOC_NAME in e for e in entries):
+        return []
+    got = ("docs_read absent" if docs_read is None
+           else json.dumps(docs_read))
+    return [warning(
+        "README_NOT_IN_DOCS_READ",
+        "manifest.json:$.feedback.self_reported.docs_read",
+        f"an entry naming {README_DOC_NAME} (the request's readme key is "
+        "non-null: a brief shipped)",
+        got,
+        f"the request shipped a brief ({README_DOC_NAME}, per its readme "
+        f"key) and no docs_read entry names {README_DOC_NAME} — if the "
+        "brief was read, list it; if not, read it before shipping "
+        "(CLAUDE.md's reading order puts it before any building)",
+        headline=f"a brief shipped and docs_read does not name "
+                 f"{README_DOC_NAME}",
+    )]
+
+
 # DOCS.md §5's standard ADR header line, `- **Date:** YYYY-MM-DD`; the
 # recognizer is content-keyed and path-agnostic, because no one ADR home
 # holds across projects: they place ADRs under claude/context/adr/,
@@ -1590,6 +1756,20 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
      "dated artifacts the response authors are dated from the session id "
      "(TARBALL.md 1)",
      check_dated_artifacts),
+    # These two descriptions deliberately avoid their subject words
+    # (forecast_departures, README.md): the description rides on the
+    # [PASS] line, and the pinned outcome is silence — the words appear
+    # on the lint's output only when the check warns, carried by the
+    # warning's headline and message. (The held first attempt's
+    # descriptions named them, so a clean run printed them on [PASS].)
+    ("forecast-departures",
+     "with --request: every changes[] path outside resolved_scope is "
+     "declared as a departure (TARBALL.md 5.4; warning tier)",
+     check_forecast_departures),
+    ("readme-in-docs-read",
+     "with --request: a brief the request shipped is listed among the "
+     "docs read (warning tier)",
+     check_readme_in_docs_read),
     ("feedback-block",
      "feedback.mechanical agrees with this run's recomputed results "
      "(response_kind, schema_valid, mirror_agreement, claims_subset)",
@@ -1602,8 +1782,13 @@ CHECKS: tuple[tuple[str, str, object], ...] = (
 # ---------------------------------------------------------------------------
 
 def lint_response_dir(rdir: Path, manifest_schema: dict,
-                      diagnostics_schema: dict) -> dict:
-    """Run every check; return the full report dict."""
+                      diagnostics_schema: dict,
+                      request: dict | None = None) -> dict:
+    """Run every check; return the full report dict.
+
+    `request` is the parsed request manifest.json from --request, or
+    None; the checks that read it report [SKIP] without it.
+    """
     checks_report = []
     findings: list[dict] = []
     warnings: list[dict] = []
@@ -1617,6 +1802,7 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
         # The same list object the runner extends below — later checks
         # (feedback-block) read earlier checks' findings through it.
         "findings": findings,
+        "request": request,
     }
     for check_id, description, fn in CHECKS:
         if check_id != "manifest-parse" and ctx["manifest"] is None:
@@ -1625,7 +1811,13 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
                 "detail": "manifest.json unavailable",
             })
             continue
-        got = fn(ctx)
+        try:
+            got = fn(ctx)
+        except CheckSkipped as skip:
+            checks_report.append({
+                "id": check_id, "status": "skip", "detail": str(skip),
+            })
+            continue
         for f in got:
             f["check"] = check_id
             f.setdefault("severity", "error")
@@ -1638,7 +1830,14 @@ def lint_response_dir(rdir: Path, manifest_schema: dict,
             if warns:
                 detail += f", {len(warns)} warning(s)"
         elif warns:
-            status, detail = "warn", f"{len(warns)} warning(s)"
+            # The [WARN] line says what the warning is about on its own:
+            # the warnings' headlines when they carry one (e.g. naming
+            # README.md), else the check's description.
+            heads = list(dict.fromkeys(
+                w["headline"] for w in warns if w.get("headline")))
+            status, detail = "warn", (
+                f"{len(warns)} warning(s): "
+                + ("; ".join(heads) if heads else description))
         else:
             status, detail = "pass", description
         checks_report.append({
@@ -1702,12 +1901,36 @@ def _load_schemas(schema_dir: Path | None) -> tuple[dict, dict]:
             json.loads(DIAGNOSTICS_SCHEMA_JSON))
 
 
+def _load_request(path: Path) -> dict | str:
+    """The --request manifest as a dict, or an error message.
+
+    Argument hygiene only — the file must exist and parse as a JSON
+    object. Its keys are read defensively by the two checks that use it
+    (a missing resolved_scope skips, a missing or null readme is
+    silent), so an older request never errors here.
+    """
+    if not path.is_file():
+        return f"--request: file not found: {path}"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as exc:
+        return f"--request: could not read {path}: {exc}"
+    except json.JSONDecodeError as exc:
+        return f"--request: {path} is not valid JSON: {exc}"
+    if not isinstance(data, dict):
+        return (f"--request: {path} is not a JSON object (got "
+                f"{type(data).__name__}) — expected a request manifest.json")
+    return data
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="response_lint.py",
         description="Mechanical TARBALL.md section 10.1 self-check for a "
                     "bale response directory. Exit 0 clean, 1 with every "
-                    "failure named, 2 on lint error.",
+                    "failure named, 2 on lint error; under "
+                    "--emit-feedback-mechanical, 0 whenever the object was "
+                    "written.",
     )
     parser.add_argument("response_dir", help="path to the response-NNN directory")
     parser.add_argument("--json", action="store_true",
@@ -1717,7 +1940,17 @@ def main(argv: list[str] | None = None) -> int:
                         help="print the paste-ready feedback.mechanical "
                              "object (this run's own computed values) on "
                              "stdout; human-readable findings go to stderr. "
-                             "Mutually exclusive with --json")
+                             "Exits 0 whenever the object was written, "
+                             "findings or not (1 only when nothing could be "
+                             "emitted). Mutually exclusive with --json")
+    parser.add_argument("--request", default=None, metavar="FILE",
+                        help="the request's manifest.json: enables the two "
+                             "request-reading warnings — a changes[] path "
+                             "outside its resolved_scope with no "
+                             "forecast_departures entry, and a shipped "
+                             "brief (readme non-null) that docs_read does "
+                             "not name README.md. Without it both checks "
+                             "report [SKIP]")
     parser.add_argument("--schema-dir", default=None,
                         help="directory holding response-manifest.schema.json "
                              "and diagnostics.schema.json to override the "
@@ -1740,8 +1973,15 @@ def main(argv: list[str] | None = None) -> int:
               f"{args.schema_dir}: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
+    request = None
+    if args.request is not None:
+        request = _load_request(Path(args.request))
+        if isinstance(request, str):
+            print(f"response_lint: error: {request}", file=sys.stderr)
+            return EXIT_ERROR
+
     try:
-        report = lint_response_dir(rdir, *schemas)
+        report = lint_response_dir(rdir, *schemas, request=request)
     except OSError as exc:
         print(f"response_lint: error: {exc}", file=sys.stderr)
         return EXIT_ERROR
@@ -1751,14 +1991,32 @@ def main(argv: list[str] | None = None) -> int:
         # run computed, never a transcription (TARBALL.md 5.2.2). The
         # feedback-block mismatch check is unchanged and still guards a
         # stale paste on the next run.
+        #
+        # Exit code: 0 whenever the object was written, findings or not.
+        # The emitter's job is the emission, and its typical input — a
+        # crafter-seeded block whose four placeholders are that run's
+        # only findings — is exactly what it exists to refresh; exiting 1
+        # there broke `emit && paste` chains. The findings still print to
+        # stderr, the emitted values still reflect them, and the plain
+        # re-run after the paste is the verdict (TARBALL.md 5.2.2). When
+        # nothing could be emitted (manifest.json unavailable) there is
+        # nothing to paste, so it exits 1 and a chain stops.
         mech = report["feedback_mechanical"]
         if mech is None:
             print("response_lint: cannot emit feedback.mechanical — "
                   "manifest.json unavailable (see findings)",
                   file=sys.stderr)
-        else:
-            print(json.dumps(mech, indent=2))
+            render_human(report, sys.stderr)
+            return EXIT_FINDINGS
+        print(json.dumps(mech, indent=2))
         render_human(report, sys.stderr)
+        if not report["ok"]:
+            print(f"response_lint: emitted despite "
+                  f"{report['finding_count']} finding(s) — exit 0 means the "
+                  "object was written; re-run without "
+                  "--emit-feedback-mechanical after pasting for the "
+                  "verdict", file=sys.stderr)
+        return EXIT_CLEAN
     elif args.json:
         print(json.dumps(report, separators=(",", ":"), sort_keys=True))
         render_human(report, sys.stderr)
