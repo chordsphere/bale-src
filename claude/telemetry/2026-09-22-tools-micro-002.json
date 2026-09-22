@@ -1,0 +1,616 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-22-tools-micro-002",
+  "created_at": "2026-09-22T12:35:33+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-22T12:35:33+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-22-tools-micro-002.log",
+      "provenance": {
+        "work_class": "mixed",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-22T12:35:33+00:00"
+      }
+    },
+    {
+      "at": "2026-09-22T14:28:01+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-22-tools-micro-002.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_response_lint (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_craft_response (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_lint_clock_and_prefix (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_schema_embeds (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_global_doc_selfcontainment (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_doc_crossrefs (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_sanctioned_pairs (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 5.9 byte-identical to the request's base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "ExchangeBlockParity path guard gone; class passes dotted": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "crafter --request seeds forecast_departures stubs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --emit-feedback-mechanical exits 0 once the object is written": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --request names an undeclared out-of-forecast path": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --request warns on README.md absent from docs_read": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_response_lint (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_craft_response (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_lint_clock_and_prefix (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_schema_embeds (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_global_doc_selfcontainment (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_doc_crossrefs (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_sanctioned_pairs (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 5.9 byte-identical to the request's base": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ExchangeBlockParity path guard gone; class passes dotted": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "crafter --request seeds forecast_departures stubs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --emit-feedback-mechanical exits 0 once the object is written": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --request names an undeclared out-of-forecast path": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --request warns on README.md absent from docs_read": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (ast.parse) of the four .py files",
+          "tests.test_response_lint (dotted, -B)",
+          "tests.test_craft_response (dotted, -B)",
+          "tests.test_lint_clock_and_prefix (dotted, -B)",
+          "tests.test_schema_embeds (dotted, -B)",
+          "tests.test_global_doc_selfcontainment (dotted, -B)",
+          "tests.test_doc_crossrefs (dotted, -B)",
+          "tests.test_sanctioned_pairs (dotted, -B)",
+          "exec bits on tools/craft_response.py and tools/response_lint.py",
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor",
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures",
+          "TARBALL.md 5.9 byte-identical to the request's base",
+          "ExchangeBlockParity path guard gone; class passes dotted",
+          "crafter --request seeds forecast_departures stubs",
+          "lint --emit-feedback-mechanical exits 0 once the object is written",
+          "lint --request names an undeclared out-of-forecast path",
+          "lint --request warns on README.md absent from docs_read"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-22-tools-micro-002.sh",
+              "sha256": "f210af21d35973a4efc906d3921ec1ffc4170e77761461752aa2e2eda350bac1"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-22T12:35:33+00:00",
+            "base_files": {
+              "docs/TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "tests/test_craft_response.py": "eeb9e068737122ca3fcbaff6f23ce524366a8926b1d11a7d20657a7d0f26621c",
+              "tests/test_response_lint.py": "a26f022ea0ce138152bb153a5aa0188c8244cdab482465a5424312e58d8e0b6f",
+              "tools/craft_response.py": "df250c1add095c2554374f3a0850c56cfb13c325fb675fa949b1682bb6b2d361",
+              "tools/response_lint.py": "f164d1d5b5a603dcb3b79dfe4cb800367be9d6a34591b821b13e83a0102faa84"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "A request manifest whose resolved_scope key is absent predates the key: the crafter seeds nothing and logs it, the lint's forecast check reports [SKIP].",
+            "An entry names README.md when the file name appears anywhere in it, so 'README.md (the brief)' counts."
+          ],
+          "judgment_calls": [
+            "Item 1: emit mode exits 0 whenever the object was written, findings or not; exits 1 when nothing could be emitted (manifest unavailable), so an && chain stops with nothing to paste.",
+            "Item 2: FORECAST_DEPARTURE_UNDECLARED is a warning, not a finding \u2014 the path may be drift the operator admits at apply, where bale's own-forecast gate enforces.",
+            "Item 4: deleted changes[] paths outside the forecast are seeded too (the schema's 'one entry per changes[] path'), a superset of the brief's 'every files/ path'.",
+            "A [WARN] line now appends its check's description so the line alone names README.md / forecast_departures; additive to the rendering.",
+            "Findings 8 item 4: combined --validation-epilogue stdout left byte-identical (pinned equal to the joined fragments); the stderr log line now names --fragment first and says why a one-block paste misfires.",
+            "The 5.4 replacement sentence's wording (the brief left it to the worker)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5.1-5.5, 7, 10.1, and 3.2's forecast path semantics",
+            "tools/response_lint.py",
+            "tools/craft_response.py (the --request, feedback-seed, and epilogue paths)",
+            "tests/test_response_lint.py",
+            "tests/test_craft_response.py (the classes touched)",
+            "tests/__init__.py"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-09-22-tools-micro-002.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 1,
+        "script": {
+          "path": "claude/checkpoints/2026-09-22-tools-micro-002.sh",
+          "sha256": "f210af21d35973a4efc906d3921ec1ffc4170e77761461752aa2e2eda350bac1"
+        },
+        "stamp_matched": true,
+        "failed_probes": [
+          "lint-request-flag-silent-inside-forecast \u2014 exit 1; an in-forecast path must raise no forecast_departures line"
+        ]
+      }
+    },
+    {
+      "at": "2026-09-22T14:35:07+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-22-tools-micro-002 (1).tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests.test_response_lint (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_craft_response (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_lint_clock_and_prefix (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_schema_embeds (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_global_doc_selfcontainment (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_doc_crossrefs (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests.test_sanctioned_pairs (dotted, -B)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "TARBALL.md 5.9 byte-identical to the request's base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "ExchangeBlockParity path guard gone; class passes dotted": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "crafter --request seeds forecast_departures stubs": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --emit-feedback-mechanical exits 0 once the object is written": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --request names an undeclared out-of-forecast path; silent when all inside": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "lint --request warns on README.md absent from docs_read": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests.test_response_lint (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_craft_response (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_lint_clock_and_prefix (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_schema_embeds (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_global_doc_selfcontainment (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_doc_crossrefs (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests.test_sanctioned_pairs (dotted, -B)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "TARBALL.md 5.9 byte-identical to the request's base": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "ExchangeBlockParity path guard gone; class passes dotted": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "crafter --request seeds forecast_departures stubs": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --emit-feedback-mechanical exits 0 once the object is written": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --request names an undeclared out-of-forecast path; silent when all inside": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "lint --request warns on README.md absent from docs_read": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (ast.parse) of the four .py files",
+          "tests.test_response_lint (dotted, -B)",
+          "tests.test_craft_response (dotted, -B)",
+          "tests.test_lint_clock_and_prefix (dotted, -B)",
+          "tests.test_schema_embeds (dotted, -B)",
+          "tests.test_global_doc_selfcontainment (dotted, -B)",
+          "tests.test_doc_crossrefs (dotted, -B)",
+          "tests.test_sanctioned_pairs (dotted, -B)",
+          "exec bits on tools/craft_response.py and tools/response_lint.py",
+          "VERBATIM-1 lands word for word in TARBALL.md 7.5 after the anchor",
+          "TARBALL.md 5.4 says the crafter seeds forecast_departures",
+          "TARBALL.md 5.9 byte-identical to the request's base",
+          "ExchangeBlockParity path guard gone; class passes dotted",
+          "crafter --request seeds forecast_departures stubs",
+          "lint --emit-feedback-mechanical exits 0 once the object is written",
+          "lint --request names an undeclared out-of-forecast path; silent when all inside",
+          "lint --request warns on README.md absent from docs_read"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_response_lint.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "mixed",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-22-tools-micro-002.sh",
+              "sha256": "f210af21d35973a4efc906d3921ec1ffc4170e77761461752aa2e2eda350bac1"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-22T12:35:33+00:00",
+            "base_files": {
+              "docs/TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "tests/test_craft_response.py": "eeb9e068737122ca3fcbaff6f23ce524366a8926b1d11a7d20657a7d0f26621c",
+              "tests/test_response_lint.py": "a26f022ea0ce138152bb153a5aa0188c8244cdab482465a5424312e58d8e0b6f",
+              "tools/craft_response.py": "df250c1add095c2554374f3a0850c56cfb13c325fb675fa949b1682bb6b2d361",
+              "tools/response_lint.py": "f164d1d5b5a603dcb3b79dfe4cb800367be9d6a34591b821b13e83a0102faa84"
+            },
+            "model_identity": "Claude Opus 5 (claude-opus-5)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "A request manifest whose resolved_scope key is absent predates the key: the crafter seeds nothing and logs it, the lint's forecast check reports [SKIP].",
+            "An entry names README.md when the file name appears anywhere in it, so 'README.md (the brief)' counts."
+          ],
+          "judgment_calls": [
+            "Item 1: emit mode exits 0 whenever the object was written, findings or not; exits 1 when nothing could be emitted (manifest unavailable), so an && chain stops with nothing to paste.",
+            "Item 2: FORECAST_DEPARTURE_UNDECLARED is a warning, not a finding \u2014 the path may be drift the operator admits at apply, where bale's own-forecast gate enforces.",
+            "Item 4: deleted changes[] paths outside the forecast are seeded too (the schema's 'one entry per changes[] path'), a superset of the brief's 'every files/ path'.",
+            "A [WARN] line carries the warnings' headlines (else the check description), so the README.md / forecast_departures words appear only when a check warns \u2014 the correction for the held attempt, whose descriptions put them on [PASS] lines too.",
+            "Findings 8 item 4: combined --validation-epilogue stdout left byte-identical (pinned equal to the joined fragments); the stderr log line now names --fragment first and says why a one-block paste misfires.",
+            "The 5.4 replacement sentence's wording (the brief left it to the worker)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5.1-5.5, 7, 10.1, and 3.2's forecast path semantics",
+            "tools/response_lint.py",
+            "tools/craft_response.py (the --request, feedback-seed, and epilogue paths)",
+            "tests/test_response_lint.py",
+            "tests/test_craft_response.py (the classes touched)",
+            "tests/__init__.py",
+            "the HOLD relay block for this session (probe labels only)"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-09-22-tools-micro-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": "2026-09-22-tools-micro-002",
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-22-tools-micro-002.sh",
+          "sha256": "f210af21d35973a4efc906d3921ec1ffc4170e77761461752aa2e2eda350bac1"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-22T14:35:07+00:00",
+  "outcome": "applied"
+}
