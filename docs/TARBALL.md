@@ -571,9 +571,11 @@ Conversational when included. Use it for:
   Each path listed here is also recorded in the manifest, as
   `forecast_departures` under `feedback.self_reported`: one object
   per path, with exactly two keys — `path`, the `changes[]` path,
-  and `why`, the same reason in a sentence (§5.2.2). The crafter
-  does not seed the field, so it is the worker's to add; a session
-  with no such path omits it.
+  and `why`, the same reason in a sentence (§5.2.2). Given
+  `--request`, `tools/craft_response.py` seeds one such object per
+  `changes[]` path outside the request's `resolved_scope`, its `why`
+  left empty — an unfilled stub cannot pass the lint — so the `why`
+  is the worker's to fill; a session with no such path omits it.
 - Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
 If a session has any of the above, write the file. If a session is
@@ -1280,7 +1282,11 @@ alone.
   so I can tell *"validation found a problem in the tarball"* from
   *"validation itself broke."*
 
-Claim/verdict disagreement alone does not flip the exit code.
+Claim/verdict disagreement alone does not flip the exit code. The
+blind checkpoint (§7) is read against the same three codes: bale takes
+its `0`, `1`, and `2` to mean exactly what they mean for
+`validation.sh`, so a checkpoint that exits `2` is a defective oracle,
+never a verdict on the work.
 
 ### 7.6 Runtime budget
 

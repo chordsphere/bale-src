@@ -40,6 +40,28 @@ DOCS_READ_EMPTY_STUB ("fill it or delete the key"), never gating;
 omission is silent, a filled list quiet, a malformed value the
 schema's.
 
+Session 2026-09-22-tools-micro-002 (wave 10's tools micro) moves the
+emitter's exit code — --emit-feedback-mechanical exits 0 whenever it
+wrote the object, so the three emission tests that expected 1 on a
+degraded directory now expect 0 with the degraded values, and
+test_seeded_placeholders_emit_with_exit_zero pins the findings'
+specimen (a crafter-seeded block whose four placeholders are the only
+findings) — and adds --request with two warning-tier classes.
+ForecastDeparturesWarning: a changes[] path outside the request's
+resolved_scope with no forecast_departures entry is named beside the
+word forecast_departures, an in-forecast path (exact, directory
+subtree on whole components, trailing slash, whole tree) raises
+nothing, a declared departure is quiet, an unfilled `why` stays the
+schema's, and without the flag or without resolved_scope the check
+reports [SKIP]. ReadmeInDocsReadWarning: a non-null readme key with no
+docs_read entry naming README.md warns on a [WARN] line naming
+README.md; an entry naming it, or a null or absent readme, is silent.
+The correction (corrects 2026-09-22-tools-micro-002, held on the blind
+checkpoint's lint-request-flag-silent-inside-forecast) pins silence as
+the whole output: on a clean run neither forecast_departures nor
+README.md appears anywhere, the [PASS] line's description included —
+the subject word rides only on a warning's headline and message.
+
 Run:  python3 -m unittest tests.test_response_lint -v
   or: python3 -m unittest discover -s tests -p 'test_response_lint.py'
 """
@@ -148,7 +170,10 @@ class EmitFeedbackMechanical(unittest.TestCase):
         prints what this run computed, never a transcription."""
         (self.rdir / "files" / "src" / "new.txt").write_bytes(
             b"tampered after the manifest was computed\n")
-        mech, _ = self.emit(expect_exit=1)
+        # Exit 0: the object was written (wave 10's tools micro); the
+        # degraded values and the stderr report carry the findings.
+        mech, stderr = self.emit(expect_exit=0)
+        self.assertIn("emitted despite", stderr)
         self.assertFalse(mech["mirror_agreement"]["changes_to_files"])
         self.assertTrue(mech["mirror_agreement"]["files_to_changes"])
         self.assertTrue(mech["schema_valid"])
@@ -182,7 +207,7 @@ class EmitFeedbackMechanical(unittest.TestCase):
         the same derivation, so they cannot disagree."""
         (self.rdir / "files" / "src" / "new.txt").write_bytes(
             b"tampered after the manifest was computed\n")
-        mech, _ = self.emit(expect_exit=1)
+        mech, _ = self.emit(expect_exit=0)
         self.fill_manifest(feedback={
             "mechanical": mech,
             "self_reported": {
@@ -205,6 +230,56 @@ class EmitFeedbackMechanical(unittest.TestCase):
                       "--json")
         self.assertEqual(cp.returncode, 2)
         self.assertIn("--json", cp.stderr)
+
+    def test_seeded_placeholders_emit_with_exit_zero(self):
+        """Wave 10's tools micro, item 1 — the findings' specimen: a
+        crafter-seeded response whose every judgment field is filled has
+        the four placeholders as its only findings; the emitter exits 0
+        on it (so `emit && paste` reaches the paste), the plain run
+        still exits 1 on the same directory, and after the paste the
+        plain run is clean."""
+        request = self.tmp / "request-042" / "manifest.json"
+        request.parent.mkdir()
+        request.write_text(json.dumps({
+            "session_id": self.SID,
+            "provenance": {
+                "bale_version": "0.4.40",
+                "contract_docs": {"CLAUDE.md": "a" * 64,
+                                  "TARBALL.md": "b" * 64,
+                                  "DOCS.md": "c" * 64, "CODE.md": "d" * 64,
+                                  "PLANNER.md": "e" * 64},
+                "packer": "fixture",
+                "work_class": "code",
+                "packed_at": "2026-07-31T12:00:00+00:00",
+            },
+            "resolved_scope": ["src"],
+        }), encoding="utf-8")
+        cp = subprocess.run(
+            [sys.executable, str(CRAFT), str(self.rdir), "--sid", self.SID,
+             "--request", str(request), "--write", "--force"],
+            capture_output=True, text=True)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        mpath = self.rdir / "manifest.json"
+        seeded = json.loads(mpath.read_text())
+        fb = seeded["feedback"]
+        self.fill_manifest(feedback=fb)
+        manifest = json.loads(mpath.read_text())
+        manifest["feedback"]["mechanical"]["provenance"][
+            "model_identity"] = "fixture-model"
+        manifest["feedback"]["self_reported"].update(
+            budget_pressure="none", docs_read=["CLAUDE.md"],
+            compaction_occurred={"occurred": False, "disclosure_ref": None})
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        plain = run_lint(str(self.rdir), "--json")
+        self.assertEqual(plain.returncode, 1, plain.stdout)
+        codes = {f["code"] for f in json.loads(plain.stdout)["findings"]}
+        self.assertEqual(codes, {"FEEDBACK_MECHANICAL_MISMATCH"},
+                         "the placeholders are the only findings")
+        mech, _ = self.emit(expect_exit=0)
+        manifest["feedback"]["mechanical"].update(mech)
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        after = run_lint(str(self.rdir))
+        self.assertEqual(after.returncode, 0, after.stdout)
 
     def test_unparseable_manifest_emits_nothing(self):
         (self.rdir / "manifest.json").write_text("{not json")
@@ -453,7 +528,8 @@ class ClaimsValueCheck(_CraftedResponse):
         meaning schema conformance and the subset rule."""
         self.write(claims={"lint": "maybe"})
         cp = run_lint(str(self.rdir), "--emit-feedback-mechanical")
-        self.assertEqual(cp.returncode, 1, cp.stderr)
+        self.assertEqual(cp.returncode, 0, cp.stderr)  # emitted: exit 0
+        self.assertIn("CLAIMS_VALUE", cp.stderr)
         mech = json.loads(cp.stdout)
         self.assertTrue(mech["schema_valid"])
         self.assertTrue(mech["claims_subset"])
@@ -543,6 +619,232 @@ class DocsReadStubWarning(_CraftedResponse):
                 self.assertEqual(
                     self.codes(report["warnings"], "DOCS_READ_EMPTY_STUB"),
                     [])
+
+
+class _RequestFlagResponse(_CraftedResponse):
+    """_CraftedResponse plus a request manifest for --request, and a
+    filled feedback block (so the only warnings are the ones under
+    test)."""
+
+    def setUp(self):
+        super().setUp()
+        self.request = self.tmp / "request-008" / "manifest.json"
+        self.request.parent.mkdir()
+
+    def with_request(self, **fields) -> None:
+        payload = {"session_id": self.SID, **fields}
+        self.request.write_text(json.dumps(payload), encoding="utf-8")
+
+    def with_self_reported(self, **extra) -> None:
+        self.base = json.loads(json.dumps(self.base))
+        self.base["feedback"] = {
+            "mechanical": {
+                "response_kind": "normal", "schema_valid": True,
+                "mirror_agreement": {"changes_to_files": True,
+                                     "files_to_changes": True},
+                "claims_subset": True,
+            },
+            "self_reported": {
+                "assumptions": [], "judgment_calls": [],
+                "budget_pressure": "none", "includes_missing": [],
+                "compaction_occurred": {"occurred": False,
+                                        "disclosure_ref": None},
+                **extra,
+            },
+        }
+        self.write()
+
+    def lint_request(self) -> tuple[int, dict]:
+        return self.lint_json("--request", str(self.request))
+
+    @staticmethod
+    def status(report: dict, check_id: str) -> str:
+        return next(c["status"] for c in report["checks"]
+                    if c["id"] == check_id)
+
+
+class ForecastDeparturesWarning(_RequestFlagResponse):
+    """Wave 10's tools micro, item 2: with --request, a changes[] path
+    outside the request's resolved_scope and with no
+    forecast_departures entry is named beside the word
+    forecast_departures — warning tier (the path may be drift the
+    operator admits at apply); an in-forecast path raises nothing;
+    directory entries cover their subtrees on whole path components."""
+
+    CODE = "FORECAST_DEPARTURE_UNDECLARED"
+
+    def test_out_of_forecast_path_warns_by_name(self):
+        self.with_request(resolved_scope=["docs"], readme=None)
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        code, report = self.lint_request()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertTrue(report["ok"], "a warning never gates")
+        hits = self.codes(report["warnings"], self.CODE)
+        self.assertEqual(len(hits), 1, report["warnings"])
+        self.assertEqual(hits[0]["got"], "src/new.txt")
+        self.assertEqual(hits[0]["path"], "manifest.json:$.changes[0].path")
+        self.assertIn("forecast_departures", hits[0]["message"])
+        human = run_lint(str(self.rdir), "--request", str(self.request))
+        self.assertEqual(human.returncode, 0, human.stdout)
+        line = next(ln for ln in human.stdout.splitlines()
+                    if "src/new.txt" in ln)
+        self.assertIn("forecast_departures", line,
+                      "the path is named beside the word")
+        self.assertIn("[WARN] forecast-departures", human.stdout)
+        warn_line = next(ln for ln in human.stdout.splitlines()
+                         if ln.startswith("[WARN] forecast-departures"))
+        self.assertIn("src/new.txt", warn_line)
+        self.assertIn("forecast_departures", warn_line)
+
+    def test_in_forecast_paths_raise_nothing(self):
+        for scope in (["src/new.txt"], ["src"], ["src/"], ["."],
+                      ["docs", "src"]):
+            with self.subTest(scope=scope):
+                self.with_request(resolved_scope=scope, readme=None)
+                self.with_self_reported(docs_read=["CLAUDE.md"])
+                code, report = self.lint_request()
+                self.assertEqual(code, 0, report["findings"])
+                self.assertEqual(self.codes(report["warnings"], self.CODE),
+                                 [])
+                self.assertEqual(self.status(report, "forecast-departures"),
+                                 "pass")
+                # The held first attempt's probe: silence means the word
+                # appears nowhere on the output — not even the [PASS]
+                # line's description.
+                human = run_lint(str(self.rdir), "--request",
+                                 str(self.request))
+                self.assertEqual(human.returncode, 0, human.stdout)
+                self.assertNotIn("forecast_departures", human.stdout)
+
+    def test_subtree_match_is_on_whole_components(self):
+        self.with_request(resolved_scope=["sr", "src/new"], readme=None)
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        _code, report = self.lint_request()
+        self.assertEqual(len(self.codes(report["warnings"], self.CODE)), 1,
+                         "`sr` and `src/new` cover neither src/new.txt")
+
+    def test_declared_departure_is_quiet(self):
+        self.with_request(resolved_scope=["docs"], readme=None)
+        self.with_self_reported(
+            docs_read=["CLAUDE.md"],
+            forecast_departures=[{"path": "src/new.txt",
+                                  "why": "the goal required it"}])
+        code, report = self.lint_request()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(report["warnings"], [])
+
+    def test_read_only_forecast_flags_every_path(self):
+        self.with_request(resolved_scope=[], readme=None)
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        _code, report = self.lint_request()
+        self.assertEqual(len(self.codes(report["warnings"], self.CODE)), 1)
+
+    def test_unfilled_why_is_the_schemas(self):
+        """A crafter-seeded stub left unfilled: the schema files it
+        (minLength 1); this check does not double-file it."""
+        self.with_request(resolved_scope=["docs"], readme=None)
+        self.with_self_reported(
+            docs_read=["CLAUDE.md"],
+            forecast_departures=[{"path": "src/new.txt", "why": ""}])
+        code, report = self.lint_request()
+        self.assertEqual(code, 1)
+        self.assertTrue([f for f in report["findings"]
+                         if f["check"] == "manifest-schema"
+                         and "forecast_departures" in f["path"]],
+                        report["findings"])
+        self.assertEqual(self.codes(report["warnings"], self.CODE), [])
+
+    def test_without_the_flag_it_skips_loudly(self):
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(self.status(report, "forecast-departures"), "skip")
+        human = run_lint(str(self.rdir))
+        self.assertIn("[SKIP] forecast-departures — no --request", human.stdout)
+
+    def test_request_without_resolved_scope_skips(self):
+        self.with_request(readme=None)
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        code, report = self.lint_request()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(self.status(report, "forecast-departures"), "skip")
+
+    def test_bad_request_file_is_a_lint_error(self):
+        for body in ("{not json", "[]"):
+            with self.subTest(body=body):
+                self.request.write_text(body, encoding="utf-8")
+                cp = run_lint(str(self.rdir), "--request", str(self.request))
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn("--request", cp.stderr)
+        cp = run_lint(str(self.rdir), "--request",
+                      str(self.tmp / "missing.json"))
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("file not found", cp.stderr)
+
+
+class ReadmeInDocsReadWarning(_RequestFlagResponse):
+    """Wave 10's tools micro, item 3 (the opener-reword-code-004
+    proposal): with --request, a non-null readme key and no docs_read
+    entry naming README.md draws a [WARN] naming README.md; silence
+    when an entry names it or when readme is null; never a finding."""
+
+    CODE = "README_NOT_IN_DOCS_READ"
+    README = {"path": "README.md", "sha256": "0" * 64}
+
+    def test_brief_shipped_and_unread_warns(self):
+        for docs_read in (["CLAUDE.md", "TARBALL.md sections 1, 2, 5, 7"],
+                          None):
+            with self.subTest(docs_read=docs_read):
+                self.with_request(resolved_scope=["src"], readme=self.README)
+                if docs_read is None:
+                    self.with_self_reported()
+                else:
+                    self.with_self_reported(docs_read=docs_read)
+                code, report = self.lint_request()
+                self.assertEqual(code, 0, report["findings"])
+                hits = self.codes(report["warnings"], self.CODE)
+                self.assertEqual(len(hits), 1, report["warnings"])
+                self.assertEqual(hits[0]["severity"], "warning")
+                self.assertIn("README.md", hits[0]["message"])
+                human = run_lint(str(self.rdir), "--request",
+                                 str(self.request))
+                self.assertEqual(human.returncode, 0, human.stdout)
+                warn_lines = [ln for ln in human.stdout.splitlines()
+                              if ln.startswith("[WARN]")]
+                self.assertTrue(any("README.md" in ln for ln in warn_lines),
+                                human.stdout)
+
+    def test_named_brief_is_silent(self):
+        for entry in ("README.md", "README.md (the brief)"):
+            with self.subTest(entry=entry):
+                self.with_request(resolved_scope=["src"], readme=self.README)
+                self.with_self_reported(docs_read=["CLAUDE.md", entry])
+                code, report = self.lint_request()
+                self.assertEqual(code, 0, report["findings"])
+                self.assertEqual(report["warnings"], [])
+                human = run_lint(str(self.rdir), "--request",
+                                 str(self.request))
+                self.assertNotIn("README.md", human.stdout,
+                                 "silence: the name appears only when "
+                                 "the check warns")
+
+    def test_null_or_absent_readme_is_silent(self):
+        for fields in ({"readme": None}, {}):
+            with self.subTest(fields=fields):
+                self.with_request(resolved_scope=["src"], **fields)
+                self.with_self_reported(docs_read=["CLAUDE.md"])
+                code, report = self.lint_request()
+                self.assertEqual(code, 0, report["findings"])
+                self.assertEqual(self.codes(report["warnings"], self.CODE),
+                                 [])
+                human = run_lint(str(self.rdir), "--request",
+                                 str(self.request))
+                self.assertNotIn("README.md", human.stdout)
+
+    def test_without_the_flag_it_skips(self):
+        self.with_self_reported(docs_read=["CLAUDE.md"])
+        _code, report = self.lint_json()
+        self.assertEqual(self.status(report, "readme-in-docs-read"), "skip")
 
 
 if __name__ == "__main__":

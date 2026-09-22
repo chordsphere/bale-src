@@ -159,6 +159,20 @@ never the inventory (105's import set rides as a comment), with a
 walker self-test so the pin cannot pass vacuously. Its methods are all
 named test_stdlib_only_* (v0.4.40), so `-k stdlib_only` selects it.
 
+Session 2026-09-22-tools-micro-002 (wave 10's tools micro) adds
+CraftForecastDepartures: with --request, every changes[] path outside
+the request's resolved_scope is seeded into
+feedback.self_reported.forecast_departures as {"path", "why": ""}
+(deleted paths included, in changes[] order), an in-forecast path
+produces no entry, no departure means no key, a request predating
+resolved_scope seeds nothing and says so, a malformed one refuses, the
+unfilled why cannot pass the lint while a filled one lints clean, and
+the crafter's forecast predicate is pinned case-for-case to the lint's
+independent restatement. CraftRequestProvenance's drift bridge names
+forecast_departures as the one conditional, optional seed. The
+redundant tests/-on-path guard in ExchangeBlockParity.setUpClass is
+gone (tests/__init__.py covers the dotted form).
+
 Run:  python3 -m unittest tests.test_craft_response -v
   or: python3 -m unittest discover -s tests -p 'test_craft_response.py'
 """
@@ -1102,7 +1116,14 @@ class CraftRequestProvenance(unittest.TestCase):
             set(seeded["self_reported"]),
             set(sr_schema["required"]) | {"docs_read"},
             "every required self_reported key plus the one optional stub "
-            "(docs_read, board 69) — nothing else is seeded")
+            "(docs_read, board 69) — nothing else is seeded when every "
+            "path is in the forecast (this fixture's request carries no "
+            "resolved_scope); forecast_departures, the one conditional "
+            "seed, is CraftForecastDepartures' to pin")
+        self.assertNotIn("forecast_departures", sr_schema["required"],
+                         "forecast_departures is optional: seeded only "
+                         "when a path departs the forecast")
+        self.assertIn("forecast_departures", sr_schema["properties"])
         self.assertNotIn("docs_read", sr_schema["required"],
                          "docs_read is seeded as an OPTIONAL key's stub; "
                          "if the schema ever requires it, this bridge "
@@ -3054,6 +3075,165 @@ def _load_crafter_module():
     return module
 
 
+class CraftForecastDepartures(unittest.TestCase):
+    """Wave 10's tools micro, item 4 (the board-103 doc lane's
+    Proposal 1): with --request, every changes[] path outside the
+    request's resolved_scope is seeded into
+    feedback.self_reported.forecast_departures as {"path", "why": ""}
+    — the empty why the unfilled-cannot-pass sentinel — while an
+    in-forecast path produces no entry and a session with no departure
+    carries no key at all (TARBALL.md 5.4). A request predating
+    resolved_scope seeds nothing and says so; a malformed one refuses.
+    The crafter's forecast predicate is pinned case-for-case to the
+    lint's independent restatement."""
+
+    SID = "2026-09-22-departures-fixture-002"
+
+    # (path, scope, inside?) — shared by the parity test below.
+    CASES = (
+        ("tools/a.py", ["tools/a.py"], True),
+        ("tools/a.py", ["tools"], True),
+        ("tools/a.py", ["tools/"], True),
+        ("tools/x/y.py", ["tools"], True),
+        ("tools/a.py", ["."], True),
+        ("toolsmith.py", ["tools"], False),
+        ("tools/a.py", ["tools/a"], False),
+        ("docs/T.md", ["tools", "tests"], False),
+        ("docs/T.md", [], False),
+    )
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.rdir = make_response_dir(self.tmp, {
+            "tools/in.py": b"inside\n",
+            "docs/out.md": b"outside\n",
+            "new_file.txt": b"outside too\n",
+        })
+        self.request = self.tmp / "request-002" / "manifest.json"
+        self.request.parent.mkdir()
+
+    def _request(self, **fields) -> None:
+        payload = request_manifest(self.SID)
+        payload.update(fields)
+        self.request.write_text(json.dumps(payload), encoding="utf-8")
+
+    def _craft(self, *extra: str) -> subprocess.CompletedProcess:
+        return run_craft(str(self.rdir), "--sid", self.SID, "--request",
+                         str(self.request), *extra)
+
+    def test_out_of_forecast_paths_are_seeded_with_empty_why(self):
+        self._request(resolved_scope=["tools"])
+        cp = self._craft("--deleted", "old/gone.txt")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        sr = json.loads(cp.stdout)["feedback"]["self_reported"]
+        self.assertEqual(sr["forecast_departures"], [
+            {"path": "docs/out.md", "why": ""},
+            {"path": "new_file.txt", "why": ""},
+            {"path": "old/gone.txt", "why": ""},
+        ], "every changes[] path outside the forecast, in changes[] order "
+           "(a deleted path departs like any other); none inside it")
+        self.assertEqual(list(sr)[-1], "forecast_departures")
+        self.assertIn("forecast_departures", cp.stderr)
+        self.assertIn("docs/out.md", cp.stderr)
+
+    def test_no_departure_no_key(self):
+        for scope in (["docs", "tools", "new_file.txt"], ["."]):
+            with self.subTest(scope=scope):
+                self._request(resolved_scope=scope)
+                cp = self._craft()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                sr = json.loads(cp.stdout)["feedback"]["self_reported"]
+                self.assertNotIn("forecast_departures", sr)
+                self.assertIn("forecast_departures omitted", cp.stderr)
+
+    def test_request_without_resolved_scope_seeds_nothing_loudly(self):
+        self._request()
+        cp = self._craft()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        sr = json.loads(cp.stdout)["feedback"]["self_reported"]
+        self.assertNotIn("forecast_departures", sr)
+        self.assertIn("carries no resolved_scope", cp.stderr)
+
+    def test_non_normal_kinds_seed_nothing(self):
+        self._request(resolved_scope=["tools"])
+        for kind in ("bailout", "clarification"):
+            with self.subTest(kind=kind):
+                rdir = self.tmp / f"response-{kind}"
+                rdir.mkdir()
+                cp = run_craft(str(rdir), "--sid", self.SID, "--kind", kind,
+                               "--request", str(self.request))
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                sr = json.loads(cp.stdout)["feedback"]["self_reported"]
+                self.assertNotIn("forecast_departures", sr)
+
+    def test_malformed_resolved_scope_refuses(self):
+        for bad in ("tools", [1], [""], {"tools": True}):
+            with self.subTest(bad=bad):
+                self._request(resolved_scope=bad)
+                cp = self._craft()
+                self.assertEqual(cp.returncode, 2, cp.stdout)
+                self.assertIn("resolved_scope", cp.stderr)
+
+    def test_unfilled_stub_cannot_pass_and_filled_lints_clean(self):
+        """The seeded why is schema-invalid until filled; filled, the
+        response lints clean, and with --request the lint's
+        forecast-departures check agrees nothing is undeclared."""
+        self._request(resolved_scope=["tools", "new_file.txt"])
+        cp = self._craft("--write")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        mpath = self.rdir / "manifest.json"
+        manifest = json.loads(mpath.read_text())
+        manifest["summary"] = "fixture"
+        for entry in manifest["changes"]:
+            entry["action"] = "created"
+            entry["reason"] = "fixture"
+        manifest["validation_will_run"] = ["tests"]
+        manifest["claims"] = {"tests": "pass"}
+        fb = manifest["feedback"]
+        fb["mechanical"]["provenance"]["model_identity"] = "fixture-model"
+        fb["self_reported"].update(
+            budget_pressure="none", docs_read=["CLAUDE.md"],
+            compaction_occurred={"occurred": False, "disclosure_ref": None})
+        (self.rdir / "validation.sh").write_text(
+            "#!/usr/bin/env bash\nexit 0\n")
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        unfilled = run_lint(self.rdir)
+        self.assertEqual(unfilled.returncode, 1, unfilled.stdout)
+        self.assertIn("forecast_departures", unfilled.stdout)
+        fb["self_reported"]["forecast_departures"][0]["why"] = \
+            "the goal required it"
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        emit = subprocess.run(
+            [sys.executable, str(LINT), str(self.rdir),
+             "--emit-feedback-mechanical"], capture_output=True, text=True)
+        self.assertEqual(emit.returncode, 0, emit.stderr)
+        fb["mechanical"].update(json.loads(emit.stdout))
+        mpath.write_text(json.dumps(manifest, indent=2) + "\n")
+        done = subprocess.run(
+            [sys.executable, str(LINT), str(self.rdir), "--json",
+             "--request", str(self.request)], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        report = json.loads(done.stdout)
+        self.assertEqual([w for w in report["warnings"]
+                          if w["code"] == "FORECAST_DEPARTURE_UNDECLARED"],
+                         [])
+
+    def test_forecast_predicate_parity_with_the_lint(self):
+        import importlib.util
+        crafter = _load_crafter_module()
+        spec = importlib.util.spec_from_file_location(
+            "response_lint_parity_under_test", LINT)
+        lint = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(lint)
+        for path, scope, inside in self.CASES:
+            with self.subTest(path=path, scope=scope):
+                self.assertEqual(crafter.path_in_forecast(path, scope),
+                                 inside)
+                self.assertEqual(lint.path_in_forecast(path, scope), inside)
+
+
 class ToolsHermeticPin(unittest.TestCase):
     """The standing pin for the opener's claim about the two
     request-carried tools: "stdlib-only formatters with no network
@@ -3290,13 +3470,12 @@ class ExchangeBlockParity(unittest.TestCase):
         import craft_response
         cls.craft = sys.modules["craft_response"]
         # The harness import is deferred to here so the rest of this
-        # suite stays harness-free (module docstring). tests/ is on
-        # sys.path under discovery and direct execution but not under
-        # the dotted form (``-m unittest tests.test_craft_response``),
-        # so it is added only when absent.
-        tests_dir = str(Path(__file__).resolve().parent)
-        if tests_dir not in sys.path:
-            sys.path.insert(0, tests_dir)
+        # suite stays harness-free (module docstring). The bare name
+        # resolves in all three run forms: discovery and direct
+        # execution put tests/ on sys.path themselves, and the dotted
+        # form (``-m unittest tests.test_craft_response``) gets it from
+        # tests/__init__.py, so this class carries no path guard of its
+        # own (board 113's proposal, landed by the wave-10 tools micro).
         from harness import _load_cli
         # bin/bale by path, registered as ``bale_cli`` (never __main__,
         # so main() stays guarded). _load_cli puts bin/ on sys.path only

@@ -51,10 +51,15 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   docs and sections read, or drop the key to report nothing). The
   worker fills `model_identity` and `self_reported` BEFORE running
   the emitter — a schema gap at emit time would poison the emitted
-  `schema_valid` — then pastes the emitter's four values in. The
-  request's `session_id` must equal `--sid` (a wrong-session echo
-  has no downstream catch); without the flag the skeleton is
-  byte-identical to what it was before the flag existed;
+  `schema_valid` — then pastes the emitter's four values in. For a
+  normal response it also seeds `self_reported.forecast_departures`
+  (§5.4): one `{"path", "why": ""}` stub per `changes[]` path outside
+  the request's `resolved_scope` (directory entries covering their
+  subtrees), the empty `why` another unfilled-cannot-pass sentinel;
+  no such path, no key. The request's `session_id` must equal
+  `--sid` (a wrong-session echo has no downstream catch); without the
+  flag the skeleton is byte-identical to what it was before the flag
+  existed;
 - (bailout, §5.6) emits the manifest skeleton with the §5.6.2 empty
   change surfaces, and under `--write` the full artifact set: the
   no-op `apply.sh` and `validation.sh`, the `handoff.md` scaffold
@@ -289,7 +294,9 @@ Options:
                         own session_id instead
     --request FILE      the request's manifest.json; seeds the feedback
                         block (provenance echoed verbatim plus an empty
-                        model_identity) into the emitted manifest. Only
+                        model_identity) into the emitted manifest, and a
+                        forecast_departures stub (why empty) for every
+                        changes[] path outside FILE's resolved_scope. Only
                         with the manifest-emitting modes (default /
                         --write); FILE's session_id must equal --sid
 
@@ -1785,9 +1792,20 @@ def build_changes(files_root: Path | None, deleted: list[str]) -> list[dict]:
     return entries
 
 
-def read_request_provenance(path_str: str) -> tuple[dict | None, str | None] | str:
+def read_request_provenance(path_str: str
+                            ) -> tuple[dict | None, str | None,
+                                       list[str] | None] | str:
     """Read the request manifest.json named by --request and return
-    (provenance, session_id), or an error message string.
+    (provenance, session_id, resolved_scope), or an error message string.
+
+    `resolved_scope` is the request's stamped write forecast (TARBALL.md
+    §3.2) when the key is present — a list of repo-relative entries,
+    directory entries covering their subtrees, `[]` for a read-only pack
+    — or None when the request predates the key; the caller seeds
+    `forecast_departures` from it (see forecast_departure_stubs). A
+    present key that is not a list of non-empty strings refuses: a
+    malformed forecast would seed wrong stubs with nothing downstream to
+    notice.
 
     `provenance` is the block exactly as parsed (key order preserved —
     json.load keeps it, json.dumps writes it back), or None when the
@@ -1824,8 +1842,55 @@ def read_request_provenance(path_str: str) -> tuple[dict | None, str | None] | s
                 f"object (got {type(provenance).__name__}) — the echo is "
                 "the block verbatim plus model_identity, which only an "
                 "object can carry")
+    scope = manifest.get("resolved_scope")
+    if scope is not None and not (
+            isinstance(scope, list)
+            and all(isinstance(e, str) and e for e in scope)):
+        return (f"--request: {src} carries a resolved_scope that is not a "
+                "list of non-empty path strings — the forecast "
+                "forecast_departures is seeded from must be the one bale "
+                "stamped (TARBALL.md 3.2)")
     sid = manifest.get("session_id")
-    return (provenance, sid if isinstance(sid, str) else None)
+    return (provenance, sid if isinstance(sid, str) else None, scope)
+
+
+def path_in_forecast(path: str, scope: list[str]) -> bool:
+    """True when `path` lies inside the write forecast `scope`.
+
+    TARBALL.md §3.2's path semantics: an entry equal to the path covers
+    it, and a directory entry covers its whole subtree — `tools` covers
+    `tools/craft_response.py` and `tools/x/y.py`, never `toolsmith.py`
+    (the match is on a whole path component). A trailing slash on an
+    entry is tolerated, and a whole-tree entry (`.`) covers everything,
+    the default pack's vacuous forecast. The lint restates this
+    predicate independently (tools/response_lint.py's own
+    path_in_forecast): the two tools never import each other.
+    """
+    for entry in scope:
+        norm = entry.rstrip("/")
+        if norm in ("", "."):
+            return True
+        if path == norm or path.startswith(norm + "/"):
+            return True
+    return False
+
+
+def forecast_departure_stubs(changes: list[dict],
+                             scope: list[str]) -> list[dict]:
+    """One `{"path", "why": ""}` stub per changes[] path outside `scope`.
+
+    Every changes[] entry counts — a `deleted` path outside the forecast
+    is drift at apply exactly like a created or modified one, and the
+    schema's field is "one entry per changes[] path the worker shipped
+    outside the session's write forecast". Order follows changes[]
+    (mirror entries sorted, then deleted stubs), so re-runs diff
+    cleanly. `why` is seeded empty on purpose: minLength 1 in the
+    schema, so an unfilled stub cannot pass the lint (the
+    unfilled-cannot-pass sentinel, like `budget_pressure: ""`).
+    """
+    return [{"path": entry["path"], "why": ""}   # worker fills why
+            for entry in changes
+            if not path_in_forecast(entry["path"], scope)]
 
 
 # The seeded feedback block's judgment placeholders. The self_reported
@@ -2522,7 +2587,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                     help="path to the request's manifest.json; seeds the "
                          "manifest skeleton's feedback block with its "
                          "provenance echoed verbatim plus an empty "
-                         "model_identity (TARBALL.md 5.2.2). Only with the "
+                         "model_identity (TARBALL.md 5.2.2), and a "
+                         "forecast_departures stub with an empty why for "
+                         "every changes[] path outside its resolved_scope "
+                         "(TARBALL.md 5.4). Only with the "
                          "manifest-emitting modes (default / --write); the "
                          "request's session_id must equal --sid")
     ap.add_argument("--kind", choices=KINDS, default=None,
@@ -3046,6 +3114,7 @@ def main(argv: list[str] | None = None) -> int:
     # (the lint verifies the echo's shape, not which request it came
     # from).
     feedback: dict | None = None
+    request_scope: list[str] | None = None
     if args.request is not None:
         no_manifest = [flag for flag, given in (
             ("--changes-only", args.changes_only),
@@ -3061,7 +3130,7 @@ def main(argv: list[str] | None = None) -> int:
         got = read_request_provenance(args.request)
         if isinstance(got, str):
             return die(got)
-        provenance, request_sid = got
+        provenance, request_sid, request_scope = got
         if request_sid is not None and request_sid != sid:
             return die(f"--request: {args.request} is the manifest of "
                        f"session {request_sid!r}, but --sid is {sid!r} — "
@@ -3168,11 +3237,21 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(build_validation_epilogue(args.executable,
                                                    args.fragment))
         if args.fragment is None:
-            log("validation.sh fragments emitted — paste the definitions "
-                "before your checks, the exec-bit assertions (if any) with "
-                "your session-specific assertions, and the reconcile_claims "
-                "call last; which checks run stays your judgment "
-                "(TARBALL.md 7.2)")
+            # The combined stream stays byte-identical (CraftEpilogueFragments
+            # pins it equal to the three fragments joined), so the fix for a
+            # worker pasting it as one block lives here, on stderr: the
+            # separable form is named FIRST, before the cut instructions.
+            log("COMBINED emission: three parts in one stream, each meant "
+                "for a different place in validation.sh — pasted as one "
+                "block before your checks, its reconcile_claims call fires "
+                "before any verdict is recorded. Prefer one part per call: "
+                "--fragment definitions (before your checks), --fragment "
+                "assertions (with your session-specific assertions; only "
+                "with --executable), --fragment call (last). Otherwise cut "
+                "at the '# --- ... ---' banners: definitions before your "
+                "checks, the exec-bit assertions (if any) with your "
+                "session-specific assertions, and the reconcile_claims call "
+                "last; which checks run stays your judgment (TARBALL.md 7.2)")
         else:
             placement = {
                 "definitions": "before your checks",
@@ -3194,6 +3273,33 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(apply_sh)
         log("apply.sh scaffold emitted")
         return EXIT_OK
+
+    # forecast_departures seeding (TARBALL.md §5.4): with --request, every
+    # changes[] path outside the request's resolved_scope gets a stub
+    # whose `why` is the worker's to fill; no such path, no key (a
+    # session with no departure omits the field). A bailout or
+    # clarification ships an empty changes[], so nothing can depart; a
+    # request predating resolved_scope has no forecast to measure
+    # against, and that case is logged rather than skipped silently.
+    if feedback is not None and kind == "normal":
+        if request_scope is None:
+            log(f"--request: {args.request} carries no resolved_scope "
+                "(a pack predating the key) — forecast_departures not "
+                "seeded; enumerate any out-of-forecast path by hand")
+        else:
+            stubs = forecast_departure_stubs(changes, request_scope)
+            if stubs:
+                feedback["self_reported"]["forecast_departures"] = stubs
+                log(f"--request: {len(stubs)} changes[] path(s) outside "
+                    "resolved_scope seeded into "
+                    "feedback.self_reported.forecast_departures with an "
+                    "empty why — fill each why (unfilled cannot pass the "
+                    "lint) and enumerate the same paths in notes.md "
+                    "(TARBALL.md 5.4): "
+                    + ", ".join(s["path"] for s in stubs))
+            else:
+                log("--request: every changes[] path is inside "
+                    "resolved_scope — forecast_departures omitted")
 
     manifest = build_manifest(sid, kind, changes, n_questions, feedback)
 
