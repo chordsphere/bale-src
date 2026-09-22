@@ -961,16 +961,56 @@ def _labels_value(labels) -> str:
             if labels else "none")
 
 
+def relay_admission_rows(admissions: Optional[dict]) -> list:
+    """The admission rows a planner relay block lists, one string each,
+    [] when the attempt exercised none. `admissions` keys:
+    overridden_paths (with overridden_path_sources, a parallel list —
+    a path's source renders in parentheses where recorded),
+    required_check_overrides, base_drift_overrides (lists),
+    checkpoint_change_accepted (bool). Extracted from
+    format_apply_relay_planner in v0.4.41 so the HOLD planner block
+    (board 110's proposal) renders the same rows in the same words.
+    Pure."""
+    a = dict(admissions or {})
+    rows: list = []
+    paths = list(a.get("overridden_paths") or [])
+    sources = list(a.get("overridden_path_sources") or [])
+    if paths:
+        rendered = [f"{p} ({sources[i]})" if i < len(sources) and sources[i]
+                    else p for i, p in enumerate(paths)]
+        rows.append("out-of-forecast paths admitted: " + ", ".join(rendered))
+    if a.get("required_check_overrides"):
+        rows.append("required-check overrides: "
+                    + ", ".join(a["required_check_overrides"]))
+    if a.get("base_drift_overrides"):
+        rows.append("base-drift overrides: "
+                    + ", ".join(a["base_drift_overrides"]))
+    if a.get("checkpoint_change_accepted"):
+        rows.append("checkpoint change accepted: yes (the checkpoint "
+                    "differed from its pack-time stamp; "
+                    "--accept-checkpoint-change ran the current bytes)")
+    return rows
+
+
 def format_hold_relay_planner(*, sid: str, exit_code: int,
                               checkpoint: Optional[dict],
                               held_tarball: Optional[str],
                               held_tarball_why: str = "",
-                              bands: dict) -> str:
+                              bands: dict,
+                              admissions: Optional[dict] = None) -> str:
     """The planner-addressed block on a HOLD: everything the desk needs
     to rule without asking — judge line, failed probe labels, both exit
     codes, the checkpoint stamp state, the held tarball's path, and both
     session-log bands inlined (`bands` from split_attempt_bands). It
-    replaces card-plus-`cat`-the-log. Pure."""
+    replaces card-plus-`cat`-the-log. Pure.
+
+    `admissions` (v0.4.41, board 110's proposal) is the held apply's
+    admissions in format_apply_relay_planner's shape, rendered beside
+    `held tarball:` by relay_admission_rows — `admissions:` with one
+    indented row each, or `admissions: none` — so the desk ruling on a
+    fixture defect sees that the held apply needed, say,
+    --allow-out-of-scope. None (a caller predating the rider) renders
+    no admissions line; apply's HOLD path always passes the dict."""
     begin, end = relay_sentinels(sid, RELAY_TO_PLANNER)
     judge = hold_judge(checkpoint, exit_code)
     ran = bool(checkpoint) and bool(checkpoint.get("configured"))
@@ -994,6 +1034,13 @@ def format_hold_relay_planner(*, sid: str, exit_code: int,
     out.append(f"checkpoint stamp: {_checkpoint_stamp_state(checkpoint)}")
     out.append("held tarball: " + (held_tarball if held_tarball is not None
                                    else f"(not recorded: {held_tarball_why})"))
+    if admissions is not None:
+        rows = relay_admission_rows(admissions)
+        if rows:
+            out.append("admissions:")
+            out.extend(f"  {r}" for r in rows)
+        else:
+            out.append("admissions: none")
     if ran:
         out.append("")
         out.append("--- session log: checkpoint band ---")
@@ -1071,17 +1118,19 @@ def format_hold_relay_blocks(*, sid: str, exit_code: int,
                              worker_output: str,
                              held_tarball: Optional[str],
                              held_tarball_why: str = "",
-                             bands: dict) -> list:
+                             bands: dict,
+                             admissions: Optional[dict] = None) -> list:
     """Both HOLD blocks, in send order (relay_send_first). The worker
     block receives the labels from the stamp's `failed_probes` — the
     same list the card and telemetry carry — never the stamp's output.
-    Pure."""
+    `admissions` (v0.4.41) goes to the planner block only; the worker
+    block is unchanged. Pure."""
     judge = hold_judge(checkpoint, exit_code)
     ran = bool(checkpoint) and bool(checkpoint.get("configured"))
     planner = format_hold_relay_planner(
         sid=sid, exit_code=exit_code, checkpoint=checkpoint,
         held_tarball=held_tarball, held_tarball_why=held_tarball_why,
-        bands=bands)
+        bands=bands, admissions=admissions)
     worker = format_hold_relay_worker(
         sid=sid, judge_line=judge["line"], judge_case=judge["case"],
         failed_probes=(list(checkpoint.get("failed_probes") or [])
@@ -1112,24 +1161,7 @@ def format_apply_relay_planner(*, sid: str, origin_branch: str,
                f"{_worker_attribution(exit_code)}" if ran else
                f"{_worker_attribution(exit_code)} · no blind checkpoint "
                f"configured")
-    a = dict(admissions or {})
-    rows: list = []
-    paths = list(a.get("overridden_paths") or [])
-    sources = list(a.get("overridden_path_sources") or [])
-    if paths:
-        rendered = [f"{p} ({sources[i]})" if i < len(sources) and sources[i]
-                    else p for i, p in enumerate(paths)]
-        rows.append("out-of-forecast paths admitted: " + ", ".join(rendered))
-    if a.get("required_check_overrides"):
-        rows.append("required-check overrides: "
-                    + ", ".join(a["required_check_overrides"]))
-    if a.get("base_drift_overrides"):
-        rows.append("base-drift overrides: "
-                    + ", ".join(a["base_drift_overrides"]))
-    if a.get("checkpoint_change_accepted"):
-        rows.append("checkpoint change accepted: yes (the checkpoint "
-                    "differed from its pack-time stamp; "
-                    "--accept-checkpoint-change ran the current bytes)")
+    rows = relay_admission_rows(admissions)
     out = [begin,
            "PASTE THIS WHOLE BLOCK INTO THE PLANNER'S (MASTER'S) CHAT. It is "
            "the ratification relay — nothing needs typing beside it.",
@@ -3643,6 +3675,8 @@ def build_telemetry_attempt(
     sandbox_confined: bool = True,
     sandbox_off_source: Optional[str] = None,
     cost: Optional[dict] = None,
+    cause: Optional[str] = None,
+    bundle: Optional[dict] = None,
 ) -> dict:
     """Assemble one attempts[] entry (telemetry-record.schema.json) from
     facts the apply-close call site already holds.
@@ -3821,6 +3855,18 @@ def build_telemetry_attempt(
     applied in advance — cost coverage must span every exit or the
     aggregate computes rates over a numerator-only dataset. Write-only
     at S5 per the ratified deferral: no `bale stats` read side.
+
+    `cause` and `bundle` (v0.4.41, wave 10's rider micro) use the
+    key-presence semantics of `diagnostics`: omitted when None, never
+    written as null. `cause` is the refusal's first line (or a short
+    `exit <code>`) on a `rejected` or `relay-refused` attempt — the
+    apply refusal recorder and the relay refusal recorder pass it, no
+    other call site does. `bundle` is the crafter bundle an `opened`
+    attempt was opened from, `{"stem", "brief_sha256", "manifest_sha256"}`
+    (bundle_stamp_from_env builds it from what `bale open` hands pack);
+    a session packed by hand carries no key. Both are recorded as
+    handed; telemetry-record.schema.json owns their contracts and names
+    their consumer (the close desk's reconstruction).
     """
     validation: Optional[dict] = None
     if validation_state is not None:
@@ -3890,6 +3936,10 @@ def build_telemetry_attempt(
     # Key-presence semantics (see docstring): omitted, never null-filled.
     if diagnostics is not None:
         attempt["diagnostics"] = diagnostics
+    if cause is not None:
+        attempt["cause"] = str(cause)
+    if bundle is not None:
+        attempt["bundle"] = dict(bundle)
     if clarification is not None:
         attempt["clarification"] = clarification
     # Board 44's second rider (v0.4.34): the manifest's corrects pointer,
@@ -4945,7 +4995,10 @@ def format_session_dossier_json(dossier: dict) -> str:
                   carries none), linkage, clarification (the promoted
                   stamp with rounds and records[], or null),
                   diagnostics (the bailout embed, or null), provenance
-                  (the open-time stamp, or null), superseded_by, log.
+                  (the open-time stamp, or null), superseded_by,
+                  swept_by, cause, bundle (the last three v0.4.41:
+                  each the record's value verbatim, or null when the
+                  attempt carries none), log.
                   Key-presence semantics survive as null-vs-value: a
                   null here means the record carried nothing, per each
                   field's own doctrine.
@@ -5082,6 +5135,21 @@ def format_session_dossier_report(dossier: dict) -> str:
         if attempt["superseded_by"]:
             lines.append(f"    superseded by: "
                          f"{attempt['superseded_by']}")
+        # v0.4.41 (board 104b's proposal 1): the sweeping pack, beside
+        # superseded by — spelled `swept by <sid>` as the planner pinned.
+        if attempt.get("swept_by"):
+            lines.append(f"    swept by {attempt['swept_by']}")
+        # v0.4.41 riders 1–3: why a rejected / relay-refused attempt
+        # refused, and which bundle an opened attempt came from.
+        if attempt.get("cause"):
+            lines.append(f"    cause: {attempt['cause']}")
+        bundle = attempt.get("bundle")
+        if bundle:
+            brief_sha = bundle.get("brief_sha256")
+            lines.append(
+                f"    opened from bundle: {bundle.get('stem')} (brief "
+                + (f"{brief_sha[:12]}\u2026" if isinstance(brief_sha, str)
+                   else "none") + ")")
 
     lineage = dossier["lineage"]
     lineage_bits = []

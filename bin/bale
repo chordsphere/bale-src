@@ -462,8 +462,44 @@ def log(msg: str, *, force: bool = False) -> None:
         _pending_log_lines.append(line)
 
 
+def failure_cause(msg) -> str:
+    """The telemetry `cause` for a refusal message (v0.4.41): its first
+    non-blank line, stripped — the refusal's headline, which every
+    fail() message leads with (the multi-line refusals put their detail
+    rows after it). Never empty: a message with no text reads as
+    "unspecified refusal", so a cause key, once written, always says
+    something. Pure; the tests call it directly."""
+    for raw in str(msg if msg is not None else "").splitlines():
+        stripped = raw.strip()
+        if stripped:
+            return stripped
+    return "unspecified refusal"
+
+
+def exit_cause(exc: BaseException) -> str:
+    """The telemetry `cause` for a SystemExit a refusal path raised
+    (v0.4.41): the `bale_cause` fail() attached when fail() raised it,
+    else — an exit raised some other way, which carries only its code —
+    the short code `exit <code>`. Never empty, never raises."""
+    cause = getattr(exc, "bale_cause", None)
+    if isinstance(cause, str) and cause:
+        return cause
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and code.strip():
+        # sys.exit("<message>") carries its message as the code.
+        return failure_cause(code)
+    return f"exit {code if code is not None else 0}"
+
+
 def fail(msg: str, code: int = 1) -> None:
-    """Print a [bale] error to stderr, log it if a session is open, exit."""
+    """Print a [bale] error to stderr, log it if a session is open, exit.
+
+    The SystemExit raised carries the message's first line as
+    `bale_cause` (v0.4.41, failure_cause): the telemetry writers on the
+    refusal paths — record_rejected_attempt for apply/retry, the relay's
+    refusal recorder — read it off the exception they catch, so the
+    cause travels with the exit rather than through module state that
+    a nested fail() could overwrite."""
     line = f"[bale] error: {msg}"
     print(line, file=sys.stderr)
     if _log_file is not None:
@@ -478,7 +514,10 @@ def fail(msg: str, code: int = 1) -> None:
             # line tells the user their fail wasn't journaled, which is the
             # kind of fact they'd want when debugging *why* bale broke.
             print(f"[bale] (log-write failed: {e})", file=sys.stderr)
-    sys.exit(code)
+    # Equivalent to sys.exit(code), plus the cause attribute (docstring).
+    exit_exc = SystemExit(code)
+    exit_exc.bale_cause = failure_cause(msg)
+    raise exit_exc
 
 
 # ---------------------------------------------------------------------------

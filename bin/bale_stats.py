@@ -113,6 +113,13 @@ IN_FLIGHT_OUTCOMES = frozenset({
     # closure category"), which also retires the per-open-session
     # unrecognized-outcome warning closure_category used to emit.
     "opened",
+    # relay-refused (v0.4.41): `bale relay` refused an exchange input
+    # and preserved nothing — the session stays open and suspended, the
+    # thread waits for a re-carried block, so a session whose latest
+    # outcome is the relay refusal is in-flight, never a closure. The
+    # attempt's command is `relay`, outside RESPONSE_COMMANDS, so it
+    # never enters the response-attempt counts either.
+    "relay-refused",
 })
 
 # The work_class vocabulary the pack surface stamps (BALE.md §7), plus the
@@ -1692,7 +1699,8 @@ def _dossier_attempt(attempt: dict) -> dict:
     jq (PLANNER.md §17: the read side never owns the numbers).
 
     Key-presence semantics survive the projection: `checkpoint`,
-    `clarification`, `diagnostics`, `provenance`, `superseded_by`, and
+    `clarification`, `diagnostics`, `provenance`, `superseded_by`,
+    `swept_by`, `cause`, `bundle` (the last three v0.4.41), and
     `linkage` are None when the record carries none — pre-epoch
     unknown or not-a-carrier, per each field's own doctrine — and the
     claim/verdict `checks` rows carry the resolved `claim_basis`
@@ -1744,6 +1752,9 @@ def _dossier_attempt(attempt: dict) -> dict:
     clarification = attempt.get("clarification")
     diagnostics = attempt.get("diagnostics")
     superseded_by = attempt.get("superseded_by")
+    swept_by = attempt.get("swept_by")
+    cause = attempt.get("cause")
+    bundle = attempt.get("bundle")
     return {
         "at": attempt.get("at"),
         "command": attempt.get("command"),
@@ -1770,6 +1781,13 @@ def _dossier_attempt(attempt: dict) -> dict:
         "provenance": _attempt_provenance_stamp(attempt),
         "superseded_by": (superseded_by
                           if isinstance(superseded_by, str) else None),
+        # v0.4.41 (board 104b's proposal 1): the other pack-side close's
+        # sweeper, surfaced by name beside superseded_by.
+        "swept_by": (swept_by if isinstance(swept_by, str) else None),
+        # v0.4.41 riders 1–3: the refusal's cause on rejected /
+        # relay-refused attempts, the bundle on an opened one.
+        "cause": (cause if isinstance(cause, str) else None),
+        "bundle": (bundle if isinstance(bundle, dict) else None),
         "log": attempt.get("log"),
     }
 

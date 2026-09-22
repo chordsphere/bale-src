@@ -57,6 +57,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from harness import (
+    _load_cli,
     bale_env,
     make_install,
     make_repo,
@@ -430,6 +431,10 @@ class TelemetryPromotionTest(unittest.TestCase):
         self.assertNotIn("diagnostics", attempt)
         self.assertNotIn("clarification", attempt,
                          msg="a rejection is not a closure; no stamp")
+        # v0.4.41 rider 1: the rejected attempt names its refusal — the
+        # first line the operator saw after `[bale] error:`.
+        self.assert_cause_is_refusal_line(attempt, result,
+                                          MISSING_DIAG_MARKER)
         self.assertTrue(
             (self.repo / ".bale" / "sessions" / sid / "open").is_file(),
             msg="the session stays open")
@@ -447,8 +452,23 @@ class TelemetryPromotionTest(unittest.TestCase):
         self.assertEqual(attempt["outcome"], "rejected")
         self.assertNotIn("diagnostics", attempt)
         self.assertNotIn("clarification", attempt)
+        self.assert_cause_is_refusal_line(attempt, result,
+                                          INVALID_DIAG_MARKER)
         self.assertTrue(
             (self.repo / ".bale" / "sessions" / sid / "open").is_file())
+
+    def assert_cause_is_refusal_line(self, attempt: dict, result,
+                                     marker: str) -> None:
+        """A rejected attempt's `cause` (v0.4.41) is a non-empty string
+        that is exactly the first line of the refusal printed after
+        `[bale] error: `, and it names the gate that refused."""
+        cause = attempt.get("cause")
+        self.assertIsInstance(cause, str, msg=f"attempt: {attempt}")
+        self.assertTrue(cause.strip())
+        self.assertIn(f"[bale] error: {cause}", result.stderr,
+                      msg="the cause is the refusal's own first line")
+        self.assertNotIn("\n", cause)
+        self.assertIn(marker, result.stdout + result.stderr)
 
     # -- guard: the shipped schema carries the additive fields -----------
 
@@ -459,8 +479,47 @@ class TelemetryPromotionTest(unittest.TestCase):
         self.assertEqual(schema["properties"]["record_version"]["minimum"], 1,
                          msg="additive change; record_version stays 1")
         attempt_props = schema["properties"]["attempts"]["items"]["properties"]
-        for field in ("diagnostics", "clarification", "superseded_by"):
+        for field in ("diagnostics", "clarification", "superseded_by",
+                      "cause", "bundle"):
             self.assertIn(field, attempt_props)
+        # v0.4.41: both riders are optional — never in the required set.
+        required = schema["properties"]["attempts"]["items"]["required"]
+        self.assertNotIn("cause", required)
+        self.assertNotIn("bundle", required)
+
+
+class FailureCauseUnitTest(unittest.TestCase):
+    """v0.4.41 rider 1, in-process: how fail() hands the refusal's
+    first line to the telemetry writers (bin/bale failure_cause,
+    exit_cause, and the SystemExit fail() raises)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.cli = _load_cli()
+
+    def test_failure_cause_is_first_nonblank_line(self) -> None:
+        self.assertEqual(self.cli.failure_cause(
+            "\n  gate refused: x\n  detail row\n"), "gate refused: x")
+        self.assertEqual(self.cli.failure_cause(""), "unspecified refusal")
+        self.assertEqual(self.cli.failure_cause(None), "unspecified refusal")
+
+    def test_fail_attaches_cause_and_keeps_exit_code(self) -> None:
+        from contextlib import redirect_stderr
+        import io
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as ctx:
+                self.cli.fail("tarball is unreadable: boom\n  more", code=3)
+        self.assertEqual(ctx.exception.code, 3)
+        self.assertEqual(ctx.exception.bale_cause,
+                         "tarball is unreadable: boom")
+        self.assertEqual(self.cli.exit_cause(ctx.exception),
+                         "tarball is unreadable: boom")
+
+    def test_exit_cause_falls_back_to_short_code(self) -> None:
+        self.assertEqual(self.cli.exit_cause(SystemExit(2)), "exit 2")
+        self.assertEqual(self.cli.exit_cause(SystemExit(None)), "exit 0")
+        self.assertEqual(self.cli.exit_cause(SystemExit("[bale] error: x")),
+                         "[bale] error: x")
 
 
 if __name__ == "__main__":

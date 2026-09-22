@@ -160,6 +160,61 @@ def format_exchange_block(sid: str, record: dict) -> str:
             + f"{EXCHANGE_BLOCK_END}\n")
 
 
+def reescaped_body_matches(body: str, expected_hex: str) -> bool:
+    """True when `body`, parsed as JSON and re-serialized the way bale
+    renders a paste block's body (_exchange_body_bytes: two-space
+    indent, ASCII escaping, one trailing newline), hashes to the
+    trailer's `expected_hex` (v0.4.41, the findings' section 8 item 2).
+
+    That is the signature of one specific transit fault: a carrier (a
+    chat renderer, a mail client) turned the body's `\\uXXXX` escapes
+    into the characters they stand for — the record is intact, its
+    bytes are not. Called only after the plain hash has disagreed, so
+    the refusal can name that fault instead of "truncated or edited".
+    Pure; a body that does not parse is simply not this fault (False).
+    """
+    try:
+        parsed = json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    rendered = _exchange_body_bytes(parsed)
+    return hashlib.sha256(rendered).hexdigest() == expected_hex.lower()
+
+
+def record_relay_refusal(repo: Path, sid: str, exc: BaseException) -> None:
+    """Write a `relay-refused` attempt onto `sid`'s telemetry record
+    (v0.4.41; telemetry-record.schema.json outcome 'relay-refused',
+    command 'relay') carrying `cause` — the refusal's first line, read
+    off the SystemExit fail() raised (exit_cause in bin/bale, the same
+    capture record_rejected_attempt uses).
+
+    Called from cmd_relay's wrapper around the input's ingest and gates
+    (steps 2–5), which re-raises; this must never mask the exit, and
+    write_telemetry_record already never raises. A clean exit (code 0
+    or None) records nothing. The session gates (not open, held
+    branch) run outside the wrapper and record nothing: a sid that is
+    not open should grow no record, and a held session's envelope must
+    stay 'held'. A relay that records its round writes no attempt.
+    """
+    from __main__ import exit_cause, log, read_session_scope  # lazy
+    from bale_report import (  # lazy — sibling, loaded by bin/bale
+        build_telemetry_attempt,
+        write_telemetry_record,
+    )
+    if getattr(exc, "code", None) in (None, 0):
+        return
+    cause = exit_cause(exc)
+    rel = write_telemetry_record(
+        repo, sid, build_telemetry_attempt(
+            outcome="relay-refused", command="relay",
+            scope=read_session_scope(repo, sid),
+            log_path=f".bale/logs/{sid}.log",
+            cause=cause,
+        ))
+    if rel:
+        log(f"relay: refusal recorded as a relay-refused attempt at {rel}")
+
+
 def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
     """Parse relay's input — a paste block, or bare JSON — into
     (record_dict, block_sid).
@@ -248,6 +303,17 @@ def parse_exchange_input(data: bytes) -> tuple[dict, Optional[str]]:
     body = "\n".join(inner[k:t]) + "\n"
     actual = hashlib.sha256(body.encode("utf-8")).hexdigest()
     if actual != expected:
+        if reescaped_body_matches(body, expected):
+            _fail(f"paste block integrity trailer disagrees with its body "
+                 f"(trailer sha256 {expected[:12]}\u2026, body sha256 "
+                 f"{actual[:12]}\u2026), but the body re-serialized with "
+                 f"ASCII escaping hashes to the trailer: the carrier "
+                 f"unescaped the block's \\uXXXX escapes into literal "
+                 f"characters in transit, so the content is intact and "
+                 f"only its spelling changed; re-carry the block "
+                 f"byte-for-byte (a file or an attachment rather than a "
+                 f"rendered chat message), or re-request it from its "
+                 f"emitter")
         _fail(f"paste block integrity trailer disagrees with its body "
              f"(trailer sha256 {expected[:12]}…, body sha256 "
              f"{actual[:12]}…) — the paste is truncated or was edited in "
@@ -509,7 +575,11 @@ def cmd_relay(args: argparse.Namespace) -> int:
        the same write apply's clarification handler uses, with the same
        `preserved_at` sidecar — and retain the lock: relay never stages,
        validates, commits, or closes, and writes no telemetry record
-       (the eventual normal response records; §8.10.2).
+       (the eventual normal response records; §8.10.2). A REFUSAL in
+       steps 2–5 does write one (v0.4.41): a `relay-refused` attempt
+       whose `cause` is the refusal's first line (record_relay_refusal)
+       — the session stays open and suspended, so stats counts it
+       in-flight. The session gates in step 1 record nothing.
     7. Emit the counterpart-facing block on stdout (the machine-report
        stream discipline: `[bale] ` lines and the trailer on stderr) and
        end with the next-step hint — answer it as the planner, or carry
@@ -525,21 +595,7 @@ def cmd_relay(args: argparse.Namespace) -> int:
         session_is_open,
         set_log_file,
     )
-    from bale_apply import (  # lazy — sibling, loaded by bin/bale
-        clarifications_dir,
-        next_clarification_seq,
-        preserve_clarification_record,
-    )
-    from bale_report import (  # lazy — sibling, loaded by bin/bale
-        awaiting_side,
-        emit_stdout_block,
-        enable_json_mode,
-        format_summary_block,
-    )
-    from bale_validate import (  # lazy — sibling, loaded by bin/bale
-        validate_clarification_questions,
-        validate_exchange_record,
-    )
+    from bale_report import enable_json_mode  # lazy — sibling
 
     # Stream discipline first, before any [bale] line: stdout is the
     # block and only the block. There is no --json on this verb; the
@@ -578,8 +634,42 @@ def cmd_relay(args: argparse.Namespace) -> int:
     if args.file is None:
         return _cmd_reemit(repo, sid)
 
-    # Step 2: ingest.
+    # Step 2: ingest. The input is located first, outside the refusal
+    # recorder: a file that is not found never reached relay, so it is
+    # an invocation error, not a refused exchange.
     data, source_name = _read_relay_input(args.file, cwd, repo)
+    # Steps 2–5 refuse the INPUT; each such refusal writes a
+    # relay-refused attempt with its cause (v0.4.41,
+    # record_relay_refusal) and re-raises. Nothing is preserved before
+    # step 6, so the wrapper's span is exactly the refusals.
+    try:
+        record, block_sid, source_kind, side, rnd, next_seq, thread = \
+            _ingest_and_gate(repo, sid, data, source_name)
+    except SystemExit as e:
+        record_relay_refusal(repo, sid, e)
+        raise
+    kind = source_kind
+    is_manifest = kind == "clarification manifest"
+
+    # Step 6: preserve, lock retained.
+    return _preserve_and_emit(repo, sid, record, kind, is_manifest, side,
+                              next_seq, thread, source_name)
+
+
+def _ingest_and_gate(repo: Path, sid: str, data: bytes, source_name: str):
+    """cmd_relay's steps 2–5 (see its docstring), factored out in v0.4.41
+    so one wrapper can record every input refusal. Returns (record,
+    block_sid, kind, side, round, next_seq, thread); refuses through
+    fail() naming the rule, preserving nothing."""
+    from __main__ import fail, log  # lazy — see module docstring
+    from bale_apply import (  # lazy — sibling, loaded by bin/bale
+        clarifications_dir,
+        next_clarification_seq,
+    )
+    from bale_validate import (  # lazy — sibling, loaded by bin/bale
+        validate_clarification_questions,
+        validate_exchange_record,
+    )
     record, block_sid = parse_exchange_input(data)
     if block_sid is not None:
         log(f"relay: paste block read from {source_name} (trailer verified)")
@@ -657,8 +747,22 @@ def cmd_relay(args: argparse.Namespace) -> int:
     if next_seq > 1 and thread[-1]["from"] is None:
         log(f"relay: the previous record's side could not be read; "
             f"recording round {next_seq} from {side} regardless")
+    return record, block_sid, kind, side, rnd, next_seq, thread
 
-    # Step 6: preserve, lock retained.
+
+def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
+                       is_manifest: bool, side: str, next_seq: int,
+                       thread: list, source_name: str) -> int:
+    """cmd_relay's steps 6–7 (see its docstring): preserve the gated
+    record as the next NNN and emit the counterpart's block. Split out
+    with _ingest_and_gate (v0.4.41); behavior unchanged."""
+    from __main__ import fail, log  # lazy — see module docstring
+    from bale_apply import preserve_clarification_record  # lazy — sibling
+    from bale_report import (  # lazy — sibling, loaded by bin/bale
+        awaiting_side,
+        emit_stdout_block,
+        format_summary_block,
+    )
     record_path = preserve_clarification_record(repo, sid, record)
     preserved_at = None
     try:

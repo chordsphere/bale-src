@@ -164,6 +164,11 @@ class ProvenanceAtOpenTest(unittest.TestCase):
                       msg="known-negative: nothing executed at open")
         self.assertIsNone(attempt.get("closure_reason"),
                           msg="an open is not a closure")
+        # v0.4.41: `bundle` is written only when `bale open` replayed the
+        # pack from a crafter bundle; a hand-typed pack carries no key
+        # (key presence, never a null), and no cause on an open.
+        self.assertNotIn("bundle", attempt)
+        self.assertNotIn("cause", attempt)
 
     def test_unconfigured_packer_stamps_literal(self) -> None:
         """No --packer and no [identity].packer in the sandbox: the

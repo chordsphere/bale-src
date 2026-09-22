@@ -2615,9 +2615,15 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
                          scope: Optional[list[str]] = None,
                          origin_branch: Optional[str] = None,
                          command: str = "pack",
-                         open_telemetry: bool = True) -> None:
+                         open_telemetry: bool = True,
+                         bundle: Optional[dict] = None) -> None:
     """Write per-session metadata. Called AFTER tarball is built but BEFORE
     the lock — see BALE.md section 7.6.
+
+    `bundle` (v0.4.41) is the crafter bundle's identity when `bale open`
+    replayed this pack (the `open_bundle` namespace attribute cmd_pack
+    reads); it rides the `opened` attempt as `bundle`. None — every
+    hand-typed pack, handoff, and retry's re-persist — writes no key.
 
     `open_telemetry` gates effect 2 below (the v0.4.21 open-time
     `opened` telemetry attempt). True — the default, and correct for
@@ -2701,13 +2707,15 @@ def persist_pack_session(repo: Path, sid: str, manifest: dict,
         (sessions_dir / "origin_branch").write_text(origin_branch + "\n")
     _persist_open_provenance(repo, sid, manifest, scope=scope,
                              command=command,
-                             open_telemetry=open_telemetry)
+                             open_telemetry=open_telemetry,
+                             bundle=bundle)
 
 
 def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
                              scope: Optional[list[str]],
                              command: str,
-                             open_telemetry: bool = True) -> None:
+                             open_telemetry: bool = True,
+                             bundle: Optional[dict] = None) -> None:
     """Stamp work_class and packer at session open (v0.4.21, board 63).
 
     Closes the telemetry blind spot where sessions that close without
@@ -2745,7 +2753,12 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
        fixed offset). Telemetry-only: the registry-side
        provenance.json stays exactly the pair above. A manifest
        whose block lacks a usable `packed_at` stamps the pair alone
-       and logs the omission.
+       and logs the omission. Since v0.4.41 the attempt also carries
+       `bundle` when `bale open` replayed the pack from a crafter
+       bundle — the bundle's stem and member hashes, handed down as
+       the `bundle` argument (bale_open.bundle_identity builds it) —
+       so the close desk can say which bundle revision an open ran; a
+       hand-typed pack passes None and the attempt has no key.
 
     A manifest with no usable provenance block (hand-rolled request,
     or a block missing either field) skips both writes with a logged
@@ -2802,7 +2815,13 @@ def _persist_open_provenance(repo: Path, sid: str, manifest: dict, *,
         outcome="opened", command=command,
         scope=list(scope) if scope is not None else [],
         log_path=f".bale/logs/{sid}.log",
+        bundle=bundle,
     )
+    if bundle is not None:
+        log(f"open provenance: opened from bundle "
+            f"{bundle.get('stem')!r} (brief sha256 "
+            f"{str(bundle.get('brief_sha256'))[:12]}\u2026) — stamped as "
+            f"the opened attempt's bundle")
     attempt_stamp = dict(stamp)
     packed_at = provenance.get("packed_at")
     if isinstance(packed_at, str) and packed_at:
@@ -5991,8 +6010,13 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # leaves no open session and the user just retries). register_session
     # writes the ADR-0006 open marker plus the current_session
     # compatibility pointer in one step.
+    # The bundle channel (v0.4.41): `bale open` sets `open_bundle` on the
+    # namespace it replays, the pre_answered posture — no CLI flag can
+    # spell it, and getattr keeps every hand-typed pack on the no-key
+    # path. The value is validated where it is built (bundle_identity).
     persist_pack_session(repo, sid, manifest, scope=pack_scope,
-                         origin_branch=current_branch(repo))
+                         origin_branch=current_branch(repo),
+                         bundle=getattr(args, "open_bundle", None))
     register_session(repo, sid)
     log(f"opened session {sid} in the registry (lock pointer written)")
 
