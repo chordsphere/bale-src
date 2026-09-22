@@ -1,0 +1,282 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-21-sitting-close-deltas-17-009",
+  "created_at": "2026-09-21T14:07:27+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-21T14:07:27+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-21-sitting-close-deltas-17-009.log",
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-21T14:07:27+00:00"
+      }
+    },
+    {
+      "at": "2026-09-22T11:46:20+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-21-sitting-close-deltas-17-009.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "insertions only against the stamped base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "line 14 names this session": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "byte discipline and 72-column wrap": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section 3: two blocks, pinned openers and closing bullets": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section 3: verbatim light blocks and operator messages": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "registry: two closing brackets and eight entries in order": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "registry: Proposal texts verbatim from their sources": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board: row 103 bracket and rows 114 to 120": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section 5: exit-2 bracket and the 2026-09-21 block": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section 6: entry 191 bracket and entries 195 to 204": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "section 7: the landmark bullet": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "cited session ids have telemetry records": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "insertions only against the stamped base": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "line 14 names this session": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "byte discipline and 72-column wrap": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 3: two blocks, pinned openers and closing bullets": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 3: verbatim light blocks and operator messages": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "registry: two closing brackets and eight entries in order": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "registry: Proposal texts verbatim from their sources": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board: row 103 bracket and rows 114 to 120": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 5: exit-2 bracket and the 2026-09-21 block": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 6: entry 191 bracket and entries 195 to 204": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "section 7: the landmark bullet": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "cited session ids have telemetry records": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "insertions only against the stamped base",
+          "line 14 names this session",
+          "byte discipline and 72-column wrap",
+          "section 3: two blocks, pinned openers and closing bullets",
+          "section 3: verbatim light blocks and operator messages",
+          "registry: two closing brackets and eight entries in order",
+          "registry: Proposal texts verbatim from their sources",
+          "board: row 103 bracket and rows 114 to 120",
+          "section 5: exit-2 bracket and the 2026-09-21 block",
+          "section 6: entry 191 bracket and entries 195 to 204",
+          "section 7: the landmark bullet",
+          "cited session ids have telemetry records"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.40",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "691fcef4a3d138c80045e058c0cdae9a8d1c4c99a867ce42eead31398f00684d",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-21-sitting-close-deltas-17-009.sh",
+              "sha256": "4ea6fb40b113e79beb64241ff25a22cfa434726b0552aa48b935645c48ee0984"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-21T14:07:27+00:00",
+            "base_files": {
+              "claude/MASTER.md": "3cda112d02318faca00f1e8dab21c7022cf6598f0189170abaeec2b66b3151ee"
+            },
+            "model_identity": "Claude Opus 5 (self-reported)"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The three doc suites named in \u00a77 are test_doc_crossrefs, test_global_doc_selfcontainment and test_sanctioned_pairs, from the 005 desk's verification section; no record lists them.",
+            "The desk-word facts no record holds (bale status counts, the 3-of-72 mode count, brief and bundle shas) are carried as the desks gave them and attributed."
+          ],
+          "judgment_calls": [
+            "Ten new \u00a76 entries and three brackets from twenty-four candidates; table by candidate in notes.md.",
+            "No \u00a75 line for row 103's standing-test ruling; no pointer bracket inside close 16's 009 debt bullet (its convention line closes it).",
+            "Pointer brackets on three registry entries, 110's format_hold_relay_planner entry included.",
+            "Row 103's long operator message quoted once, on the row, and pointed at from the 002 block.",
+            "Rule sentences in my words closing entries 195 to 204, flagged for ratification."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md META through \u00a711.2",
+            "README.md (whole)",
+            "TARBALL.md \u00a71, \u00a72, \u00a75.1-\u00a75.5, \u00a77, \u00a710.1; \u00a73.4 split and worked-example passages; \u00a75.10 'does not idle'",
+            "DOCS.md INDEX",
+            "PLANNER.md INDEX; \u00a73, \u00a74 and \u00a720 passages",
+            "claude/responses: the three notes.md",
+            "claude/MASTER.md by heading-bounded ranges",
+            "claude/telemetry: the eight 2026-09-21 records by key"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-21-sitting-close-deltas-17-009.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-21-sitting-close-deltas-17-009.sh",
+          "sha256": "4ea6fb40b113e79beb64241ff25a22cfa434726b0552aa48b935645c48ee0984"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-22T11:46:20+00:00",
+  "outcome": "applied"
+}
