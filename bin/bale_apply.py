@@ -3642,7 +3642,22 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     held_tarball_why=held_tarball_why,
                     bands=_read_attempt_bands(
                         session_log, log_offsets,
-                        checkpoint_ran=checkpoint_result is not None)):
+                        checkpoint_ran=checkpoint_result is not None),
+                    # v0.4.41 (board 110's proposal): the held apply's
+                    # admissions beside `held tarball:` in the planner
+                    # block, in the clean-apply relay's shape and words.
+                    admissions={
+                        "overridden_paths": list(overridden_paths),
+                        "overridden_path_sources": [
+                            overridden_path_sources.get(p, "")
+                            for p in overridden_paths],
+                        "required_check_overrides":
+                            list(required_check_overridden),
+                        "base_drift_overrides":
+                            list(base_drift_overridden),
+                        "checkpoint_change_accepted":
+                            readmissions["accept_checkpoint_change"],
+                    }):
                 print("")
                 print(block)
             print(format_hold_card(
@@ -3866,8 +3881,19 @@ def record_rejected_attempt(repo: Path, sid: str, command: str,
     The attempt is minimal (validation null, feedback null): a rejected
     tarball's manifest is unvalidated, and the rejection detail lives in
     the session log fail() already wrote.
+
+    Since v0.4.41 the attempt carries `cause` (close 15's rider 1): the
+    refusal's first line, which fail() attaches to the SystemExit it
+    raises as `bale_cause`; an exit raised any other way carries only
+    its code, so the cause is the short code `exit <code>` (exit_cause
+    in bin/bale). Always a non-empty string on a rejected attempt
+    written from 0.4.41 on — the close desk's reconstruction reads it
+    to say which gate refused without the session log.
     """
-    from __main__ import read_session_scope  # lazy — see module docstring
+    from __main__ import (  # lazy — see module docstring
+        exit_cause,
+        read_session_scope,
+    )
     from bale_report import (  # lazy — see module docstring
         build_telemetry_attempt,
         write_telemetry_record,
@@ -3880,6 +3906,7 @@ def record_rejected_attempt(repo: Path, sid: str, command: str,
             tarball=tarball_basename,
             scope=read_session_scope(repo, sid),
             log_path=f".bale/logs/{sid}.log",
+            cause=exit_cause(exc),
         ))
 
 

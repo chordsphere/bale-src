@@ -291,6 +291,34 @@ class RollbackTelemetryTest(unittest.TestCase):
         self.assertIn("rollback", attempt_props["command"]["enum"],
                       msg="the record honestly names the producing command")
 
+    def test_schema_vocabulary_gained_relay_refused(self) -> None:
+        """v0.4.41: the relay refusal's outcome sits in both enums and
+        its command in the command enum; every 0.4.40 value stays; and
+        the envelope's vocabulary is a subset of the attempt's (the
+        envelope mirrors the latest attempt, so it can hold nothing an
+        attempt cannot)."""
+        schema = json.loads(
+            (self.install / "schemas" / "telemetry-record.schema.json")
+            .read_text(encoding="utf-8"))
+        envelope = schema["properties"]["outcome"]["enum"]
+        attempt_props = schema["properties"]["attempts"]["items"]["properties"]
+        self.assertIn("relay-refused", envelope)
+        self.assertIn("relay-refused", attempt_props["outcome"]["enum"])
+        self.assertIn("relay", attempt_props["command"]["enum"])
+        self.assertLessEqual(set(envelope),
+                             set(attempt_props["outcome"]["enum"]))
+        for value in ("opened", "applied", "held", "reverted", "rejected",
+                      "bailout", "scope-drift-refused",
+                      "required-check-refused", "base-drift-refused",
+                      "unlocked", "rolled-back", "re-applied"):
+            self.assertIn(value, envelope, msg="0.4.40 outcomes stay")
+        for value in ("apply", "retry", "revert", "unlock", "pack",
+                      "rollback", "handoff"):
+            self.assertIn(value, attempt_props["command"]["enum"],
+                          msg="0.4.40 commands stay")
+        self.assertEqual(schema["properties"]["record_version"]["minimum"],
+                         1)
+
 
     # -- board 35 gap 4a: rollback --list ---------------------------------
 

@@ -365,6 +365,51 @@ class OpenVerbTest(_OpenVerbBase):
                           msg="a null-brief bundle must pack without "
                               "a README")
 
+    # -- v0.4.41: the bundle on the opened attempt ---------------------
+
+    def opened_attempts(self) -> list:
+        """Every opened attempt in the repo's telemetry corpus."""
+        out = []
+        for path in sorted((self.repo / "claude" / "telemetry")
+                           .glob("*.json")):
+            record = json.loads(path.read_text(encoding="utf-8"))
+            out += [a for a in record["attempts"]
+                    if a.get("outcome") == "opened"]
+        return out
+
+    def bundle_json_sha(self, bundle: Path) -> str:
+        with tarfile.open(bundle, "r:gz") as tf:
+            data = tf.extractfile("bundle.json").read()
+        return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+    def test_opened_attempt_carries_the_bundle(self) -> None:
+        brief = "# Stamped brief\n\nbody\n"
+        bundle = self.build_bundle(
+            "rev-b.bale-bundle", pack_argv=self.argv("bnd"), brief=brief)
+        result = self.open_bundle(bundle)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        opened = self.opened_attempts()
+        self.assertEqual(len(opened), 1)
+        self.assertEqual(opened[0]["bundle"], {
+            "stem": "rev-b",
+            "brief_sha256": sha_lf(brief),
+            "checkpoint_sha256": None,
+            "manifest_sha256": self.bundle_json_sha(bundle),
+        })
+        self.assertIn("provenance", opened[0],
+                      msg="the bundle rides beside provenance, not in it")
+
+    def test_null_brief_bundle_stamps_a_null_brief_sha(self) -> None:
+        bundle = self.build_bundle(
+            "nb.bale-bundle", pack_argv=self.argv("nbs"), brief=None)
+        result = self.open_bundle(bundle)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        stamp = self.opened_attempts()[0]["bundle"]
+        self.assertEqual(stamp["stem"], "nb")
+        self.assertIsNone(stamp["brief_sha256"])
+
     # -- the dry-run leg ---------------------------------------------
 
     def test_expected_hold_echoes_proof_and_packs(self) -> None:

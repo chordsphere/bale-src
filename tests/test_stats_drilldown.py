@@ -889,6 +889,77 @@ class SessionDossierTest(_CorpusCase):
 # Rendering — both surfaces, both modes' string halves
 # ---------------------------------------------------------------------------
 
+class RiderMicroDossierTest(_CorpusCase):
+    """v0.4.41, wave 10's rider micro: the dossier surfaces the sweeper
+    (`swept_by` — board 104b's proposal 1), a refusal's `cause`, and an
+    opened attempt's `bundle`, in the --json attempt view and the human
+    report; absent fields stay null / unrendered (key presence)."""
+
+    SWEPT = "2026-09-21-fx-swept-001"
+    SWEEPER = "2026-09-21-fx-sweeper-008"
+
+    def seed_specimen(self) -> None:
+        # The live specimen's shape (2026-09-21-continue-plan-005): an
+        # opened attempt, then the read-only sweep's closure stamped
+        # swept_by after the sweeping pack's sid was minted.
+        opened = _opened_attempt("2026-09-21T12:20:36+00:00", "meta")
+        opened["bundle"] = {"stem": "plan-rev-b",
+                            "brief_sha256": "ab" * 32,
+                            "checkpoint_sha256": None,
+                            "manifest_sha256": "cd" * 32}
+        self.seed([
+            _record(self.SWEPT, "2026-09-21T12:20:36+00:00", "unlocked", [
+                opened,
+                _attempt(at="2026-09-21T13:00:00+00:00",
+                         outcome="rejected", command="apply",
+                         extra={"cause": "tarball is unreadable: boom"}),
+                _attempt(at="2026-09-21T13:23:32+00:00",
+                         outcome="unlocked", command="pack",
+                         closure_reason="closed-read-only",
+                         extra={"swept_by": self.SWEEPER}),
+            ]),
+        ])
+
+    def test_json_view_carries_the_three_fields(self) -> None:
+        self.seed_specimen()
+        dossier, _ = self.dossier(self.SWEPT)
+        views = dossier["attempts"]
+        self.assertEqual([v["swept_by"] for v in views],
+                         [None, None, self.SWEEPER])
+        self.assertEqual([v["cause"] for v in views],
+                         [None, "tarball is unreadable: boom", None])
+        self.assertEqual(views[0]["bundle"]["stem"], "plan-rev-b")
+        self.assertIsNone(views[1]["bundle"])
+        line = json.loads(bale_report.format_session_dossier_json(dossier))
+        self.assertEqual(line["attempts"][2]["swept_by"], self.SWEEPER)
+
+    def test_human_report_renders_swept_by_beside_superseded_by(
+            self) -> None:
+        self.seed_specimen()
+        dossier, _ = self.dossier(self.SWEPT)
+        out = bale_report.format_session_dossier_report(dossier)
+        self.assertIn(f"    swept by {self.SWEEPER}\n", out)
+        self.assertIn("    cause: tarball is unreadable: boom\n", out)
+        self.assertIn("    opened from bundle: plan-rev-b (brief "
+                      "abababababab\u2026)", out)
+        self.assertEqual(out.count("swept by"), 1,
+                         msg="rendered on the stamped attempt only")
+
+    def test_absent_fields_render_nothing(self) -> None:
+        self.seed([
+            _record("2026-09-21-fx-plain-001", "2026-09-21T10:00:00+00:00",
+                    "opened", [_opened_attempt("2026-09-21T10:00:00+00:00")]),
+        ])
+        dossier, _ = self.dossier("2026-09-21-fx-plain-001")
+        view = dossier["attempts"][0]
+        self.assertIsNone(view["swept_by"])
+        self.assertIsNone(view["cause"])
+        self.assertIsNone(view["bundle"])
+        out = bale_report.format_session_dossier_report(dossier)
+        for needle in ("swept by", "cause:", "opened from bundle"):
+            self.assertNotIn(needle, out)
+
+
 class RenderingTest(_CorpusCase):
     """The renderers project the computed payloads: new extras append
     after the pre-existing entries, membership renders only non-empty

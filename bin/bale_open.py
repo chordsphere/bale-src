@@ -253,6 +253,55 @@ def read_bundle(bundle_path: Path) -> tuple[dict, dict[str, bytes]]:
     return manifest, members
 
 
+def bundle_identity(bundle_path: Path, manifest: dict) -> dict:
+    """The bundle's identity for the opened attempt's `bundle` stamp
+    (v0.4.41, close 16's Proposal 1; telemetry-record.schema.json
+    attempts[].bundle): `{stem, brief_sha256, checkpoint_sha256,
+    manifest_sha256}`.
+
+    Called after read_bundle() has gated and verified the bundle, so
+    the two member hashes are the manifest's PUBLISHED values — the
+    ones read_bundle just checked every member's LF-normalized bytes
+    against (null for a slot the bundle declares absent). The stem is
+    the file name with BUNDLE_SUFFIX removed. manifest_sha256 hashes
+    bundle.json's LF-normalized bytes, re-read here because read_bundle
+    returns the parsed manifest, not its bytes: it pins the exact
+    revision when two bundles share a brief but differ in argv or
+    intents. The re-read cannot fail on a bundle read_bundle accepted
+    moments ago short of the file changing underneath; if it does, the
+    open is not worth refusing over a telemetry stamp, so the field
+    reads "unreadable" and the log says why (never silent).
+    """
+    from __main__ import log  # lazy — see module docstring
+    from bale_pack import BUNDLE_SUFFIX  # lazy — sibling
+    name = bundle_path.name
+    stem = name[:-len(BUNDLE_SUFFIX)] if name.endswith(BUNDLE_SUFFIX) \
+        else bundle_path.stem
+    members = manifest.get("members") or {}
+
+    def published(slot: str) -> Optional[str]:
+        entry = members.get(slot)
+        return entry.get("sha256") if isinstance(entry, dict) else None
+
+    manifest_sha256 = "unreadable"
+    try:
+        with tarfile.open(bundle_path, mode="r:gz") as tf:
+            raw = tf.extractfile(tf.getmember(BUNDLE_MANIFEST_NAME))
+            if raw is not None:
+                manifest_sha256 = hashlib.sha256(
+                    normalize_bundle_member(raw.read())).hexdigest()
+    except (tarfile.TarError, OSError, KeyError) as e:
+        log(f"bundle identity: could not re-read {BUNDLE_MANIFEST_NAME} "
+            f"from {bundle_path} ({e}); the opened attempt's "
+            f"bundle.manifest_sha256 reads 'unreadable'", force=True)
+    return {
+        "stem": stem or name,
+        "brief_sha256": published("brief"),
+        "checkpoint_sha256": published("checkpoint"),
+        "manifest_sha256": manifest_sha256,
+    }
+
+
 # ---------------------------------------------------------------------------
 # 3. Checkpoint dry-run
 # ---------------------------------------------------------------------------
@@ -645,6 +694,10 @@ def cmd_open(args: argparse.Namespace) -> int:
         # parses at its reject-early site; no CLI flag can spell this.
         # pack_args was parsed above, ahead of the dry-run (board 68).
         pack_args.pre_answered = manifest["pre_answered"]
+        # The bundle channel (v0.4.41): the same in-process posture —
+        # cmd_pack hands it to the open-time persist, which stamps it on
+        # the opened attempt as `bundle`. No flag can spell it.
+        pack_args.open_bundle = bundle_identity(bundle_path, manifest)
         return pack_args.func(pack_args)
     finally:
         shutil.rmtree(extract_dir, ignore_errors=True)

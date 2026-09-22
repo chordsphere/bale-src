@@ -405,6 +405,42 @@ class StatsAggregationTest(unittest.TestCase):
 
     # -- filters ----------------------------------------------------------
 
+    def test_relay_refused_session_counts_in_flight(self) -> None:
+        """v0.4.41: a session whose latest outcome is relay-refused is
+        open and suspended — in-flight, never a closure, never an
+        unrecognized-outcome warning, and (command `relay`) never a
+        response attempt. Seeded alone, outside the shared corpus, so
+        the full-corpus counts above stay put."""
+        tel = self.repo / "claude" / "telemetry"
+        tel.mkdir(parents=True)
+        sid = "2026-09-22-fx-relayref-001"
+        base = {"scope_kind": "write-forecast", "scope": ["a.txt"],
+                "overridden_paths": [], "change_paths": [],
+                "validation": None, "feedback": None, "log": None,
+                "closure_reason": None, "tarball": None}
+        record = {
+            "record_version": 1, "session_id": sid,
+            "created_at": "2026-09-22T10:00:00+00:00",
+            "updated_at": "2026-09-22T10:05:00+00:00",
+            "outcome": "relay-refused",
+            "attempts": [
+                dict(base, at="2026-09-22T10:00:00+00:00",
+                     outcome="opened", command="pack",
+                     provenance={"work_class": "code", "packer": "fx"}),
+                dict(base, at="2026-09-22T10:05:00+00:00",
+                     outcome="relay-refused", command="relay",
+                     cause="paste block integrity trailer disagrees"),
+            ],
+        }
+        (tel / f"{sid}.json").write_text(json.dumps(record, indent=2),
+                                         encoding="utf-8")
+        stats, stderr = self.stats_json()
+        self.assertEqual(stats["corpus"]["in_flight_sessions"], 1)
+        self.assertNotIn("relay-refused", stderr,
+                         msg="a known outcome raises no warning")
+        self.assertEqual(stats["corpus"]["response_attempts"], 0,
+                         msg="a relay attempt is not response processing")
+
     def test_work_class_filter(self) -> None:
         self.seed_corpus()
         stats, _ = self.stats_json("--work-class", "doc")

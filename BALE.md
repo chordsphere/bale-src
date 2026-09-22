@@ -843,7 +843,11 @@ claim/verdict pairs (each check's agreement and declared basis), the
 blind checkpoint's per-source attribution, forecast facts and
 admitted paths, the promoted clarification rounds with their
 preserved-record summaries, bailout diagnostics, the open-time
-provenance stamp, and the lineage edges the corpus records
+provenance stamp, the sweeper and the refusal cause and the opened-from
+bundle each attempt carries (v0.4.41: the human report prints `swept by
+<sid>` beside `superseded by:`, a `cause:` line, and an `opened from
+bundle:` line; the `--json` attempt view carries `swept_by`, `cause`,
+`bundle`, null when absent), and the lineage edges the corpus records
 (`superseded_by` in both directions; the `corrects` pair is read
 tolerantly and is honestly null on every record bale writes today —
 the manifest field is not yet promoted into telemetry) — so a
@@ -3399,7 +3403,11 @@ acceptance store).
   pair `to worker` — and opens by saying in plain words whose chat it
   goes to. The **planner block** carries the judge line, the failed
   probe labels, both exit codes, the checkpoint stamp state (matched,
-  changed-and-accepted, or unstamped), the held tarball's path, and
+  changed-and-accepted, or unstamped), the held tarball's path with,
+  beside it (v0.4.41), the held apply's admissions in the clean-apply
+  relay's words — admitted out-of-forecast paths with their sources,
+  required-check and base-drift overrides, an accepted checkpoint
+  change — or `admissions: none`, and
   this attempt's two session-log bands inlined as the log has them —
   the checkpoint band and the worker band, cut by byte offsets taken
   around the two scripts, so a retry's block never re-carries an
@@ -3618,7 +3626,10 @@ short-lived `.bale/sessions/<sid>/` directory:
 (inspect), `reverted` (the walkthrough's revert and `bale revert`
 alike), `rejected` (any apply/retry that exits through a `fail()`
 path — the record is minimal there, since a rejected tarball's
-manifest is unvalidated; detail stays in the session log),
+manifest is unvalidated; the full detail stays in the session log,
+and since v0.4.41 the attempt carries `cause`, the refusal's first
+line — `fail()` attaches it to the exit it raises — or `exit <n>` for
+an exit that carried no message),
 `scope-drift-refused` (the own-scope drift gate's refusal at apply
 pre-flight, §8.1 step 14 — the session stays open, so a later
 attempt supersedes it the way a HOLD's does),
@@ -3679,7 +3690,11 @@ carries `work_class` and `packer` (v0.4.21, board 63) and, since
 v0.4.40 (board 104b), `packed_at`: the request manifest's
 `provenance.packed_at` verbatim, so the close desk's reconstruction of
 a sitting dates a read-only master's pack from its own record rather
-than from `created_at`, whose lag behind the pack is not fixed. The
+than from `created_at`, whose lag behind the pack is not fixed. Since
+v0.4.41 an `opened` attempt written by a `bale open` replay also carries
+`bundle` beside `provenance` — the crafter bundle's stem and its brief,
+checkpoint and manifest sha256s — so the close desk can say which
+bundle revision an open ran; a hand-typed pack writes no key. The
 registry-side `provenance.json` stays the pair. On a closure a pack
 makes as a side effect, the closing pack's sid is stamped once it
 exists, because both closes run before the sid is minted:
@@ -3962,8 +3977,19 @@ record), and the json report's `session.clarification` object gains
 gains the thread length — its `rounds` counts every preserved record
 on either side, not only worker rounds — and each `records[]` entry
 gains `from` and `answers` additively (`record_version` stays 1;
-`telemetry-record.schema.json`); a relay writes no telemetry record
-of its own, for the same reason a clarification apply writes none.
+`telemetry-record.schema.json`); a relay that records its round writes
+no telemetry record of its own, for the same reason a clarification
+apply writes none. A relay that refuses its input does (v0.4.41): any
+refusal of the ingest, the trailer, the sentinel's sid, the schema, the
+sequencing or the answers' resolvability appends a `relay-refused`
+attempt, command `relay`, whose `cause` is the refusal's first line —
+the session stays open and suspended, so `bale stats` counts it
+in-flight. The session gates (a sid not open, a held branch) and an
+input file that is not found record nothing. A trailer mismatch whose
+body, parsed and re-serialized with ASCII escaping, hashes to the
+trailer is refused naming that fault — the carrier unescaped the
+body's `\uXXXX` escapes, the content is intact, re-carry the block
+byte-for-byte — instead of the truncated-or-edited text.
 One reading serves every consumer: `exchange_record_view` in
 `bin/bale_report.py` is where a preserved manifest becomes a `from:
 worker` record, and `bale status`, the close-time summary, and

@@ -68,6 +68,7 @@ from harness import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "bin"))
 from bale_validate import validate_exchange_record  # noqa: E402
+import bale_relay  # noqa: E402  (pure helpers only; lazy imports untouched)
 
 BEGIN = "BALE EXCHANGE BEGIN"
 END = "BALE EXCHANGE END"
@@ -497,6 +498,105 @@ class RelayVerbTest(unittest.TestCase):
         result = self.relay("no-such-file.json")
         self.assert_refused(result, "exchange file not found",
                             "no-such-file.json")
+        # An input that never arrived is an invocation error, not a
+        # refused exchange: no relay-refused attempt (v0.4.41).
+        self.assertEqual(self.record_outcomes(), ["opened"])
+
+    # -- v0.4.41: relay-refused telemetry and the re-escape diagnostic ----
+
+    def record(self) -> dict:
+        path = self.repo / "claude" / "telemetry" / f"{self.sid}.json"
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def record_outcomes(self) -> list:
+        return [a["outcome"] for a in self.record()["attempts"]]
+
+    def assert_relay_refused_recorded(self, result, cause_needle: str):
+        """The refusal wrote one relay-refused attempt (command relay)
+        whose cause is the refusal's first line, the envelope mirrors
+        it, and the session stays open."""
+        record = self.record()
+        attempt = record["attempts"][-1]
+        self.assertEqual(attempt["outcome"], "relay-refused")
+        self.assertEqual(attempt["command"], "relay")
+        self.assertEqual(record["outcome"], "relay-refused")
+        self.assertIn(cause_needle, attempt["cause"])
+        self.assertIn(f"[bale] error: {attempt['cause']}", result.stderr)
+        self.assertNotIn("\n", attempt["cause"])
+        self.assertIn(self.sid, self.open_sids())
+        return attempt
+
+    def test_trailer_mismatch_writes_relay_refused_with_cause(self) -> None:
+        self.relay_round_one()
+        block = self.relay(
+            str(self.write("a.json", planner_answer(self.sid)))).stdout
+        (self.clar_dir() / "002.json").unlink()
+        edited = block.replace('"as-recommended"', '"free-text"')
+        result = self.relay(str(self.write("edited.txt", edited)))
+        self.assert_refused(result, "integrity trailer disagrees")
+        self.assert_relay_refused_recorded(result,
+                                           "integrity trailer disagrees")
+        self.assertEqual(self.record_outcomes(),
+                         ["opened", "relay-refused"])
+
+    def test_other_input_refusals_record_too(self) -> None:
+        result = self.relay(str(self.write("junk.txt", "hello there\n")))
+        self.assert_refused(result, "neither a BALE EXCHANGE paste block")
+        self.assert_relay_refused_recorded(
+            result, "neither a BALE EXCHANGE paste block")
+        result = self.relay(str(self.write(
+            "a.json", planner_answer(self.sid, round_no=1))))
+        # A multi-line refusal (the schema gate lists its errors on
+        # indented rows): the cause is its headline line alone.
+        self.assert_refused(result, "fails exchange-record.schema.json")
+        attempt = self.assert_relay_refused_recorded(
+            result, "fails exchange-record.schema.json")
+        self.assertTrue(attempt["cause"].endswith("nothing preserved:"))
+        self.assertEqual(self.record_outcomes(),
+                         ["opened", "relay-refused", "relay-refused"])
+
+    def test_session_gate_refusals_record_nothing(self) -> None:
+        run_checked(["git", "branch", f"bale/{self.sid}"],
+                    cwd=self.repo, env=self.git_env)
+        result = self.relay(
+            str(self.write("m.json", clarification_manifest(self.sid))))
+        self.assert_refused(result, "history, not a live thread")
+        self.assertEqual(self.record_outcomes(), ["opened"],
+                         msg="a held session's envelope is not touched")
+        result = self.relay(
+            str(self.write("m.json", clarification_manifest(self.sid))),
+            sid="2026-08-29-nothere-001")
+        self.assert_refused(result, "is not open in the registry")
+        self.assertFalse((self.repo / "claude" / "telemetry"
+                          / "2026-08-29-nothere-001.json").exists(),
+                         msg="a sid that is not open grows no record")
+
+    def test_unescaped_block_names_the_re_escape_fault(self) -> None:
+        self.relay_round_one()
+        answer = planner_answer(self.sid)
+        answer["answers"][0]["answer"] = "yes \u2014 the caf\u00e9 stands"
+        block = self.relay(str(self.write("a.json", answer))).stdout
+        self.assertIn("\\u2014", block, msg="bale emits ASCII escapes")
+        (self.clar_dir() / "002.json").unlink()
+        # A carrier that renders the escapes as characters.
+        unescaped = (block.replace("\\u2014", "\u2014")
+                     .replace("\\u00e9", "\u00e9"))
+        result = self.relay(str(self.write("u.txt", unescaped)))
+        self.assert_refused(result, "re-serialized with ASCII escaping "
+                                    "hashes to the trailer")
+        self.assertNotIn("truncated or was edited", result.stderr)
+        self.assert_relay_refused_recorded(result, "integrity trailer")
+        self.assertEqual(self.thread_files(), ["001.json"])
+
+    def test_plain_edit_keeps_the_generic_text(self) -> None:
+        self.relay_round_one()
+        block = self.relay(
+            str(self.write("a.json", planner_answer(self.sid)))).stdout
+        (self.clar_dir() / "002.json").unlink()
+        edited = block.replace('"as-recommended"', '"free-text"')
+        result = self.relay(str(self.write("edited.txt", edited)))
+        self.assertIn("truncated or was edited", result.stderr)
+        self.assertNotIn("re-serialized with ASCII escaping", result.stderr)
 
     # -- pinned behavior 7: the no-file re-emit form (v0.4.22) -----------
 
@@ -584,6 +684,27 @@ class RelayVerbTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("<sid>", result.stdout + result.stderr)
         self.assertIn("paste block", result.stdout + result.stderr)
+
+
+class ReescapeUnitTest(unittest.TestCase):
+    """bale_relay.reescaped_body_matches, pure (v0.4.41)."""
+
+    def test_unescaped_body_matches_its_trailer(self) -> None:
+        record = {"answer": "caf\u00e9 \u2014 ok"}
+        rendered = (json.dumps(record, indent=2) + "\n").encode("utf-8")
+        trailer = hashlib.sha256(rendered).hexdigest()
+        unescaped = json.dumps(record, indent=2, ensure_ascii=False) + "\n"
+        self.assertNotEqual(
+            hashlib.sha256(unescaped.encode("utf-8")).hexdigest(), trailer)
+        self.assertTrue(bale_relay.reescaped_body_matches(unescaped, trailer))
+
+    def test_edited_or_broken_body_does_not_match(self) -> None:
+        rendered = json.dumps({"a": 1}, indent=2) + "\n"
+        trailer = hashlib.sha256(rendered.encode()).hexdigest()
+        self.assertFalse(bale_relay.reescaped_body_matches(
+            json.dumps({"a": 2}, indent=2) + "\n", trailer))
+        self.assertFalse(bale_relay.reescaped_body_matches("{not json",
+                                                           trailer))
 
 
 if __name__ == "__main__":

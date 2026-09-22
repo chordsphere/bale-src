@@ -2004,6 +2004,65 @@ class HoldRelayUnitTest(unittest.TestCase):
     def addressed(self, block: str) -> str:
         return block.splitlines()[0].rsplit(" ", 2)[1]
 
+    # -- v0.4.41: held admissions in the planner block ---------------------
+
+    def by_addressee(self, blocks) -> dict:
+        return {self.addressed(b): b for b in blocks}
+
+    def test_planner_block_lists_held_admissions_beside_held_tarball(
+            self) -> None:
+        admissions = {
+            "overridden_paths": ["src/new.py", "docs/x.md"],
+            "overridden_path_sources": ["flag", "prompt"],
+            "required_check_overrides": ["lint"],
+            "base_drift_overrides": ["src/moved.py"],
+            "checkpoint_change_accepted": False,
+        }
+        planner = self.by_addressee(self.blocks(
+            self.cp(1, ["probe-alpha"]), 1,
+            admissions=admissions))["planner"]
+        lines = planner.splitlines()
+        held = lines.index(f"held tarball: {self.HELD}")
+        self.assertEqual(lines[held + 1:held + 5], [
+            "admissions:",
+            "  out-of-forecast paths admitted: src/new.py (flag), "
+            "docs/x.md (prompt)",
+            "  required-check overrides: lint",
+            "  base-drift overrides: src/moved.py",
+        ])
+
+    def test_planner_block_says_none_when_nothing_was_admitted(
+            self) -> None:
+        planner = self.by_addressee(self.blocks(
+            self.cp(1, ["probe-alpha"]), 1,
+            admissions={"overridden_paths": [],
+                        "overridden_path_sources": [],
+                        "required_check_overrides": [],
+                        "base_drift_overrides": [],
+                        "checkpoint_change_accepted": False}))["planner"]
+        lines = planner.splitlines()
+        held = lines.index(f"held tarball: {self.HELD}")
+        self.assertEqual(lines[held + 1], "admissions: none")
+
+    def test_worker_block_is_unchanged_by_admissions(self) -> None:
+        cp = self.cp(1, ["probe-alpha"])
+        without = self.by_addressee(self.blocks(cp, 1))["worker"]
+        with_adm = self.by_addressee(self.blocks(
+            cp, 1, admissions={"overridden_paths": ["src/new.py"],
+                               "overridden_path_sources": ["flag"]}))
+        self.assertEqual(with_adm["worker"], without)
+        self.assertNotIn("admissions", without)
+
+    def test_apply_and_hold_blocks_share_the_admission_rows(self) -> None:
+        admissions = {"overridden_paths": ["a.py"],
+                      "overridden_path_sources": ["flag"],
+                      "checkpoint_change_accepted": True}
+        rows = self.br.relay_admission_rows(admissions)
+        self.assertEqual(rows[0], "out-of-forecast paths admitted: a.py "
+                                  "(flag)")
+        self.assertTrue(rows[1].startswith("checkpoint change accepted"))
+        self.assertEqual(self.br.relay_admission_rows(None), [])
+
     # -- wire format --------------------------------------------------------
 
     def test_sentinels_are_verbatim_whole_lines(self) -> None:

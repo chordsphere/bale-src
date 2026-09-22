@@ -1,0 +1,76 @@
+{
+  "record_version": 1,
+  "version": "0.4.41",
+  "session_id": "2026-09-22-rider-micro-003",
+  "at": "2026-09-22T12:36:35+00:00",
+  "surfaces": [
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "declares, additive (record_version stays 1): attempts[].cause (optional non-empty string: the refusal's first line, or `exit <n>`, on rejected and relay-refused attempts), attempts[].bundle (optional object {stem, brief_sha256, checkpoint_sha256, manifest_sha256} on an opened attempt a `bale open` replay wrote; absent on hand-typed packs), the outcome value relay-refused in both the envelope and attempt enums, and the command value relay; every 0.4.40 outcome, command, attempt key and provenance key stays; each new field names the close desk's reconstruction as its consumer"
+    },
+    {
+      "path": "bin/bale",
+      "change": "fail() raises its SystemExit with bale_cause, the message's first non-blank line (new failure_cause); new exit_cause reads it back, falling back to `exit <code>` for an exit that did not come through fail(); exit code and stderr/log output unchanged"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "record_rejected_attempt stamps cause (exit_cause of the caught SystemExit) on every rejected apply/retry attempt; the HOLD path hands the held apply's admissions (admitted paths with their sources, required-check and base-drift overrides, checkpoint-change acceptance) to format_hold_relay_blocks"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "build_telemetry_attempt gains cause and bundle (key-presence: omitted when None); new relay_admission_rows, extracted from format_apply_relay_planner (its output byte-identical); format_hold_relay_planner and format_hold_relay_blocks take admissions and the planner block lists them beside `held tarball:` (`admissions:` rows, or `admissions: none`), worker block unchanged; the session dossier renders `swept by <sid>` beside `superseded by:`, plus `cause:` and `opened from bundle:` lines; format_session_dossier_json's key contract gains swept_by, cause, bundle per attempt"
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "the dossier attempt view carries swept_by, cause and bundle (the record's value, or null); relay-refused joins IN_FLIGHT_OUTCOMES: a refused relay preserves nothing and leaves the session open and suspended, so a session whose latest outcome is relay-refused counts in-flight, never in the closure mix, and its `relay` command is outside RESPONSE_COMMANDS, so it adds no response attempt"
+    },
+    {
+      "path": "bin/bale_relay.py",
+      "change": "an input refusal (steps 2-5: parse, trailer, sentinel sid, schema, sequencing, answer resolvability) writes a relay-refused attempt, command relay, with cause, then exits as before; session-gate refusals and a missing input file record nothing, and a successful relay stays telemetry-silent; a trailer mismatch whose parsed body, re-serialized with ASCII escaping, hashes to the trailer is refused naming that fault (the carrier unescaped the \\uXXXX escapes) instead of the truncated-or-edited text; steps 2-5 and 6-7 factored into _ingest_and_gate and _preserve_and_emit, behavior otherwise unchanged; new reescaped_body_matches, record_relay_refusal"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "new bundle_identity; cmd_open sets open_bundle on the replayed pack's namespace (the pre_answered channel's posture, no CLI flag)"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "persist_pack_session and _persist_open_provenance take bundle; cmd_pack passes getattr(args, 'open_bundle', None), so an opened attempt from `bale open` carries bundle and a hand-typed pack none"
+    },
+    {
+      "path": "BALE.md",
+      "change": "documents cause on rejected attempts and the bundle on opened ones (§8.9), the relay-refused attempt and the re-escape refusal (§8.11), the held admissions in the HOLD planner block, and the dossier's swept by line"
+    },
+    {
+      "path": "tests/test_telemetry_promotion.py",
+      "change": "rejected attempts carry cause equal to the refusal's first line; new FailureCauseUnitTest pins failure_cause, fail()'s bale_cause and exit_cause's fallback; the schema guard gains cause and bundle as optional"
+    },
+    {
+      "path": "tests/test_relay_verb.py",
+      "change": "input refusals write relay-refused with cause; session-gate and missing-file refusals write nothing; an unescaped block's refusal names the re-escape fault and a plain edit keeps the generic text; new ReescapeUnitTest"
+    },
+    {
+      "path": "tests/test_open_verb.py",
+      "change": "an opened attempt from `bale open` carries bundle with the stem and the published member hashes; a null-brief bundle stamps a null brief sha"
+    },
+    {
+      "path": "tests/test_provenance_at_open.py",
+      "change": "a hand-typed pack's opened attempt carries no bundle and no cause"
+    },
+    {
+      "path": "tests/test_stats_drilldown.py",
+      "change": "new RiderMicroDossierTest: swept_by, cause and bundle in the --json attempt view and the human dossier, and nothing rendered when absent"
+    },
+    {
+      "path": "tests/test_stats_aggregation.py",
+      "change": "a relay-refused session counts in-flight with no warning and no response attempt"
+    },
+    {
+      "path": "tests/test_rollback_telemetry.py",
+      "change": "the schema vocabulary gained relay-refused and relay, keeps every 0.4.40 value, and the envelope's outcome enum is a subset of the attempt's"
+    },
+    {
+      "path": "tests/test_apply_preflight.py",
+      "change": "HoldRelayUnitTest pins the held admissions beside `held tarball:`, `admissions: none`, the worker block unchanged, and the shared relay_admission_rows"
+    }
+  ]
+}
