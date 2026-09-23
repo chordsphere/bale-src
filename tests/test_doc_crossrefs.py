@@ -124,10 +124,29 @@ be written in the swept doc's vocabulary, and the old spelling is what
 the sweep's own denied-token guard (tests/test_global_doc_noun.py)
 keeps out.
 
-Hermetic and stdlib-only: the docs and the one schema are read from
-this repo, and the one code import is bin/bale_report.py for the pure
-relay_sentinels() builder (stdlib-only at module scope); nothing else
-runs.
+Since the section-5 compression pilot (session
+2026-09-23-board-43-tarball-s5-compression-008) the suite also pins
+that session's outcomes, in SectionFiveCompressionPins. Three rider
+sentences are VERBATIM in its brief of record and pinned byte-exact
+(whitespace-collapsed), each against its home alone: INCLUDE_BASE_RIDER
+in docs/TARBALL.md 3.4, COURIER_RIDER in 5.9.2's first or second
+paragraph (the one place the doc says what each courier carries), and
+EMITTER_RIDER in 5.2.2. Beside them sit four structural pins on the
+section-5 span (bounded by the `## 5.` and `## 7.` heading lines, since
+the doc is core-first): every numbered heading the span carried at the
+pilot stays, in order (DOCS.md 6.4); no `v0.` version token (live
+tolerance rules are stated without version numbers, archaeology lives
+in the ADR/changelog layer); the `expects_probe: no` collision homed
+in 3.3 alone, section 5 keeping exactly one pointer line in 5.9's lead
+and one in 5.9.1, each naming the flag and 3.3 and restating nothing;
+and every ADR-0013 citation carries a section key
+that resolves to one of that ADR's displaced-rationale headings, read
+from claude/context/adr/ so the pin goes red when either side moves.
+
+Hermetic and stdlib-only: the docs, the one schema, and ADR-0013 are
+read from this repo, and the one code import is bin/bale_report.py for
+the pure relay_sentinels() builder (stdlib-only at module scope);
+nothing else runs.
 
 Run:  python3 -m unittest tests.test_doc_crossrefs -v
   or: python3 -m unittest discover -s tests -p 'test_doc_crossrefs.py'
@@ -378,6 +397,78 @@ BYTE_ASSERTION_SENTENCE = (
 # keys. The keys come from the schema's own `required` list (see
 # forecast_departure_keys()), never from a constant here.
 FORECAST_DEPARTURES_FIELD = "`forecast_departures`"
+
+
+# The section-5 compression pilot's riders (session
+# 2026-09-23-board-43-tarball-s5-compression-008): VERBATIM in the brief
+# of record, each pinned against its home alone. The backticks and the
+# `&&` are part of the pinned bytes.
+INCLUDE_BASE_RIDER = (
+    "An `--include` may not name the subtree the `[validation] base` "
+    "pattern lives under; a broader ancestor is fine, and the checkpoint "
+    "auto-excludes from it at the walk.")
+COURIER_RIDER = (
+    "Two couriers, one record: the tarball carries the manifest, the "
+    "empty change surfaces and an optional `notes.md`; the paste block "
+    "carries the manifest JSON alone; a question row's `context` rides "
+    "both.")
+EMITTER_RIDER = (
+    "The emitter exits 0 once it has written the block and 1 when there "
+    "was nothing to paste, so a worker chaining it with `&&` never skips "
+    "the paste; `--request` lets the lint read `resolved_scope` and warn "
+    "on an undeclared forecast departure, and lets the crafter seed the "
+    "departure stubs §5.4 names.")
+# Section 5's numbered headings as the pilot found them, in file order.
+# Numbers are permanent (DOCS.md 6.4): content may leave a heading, the
+# heading stays with a pointer tombstone.
+SECTION_5_HEADINGS = (
+    "5", "5.1", "5.1.1", "5.2", "5.2.1", "5.2.2", "5.3", "5.4", "5.4.1",
+    "5.5", "5.6", "5.6.1", "5.6.2", "5.6.3", "5.7", "5.8", "5.9",
+    "5.9.1", "5.9.2", "5.9.3", "5.9.4", "5.10")
+ADR_0013_GLOB = "0013-*.md"
+ADR_DIR = REPO / "claude" / "context" / "adr"
+
+
+def section_5_span(text: str) -> str:
+    """TARBALL.md's section-5 span, bounded by heading lines rather than
+    by number: from `## 5.` up to `## 7.` (the doc is core-first, so 7
+    follows 5 in the file). '' when either heading is missing. Headings
+    inside fenced code blocks are not headings here: the span is cut at
+    the first `## 7.` line, which no fence in the span carries."""
+    start = re.search(r"^## 5\.\s.*$", text, re.M)
+    end = re.search(r"^## 7\.\s.*$", text, re.M)
+    if start is None or end is None or end.start() < start.start():
+        return ""
+    return text[start.start():end.start()]
+
+
+def unfenced(text: str) -> str:
+    """`text` with fenced code blocks blanked, so a `## ` line inside an
+    example is never read as a heading."""
+    out, fenced = [], False
+    for line in text.splitlines(keepends=True):
+        if line.startswith("```"):
+            fenced = not fenced
+            out.append("\n")
+        else:
+            out.append("\n" if fenced else line)
+    return "".join(out)
+
+
+def adr_0013_keys() -> set[str]:
+    """The section keys of ADR-0013's displaced-rationale headings:
+    `### §5.1 — …` yields 5.1, `### §3.4 / §5.5 — …` yields 3.4 and 5.5,
+    `### META — …` yields META."""
+    paths = sorted(ADR_DIR.glob(ADR_0013_GLOB))
+    if len(paths) != 1:
+        return set()
+    keys: set[str] = set()
+    for line in paths[0].read_text(encoding="utf-8").splitlines():
+        m = re.match(r"###\s+(.+?)\s+—", line)
+        if m:
+            keys.update(k.strip().lstrip("§")
+                        for k in m.group(1).split("/"))
+    return keys
 
 
 def forecast_departure_keys() -> list[str]:
@@ -945,6 +1036,155 @@ class ByteDisciplinePins(unittest.TestCase):
                    "   indented but after a break\n")
         self.assertEqual(numbered_items(listing),
                          {1: "1. one\n   more one\n", 2: "2. two\n"})
+
+
+class SectionFiveCompressionPins(unittest.TestCase):
+    """The section-5 compression pilot's outcomes stay true: the three
+    riders in their homes, byte-exact (whitespace aside), and the span's
+    headings, version tokens, probe-ban pointer, and ADR-0013 keys as
+    the pilot left them (session
+    2026-09-23-board-43-tarball-s5-compression-008)."""
+
+    def setUp(self):
+        self.docs = load_docs()
+        self.assertIn("TARBALL.md", self.docs, "docs/TARBALL.md is missing")
+        self.tarball = self.docs["TARBALL.md"]
+        self.span = section_5_span(self.tarball)
+        self.assertTrue(self.span, "docs/TARBALL.md has no `## 5.` ... "
+                        "`## 7.` span — section 5 or 7 lost its heading")
+
+    def _first_paragraphs(self, body: str, count: int) -> list[str]:
+        paras = [p for p in re.split(r"\n\s*\n", body) if p.strip()]
+        return [normalize(p) for p in paras[:count]]
+
+    def test_include_base_rider_verbatim_in_3_4(self):
+        section = normalize(subsection(self.tarball, "3.4"))
+        self.assertTrue(section, "docs/TARBALL.md has no `### 3.4` heading")
+        self.assertTrue(
+            normalize(INCLUDE_BASE_RIDER) in section,
+            "docs/TARBALL.md 3.4 no longer states the include/base rule "
+            "byte-exact (whitespace aside) — VERBATIM in the brief of "
+            f"record; restore it rather than paraphrase it:\n  "
+            f"{INCLUDE_BASE_RIDER}")
+
+    def test_courier_rider_in_5_9_2_first_two_paragraphs(self):
+        body = deep_subsection(self.tarball, "5.9.2")
+        self.assertTrue(body, "docs/TARBALL.md has no `#### 5.9.2` heading")
+        self.assertIn(
+            normalize(COURIER_RIDER), self._first_paragraphs(body, 2),
+            "docs/TARBALL.md 5.9.2 no longer says what each courier "
+            "carries, as its own paragraph among the section's first two, "
+            "byte-exact (whitespace aside) — VERBATIM in the brief of "
+            f"record:\n  {COURIER_RIDER}")
+
+    def test_emitter_rider_verbatim_in_5_2_2(self):
+        section = normalize(subsection(self.tarball, "5.2.2"))
+        self.assertTrue(section, "docs/TARBALL.md has no `### 5.2.2` heading")
+        self.assertTrue(
+            normalize(EMITTER_RIDER) in section,
+            "docs/TARBALL.md 5.2.2 no longer states the emitter's exit "
+            "codes and --request, byte-exact (whitespace aside) — VERBATIM "
+            f"in the brief of record:\n  {EMITTER_RIDER}")
+
+    def test_section_5_headings_all_stay(self):
+        found = tuple(HEADING.findall(unfenced(self.span)))
+        self.assertEqual(
+            found, SECTION_5_HEADINGS,
+            "docs/TARBALL.md section 5's numbered headings changed — "
+            "numbers are permanent (DOCS.md 6.4); content that leaves a "
+            "section leaves a one-line pointer tombstone under the same "
+            "heading")
+
+    def test_section_5_carries_no_version_token(self):
+        hits = re.findall(r"\bv0\.[0-9][0-9.]*", self.span)
+        self.assertEqual(
+            hits, [],
+            "docs/TARBALL.md section 5 carries version tokens again — a "
+            "live tolerance rule is stated without a version number, and "
+            "version archaeology lives in the ADR/changelog layer")
+
+    def test_probe_ban_collision_has_one_home(self):
+        """The collision lives in 3.3 alone. Section 5 mentions the
+        flag only in pointer lines — one in 5.9's lead, one in 5.9.1 —
+        each naming `expects_probe: no` and 3.3 on the same line, and
+        nothing else in the span names the flag."""
+        self.assertTrue(subsection(self.tarball, "3.3"),
+                        "docs/TARBALL.md has no `### 3.3` heading — the "
+                        "collision's one home moved")
+        homes = {
+            "5.9 lead": subsection_head(self.tarball, "5.9"),
+            "5.9.1": deep_subsection(self.tarball, "5.9.1"),
+        }
+        for home, body in homes.items():
+            with self.subTest(home=home):
+                lines = [ln for ln in body.splitlines()
+                         if "expects_probe" in ln]
+                self.assertEqual(
+                    len(lines), 1,
+                    f"docs/TARBALL.md {home} should keep exactly one "
+                    f"pointer line naming the flag, found {lines!r}")
+                self.assertIn(
+                    "`expects_probe: no`", lines[0],
+                    f"docs/TARBALL.md {home}'s pointer no longer names the "
+                    "collision it points at")
+                self.assertIn(
+                    "§3.3", lines[0],
+                    f"docs/TARBALL.md {home}'s pointer no longer points at "
+                    "3.3, the collision's one home")
+        self.assertEqual(
+            self.span.count("expects_probe"), 2,
+            "docs/TARBALL.md section 5 names `expects_probe` outside its "
+            "two pointer lines — the collision's content lives in 3.3 "
+            "alone; point there instead of restating it")
+
+    def test_adr_0013_citations_carry_resolving_keys(self):
+        keys = adr_0013_keys()
+        self.assertTrue(
+            keys, f"no single {ADR_0013_GLOB} with displaced-rationale "
+            f"headings under {ADR_DIR}")
+        cites = re.findall(r"ADR-0013(\s+§[0-9.]*[0-9])?",
+                           normalize(self.span))
+        self.assertTrue(cites, "section 5 cites ADR-0013 nowhere")
+        for cite in cites:
+            with self.subTest(cite=cite or "(bare)"):
+                self.assertTrue(
+                    cite, "an ADR-0013 citation in docs/TARBALL.md "
+                    "section 5 has no section key — cite it as "
+                    "`ADR-0013 §N.N` so the drill-down lands")
+                key = cite.strip().lstrip("§")
+                self.assertIn(
+                    key, keys,
+                    f"ADR-0013 §{key} names no displaced-rationale heading "
+                    f"in the ADR (keys: {sorted(keys)})")
+
+    def test_pins_bite(self):
+        """Each rider pin fails against its real home with one pinned
+        byte-level detail changed, and the structural extractors see
+        what they claim to."""
+        cases = (
+            ("3.4 backticks", subsection(self.tarball, "3.4"),
+             INCLUDE_BASE_RIDER, "`[validation] base`", "[validation] base"),
+            ("5.9.2 notes", deep_subsection(self.tarball, "5.9.2"),
+             COURIER_RIDER, "optional `notes.md`", "optional notes"),
+            ("5.2.2 exit", subsection(self.tarball, "5.2.2"),
+             EMITTER_RIDER, "exits 0", "exits 2"),
+        )
+        for label, home, sentence, old, new in cases:
+            with self.subTest(mutation=label):
+                self.assertIn(normalize(sentence), normalize(home))
+                mutated = home.replace(old, new)
+                self.assertNotEqual(mutated, home, "mutation was a no-op")
+                self.assertNotIn(normalize(sentence), normalize(mutated))
+        self.assertEqual(
+            HEADING.findall(unfenced("## 5. A\n```\n## 9. no\n```\n"
+                                     "### 5.1 B\n")), ["5", "5.1"])
+        self.assertEqual(section_5_span("## 7. x\n## 5. y\n"), "")
+        self.assertTrue(re.findall(r"\bv0\.[0-9][0-9.]*", "(v0.4.7)"))
+        self.assertEqual(
+            re.findall(r"ADR-0013(\s+§[0-9.]*[0-9])?",
+                       "(a: ADR-0013 §5.5.) (b: ADR-0013)"),
+            [" §5.5", ""])
+
 
 if __name__ == "__main__":
     unittest.main()
