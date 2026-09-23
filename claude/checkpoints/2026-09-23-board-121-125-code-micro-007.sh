@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blind checkpoint v1 — the four-small code micro (rows 121, 123, 124,
+# Blind checkpoint v2 — the four-small code micro (rows 121, 123, 124,
 # 125), authored 2026-09-23 at the 2026-09-23-continue-plan-006 desk,
 # from the request, before any implementation exists.
 #
@@ -74,13 +74,39 @@ R1="$(new_repo r121 $'[validation]\nbase = "claude/checkpoints/{sid}.sh"\n')"
   || oracle_error "fixture r121: parent pack failed: $(tail -n 3 "$SCRATCH/r121-parent.out")"
 PARENT="$(ls "$R1/claude/telemetry/" 2>/dev/null | sed 's/\.json$//' | head -n 1)"
 [ -n "$PARENT" ] || oracle_error "fixture r121: no parent record"
-( cd "$R1" && python3 "$CRAFTER" --bundle oracle-child --brief "$BRIEF" \
-    --pack-arg child --pack-arg=--slug --pack-arg child --pack-arg=--read-only \
-    --pack-arg=--include --pack-arg claude/checkpoints \
-    --pack-arg=--supersedes --pack-arg "$PARENT" \
-    --pack-arg=--expects-probe --pack-arg no \
-    --pre-answered "supersede=$PARENT" --out-dir "$R1" >"$SCRATCH/r121-bundle.out" 2>&1 ) \
-  || oracle_error "fixture r121: bundle emission failed: $(tail -n 3 "$SCRATCH/r121-bundle.out")"
+# v2 (amended 2026-09-23 after the 007 exit-2 HOLD, a fixture defect): v1
+# built this bundle with the staged crafter, and the micro's own rider now
+# makes the crafter refuse an argv naming the checkpoint subtree — the
+# fixture asked the surface under test to help build itself. v2 hand-rolls
+# the bundle (bundle.json + brief.md, the schema's flat layout), so the
+# specimen reaches `bale open` with no desk-side policy in between. Every
+# other probe is byte-identical to v1.
+python3 - "$R1" "$BRIEF" "$PARENT" >"$SCRATCH/r121-bundle.out" 2>&1 <<'PY' \
+  || oracle_error "fixture r121: hand-rolled bundle failed: $(tail -n 3 "$SCRATCH/r121-bundle.out")"
+import gzip, hashlib, io, json, sys, tarfile
+repo, brief_path, parent = sys.argv[1:4]
+brief = open(brief_path, "rb").read().replace(b"\r\n", b"\n")
+manifest = {
+    "bundle_format": 1,
+    "pack_argv": ["child", "--slug", "child", "--read-only",
+                  "--include", "claude/checkpoints",
+                  "--supersedes", parent, "--expects-probe", "no"],
+    "members": {"brief": {"path": "brief.md",
+                          "sha256": hashlib.sha256(brief).hexdigest()},
+                "checkpoint": None},
+    "pre_answered": [{"prompt": "supersede", "subject": parent}],
+}
+payload = [("bundle.json", json.dumps(manifest, indent=2).encode() + b"\n"),
+           ("brief.md", brief)]
+buf = io.BytesIO()
+with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0) as gz:
+    with tarfile.open(fileobj=gz, mode="w") as tf:
+        for name, data in payload:
+            info = tarfile.TarInfo(name); info.size = len(data); info.mode = 0o644
+            tf.addfile(info, io.BytesIO(data))
+open(f"{repo}/oracle-child.bale-bundle", "wb").write(buf.getvalue())
+print("hand-rolled oracle-child.bale-bundle")
+PY
 ( cd "$R1" && "$BALE" open oracle-child.bale-bundle </dev/null >"$SCRATCH/r121-open.out" 2>&1 )
 open_exit=$?
 parent_state="$(python3 - "$R1/claude/telemetry/$PARENT.json" <<'PY'
