@@ -39,6 +39,7 @@ sits next to `bin/bale` and `bale_config`.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -84,11 +85,18 @@ CHANGELOG_RECORD_SCHEMA = "changelog-record.schema.json"
 #
 # The validator is a deliberately small subset of JSON Schema Draft 2020-12:
 # enough keywords to express our envelopes (type, enum, required, properties,
-# additionalProperties, items, minLength, minItems, minimum) and nothing more.
-# This is the v0.1 "stdlib only" constraint applied to schema validation: no
-# `jsonschema` dependency. The schemas under schemas/ use only these keywords;
-# a schema that reaches for an unsupported keyword is a bug we want surfaced
-# (the type-name check raises rather than silently passing), not a silent skip.
+# additionalProperties, items, minLength, minItems, minimum, and — since
+# v0.4.42 — pattern and oneOf, added for the response manifest's
+# model_identity format and the two-key-set contract_docs block) and nothing
+# more. This is the v0.1 "stdlib only" constraint applied to schema
+# validation: no `jsonschema` dependency. The schemas under schemas/ use only
+# these keywords; a schema that reaches for an unsupported keyword is a bug
+# we want surfaced (the type-name check raises rather than silently passing),
+# not a silent skip. `pattern` is an unanchored search, as in JSON Schema —
+# a schema that means a whole-string match anchors it. `oneOf` is the
+# exactly-one rule: zero matching branches is an error naming each branch's
+# first failure, two or more is an error too. tools/response_lint.py carries
+# the same subset (its _schema_walk) and the two move together.
 
 _SCHEMA_CACHE: dict[str, dict] = {}
 
@@ -204,6 +212,17 @@ def _validate_against_schema(value, schema: dict, path: str,
                 f"{label}: string is shorter than minLength {schema['minLength']}"
             )
 
+    if isinstance(value, str) and "pattern" in schema:
+        if re.search(schema["pattern"], value) is None:
+            label = path or "<root>"
+            errors.append(
+                f"{label}: {value!r} does not match pattern "
+                f"{schema['pattern']}"
+            )
+
+    if "oneOf" in schema:
+        _validate_one_of(value, schema["oneOf"], path, errors)
+
     if (isinstance(value, (int, float)) and not isinstance(value, bool)
             and "minimum" in schema):
         if value < schema["minimum"]:
@@ -241,6 +260,36 @@ def _validate_against_schema(value, schema: dict, path: str,
                 errors.append(f"{label}: unknown key {k!r}")
             elif isinstance(addl, dict):
                 _validate_against_schema(v, addl, _child_path(path, k), errors)
+
+
+def _validate_one_of(value, branches: list, path: str,
+                     errors: list[str]) -> None:
+    """The oneOf keyword: exactly one branch must accept `value`.
+
+    Each branch is validated on its own error list; a branch with no
+    errors matches. Zero matches reports the value against every branch
+    (each branch's first error, so the reader sees why each was
+    refused); two or more matches is the schema's ambiguity, reported
+    as such. The sibling keywords on the enclosing schema (type, the
+    description) run in the caller before this, so a type failure
+    short-circuits as it does everywhere else.
+    """
+    label = path or "<root>"
+    matched = 0
+    first_failures: list[str] = []
+    for i, branch in enumerate(branches):
+        branch_errors: list[str] = []
+        _validate_against_schema(value, branch, path, branch_errors)
+        if not branch_errors:
+            matched += 1
+        else:
+            first_failures.append(f"branch {i}: {branch_errors[0]}")
+    if matched == 0:
+        errors.append(f"{label}: matches none of the oneOf branches — "
+                      + "; ".join(first_failures))
+    elif matched > 1:
+        errors.append(f"{label}: matches {matched} oneOf branches, "
+                      f"expected exactly one")
 
 
 def validate_against_schema(instance, schema: dict) -> list[str]:
@@ -309,7 +358,8 @@ CLAIM_BASES = ("predicted", "observed")
 # The claim vocabulary (TARBALL.md section 5.3): what a manifest's claims
 # value may predict per check. Historically enforced by the response-manifest
 # schema's enum alone; since the v0.4.7 annotated carrier a claims value is
-# a string OR an object, and bale's schema-validator subset has no oneOf, so
+# a string OR an object, and bale's schema-validator subset had no oneOf then
+# (it gained one in v0.4.42, for contract_docs; this split stays), so
 # the bare-string enum moved here (validate_response_manifest) while the
 # schema keeps the object form's `value` enum at its named spot. One home
 # for the Python side; the schema's two enum spots mirror it.
@@ -719,10 +769,10 @@ def validate_bundle_manifest(record: dict) -> list:
        - the two member paths are distinct when both are present;
        - `pack_argv` carries neither delivery flag
          (`--readme-file` / `--checkpoint-file`, bare or `=`-glued):
-         the open verb injects those pointing at the extracted
+         the open verb supplies those pointing at the extracted
          members, so a stored one could only disagree with the
          shipped bytes — the member's presence is the single source
-         for the flag's injection;
+         for the flag;
        - `pack_argv` does not name the pack subcommand itself as its
          first token: the array is the argument vector AFTER `pack`.
 
@@ -779,7 +829,7 @@ def validate_bundle_manifest(record: dict) -> list:
             for banned in ("--readme-file", "--checkpoint-file"):
                 if arg == banned or arg.startswith(banned + "="):
                     errors.append(
-                        f"pack_argv[{i}]: {banned} is injected by the "
+                        f"pack_argv[{i}]: {banned} is supplied by the "
                         f"consumer from the bundle's own members and "
                         f"must not be stored in the argv — the "
                         f"member's presence is the single source")
@@ -974,8 +1024,9 @@ CHANGELOG_RECORD_VERSION = 1
 def _changelog_version_problem(value) -> str | None:
     """Return why `value` is not a dotted numeric X.Y.Z version, or None.
 
-    The schema subset has no `pattern` keyword, so the form is checked
-    here. Exactly three dot-separated runs of ASCII digits, no `v`
+    The schema subset had no `pattern` keyword when this landed (it
+    gained one in v0.4.42, for model_identity), so the form is checked
+    here and stays here. Exactly three dot-separated runs of ASCII digits, no `v`
     prefix and no suffix: the record names a released bin/VERSION
     value, and bin/VERSION carries that bare form.
     """
@@ -1168,7 +1219,8 @@ def validate_response_manifest(manifest: dict) -> None:
     # Bare-string claim values must be in the claim vocabulary. Until the
     # v0.4.7 annotated carrier the schema's enum enforced this; a claims
     # value is now a string OR an object and the schema-validator subset
-    # has no oneOf, so the schema pins the object form's shape (value
+    # had no oneOf then (v0.4.42 added one for contract_docs; this split
+    # stays), so the schema pins the object form's shape (value
     # enum, claim_basis enum, no unknown keys) and the bare-string enum
     # moved here. Same vocabulary either way (CLAIM_VALUES).
     for key, value in manifest["claims"].items():

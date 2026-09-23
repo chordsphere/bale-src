@@ -141,7 +141,7 @@ class ValidateBundleManifestTest(unittest.TestCase):
             with self.subTest(arg=arg):
                 record = canonical()
                 record["pack_argv"] = ["goal", arg]
-                self.assert_invalid(record, "injected by the consumer")
+                self.assert_invalid(record, "supplied by the consumer")
 
     def test_stored_pack_verb_rejects(self) -> None:
         record = canonical()

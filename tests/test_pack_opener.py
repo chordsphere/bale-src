@@ -2,7 +2,7 @@
 """Hermetic E2E for pack's session opener (board 52; BALE.md §7.7).
 
 Pack's successor is a chat message — the operator pastes an opening
-paragraph into a fresh Claude chat with the request tarball attached.
+paragraph into a fresh agent chat with the request tarball attached.
 Board 52 makes bale own, version, and emit that paragraph: the
 end-of-run report ENDS with it as a paste-ready copy block framed by
 scissor lines, carrying the session's identity (sid and goal,

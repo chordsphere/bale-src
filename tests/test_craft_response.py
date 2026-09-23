@@ -5,7 +5,7 @@ Runs the crafter as a subprocess against programmatically built tempdir
 response directories — no bale install, no tests/harness.py, stdlib only
 (one exception: ExchangeBlockParity borrows harness's _load_cli for
 bin/bale, imported inside its setUpClass so nothing else here depends on
-the harness). Also asserts, unit-shaped, that bale_pack's injected-file
+the harness). Also asserts, unit-shaped, that bale_pack's carried-file
 surface ships the craft tool (the request deliberately runs no bin/bale
 E2E; build.sh's tree-coverage guard and validate.sh's install rows
 backstop the rest).
@@ -40,7 +40,7 @@ TARBALL.md 7.3 reconciliation epilogue plus 7.7 exec-bit assertions.
 CraftValidationEpilogue proves the emission's semantics against 7.3's
 contract by executing it, that it suggests no checks (worker judgment
 stays worker judgment), and that the assertions come from the same
---executable list as apply.sh's chmod lines. PackInjectionSurface
+--executable list as apply.sh's chmod lines. PackCarriageSurface
 gains a skipUnless(bin/) rider so tools-only sandboxes run
 clean-green; this repo ships bin/, so the class still runs here.
 
@@ -74,7 +74,7 @@ fold-in text: emitted only when [probe] clipboard_command is readable
 (./bale.toml then ./context/bale.toml), sentinel banners always,
 runtime tee loud on success and failure and never failing the probe,
 remedy text on the unset and misconfigured paths. BundlePackParity
-(skipUnless bin/, the PackInjectionSurface rider pattern) pins the
+(skipUnless bin/, the PackCarriageSurface rider pattern) pins the
 re-declared constants equal to bale_pack's, the TODO(brief) literal
 still present in the pack source, and the emitted bundle.json passing
 validate_bundle_manifest — the producer against the consumer's gate.
@@ -1039,7 +1039,7 @@ class CraftRequestProvenance(unittest.TestCase):
 
     def _fill_self_reported(self, manifest: dict) -> None:
         manifest["feedback"]["mechanical"]["provenance"][
-            "model_identity"] = "fixture-model"
+            "model_identity"] = "fixture:model"
         manifest["feedback"]["self_reported"].update(
             budget_pressure="none",
             compaction_occurred={"occurred": False, "disclosure_ref": None})
@@ -1772,7 +1772,7 @@ class CraftDocAssertions(unittest.TestCase):
 
 @unittest.skipUnless((REPO / "bin").is_dir(),
                      "bin/ not present — a tools-only sandbox has no "
-                     "bale_pack.py to drive; the injection surface is "
+                     "bale_pack.py to drive; the carriage surface is "
                      "covered where bin/ ships")
 def norm_sha(data: bytes) -> str:
     """sha256 of the LF-normalized bytes — the bundle format's
@@ -2220,18 +2220,18 @@ class BundlePackParity(unittest.TestCase):
                 bale_validate.validate_bundle_manifest(manifest), [])
 
 
-class PackInjectionSurface(unittest.TestCase):
-    """Unit-shaped injection assertion: build_request_tarball ships
-    exactly bin/bale's INJECTED_TOOLS members — the single source since
+class PackCarriageSurface(unittest.TestCase):
+    """Unit-shaped carriage assertion: build_request_tarball ships
+    exactly bin/bale's CARRIED_TOOLS members — the single source since
     the v0.3.19 consolidation retired the guarded interim copy that
     shipped the crafter while bin/bale was held (session 007). The
     real-bale end-to-end pin (a piped pack ships both tools with exec
     bits) lives in tests/test_install_precheck.py."""
 
-    def _run_injection(self, injected_tools: list[str]) -> list[str]:
+    def _run_carriage(self, carried_tools: list[str]) -> list[str]:
         """Drive build_request_tarball in a subprocess whose __main__ we
         control (the function lazily imports DOCS_DIR/GLOBAL_DOCS/
-        INJECTED_TOOLS/TOOLS_DIR from __main__, which in bale is bin/bale).
+        CARRIED_TOOLS/TOOLS_DIR from __main__, which in bale is bin/bale).
         Returns the tar member names."""
         driver = textwrap.dedent("""
             import importlib.util, json, sys, tarfile
@@ -2239,7 +2239,7 @@ class PackInjectionSurface(unittest.TestCase):
 
             repo = Path(sys.argv[1])
             tmp = Path(sys.argv[2])
-            injected = json.loads(sys.argv[3])
+            carried = json.loads(sys.argv[3])
 
             docs = tmp / "docs"; docs.mkdir()
             for d in ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"):
@@ -2249,7 +2249,7 @@ class PackInjectionSurface(unittest.TestCase):
             main.DOCS_DIR = docs
             main.GLOBAL_DOCS = ["CLAUDE.md", "TARBALL.md", "DOCS.md",
                                 "CODE.md"]
-            main.INJECTED_TOOLS = injected
+            main.CARRIED_TOOLS = carried
             main.TOOLS_DIR = repo / "tools"
 
             spec = importlib.util.spec_from_file_location(
@@ -2268,13 +2268,13 @@ class PackInjectionSurface(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             cp = subprocess.run(
                 [sys.executable, "-c", driver, str(REPO), td,
-                 json.dumps(injected_tools)],
+                 json.dumps(carried_tools)],
                 capture_output=True, text=True)
             self.assertEqual(cp.returncode, 0, cp.stderr)
             return json.loads(cp.stdout.strip().splitlines()[-1])
 
-    def test_injects_exactly_the_list_once_each(self):
-        names = self._run_injection(["response_lint.py",
+    def test_carries_exactly_the_list_once_each(self):
+        names = self._run_carriage(["response_lint.py",
                                      "craft_response.py"])
         self.assertEqual(
             names.count("request-042/tools/response_lint.py"), 1)
@@ -2282,12 +2282,12 @@ class PackInjectionSurface(unittest.TestCase):
             names.count("request-042/tools/craft_response.py"), 1)
 
     def test_list_is_the_sole_source(self):
-        """With the guard block gone, nothing beside INJECTED_TOOLS
+        """With the guard block gone, nothing beside CARRIED_TOOLS
         ships a tool: a list without the crafter yields a tarball
         without it. (bin/bale's real list names both — this drives the
         function with a narrowed list to prove no second copy site
         survived the consolidation.)"""
-        names = self._run_injection(["response_lint.py"])
+        names = self._run_carriage(["response_lint.py"])
         self.assertIn("request-042/tools/response_lint.py", names)
         self.assertNotIn("request-042/tools/craft_response.py", names)
 
@@ -3020,7 +3020,7 @@ class CraftDocsReadStub(unittest.TestCase):
         manifest["validation_will_run"] = ["tests"]
         manifest["claims"] = {"tests": "pass"}
         fb = manifest["feedback"]
-        fb["mechanical"]["provenance"]["model_identity"] = "fixture-model"
+        fb["mechanical"]["provenance"]["model_identity"] = "fixture:model"
         fb["self_reported"].update(
             budget_pressure="none",
             compaction_occurred={"occurred": False, "disclosure_ref": None})
@@ -3192,7 +3192,7 @@ class CraftForecastDepartures(unittest.TestCase):
         manifest["validation_will_run"] = ["tests"]
         manifest["claims"] = {"tests": "pass"}
         fb = manifest["feedback"]
-        fb["mechanical"]["provenance"]["model_identity"] = "fixture-model"
+        fb["mechanical"]["provenance"]["model_identity"] = "fixture:model"
         fb["self_reported"].update(
             budget_pressure="none", docs_read=["CLAUDE.md"],
             compaction_occurred={"occurred": False, "disclosure_ref": None})

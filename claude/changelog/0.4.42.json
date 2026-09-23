@@ -1,0 +1,129 @@
+{
+  "record_version": 1,
+  "version": "0.4.42",
+  "session_id": "2026-09-23-board-100-w2-code-surfaces-003",
+  "at": "2026-09-23T02:00:00+00:00",
+  "surfaces": [
+    {
+      "path": "schemas/request-manifest.schema.json",
+      "change": "expects_probe enum gains agent-decides (additive; claude-decides stays, the two are aliases for one posture and both validate for good); provenance.contract_docs becomes a oneOf over two closed key sets — {CLAUDE.md, TARBALL.md, DOCS.md, CODE.md} and the same set with AGENT.md in place of CLAUDE.md, PLANNER.md admitted on both — so a block carrying either spelling validates and one carrying both refuses; out_of_scope's description loses the model noun"
+    },
+    {
+      "path": "schemas/response-manifest.schema.json",
+      "change": "feedback.mechanical.provenance.contract_docs mirrors the request schema's two-branch oneOf (the echo is verbatim, so both key sets must validate); feedback.mechanical.provenance.model_identity stays a string but gains pattern ^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:[.-][a-z0-9]+)*$ and a description pinning the <vendor>:<model> format (lowercase, spaces as hyphens, `unknown` as the model token when not visible, no suffix) — every free-text spelling in the corpus to date is now a lint/apply refusal on new responses; feedback.self_reported.includes_missing stays a string array, its description names the two entry forms (a repo-relative path, or a line opening `decision:`); the claims and bail-trigger descriptions lose the model noun"
+    },
+    {
+      "path": "schemas/diagnostics.schema.json",
+      "change": "bail_trigger's description loses the model noun (worker-detected); no shape change"
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "description only, no shape change: attempts[].provenance's deferred packer/model_identity spelling-consolidation rider is retired — stamps stay verbatim and history is never rewritten, and new records arrive consolidated because the response schema now pins the format at the source"
+    },
+    {
+      "path": "schemas/bundle-manifest.schema.json",
+      "change": "descriptions only: the delivery flags the consumer supplies (was: injects); no shape change"
+    },
+    {
+      "path": "schemas/changelog-record.schema.json",
+      "change": "description only: the version-form check stays in validate_changelog_record, now stated as a choice rather than a validator gap; no shape change"
+    },
+    {
+      "path": "bin/bale_validate.py",
+      "change": "the schema-subset validator gains two keywords, pattern (re.search, unanchored as in JSON Schema) and oneOf (exactly one branch accepts; zero names each branch's first failure, two or more is an error) — new _validate_one_of; every other keyword and every Python-side rule unchanged; validate_bundle_manifest's delivery-flag refusal text says `supplied by the consumer` (was: injected)"
+    },
+    {
+      "path": "tools/response_lint.py",
+      "change": "the embedded response-manifest schema follows the source (contract_docs oneOf, model_identity pattern and description, includes_missing description, noun sweep); _schema_walk gains pattern and oneOf in step with bin/bale_validate.py, so the lint refuses a free-text model_identity and accepts either contract_docs key set before apply does"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "no emission change; the --request seed's log line and --help name the model_identity format (<vendor>:<model>, lowercase, anthropic:unknown when not visible) and the argv-hygiene refusals say `supplies` (was: injects)"
+    },
+    {
+      "path": "bin/bale",
+      "change": "`bale pack --expects-probe` choices admit agent-decides beside claude-decides and the help names both; the default stays claude-decides and cmd_handoff still stamps claude-decides (amendment A: the emitted value and both defaults flip with the docs' three sites); INJECTED_TOOLS renamed CARRIED_TOOLS (same members, same single-source role); `bale stats` reads its corpus from bale_report.telemetry_dir(base) instead of a spelled base/claude/telemetry; the module docstring, `bale --help` description, the pack/status trailers (`Send the tarball to the agent`) and the missing-install-files refusal (`missing carried files`) lose the model noun and the inject vocabulary"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "new [layout] section, PROJECT-LAYER ONLY: LAYOUT_VALUES = (agent_dir,), DEFAULT_AGENT_DIR = \"claude\"; get_layout_agent_dir(cfg) (never None — absent section, absent key or empty value read as the default; a non-table section, non-string value, absolute path, `..` component, trailing slash or whitespace is fatal at config read), layout_agent_dir(repo) (project bale.toml only, short-circuits to the default with no config file), layout_agent_dir_problem; merged_config carries the section from the project layer only; walk_configurables walks layout.agent_dir in project mode only (reject-with-hint on an unusable value); render_bale_toml emits the section; the .baleignore walkthrough says bale reads the file (was: the model noun)"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new telemetry_dir(repo) -> <repo>/<agent_dir>/telemetry, reading [layout] agent_dir through bale_config.layout_agent_dir; telemetry_record_path derives from it (was: a spelled claude/telemetry segment), so every telemetry read and write follows the configured directory"
+    },
+    {
+      "path": "bin/bale_rollback.py",
+      "change": "the dirty-tree guard's whole-prefix telemetry carve-out is derived from the merged config's [layout] agent_dir (new _telemetry_prefix(agent_dir); _split_untracked_disregarded takes agent_dir, default claude) instead of the _TELEMETRY_PREFIX constant, which is gone; an unconfigured repo disregards exactly the paths it did before"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "CARRIED_TOOLS import (was INJECTED_TOOLS); the --verbose build trail prints `carry global doc <doc>` and `carry tool tools/<tool>` (was: inject ...); the session opener's `Open the session:` line and the pack trailer say `agent` (the opener block itself still names CLAUDE.md, the file has not moved); expects_probe default and the session-only-flags table stay on claude-decides, the alias noted beside them"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "docstrings and compose_pack_argv's docstring say the delivery flags are supplied from member presence (was: injected); no behavior change"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "one docstring word (stdin_isatty is overridable for tests, was: injectable); no behavior change"
+    },
+    {
+      "path": "BALE.md",
+      "change": "expects_probe documents the agent-decides alias and that the default stays claude-decides until the flip; §8.9 documents [layout] agent_dir (what it names, project-layer only, the accessor, its three consumers, what refuses, that it moves no directory); the noun becomes the agent / the worker per hat (26 lines) and the docs/tools carriage vocabulary becomes carry/ship, delivery flags `supplied` (28 lines); CLAUDE.md cross-references untouched; the term of art `prompt injection` (§7.7) kept"
+    },
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.41 -> 0.4.42"
+    },
+    {
+      "path": "tests/test_layout_and_formats.py",
+      "change": "new: pins the request schema's two expects_probe spellings, both contract_docs key sets on both schemas (and the both-keys refusal) through bin/bale_validate.py and the lint's validator alike, the model_identity pattern against the two canonical forms and the three pre-0.4.42 corpus spellings, the subset validators' pattern/oneOf keywords, and the [layout] accessor (default, configured, each refusal, merge, render, wizard walk at both layers, telemetry_dir and the rollback prefix)"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "CARRIED_TOOLS mirror (was INJECTED_TOOLS); docstring vocabulary"
+    },
+    {
+      "path": "tests/test_handoff_happy.py",
+      "change": "CARRIED_TOOLS mirror (was INJECTED_TOOLS); comment vocabulary"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "the carriage-surface rider sets main.CARRIED_TOOLS (was main.INJECTED_TOOLS — the monkeypatch would otherwise miss); PackInjectionSurface renamed PackCarriageSurface; model_identity fixtures spelled fixture:model so they pass the new pattern"
+    },
+    {
+      "path": "tests/test_response_lint.py",
+      "change": "the seeded-placeholders fixture's model_identity spelled fixture:model so the only findings are the placeholders"
+    },
+    {
+      "path": "tests/test_install_precheck.py",
+      "change": "CARRIED_TOOLS (was INJECTED_TOOLS) and the refusal marker `missing carried files`; test and docstring vocabulary"
+    },
+    {
+      "path": "tests/test_verbose_thread.py",
+      "change": "pins the `carry global doc CLAUDE.md` trail line (was `inject global doc`)"
+    },
+    {
+      "path": "tests/test_bundle_manifest.py",
+      "change": "pins the `supplied by the consumer` refusal text (was `injected by the consumer`)"
+    },
+    {
+      "path": "tests/test_open_verb.py",
+      "change": "docstring and test-name vocabulary only (delivery flags supplied from member presence)"
+    },
+    {
+      "path": "tests/test_pack_opener.py",
+      "change": "docstring noun only"
+    },
+    {
+      "path": "tests/test_planner_admission.py",
+      "change": "docstring vocabulary only"
+    },
+    {
+      "path": "tests/test_release_packaging.py",
+      "change": "docstring vocabulary only"
+    }
+  ],
+  "notes": "W2 of the 100 arc. Compatibility is for good, not a window: manifests stamped claude-decides and contract_docs blocks keyed CLAUDE.md keep validating beside the new spellings. Inert until the file rename: the AGENT.md key set is admitted but nothing emits it yet; pack and handoff keep emitting claude-decides; the [layout] default is the directory every repo already uses. Readers of feedback.mechanical.provenance.model_identity should expect <vendor>:<model> on records from this version on and the three earlier free-text spellings before it."
+}

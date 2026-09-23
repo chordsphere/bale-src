@@ -227,7 +227,7 @@ def format_summary_block(
     the form the eye locks onto, matching the apply PASS / HOLD / REVERT /
     BAILOUT banners. Commands with no verdict (pack, handoff) pass neither and
     get rows only. `trailer` lines are emitted verbatim after a blank line, for
-    the actionable next step ("Send the tarball to Claude...", "Next step:
+    the actionable next step ("Send the tarball to the agent...", "Next step:
     ...").
 
     `wrap_width` is opt-in long-value handling, added for `bale status` whose
@@ -3605,9 +3605,24 @@ _CLAIM_VERDICT_LINE = re.compile(
 )
 
 
+def telemetry_dir(repo: Path) -> Path:
+    """Absolute path of the repo's telemetry home: <agent_dir>/telemetry/.
+
+    `<agent_dir>` is the project's `[layout] agent_dir` (v0.4.42;
+    bale_config.LAYOUT_VALUES), `claude` when unset — so an
+    unconfigured repo resolves to the `claude/telemetry/` it always
+    had. The one path-building home: bin/bale's `bale stats` corpus,
+    telemetry_record_path below, and bale_rollback's dirty-tree
+    carve-out all read the directory through here or through the same
+    accessor, never by spelling the segment themselves.
+    """
+    import bale_config  # lazy — sibling module, loaded by bin/bale
+    return repo / bale_config.layout_agent_dir(repo) / "telemetry"
+
+
 def telemetry_record_path(repo: Path, sid: str) -> Path:
-    """Absolute path of the sid's telemetry record: claude/telemetry/<sid>.json."""
-    return repo / "claude" / "telemetry" / f"{sid}.json"
+    """Absolute path of the sid's telemetry record: <agent_dir>/telemetry/<sid>.json."""
+    return telemetry_dir(repo) / f"{sid}.json"
 
 
 def parse_claim_verdict_block(output: str) -> tuple[dict, bool]:

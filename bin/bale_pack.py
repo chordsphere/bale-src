@@ -117,8 +117,8 @@ PACK_MAX_DEPTH = 20
 PACK_LARGEST_DIRS_TOPN = 5
 
 # The worker-side crafter's interim CRAFT_TOOL constant (v1, session 007)
-# was deleted in v0.3.19: bin/bale's INJECTED_TOOLS names the crafter
-# directly, and that tuple is the single source for the injected-tool
+# was deleted in v0.3.19: bin/bale's CARRIED_TOOLS names the crafter
+# directly, and that tuple is the single source for the carried-tool
 # list — see its comment for the consolidation history.
 
 # Planner bundle (v0.4.12, board 49a-i; BALE.md §6.7). The reserved
@@ -1262,7 +1262,7 @@ def build_provenance_block(
       instant so the worker sees the pack time in its first message.
 
     - `bale_version` — this install's VERSION constant.
-    - `contract_docs` — sha256 of each injected global doc, hashed from
+    - `contract_docs` — sha256 of each carried global doc, hashed from
       the install at pack time. Pins exactly which contract text the
       session ran under; a doc edit between two packs shows up as a
       hash change in the longitudinal record.
@@ -1357,7 +1357,7 @@ def build_provenance_block(
     id the checkpoint stamp resolves {sid} against — both call sites
     run post-allocation, so the real sid is always in hand. Doc hashing
     reads the same DOCS_DIR files
-    build_request_tarball injects, so the hashes describe the bytes the
+    build_request_tarball ships, so the hashes describe the bytes the
     worker actually receives.
     """
     from __main__ import (  # lazy — see module docstring
@@ -1784,7 +1784,7 @@ def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
     # A planner bundle opens a session; a context pack opens none
     # (v0.4.39). A stored argv carrying --context is a bundle/argv
     # coherence defect, refused here — before the checkpoint dry-run
-    # spends the oracle — rather than at replay, where the injected
+    # spends the oracle — rather than at replay, where the supplied
     # README flag would refuse it later and less legibly.
     if getattr(args, "context", False):
         from __main__ import fail  # lazy — see module docstring
@@ -2495,7 +2495,7 @@ def build_request_tarball(
     both current callers feed already-filtered inputs.
 
     `verbose` (v0.3.35, `bale pack --verbose` — BALE.md §5.4): stream the
-    build trail live — one line per injected global doc and tool, the
+    build trail live — one line per carried global doc and tool, the
     manifest and optional README writes, each context entry as it copies,
     and the final tar step. The build is otherwise a quiet phase between
     "selected N files" and "wrote <tarball>", which on a large context is
@@ -2509,7 +2509,7 @@ def build_request_tarball(
     from __main__ import (  # lazy — see module docstring
         DOCS_DIR,
         GLOBAL_DOCS,
-        INJECTED_TOOLS,
+        CARRIED_TOOLS,
         TOOLS_DIR,
     )
 
@@ -2517,7 +2517,7 @@ def build_request_tarball(
         # Verbose-only build trail (docstring above). Quiet path
         # unchanged — including its import surface: log resolves from
         # __main__ only when --verbose engaged, so harness drivers that
-        # stub a partial __main__ (the injection-surface suite) keep
+        # stub a partial __main__ (the carriage-surface suite) keep
         # working without the flag.
         if verbose:
             from __main__ import log  # lazy — verbose-only
@@ -2530,15 +2530,15 @@ def build_request_tarball(
         request_dir = Path(tmp) / f"request-{nnn}"
         request_dir.mkdir()
 
-        # Inject the global docs from the bale installation. copy2 +
+        # Carry the global docs from the bale installation. copy2 +
         # follow_symlinks=False preserves mode bits — see the context-files
         # copy below for why that matters for the rest of the tarball.
         for doc in GLOBAL_DOCS:
-            _trail(f"inject global doc {doc}")
+            _trail(f"carry global doc {doc}")
             shutil.copy2(DOCS_DIR / doc, request_dir / doc, follow_symlinks=False)
 
-        # Inject the worker-side tools beside the global docs, per
-        # TARBALL.md §3.1: request-NNN/tools/<each INJECTED_TOOLS member>
+        # Carry the worker-side tools beside the global docs, per
+        # TARBALL.md §3.1: request-NNN/tools/<each CARRIED_TOOLS member>
         # — the lint (v0.3.8, session B1) and the crafter (session 007;
         # consolidated into the list in v0.3.19, retiring the guarded
         # interim copy that lived here while bin/bale was held by a
@@ -2549,8 +2549,8 @@ def build_request_tarball(
         # copy raise and the caller's failed-to-build handler surface it.
         tools_dir = request_dir / "tools"
         tools_dir.mkdir()
-        for tool in INJECTED_TOOLS:
-            _trail(f"inject tool tools/{tool}")
+        for tool in CARRIED_TOOLS:
+            _trail(f"carry tool tools/{tool}")
             shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
                          follow_symlinks=False)
 
@@ -2891,7 +2891,7 @@ structured fields carry. The manifest will already include:
 
 Add prose below this comment that doesn't fit those fields (e.g. a
 short story of why the session exists, links to context the architect
-wants Claude to read first, a list of files-of-interest with reasons).
+wants the agent to read first, a list of files-of-interest with reasons).
 Save an empty buffer to omit this README entirely; the structured
 fields above will still ship in the manifest either way.
 -->
@@ -3101,7 +3101,7 @@ def _wizard_input_write_forecast(args: argparse.Namespace,
     I.1 / evidence 37) on the session-shape exchange's lands-changes
     branch. Mutates args.write in place.
 
-    The cold-start pack is the one command with no Claude author, so
+    The cold-start pack is the one command with no agent author, so
     the prompt has to carry the separation to a user who has never
     heard of it: bare Enter takes the forecast-defaults-to-includes
     resolution — exactly the pre-separation pack — and the prompt
@@ -4428,7 +4428,7 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
                    else OPENER_DELIVERABLE_WORKER_SENTENCE)
     return [
         "",
-        "Open the session: paste the block below into a fresh Claude chat,",
+        "Open the session: paste the block below into a fresh agent chat,",
         "unedited, with the request tarball attached.",
         "",
         OPENER_BEGIN,
@@ -4472,7 +4472,8 @@ CONTEXT_TARBALL_PREFIX = "context-"
 # beside --context (cmd_pack_context), fail-fast in the house style of
 # cmd_pack's contradiction pairs. A flag typed AT its default value is
 # indistinguishable from an absent one and so is a no-op (the one case
-# is `--expects-probe claude-decides`).
+# is `--expects-probe claude-decides`; its alias `agent-decides` differs
+# from the default and so refuses like any other typed value).
 CONTEXT_SESSION_ONLY_FLAGS = (
     ("goal", "a goal", None),
     ("slug", "--slug", None),
@@ -5742,7 +5743,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # --exclude-standard` already picks it up via the --others branch.
     # The append-if-missing here is defense in depth for the case where
     # a user adds `.baleignore` to their `.gitignore` (which would be
-    # odd, but is permitted and Claude shouldn't be blind to the file
+    # odd, but is permitted and the agent shouldn't be blind to the file
     # just because its owning user chose to gitignore it). Inserted as
     # a relative path so it lines up with the other entries the walker
     # produced, and only when it actually exists on disk.
@@ -5981,7 +5982,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # Pack pre-flight schema check (BALE.md §11 row 6, request side). bale
     # builds this manifest itself, so a failure here means a construction bug
     # in build_request_manifest — defense in depth (CODE.md §8.2) catching it
-    # before the tarball ships rather than letting Claude's session be the
+    # before the tarball ships rather than letting the agent's session be the
     # first to notice. Cheap, and it keeps request and response manifests on
     # the same enforced-shape footing.
     validate_request_manifest(manifest)
@@ -6115,7 +6116,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         rows += tree_position_rows(
             branch=pack_branch, applied_latest=applied_latest)
         trailer = [
-            "Send the tarball to Claude. When the response tarball comes back,",
+            "Send the tarball to the agent. When the response tarball comes back,",
             "run: bale apply <response-tarball>",
         ]
         if args.read_only:

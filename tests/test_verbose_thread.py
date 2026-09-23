@@ -5,7 +5,7 @@ Pins the three closes BALE.md §13's v0.3 --verbose entry named as the
 residue, plus the riding staging-row fold-in:
 
 - `bale pack --verbose` streams the filter-chain drop decisions (which
-  filter dropped each path) and the tarball build trail (injected
+  filter dropped each path) and the tarball build trail (carried
   docs/tools, manifest, context copies, the tar step); the default pack
   emits none of those lines — byte-parity with the pre-flag surface.
 - `bale revert --verbose` streams the discard's captured git output
@@ -209,9 +209,9 @@ class VerboseThreadTest(unittest.TestCase):
         # The filter-chain drop trail names the path AND the filter.
         self.assertIn("verbose: skip extra.txt (outside --include)",
                       combined)
-        # The build trail: an injected global doc, the manifest write,
+        # The build trail: a carried global doc, the manifest write,
         # and the surviving context copy.
-        self.assertIn("verbose: inject global doc CLAUDE.md", combined)
+        self.assertIn("verbose: carry global doc CLAUDE.md", combined)
         self.assertIn("verbose: write manifest.json", combined)
         self.assertIn("verbose: copy context/hello.txt", combined)
         # Build-trail lines run post-sid: they land in the session log

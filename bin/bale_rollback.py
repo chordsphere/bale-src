@@ -186,8 +186,17 @@ def _conflicted_paths(repo: Path) -> list[str]:
 
 # The one directory whose *untracked* entries the guard disregards
 # wholesale (v0.3.23, board 5 D5). A prefix, not a pattern: exactly the
-# tracked-side telemetry home BALE.md §8.9 writes to.
-_TELEMETRY_PREFIX = "claude/telemetry/"
+# tracked-side telemetry home BALE.md §8.9 writes to. Since v0.4.42 the
+# leading segment is the project's `[layout] agent_dir` (`claude` when
+# unset), so the prefix is derived from the config rather than spelled
+# here — _telemetry_prefix below; the guard reads it once per run from
+# the same merged config it reads archive_dir from.
+_TELEMETRY_SUBDIR = "telemetry/"
+
+
+def _telemetry_prefix(agent_dir: str) -> str:
+    """The repo-relative prefix of the telemetry home, with its trailing slash."""
+    return agent_dir.rstrip("/") + "/" + _TELEMETRY_SUBDIR
 
 
 def _is_bale_archive_artifact(path: str, archive_dir: Optional[str]) -> bool:
@@ -197,8 +206,8 @@ def _is_bale_archive_artifact(path: str, archive_dir: Optional[str]) -> bool:
     archivable response artifacts.
 
     Deliberately shape-matched rather than a whole-prefix disregard like
-    `_TELEMETRY_PREFIX` above: the telemetry home is a fixed path bale
-    owns outright, while archive_dir is user-configured and may sit in a
+    the telemetry prefix: the telemetry home is a path bale owns
+    outright, while archive_dir is user-configured and may sit in a
     directory the user also works in — disregarding only what bale
     itself demonstrably wrote keeps the guard's conservatism. `None`
     archive_dir (the key unset) matches nothing.
@@ -228,16 +237,19 @@ def _is_bale_archive_artifact(path: str, archive_dir: Optional[str]) -> bool:
 
 
 def _split_untracked_disregarded(
-        status: str, archive_dir: Optional[str]) -> tuple[list[str], list[str]]:
+        status: str, archive_dir: Optional[str],
+        agent_dir: str = "claude") -> tuple[list[str], list[str]]:
     """Split `git status --porcelain` output for the guard's judgment.
 
     Takes `git status --porcelain -uall` output — `-uall` so an
     entirely-untracked directory is enumerated file by file instead of
-    collapsing to one `?? claude/` entry the tests below could
+    collapsing to one `?? <agent_dir>/` entry the tests below could
     not judge (the first record bale ever writes creates exactly that
     state). Returns (disregarded_paths, remainder_lines):
     `disregarded_paths` are the paths of `?? ` (untracked) entries that
-    bale itself left behind — under `claude/telemetry/` (v0.3.23), or
+    bale itself left behind — under `<agent_dir>/telemetry/` (v0.3.23;
+    the leading segment is the project's `[layout] agent_dir` since
+    v0.4.42, passed in by the guard, `claude` when unset), or
     matching the [apply].archive_dir artifact shape
     (`_is_bale_archive_artifact`, v0.3.30) — and `remainder_lines` is
     every other non-blank status line verbatim.
@@ -247,6 +259,7 @@ def _split_untracked_disregarded(
     characters; the surrounding quotes are stripped before the tests
     so such a path is still judged by its real location.
     """
+    telemetry_prefix = _telemetry_prefix(agent_dir)
     disregarded: list[str] = []
     remainder: list[str] = []
     for line in status.splitlines():
@@ -256,9 +269,9 @@ def _split_untracked_disregarded(
             path = line[3:].strip()
             if path.startswith('"') and path.endswith('"') and len(path) >= 2:
                 path = path[1:-1]
-            if (path.startswith(_TELEMETRY_PREFIX)
-                    or path == _TELEMETRY_PREFIX.rstrip("/")
-                    or path == _TELEMETRY_PREFIX):
+            if (path.startswith(telemetry_prefix)
+                    or path == telemetry_prefix.rstrip("/")
+                    or path == telemetry_prefix):
                 disregarded.append(path)
                 continue
             if _is_bale_archive_artifact(path, archive_dir):
@@ -273,7 +286,8 @@ def _guard_dirty_tree(repo: Path, *, stash: bool, force: bool) -> Optional[str]:
     Clean tree → returns None (nothing stashed). Untracked paths that
     bale itself left behind are disregarded when judging cleanliness
     (BALE.md §9.2 step 3): the telemetry record under
-    `claude/telemetry/` (v0.3.23, board 5 D5), and — when the project
+    `<agent_dir>/telemetry/` (v0.3.23, board 5 D5; the leading segment
+    is `[layout] agent_dir`, `claude` when unset), and — when the project
     configures [apply].archive_dir — response-artifact copies matching
     exactly the `<archive_dir>/<sid>/<artifact>` shape apply writes at
     merge (v0.3.30; shape test in `_is_bale_archive_artifact`, which
@@ -304,10 +318,12 @@ def _guard_dirty_tree(repo: Path, *, stash: bool, force: bool) -> Optional[str]:
     # The archive_dir read goes through the strict typed accessor: a
     # malformed key is fatal here exactly as it is at apply — a typo
     # must not silently change which paths the guard disregards.
-    archive_dir = bale_config.get_apply_archive_dir(
-        bale_config.merged_config(repo))
+    cfg = bale_config.merged_config(repo)
+    archive_dir = bale_config.get_apply_archive_dir(cfg)
+    agent_dir = bale_config.get_layout_agent_dir(cfg)
     r = git(["status", "--porcelain", "-uall"], cwd=repo)
-    disregarded, remainder = _split_untracked_disregarded(r.stdout, archive_dir)
+    disregarded, remainder = _split_untracked_disregarded(
+        r.stdout, archive_dir, agent_dir)
     if disregarded and not remainder:
         log("dirty-tree guard: disregarding untracked bale-written "
             f"path(s) — {', '.join(disregarded)} — telemetry and/or "

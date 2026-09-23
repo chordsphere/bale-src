@@ -2,15 +2,15 @@
 """Hermetic E2E for the request-command install sanity check.
 
 Covers the ``main()`` pre-flight in ``bin/bale`` that verifies the
-installation ships its injected files (GLOBAL_DOCS under ``docs/``,
-INJECTED_TOOLS under ``tools/``) before either request-building
+installation ships its carried files (GLOBAL_DOCS under ``docs/``,
+CARRIED_TOOLS under ``tools/``) before either request-building
 command — ``bale pack`` or ``bale handoff`` — does any work. On a
 broken install both commands must refuse up front with the identical
 "Reinstall bale." message: before any prompt, before any tarball
 resolution, before any session state exists. The handoff side is the
 gap this test pins closed — previously a broken install died mid-build
 as a copy failure after sid allocation. Since v0.3.19 the gate covers
-both INJECTED_TOOLS members (the crafter joined the list in the
+both CARRIED_TOOLS members (the crafter joined the list in the
 session-007 consolidation), and the intact-install pack test doubles
 as the end-to-end pin that a real pack ships both tools, executable.
 
@@ -47,11 +47,11 @@ from harness import (
 
 # Sentinels for the refusal this file exists to pin. Kept in one place
 # so a message rewording breaks one line, not six assertions.
-MISSING_MARKER = "missing injected files"
+MISSING_MARKER = "missing carried files"
 REINSTALL_MARKER = "Reinstall bale."
 
-# The full injected global-doc set (bin/bale's GLOBAL_DOCS; PLANNER.md
-# joined in v0.4.11 — the planner-injection wiring session). The intact
+# The full carried global-doc set (bin/bale's GLOBAL_DOCS; PLANNER.md
+# joined in v0.4.11 — the planner-carriage wiring session). The intact
 # pack E2E below asserts a real pack ships every member and stamps a
 # provenance contract_docs key for each, so a constant edit that misses
 # a consumer fails here, end to end.
@@ -138,7 +138,7 @@ class InstallPrecheckTest(unittest.TestCase):
         # Message parity with pack's refusal, byte for byte.
         self.assertEqual(error_line(pack.stderr), error_line(handoff.stderr))
 
-    def test_missing_injected_tool_refuses_pack_and_handoff(self) -> None:
+    def test_missing_carried_tool_refuses_pack_and_handoff(self) -> None:
         (self.install / "tools" / "response_lint.py").unlink()
 
         pack = self.run_pack(self.install)
@@ -151,7 +151,7 @@ class InstallPrecheckTest(unittest.TestCase):
         self.assertEqual(error_line(pack.stderr), error_line(handoff.stderr))
 
     def test_missing_craft_tool_refuses_pack_and_handoff(self) -> None:
-        """The crafter joined INJECTED_TOOLS in v0.3.19 (the session-007
+        """The crafter joined CARRIED_TOOLS in v0.3.19 (the session-007
         consolidation), so the gate now covers it too — closing the gap
         007's notes named: until then a missing crafter surfaced as the
         copy raising inside pack rather than this pre-run check."""
@@ -177,19 +177,19 @@ class InstallPrecheckTest(unittest.TestCase):
 
     def test_intact_install_pack_end_to_end(self) -> None:
         """A full piped pack succeeds — the widened gate broke nothing —
-        the request tarball ships BOTH injected tools, executable, plus
+        the request tarball ships BOTH carried tools, executable, plus
         every GLOBAL_DOCS member at the top level, and the stamped
         provenance carries a contract_docs key per member.
 
         The tarball half takes session 007's deferred pack-E2E proposal
         (v0.3.19): with the guarded interim copy in bale_pack retired,
-        bin/bale's INJECTED_TOOLS is the single source for the injected
+        bin/bale's CARRIED_TOOLS is the single source for the carried
         tools, and this is the end-to-end pin that a real pack ships
         every member — the lint and the crafter — with the exec bits
         copy2 preserves from the install.
 
-        The doc half is the v0.4.11 planner-injection wiring's pin:
-        GLOBAL_DOCS grew to five, and injection and the provenance
+        The doc half is the v0.4.11 planner-carriage wiring's pin:
+        GLOBAL_DOCS grew to five, and carriage and the provenance
         stamp both read the tuple — so the assertion here is
         exactly-the-set, not membership, in both places: a doc dropped
         from either surface, or a stray extra, fails loudly.
@@ -242,7 +242,7 @@ class InstallPrecheckTest(unittest.TestCase):
                 + "\n".join(sorted(members)),
         )
         # The provenance stamp keys exactly the same set: one sha256
-        # per injected doc, hashed from the install at pack time.
+        # per carried doc, hashed from the install at pack time.
         contract_docs = manifest["provenance"]["contract_docs"]
         self.assertEqual(set(contract_docs), set(GLOBAL_DOCS))
         for doc, digest in contract_docs.items():

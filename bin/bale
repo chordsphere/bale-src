@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""bale — Claude session orchestrator.
+"""bale — agent session orchestrator.
 
-The CLI for the Claude tarball workflow: `bale pack` builds request
+The CLI for the agent tarball workflow: `bale pack` builds request
 tarballs, `bale apply` validates and integrates the response tarballs a
-worker Claude returns, `bale open` consumes a planner bundle into a
+worker agent returns, `bale open` consumes a planner bundle into a
 packed session (verify, dry-run, replay — bin/bale_open.py, board
 49a-ii), and the ancillary commands (revert, rollback, retry,
 amend-checkpoint, relay, unlock, handoff, config init, status, stats) manage
@@ -152,6 +152,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_summary_block,
     format_unlock_json,
     json_mode,
+    telemetry_dir,
     telemetry_record_path,
     write_telemetry_record,
     format_stats_json,
@@ -191,7 +192,7 @@ from bale_stats import (  # noqa: E402 — sys.path tweak above is load-bearing
 # refuse_system_dir/resolve_inbound_path/confirm_yn/open_in_editor/
 # next_session_id/is_valid_slug/current_branch/set_log_file/the registry
 # and scope helpers/ensure_bale_gitignored/run_hook/the baleignore
-# matcher cluster/the injection constants) lazily from __main__, the same
+# matcher cluster/the carried-doc constants) lazily from __main__, the same
 # idiom the other siblings use. Dependency direction is one-way: this
 # file imports bale_pack; bale_pack never imports the apply path.
 from bale_pack import (  # noqa: E402 — sys.path tweak above is load-bearing
@@ -344,15 +345,15 @@ INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")  # PLANNER.md joined the set in v0.4.11
-                              # (planner-injection wiring; the doc
+                              # (planner-carriage wiring; the doc
                               # itself was born in the 2026-08-16
                               # planner-birth session). This tuple is
-                              # the single source for injection, the
+                              # the single source for carriage, the
                               # pack-time provenance stamp, the handoff
                               # reading-plan filter, and main()'s
                               # missing-docs pre-check.
 
-# The worker-side tools injected into every request tarball beside the
+# The worker-side tools carried in every request tarball beside the
 # global docs, so the worker can craft and self-check its response
 # pre-pack without bale installed: the lint (TARBALL.md §10.1 step 10,
 # mechanized — v0.3.8, session B1) and the crafter (TARBALL.md §5.2's
@@ -362,10 +363,10 @@ GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
 # <install>/tools/ — the same sibling-of-bin layout docs/ and schemas/
 # use; main()'s pack-time sanity check verifies each is present, the
 # same fail-loud posture as the missing-docs check. This tuple is the
-# single source for the injected-tool list: build_request_tarball
+# single source for the carried-tool list: build_request_tarball
 # copies exactly these members, nothing else.
 TOOLS_DIR = INSTALL_ROOT / "tools"
-INJECTED_TOOLS = ("response_lint.py", "craft_response.py")
+CARRIED_TOOLS = ("response_lint.py", "craft_response.py")
 
 # The pack-side exclusion constants (baked-in excluded dirs, secret
 # patterns, secret path excludes) and the pack threshold caps moved to
@@ -2000,7 +2001,7 @@ def load_baleignore(repo: Path) -> Optional[BaleignoreMatcher]:
 
     Malformed patterns (negation) fail loudly: the file is the
     user's source of truth, and silently dropping unsupported syntax
-    would mean Claude responses get apply-rejected for reasons that
+    would mean the agent's responses get apply-rejected for reasons that
     look correct on the page.
     """
     f = repo / BALEIGNORE_FILE
@@ -3571,7 +3572,7 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
     accept the token as a candidate path when (a) it contains `/` OR has a
     known code/doc extension (per _PATH_LIKE_EXTENSIONS), AND (b) it is
     path-safe per is_path_safe (no leading `/`, no `..`, no `.git/` /
-    `.bale/` prefix). The four bale-injected global docs are filtered out
+    `.bale/` prefix). The four bale-carried global docs are filtered out
     here too — they ship at the request's top level on every pack, so a
     duplicate under context/ would be noise.
 
@@ -3608,7 +3609,7 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
             continue
         if not is_path_safe(token):
             continue
-        # Filter out bale-injected global docs (bare-filename match against
+        # Filter out bale-carried global docs (bare-filename match against
         # GLOBAL_DOCS). A reading plan that says "re-read `BALE.md` §8.7"
         # is informational; bale already ships BALE.md at the top level.
         if Path(token).name in GLOBAL_DOCS:
@@ -3964,7 +3965,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             repo, responds_to_sid)
 
         # Pre-pack source files from handoff.md's `## Reading plan for the
-        # next session` section (TARBALL.md §5.7). The bailing Claude's
+        # next session` section (TARBALL.md §5.7). The bailing agent's
         # reading plan typically names the files the next session should
         # read; bundling them in context/ here removes the
         # apply-bailout-then-manually-repack step the architect would
@@ -3982,7 +3983,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         #   3. If a cited path is unsafe (escape, .git/, .bale/) or matches
         #      a baked-in secret pattern, the same filters drop it. Same
         #      cleanup contract — bale never refuses a handoff over a
-        #      single bad reference in a Claude-authored doc.
+        #      single bad reference in an agent-authored doc.
         #
         # Done before sid allocation so a (hypothetical) error doesn't
         # burn an NNN. The implementation only logs and reads; it cannot
@@ -4160,7 +4161,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # for build_request_tarball. handoff.md's source lives in the
         # extracted-bailout tmpdir; each pre-packed source file's source
         # lives in the repo. Parallel context_paths list goes into the
-        # manifest so the next Claude sees the full inventory in
+        # manifest so the next agent sees the full inventory in
         # manifest.context_included per TARBALL.md §3.2.
         context_entries: list[tuple[str, Path]] = [
             ("handoff.md", handoff_path),
@@ -4313,7 +4314,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         print(format_summary_block(
             summary_rows,
             trailer=[
-                "Send the tarball to Claude. When the response comes back,",
+                "Send the tarball to the agent. When the response comes back,",
                 "run: bale apply <response-tarball>",
             ],
         ))
@@ -5177,7 +5178,7 @@ def _session_state_and_hint(
         return (
             SESSION_STATE_PACKED,
             "packed — request tarball awaiting a response, then apply",
-            "send the outbox tarball to Claude, then `bale apply <response>`",
+            "send the outbox tarball to the agent, then `bale apply <response>`",
         )
     return (
         SESSION_STATE_ORPHAN,
@@ -5858,9 +5859,11 @@ def cmd_stats(args) -> int:
     if args.json:
         enable_json_mode()
     base = repo_root(Path.cwd()) or Path.cwd()
-    telemetry_dir = base / "claude" / "telemetry"
+    # The corpus lives under the project's [layout] agent_dir (v0.4.42),
+    # `claude` when unset; bale_report.telemetry_dir is the one home.
+    corpus_dir = telemetry_dir(base)
     if args.sid is not None:
-        return _stats_dossier(args, telemetry_dir)
+        return _stats_dossier(args, corpus_dir)
     since = None
     if args.since:
         try:
@@ -5869,7 +5872,7 @@ def cmd_stats(args) -> int:
             fail(f"--since must be an ISO date (YYYY-MM-DD); got "
                  f"{args.since!r}")
         since = args.since
-    stats = compute_stats(telemetry_dir,
+    stats = compute_stats(corpus_dir,
                           work_class=args.work_class, since=since)
     if args.json:
         emit_json_line(format_stats_json(stats))
@@ -5965,7 +5968,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="bale",
         description=(
-            f"Claude session orchestrator (v{VERSION}): a request tarball "
+            f"agent session orchestrator (v{VERSION}): a request tarball "
             f"goes out to the worker, a response tarball comes back, and "
             f"bale validates, stages, and merges or holds it."
         ),
@@ -6096,12 +6099,15 @@ def build_parser() -> argparse.ArgumentParser:
              "as --constraint.",
     )
     p_pack.add_argument(
-        "--expects-probe", choices=("yes", "no", "claude-decides"),
+        "--expects-probe",
+        choices=("yes", "no", "claude-decides", "agent-decides"),
         default="claude-decides",
         help="Whether the session expects a probe. The default, "
              "claude-decides, has the worker probe whenever an "
              "environment gap surfaces rather than guess around it "
-             "(TARBALL.md section 4.1).",
+             "(TARBALL.md section 4.1); agent-decides is the same "
+             "posture under its model-agnostic spelling, admitted as "
+             "an alias and stamped verbatim when typed.",
     )
     p_pack.add_argument(
         "--readme-file", default=None, metavar="PATH",
@@ -6289,7 +6295,7 @@ def build_parser() -> argparse.ArgumentParser:
              "line for every file the filter chain drops (naming which "
              "filter — baked-in dir, secret pattern, .baleignore/session "
              "exclude, outside --include) and the tarball build trail "
-             "(injected docs and tools, manifest, README, each context "
+             "(carried docs and tools, manifest, README, each context "
              "copy, the tar step). Hook output already streams live with "
              "or without the flag. Walk lines run pre-session and reach "
              "the terminal only; build lines also land in "
@@ -6989,7 +6995,7 @@ def build_parser() -> argparse.ArgumentParser:
     # the arg-inspectable pack gates (board 68), dry-runs the checkpoint
     # read-only against the live base (expected-HOLD proof; exit 2
     # refuses as a defective oracle), then replays the stored pack argv
-    # with the delivery flags injected from member presence and the
+    # with the delivery flags supplied from member presence and the
     # bundle's pre-answered intents on the in-process channel.
     p_open = sub.add_parser(
         "open",
@@ -7016,7 +7022,7 @@ def build_parser() -> argparse.ArgumentParser:
             "refuses the whole open as a defective oracle; exit 0 "
             "proceeds with a vacuous-oracle warning). (4) Replay the "
             "stored pack argv with --readme-file/--no-readme and "
-            "--checkpoint-file injected from member presence and the "
+            "--checkpoint-file supplied from member presence and the "
             "bundle's pre_answered intents riding the in-process channel "
             "— routed through every decline-default exchange, never "
             "around it. The replayed pack re-runs every gate at its own "
@@ -7106,7 +7112,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_handoff.add_argument(
         "--verbose", action="store_true",
         help="Stream handoff's tarball build trail live (BALE.md §5.4): "
-             "injected docs and tools, manifest, each context copy "
+             "carried docs and tools, manifest, each context copy "
              "(handoff.md and every reading-plan file), the tar step — "
              "the same build-trail machinery `bale pack --verbose` "
              "streams, on the second request-building path. Default "
@@ -7431,9 +7437,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Sanity: the installation must have the global docs and the injected
+    # Sanity: the installation must have the global docs and the carried
     # worker tools alongside. Both request-building commands (pack,
-    # handoff) inject them via build_request_tarball; a missing file
+    # handoff) ship them via build_request_tarball; a missing file
     # would otherwise surface as a mid-build copy failure — on handoff,
     # after sid allocation and session state already exist. Fail loud
     # up front instead, with the same message on both commands.
@@ -7442,11 +7448,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         # (board 49a-ii): the missing-file failure would otherwise
         # surface mid-replay, after the dry-run already spent its cost.
         missing = [d for d in GLOBAL_DOCS if not (DOCS_DIR / d).exists()]
-        missing += [f"tools/{t}" for t in INJECTED_TOOLS
+        missing += [f"tools/{t}" for t in CARRIED_TOOLS
                     if not (TOOLS_DIR / t).exists()]
         if missing:
             fail(
-                f"installation is missing injected files under "
+                f"installation is missing carried files under "
                 f"{INSTALL_ROOT}: {', '.join(missing)}. Reinstall bale."
             )
 

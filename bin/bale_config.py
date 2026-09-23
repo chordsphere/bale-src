@@ -41,8 +41,8 @@ layer detection, and by `build_parser` for command dispatch):
     hooks` (v0.4.29, board 83; section 4).
 
 Sections are [hooks], [apply], [staging], [identity] (both layers) and
-[validation], [sandbox], [pack], [probe] (project layer only); each
-section's tuple below documents its keys and its layer ruling.
+[validation], [sandbox], [pack], [probe], [layout] (project layer only);
+each section's tuple below documents its keys and its layer ruling.
 """
 
 from __future__ import annotations
@@ -387,6 +387,33 @@ PROBE_VALUES = (
     "clipboard_command",
 )
 
+# Value-shaped configurables under the [layout] section — where the
+# project keeps the agent-facing tree bale reads from and writes to
+# (v0.4.42, the 100 arc's W2). Same trio contract as the sections
+# above: a typed accessor (get_layout_agent_dir), a walk_configurables()
+# block, and a render_bale_toml() branch. PROJECT-LAYER ONLY, for the
+# reason [validation] is: the value names a directory of THIS repo's
+# tree, and a global default would silently reroute every repo's
+# telemetry the moment one operator set it. The default is the
+# directory every existing repo already uses, so an absent key renames
+# nothing.
+LAYOUT_VALUES = (
+    # String: the repo-relative directory that holds the agent-facing
+    # tree — today the telemetry home, `<agent_dir>/telemetry/` (BALE.md
+    # §8.9). Absent or empty = DEFAULT_AGENT_DIR. One repo-relative
+    # path, no `..` component, never absolute (layout_agent_dir_problem).
+    # Only project paths read it; bale-src's own claude/changelog/ and
+    # claude/context/ are source paths of this repository, not of the
+    # project a bale install serves, and stay where they are.
+    "agent_dir",
+)
+
+# The directory name every repo used before the key existed, and what an
+# unset key still means. Changing this constant renames every unconfigured
+# repo's telemetry home at once, so it is the one value here that is not a
+# default in the "reasonable starting point" sense: it is history.
+DEFAULT_AGENT_DIR = "claude"
+
 
 # ---------------------------------------------------------------------------
 # 2. Configurables: load and merge
@@ -624,6 +651,20 @@ def merged_config(repo: Path) -> dict:
             out_probe[key] = p_probe[key]
     if out_probe:
         merged["probe"] = out_probe
+
+    # [layout] — PROJECT LAYER ONLY (v0.4.42; see LAYOUT_VALUES). No
+    # `elif key in g_layout` branch: the key names a directory of one
+    # repo's tree, and a global value would reroute every repo's
+    # telemetry home at once. A hand-edited global [layout] is ignored
+    # here, never inherited.
+    p_layout = (p.get("layout")
+                if isinstance(p.get("layout"), dict) else {})
+    out_layout: dict = {}
+    for key in LAYOUT_VALUES:
+        if key in p_layout:
+            out_layout[key] = p_layout[key]
+    if out_layout:
+        merged["layout"] = out_layout
 
     return merged
 
@@ -1493,6 +1534,89 @@ def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
              f"backslashes or double quotes (wrap it in a script if it "
              f"needs them).")
     return val
+
+
+def layout_agent_dir_problem(value: str) -> Optional[str]:
+    """Say why `value` is not a usable [layout] agent_dir, or None.
+
+    The key's contract is one repo-relative directory: bale joins it
+    under the repo root and under a staging copy alike, so an absolute
+    path, a `..` component, or a trailing slash that would double up
+    in a rendered prefix is refused at config read rather than quietly
+    resolving somewhere outside the tree. The empty string is not
+    judged here — callers read it as unset (DEFAULT_AGENT_DIR).
+    """
+    if os.path.isabs(value):
+        return "must be a repo-relative path, not absolute"
+    parts = Path(value).parts
+    if ".." in parts:
+        return "must not contain a '..' component"
+    if value.endswith("/") or value.endswith(os.sep):
+        return "must not end in a slash"
+    if any(ch.isspace() for ch in value):
+        return "must not contain whitespace"
+    return None
+
+
+def get_layout_agent_dir(cfg: dict) -> str:
+    """Return [layout].agent_dir from the merged config, or DEFAULT_AGENT_DIR.
+
+    The one reader of the key's value (LAYOUT_VALUES): the telemetry
+    home is `<repo>/<agent_dir>/telemetry/` — bin/bale's `bale stats`
+    corpus, bale_report.telemetry_record_path, and bale_rollback's
+    dirty-tree carve-out all derive their path from this accessor, so
+    a configured repo has one spelling and an unconfigured one keeps
+    the spelling it always had. Never None: absent section, absent key,
+    or an empty value after stripping all read as the default.
+
+    Merged-config note: [layout] is project-layer only (LAYOUT_VALUES
+    owns the rationale) — merged_config never carries a global value
+    into this section, so this accessor reads the project's own key or
+    the default.
+
+    Shape posture: a non-table section, a non-string value, or a path
+    that escapes the repo (layout_agent_dir_problem) is fatal, as in
+    the sibling string accessors — a typo must not silently move the
+    telemetry corpus.
+    """
+    from __main__ import fail
+
+    layout_section = cfg.get("layout")
+    if layout_section is None:
+        return DEFAULT_AGENT_DIR
+    if not isinstance(layout_section, dict):
+        fail(f"{BALE_CONFIG}: [layout] must be a table, "
+             f"got {type(layout_section).__name__}")
+    raw = layout_section.get("agent_dir")
+    if raw is None:
+        return DEFAULT_AGENT_DIR
+    if not isinstance(raw, str):
+        fail(f"{BALE_CONFIG}: layout.agent_dir must be a string, "
+             f"got {type(raw).__name__}")
+    val = raw.strip()
+    if not val:
+        return DEFAULT_AGENT_DIR
+    problem = layout_agent_dir_problem(val)
+    if problem is not None:
+        fail(f"{BALE_CONFIG}: layout.agent_dir {problem}, got {val!r}")
+    return val
+
+
+def layout_agent_dir(repo: Path) -> str:
+    """The repo's agent directory name, read from its own bale.toml.
+
+    The path-building convenience over get_layout_agent_dir: callers
+    that only need the directory (telemetry_record_path and friends)
+    pass the repo and get the name. Reads the PROJECT layer only, which
+    is the whole of where [layout] can live, and short-circuits on an
+    absent bale.toml without touching the config loader — so a repo
+    with no config file, the common case in unit fixtures, resolves to
+    DEFAULT_AGENT_DIR without needing bin/bale's `fail` on the process's
+    __main__.
+    """
+    if not (repo / BALE_CONFIG).is_file():
+        return DEFAULT_AGENT_DIR
+    return get_layout_agent_dir(load_config(repo))
 
 
 # ---------------------------------------------------------------------------
@@ -2445,6 +2569,48 @@ def walk_configurables(existing: dict, *, layer: str,
         if val is not None:
             new.setdefault("probe", {})["clipboard_command"] = val
 
+        # ---- [layout].agent_dir (PROJECT LAYER ONLY) ----------------------
+        # The agent-facing directory name (v0.4.42; see LAYOUT_VALUES).
+        # Walked only in project mode because the value names a
+        # directory of this repo's tree; `inherited` is deliberately
+        # None (and merged_config never inherits [layout]), so 'x' is
+        # never offered. An escaping path is refused after the prompt
+        # with the staging.strategy reject-with-hint posture: keep
+        # current rather than land a key the accessor would refuse at
+        # the next command.
+        existing_layout = (existing.get("layout")
+                           if isinstance(existing.get("layout"), dict)
+                           else {})
+        raw_cur = existing_layout.get("agent_dir")
+        current = raw_cur if isinstance(raw_cur, str) else None
+
+        val = _prompt_value(
+            "layout.agent_dir",
+            current=current,
+            inherited=None,
+            description=[
+                f"Optional. Enter to skip (\"{DEFAULT_AGENT_DIR}\").",
+                "Repo-relative directory holding the agent-facing tree",
+                "bale writes to — the telemetry home is",
+                "<agent_dir>/telemetry/ (BALE.md section 8.9). Unset =",
+                f"\"{DEFAULT_AGENT_DIR}\", the directory every repo used before",
+                "the key existed, so leaving it unset renames nothing.",
+                "Setting it does not move an existing directory: rename",
+                "the directory in git and set the key in the same commit.",
+                "One repo-relative path, no '..', never absolute.",
+                "Project-layer only: the value names this repo's tree,",
+                "so the global wizard neither walks nor inherits it.",
+            ],
+            unset_effective=f"(unset — \"{DEFAULT_AGENT_DIR}\")",
+        )
+        if val not in (None, ""):
+            problem = layout_agent_dir_problem(val.strip())
+            if problem is not None:
+                print(f"  '{val}' {problem}. Keeping current.")
+                val = current
+        if val is not None:
+            new.setdefault("layout", {})["agent_dir"] = val
+
     return new
 
 
@@ -2668,6 +2834,18 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
                              f"{json.dumps(probe_section[key], ensure_ascii=False)}")
         parts.append("")
 
+    # [layout] section (v0.4.42 — the agent-facing directory name). One
+    # string key, emitted in LAYOUT_VALUES order. Project-layer only by
+    # walk (the ruling on LAYOUT_VALUES): the global wizard never puts
+    # this section in its dict.
+    layout_section = cfg.get("layout") or {}
+    if layout_section:
+        parts.append("[layout]")
+        for key in LAYOUT_VALUES:
+            if key in layout_section:
+                parts.append(f"{key} = {json.dumps(layout_section[key])}")
+        parts.append("")
+
     return "\n".join(parts)
 
 
@@ -2713,7 +2891,7 @@ def walkthrough_baleignore(repo: Path) -> None:
     print(".baleignore — files and patterns to exclude from request tarballs")
     print(f"  file: {path}")
     print(f"  applies on top of bale's baked-in exclusions and your .gitignore.")
-    print(f"  Claude reads this file when packing, and apply rejects a")
+    print(f"  bale reads this file when packing, and apply rejects a")
     print(f"  response whose changes touch a matched path (BALE.md §11 rule 14).")
 
     existing_lines: list[str] = []

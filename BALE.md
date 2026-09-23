@@ -13,33 +13,33 @@
 The design document for the **bale** command-line tool. bale is the
 mechanical machinery that makes the workflow described in
 `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` operate. It
-packs request tarballs to send to Claude, applies response tarballs
-Claude returns, and handles the git-side bookkeeping (staging,
+packs request tarballs to send to the agent, applies response tarballs
+the worker returns, and handles the git-side bookkeeping (staging,
 validating, committing, rolling back).
 
 This doc captures architecture decisions, the command surface, the
 wire-format details bale enforces, and the build phases. It is meant
-to be uploaded into a Claude session as the source for implementing
+to be uploaded into an agent session as the source for implementing
 the tool.
 
 ### How this relates to the global docs
 
 - `CLAUDE.md` is the working agreement and the operating manual.
-  Bale injects it into every request.
+  Bale carries it in every request.
 - `TARBALL.md` is the wire format. Bale implements its contract and
-  injects it into every request.
-- `DOCS.md` is project-side doc-management policy. Bale injects it
+  carries it in every request.
+- `DOCS.md` is project-side doc-management policy. Bale carries it
   into every request but does not enforce it; projects that adopt
-  the workflow have Claude include the corresponding assertions in
+  the workflow have the worker include the corresponding assertions in
   each response's `validation.sh`.
 - `CODE.md` is project-side code-layout philosophy — extraction,
   splitting, indexing, pruning, plus the rules for human-authored
-  and meta code. Bale injects it into every request but does not
-  enforce it; projects that adopt the philosophy have Claude
+  and meta code. Bale carries it in every request but does not
+  enforce it; projects that adopt the philosophy have the worker
   include the corresponding assertions in each response's
   `validation.sh`.
 - This doc (`BALE.md`) is the design of the tool itself. It is not
-  injected into project requests; it lives in the bale tool's source
+  carried in project requests; it lives in the bale tool's source
   repo and is read when modifying bale.
 
 ### Amendment rule
@@ -89,17 +89,17 @@ repository. Hand-edits are expected only during bootstrap (section
 
 ## 1. Purpose
 
-Bale is a project-agnostic CLI that handles Claude sessions end to
+Bale is a project-agnostic CLI that handles agent sessions end to
 end. It does one thing: orchestrate the round trip between a project
-directory and Claude via tarballs.
+directory and the agent via tarballs.
 
 A session is:
 
 1. **Pack** — bundle the global docs from bale's installation plus a
    slice of the project into a request tarball. Hand the tarball to
-   Claude, opening the chat with the session opener pack's report
+   the agent, opening the chat with the session opener pack's report
    ends on (§7.7) — the opening paragraph is emitted, not typed.
-2. **Receive** — Claude returns a response tarball.
+2. **Receive** — the worker returns a response tarball.
 3. **Apply** — validate the response mechanically, run the response's
    `apply.sh` and `validation.sh` in a staging copy, commit the result
    to a session branch with git plumbing (the user's checkout is never
@@ -112,7 +112,7 @@ Those live in the response's `validation.sh`. Bale doesn't know what
 an ADR is, what an INDEX is, what STATE.md is. Those are project
 policy enforced in the response's `validation.sh` or by review.
 
-Bale is uniquely positioned to let Claude work on **any** directory:
+Bale is uniquely positioned to let the agent work on **any** directory:
 a directory with one script and a data folder, or an enterprise Vue
 app, or anything in between. The user shapes what's in scope; bale
 moves bytes safely.
@@ -123,7 +123,7 @@ moves bytes safely.
 
 ### 2.1 In scope
 
-- Pack request tarballs (inject global docs + bundle user-specified
+- Pack request tarballs (carry global docs + bundle user-specified
   files + goal/constraints/scope from CLI or wizard).
 - Apply response tarballs (validate manifest, path-safety, staging
   copy, run `apply.sh` + `validation.sh`, commit or hold).
@@ -143,7 +143,7 @@ moves bytes safely.
 - Project structure assumptions beyond "must be a git repo."
 - Linting, typechecking, building, testing — all in `validation.sh`.
 - Log / blame / diag commands. Inspection beyond `bale status`'s
-  read-only dashboard (§5.5) is a Claude session: ask Claude what's
+  read-only dashboard (§5.5) is an agent session: ask the agent what's
   going on and paste output of `git log` or similar. Bale does not
   duplicate git's read commands; `bale status` reports bale's own
   state (sessions, outbox, staging, config), not git's history.
@@ -161,7 +161,7 @@ moves bytes safely.
 
 Bale is a tool, not a workflow. The workflow lives in the global
 docs. A project that wants the full structured workflow (INDEX, ADRs,
-schemas) asks Claude to include the corresponding assertions in each
+schemas) asks the worker to include the corresponding assertions in each
 response's `validation.sh`. A project that doesn't want any of that
 just uses bale to pack/apply/rollback arbitrary file changes.
 
@@ -261,7 +261,7 @@ The release-tarball form has two virtues over a single-file build
 1. **Editable docs.** When you run a bale session against the bale
    repo itself, the five global docs are real files you can edit
    directly. Closing the loop doesn't require rebuilding a bundle —
-   change a doc, save, the next `bale pack` injects the new version.
+   change a doc, save, the next `bale pack` carries the new version.
 2. **Consistent with bale's own output.** Bale moves tarballs;
    shipping bale itself as a tarball means the install model matches
    the wire format users already understand.
@@ -285,7 +285,7 @@ The release-tarball form has two virtues over a single-file build
 `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
 live as regular
 files at `<install>/docs/` alongside the script. `bale pack` reads
-them from that location and injects them into the request tarball.
+them from that location and ships them in the request tarball.
 They are never read from the project being snapped.
 
 To edit a global doc: run bale on bale's own repo, where the docs
@@ -295,10 +295,10 @@ tarball (or, during development, just keep using the working tree
 directly — the layout bale reads from is the layout bale ships).
 Every project sees the new docs on its next pack.
 
-The five injected docs are self-contained: they cite only each other.
+The five carried docs are self-contained: they cite only each other.
 `BALE.md` and `MASTER.md` are bale-src's own project documentation —
-peers in structure to the globals but project-local, never injected,
-and never cited from the globals, because the injected docs travel to
+peers in structure to the globals but project-local, never carried,
+and never cited from the globals, because the carried docs travel to
 every project and a pointer at a bale-src doc dangles everywhere
 except this repo. Where a global doc must defer to bale-side behavior
 — apply-time UX, the telemetry record shape, pack-pipeline semantics
@@ -494,7 +494,7 @@ forward-looking entry.
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
-| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags injected from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — the forecast-existence and forecast-disjointness gates — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — the forecast-existence and forecast-disjointness gates — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal verbatim and — since v0.4.28 (board 73, ADR-0015) — its recorded write forecast exactly, including a recorded `[]` (a read-only parent resumes read-only). The bailout's reading plan is the read set only: its files ship in `context/` and gate nothing. `--write` / `--read-only` override the inheritance with pack's grammar and refusals (the case where the bailing worker's `handoff.md` argues the ask changed); a missing or unreadable parent record falls back to the reading-plan file set — the whole tree when the plan cites nothing — as an *undeclared* forecast that takes the bare-pack rule (v0.4.9), and the summary's `inherited:` row names which branch fired beside the goal. Runs pack's gates, one implementation each, pre-sid so a refusal consumes nothing: the ADR-0015 forecast-disjointness gate (§7.1 step 5 — admitted beside open sessions whose forecasts are disjoint, which is what makes the command reachable under an always-open read-only master; refused on intersection with handoff's own remedies, never `--supersedes`), the checkpoint blindness gate (§7.1 step 4b, §11 row 30; `--allow-checkpoint-in-scope` admits, FORCE-logged and stamped), and for a `{sid}` base the resolved-existence gate, whose first-named remedy `--checkpoint-file` the command now accepts with pack's one-run install; an empty forecast waives it (§8.5). Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24). Until 0.4.27 handoff refused while any session was open, forecast its reading plan's file set, and lacked the flag family — ADR-0007's shape, which the ADR-0015 flip had not reached on this path. | v0.0.6 |
 | `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
@@ -503,7 +503,7 @@ forward-looking entry.
 
 No `log`, no `blame`, no `diag`. Inspection beyond `bale status`'s
 read-only dashboard (§5.5) and `bale stats`'s corpus aggregation
-(§5.6) is a Claude session — bale does not duplicate git's read
+(§5.6) is an agent session — bale does not duplicate git's read
 commands.
 
 ### 5.1 Help and version
@@ -522,8 +522,8 @@ for user input when arguments haven't been piped in."*
 ### 5.3 Tarball mode is the only mode
 
 Bale doesn't have "conversational mode" — that's a property of the
-Claude session, not the tool. Bale only runs when the user has
-decided code or files should land. Asking Claude a question requires
+agent session, not the tool. Bale only runs when the user has
+decided code or files should land. Asking the agent a question requires
 no tool.
 
 ### 5.4 Global flags
@@ -1080,13 +1080,13 @@ Per `TARBALL.md` section 3.1:
 ```
 request-NNN/
   manifest.json        # structured metadata (required)
-  CLAUDE.md            # injected by bale
-  TARBALL.md           # injected by bale
-  DOCS.md              # injected by bale
-  CODE.md              # injected by bale
+  CLAUDE.md            # carried by bale
+  TARBALL.md           # carried by bale
+  DOCS.md              # carried by bale
+  CODE.md              # carried by bale
   tools/
-    response_lint.py   # injected by bale (v0.3.8): worker-side lint
-    craft_response.py  # injected by bale (v0.3.19): response-skeleton crafter
+    response_lint.py   # carried by bale (v0.3.8): worker-side lint
+    craft_response.py  # carried by bale (v0.3.19): response-skeleton crafter
   context/             # everything the user chose to include
     <project files and any project docs>
   README.md            # optional; user's voice beyond manifest.goal
@@ -1121,7 +1121,7 @@ Per `TARBALL.md` section 5.1:
 response-NNN/
   manifest.json
   apply.sh             # deletes + exec-bit restores; never mv (renames decompose into files/ + rm)
-  validation.sh        # Claude's session-scoped checks against staging
+  validation.sh        # the worker's session-scoped checks against staging
   files/               # mirrors project tree from repo root
   README.md            # optional
   notes.md             # optional
@@ -1168,7 +1168,7 @@ dotenv-loader bug) renames or copies the file outside the pattern.
 Bale also honors `.gitignore` at the repo root by default — files
 matched by `.gitignore` are excluded from packs. `--no-gitignore`
 disables this for projects whose gitignore overshoots (e.g., excludes
-generated source the user wants Claude to see).
+generated source the user wants the agent to see).
 
 `.baleignore` at the repo root (gitignore-style syntax) lets the
 user add project-specific permanent exclusions on top of the above.
@@ -1237,7 +1237,7 @@ the live base and echoes the expected-HOLD proof (exit 1 expected;
 exit 2 refuses the whole open as a defective oracle; exit 0
 proceeds with a loud vacuous-oracle warning), then replays the
 stored `pack_argv` through the real CLI parser with the delivery
-flags injected from member presence and `pre_answered` riding the
+flags supplied from member presence and `pre_answered` riding the
 in-process channel. The dry-run leg is bundle-only by ratified
 disposition: the typed, non-bundle pack path keeps no standalone
 dry-run echo — the paste-surface hazard the proof guards exists
@@ -1288,7 +1288,7 @@ the split). The four required keys:
   `members.brief` is present (`--no-readme` when it is null) and
   `--checkpoint-file` pointing at the extracted checkpoint member
   when `members.checkpoint` is present. Member presence is the
-  single source for flag injection, so the stored argv can never
+  single source for the flags, so the stored argv can never
   disagree with the shipped bytes.
 - **`members`** — the two named slots, `brief` and `checkpoint`,
   each an object (`path`, `sha256`) or an explicit `null` — the
@@ -1529,8 +1529,13 @@ The inputs:
 - **slug** (kebab-cased, short) — used in the session ID.
 - **constraints** (list, optional).
 - **out_of_scope** (list, optional).
-- **expects_probe** (`yes` | `no` | `claude-decides`, default
-  `claude-decides`).
+- **expects_probe** (`yes` | `no` | `claude-decides` |
+  `agent-decides`, default `claude-decides`). The last two are one
+  posture under two spellings (v0.4.42): `agent-decides` is admitted
+  by the schema enum and the `--expects-probe` choices and stamped
+  verbatim when typed; the default stays `claude-decides` until the
+  emitted value flips beside the global docs' three sites, so no
+  version has manifests and docs disagreeing.
 - **includes** (list of file or directory paths) — defaults to the
   entire working tree (minus baked-in and `.baleignore` exclusions).
   Since ADR-0015 the include set is the **read set** and nothing
@@ -1624,7 +1629,7 @@ The inputs:
   flag's interactive surface; a typed flag skips the prompt.
 - **provenance identity** (v0.3.8) — two stamps for the manifest's
   `provenance` block, alongside the ones bale computes itself
-  (`bale_version`; the sha256 of each injected global doc, hashed
+  (`bale_version`; the sha256 of each carried global doc, hashed
   from the install at pack time so a contract-doc edit between two
   packs is visible in the longitudinal record; and, since v0.3.28 —
   board 6 session C, the contract_docs precedent extended — the
@@ -1789,7 +1794,7 @@ The inputs:
   later wants that lineage, it is a different `depends_on` field.
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
-both by the architect authoring a pack by hand and by Claude when
+both by the architect authoring a pack by hand and by the agent when
 emitting a `CLAUDE.md` §11.2 rescope offer.
 
 Bale also fills `manifest.project` automatically as
@@ -1839,7 +1844,7 @@ work-class half.
 
 **The where-will-changes-land follow-up** (ADR-0015) rides the
 exchange's lands-changes branch — the cold-start pack is the one
-command with no Claude author, so this prompt is where the
+command with no agent author, so this prompt is where the
 separation meets a user who has never heard of it. It accepts a
 space-separated path list; each entry must name an existing path
 (the ADR-0014 rule, re-prompted interactively on a miss); and bare
@@ -2051,11 +2056,11 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 
 1. Generate session ID. Reserve next NNN for the slug + date.
 2. Build `request-NNN/` skeleton.
-3. **Inject all five global docs** (`CLAUDE.md`, `TARBALL.md`,
+3. **Carry all five global docs** (`CLAUDE.md`, `TARBALL.md`,
    `DOCS.md`, `CODE.md`, `PLANNER.md`) from bale's installation
    `docs/` directory,
    **and the worker-side tools** under `tools/` — each member of
-   `bin/bale`'s `INJECTED_TOOLS` tuple (the one source for the list:
+   `bin/bale`'s `CARRIED_TOOLS` tuple (the one source for the list:
    the lint and, since v0.3.19, the crafter), copied from the
    install's `tools/` with mode preserved so each arrives executable.
 4. Write `manifest.json` with the gathered fields, including the
@@ -2330,7 +2335,7 @@ files at their paths relative to the directory. Entries are added one
 by one without dereferencing: regular files travel byte for byte with
 their mode bits, symlinks as symlinks — the request build's
 `copy2(follow_symlinks=False)` semantics. No `manifest.json`, none of
-the five injected docs, neither injected tool: the tarball is the tree
+the five carried docs, neither carried tool: the tarball is the tree
 and nothing else.
 
 **Listing.** Inside a git work tree: `git ls-files -z --cached --others
@@ -2372,7 +2377,9 @@ offender in one message, before any work: the goal, `--slug`,
 `--out-of-scope`, `--expects-probe`, `--packer`, `--work-class`,
 `--allow-checkpoint-in-scope`, `--no-include-group`. Detection is
 "value differs from the parser default", so `--expects-probe
-claude-decides` typed at its default is a no-op. The two tables
+claude-decides` typed at its default is a no-op (its alias
+`agent-decides` differs from the default and refuses like any other
+typed value). The two tables
 (`CONTEXT_SESSION_ONLY_FLAGS`, `CONTEXT_COMPOSING_FLAGS` in
 `bin/bale_pack.py`) partition the pack parser, and
 `tests/test_context_pack.py` pins the partition and the defaults, so a
@@ -3199,7 +3206,7 @@ instead of scrolling back for them past a long `notes.md`.
 
 The reference block, in order:
 
-- The **claims table** — each `claims` key with Claude's prediction,
+- The **claims table** — each `claims` key with the worker's prediction,
   plus a pointer to `.bale/logs/<sid>.log` for the verdicts. The
   per-check `[PASS] / [FAIL] / [SKIP]` lines and the TARBALL.md
   §7.3-style claims-vs-verdict reconciliation live in that log,
@@ -3327,7 +3334,7 @@ acceptance store).
   session closed in the registry; the checkout was never moved, so
   there is nothing to switch back), send a
   corrected response through `bale retry <tarball>` in the same
-  session, or send Claude the failure
+  session, or send the worker the failure
   context and request a corrected response as a fresh session. That
   fresh-session path is: `bale revert <sid>` first, then `bale pack` a new
   request that includes the failure context, then apply the new
@@ -3720,6 +3727,26 @@ starts — corruption must neither block the apply that found it nor
 be overwritten unexamined. `record_version` (currently 1) is the
 evolution hook: additive fields don't bump it; shape breaks do.
 
+**Where the record lives: `[layout] agent_dir`.** The leading segment
+of the telemetry home is the project's `[layout] agent_dir` key in
+`bale.toml` (v0.4.42, the 100 arc's W2) — `claude` when unset, the
+directory every repo used before the key existed, so an unconfigured
+repo renames nothing. The key is walked by `bale config init` at the
+project layer only (`bale_config.LAYOUT_VALUES`; the value names one
+repo's tree, so the global wizard neither walks nor inherits it —
+the `[validation]` ruling applied again), read through one accessor
+(`get_layout_agent_dir`), and consumed by every path that spells the
+home: `bale stats`' corpus (§5.6), `telemetry_record_path`
+(`bin/bale_report.py`), and the rollback dirty-tree carve-out
+(§9.2 step 3). A value that is absolute, carries a `..` component,
+ends in a slash, or contains whitespace refuses at config read; the
+key does not move an existing directory — rename it in git and set
+the key in the same commit. Only project paths read it: bale-src's
+own `claude/changelog/` and `claude/context/` are source paths of
+this repository, not of the project a bale install serves, and stay
+put. The prose below keeps writing `claude/telemetry/` for the
+default spelling.
+
 **Why `claude/telemetry/`, not `.bale/`.** `.bale/` is gitignored by
 construction (§7.1 step 6) and transient by convention — a record
 there dies with a clone or a fresh checkout and can never use git
@@ -3731,13 +3758,13 @@ that `git log claude/telemetry/` *is* the aggregation timeline.
 
 **The record is written to the working tree, not the merge commit.**
 The session commit is built per-manifest-entry from `changes[]`
-(§8.6); injecting a bale-generated file would desync the manifest
+(§8.6); slipping a bale-generated file in would desync the manifest
 from the commit and break the §8.4 reconciliation contract. So the
 record lands untracked at apply close, and the user commits it with
 their next ordinary commit — or, when `[apply] sweep` is enabled
 (§8.8), bale commits it immediately as its own `[bale sweep <sid>]
 <event>` commit on top, which keeps the manifest/commit contract
-intact: the sweep is a separate commit, never an injection into the
+intact: the sweep is a separate commit, never a slip into the
 session or merge commit. Telemetry can never break an apply: a
 write failure is logged loudly and the apply's outcome stands.
 
@@ -4455,7 +4482,7 @@ before staging (steps 1–18 of section 8.1) or before commit (sections
 | 37 | Apply-side bundle backstop (v0.4.25 — the board-71 rider, accepted 2026-08-24 from the 49a-i session's Proposals): no `changes[]` path ends in the reserved `.bale-bundle` suffix — a worker landing a bundle is the self-oracle shape from the landing direction, the twin of row 33's shipping-direction refusal, keyed on the same structural suffix test (`x.bale-bundle.md` is not a bundle). No admission flag on either half; bundle-handling fixtures are named outside the suffix. Manifest-only (§8.1 step 18): pre-staging, runs under `--dry-run`, vacuous for bailout and clarification manifests; the rejection names every offending path. Appended after row 36 per the appended-row precedent, so rows 1–36 stay stable | apply pre-flight |
 
 Project policy checks (INDEX coherence, ADR sequential, doc inventory
-rules) live in the response's `validation.sh` — Claude includes them
+rules) live in the response's `validation.sh` — the worker includes them
 per-session, not bale. Bale is project-agnostic.
 
 Bale also does not enforce the request's `out_of_scope` field. That
@@ -4492,7 +4519,7 @@ A two-stage bootstrap, classic chicken-and-egg.
 plus the three global docs as siblings under `docs/`, packaged as
 the same `bale/` directory shape v0.1+ ships. The bootstrap script
 can:
-- pack a request tarball (minimum: inject all three global docs —
+- pack a request tarball (minimum: carry all three global docs —
   `CLAUDE.md`, `TARBALL.md`, `DOCS.md` — read from `docs/` adjacent
   to the script, take a goal, include named files);
 - apply a response tarball (minimum: manifest validation, sha256
@@ -4515,9 +4542,9 @@ from v0.0.1; v0.1 adds the packaging step that turns that layout
 into a distributable release tarball, but the layout itself doesn't
 restructure.
 
-v0.0.1 is hand-written and predates any Claude session, so
+v0.0.1 is hand-written and predates any agent session, so
 `CLAUDE.md` section 6's "tests ship with code" rule (which governs
-Claude's tarball output) doesn't strictly apply. The same gap
+the agent's tarball output) doesn't strictly apply. The same gap
 extends through v0.3, however: the test harness itself doesn't
 arrive until v0.4. Each session producing v0.1–v0.3 carries a
 `notes.md` deferral explicitly naming this — *"tests deferred to
@@ -4525,7 +4552,7 @@ v0.4 (harness lands there)"* — rather than silently shipping
 untested code. v0.4 closes the gap retroactively by exercising the
 prior versions' code paths through the selftest harness.
 
-**Stage 1 — apply the first response.** A tarball Claude returns
+**Stage 1 — apply the first response.** A tarball the worker returns
 fleshes out the rest of v0.1: wizard, walkthrough, apply.sh, rollback,
 the release-tarball packaging script. From this point forward, every
 change to bale is a bale session on its own repo.
@@ -4582,7 +4609,7 @@ only installs the release tarball never sees them.
 
 ### v0.1 — usable v1
 
-Apply a tarball from Claude that adds:
+Apply a tarball from the worker that adds:
 
 - The full pack pipeline: wizard, `$EDITOR` integration, baked-in
   exclusions, `.baleignore`. *(Wizard and `$EDITOR` for the README

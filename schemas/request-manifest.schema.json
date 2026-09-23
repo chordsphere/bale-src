@@ -58,12 +58,12 @@
     "out_of_scope": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "description": "Explicit list of near-by concerns Claude should not address. Prose, not glob patterns; bale does not mechanically enforce against paths."
+      "description": "Explicit list of near-by concerns the agent should not address. Prose, not glob patterns; bale does not mechanically enforce against paths."
     },
     "expects_probe": {
       "type": "string",
-      "enum": ["yes", "no", "claude-decides"],
-      "description": "Per TARBALL.md section 3.2/3.3."
+      "enum": ["yes", "no", "claude-decides", "agent-decides"],
+      "description": "Per TARBALL.md section 3.2/3.3. `agent-decides` and `claude-decides` are aliases for the same posture (the worker probes whenever an environment gap surfaces); both spellings validate for good, so a manifest stamped under either keeps validating. Pack and handoff emit `claude-decides` by default until the default flips beside the docs' three sites."
     },
     "context_included": {
       "type": "array",
@@ -106,16 +106,31 @@
         },
         "contract_docs": {
           "type": "object",
-          "additionalProperties": false,
-          "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
-          "description": "sha256 (hex) of each injected global doc, hashed from the packing install at pack time — pins exactly which contract text the session was run under. PLANNER.md joined the injected set in v0.4.11; it is admitted here but deliberately not required (one-apply-behind: the response to the wiring session itself echoes a four-key block, and pre-v0.4.11 manifests and telemetry history stay valid).",
-          "properties": {
-            "CLAUDE.md":  { "type": "string", "minLength": 1 },
-            "TARBALL.md": { "type": "string", "minLength": 1 },
-            "DOCS.md":    { "type": "string", "minLength": 1 },
-            "CODE.md":    { "type": "string", "minLength": 1 },
-            "PLANNER.md": { "type": "string", "minLength": 1 }
-          }
+          "description": "sha256 (hex) of each carried global doc, hashed from the packing install at pack time — pins exactly which contract text the session was run under. PLANNER.md joined the carried set in v0.4.11; it is admitted but deliberately not required (one-apply-behind: the response to the wiring session itself echoes a four-key block, and pre-v0.4.11 manifests and telemetry history stay valid). Since v0.4.42 the block is a oneOf over two key sets — the four-key set keyed by CLAUDE.md, and the same set with AGENT.md in place of CLAUDE.md — because the operating-agreement doc is renamed in a later version while every manifest stamped before the rename must keep validating for good, and a response echoes its request's block verbatim. Exactly one of the pair may be present: a block carrying both CLAUDE.md and AGENT.md matches neither branch and is refused, and the same key set is required and admitted on both sides of the echo (response-manifest.schema.json).",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+              "properties": {
+                "CLAUDE.md": { "type": "string", "minLength": 1 },
+                "TARBALL.md": { "type": "string", "minLength": 1 },
+                "DOCS.md":    { "type": "string", "minLength": 1 },
+                "CODE.md":    { "type": "string", "minLength": 1 },
+                "PLANNER.md": { "type": "string", "minLength": 1 }
+              }
+            },
+            {
+              "additionalProperties": false,
+              "required": ["AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+              "properties": {
+                "AGENT.md":  { "type": "string", "minLength": 1 },
+                "TARBALL.md": { "type": "string", "minLength": 1 },
+                "DOCS.md":    { "type": "string", "minLength": 1 },
+                "CODE.md":    { "type": "string", "minLength": 1 },
+                "PLANNER.md": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
         },
         "packer": {
           "type": "string",
