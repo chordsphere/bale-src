@@ -15,7 +15,7 @@ request — was unpinned. This file covers it:
   ``depends_on.previous_response`` pointing at the bailout, the goal
   inherited verbatim from the bailed-on request, constraints and
   out_of_scope reset to empty, ``expects_probe`` at its
-  claude-decides default — all pinned against what ``cmd_handoff``
+  agent-decides default (v0.4.43) — all pinned against what ``cmd_handoff``
   ships today.
 - Reading-plan and forecast, two values (ADR-0015; re-based on this
   path at v0.4.28, board 73): a plan citing files pre-packs them into
@@ -70,7 +70,7 @@ VERBOSE_MARKER = "verbose:"
 # (TARBALL.md §3.1) — asserted on the handoff-built tarball so the
 # repackaging path provably goes through the same builder as pack.
 # PLANNER.md joined the carried set in v0.4.11.
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
 CARRIED_TOOLS = ("response_lint.py", "craft_response.py")
 
@@ -234,7 +234,7 @@ class HandoffHappyPathTest(unittest.TestCase):
         # cmd_handoff resets these deliberately (narrow CLI surface).
         self.assertEqual(manifest["constraints"], [])
         self.assertEqual(manifest["out_of_scope"], [])
-        self.assertEqual(manifest["expects_probe"], "claude-decides")
+        self.assertEqual(manifest["expects_probe"], "agent-decides")
         # handoff.md first, then the reading-plan files — the full
         # context inventory per TARBALL.md §3.2.
         self.assertEqual(manifest["context_included"],

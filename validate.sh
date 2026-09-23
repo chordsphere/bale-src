@@ -99,9 +99,22 @@ section "filesystem layout"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"
 [[ -x "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh executable"  || fail "upgrade.sh executable"
 [[ -f "$INSTALL_DIR/README.md"   ]]             && pass "README.md present"      || fail "README.md present"
-for d in CLAUDE TARBALL DOCS CODE PLANNER; do
+for d in AGENT TARBALL DOCS CODE PLANNER; do
   if [[ -f "$INSTALL_DIR/docs/$d.md" ]]; then pass "docs/$d.md present"; else fail "docs/$d.md present"; fi
 done
+# docs/AGENT.md is the operating agreement's name since v0.4.43 (it was
+# docs/CLAUDE.md before). upgrade.sh clean-replaces the install, so a
+# leftover docs/CLAUDE.md can only come from a tar-over-top install or a
+# hand copy — and the stale file would be carried into requests beside
+# its successor by any tooling that globs docs/. The ruling (board 100,
+# decision 3) is a refusal, not a warning, and no deprecation window:
+# the check fails while the old file exists beside the new one.
+if [[ -e "$INSTALL_DIR/docs/CLAUDE.md" ]]; then
+  fail "no leftover docs/CLAUDE.md beside docs/AGENT.md" \
+       "docs/CLAUDE.md was renamed docs/AGENT.md in v0.4.43; remove the stale copy (upgrade.sh's clean-replace never leaves one)"
+else
+  pass "no leftover docs/CLAUDE.md beside docs/AGENT.md"
+fi
 # Every shipped schema, presence- and parse-checked. Trued up in
 # v0.4.12 (the S4 notes' proposal, ridden on this validate.sh touch):
 # the loop previously named three of five shipped schemas, so a
@@ -126,7 +139,7 @@ for s in request-manifest response-manifest diagnostics escalation-record teleme
   fi
 done
 
-# tools/response_lint.py — the worker-side lint `bale pack` injects into
+# tools/response_lint.py — the worker-side lint `bale pack` carries into
 # every request beside the four globals (v0.3.8). Missing or non-executable
 # means every pack hard-fails at main()'s sanity check, so catch it here.
 if [[ -f "$INSTALL_DIR/tools/response_lint.py" ]]; then
@@ -159,10 +172,10 @@ sys.exit(0 if embedded == shipped else 1)
     fi
   done
 else
-  fail "tools/response_lint.py present" "pack injects it; every pack will refuse until it exists"
+  fail "tools/response_lint.py present" "pack carries it; every pack will refuse until it exists"
 fi
 
-# tools/craft_response.py — the worker-side crafter `bale pack` injects
+# tools/craft_response.py — the worker-side crafter `bale pack` carries
 # beside the lint (v1, session 007). Same present/executable rows as the
 # lint. The crafter still embeds no schema (it scaffolds, the lint
 # judges), but since the 49b bundle emission it re-declares two
@@ -224,7 +237,7 @@ sys.exit(0 if (
          "re-declare the exchange vocabulary in tools/craft_response.py from bin/bale_relay.py"
   fi
 else
-  fail "tools/craft_response.py present" "pack injects it into every request"
+  fail "tools/craft_response.py present" "pack carries it into every request"
 fi
 
 section "test-suite slow gate (bale-src checkout only)"

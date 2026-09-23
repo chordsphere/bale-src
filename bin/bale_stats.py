@@ -471,8 +471,8 @@ def normalize_docs_read_token(raw: str) -> str:
     """One whitespace-split docs_read token in its aggregation spelling.
 
     Surrounding punctuation stripped (the lint's precedent), then ONE
-    leading `context/` stripped — so `context/docs/CLAUDE.md` and
-    `docs/CLAUDE.md` aggregate together while a doubled
+    leading `context/` stripped — so `context/docs/AGENT.md` and
+    `docs/AGENT.md` aggregate together while a doubled
     `context/context/x` keeps its second copy (one strip is the rule;
     anything more would be guessing at a spelling nobody wrote). Returns
     "" for a token that was punctuation only; callers drop those.
@@ -565,7 +565,7 @@ def session_clarification_rounds(record: dict) -> int:
 # ---------------------------------------------------------------------------
 
 # The self-reported key a worker fills when the runtime compacted its
-# context mid-session (TARBALL.md §5.2.2; CLAUDE.md §11.6 is the recovery
+# context mid-session (TARBALL.md §5.2.2; AGENT.md §11.6 is the recovery
 # path the disclosure points at). Named once so the reader and its tests
 # spell it the same way.
 COMPACTION_KEY = "compaction_occurred"

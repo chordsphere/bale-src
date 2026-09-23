@@ -1,8 +1,8 @@
 # CODE.md
 
 > Code organization and refactoring philosophy.
-> Read when `CLAUDE.md`'s INDEX says so.
-> For the *why* behind any of this, see `CLAUDE.md`.
+> Read when `AGENT.md`'s INDEX says so.
+> For the *why* behind any of this, see `AGENT.md`.
 
 ---
 
@@ -13,15 +13,15 @@
 The vocabulary and decision rules for how code is organized: when
 content earns extraction, what categories of code-unit exist and
 how each behaves, when to introduce more structure, and how to
-keep what exists honest. `CLAUDE.md` section 6 covers the *values*
+keep what exists honest. `AGENT.md` section 6 covers the *values*
 — maintainability, tests-ship-with-code, no silent skips. This doc
 covers the *layout decisions* that make those values concrete in a
 specific codebase.
 
-Some overlap with `CLAUDE.md` section 6 is deliberate: the layout
+Some overlap with `AGENT.md` section 6 is deliberate: the layout
 choices reinforce the same values they encode. Where the two files
 overlap, both agree; if they conflict, this file wins on layout
-questions and `CLAUDE.md` wins on values.
+questions and `AGENT.md` wins on values.
 
 ### Inscribed for the agent
 
@@ -368,7 +368,7 @@ Opportunistic philosophy-application stays inside the files the
 session is already touching. A session that modifies `foo.py`
 may also apply philosophy within `foo.py`; it does not range
 across `bar.py` and `baz.py` looking for improvements.
-`CLAUDE.md` section 6's "stay in the lane" rule is the cap.
+`AGENT.md` section 6's "stay in the lane" rule is the cap.
 
 ### 7.4 First-pass restraint
 
@@ -476,7 +476,7 @@ session that does a structural refactor:
   small follow-up session that exercises the new shape before
   anything substantive is built on top.
 
-This is the meta-code analogue of `CLAUDE.md` section 6's
+This is the meta-code analogue of `AGENT.md` section 6's
 "contracts are non-negotiable under time pressure" — the
 recursion magnifies the cost of a confidently-wrong refactor.
 
@@ -485,7 +485,7 @@ recursion magnifies the cost of a confidently-wrong refactor.
 When a meta-code project keeps changelog records
 (`schemas/changelog-record.schema.json`: one structured record per
 version naming the machine-readable surfaces it changed — a surface
-list, not the narrative log `CLAUDE.md` §7 rules out), the session
+list, not the narrative log `AGENT.md` §7 rules out), the session
 that changes a machine-readable surface writes that version's entry in
 the same response, so the record is part of the change rather than a
 later reconstruction of it.
@@ -533,7 +533,7 @@ The header-coherence assertion is mechanized:
 and paste-ready, and the enforcement recipe lives in the emission,
 where it cannot drift from what runs.
 
-Rule labels follow `CLAUDE.md` section 6 — contract rules are
+Rule labels follow `AGENT.md` section 6 — contract rules are
 caught mechanically; policy rules are caught at the architect's
 review. The agent surfaces policy concerns in `notes.md` precisely
 because mechanical checks won't catch them.
@@ -586,7 +586,7 @@ wait until it's been touched a few times.
 > recorded in each adopting project's ADRs (e.g., an
 > `adr/NNNN-defer-tests-doc.md` in the project's ADR directory).
 
-`CLAUDE.md` section 6 carries the value — *tests ship with code.* This
+`AGENT.md` section 6 carries the value — *tests ship with code.* This
 section carries the **layout** half of that value: where test code
 lives, when a test unit has outgrown itself, and how testing relates
 to the §1 code-unit inventory. It does not decide a project's testing
@@ -620,7 +620,7 @@ would rather load alone).
 
 ### 13.3 Tests ship in the same response (the layout consequence)
 
-`CLAUDE.md` section 6 requires a test in the same response as the
+`AGENT.md` section 6 requires a test in the same response as the
 function it covers, or a `notes.md` deferral naming why not. The layout
 consequence: a session that adds a meaningful function adds (or extends)
 the test unit that mirrors it, in the same `files/` mirror, under the

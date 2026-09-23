@@ -187,7 +187,7 @@ def _feedback(work_class: str = "code", departures: list = None) -> dict:
             "claims_subset": True,
             "provenance": {
                 "bale_version": "0.4.2",
-                "contract_docs": {"CLAUDE.md": "x", "TARBALL.md": "x",
+                "contract_docs": {"AGENT.md": "x", "TARBALL.md": "x",
                                   "DOCS.md": "x", "CODE.md": "x"},
                 "packer": "fixture",
                 "work_class": work_class,

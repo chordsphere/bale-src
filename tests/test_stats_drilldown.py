@@ -568,8 +568,8 @@ class ClaimBasisTest(_CorpusCase):
 # Doc epochs
 # ---------------------------------------------------------------------------
 
-DOCS_A = {"CLAUDE.md": "aaa", "TARBALL.md": "bbb"}
-DOCS_B = {"CLAUDE.md": "aaa", "TARBALL.md": "ccc"}
+DOCS_A = {"AGENT.md": "aaa", "TARBALL.md": "bbb"}
+DOCS_B = {"AGENT.md": "aaa", "TARBALL.md": "ccc"}
 
 
 class DocEpochTest(_CorpusCase):
@@ -1131,17 +1131,17 @@ class StatsMicroReadSideTest(_CorpusCase):
         self.seed([
             # The brief's pair: two spellings, one token.
             applied("2026-09-02-d-001", "2026-09-02T09:00:00+00:00",
-                    ["context/docs/CLAUDE.md"]),
+                    ["context/docs/AGENT.md"]),
             applied("2026-09-02-d-002", "2026-09-02T10:00:00+00:00",
-                    ["docs/CLAUDE.md",
-                     "(context/bin/bale_stats.py), CLAUDE.md §11"]),
+                    ["docs/AGENT.md",
+                     "(context/bin/bale_stats.py), AGENT.md §11"]),
             # One strip only: a doubled prefix keeps its second copy.
             applied("2026-09-02-d-003", "2026-09-02T11:00:00+00:00",
                     ["context/context/x.md"]),
             # Not a reporting session: empty list, non-list, blank-only.
             applied("2026-09-02-d-004", "2026-09-02T12:00:00+00:00", []),
             applied("2026-09-02-d-005", "2026-09-02T13:00:00+00:00",
-                    "docs/CLAUDE.md"),
+                    "docs/AGENT.md"),
             applied("2026-09-02-d-006", "2026-09-02T14:00:00+00:00",
                     ["   "]),
         ])
@@ -1149,10 +1149,10 @@ class StatsMicroReadSideTest(_CorpusCase):
         self.assertEqual(stats["corpus"]["docs_read"], {
             "sessions": 3,
             "tokens": {
-                "CLAUDE.md": 1,
+                "AGENT.md": 1,
                 "bin/bale_stats.py": 1,
                 "context/x.md": 1,
-                "docs/CLAUDE.md": 2,
+                "docs/AGENT.md": 2,
                 "§11": 1,
             },
         })
@@ -1273,8 +1273,8 @@ class StatsMicroReadSideTest(_CorpusCase):
 
     def test_normalize_docs_read_token(self) -> None:
         norm = bale_stats.normalize_docs_read_token
-        self.assertEqual(norm("context/docs/CLAUDE.md"), "docs/CLAUDE.md")
-        self.assertEqual(norm("docs/CLAUDE.md,"), "docs/CLAUDE.md")
+        self.assertEqual(norm("context/docs/AGENT.md"), "docs/AGENT.md")
+        self.assertEqual(norm("docs/AGENT.md,"), "docs/AGENT.md")
         self.assertEqual(norm("`context/bin/bale`"), "bin/bale")
         self.assertEqual(norm("context/context/a"), "context/a")
         self.assertEqual(norm("mycontext/a"), "mycontext/a",

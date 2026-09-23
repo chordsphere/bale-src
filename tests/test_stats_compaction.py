@@ -3,7 +3,7 @@
 
 Gives ``feedback.self_reported.compaction_occurred`` — the worker's own
 disclosure that the runtime compacted its context mid-session
-(TARBALL.md §5.2.2; CLAUDE.md §11.6 is the recovery path it points at)
+(TARBALL.md §5.2.2; AGENT.md §11.6 is the recovery path it points at)
 — its first consumer: ``cross_checks.budget.compaction``
 ``{reporting_sessions, occurred_sessions}`` and
 ``members.compaction_occurred``, additive beside the budget pressure
@@ -114,7 +114,7 @@ def _feedback(compaction: object = _ABSENT, *,
             "claims_subset": True,
             "provenance": {
                 "bale_version": "0.4.37",
-                "contract_docs": {"CLAUDE.md": "x", "TARBALL.md": "x",
+                "contract_docs": {"AGENT.md": "x", "TARBALL.md": "x",
                                   "DOCS.md": "x", "CODE.md": "x",
                                   "PLANNER.md": "x"},
                 "packer": "fixture",

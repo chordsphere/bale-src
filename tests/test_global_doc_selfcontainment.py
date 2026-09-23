@@ -8,14 +8,14 @@ the changelog-record schema and the hyphenated board shape joined at
 2026-09-17-guard-maintenance-006).
 
 The injected surface bale ships into every request is self-contained:
-it cites only the five global docs — docs/CLAUDE.md, docs/TARBALL.md,
+it cites only the five global docs — docs/AGENT.md, docs/TARBALL.md,
 docs/DOCS.md, docs/CODE.md, docs/PLANNER.md — and never a project
 doc (BALE.md §3.3 carries the doctrine). BALE.md, MASTER.md, and the
 rest of bale-src's claude/ inventory are project-local; a pointer at
 any of them inside an injected surface dangles in every project
 except this repo. The scanned set is the five docs plus the two
 injected tools — tools/craft_response.py and tools/response_lint.py,
-the INJECTED_TOOLS pair (bin/bale is the list's one source; this
+the CARRIED_TOOLS pair (bin/bale is the list's one source; this
 suite mirrors it) — because the tools ride beside the docs in every
 request and carried dangling pointers of their own until the
 2026-08-31 purge. The rule previously lived only in
@@ -37,7 +37,7 @@ exact strings, one rationale each:
 - ``claude/INDEX.md`` — the citation-shaped reference to bale-src's
   own doc map. A bare ``INDEX.md`` stays legal everywhere: the
   globals use it as the generic project-map concept (DOCS.md §2,
-  CLAUDE.md's read-paths), and that usage is deliberate.
+  AGENT.md's read-paths), and that usage is deliberate.
 
 The second half is citation *shapes* — the 2026-08-31 sitting
 ratified that injected surfaces carry no evidence-ledger or board
@@ -164,18 +164,18 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
 
-# Mirror of bin/bale's INJECTED_TOOLS — the pair injected beside the
-# docs into every request (TARBALL.md §3.1). Update both together if
-# the injected set changes.
-INJECTED_TOOLS = ("craft_response.py", "response_lint.py")
+# Mirror of bin/bale's CARRIED_TOOLS — the pair carried beside the docs
+# into every request (TARBALL.md §3.1). Update both together if the
+# carried set changes.
+CARRIED_TOOLS = ("craft_response.py", "response_lint.py")
 
 # Every scanned file, repo-relative. The guard covers the whole
 # injected surface: the five docs and the two tools.
 SCANNED_FILES = tuple(f"docs/{name}" for name in GLOBAL_DOCS) + tuple(
-    f"tools/{name}" for name in INJECTED_TOOLS)
+    f"tools/{name}" for name in CARRIED_TOOLS)
 
 # Half one: literal substrings that must never appear in an injected
 # surface. Keep this half exact strings; the module docstring carries
@@ -290,7 +290,7 @@ class GlobalDocSelfContainment(unittest.TestCase):
                     (REPO / rel).is_file(),
                     f"{rel} is missing — the injected set moved or "
                     "shrank; update SCANNED_FILES (and BALE.md §3.3 / "
-                    "bin/bale's INJECTED_TOOLS) together if that was "
+                    "bin/bale's CARRIED_TOOLS) together if that was "
                     "deliberate")
 
     INJECTED_DOCTRINE = (

@@ -658,7 +658,7 @@ class WaiverSchemaUnitTest(unittest.TestCase):
     def minimal_manifest(self, provenance_extra: dict) -> dict:
         provenance = {
             "bale_version": "0.4.9",
-            "contract_docs": {"CLAUDE.md": "a", "TARBALL.md": "b",
+            "contract_docs": {"AGENT.md": "a", "TARBALL.md": "b",
                               "DOCS.md": "c", "CODE.md": "d"},
             "packer": "test",
             "work_class": "meta",
@@ -674,7 +674,7 @@ class WaiverSchemaUnitTest(unittest.TestCase):
                            "previous_probe": None},
             "constraints": [],
             "out_of_scope": [],
-            "expects_probe": "claude-decides",
+            "expects_probe": "agent-decides",
             "context_included": ["context/hello.txt"],
             "resolved_scope": [],
             "provenance": provenance,

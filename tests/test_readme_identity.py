@@ -408,7 +408,7 @@ class ReadmeKeySchemaTest(unittest.TestCase):
             "depends_on": {"previous_response": None,
                            "previous_probe": None},
             "constraints": [], "out_of_scope": [],
-            "expects_probe": "claude-decides", "context_included": [],
+            "expects_probe": "agent-decides", "context_included": [],
         }
 
     def errors(self, readme=..., **extra) -> list:

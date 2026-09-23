@@ -37,7 +37,7 @@ bale/
     bale_config.py     # bale.toml loading and the `bale config` wizard
     _bale_toml.py      # TOML reader with a Python 3.10 fallback
   docs/
-    CLAUDE.md          # the worker's working agreement
+    AGENT.md           # the worker's working agreement
     TARBALL.md         # the wire contract for requests, responses, probes
     PLANNER.md         # the planning desk: packs, briefs, checkpoints
     DOCS.md            # how documentation is kept
@@ -256,7 +256,7 @@ bale config hooks --forget 3fa9c1   # forget one (it asks again next time)
 - `bale help <command>` — the command reference, in this install.
 - `docs/TARBALL.md` — the wire contract: request, response, probe, and the
   clarification and light-question shapes.
-- `docs/CLAUDE.md` — the worker's working agreement.
+- `docs/AGENT.md` — the worker's working agreement.
 - `docs/PLANNER.md` — the planning desk: authoring packs, briefs, and blind
   checkpoints.
 - `docs/DOCS.md` and `docs/CODE.md` — how documentation and code are kept.

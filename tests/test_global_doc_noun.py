@@ -2,7 +2,7 @@
 """Global-doc noun guard (session 2026-09-23-board-100-w1-doc-sweep-002,
 W1 of the agent-noun arc).
 
-The five global docs — docs/CLAUDE.md, docs/TARBALL.md, docs/DOCS.md,
+The five global docs — docs/AGENT.md, docs/TARBALL.md, docs/DOCS.md,
 docs/CODE.md, docs/PLANNER.md — and the repo README name the session
 they address by the ratified role-neutral noun, "the agent", with a
 hat noun ("the worker", "the planner") where a sentence means one
@@ -20,19 +20,21 @@ The deny table has two halves, kept as tightly anchored as the
 guard's own:
 
 - The capitalized noun as a whole word: ``\\bClaude\\b``. Word-bounded,
-  so the file name ``CLAUDE.md`` (different case; the file is renamed
-  by a later session, not this one), the surface name ``claude.ai``
-  (lowercase; its one home is CLAUDE.md §11.7's surface table), the
-  enum value ``claude-decides`` (lowercase; a code identifier until
-  the sibling code session admits its successor), and the ``claude/``
+  so the retired file name ``CLAUDE.md`` (different case; the file
+  became docs/AGENT.md in W3, and TARBALL.md §3.2's compat prose
+  still names the old spelling as the pre-0.4.43 ``contract_docs``
+  key — deliberately no deny row for it), the surface name
+  ``claude.ai`` (lowercase; its one home is AGENT.md §11.7's surface
+  table), the enum alias ``claude-decides`` (lowercase; accepted for
+  good beside the ``agent-decides`` default), and the ``claude/``
   directory prefix are all untouched. The docs read the noun in
   prose only, so the whole-word form is the whole hazard.
 - The inject family as lowercase words: ``inject``, ``injects``,
   ``injected``, ``injection``, ``injecting`` — matched
-  case-sensitively, so the code identifier ``INJECTED_TOOLS``
-  (docs/TARBALL.md §3.1's citation of ``bin/bale``'s constant) stays
-  legal until the code session renames it and a doc session
-  re-cites it. A lowercase hit is prose, and prose says carry/ship.
+  case-sensitively, so an all-caps code identifier containing the
+  stem stays legal (the docs cite ``bin/bale``'s constants by name,
+  and a constant is not prose). A lowercase hit is prose, and prose
+  says carry/ship.
 
 Hermetic and stdlib-only: the files are read from this repo; nothing
 runs. Both directions are graded on specimens independent of the
@@ -51,7 +53,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
 
 # Every scanned file, repo-relative: the five globals plus the repo
@@ -133,10 +135,11 @@ class DenyShapeTest(unittest.TestCase):
     )
     NOUN_TOLERATED = (
         "the agent reads the manifest first",
-        "docs/CLAUDE.md",
-        "`CLAUDE.md`",
+        "docs/AGENT.md",
+        "`AGENT.md`",
+        "the pre-0.4.43 key set, keyed `CLAUDE.md`",
         "auto-compacts (claude.ai web/app)",
-        "`claude-decides` (default)",
+        "`agent-decides` (default); `claude-decides` stays accepted",
         "claude/checkpoints/2026-09-23-x-002.sh",
         "claude/responses/response-NNN/",
         "Claudeception",   # not the whole word; not a spelling the docs use
@@ -146,14 +149,14 @@ class DenyShapeTest(unittest.TestCase):
         "# injected by bale",
         "the pack-time injection",
         "bale-injected global docs",
-        "inject global doc CLAUDE.md",
+        "inject global doc AGENT.md",
         "injecting the tools pair",
         # A word boundary sits at a hyphen, so a compound is a hit too:
         # the sweep retired the word in every compound, not only standalone.
         "an injection-free design",
     )
     INJECT_TOLERATED = (
-        "`INJECTED_TOOLS` in `bin/bale` is the one source",
+        "`INJECT_ALL` as an all-caps identifier",
         "bale carries all five into every request",
         "shipped by bale",
         "the carry-model question",

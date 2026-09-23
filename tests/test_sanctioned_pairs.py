@@ -23,13 +23,13 @@ matching, so innocent markdown rewrapping never trips a pin — the
 extracts pin words, not line breaks.
 
 Since session 2026-09-21-split-transition-unconditional-007 the
-CLAUDE.md 11.2 / TARBALL.md 3.4 pair states the split's role transition
+AGENT.md 11.2 / TARBALL.md 3.4 pair states the split's role transition
 and its bundled delivery for every project, with the checkpoint
-condition attached to the children's checkpoints alone. Both CLAUDE.md
+condition attached to the children's checkpoints alone. Both AGENT.md
 extracts are VERBATIM in that session's brief of record and pinned
 whole; TARBALL.md's twins are its own wording, pinned by their
 load-bearing clauses. The pair had been pinned in its conditional form
-(the bundled-delivery group's CLAUDE.md extract opened "In a
+(the bundled-delivery group's AGENT.md extract opened "In a
 checkpoint-configured project"), so the suite held in place the very
 reading the bundle-delivery ruling was written to retire. A positive
 pin cannot see a condition coming back beside it, so
@@ -128,22 +128,22 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                     "while building risks removing something needed "
                     "twenty minutes later."),
     ],
-    # CLAUDE.md §11.2's rescope-offer prose with TARBALL.md §3.4's
+    # AGENT.md §11.2's rescope-offer prose with TARBALL.md §3.4's
     # pack-flag surface — the same `bale pack` command described from
     # both ends.
-    "rescope offer (CLAUDE.md 11.2 / TARBALL.md 3.4)": [
-        ("CLAUDE.md", "a real, copy-pasteable `bale pack` command the "
+    "rescope offer (AGENT.md 11.2 / TARBALL.md 3.4)": [
+        ("AGENT.md", "a real, copy-pasteable `bale pack` command the "
                       "architect can paste to create the narrower "
                       "request."),
-        ("CLAUDE.md", "Form, flags, and their mapping to manifest "
+        ("AGENT.md", "Form, flags, and their mapping to manifest "
                       "fields live in `TARBALL.md` §3.4;"),
-        ("CLAUDE.md", "the command carries `--supersedes <parent-sid>` "
+        ("AGENT.md", "the command carries `--supersedes <parent-sid>` "
                       "per `TARBALL.md` §3.4's split-supersession "
                       "flow."),
         ("TARBALL.md", "Unsolicited, the worker emits a runnable "
                        "command in exactly one place: the rescope "
                        "offer, when the pre-flight scope check "
-                       "(`CLAUDE.md` §11.2) decides a goal needs "
+                       "(`AGENT.md` §11.2) decides a goal needs "
                        "splitting."),
         ("TARBALL.md", "the rescope command carries `--supersedes "
                        "<parent-sid>`, and that is the documented "
@@ -155,11 +155,11 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
         # since 2026-09-21-split-transition-unconditional-007: the
         # transition is owed in every project, and the checkpoint
         # condition attaches to the children's checkpoints alone. The
-        # CLAUDE.md sentence is VERBATIM in that session's brief and
+        # AGENT.md sentence is VERBATIM in that session's brief and
         # pinned whole; TARBALL.md states the same rule in its own
         # words, pinned by the clause that makes it general and
         # carries the `PLANNER.md` §20 pointer.
-        ("CLAUDE.md", "The split is always a role transition "
+        ("AGENT.md", "The split is always a role transition "
                       "(`PLANNER.md` §20): the offering session, as "
                       "sub-master for its subtree, authors the split "
                       "sessions' materials — commands, briefs, and, "
@@ -169,7 +169,7 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                       "parent's ratification before anything spawns "
                       "(`PLANNER.md` §20.1); the operator carries "
                       "artifacts, never authors them."),
-        ("TARBALL.md", "A pre-flight split (`CLAUDE.md` §11.2) is a "
+        ("TARBALL.md", "A pre-flight split (`AGENT.md` §11.2) is a "
                        "role transition in every project "
                        "(`PLANNER.md` §20): the offering session, as "
                        "sub-master for its subtree, authors the split "
@@ -182,15 +182,15 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                        "doctrine), and the operator delivers, never "
                        "authors."),
     ],
-    # The bundle-delivery rider on the same CLAUDE.md §11.2 /
+    # The bundle-delivery rider on the same AGENT.md §11.2 /
     # TARBALL.md §3.4 pair (board 80, from session
     # 2026-09-14-tarball-s34-bundle-clauses-004): the offered command
     # travels as a crafter bundle beside its `bale open` line, stated
     # from both ends. A second pin group over an already-enumerated
     # pair, not a sixth pair — see test_pairs_match_the_docs_enumeration.
-    "bundled delivery (CLAUDE.md 11.2 / TARBALL.md 3.4)": [
+    "bundled delivery (AGENT.md 11.2 / TARBALL.md 3.4)": [
         # Unconditional since
-        # 2026-09-21-split-transition-unconditional-007. The CLAUDE.md
+        # 2026-09-21-split-transition-unconditional-007. The AGENT.md
         # sentence is VERBATIM in that session's brief and pinned
         # whole. TARBALL.md's first extract is byte-for-byte the one
         # pinned before: the sentence moved out from under 3.4's
@@ -198,7 +198,7 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
         # position is RetiredSplitConditions' to hold). The second is
         # the sentence under 3.4's rescope worked example, so the
         # example and the rule stop disagreeing by omission.
-        ("CLAUDE.md", "The offering session delivers that command "
+        ("AGENT.md", "The offering session delivers that command "
                       "bundled, in every project — as the stored pack "
                       "argv of a crafter bundle emitted beside its "
                       "`bale open` line — per `PLANNER.md` §20 and §2; "
@@ -230,9 +230,9 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
 # excluding it and skipped the transition. An opening coming back is
 # that misreading coming back, whatever the positive pins above say.
 RETIRED_SPLIT_CONDITIONS = (
-    ("CLAUDE.md", "In a checkpoint-configured project the offering "
+    ("AGENT.md", "In a checkpoint-configured project the offering "
                   "session delivers that command bundled"),
-    ("CLAUDE.md", "In a checkpoint-configured project the split is "
+    ("AGENT.md", "In a checkpoint-configured project the split is "
                   "also a role transition"),
     ("PLANNER.md", "in a checkpoint-configured project does not emit "
                    "an offer"),
@@ -285,7 +285,7 @@ class SanctionedPairPins(unittest.TestCase):
         What is counted is doc pairs, not table keys: a key's trailing
         parenthetical names its pair, and one pair may carry several
         pin groups (the rescope offer and its bundled-delivery rider
-        both pin CLAUDE.md 11.2 / TARBALL.md 3.4, since board 80). Two
+        both pin AGENT.md 11.2 / TARBALL.md 3.4, since board 80). Two
         keys over the same pair are two groups, one pair."""
         doc_pairs = {key[key.rindex("("):] for key in PAIRS}
         self.assertEqual(

@@ -244,7 +244,7 @@ class EmitFeedbackMechanical(unittest.TestCase):
             "session_id": self.SID,
             "provenance": {
                 "bale_version": "0.4.40",
-                "contract_docs": {"CLAUDE.md": "a" * 64,
+                "contract_docs": {"AGENT.md": "a" * 64,
                                   "TARBALL.md": "b" * 64,
                                   "DOCS.md": "c" * 64, "CODE.md": "d" * 64,
                                   "PLANNER.md": "e" * 64},
@@ -267,7 +267,7 @@ class EmitFeedbackMechanical(unittest.TestCase):
         manifest["feedback"]["mechanical"]["provenance"][
             "model_identity"] = "fixture:model"
         manifest["feedback"]["self_reported"].update(
-            budget_pressure="none", docs_read=["CLAUDE.md"],
+            budget_pressure="none", docs_read=["AGENT.md"],
             compaction_occurred={"occurred": False, "disclosure_ref": None})
         mpath.write_text(json.dumps(manifest, indent=2) + "\n")
         plain = run_lint(str(self.rdir), "--json")
@@ -604,7 +604,7 @@ class DocsReadStubWarning(_CraftedResponse):
         self.assertEqual(report["warnings"], [])
 
     def test_filled_list_is_quiet(self):
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         code, report = self.lint_json()
         self.assertEqual(code, 0, report["findings"])
         self.assertEqual(
@@ -675,7 +675,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
 
     def test_out_of_forecast_path_warns_by_name(self):
         self.with_request(resolved_scope=["docs"], readme=None)
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         code, report = self.lint_request()
         self.assertEqual(code, 0, report["findings"])
         self.assertTrue(report["ok"], "a warning never gates")
@@ -701,7 +701,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
                       ["docs", "src"]):
             with self.subTest(scope=scope):
                 self.with_request(resolved_scope=scope, readme=None)
-                self.with_self_reported(docs_read=["CLAUDE.md"])
+                self.with_self_reported(docs_read=["AGENT.md"])
                 code, report = self.lint_request()
                 self.assertEqual(code, 0, report["findings"])
                 self.assertEqual(self.codes(report["warnings"], self.CODE),
@@ -718,7 +718,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
 
     def test_subtree_match_is_on_whole_components(self):
         self.with_request(resolved_scope=["sr", "src/new"], readme=None)
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         _code, report = self.lint_request()
         self.assertEqual(len(self.codes(report["warnings"], self.CODE)), 1,
                          "`sr` and `src/new` cover neither src/new.txt")
@@ -726,7 +726,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
     def test_declared_departure_is_quiet(self):
         self.with_request(resolved_scope=["docs"], readme=None)
         self.with_self_reported(
-            docs_read=["CLAUDE.md"],
+            docs_read=["AGENT.md"],
             forecast_departures=[{"path": "src/new.txt",
                                   "why": "the goal required it"}])
         code, report = self.lint_request()
@@ -735,7 +735,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
 
     def test_read_only_forecast_flags_every_path(self):
         self.with_request(resolved_scope=[], readme=None)
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         _code, report = self.lint_request()
         self.assertEqual(len(self.codes(report["warnings"], self.CODE)), 1)
 
@@ -744,7 +744,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
         (minLength 1); this check does not double-file it."""
         self.with_request(resolved_scope=["docs"], readme=None)
         self.with_self_reported(
-            docs_read=["CLAUDE.md"],
+            docs_read=["AGENT.md"],
             forecast_departures=[{"path": "src/new.txt", "why": ""}])
         code, report = self.lint_request()
         self.assertEqual(code, 1)
@@ -755,7 +755,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
         self.assertEqual(self.codes(report["warnings"], self.CODE), [])
 
     def test_without_the_flag_it_skips_loudly(self):
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         code, report = self.lint_json()
         self.assertEqual(code, 0, report["findings"])
         self.assertEqual(self.status(report, "forecast-departures"), "skip")
@@ -764,7 +764,7 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
 
     def test_request_without_resolved_scope_skips(self):
         self.with_request(readme=None)
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         code, report = self.lint_request()
         self.assertEqual(code, 0, report["findings"])
         self.assertEqual(self.status(report, "forecast-departures"), "skip")
@@ -792,7 +792,7 @@ class ReadmeInDocsReadWarning(_RequestFlagResponse):
     README = {"path": "README.md", "sha256": "0" * 64}
 
     def test_brief_shipped_and_unread_warns(self):
-        for docs_read in (["CLAUDE.md", "TARBALL.md sections 1, 2, 5, 7"],
+        for docs_read in (["AGENT.md", "TARBALL.md sections 1, 2, 5, 7"],
                           None):
             with self.subTest(docs_read=docs_read):
                 self.with_request(resolved_scope=["src"], readme=self.README)
@@ -818,7 +818,7 @@ class ReadmeInDocsReadWarning(_RequestFlagResponse):
         for entry in ("README.md", "README.md (the brief)"):
             with self.subTest(entry=entry):
                 self.with_request(resolved_scope=["src"], readme=self.README)
-                self.with_self_reported(docs_read=["CLAUDE.md", entry])
+                self.with_self_reported(docs_read=["AGENT.md", entry])
                 code, report = self.lint_request()
                 self.assertEqual(code, 0, report["findings"])
                 self.assertEqual(report["warnings"], [])
@@ -832,7 +832,7 @@ class ReadmeInDocsReadWarning(_RequestFlagResponse):
         for fields in ({"readme": None}, {}):
             with self.subTest(fields=fields):
                 self.with_request(resolved_scope=["src"], **fields)
-                self.with_self_reported(docs_read=["CLAUDE.md"])
+                self.with_self_reported(docs_read=["AGENT.md"])
                 code, report = self.lint_request()
                 self.assertEqual(code, 0, report["findings"])
                 self.assertEqual(self.codes(report["warnings"], self.CODE),
@@ -842,7 +842,7 @@ class ReadmeInDocsReadWarning(_RequestFlagResponse):
                 self.assertNotIn("README.md", human.stdout)
 
     def test_without_the_flag_it_skips(self):
-        self.with_self_reported(docs_read=["CLAUDE.md"])
+        self.with_self_reported(docs_read=["AGENT.md"])
         _code, report = self.lint_json()
         self.assertEqual(self.status(report, "readme-in-docs-read"), "skip")
 

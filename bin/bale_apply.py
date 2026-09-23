@@ -1263,7 +1263,7 @@ def archive_response_artifacts(repo: Path, response_dir: Path, sid: str,
     by the time this runs the merge has landed and the session is closed,
     so a copy failure must not un-apply or HOLD anything — each failure
     is logged loudly (force-level) and surfaced to the caller for the
-    closing banner, honoring the no-silent-skip rule (CLAUDE.md §6).
+    closing banner, honoring the no-silent-skip rule (AGENT.md §6).
     """
     from __main__ import log  # lazy — see module docstring
 
@@ -2424,7 +2424,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         # means the base moved between pack and apply — an intervening
         # edit the overlay would silently revert, which validation can
         # pass right over — and the gate refuses by default (warn-and-
-        # proceed is the silent-skip bug CLAUDE.md §6 names; ratified).
+        # proceed is the silent-skip bug AGENT.md §6 names; ratified).
         # Comparison is per file over the changes[]∩stamp intersection
         # only: a path outside the stamp (a file the response creates,
         # an out-of-forecast admission, an untracked-at-pack base)
@@ -3417,7 +3417,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # Archive row only when [apply].archive_dir is configured —
             # unset stays byte-identical to the pre-archival banner. The
             # failure form is loud in the banner as well as the log
-            # (no-silent-skip, CLAUDE.md §6); the shipped-nothing form is
+            # (no-silent-skip, AGENT.md §6); the shipped-nothing form is
             # named too, since "configured but empty" is a fact the
             # operator should see rather than infer.
             if archive_dir_cfg:

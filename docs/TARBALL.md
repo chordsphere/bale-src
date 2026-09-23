@@ -1,8 +1,8 @@
 # TARBALL.md
 
 > The mechanical contract for tarball mode.
-> Read when entering tarball mode (per `CLAUDE.md`).
-> For the *why* behind any of this, see `CLAUDE.md`.
+> Read when entering tarball mode (per `AGENT.md`).
+> For the *why* behind any of this, see `AGENT.md`.
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### What this doc is
 
-The wire-format contract for tarball mode. `CLAUDE.md` covers the
+The wire-format contract for tarball mode. `AGENT.md` covers the
 *why* and *when*; this doc covers the *exact shape* of each artifact
 and how the bale tool and `validation.sh` enforce it between them.
 If something here conflicts with what the agent remembers from a prior
@@ -42,9 +42,9 @@ if it doesn't describe this session, the section stays unread.
 |-----------|------|
 | Producing a normal response tarball — the default in a worker session whenever work landed (a read-only, planner session produces none, §2) | Core: sections 1, 2, 5, 7 |
 | Orienting in the received request needs more than the manifest itself — a field's semantics, what belongs where in `context/`, or how `expects_probe` binds | Section 3 |
-| Asked to draft a `bale pack` command, or offering a rescope split (`CLAUDE.md` §11.2) | Section 3.4 |
+| Asked to draft a `bale pack` command, or offering a rescope split (`AGENT.md` §11.2) | Section 3.4 |
 | An environment fact the response depends on is missing, stale, or unclear — returning a probe instead of building | Sections 1, 2, 4 |
-| The goal won't fit this session's context budget (`CLAUDE.md` §11 triggered) — returning a bailout | Sections 1, 2, 5.6, 5.7, 5.8 |
+| The goal won't fit this session's context budget (`AGENT.md` §11 triggered) — returning a bailout | Sections 1, 2, 5.6, 5.7, 5.8 |
 | A blocking intent gap in the request prevents trustworthy work — returning a clarification | Sections 1, 2, 5.9 |
 | A short, non-blocking question set — at most three, each with a one-word default — returning a light question block | Section 5.10 |
 | Writing or debugging `validation.sh` | Sections 5, 7 |
@@ -75,7 +75,7 @@ if it doesn't describe this session, the section stays unread.
   id — `request-<sid>.tar.gz`, `response-<sid>.tar.gz` (§3.1, §10.1
   step 11). A response is numbered to match the request it answers.
   Probes produce no artifact directory (§4.2).
-- **Roles.** Four roles recur here and in `CLAUDE.md`, and every
+- **Roles.** Four roles recur here and in `AGENT.md`, and every
   one is a role, never a species: the **planner** holds intent
   authority for a request — decomposes goals, authors packs, answers
   the worker's questions, and reviews; the **worker** holds
@@ -174,7 +174,7 @@ alike.
 **`files/` carries source, never generated artifacts.** No bytecode
 (`__pycache__/`, `*.pyc`, `*.pyo`), no dependency trees
 (`node_modules/`), no build output (`dist/`, `build/`). This is a
-**contract** rule (label per `CLAUDE.md` §6): bale's apply
+**contract** rule (label per `AGENT.md` §6): bale's apply
 pre-flight rejects a response whose `changes[]` paths include one,
 naming the offending paths, before any staging happens. The deny
 list is exactly the names above — not a heuristic — so a legitimate
@@ -210,7 +210,7 @@ A **bailout** response (§5.6) has a distinct shape: no `files/`,
 no-op `apply.sh` and `validation.sh`, plus mandatory `handoff.md`
 and `diagnostics.json`. It is the response the worker returns when the
 session can't fit the goal within its context budget — see
-`CLAUDE.md` §11. Bale's apply step treats bailouts as informational
+`AGENT.md` §11. Bale's apply step treats bailouts as informational
 rather than applicable.
 
 A **clarification** response (§5.9) is the bailout's structural
@@ -364,7 +364,7 @@ Field semantics:
   happened.
 - **`response_kind`** — `"normal"` (default) for an ordinary
   response. `"bailout"` when the worker could not fit the goal in this
-  session's context budget (see `CLAUDE.md` §11); bailout responses
+  session's context budget (see `AGENT.md` §11); bailout responses
   follow the distinct shape in section 5.6. `"clarification"` when a
   blocking intent gap in the request prevents trustworthy work;
   clarification responses follow the distinct shape in section 5.9.
@@ -402,7 +402,7 @@ no file under `files/`; their two literals (`size_bytes: 0`,
 `sha256: null`) are the only size or hash values not computed from
 bytes, and the tool writes them too (`--deleted PATH`). Nothing in
 this field set is ever produced from memory — a hash recalled rather
-than recomputed is exactly what §10.1 step 10 and `CLAUDE.md` §11.6
+than recomputed is exactly what §10.1 step 10 and `AGENT.md` §11.6
 exist to catch.
 
 ### 5.2.2 The feedback block
@@ -439,19 +439,19 @@ ADR-0013):
   followable without dropping a stamp). `model_identity` has one
   spelling: `<vendor>:<model>`, lowercase, spaces to hyphens, no
   suffix, with `unknown` as the model token when the surface does
-  not show the string (`CLAUDE.md` §11.7's table says which do) —
+  not show the string (`AGENT.md` §11.7's table says which do) —
   the schema pins the same form as a pattern, so a spelling that
   drifts fails the lint rather than fragmenting the aggregate.
 - **`self_reported`** — worker-authored judgment the lint cannot
   check: `assumptions` proceeded on without confirmation (the §3.3 /
   §5.9.1 recoverable-risk posture), `judgment_calls` the planner
   should find without reading the diff, `budget_pressure` (`none` |
-  `tight` | `bailed` — the session's own read of `CLAUDE.md` §11),
+  `tight` | `bailed` — the session's own read of `AGENT.md` §11),
   `includes_missing` (what the session wanted but the request didn't
   ship — packing signal; each entry is a path, for a file, or a line
   opening `decision:`, for a ruling the packer made but never
   transported), `compaction_occurred` (with a
-  `disclosure_ref` pointing at where the `CLAUDE.md` §11.6 disclosure
+  `disclosure_ref` pointing at where the `AGENT.md` §11.6 disclosure
   lives when true), `light_blocks` (optional: the number of light
   question blocks, §5.10, the worker emitted this session — the tier
   opens no exchange record, so this count is how stats sees it), and
@@ -548,7 +548,7 @@ The match is one-directional, and the scoping is the point:
 `validation_will_run` also lists the mechanical checks excluded from
 `claims` above, and those entries stand as run-but-unclaimed —
 correct, not a gap. This subset relation is what §10.1 self-checks
-before packing and `CLAUDE.md` §11.6 re-derives after a compaction.
+before packing and `AGENT.md` §11.6 re-derives after a compaction.
 
 A claim disagreeing with the verdict doesn't reject the tarball; it's
 flagged in validation's end-of-run report (what the disagreement
@@ -643,10 +643,10 @@ ships the file.
 
 ### 5.6 Bailout response
 
-A bailout response is what the agent returns when `CLAUDE.md` §11
+A bailout response is what the agent returns when `AGENT.md` §11
 triggers have fired — the goal won't fit in this session's context
 budget and the agent is handing off to a fresh session instead of
-pushing through; the *why* lives in `CLAUDE.md` §11.
+pushing through; the *why* lives in `AGENT.md` §11.
 
 #### 5.6.1 Shape
 
@@ -680,7 +680,7 @@ nothing changed, nothing ran, nothing is claimable. The empty
 surfaces are mechanized — the crafter (§5.6.1) emits them and the
 lint rejects a bailout that violates them — so only the judgment
 halves remain here: `summary` is one paragraph on what was
-attempted, which trigger fired (per `CLAUDE.md` §11.3), and what
+attempted, which trigger fired (per `AGENT.md` §11.3), and what
 the handoff prescribes for the next session; and deferred work
 lives in `handoff.md`'s prescription, never as a flat `deferred`
 list.
@@ -788,9 +788,9 @@ not here.
 What the judgment fields want:
 
 - **`bail_trigger`** — the first two enum values match the
-  agent-detected triggers in `CLAUDE.md` §11.3. The third
+  agent-detected triggers in `AGENT.md` §11.3. The third
   (architect-requested bailouts — test sessions, deliberate
-  checkpoints; see `CLAUDE.md` §11.3's third bullet) uses `"other"`
+  checkpoints; see `AGENT.md` §11.3's third bullet) uses `"other"`
   and surfaces the specifics in `bail_narrative` rather than minting
   a new enum value (enum design: ADR-0013).
 - **`bail_narrative`** — the agent's honest paragraph on the bail
@@ -1351,7 +1351,7 @@ same way it omits a build check when nothing built.
 ```
 request-NNN/
   manifest.json        # structured session metadata (required)
-  CLAUDE.md            # shipped by bale
+  AGENT.md            # shipped by bale
   TARBALL.md           # shipped by bale
   DOCS.md              # shipped by bale
   CODE.md              # shipped by bale
@@ -1366,7 +1366,7 @@ request-NNN/
 
 The first six slots are reserved for the bale-carried global docs
 and the manifest; the `tools/` pair rides beside them (also carried
-by bale, from the install — `INJECTED_TOOLS` in `bin/bale` is the
+by bale, from the install — `CARRIED_TOOLS` in `bin/bale` is the
 one source for the list): the lint, so the worker can run the
 §10.1 step-10 self-check mechanically against its response directory
 before packing, without bale installed, and the crafter, so every
@@ -1381,7 +1381,7 @@ rulings and their reasons, whatever doesn't reduce cleanly to the
 manifest's `goal`, `constraints`, or `out_of_scope` fields. When
 one ships, the manifest's `readme` key names it and pins its sha256
 (§3.2), and the session opener bale emits names it too, as the
-worker's third read after `manifest.json` and `CLAUDE.md`. The
+worker's third read after `manifest.json` and `AGENT.md`. The
 worker reads it before building; a brief that names a different
 session than the manifest's is stale, and the worker says so rather
 than building from it. Either party authors it. The planner writes
@@ -1461,7 +1461,7 @@ never a repo path of the project the request targets, and never a
     "anything backend-side",
     "test infrastructure"
   ],
-  "expects_probe": "yes | no | claude-decides",
+  "expects_probe": "yes | no | agent-decides | claude-decides",
   "context_included": [
     "context/charter-brief.md",
     "context/STATE.md"
@@ -1496,8 +1496,10 @@ Field semantics:
 - **`out_of_scope`** — explicit list of *near-by* concerns the worker
   should not address (rationale: ADR-0013).
 - **`expects_probe`** — `yes` forces a probe before any build work.
-  `no` forbids probing this session (see 3.3). `claude-decides`
-  (default) means the worker probes whenever a §4.1 trigger fires.
+  `no` forbids probing this session (see 3.3). `agent-decides`
+  (default) means the worker probes whenever a §4.1 trigger fires;
+  `claude-decides` is the same posture under its pre-0.4.43 spelling,
+  accepted for good — no window, no retirement.
 - **`context_included`** — declarative list of what's in `context/`.
   If the worker needs something not listed, it checks `INDEX.md`, then
   names it in the response (either in a probe request or in
@@ -1578,6 +1580,16 @@ Field semantics:
   schema, not required — so previously stamped and hand-rolled
   requests stay valid, and a worker holding a manifest without the
   key looks for `README.md` at the request root instead.
+- **`provenance.contract_docs`** — the sha256 of each carried global
+  doc, keyed by file name. The block validates with either of two key
+  sets, for good: the current one, keyed `AGENT.md`, and the
+  pre-0.4.43 one, keyed `CLAUDE.md` — the doc's name before the
+  rename — so every manifest stamped before the rename keeps
+  validating and a response's verbatim echo (§5.2.2) validates under
+  whichever spelling its request carried. Exactly one of the two key
+  sets is present; a block carrying both refuses. No window is
+  promised: the old key set is accepted for good, like the `agent-decides`
+  default's `claude-decides` alias above.
 
 ### 3.3 When `expects_probe: no` collides with a real gap
 
@@ -1612,18 +1624,18 @@ documented here so its callers can cite a real command instead of
 guessing. Authoring pack commands is available to either party, and
 the line that governs it is **solicited vs unsolicited**. Asked in
 chat to draft a pack command, the worker authors it — solicited
-authoring is always the worker's job (`CLAUDE.md` §4), with the same
+authoring is always the worker's job (`AGENT.md` §4), with the same
 flags and the same single-line form as a planner-authored pack.
 Unsolicited, the worker emits a runnable command in exactly one
 place: the rescope offer, when the pre-flight scope check
-(`CLAUDE.md` §11.2) decides a goal needs splitting. Inside response
+(`AGENT.md` §11.2) decides a goal needs splitting. Inside response
 tarballs, follow-ups are prose Proposals in `notes.md` (§5.4.1),
 never runnable commands.
 
 The hazards that confine unsolicited runnable commands to that one
 place — blind firing, and the self-oracle problem of the entity
 under review framing its own follow-up — are ADR-0013's; sequencing
-authority belongs to the planner (`CLAUDE.md` §4). A planner
+authority belongs to the planner (`AGENT.md` §4). A planner
 consuming a rescope offer re-derives the command from the proposed
 seam rather than firing the worker's verbatim; the paste-ready form
 serves the courier who carries it, not the planner who decides, and
@@ -1641,7 +1653,7 @@ or a packing behavior:
 | `--write PATH...` | Declares the session's **write forecast** — where the pack forecasts changes landing (v0.4.1, ADR-0015). Same grammar as `--include`: repeatable or space-separated, directory entries covering their subtrees. Requires at least one path — the empty forecast has exactly one spelling, `--read-only`, and the two flags together refuse as contradictory at arg-parse time, before any prompt. Entries name existing paths, the same rule as includes (the convention paragraph below the table states it once for both families); entries need not be a subset of the includes — a session can be shown one thing and forecast landing another. Absent the flag, the forecast defaults to the resolved include set — pre-separation behavior byte-for-byte, so separation is opt-in per pack. The resolved forecast is the value the registry records and `resolved_scope` stamps (§3.2), and it is a forecast, not a wall: out-of-forecast work surfaces at apply for per-path admission (§3.2, §5.4). |
 | `--constraint TEXT` | Appends one entry to `manifest.constraints[]`. Repeatable — one flag per constraint. |
 | `--out-of-scope TEXT` | Appends one entry to `manifest.out_of_scope[]`. Repeatable — one flag per item. |
-| `--expects-probe {yes\|no\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `claude-decides`). |
+| `--expects-probe {yes\|no\|agent-decides\|claude-decides}` | Sets `manifest.expects_probe` (§3.2; default `agent-decides`, which pack stamps when the flag is not typed). `claude-decides` is the same posture under its pre-0.4.43 spelling, accepted for good and stamped verbatim when typed. |
 | `--readme-file PATH` | Reads the request README's prose from PATH (UTF-8 text) instead of the `$EDITOR` step — the non-interactive way to ship the session's brief, including a worker-authored one (§3.1); the shipped brief is what the manifest's `readme` key names (§3.2). A relative PATH resolves like apply's tarball argument: cwd first, then each configured `apply.search_paths` directory in order; an absolute path bypasses the search; not-found names every directory consulted. Fails loudly on a missing, unreadable, or empty file — omit the flag to pack without a README. Also fails loudly when the resolved brief still contains an **unfilled placeholder**: any line containing the sentinel `TODO(brief)` (v0.3.21) — the convention a worker-authored brief uses to scaffold slots it hasn't filled, so a half-generated brief never ships; a worker authoring a brief writes exactly that form for anything left for the planner to complete, and fills or removes every such line before delivering a brief meant to pack. The pack report echoes the resolved README's identity — path, first heading line, and sha256 of the shipped bytes (v0.3.21; path + heading alone proved insufficient identity). The prose is read as UTF-8 text with each CRLF read as LF (bare CR untouched), so the shipped README and its echoed sha256 are over LF-normalized bytes — a brief that traveled a line-ending-mangling transport ships and echoes identically to its LF twin. Combines with `--edit` to review the file before packing. |
 | `--checkpoint-file PATH` | Delivers the planner-authored blind checkpoint (§7) for a project that pins one: bale commits the file's bytes at the project's configured per-session checkpoint path and proceeds with the pack in the same invocation. The bytes are CRLF-normalized at read — every CRLF replaced by LF, bare CR never touched — before the commit, the echoed sha256, and the provenance stamp, so the committed oracle and every published hash are over LF-normalized bytes and a CRLF-mangled delivery commits as the LF oracle the planner published; everything downstream of the commit hashes and executes committed bytes byte-exact, unchanged. A relative PATH resolves exactly like `--readme-file` (cwd first, then each configured search directory in order; an absolute path bypasses the search), and a missing, unreadable, or empty file fails loudly, same posture. Idempotent when the resolved path is already committed with identical bytes — compared after normalization, so LF and CRLF twins of one oracle are the same delivery (the re-run of an aborted pack); differing bytes refuse loudly — the flag never silently replaces a committed checkpoint. Contradicts `--read-only` at arg-parse time: a read-only pack's empty write forecast waives the checkpoint requirement — the session can land nothing, so there is nothing for a checkpoint to grade and nothing to install. |
 | `--edit` | Forces the README `$EDITOR` step even when `goal` and `--slug` are fully specified (where the wizard never engages). Seeded with `--readme-file`'s content when both are given, the standard scaffold otherwise; saving an empty buffer omits the README. Needs a TTY; conflicts with `--no-edit`. |
@@ -1675,7 +1687,7 @@ intersects nothing — and lands nothing, so it returns its answers in
 chat and its authored sessions as bundles, never a response tarball
 (§2).
 
-**Split supersession.** When a pre-flight split (`CLAUDE.md` §11.2)
+**Split supersession.** When a pre-flight split (`AGENT.md` §11.2)
 proposes a first session whose forecast intersects an open session's —
 typically the very session whose goal is being split — the rescope
 command carries `--supersedes <parent-sid>`, and that is the
@@ -1701,7 +1713,7 @@ idempotent re-run of an aborted supersession are the bale tool's
 own behavior, covered in its documentation.
 
 **The split is a role transition.** A pre-flight split
-(`CLAUDE.md` §11.2) is a role transition in every project
+(`AGENT.md` §11.2) is a role transition in every project
 (`PLANNER.md` §20): the offering session, as sub-master for its
 subtree, authors the split sessions' materials — their commands and
 briefs always, and the children's checkpoints where the project pins
@@ -1780,7 +1792,7 @@ README precedence, first match wins: `--edit` > `--readme-file` >
 the wizard's y/N prompt > omit.
 
 **Commands are single-line.** Every `bale pack` invocation — the
-architect's, or the one the worker emits in a rescope offer (`CLAUDE.md`
+architect's, or the one the worker emits in a rescope offer (`AGENT.md`
 §11.2) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
 the same line; they do not wrap. The same rule binds every command
@@ -1804,7 +1816,7 @@ bale pack "Add a debounced search box to the catalog page" --slug catalog-search
 ```
 
 A rescope pack — the first session of a split the pre-flight check
-proposed, as the worker would emit it in a `CLAUDE.md` §11.2 offer, with
+proposed, as the worker would emit it in an `AGENT.md` §11.2 offer, with
 the deferred half named in `--out-of-scope`:
 
 ```
@@ -2057,7 +2069,7 @@ admitted paths (worker judgment past the forecast: new files the
 pack could not have named, and out-of-forecast modifications
 alike, per ADR-0015).
 The rules below are instead *policy* or *operator discipline*
-(labels per `CLAUDE.md` §6): caught at the planner's review, or held
+(labels per `AGENT.md` §6): caught at the planner's review, or held
 by the operator's own procedure with no downstream catch — not by
 bale.
 
@@ -2101,7 +2113,7 @@ mechanical checks won't catch them.
 A worker session's checklist. A read-only (planner) session builds
 no response tarball and skips it (§2).
 
-1. Confirm the bale-carried globals are present: `CLAUDE.md`,
+1. Confirm the bale-carried globals are present: `AGENT.md`,
    `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md`. The first two
    are the minimum
    for building a response — pause and ask if either is missing.

@@ -343,7 +343,7 @@ if not VERSION:
 # still finds the real docs directory next to the real bin/.
 INSTALL_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = INSTALL_ROOT / "docs"
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")  # PLANNER.md joined the set in v0.4.11
                               # (planner-carriage wiring; the doc
                               # itself was born in the 2026-08-16
@@ -1335,7 +1335,7 @@ def read_integration_lock_info(repo: Path) -> Optional[dict]:
     parses, whichever of sid/pid/acquired_at it recorded — the same
     degrade-to-presence contract _gather_status established: an
     unreadable lock file still means "held", so the fact is reported
-    with just the path rather than dropped (CLAUDE.md §6: silent skips
+    with just the path rather than dropped (AGENT.md §6: silent skips
     are bugs). Shared by the acquire-time refusal, `bale status`'s
     gather, and `bale unlock --integration`, so all three read one
     parse of the record.
@@ -3462,7 +3462,7 @@ def cmd_unlock(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 #
 # `bale handoff <bailout-tarball>` packs a fresh request from a bailed
-# session — the safety net for CLAUDE.md §11 context exhaustion. Inherits
+# session — the safety net for AGENT.md §11 context exhaustion. Inherits
 # the bailed-on session's goal verbatim, auto-includes handoff.md plus any
 # source files extracted from handoff.md's `## Reading plan for the next
 # session` section (TARBALL.md §5.7) in the new request's context/, sets
@@ -3646,7 +3646,7 @@ def edit_goal_in_editor(initial_goal: str) -> str:
 def warn_repeat_bailout(repo: Path, responds_to_sid: str) -> None:
     """Warn (no fail) if the bailed-on session was itself packed from a
     prior bailout. Two bailouts in a row is a scoping signal — see
-    CLAUDE.md §11.4 — and the next handoff session is unlikely to
+    AGENT.md §11.4 — and the next handoff session is unlikely to
     succeed without narrower scope. We do not block: the architect may
     have already narrowed, or may be deliberately trying again.
 
@@ -3703,7 +3703,7 @@ def warn_repeat_bailout(repo: Path, responds_to_sid: str) -> None:
     log(
         f"repeat bailout in lineage: prior bailout {prev_resp_sid} → "
         f"this bailout's predecessor {responds_to_sid} → current handoff. "
-        f"Two bailouts in a row is usually a scoping signal (CLAUDE.md §11.4): "
+        f"Two bailouts in a row is usually a scoping signal (AGENT.md §11.4): "
         f"consider narrowing the goal rather than asking the next session to "
         f"absorb the same scope. Proceeding anyway.",
         force=True,
@@ -4189,7 +4189,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             goal=inherited_goal,
             constraints=[],
             out_of_scope=[],
-            expects_probe="claude-decides",
+            expects_probe="agent-decides",
             context_paths=context_paths_for_manifest,
             depends_on={
                 "previous_response": bailout_sid,
@@ -4335,7 +4335,7 @@ def cmd_handoff(args: argparse.Namespace) -> int:
 # line names which branch of the prompt declined — stdin closed, an empty
 # answer at a decline default, or the literal answer typed — so an
 # operator reading "I pressed Enter and it did not run" can tell the
-# three apart from the log alone (CLAUDE.md §6: a check that cannot say
+# three apart from the log alone (AGENT.md §6: a check that cannot say
 # why it declined is a silent skip).
 
 # The three ways a confirm_yn prompt can decline, named so a caller can
@@ -5356,7 +5356,7 @@ def _summarise_config(repo: Optional[Path], report: StatusReport) -> None:
     bale_config.merged_config, wrapped so that ANY failure — including a
     fail()-driven SystemExit on a malformed file — degrades to
     config_summary_failed=True with the presence facts intact, rather than
-    aborting the report. The degradation is reported, not swallowed (CLAUDE.md
+    aborting the report. The degradation is reported, not swallowed (AGENT.md
     §6: silent skips are bugs).
 
     Also fills the effective staging posture (v0.3.11, board 12 —
@@ -5983,7 +5983,7 @@ def build_parser() -> argparse.ArgumentParser:
             "retry`, `bale amend-checkpoint`, or `bale revert`. `bale "
             "help <command>` shows any command's flags; `bale config "
             "init` sets a repo up. The worker's side of the contract is "
-            "docs/CLAUDE.md and docs/TARBALL.md in this install; the "
+            "docs/AGENT.md and docs/TARBALL.md in this install; the "
             "full tool reference is BALE.md in the bale-src repository."
         ),
     )
@@ -6101,13 +6101,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_pack.add_argument(
         "--expects-probe",
         choices=("yes", "no", "claude-decides", "agent-decides"),
-        default="claude-decides",
+        default="agent-decides",
         help="Whether the session expects a probe. The default, "
-             "claude-decides, has the worker probe whenever an "
+             "agent-decides, has the worker probe whenever an "
              "environment gap surfaces rather than guess around it "
-             "(TARBALL.md section 4.1); agent-decides is the same "
-             "posture under its model-agnostic spelling, admitted as "
-             "an alias and stamped verbatim when typed.",
+             "(TARBALL.md section 4.1); claude-decides is the same "
+             "posture under its pre-0.4.43 spelling, accepted for good "
+             "as an alias and stamped verbatim when typed.",
     )
     p_pack.add_argument(
         "--readme-file", default=None, metavar="PATH",

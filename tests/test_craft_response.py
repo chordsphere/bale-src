@@ -890,7 +890,7 @@ def request_manifest(sid: str, provenance: dict | None = "default") -> dict:
     if provenance == "default":
         provenance = {
             "bale_version": "0.4.32",
-            "contract_docs": {"CLAUDE.md": "a" * 64, "TARBALL.md": "b" * 64,
+            "contract_docs": {"AGENT.md": "a" * 64, "TARBALL.md": "b" * 64,
                               "DOCS.md": "c" * 64, "CODE.md": "d" * 64,
                               "PLANNER.md": "e" * 64},
             "packer": "fixture",
@@ -2242,12 +2242,12 @@ class PackCarriageSurface(unittest.TestCase):
             carried = json.loads(sys.argv[3])
 
             docs = tmp / "docs"; docs.mkdir()
-            for d in ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"):
+            for d in ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md"):
                 (docs / d).write_text(f"# {d}\\n")
 
             main = sys.modules["__main__"]
             main.DOCS_DIR = docs
-            main.GLOBAL_DOCS = ["CLAUDE.md", "TARBALL.md", "DOCS.md",
+            main.GLOBAL_DOCS = ["AGENT.md", "TARBALL.md", "DOCS.md",
                                 "CODE.md"]
             main.CARRIED_TOOLS = carried
             main.TOOLS_DIR = repo / "tools"
@@ -3052,7 +3052,7 @@ class CraftDocsReadStub(unittest.TestCase):
 
     def test_filled_stub_lints_clean_and_quiet(self):
         rdir = self._finished(
-            docs_read=["CLAUDE.md", "TARBALL.md sections 1, 2, 5, 7"])
+            docs_read=["AGENT.md", "TARBALL.md sections 1, 2, 5, 7"])
         cp = run_lint(rdir)
         self.assertEqual(cp.returncode, 0, cp.stdout)
         self.assertNotIn("DOCS_READ_EMPTY_STUB", cp.stdout)
@@ -3194,7 +3194,7 @@ class CraftForecastDepartures(unittest.TestCase):
         fb = manifest["feedback"]
         fb["mechanical"]["provenance"]["model_identity"] = "fixture:model"
         fb["self_reported"].update(
-            budget_pressure="none", docs_read=["CLAUDE.md"],
+            budget_pressure="none", docs_read=["AGENT.md"],
             compaction_occurred={"occurred": False, "disclosure_ref": None})
         (self.rdir / "validation.sh").write_text(
             "#!/usr/bin/env bash\nexit 0\n")

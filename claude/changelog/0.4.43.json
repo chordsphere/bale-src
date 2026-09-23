@@ -1,0 +1,121 @@
+{
+  "record_version": 1,
+  "version": "0.4.43",
+  "session_id": "2026-09-23-board-100-w3-file-rename-004",
+  "at": "2026-09-23T03:30:00+00:00",
+  "surfaces": [
+    {
+      "path": "docs/AGENT.md",
+      "change": "the operating agreement is renamed: docs/CLAUDE.md is gone and docs/AGENT.md (first line `# AGENT.md`) is the file every request carries first; the rename lands as a delete plus a new file, and every cross-reference in the five global docs, README.md, BALE.md, bin/, tools/, schemas/ and tests/ names AGENT.md — the retired name survives only where history or compatibility requires it (the old contract_docs key set, fixtures, telemetry, the ADRs)"
+    },
+    {
+      "path": "bin/bale",
+      "change": "GLOBAL_DOCS names AGENT.md in CLAUDE.md's slot, so every pack carries request-NNN/AGENT.md and stamps provenance.contract_docs keyed AGENT.md (the second oneOf branch W2 laid); `bale pack --expects-probe` defaults to agent-decides and cmd_handoff stamps agent-decides (was claude-decides on both); the choices tuple keeps both values for good in the schema's order; the `pack --help` text and the top-level help's docs pointer name the new spelling and file"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "the session opener's authority and reading sentences tell the agent to read AGENT.md (was CLAUDE.md) — the emitted opener text changes; CONTEXT_SESSION_ONLY_FLAGS's expects_probe default is agent-decides, so `--expects-probe agent-decides` beside --context is the no-op and `claude-decides` typed there now refuses like any other session-only value"
+    },
+    {
+      "path": "schemas/request-manifest.schema.json",
+      "change": "no shape change: expects_probe's description says agent-decides is the emitted default since v0.4.43 and claude-decides the alias that stays accepted; provenance.contract_docs's description names the AGENT.md key set as current and the CLAUDE.md set as every pre-v0.4.43 pack's spelling (both branches unchanged, both validate for good)"
+    },
+    {
+      "path": "schemas/response-manifest.schema.json",
+      "change": "no shape change: the contract_docs echo's description names which key set is current; the budget_pressure and compaction_occurred descriptions cite AGENT.md sections in place of CLAUDE.md"
+    },
+    {
+      "path": "schemas/diagnostics.schema.json",
+      "change": "no shape change: bail_trigger's description cites AGENT.md section 11.3 (was CLAUDE.md)"
+    },
+    {
+      "path": "tools/response_lint.py",
+      "change": "the embedded response-manifest schema follows the source (description-only change, still JSON-equal); the lint's own docstrings and finding texts cite AGENT.md; no check changes"
+    },
+    {
+      "path": "validate.sh",
+      "change": "the docs presence loop checks docs/AGENT.md in CLAUDE.md's slot, and a new row FAILS when docs/CLAUDE.md exists beside docs/AGENT.md (the ruled refusal, no window — a stale copy from a tar-over-top install); the four `injects` comment and refusal lines say carries"
+    },
+    {
+      "path": "scripts/build.sh",
+      "change": "RELEASE_FILES lists docs/AGENT.md in docs/CLAUDE.md's slot, so a release tarball ships the renamed doc"
+    },
+    {
+      "path": "install.sh",
+      "change": "INSTALL_LAYOUT lists docs/AGENT.md in docs/CLAUDE.md's slot"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "§3.2's example manifest, field semantics and §3.4's flag row name agent-decides as the default and claude-decides as the alias accepted for good; §3.2 gains a provenance.contract_docs bullet stating the two key sets both validate for good with no window; §3.1 cites CARRIED_TOOLS (was INJECTED_TOOLS); every CLAUDE.md cross-reference reads AGENT.md except the compat bullet's naming of the old key"
+    },
+    {
+      "path": "BALE.md",
+      "change": "the expects_probe entry and the --context session-only-flags note name agent-decides as the default and claude-decides as the pre-0.4.43 alias; every CLAUDE.md name reads AGENT.md"
+    },
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.42 -> 0.4.43"
+    },
+    {
+      "path": "tests/test_global_doc_noun.py",
+      "change": "SCANNED_FILES names docs/AGENT.md; the docstring and the tolerated specimens follow the rename (the retired name CLAUDE.md stays tolerated — no deny row — because TARBALL.md's compat prose names it)"
+    },
+    {
+      "path": "tests/test_global_doc_selfcontainment.py",
+      "change": "GLOBAL_DOCS names AGENT.md; the local mirror of bin/bale's tools constant is spelled CARRIED_TOOLS"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "GLOBAL_DOCS names AGENT.md; the --context no-op pin moves to agent-decides and a new test pins that claude-decides typed beside --context refuses"
+    },
+    {
+      "path": "tests/test_handoff_happy.py",
+      "change": "GLOBAL_DOCS names AGENT.md; the handoff manifest pin reads expects_probe agent-decides"
+    },
+    {
+      "path": "tests/test_pack_opener.py",
+      "change": "the opener sentence pins read AGENT.md"
+    },
+    {
+      "path": "tests/test_doc_crossrefs.py",
+      "change": "GLOBAL_DOCS and the doc-name regex admit AGENT (was CLAUDE); every pinned sentence and section lookup reads docs/AGENT.md"
+    },
+    {
+      "path": "tests/test_sanctioned_pairs.py",
+      "change": "the pair citations read AGENT.md"
+    },
+    {
+      "path": "tests/test_install_precheck.py",
+      "change": "GLOBAL_DOCS names AGENT.md"
+    },
+    {
+      "path": "tests/test_verbose_thread.py",
+      "change": "pins the `carry global doc AGENT.md` trail line"
+    },
+    {
+      "path": "tests/test_release_packaging.py",
+      "change": "the release-layout probe reads docs/AGENT.md"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "inline fixtures spell contract_docs and docs_read with AGENT.md; the carriage-surface rider's GLOBAL_DOCS list names AGENT.md"
+    },
+    {
+      "path": "tests/test_response_lint.py",
+      "change": "inline fixtures spell contract_docs and docs_read with AGENT.md"
+    },
+    {
+      "path": "tests/test_per_sid_checkpoint.py",
+      "change": "the inline request fixture stamps expects_probe agent-decides and contract_docs keyed AGENT.md"
+    },
+    {
+      "path": "tests/test_planner_admission.py",
+      "change": "the inline request fixture stamps expects_probe agent-decides and its doc tuples name AGENT.md"
+    },
+    {
+      "path": "tests/test_readme_identity.py",
+      "change": "the inline request fixture stamps expects_probe agent-decides"
+    }
+  ],
+  "notes": "W3 of the 100 arc, the file rename. Compatibility is for good, not a window: a request or telemetry record stamped contract_docs keyed CLAUDE.md, or expects_probe claude-decides, keeps validating; what changes is what bale emits — every pack from this version carries AGENT.md at the request root, keys contract_docs by AGENT.md, and stamps agent-decides unless the flag is typed. A stale docs/CLAUDE.md beside docs/AGENT.md is a validate.sh failure. Unchanged and out of scope: claude/context/adr/ (row 97's spelling), claude/telemetry/, tests/fixtures/ (history), and the ~20 docstrings that still spell claude/telemetry/ (W2's deferred row)."
+}

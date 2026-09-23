@@ -4,7 +4,7 @@
 A WORKER runs this against its own response-NNN/ directory before
 packing, without bale installed. It executes the TARBALL.md §10.1
 step-10 self-check as code instead of discipline, and it is the tool
-that catches compaction-corrupted manifests at the source (CLAUDE.md
+that catches compaction-corrupted manifests at the source (AGENT.md
 §11.6's re-derivation duty, mechanized).
 
 Checks are authored from the DOCUMENTED contract — TARBALL.md §5.2,
@@ -356,7 +356,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                 "bale_version": { "type": "string", "minLength": 1 },
                 "contract_docs": {
                   "type": "object",
-                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the carried set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid). Since v0.4.42 a oneOf over the same two key sets the request schema admits — the four-key set keyed by CLAUDE.md, and the same set with AGENT.md in place of CLAUDE.md — so the verbatim echo validates whichever spelling the request was stamped under, for good; exactly one of the pair may be present (request-manifest.schema.json).",
+                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the carried set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid). Since v0.4.42 a oneOf over the same two key sets the request schema admits — the four-key set keyed by CLAUDE.md (every pack before v0.4.43), and the same set with AGENT.md in place of CLAUDE.md (the current spelling, stamped since v0.4.43) — so the verbatim echo validates whichever spelling the request was stamped under, for good; exactly one of the pair may be present (request-manifest.schema.json).",
                   "oneOf": [
                     {
                       "additionalProperties": false,
@@ -445,7 +445,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             "budget_pressure": {
               "type": "string",
               "enum": ["none", "tight", "bailed"],
-              "description": "The session's own read of its context budget: comfortable throughout, felt the CLAUDE.md section 11.3 pressure without bailing, or this response is a bailout."
+              "description": "The session's own read of its context budget: comfortable throughout, felt the AGENT.md section 11.3 pressure without bailing, or this response is a bailout."
             },
             "includes_missing": {
               "type": "array",
@@ -461,7 +461,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
               "type": "object",
               "additionalProperties": false,
               "required": ["occurred"],
-              "description": "Whether the runtime compacted mid-session (CLAUDE.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
+              "description": "Whether the runtime compacted mid-session (AGENT.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
               "properties": {
                 "occurred": { "type": "boolean" },
                 "disclosure_ref": {
@@ -539,7 +539,7 @@ DIAGNOSTICS_SCHEMA_JSON = r"""
         "mid-build-budget-panic",
         "other"
       ],
-      "description": "Per CLAUDE.md section 11.3. The first two are worker-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
+      "description": "Per AGENT.md section 11.3. The first two are worker-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
     },
     "bail_narrative": {
       "type": "string",
@@ -990,7 +990,7 @@ def check_changes_mirror(ctx: dict) -> list[dict]:
                     f"changes[{i}].sha256 disagrees with the bytes under "
                     "files/ — hashes are computed, never transcribed "
                     "(section 5.2.1); a remembered hash is an invented hash "
-                    "(CLAUDE.md section 11.6)",
+                    "(AGENT.md section 11.6)",
                 ))
         actual_size = fpath.stat().st_size
         if ch.get("size_bytes") != actual_size:
@@ -1496,7 +1496,7 @@ def check_readme_in_docs_read(ctx: dict) -> list[dict]:
     key non-null, TARBALL.md §3.2), some docs_read entry names
     README.md.
 
-    The key exists so a worker learns a brief ships, and CLAUDE.md's
+    The key exists so a worker learns a brief ships, and AGENT.md's
     reading order puts the brief before any building. The lint cannot
     attest the reading happened — docs_read is self-report — but a
     docs_read that omits the brief, or no docs_read at all, makes a
@@ -1525,7 +1525,7 @@ def check_readme_in_docs_read(ctx: dict) -> list[dict]:
         f"the request shipped a brief ({README_DOC_NAME}, per its readme "
         f"key) and no docs_read entry names {README_DOC_NAME} — if the "
         "brief was read, list it; if not, read it before shipping "
-        "(CLAUDE.md's reading order puts it before any building)",
+        "(AGENT.md's reading order puts it before any building)",
         headline=f"a brief shipped and docs_read does not name "
                  f"{README_DOC_NAME}",
     )]
@@ -1683,7 +1683,7 @@ def check_feedback_block(ctx: dict) -> list[dict]:
     lint-computable values against what the earlier checks actually
     found in THIS run — a disagreement is the tell of a hand-filled or
     stale block (e.g. carried across an edit, or across a compaction,
-    CLAUDE.md section 11.6). Absent block = nothing to verify: the
+    AGENT.md section 11.6). Absent block = nothing to verify: the
     field is optional in B1, apply persists it verbatim, and B2 builds
     the telemetry record on it. linkage and provenance are
     self-reported placement/echo data the lint cannot verify, so they

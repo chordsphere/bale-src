@@ -1,8 +1,8 @@
 # DOCS.md
 
 > Documentation philosophy and patterns.
-> Read when `CLAUDE.md`'s INDEX says so.
-> For the *why* behind any of this, see `CLAUDE.md`.
+> Read when `AGENT.md`'s INDEX says so.
+> For the *why* behind any of this, see `AGENT.md`.
 
 ---
 
@@ -13,7 +13,7 @@
 The vocabulary and philosophy of documentation decisions: when
 content earns a doc of its own, what categories of doc exist and
 how each behaves, when to introduce structure, and how to keep what
-exists honest. `CLAUDE.md` covers *when* to engage this file; this
+exists honest. `AGENT.md` covers *when* to engage this file; this
 file covers *how* to think about docs once engaged.
 
 The specific files this doc references — `INDEX.md`, `STATE.md`,
@@ -64,14 +64,14 @@ behaves once present.
 
 | Category | Examples | Lifecycle | Location | Naming |
 |----------|----------|-----------|----------|--------|
-| **Workflow** | `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` | Rarely changed; project-agnostic; always carried by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
+| **Workflow** | `AGENT.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` | Rarely changed; project-agnostic; always carried by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
 | **Project map** | `INDEX.md` | Edited whenever the inventory changes | `claude/` | `ALL_CAPS.md` |
 | **Project snapshot** | `STATE.md` | Edited after sessions that move state; never appended | `claude/` | `ALL_CAPS.md` |
 | **Charter / product** | `charter.md`, `charter-brief.md` | Edited rarely, when product direction shifts | `claude/context/` | `lowercase-hyphenated.md` |
 | **Architectural decisions** | `0001-vue-over-react.md` | Append-only; new file per decision; old files never edited (superseded instead) | `claude/context/adr/` | `NNNN-lowercase-hyphenated.md` |
 | **Schemas / data contracts** | `dist-api.openapi.yaml`, `dist-meta.schema.json` | Edited when the underlying contract changes | `claude/context/schemas/` | `lowercase-hyphenated.<ext>` |
 | **Long-form explainers** | `surface-modes.md` | Edited when the subject evolves | `claude/context/` | `lowercase-hyphenated.md` |
-| **Session notes** | `notes.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once, never edited; archival is opt-in per project, off by default (`CLAUDE.md` §5) | `claude/responses/response-NNN/` (when archival is adopted) | conventional (`.md`, plus `.json` for `diagnostics.json`) |
+| **Session notes** | `notes.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once, never edited; archival is opt-in per project, off by default (`AGENT.md` §5) | `claude/responses/response-NNN/` (when archival is adopted) | conventional (`.md`, plus `.json` for `diagnostics.json`) |
 
 If a needed document doesn't fit any row, that's a signal — either it
 belongs in a category the agent didn't recognize, or it's the seed of a
@@ -86,7 +86,7 @@ This section applies when the project maintains an `INDEX.md`. If
 it doesn't yet, section 4.1 covers when to introduce one.
 
 `INDEX.md` is the project's table of contents. Its job is to make the
-drill-down pattern work: when the read-paths table in `CLAUDE.md`
+drill-down pattern work: when the read-paths table in `AGENT.md`
 points the agent at a project-specific doc, INDEX.md is how the
 agent finds the file.
 
@@ -133,7 +133,7 @@ does not enforce this.
   route segments.
 ```
 
-INDEX.md does not list the global docs (`CLAUDE.md`, `TARBALL.md`,
+INDEX.md does not list the global docs (`AGENT.md`, `TARBALL.md`,
 `DOCS.md`, `CODE.md`, `PLANNER.md`) — those are carried by bale
 from its own installation and are not part of the project's
 inventory.
@@ -496,7 +496,7 @@ of a wrong delete is reconstructing the knowledge.
 Strict enough to be predictable; loose enough not to be a tax.
 
 - **Project-state files** — `ALL_CAPS.md`. Limited set:
-  `INDEX.md`, `STATE.md`. (Global docs `CLAUDE.md`, `TARBALL.md`,
+  `INDEX.md`, `STATE.md`. (Global docs `AGENT.md`, `TARBALL.md`,
   `DOCS.md`, `CODE.md`, `PLANNER.md` follow the same convention but
   live in the bale tool, not in the project.)
 - **Content files** — `lowercase-hyphenated.md`. Everything in
@@ -540,7 +540,7 @@ sanctioned-overlap note). Parallel copies must agree; a change to
 one propagates to its twin in the same session, or the parallelism
 has become drift. Sanctioned pairs today: this section's preamble
 and closing with `CODE.md` §10's; §8's framing with `CODE.md` §9's;
-§7's pruning sentences with `CODE.md` §6's; and `CLAUDE.md` §11.2's
+§7's pruning sentences with `CODE.md` §6's; and `AGENT.md` §11.2's
 rescope-offer prose with `TARBALL.md` §3.4's pack-flag surface (the
 same `bale pack` command described from both ends). A fifth pair is
 registered with its project-side member stated generically:
@@ -555,7 +555,7 @@ The contract rows' assertions are mechanized:
 parameterized and paste-ready, and the enforcement recipe lives in
 the emission, where it cannot drift from what runs.
 
-Rule labels follow `CLAUDE.md` section 6. A project that wants these
+Rule labels follow `AGENT.md` section 6. A project that wants these
 rules enforced asks the agent to include the corresponding assertions
 in each response's `validation.sh`; a project that doesn't adopt
 the DOCS.md inventory simply omits them. The agent should surface

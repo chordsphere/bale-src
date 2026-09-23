@@ -211,7 +211,7 @@ class VerboseThreadTest(unittest.TestCase):
                       combined)
         # The build trail: a carried global doc, the manifest write,
         # and the surviving context copy.
-        self.assertIn("verbose: carry global doc CLAUDE.md", combined)
+        self.assertIn("verbose: carry global doc AGENT.md", combined)
         self.assertIn("verbose: write manifest.json", combined)
         self.assertIn("verbose: copy context/hello.txt", combined)
         # Build-trail lines run post-sid: they land in the session log

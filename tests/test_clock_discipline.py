@@ -172,7 +172,7 @@ class PackClockTest(unittest.TestCase):
         # A pre-stamp block (the four required keys only) still validates
         # against the closed shape — additive means no retroactive edit.
         pre_stamp = {"bale_version": "0.4.29", "contract_docs": {
-            "CLAUDE.md": "a", "TARBALL.md": "b", "DOCS.md": "c",
+            "AGENT.md": "a", "TARBALL.md": "b", "DOCS.md": "c",
             "CODE.md": "d"}, "packer": "x", "work_class": "code"}
         missing = [k for k in prov["required"] if k not in pre_stamp]
         self.assertEqual(missing, [])

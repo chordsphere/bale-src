@@ -2,7 +2,7 @@
 """Cross-doc section-reference integrity (session 2026-08-15-002;
 PLANNER.md joined the parsed set at 2026-08-16-planner-birth-003).
 
-The five injected docs — docs/CLAUDE.md, docs/TARBALL.md,
+The five injected docs — docs/AGENT.md, docs/TARBALL.md,
 docs/DOCS.md, docs/CODE.md, docs/PLANNER.md — cite one another by
 section number
 constantly, and DOCS.md §6.4 pins those numbers as stable: once
@@ -27,7 +27,7 @@ bundle-delivery ruling (session 2026-09-14-bundle-delivery-doctrine-003
 proposed them): docs/PLANNER.md §2 leads its bundle bullet with the
 bold phrase "The bundle is the delivery form of every planner-authored
 pack" and states it before the "Commands are single-line" bullet, and
-docs/CLAUDE.md mentions `bale open` at least once. Neither the
+docs/AGENT.md mentions `bale open` at least once. Neither the
 cross-reference scan above nor test_sanctioned_pairs reads that
 content, so a doc session that rewrapped §2 or pruned the bullet would
 pass both — and the operator's original report ("no project other than
@@ -41,7 +41,7 @@ that ruling's text of record: every tarball-mode turn ends in a
 machine-recognizable shape, and the light question block is one of
 them. Two sentences land byte-exact in docs/TARBALL.md §5.10 (the
 count-not-judgment admission test and the packer's three replies),
-docs/CLAUDE.md §3 states the every-turn-ends-in-a-shape rule beside
+docs/AGENT.md §3 states the every-turn-ends-in-a-shape rule beside
 its shapes paragraph, and four chat-invitation phrases the ruling
 struck stay absent from the docs they lived in. The cross-reference
 scan resolves `TARBALL.md` §5.10 as a pointer but cannot see whether
@@ -52,9 +52,9 @@ like every other prose pin here.
 
 Since board 109 (from 2026-09-16-board-105-operator-voice-007's
 Proposals) the shape sentence's third home is pinned too. The ruling
-lives in the session opener, docs/CLAUDE.md §3, and docs/TARBALL.md
+lives in the session opener, docs/AGENT.md §3, and docs/TARBALL.md
 §5.10, and until then the suites pinned only the first two. §5.10's
-copy is its own wording, not CLAUDE.md's — "the worker" for "Claude",
+copy is its own wording, not AGENT.md's — "the worker" for "Claude",
 an em-dash for the colon, and the §4.2 / §5.9 pointers — so it is
 pinned as TARBALL_SHAPE_SENTENCE against the §5.10 section body alone
 (a copy that drifted elsewhere in TARBALL.md does not satisfy it), and
@@ -76,11 +76,11 @@ the opener. Beside it lands the deliverable ruling
 (DOC_DELIVERABLE_SENTENCE): a worker session owes one response
 tarball, a read-only planner session owes none. Both are VERBATIM in
 the brief of record and pinned byte-exact (whitespace-collapsed) in
-each home: DOC_ASK in docs/CLAUDE.md 3 and docs/TARBALL.md 5.10,
-DOC_DELIVERABLE in docs/CLAUDE.md 3 and docs/TARBALL.md 2, each
+each home: DOC_ASK in docs/AGENT.md 3 and docs/TARBALL.md 5.10,
+DOC_DELIVERABLE in docs/AGENT.md 3 and docs/TARBALL.md 2, each
 against its section body alone. The retired sentence's fragments are
 pinned absent. The same sweep names the request README as the
-session's brief: docs/CLAUDE.md META's reading order lists it third
+session's brief: docs/AGENT.md META's reading order lists it third
 and names the manifest's `readme` key, docs/TARBALL.md 3.2 documents
 the key, and 3.1's old "most sessions skip the README" claim stays
 gone.
@@ -157,14 +157,14 @@ DOCS_DIR = REPO / "docs"
 RESPONSE_MANIFEST_SCHEMA = (
     REPO / "schemas" / "response-manifest.schema.json")
 
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
 
 # A cross-doc pointer: the doc name, optionally backticked and
 # possessive, then a section number in either the `§N(.N…)` form or
 # the singular `section N(.N…)` prose form.
 POINTER = re.compile(
-    r"`?(?P<doc>CLAUDE|TARBALL|DOCS|CODE|PLANNER)\.md`?(?:'s)?\s+"
+    r"`?(?P<doc>AGENT|TARBALL|DOCS|CODE|PLANNER)\.md`?(?:'s)?\s+"
     r"(?:§|section\s+)(?P<num>\d+(?:\.\d+)*)")
 
 # A numbered heading: `## N. Title`, `### N.N Title`, `#### N.N.N …`.
@@ -288,7 +288,7 @@ LIGHT_REPLIES_SENTENCE = (
     "\"as assumed\" to ratify every default at once; or \"formal\" to "
     "have the same questions returned as a clarification response.")
 # The re-scoped ask rule (opener reword, 2026-09-19): VERBATIM in the
-# brief of record, one wording in both homes (CLAUDE.md 3 and
+# brief of record, one wording in both homes (AGENT.md 3 and
 # TARBALL.md 5.10). It replaced the "Every turn ... takes one
 # machine-recognizable shape" sentence and that sentence's board-105
 # second half, in both homes at once.
@@ -302,7 +302,7 @@ DOC_ASK_SENTENCE = (
 # the re-scoped rule word for word.
 SHAPE_RULING_CORE_CLAUSE = "a question asked as prose is not a shape"
 # What each session mode owes back (opener reword, 2026-09-19):
-# VERBATIM in the brief of record, homed in CLAUDE.md 3 and TARBALL.md
+# VERBATIM in the brief of record, homed in AGENT.md 3 and TARBALL.md
 # 2. The backticks around `bale open` are part of the pinned bytes.
 DOC_DELIVERABLE_SENTENCE = (
     "What a session owes back follows from how it was packed: a worker "
@@ -314,31 +314,31 @@ DOC_DELIVERABLE_SENTENCE = (
 # Fragments of the retired shape sentence, by the docs it lived in. A
 # fragment coming back means a second, contradicting ask rule.
 RETIRED_SHAPE_FRAGMENTS = (
-    ("CLAUDE.md", "machine-recognizable shape"),
+    ("AGENT.md", "machine-recognizable shape"),
     ("TARBALL.md", "machine-recognizable shape"),
-    ("CLAUDE.md", "Explanation in prose is expected and welcome"),
+    ("AGENT.md", "Explanation in prose is expected and welcome"),
     ("TARBALL.md", "Explanation in prose is expected and welcome"),
 )
 # The README sweep: the stale claim that retired from TARBALL.md 3.1,
-# and the phrase that named the brief vaguely in CLAUDE.md's reading
+# and the phrase that named the brief vaguely in AGENT.md's reading
 # order and read-paths row.
 RETIRED_README_FRAGMENTS = (
     ("TARBALL.md", "Most sessions skip the README"),
-    ("CLAUDE.md", "the session prompt"),
+    ("AGENT.md", "the session prompt"),
 )
 
 # The chat-invitation phrases the ruling struck, by the doc each lived
 # in. A phrase reappearing is the drift this pin exists to catch: a
 # worker choosing between a doc that says "not size" and a doc that
-# says "ask in chat" picks the invitation. The CLAUDE.md phrase that
+# says "ask in chat" picks the invitation. The AGENT.md phrase that
 # named the session is spelled with the ratified agent noun since the
 # W1 doc sweep (2026-09-23-board-100-w1-doc-sweep-002): the struck
 # sentence could only come back in the swept doc's own vocabulary.
 STRUCK_PHRASES = (
     ("TARBALL.md", "small enough to resolve"),
     ("TARBALL.md", "a question in chat as conversation"),
-    ("CLAUDE.md", "the agent asks, in one sentence"),
-    ("CLAUDE.md", "brief paused question in chat"),
+    ("AGENT.md", "the agent asks, in one sentence"),
+    ("AGENT.md", "brief paused question in chat"),
 )
 
 
@@ -503,21 +503,21 @@ class BundleRulingPins(unittest.TestCase):
             "command form follows it")
 
     def test_claude_mentions_bale_open(self):
-        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
+        self.assertIn("AGENT.md", self.docs, "docs/AGENT.md is missing")
         # assertTrue, not assertIn: the haystack is the whole doc and
         # would drown the message.
         self.assertTrue(
-            "`bale open`" in self.docs["CLAUDE.md"],
-            "docs/CLAUDE.md no longer mentions `bale open` — the bundle "
+            "`bale open`" in self.docs["AGENT.md"],
+            "docs/AGENT.md no longer mentions `bale open` — the bundle "
             "is delivered beside its `bale open` line (PLANNER.md 2), "
-            "and CLAUDE.md is where the worker learns that verb exists")
+            "and AGENT.md is where the worker learns that verb exists")
 
 
 class TerminalShapePins(unittest.TestCase):
     """The terminal-shapes ruling, as re-scoped by the opener reword,
     stays stated where the docs say it is: the light question block's
-    text of record in TARBALL.md 5.10, the ask rule in CLAUDE.md 3 and
-    TARBALL.md 5.10, the deliverable rule in CLAUDE.md 3 and
+    text of record in TARBALL.md 5.10, the ask rule in AGENT.md 3 and
+    TARBALL.md 5.10, the deliverable rule in AGENT.md 3 and
     TARBALL.md 2, and the retired sentence and struck chat invitations
     absent."""
 
@@ -549,19 +549,19 @@ class TerminalShapePins(unittest.TestCase):
                     f"than paraphrase it:\n  {sentence}")
 
     def test_claude_3_states_ask_rule(self):
-        """CLAUDE.md 3 carries the re-scoped ask rule, byte-exact
+        """AGENT.md 3 carries the re-scoped ask rule, byte-exact
         (whitespace aside), in the section — not merely the file."""
-        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
-        section = normalize(top_level_section(self.docs["CLAUDE.md"], 3))
+        self.assertIn("AGENT.md", self.docs, "docs/AGENT.md is missing")
+        section = normalize(top_level_section(self.docs["AGENT.md"], 3))
         self.assertTrue(
             section,
-            "docs/CLAUDE.md has no `## 3.` heading — the modes section "
+            "docs/AGENT.md has no `## 3.` heading — the modes section "
             "moved; section numbers are stable (DOCS.md 6.4)")
         self.assertTrue(
             normalize(DOC_ASK_SENTENCE) in section,
-            "docs/CLAUDE.md 3 no longer states the ask rule byte-exact "
+            "docs/AGENT.md 3 no longer states the ask rule byte-exact "
             "(whitespace aside) — it is the ruling of record, VERBATIM "
-            "in the opener-reword brief, and CLAUDE.md 3 is one of its "
+            "in the opener-reword brief, and AGENT.md 3 is one of its "
             "two doc homes; restore it rather than paraphrase it:\n  "
             f"{DOC_ASK_SENTENCE}")
 
@@ -579,15 +579,15 @@ class TerminalShapePins(unittest.TestCase):
             normalize(DOC_ASK_SENTENCE) in section,
             "docs/TARBALL.md 5.10 no longer states the ask rule "
             "byte-exact (whitespace aside) — the rule has two doc homes "
-            "(CLAUDE.md 3, TARBALL.md 5.10), one wording; restore it "
+            "(AGENT.md 3, TARBALL.md 5.10), one wording; restore it "
             f"rather than paraphrase it:\n  {DOC_ASK_SENTENCE}")
 
     def test_claude_3_states_deliverable_rule(self):
-        self.assertIn("CLAUDE.md", self.docs, "docs/CLAUDE.md is missing")
-        section = normalize(top_level_section(self.docs["CLAUDE.md"], 3))
+        self.assertIn("AGENT.md", self.docs, "docs/AGENT.md is missing")
+        section = normalize(top_level_section(self.docs["AGENT.md"], 3))
         self.assertTrue(
             normalize(DOC_DELIVERABLE_SENTENCE) in section,
-            "docs/CLAUDE.md 3 no longer states what each session mode "
+            "docs/AGENT.md 3 no longer states what each session mode "
             "owes back, byte-exact (whitespace aside) — the ruling of "
             "record, VERBATIM in the opener-reword brief:\n  "
             f"{DOC_DELIVERABLE_SENTENCE}")
@@ -668,43 +668,43 @@ class ReadmeBriefPins(unittest.TestCase):
                            for name, text in self.docs.items()}
 
     def _reading_order(self) -> str:
-        text = self.docs["CLAUDE.md"]
+        text = self.docs["AGENT.md"]
         m = re.search(r"^### Reading order\s*$", text, re.M)
         self.assertIsNotNone(
-            m, "docs/CLAUDE.md META has no `### Reading order` heading")
+            m, "docs/AGENT.md META has no `### Reading order` heading")
         rest = text[m.end():]
         nxt = re.search(r"^#{2,3}\s", rest, re.M)
         return rest if nxt is None else rest[:nxt.start()]
 
     def test_reading_order_names_the_brief_third(self):
-        """manifest.json, then CLAUDE.md, then README.md — the order
+        """manifest.json, then AGENT.md, then README.md — the order
         the opener gives — as the list's first three items."""
         items = re.findall(r"(?m)^(\d+)\.\s+\*\*(.+?)\*\*",
                            self._reading_order())
         heads = [head for _, head in items]
         self.assertGreaterEqual(len(heads), 3, heads)
         self.assertIn("`manifest.json`", heads[0])
-        self.assertIn("`CLAUDE.md`", heads[1])
+        self.assertIn("`AGENT.md`", heads[1])
         self.assertIn("`README.md`", heads[2],
-                      "docs/CLAUDE.md META's reading order no longer "
+                      "docs/AGENT.md META's reading order no longer "
                       "names the request's README.md third, after "
-                      "manifest.json and CLAUDE.md")
+                      "manifest.json and AGENT.md")
 
     def test_reading_order_and_index_row_name_the_readme_key(self):
         order = normalize(self._reading_order())
         self.assertIn("`readme` key", order,
-                      "docs/CLAUDE.md META's reading order no longer "
+                      "docs/AGENT.md META's reading order no longer "
                       "says the manifest's `readme` key is how a reader "
                       "knows whether a brief ships")
-        row = next((line for line in self.docs["CLAUDE.md"].splitlines()
+        row = next((line for line in self.docs["AGENT.md"].splitlines()
                     if line.startswith("| Every session |")), "")
-        self.assertTrue(row, "docs/CLAUDE.md INDEX lost its Every session row")
+        self.assertTrue(row, "docs/AGENT.md INDEX lost its Every session row")
         for needle in ("`README.md`", "`readme` key"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, row)
-        self.assertLess(row.index("`CLAUDE.md`"), row.index("`README.md`"),
+        self.assertLess(row.index("`AGENT.md`"), row.index("`README.md`"),
                         "the Every session row names README.md before "
-                        "CLAUDE.md")
+                        "AGENT.md")
 
     def test_tarball_3_2_documents_readme_key(self):
         section = subsection(self.docs["TARBALL.md"], "3.2")

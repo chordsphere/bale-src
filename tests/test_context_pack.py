@@ -61,7 +61,7 @@ from harness import (
     run_checked,
 )
 
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md", "PLANNER.md")
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md", "PLANNER.md")
 CARRIED_TOOLS = ("craft_response.py", "response_lint.py")
 OPENER_MARKERS = ("--8<-- session opener", "--8<-- end session opener")
 
@@ -401,7 +401,14 @@ class RefusalTest(_Sandbox):
 
     def test_expects_probe_at_its_default_is_a_no_op(self) -> None:
         self.assertOk(self.context(self.repo, "--expects-probe",
-                                   "claude-decides"))
+                                   "agent-decides"))
+
+    def test_expects_probe_alias_differs_from_the_default(self) -> None:
+        """`claude-decides` is the pre-0.4.43 spelling, accepted for good
+        as a value — but it is not the parser default any more, so typed
+        beside --context it reads as a session-only flag like any other."""
+        r = self.context(self.repo, "--expects-probe", "claude-decides")
+        self.assertRefused(r, "--expects-probe", "Drop it")
 
     def test_help_lists_the_flag(self) -> None:
         r = run_bale(self.install, ["pack", "--help"], cwd=self.repo,

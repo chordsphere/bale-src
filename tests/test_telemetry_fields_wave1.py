@@ -257,7 +257,7 @@ class DocsReadSelfReport(unittest.TestCase):
         manifest = minimal_manifest()
         manifest["feedback"] = legacy_feedback()
         manifest["feedback"]["self_reported"]["docs_read"] = [
-            "CLAUDE.md core (META through 11.2)",
+            "AGENT.md core (META through 11.2)",
             "TARBALL.md sections 1, 2, 5, 7",
         ]
         self.assert_valid(manifest)
