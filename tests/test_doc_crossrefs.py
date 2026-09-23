@@ -117,6 +117,13 @@ the pin goes red when either side moves. The session's other deltas are
 authored wording around a required spelling, and authored text gets no
 connective-phrase pin (PLANNER.md 4), so none is pinned here.
 
+Since the W1 doc sweep (session 2026-09-23-board-100-w1-doc-sweep-002)
+the one struck phrase that named the session by its old noun is
+pinned in the ratified agent noun instead; a returning invitation would
+be written in the swept doc's vocabulary, and the old spelling is what
+the sweep's own denied-token guard (tests/test_global_doc_noun.py)
+keeps out.
+
 Hermetic and stdlib-only: the docs and the one schema are read from
 this repo, and the one code import is bin/bale_report.py for the pure
 relay_sentinels() builder (stdlib-only at module scope); nothing else
@@ -323,11 +330,14 @@ RETIRED_README_FRAGMENTS = (
 # The chat-invitation phrases the ruling struck, by the doc each lived
 # in. A phrase reappearing is the drift this pin exists to catch: a
 # worker choosing between a doc that says "not size" and a doc that
-# says "ask in chat" picks the invitation.
+# says "ask in chat" picks the invitation. The CLAUDE.md phrase that
+# named the session is spelled with the ratified agent noun since the
+# W1 doc sweep (2026-09-23-board-100-w1-doc-sweep-002): the struck
+# sentence could only come back in the swept doc's own vocabulary.
 STRUCK_PHRASES = (
     ("TARBALL.md", "small enough to resolve"),
     ("TARBALL.md", "a question in chat as conversation"),
-    ("CLAUDE.md", "Claude asks, in one sentence"),
+    ("CLAUDE.md", "the agent asks, in one sentence"),
     ("CLAUDE.md", "brief paused question in chat"),
 )
 

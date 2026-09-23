@@ -23,9 +23,9 @@ choices reinforce the same values they encode. Where the two files
 overlap, both agree; if they conflict, this file wins on layout
 questions and `CLAUDE.md` wins on values.
 
-### Inscribed for Claude
+### Inscribed for the agent
 
-Claude is the primary reader of this file and the writer of the
+The agent is the primary reader of this file and the writer of the
 code it governs. CODE.md is written to be loaded before a layout
 decision and acted on directly — fewer rhetorical defenses, more
 triggers and signals. The architect reviews the result, not the
@@ -34,7 +34,7 @@ translate to action, that's a fix to land in a follow-up session.
 
 ### Conflict resolution
 
-If something here conflicts with what Claude remembers from a
+If something here conflicts with what the agent remembers from a
 prior session, **this file wins.**
 
 ---
@@ -50,7 +50,7 @@ prior session, **this file wins.**
 | Adding an index header to a long file | Section 2 |
 | Adding code to an existing file | Section 3 |
 | Pruning dead code | Section 6 |
-| Working on a codebase Claude did not author | Section 7 |
+| Working on a codebase the agent did not author | Section 7 |
 | Working on code that runs in or operates on the workflow itself | Section 8 |
 | Naming a function, file, or section | Section 9 |
 | Hard rules / what counts as a violation | Sections 10, 11 |
@@ -103,7 +103,7 @@ listing every section with its name and an approximate line
 number:
 
 ```python
-"""bale — Claude session orchestrator.
+"""bale — agent session orchestrator.
 
 Sections:
   1. Imports + constants       (~line 45)
@@ -139,7 +139,7 @@ section without updating the header is the same as not adding it
 change that adds, removes, or renames a section also updates the
 header in the same response.
 
-A project that wants this rule mechanically enforced has Claude
+A project that wants this rule mechanically enforced has the agent
 include the header-coherence assertion in each response's
 `validation.sh`. Bale itself does not enforce it.
 
@@ -233,7 +233,7 @@ trigger.
 - The proposed lighter unit would be too thin and wouldn't earn
   the separation (under ~30 lines for a function, under ~100
   lines for a section, under ~300 lines for a file).
-- The seam isn't real. If Claude struggles to decide which side
+- The seam isn't real. If the agent struggles to decide which side
   a piece goes on, the seam is wrong and the split shouldn't
   happen yet.
 - The split would require contortions in the language's module
@@ -330,19 +330,19 @@ infrequently exercised but load-bearing when it is.
 
 ---
 
-## 7. Working on Code Claude Didn't Author
+## 7. Working on Code the Agent Didn't Author
 
 A separate framing applies when the project predates this
-workflow, or has substantial code Claude is collaborating with.
+workflow, or has substantial code the agent is collaborating with.
 The framing is less restrictive than it might sound: the
 philosophy applies; only scope discipline tightens.
 
 ### 7.1 Apply the philosophy as you touch
 
-Code Claude adds or modifies in a human-authored area takes
-Claude's structural standard, not the surrounding code's. If a
-function Claude is modifying would benefit from extraction per
-section 4.1, extract it. If the section Claude is adding to would
+Code the agent adds or modifies in a human-authored area takes
+the agent's structural standard, not the surrounding code's. If a
+function the agent is modifying would benefit from extraction per
+section 4.1, extract it. If the section it is adding to would
 benefit from an index header per section 2.1, add one. Local
 inconsistency with surrounding untouched code is acceptable —
 the codebase is converging toward philosophy, not frozen in
@@ -372,7 +372,7 @@ across `bar.py` and `baz.py` looking for improvements.
 
 ### 7.4 First-pass restraint
 
-The first time Claude touches a file in a human codebase, the
+The first time the agent touches a file in a human codebase, the
 response covers:
 
 1. The requested change, applied cleanly.
@@ -420,7 +420,7 @@ surfaced items don't get lost, they accrue.
 
 ## 8. Meta Code
 
-Code that is part of, or operates on, the Claude workflow itself
+Code that is part of, or operates on, the agent workflow itself
 — bale, hooks, response-handling helpers, validation harnesses,
 anything that runs *during* pack or apply. The recursion changes
 a few rules.
@@ -513,7 +513,7 @@ Strict enough to be predictable; loose enough not to be a tax.
 
 Bale is project-agnostic and does not enforce code-layout rules
 itself. The mechanical checks in the table below run in the
-response's `validation.sh` — Claude includes the corresponding
+response's `validation.sh` — the agent includes the corresponding
 assertions per-session for projects that adopt this doc's
 philosophy. The universal bale-enforced rules live in `TARBALL.md`
 section 8, which owns their enumeration.
@@ -522,7 +522,7 @@ section 8, which owns their enumeration.
 |------|------|-------------|
 | Index header lists every section — a section isn't navigable until listed | contract | response's `validation.sh`: the crafter's `--doc-assertions --index-header` emission |
 | Splits and extractions are declared — restructuring shows in the manifest and `notes.md` | policy | review |
-| In code Claude didn't author, structural changes are visible in `manifest.changes[].reason` | policy | review |
+| In code the agent didn't author, structural changes are visible in `manifest.changes[].reason` | policy | review |
 | Cross-file restructuring waits for an ADR or dedicated session — never opportunistic | policy | review |
 | Meta-code sessions include change-specific assertions in `validation.sh` | policy | review |
 | Pruning is always declared — every removal has a reason naming its criterion | contract | response's `validation.sh`: deletes have non-empty reasons |
@@ -535,7 +535,7 @@ where it cannot drift from what runs.
 
 Rule labels follow `CLAUDE.md` section 6 — contract rules are
 caught mechanically; policy rules are caught at the architect's
-review. Claude surfaces policy concerns in `notes.md` precisely
+review. The agent surfaces policy concerns in `notes.md` precisely
 because mechanical checks won't catch them.
 
 ---
@@ -647,13 +647,13 @@ section first; its own file waits until it has been read a few times.*
 
 Promotion is a documentation **split** (DOCS.md §6.2), and because
 `TESTS.md` would be a global workflow doc, it carries one extra cost the
-ordinary split doesn't: bale injects the global docs from its own
+ordinary split doesn't: bale carries the global docs from its own
 installation, so growing the set means updating bale's `GLOBAL_DOCS`
-list and the pack-time injection — a `bin/bale` change, hence its own
+list and the pack-time carry — a `bin/bale` change, hence its own
 session. The split session does both: lifts §13 into `TESTS.md` (this
 section becomes a one-line trigger pointing there, mirroring how the
 INDEX read-paths table points at the heavier doc) and lands the
-injection change.
+`bin/bale` change.
 
 ### 13.5 Strategy is per-project — recorded in ADRs
 

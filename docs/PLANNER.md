@@ -54,7 +54,7 @@ session.
 
 ### Conflict resolution
 
-If something here conflicts with what Claude remembers from a prior
+If something here conflicts with what the agent remembers from a prior
 session, **this file wins.** On the wire format itself,
 `TARBALL.md` wins; on values and the authority split, `CLAUDE.md`
 wins; this file wins on authoring practice.
@@ -416,6 +416,15 @@ is orchestration doctrine, §14.
 - **End at milestones.** Masters end sittings at natural milestones
   rather than resolving open questions on a tired context — the
   sitting-level form of `CLAUDE.md` §11's bail-early discipline.
+- **A sitting closes with a light-block ledger.** The light question
+  block (`TARBALL.md` §5.10) is the worker's tier: `light_blocks` in
+  the response's feedback is the worker's field, and bale never sees
+  a block. A read-only master returns no response, so its blocks
+  would otherwise leave no trail; the sitting's close notes carry
+  the ledger instead — the count of light blocks the sitting
+  emitted, and each block's disposition: answered, as-assumed,
+  formal, or unanswered. This is a close-notes convention, not a
+  record field.
 - **Authoring practice accretes into doctrine, or it evaporates.**
   Planner practice keeps living in ephemeral chats until a gate
   refuses. When a sitting resolves an authoring
@@ -436,12 +445,12 @@ is orchestration doctrine, §14.
   calibration sitting recalibrates its own trigger. The input side
   is the stats digest at sitting-open (queued tool-side machinery).
   The output constraint is the teaching half: workers are
-  stateless, so the only teaching channel is the injected docs and
+  stateless, so the only teaching channel is the carried docs and
   the request — a calibration sitting's outputs are constrained by
   construction to durable artifacts: a doc delta, a mechanical
   gate, a queued work item, an evidence entry, or a trust grant. The
   loop closes measurably: every session record
-  pins the injected docs' hashes (`contract_docs`), so the next
+  pins the carried docs' hashes (`contract_docs`), so the next
   calibration sitting can check whether the previous one's doc
   delta moved the rates — the epoch read the records were built to
   carry. A calibration sitting also sweeps fired, stale, and
@@ -546,7 +555,7 @@ worker — plus review.
 > when planning orchestration or harness work. The banner is a
 > deliberate, pre-marked seam: if a physical re-split of this doc is
 > ever wanted, it is a transport-relative decision that defers to
-> the injection-model question like every other split of the global
+> the carry-model question like every other split of the global
 > set, and it happens here.
 
 ---
