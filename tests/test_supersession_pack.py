@@ -651,6 +651,117 @@ class SupersessionPackTest(unittest.TestCase):
     def test_sweep_unset_commits_nothing(self) -> None:
         self._accept_without_sweep(None)
 
+    # -- v0.4.44, board row 121: argv-only gates before the exchange -----
+
+    # The pass's own passing line (bale_pack.pack_pre_exchange_gates).
+    PRE_EXCHANGE_PASSED = "argv-only pack gates passed before any exchange"
+
+    def open_read_only_parent(self) -> str:
+        """A read-only parent, packed piped — the specimen's shape."""
+        return self.packed_sid(self.pack("--read-only", slug="parent"))
+
+    def assert_parent_untouched(self, parent: str, output: str) -> None:
+        """The refused child wrote nothing onto the parent: still open,
+        its record still the lone `opened` attempt, no prompt shown."""
+        self.assertNotIn(PROMPT_MARKER, output,
+                         msg="the exchange prompt ran before the refusal")
+        self.assertIn(parent, self.open_sids(), msg=output)
+        record = self.telemetry_record(parent)
+        self.assertEqual([a["outcome"] for a in record["attempts"]],
+                         ["opened"], msg=output)
+        self.assertEqual(record["outcome"], "opened")
+        self.assertNotIn("superseded-by-split", json.dumps(record))
+
+    def test_include_naming_checkpoint_refuses_before_the_exchange(
+            self) -> None:
+        """The paired-desk specimen, typed under a pty with the accept
+        answer queued: a checkpoint-configured repo, a read-only parent,
+        and a read-only child whose --include names the checkpoint
+        directory. The read-side blindness refusal fires before the
+        exchange — the queued 'y' is never read, the parent stays open."""
+        self.configure(sweep=None, checkpoint_base=True)
+        (self.repo / "claude" / "checkpoints").mkdir(parents=True)
+        self.add_committed_file("claude/checkpoints/old.sh")
+        parent = self.open_read_only_parent()
+        code, output = self.pack_pty(
+            "--read-only", "--supersedes", parent, slug="child",
+            include="claude/checkpoints", answers="y\n")
+        self.assertNotEqual(code, 0, msg=output)
+        self.assertIn("checkpoint", output.lower())
+        self.assertNotIn(self.PRE_EXCHANGE_PASSED, output)
+        self.assert_parent_untouched(parent, output)
+
+    def test_missing_include_refuses_before_the_exchange(self) -> None:
+        """The missing-path refusal used to run after the close."""
+        parent = self.open_read_only_parent()
+        code, output = self.pack_pty(
+            "--read-only", "--supersedes", parent, slug="child",
+            include="no-such-file.txt", answers="y\n")
+        self.assertNotEqual(code, 0, msg=output)
+        self.assertIn("--include path does not exist: no-such-file.txt",
+                      output)
+        self.assert_parent_untouched(parent, output)
+
+    def test_bad_slug_and_cap_values_refuse_before_the_exchange(
+            self) -> None:
+        """Two more argv-only refusals that used to follow the exchange:
+        a non-kebab slug and an out-of-range cap value."""
+        parent = self.open_read_only_parent()
+        for extra, slug, marker in (
+                ((), "Bad_Slug", "--slug must be kebab-case"),
+                (("--max-files", "0"), "child", "--max-files must be >= 1"),
+                (("--max-depth", "-1"), "child", "--max-depth must be >= 0"),
+        ):
+            with self.subTest(marker=marker):
+                code, output = self.pack_pty(
+                    "--read-only", "--supersedes", parent, *extra,
+                    slug=slug, answers="y\n")
+                self.assertNotEqual(code, 0, msg=output)
+                self.assertIn(marker, output)
+                self.assert_parent_untouched(parent, output)
+
+    def test_clean_argv_still_reaches_the_exchange(self) -> None:
+        """The pass is a gate, not a wall: a clean argv logs the pass,
+        then the exchange runs and the accept closes the parent."""
+        parent = self.open_read_only_parent()
+        code, output = self.pack_pty(
+            "--read-only", "--supersedes", parent, slug="child",
+            answers="y\n")
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(self.PRE_EXCHANGE_PASSED, output)
+        self.assertLess(output.index(self.PRE_EXCHANGE_PASSED),
+                        output.index(PROMPT_MARKER))
+        latest = self.telemetry_record(parent)["attempts"][-1]
+        self.assertEqual(latest["closure_reason"], "superseded-by-split")
+
+
+    # -- v0.4.44, board row 124: journal lines name the configured home --
+
+    def test_journal_lines_name_the_configured_agent_dir(self) -> None:
+        """With [layout] agent_dir = "agent", the supersession close line
+        and the read-only sweep line name agent/telemetry/ — the records
+        bale actually wrote — never claude/telemetry/."""
+        (self.repo / "bale.toml").write_text(
+            '[layout]\nagent_dir = "agent"\n', encoding="utf-8")
+        env = git_env(self.home)
+        run_checked(["git", "add", "bale.toml"], cwd=self.repo, env=env)
+        run_checked(["git", "commit", "-m", "layout"], cwd=self.repo, env=env)
+        parent = self.packed_sid(self.pack("--read-only", slug="parent"))
+        bystander = self.packed_sid(self.pack("--read-only", slug="other"))
+        # The child supersedes `parent`; the read-only sweep then offers
+        # `bystander` (accept default) — both lines in one run.
+        code, output = self.pack_pty(
+            "--read-only", "--supersedes", parent, slug="child",
+            answers="y\ny\n")
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(f"closure record at agent/telemetry/{parent}.json",
+                      output)
+        self.assertIn("closure record(s) under agent/telemetry/", output)
+        self.assertNotIn("claude/telemetry", output)
+        self.assertTrue(
+            (self.repo / "agent" / "telemetry" / f"{bystander}.json")
+            .is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

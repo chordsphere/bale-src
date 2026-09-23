@@ -60,6 +60,17 @@ Sections:
   2. Bundle extraction + verification (~line 95)
   3. Checkpoint dry-run               (~line 255)
   4. Argv replay + cmd_open           (~line 440)
+  5. Second desk (row 123)            (after cmd_open)
+
+A step 1.5 sits between steps 2 and 3 since v0.4.44 (board row 123):
+**recognize a second desk.** When the verified bundle's identity matches
+the `bundle` stamp on an `opened` attempt of a session that is still
+open, the open records a further desk on THAT session — a second
+`opened` attempt carrying `desk`, command `open` — re-emits its opener
+with the desk-qualified name, and exits 0. No pre-flight, dry-run,
+sweep, or replay runs on that path, so desk two can never close desk
+one's session or mint a second sid. A bundle whose session has closed
+opens a new session exactly as before.
 """
 
 from __future__ import annotations
@@ -589,6 +600,18 @@ def cmd_open(args: argparse.Namespace) -> int:
     log(f"opening planner bundle {bundle_path}")
     manifest, members = read_bundle(bundle_path)
 
+    # Row 123 (v0.4.44): a second open of a bundle whose session is still
+    # open records another desk on that session instead of minting a new
+    # sid. Recognized here — after the bundle verified, before the
+    # pre-flight (whose disjointness gate would refuse a scoped bundle
+    # against its own session) and long before the replay's read-only
+    # sweep (which would close desk one's session under a piped stdin).
+    identity = bundle_identity(bundle_path, manifest)
+    match = find_open_session_for_bundle(repo, identity)
+    if match is not None:
+        return open_second_desk(repo, match[0], match[1], identity,
+                                bundle_path)
+
     brief = manifest["members"]["brief"]
     checkpoint = manifest["members"]["checkpoint"]
     for slot, entry in (("brief", brief), ("checkpoint", checkpoint)):
@@ -697,7 +720,199 @@ def cmd_open(args: argparse.Namespace) -> int:
         # The bundle channel (v0.4.41): the same in-process posture —
         # cmd_pack hands it to the open-time persist, which stamps it on
         # the opened attempt as `bundle`. No flag can spell it.
-        pack_args.open_bundle = bundle_identity(bundle_path, manifest)
+        pack_args.open_bundle = identity
         return pack_args.func(pack_args)
     finally:
         shutil.rmtree(extract_dir, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# 5. Second desk (v0.4.44, board row 123)
+# ---------------------------------------------------------------------------
+#
+# The specimen: one read-only planner session run at two desks under one
+# sid, whose record carried a single `opened` attempt — the two-desk
+# experiment was invisible. Re-opening the bundle used to decline the
+# sweep (piped stdin) and mint a second sid. Now the second open is
+# recognized by bundle identity and recorded on the same record; it is a
+# suffix, never a refusal (the paired-desk sitting's ruling: refusing
+# would have blocked the experiment that produced the finding).
+
+# The identity keys a second desk must match. The stem is deliberately
+# NOT among them: a renamed copy of the same bundle (a browser's
+# "name (1).bale-bundle") is the same bundle, and its stem still rides the
+# desk attempt's `bundle` stamp for the record.
+DESK_IDENTITY_KEYS = ("manifest_sha256", "brief_sha256", "checkpoint_sha256")
+
+
+def desk_name(opened_count: int) -> str:
+    """The desk value for the attempt that makes `opened_count` opens:
+    'desk-N' (the first open carries no key and reads as desk-1)."""
+    return f"desk-{opened_count}"
+
+
+def bundle_identity_matches(recorded, identity: dict) -> bool:
+    """True when a recorded `bundle` stamp names the same bundle revision
+    as `identity`. An identity whose manifest hash could not be read
+    ('unreadable', bundle_identity's loud fallback) never matches — a
+    second desk is recognized only on a hash, never guessed."""
+    if not isinstance(recorded, dict):
+        return False
+    if identity.get("manifest_sha256") in (None, "unreadable"):
+        return False
+    return all(recorded.get(k) == identity.get(k) for k in DESK_IDENTITY_KEYS)
+
+
+def find_open_session_for_bundle(repo: Path,
+                                 identity: dict) -> Optional[tuple]:
+    """(sid, record) of the open session an earlier open of this bundle
+    created, or None.
+
+    Reads the registry's open sessions oldest-first and, for each, its
+    telemetry record: a session matches when any `opened` attempt's
+    `bundle` stamp matches `identity` (bundle_identity_matches). A closed
+    session never matches — it is not in the registry — so a bundle whose
+    session has closed opens a new session exactly as before. More than
+    one match (two sessions opened from one bundle before v0.4.44) logs
+    the others and returns the oldest, the one the first desk opened.
+    """
+    from __main__ import log, open_sessions  # lazy — see module docstring
+    from bale_report import read_telemetry_record  # lazy — sibling
+    matches = []
+    for sid in open_sessions(repo):
+        record = read_telemetry_record(repo, sid)
+        if not record:
+            continue
+        if any(a.get("outcome") == "opened"
+               and bundle_identity_matches(a.get("bundle"), identity)
+               for a in record.get("attempts") or []):
+            matches.append((sid, record))
+    if not matches:
+        return None
+    if len(matches) > 1:
+        log(f"second desk: {len(matches)} open sessions were opened from "
+            f"this bundle ({', '.join(m[0] for m in matches)}); recording "
+            f"the desk on the oldest, {matches[0][0]}")
+    return matches[0]
+
+
+def _record_is_tracked(repo: Path, rel: str) -> bool:
+    """Whether git tracks `rel` — the desk append sweeps only a record the
+    operator already committed (an untracked open-time record stays
+    untracked until close, exactly as pack leaves it)."""
+    r = subprocess.run(["git", "ls-files", "--error-unmatch", "--", rel],
+                       cwd=str(repo), capture_output=True, text=True)
+    return r.returncode == 0
+
+
+def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
+                     bundle_path: Path) -> int:
+    """Record a further desk on open session `sid` and re-emit its opener.
+
+    Writes one `opened` attempt (command 'open', the bundle identity,
+    the session's recorded forecast, the open-time provenance stamp
+    re-read from the session's stamped manifest, and `desk`) onto the
+    existing record, journals the event into the session's own log, and
+    prints the summary block ending in the session opener with the
+    desk-qualified name. Nothing else changes: one session stays open,
+    no sid is minted, no sweep or replay runs, and the request tarball in
+    the outbox is the one desk one opened with. Exit 0.
+
+    Refuses (fail) — rather than silently minting a second session —
+    when the record shows an event past its opens (an apply attempt, a
+    HOLD, a refusal): the schema's 'opened' means no close or apply event
+    has landed yet, so a desk appended after one would contradict the
+    record; and when the session's stamped manifest is unreadable, since
+    the opener cannot be rebuilt without it.
+    """
+    from __main__ import (  # lazy — see module docstring
+        fail,
+        log,
+        read_session_scope,
+        set_log_file,
+        sweep_commit,
+    )
+    from bale_pack import desk_qualified_name, session_opener_block  # lazy — sibling
+    from bale_report import (  # lazy — sibling
+        build_telemetry_attempt,
+        format_summary_block,
+        telemetry_home_display,
+        write_telemetry_record,
+    )
+
+    attempts = record.get("attempts") or []
+    later = [a.get("outcome") for a in attempts
+             if a.get("outcome") != "opened"]
+    if later:
+        fail(f"this bundle opened session {sid}, which is still open but "
+             f"has recorded events past its opens (latest: {later[-1]}); "
+             f"a further desk is recorded only while the session holds "
+             f"nothing but opens, because an 'opened' attempt after an "
+             f"apply-side event would contradict the record. Continue "
+             f"that session where it stands (`bale status`), or close it "
+             f"and re-open the bundle for a fresh session.")
+    desk = desk_name(sum(1 for a in attempts
+                         if a.get("outcome") == "opened") + 1)
+
+    manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
+    try:
+        stamped = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        fail(f"second desk on {sid}: could not read the session's stamped "
+             f"manifest at {manifest_path} ({e}); the opener cannot be "
+             f"rebuilt without its goal and pack instant.")
+
+    log_rel = f".bale/logs/{sid}.log"
+    set_log_file(repo / log_rel)
+    log(f"second desk: bundle {bundle_path.name} matches the bundle open "
+        f"session {sid} was opened from; recording {desk} on that session "
+        f"instead of opening a new one (no pre-flight, dry-run, sweep, or "
+        f"replay runs on this path)")
+
+    attempt = build_telemetry_attempt(
+        outcome="opened", command="open",
+        scope=read_session_scope(repo, sid), log_path=log_rel,
+        bundle=identity)
+    provenance = stamped.get("provenance")
+    if isinstance(provenance, dict):
+        stamp = {k: provenance[k] for k in
+                 ("work_class", "packer", "packed_at")
+                 if isinstance(provenance.get(k), str) and provenance[k]}
+        if stamp:
+            attempt["provenance"] = stamp
+    attempt["desk"] = desk
+    rel = write_telemetry_record(repo, sid, attempt)
+    if rel:
+        log(f"second desk: {desk} recorded as an 'opened' attempt "
+            f"(command 'open') on {rel}")
+        if _record_is_tracked(repo, rel):
+            sweep_commit(repo, sid, f"opened {desk}", [rel])
+        else:
+            log(f"second desk: {rel} is untracked (the open-time record "
+                f"stays untracked until the session closes); nothing to "
+                f"sweep")
+    # A write failure already logged force=True inside
+    # write_telemetry_record; the desk is still worth its opener.
+
+    goal = stamped.get("goal", "")
+    read_only = stamped.get("resolved_scope") == []
+    packed_at = (provenance or {}).get("packed_at", "unknown") \
+        if isinstance(provenance, dict) else "unknown"
+    tarball = repo / ".bale" / "outbox" / f"request-{sid}.tar.gz"
+    rows = [
+        ("session id", sid),
+        ("desk", f"{desk} ({desk_qualified_name(sid, desk)})"),
+        ("telemetry", rel if rel else
+         f"write failed — see log (home: {telemetry_home_display(repo)})"),
+        ("tarball", str(tarball) if tarball.is_file()
+         else f"{tarball} (not in the outbox — use the copy desk one used)"),
+    ]
+    trailer = [
+        f"Attach the same request tarball to the new chat; this desk "
+        f"joins session {sid} and opens nothing new.",
+    ]
+    trailer += session_opener_block(
+        sid, goal, read_only=read_only, packed_at=packed_at,
+        has_readme=stamped.get("readme") is not None, desk=desk)
+    print(format_summary_block(rows, trailer=trailer))
+    return 0

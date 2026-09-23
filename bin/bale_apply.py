@@ -1690,7 +1690,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     `invoked_by` (v0.3.9, B2) names the command for the telemetry record's
     attempts[].command field — "apply" (default) or "retry" from cmd_retry.
     Each terminal outcome below (merge, inspect, revert; plus the bailout
-    fork) also appends an attempt to claude/telemetry/<sid>.json via
+    fork) also appends an attempt to <agent_dir>/telemetry/<sid>.json via
     build_telemetry_attempt + write_telemetry_record (BALE.md §8.9),
     renders the returned path as one summary row, and passes it to
     format_apply_json's additive `telemetry` key. Dry-run and clarification

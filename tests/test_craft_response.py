@@ -781,6 +781,31 @@ class CraftProbeMode(unittest.TestCase):
         self.assertIn("head -n 40", out)
         self.assertIn("[truncated:", out)
 
+    def test_worked_tree_listing_excludes_caches(self):
+        """v0.4.44, board row 125: the skeleton carries a worked tree
+        listing that excludes caches, naming __pycache__ — and the
+        worked command, run as written, lists sources and no cache."""
+        out = self.emit()
+        self.assertIn("__pycache__", out)
+        cmd_lines = [ln.split("#", 1)[1].strip() for ln in out.splitlines()
+                     if ln.strip().startswith("#")
+                     and "find bin" in ln and "__pycache__" in ln]
+        self.assertEqual(len(cmd_lines), 1, out)
+        self.assertFalse([ln for ln in out.splitlines()
+                          if ln.rstrip().endswith("\\")],
+                         "emitted commands are single physical lines "
+                         "(TARBALL.md 1)")
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "bin" / "__pycache__").mkdir(parents=True)
+            (Path(td) / "bin" / "__pycache__" / "m.cpython-312.pyc") \
+                .write_bytes(b"\x00")
+            (Path(td) / "bin" / "stray.pyc").write_bytes(b"\x00")
+            (Path(td) / "bin" / "tool.py").write_text("x = 1\n")
+            run = subprocess.run(["bash", "-c", cmd_lines[0]], cwd=td,
+                                 capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(run.stdout.split(), ["bin/tool.py"])
+
     def test_emission_is_valid_bash_and_runs_read_only(self):
         out = self.emit()
         with tempfile.TemporaryDirectory() as td:
@@ -1914,6 +1939,97 @@ class CraftBundleEmission(unittest.TestCase):
         manifest, _ = self.read_archive(
             self.tmp / (self.STEM + self.SUFFIX))
         self.assertEqual(manifest["pack_argv"], ["Other"])
+
+
+class CraftBundleCheckpointNaming(unittest.TestCase):
+    """v0.4.44, the registry rider (paired-desk item 3, crafter half):
+    with a bale.toml carrying `[validation] base` in reach, a stored
+    --include or --write value that names the blind checkpoint — the
+    base itself, its `{sid}` basis, or a path under the basis — refuses
+    at the desk (exit 2), before any bundle is written. The read is the
+    [probe] clipboard key's bale.toml scan, extended."""
+
+    BASE = "claude/checkpoints/{sid}.sh"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def configure(self, base: str | None = None, *,
+                  where: str = "bale.toml") -> None:
+        target = self.tmp / where
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f'[probe]\nclipboard_command = "pbcopy"\n\n'
+                          f'[validation]\nbase = "{base or self.BASE}"\n',
+                          encoding="utf-8")
+
+    def emit(self, *tokens: str) -> subprocess.CompletedProcess:
+        argv = []
+        for t in tokens:
+            argv += ["--pack-arg", t] if not t.startswith("-") \
+                else [f"--pack-arg={t}"]
+        # --force: the loops re-emit one stem with differing argv.
+        return run_craft("--bundle", "s-001", "--no-brief", "--force",
+                         "--pack-arg", "Goal", *argv, cwd=self.tmp)
+
+    def bundles(self) -> list:
+        return sorted(self.tmp.glob("*.bale-bundle"))
+
+    def test_the_specimen_refuses(self):
+        self.configure()
+        cp = self.emit("--read-only", "--include", "claude/checkpoints",
+                       "--supersedes", "2026-09-22-parent-001")
+        self.assertEqual(cp.returncode, 2, cp.stderr)
+        self.assertIn("names the blind checkpoint", cp.stderr)
+        self.assertIn("claude/checkpoints", cp.stderr)
+        self.assertEqual(self.bundles(), [], "nothing written on refusal")
+
+    def test_every_naming_spelling_refuses(self):
+        self.configure()
+        for tokens in (
+                ("--include", "claude/checkpoints/"),
+                ("--include", "./claude/checkpoints"),
+                ("--include", "hello.txt", "claude/checkpoints/old.sh"),
+                ("--include=claude/checkpoints",),
+                ("--write", "claude/checkpoints/{sid}.sh"),
+                ("--write", "src", "--include", "claude/checkpoints")):
+            with self.subTest(tokens=tokens):
+                cp = self.emit(*tokens)
+                self.assertEqual(cp.returncode, 2, cp.stderr)
+                self.assertIn("names the blind checkpoint", cp.stderr)
+
+    def test_incidental_and_unrelated_values_pass(self):
+        self.configure()
+        for tokens in (("--include", "."), ("--include", "claude"),
+                       ("--include", "claude/checkpoints-notes"),
+                       ("--exclude", "claude/checkpoints"),
+                       ("--include", "hello.txt")):
+            with self.subTest(tokens=tokens):
+                cp = self.emit(*tokens)
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+
+    def test_literal_base_is_judged_as_itself(self):
+        self.configure("oracle/check.sh")
+        self.assertEqual(self.emit("--include", "oracle/check.sh")
+                         .returncode, 2)
+        self.assertEqual(self.emit("--include", "oracle").returncode, 0,
+                         "an ancestor of a literal base is incidental")
+
+    def test_the_admission_flag_is_honored(self):
+        self.configure()
+        cp = self.emit("--include", "claude/checkpoints",
+                       "--allow-checkpoint-in-scope")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+
+    def test_request_root_layout_and_absent_config(self):
+        self.configure(where="context/bale.toml")
+        self.assertEqual(self.emit("--include", "claude/checkpoints")
+                         .returncode, 2)
+        (self.tmp / "context" / "bale.toml").unlink()
+        cp = self.emit("--include", "claude/checkpoints")
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("[validation] base not judged", cp.stderr)
 
 
 class CraftBundleHygiene(unittest.TestCase):

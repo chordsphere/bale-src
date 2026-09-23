@@ -542,12 +542,74 @@ class NormalPackUntouchedTest(_Sandbox):
             f"bale_pack.pack_argv_preflight(Path({str(self.repo)!r}), args)\n"
             "print('NOT REFUSED')\n"
         )
-        r = subprocess.run([sys.executable, "-c", script], cwd=self.repo,
-                           env=self.env, capture_output=True, text=True,
-                           timeout=SUBPROCESS_TIMEOUT)
+        # -B (v0.4.44, board row 125): this child imports the SOURCE
+        # repo's own bin/ modules (not a scratch install's), under the
+        # harness's scrubbed env, which carries no PYTHONDONTWRITEBYTECODE
+        # — so without -B every run left an untracked bin/__pycache__ in
+        # the repo under test. That is the one cache writer this session
+        # found behind the report's "bin/__pycache__ ships in packs".
+        r = subprocess.run([sys.executable, "-B", "-c", script],
+                           cwd=self.repo, env=self.env, capture_output=True,
+                           text=True, timeout=SUBPROCESS_TIMEOUT)
         self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertNotIn("NOT REFUSED", r.stdout)
         self.assertIn("carries --context", r.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Cache hygiene (v0.4.44, board row 125)
+# ---------------------------------------------------------------------------
+
+class CacheHygieneTest(_Sandbox):
+    """The report's claim — "bin/__pycache__ ships in packs" — pinned in
+    the shape it was reported: a repo with a bin/__pycache__ and NO
+    .gitignore, packed both as a request and as a context pack. Two
+    caches per tree: one untracked (git lists it as --others) and one
+    committed (git lists it as --cached — the harder case, since no
+    ignore rule can hide it). Neither may ship; the walk's baked-in
+    exclusion drops `__pycache__` by path component. The session that
+    added this found no leak site in the pack walk; it did find a test
+    child process writing the repo's own bin/__pycache__ (fixed with -B
+    in test_open_preflight_refuses_a_context_argv above)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.repo = make_repo(self.tmp, self.home)
+        genv = git_env(self.home)
+        (self.repo / "bin" / "__pycache__").mkdir(parents=True)
+        (self.repo / "bin" / "tool.py").write_text("x = 1\n")
+        (self.repo / "bin" / "__pycache__" / "committed.cpython-312.pyc") \
+            .write_bytes(b"\0")
+        run_checked(["git", "add", "-A"], cwd=self.repo, env=genv)
+        run_checked(["git", "commit", "-m", "tree with a committed cache"],
+                    cwd=self.repo, env=genv)
+        (self.repo / "bin" / "__pycache__" / "untracked.cpython-312.pyc") \
+            .write_bytes(b"\0")
+        self.assertFalse((self.repo / ".gitignore").exists())
+
+    def assertNoCacheMember(self, tarball: Path) -> dict:
+        names = tar_members(tarball)
+        self.assertFalse([n for n in names if "__pycache__" in n],
+                         sorted(names))
+        return names
+
+    def test_request_pack_ships_no_cache_member(self) -> None:
+        r = run_bale(self.install,
+                     ["pack", "Cache hygiene goal", "--slug", "cache",
+                      "--include", "bin", "--no-readme"],
+                     cwd=self.repo, env=self.env)
+        self.assertOk(r)
+        [tarball] = sorted((self.repo / ".bale" / "outbox")
+                           .glob("request-*.tar.gz"))
+        names = self.assertNoCacheMember(tarball)
+        self.assertTrue([n for n in names if n.endswith("bin/tool.py")],
+                        "the source beside the cache still ships")
+
+    def test_context_pack_ships_no_cache_member(self) -> None:
+        self.assertOk(self.context(self.repo))
+        names = self.assertNoCacheMember(
+            self.repo / ".bale" / "outbox" / "context-project.tar.gz")
+        self.assertIn("project/bin/tool.py", names)
 
 
 if __name__ == "__main__":

@@ -133,7 +133,7 @@ section at the end of the file: `telemetry_record_path`,
 reconciliation out of the transient session log), `build_telemetry_attempt`
 (assembles one apply-close attempt entry from data the call site already
 holds), and `write_telemetry_record` (the read-append-write persistence of
-`claude/telemetry/<sid>.json`, schema `telemetry-record.schema.json`;
+`<agent_dir>/telemetry/<sid>.json`, schema `telemetry-record.schema.json`;
 update semantics in BALE.md §8.9). It lives here because the module's
 charter is end-of-command result assembly, and the record is exactly that —
 assembled once per terminal apply outcome, persisted instead of printed.
@@ -2364,7 +2364,7 @@ def format_apply_json(
                                 inspect/revert, would have)
       telemetry (v0.3.9, additive) repo-relative path of the telemetry
                record written for this apply-close event
-               (claude/telemetry/<sid>.json, BALE.md §8.9), or null when
+               (<agent_dir>/telemetry/<sid>.json, BALE.md §8.9), or null when
                none was written (dry-run, clarification, write failure).
       drift    (v0.3.10, additive) the own-scope refusal detail on the
                scope-drift-refused outcome, null on every other. An
@@ -2493,7 +2493,7 @@ def format_apply_json(
         "merge": merge,
         # v0.3.9 (B2), additive per the stability rules above: repo-relative
         # path of the telemetry record this apply-close event wrote
-        # (claude/telemetry/<sid>.json), or null when no record was written
+        # (<agent_dir>/telemetry/<sid>.json), or null when no record was written
         # (dry-run, clarification, or a write failure the log carries).
         "telemetry": telemetry,
         # v0.3.10, additive: the own-scope drift refusal detail (BALE.md
@@ -2958,7 +2958,7 @@ def format_unlock_json(
                false otherwise, including the no-op.
       telemetry
                repo-relative path of the closure record written for this
-               unlock (claude/telemetry/<sid>.json, BALE.md §8.9), or null
+               unlock (<agent_dir>/telemetry/<sid>.json, BALE.md §8.9), or null
                when none was written (a logged write failure, or the
                no-op). The debris sweep's record rides under `debris`, not
                here — this key is the closed sid's record.
@@ -3078,7 +3078,7 @@ def format_revert_json(
                null when none was recorded.
       telemetry
                repo-relative path of the record this revert appended to
-               (claude/telemetry/<sid>.json, BALE.md §8.9), or null on a
+               (<agent_dir>/telemetry/<sid>.json, BALE.md §8.9), or null on a
                (logged) write failure.
       sweep    (v0.3.34, additive) the auto-sweep's result for the
                record above ([apply].sweep, BALE.md §8.8) — null when no
@@ -3383,7 +3383,8 @@ def format_integration_lock_value(info: dict) -> str:
 # --- telemetry record (v0.3.9, session B2) ---
 #
 # The durable per-session record written at apply close — one file per sid
-# at claude/telemetry/<sid>.json, shape per schemas/telemetry-record.
+# at <agent_dir>/telemetry/<sid>.json (telemetry_dir below owns the
+# path; `claude` is agent_dir's default), shape per schemas/telemetry-record.
 # schema.json, update semantics per BALE.md §8.9. This cluster assembles
 # and persists the record; the callers in bin/bale are wiring-thin: each
 # terminal apply outcome builds an attempt (build_telemetry_attempt) and
@@ -3623,6 +3624,29 @@ def telemetry_dir(repo: Path) -> Path:
 def telemetry_record_path(repo: Path, sid: str) -> Path:
     """Absolute path of the sid's telemetry record: <agent_dir>/telemetry/<sid>.json."""
     return telemetry_dir(repo) / f"{sid}.json"
+
+
+# The telemetry home as messages spell it when no repo is at hand: the
+# DEFAULT agent_dir's rendering (bale_config.DEFAULT_AGENT_DIR is
+# `claude`). The pure renderers below take the home as a keyword and
+# default to this, so an in-process caller with no repo keeps the old
+# text; every command that has a repo passes telemetry_home_display.
+DEFAULT_TELEMETRY_HOME = "claude/telemetry/"
+
+
+def telemetry_home_display(repo: Path) -> str:
+    """The telemetry home as a message names it: `<agent_dir>/telemetry/`,
+    repo-relative with a trailing slash, rendered from the repo's
+    configured [layout] agent_dir (v0.4.44, board row 124).
+
+    Messages used to spell the default home literally, which was wrong
+    in a repo whose agent_dir is set — the dossier miss, the supersession
+    and sweep journal lines, the stats epoch row. This is their one
+    rendering, over the same accessor telemetry_dir uses, so a message
+    and the path bale actually wrote cannot disagree.
+    """
+    import bale_config  # lazy — sibling module, loaded by bin/bale
+    return f"{bale_config.layout_agent_dir(repo)}/telemetry/"
 
 
 def parse_claim_verdict_block(output: str) -> tuple[dict, bool]:
@@ -4256,7 +4280,7 @@ def read_telemetry_record(repo: Path, sid: str) -> Optional[dict]:
 
 
 def write_telemetry_record(repo: Path, sid: str, attempt: dict) -> Optional[str]:
-    """Append one apply-close attempt to claude/telemetry/<sid>.json.
+    """Append one apply-close attempt to <agent_dir>/telemetry/<sid>.json.
 
     Update semantics (BALE.md §8.9): one file per sid, created on the first
     apply-close event and APPENDED to on every later one — HOLD then retry
@@ -4651,7 +4675,8 @@ def format_stats_json(stats: dict) -> str:
     return json.dumps(payload)
 
 
-def format_stats_report(stats: dict) -> str:
+def format_stats_report(stats: dict, *,
+                        telemetry_home: str = DEFAULT_TELEMETRY_HOME) -> str:
     """Render the human `bale stats` report (BALE.md §5.6).
 
     Reference body first, summary block last (module rule): the
@@ -4667,6 +4692,9 @@ def format_stats_report(stats: dict) -> str:
     with the corpus totals and the filters in effect. No trailing
     next-step hint: stats is terminal. Pure: builds a string, prints
     nothing.
+    `telemetry_home` (v0.4.44, row 124) is the corpus directory as the
+    epoch row names it — cmd_stats passes telemetry_home_display(repo);
+    the default is the default agent_dir's rendering.
     """
     lines: list[str] = []
     classes: dict = stats["classes"]
@@ -4838,8 +4866,8 @@ def format_stats_report(stats: dict) -> str:
                      f"({epoch['first_sid']}); pre-epoch sessions exist "
                      f"only in git and are not counted")
     else:
-        lines.append("  epoch: empty corpus — no records under "
-                     "claude/telemetry/")
+        lines.append(f"  epoch: empty corpus — no records under "
+                     f"{telemetry_home}")
     for key, label in (("closure_reason", "closure_reason"),
                        ("clarification", "clarification"),
                        ("checkpoint", "checkpoint"),
@@ -5032,7 +5060,9 @@ def format_session_dossier_json(dossier: dict) -> str:
     return json.dumps(payload)
 
 
-def format_session_dossier_report(dossier: dict) -> str:
+def format_session_dossier_report(
+        dossier: dict, *,
+        telemetry_home: str = DEFAULT_TELEMETRY_HOME) -> str:
     """Render the human session dossier (BALE.md §5.6, board 44 level
     2): one sid rendered whole, replacing the hand-jq walk.
 
@@ -5049,6 +5079,8 @@ def format_session_dossier_report(dossier: dict) -> str:
     summary. No trailing next-step hint: the dossier, like stats, is
     terminal. All values computed in bin/bale_stats.py; this renderer
     never owns the numbers. Pure: builds a string, prints nothing.
+    `telemetry_home` (v0.4.44, row 124) is the corpus directory the
+    not-found miss names — cmd_stats passes telemetry_home_display(repo).
     """
     sid = dossier["session_id"]
     if not dossier["found"]:
@@ -5059,7 +5091,7 @@ def format_session_dossier_report(dossier: dict) -> str:
             cause = ("a record file exists but its record_version is "
                      "newer than this reader supports")
         else:
-            cause = "no record under claude/telemetry/ carries this sid"
+            cause = f"no record under {telemetry_home} carries this sid"
         body = f"  no dossier: {cause}"
         return body + format_summary_block([
             ("session", sid),

@@ -53,6 +53,7 @@ runtime artifacts, not shipped fixtures, so the worker-blindness rule
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import io
 import json
 import subprocess
@@ -731,6 +732,195 @@ class OpenVerbTest(_OpenVerbBase):
             result.returncode, 0,
             msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
         self.assertIn("was not consumed", result.stdout)
+
+    # -- v0.4.44, board row 121: argv-only gates before the exchange ---
+
+    def test_include_naming_checkpoint_refuses_before_supersession(
+            self) -> None:
+        """The paired-desk specimen, reproduced as the planner desk did:
+        a checkpoint-configured repo with a tracked checkpoint file, a
+        read-only parent, and a bundle whose argv is `--read-only
+        --include claude/checkpoints --supersedes <parent>` with a
+        pre-answered `supersede`. pack_argv_preflight passes (the include
+        exists; [] is disjoint from []), so the refusal is the replay's —
+        and it must land before the exchange: the open refuses, the
+        parent's record still reads `opened` with no superseded-by-split
+        closure, and the parent is still the one open session."""
+        self.configure_checkpoint()
+        cp_dir = self.repo / "claude" / "checkpoints"
+        cp_dir.mkdir(parents=True)
+        (cp_dir / "old.sh").write_text("#!/usr/bin/env bash\nexit 0\n",
+                                       encoding="utf-8")
+        genv = git_env(self.home)
+        run_checked(["git", "add", "bale.toml", "claude/checkpoints"],
+                    cwd=self.repo, env=genv)
+        run_checked(["git", "commit", "-m", "checkpoint config"],
+                    cwd=self.repo, env=genv)
+        parent = run_bale(
+            self.install,
+            ["pack", "Read-only parent", "--slug", "parent", "--read-only",
+             "--include", "hello.txt", "--no-readme"],
+            cwd=self.repo, env=self.env)
+        self.assertEqual(
+            parent.returncode, 0,
+            msg=f"stdout:\n{parent.stdout}\nstderr:\n{parent.stderr}")
+        parent_sid = [ln for ln in parent.stdout.splitlines()
+                      if "session id:" in ln][0].split("session id:")[1].strip()
+
+        bundle = self.build_bundle(
+            "revb.bale-bundle",
+            pack_argv=["Read-only child", "--slug", "child", "--read-only",
+                       "--include", "claude/checkpoints",
+                       "--supersedes", parent_sid],
+            pre_answered=[{"prompt": "supersede", "subject": parent_sid}])
+        result = self.open_bundle(bundle)
+        combined = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0, msg=combined)
+        self.assertNotIn("superseded-by-split", result.stdout, msg=combined)
+        record = json.loads(
+            (self.repo / "claude" / "telemetry" / f"{parent_sid}.json")
+            .read_text(encoding="utf-8"))
+        self.assertEqual([a["outcome"] for a in record["attempts"]],
+                         ["opened"], msg=combined)
+        self.assertNotIn("superseded-by-split", json.dumps(record))
+        sessions = self.repo / ".bale" / "sessions"
+        self.assertEqual(
+            sorted(p.name for p in sessions.iterdir() if p.is_dir()),
+            [parent_sid], msg=combined)
+
+
+class SecondDeskTest(_OpenVerbBase):
+    """v0.4.44, board row 123: a second `bale open` of a bundle whose
+    session is still open records a further desk on the SAME sid — a
+    second `opened` attempt carrying `desk`, command 'open' — exits 0
+    with one session open, and re-emits the opener with the
+    desk-qualified name. Recognition precedes the read-only sweep, so
+    desk two never closes desk one's session. A closed session's bundle
+    opens a new session as before."""
+
+    def sessions(self) -> list:
+        root = self.repo / ".bale" / "sessions"
+        return sorted(p.name for p in root.iterdir()
+                      if (p / "open").is_file()) if root.is_dir() else []
+
+    def record(self, sid: str) -> dict:
+        return json.loads((self.repo / "claude" / "telemetry" /
+                           f"{sid}.json").read_text(encoding="utf-8"))
+
+    def open_ok(self, bundle: Path):
+        result = self.open_bundle(bundle)
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        return result
+
+    def read_only_bundle(self, name: str = "plan.bale-bundle") -> Path:
+        return self.build_bundle(
+            name, pack_argv=["Plan the next wave", "--slug", "plan",
+                             "--read-only", "--include", "hello.txt"])
+
+    def test_second_open_of_a_read_only_bundle_records_a_desk(self) -> None:
+        bundle = self.read_only_bundle()
+        self.open_ok(bundle)
+        [sid] = self.sessions()
+        second = self.open_ok(bundle)
+        self.assertEqual(self.sessions(), [sid],
+                         msg="one session open; no second sid minted")
+        opened = [a for a in self.record(sid)["attempts"]
+                  if a["outcome"] == "opened"]
+        self.assertEqual(len(opened), 2)
+        self.assertNotIn("desk", opened[0])
+        self.assertEqual(opened[1]["desk"], "desk-2")
+        self.assertEqual(opened[1]["command"], "open")
+        self.assertEqual(opened[1]["bundle"], opened[0]["bundle"])
+        self.assertEqual(opened[1]["provenance"]["packed_at"],
+                         opened[0]["provenance"]["packed_at"])
+        self.assertEqual(self.record(sid)["outcome"], "opened")
+        # The re-emitted opener names the desk-qualified sid, and the
+        # sweep never ran (nothing closed desk one's session).
+        self.assertIn(f"This message opens read-only bale session {sid}",
+                      second.stdout)
+        self.assertIn(f"{sid}@desk-2", second.stdout)
+        self.assertNotIn("read-only sweep", second.stdout)
+        self.assertNotIn("replaying pack invocation", second.stdout)
+        # A third open is desk-3.
+        self.open_ok(bundle)
+        desks = [a.get("desk") for a in self.record(sid)["attempts"]]
+        self.assertEqual(desks, [None, "desk-2", "desk-3"])
+        # The additive proof: the three-desk record validates against
+        # the updated schema (desk, and command 'open').
+        spec = importlib.util.spec_from_file_location(
+            "bale_validate_under_test",
+            str(self.install / "bin" / "bale_validate.py"))
+        bv = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(bv)
+        self.assertEqual(bv.validate_telemetry_record(self.record(sid)), [])
+
+    def test_renamed_copy_is_the_same_bundle(self) -> None:
+        bundle = self.read_only_bundle()
+        self.open_ok(bundle)
+        [sid] = self.sessions()
+        copy = self.tmp / "plan (1).bale-bundle"
+        copy.write_bytes(bundle.read_bytes())
+        self.open_ok(copy)
+        self.assertEqual(self.sessions(), [sid])
+        last = self.record(sid)["attempts"][-1]
+        self.assertEqual(last["desk"], "desk-2")
+        self.assertEqual(last["bundle"]["stem"], "plan (1)")
+
+    def test_scoped_bundle_second_desk_skips_its_own_gate(self) -> None:
+        """A worker bundle's second open would collide with its own
+        session's forecast at the pre-flight; recognition precedes it."""
+        bundle = self.build_bundle("w.bale-bundle",
+                                   pack_argv=self.argv("work"))
+        self.open_ok(bundle)
+        [sid] = self.sessions()
+        second = self.open_ok(bundle)
+        self.assertEqual(self.sessions(), [sid])
+        self.assertIn(f"This message opens bale session {sid}.",
+                      second.stdout)
+        self.assertIn(f"{sid}@desk-2", second.stdout)
+
+    def test_a_different_bundle_still_opens_its_own_session(self) -> None:
+        self.open_ok(self.read_only_bundle())
+        other = self.build_bundle(
+            "other.bale-bundle",
+            pack_argv=["Another plan", "--slug", "other", "--read-only",
+                       "--include", "hello.txt"])
+        self.open_ok(other)
+        self.assertTrue(any("other" in sid for sid in self.sessions()))
+
+    def test_closed_session_bundle_opens_a_new_session(self) -> None:
+        bundle = self.read_only_bundle()
+        self.open_ok(bundle)
+        [sid] = self.sessions()
+        unlock = run_bale(self.install, ["unlock", sid], cwd=self.repo,
+                          env=self.env)
+        self.assertEqual(unlock.returncode, 0, msg=unlock.stderr)
+        self.open_ok(bundle)
+        [new_sid] = self.sessions()
+        self.assertNotEqual(new_sid, sid)
+        self.assertNotIn("desk", json.dumps(self.record(new_sid)))
+
+    def test_event_past_the_opens_refuses_a_desk(self) -> None:
+        """An 'opened' attempt after an apply-side event would contradict
+        the record; the open refuses, naming the event, and writes
+        nothing."""
+        bundle = self.read_only_bundle()
+        self.open_ok(bundle)
+        [sid] = self.sessions()
+        path = self.repo / "claude" / "telemetry" / f"{sid}.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["attempts"].append(dict(record["attempts"][0],
+                                       outcome="held", command="apply"))
+        record["outcome"] = "held"
+        path.write_text(json.dumps(record), encoding="utf-8")
+        before = path.read_bytes()
+        result = self.open_bundle(bundle)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("latest: held", result.stderr)
+        self.assertEqual(path.read_bytes(), before)
+        self.assertEqual(self.sessions(), [sid])
 
 
 class CrafterEmissionRoundTrip(_OpenVerbBase):

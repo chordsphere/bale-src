@@ -1619,6 +1619,43 @@ def layout_agent_dir(repo: Path) -> str:
     return get_layout_agent_dir(load_config(repo))
 
 
+def layout_agent_dir_for_display(repo: Optional[Path]) -> tuple[str, Optional[str]]:
+    """The agent directory for text that must never fail: (name, note).
+
+    layout_agent_dir is fatal on a malformed bale.toml or a bad
+    agent_dir value, which is right for every path-building caller — a
+    typo must not silently move the corpus. Help text is the one reader
+    that must render regardless (v0.4.44, board row 124: `bale stats
+    --help` names the configured telemetry home), so this variant never
+    calls fail(): a missing repo or config reads as the default with
+    note None, and an unreadable config or unusable value reads as the
+    default with a short note saying so, which the caller prints beside
+    it rather than presenting the default as this repo's setting.
+    """
+    if repo is None or not (repo / BALE_CONFIG).is_file():
+        return DEFAULT_AGENT_DIR, None
+    try:
+        with (repo / BALE_CONFIG).open("rb") as f:
+            cfg = tomllib.load(f)
+    except (tomllib.TOMLDecodeError, OSError) as e:
+        return DEFAULT_AGENT_DIR, f"{BALE_CONFIG} unreadable ({e})"
+    section = cfg.get("layout")
+    raw = section.get("agent_dir") if isinstance(section, dict) else None
+    if section is not None and not isinstance(section, dict):
+        return DEFAULT_AGENT_DIR, "[layout] is not a table"
+    if raw is None:
+        return DEFAULT_AGENT_DIR, None
+    if not isinstance(raw, str):
+        return DEFAULT_AGENT_DIR, "layout.agent_dir is not a string"
+    val = raw.strip()
+    if not val:
+        return DEFAULT_AGENT_DIR, None
+    problem = layout_agent_dir_problem(val)
+    if problem is not None:
+        return DEFAULT_AGENT_DIR, f"layout.agent_dir {problem}"
+    return val, None
+
+
 # ---------------------------------------------------------------------------
 # 3. `bale config init` wizard
 # ---------------------------------------------------------------------------

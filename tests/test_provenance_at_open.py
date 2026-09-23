@@ -46,10 +46,12 @@ from pathlib import Path
 
 from harness import (
     bale_env,
+    build_response_dir,
     make_install,
     make_repo,
     make_sandbox_home,
     run_bale,
+    tar_response_dir,
 )
 
 
@@ -271,6 +273,53 @@ class ProvenanceAtOpenTest(unittest.TestCase):
                                              encoding="utf-8")
             result = stats.compute_stats(tel)
         self.assertEqual(result["corpus"]["in_flight_sessions"], 1)
+
+
+    # -- v0.4.44, the registry rider: handoff-side opens stamp "handoff" --
+
+    def test_handoff_open_stamps_the_handoff_command(self) -> None:
+        """The telemetry schema reserved `command: "handoff"` for
+        handoff-side opens; cmd_handoff's persist_pack_session call
+        passes it, so the new session's `opened` attempt names the
+        command that actually opened it — never 'pack'. The rider named
+        this test; the one-word bin/bale change had already landed."""
+        sid = self.packed_sid(self.pack(slug="provopen-h"))
+        rdir = build_response_dir(
+            self.tmp / "bailout", sid,
+            summary="bailout fixture for the handoff command stamp",
+            entries=[], validation_will_run=[], claims={},
+            manifest_extra={"response_kind": "bailout"})
+        (rdir / "handoff.md").write_text(
+            "# Handoff\n\n## Original goal\n\nprovenance at open test "
+            "goal\n\n## Reading plan for the next session\n\n"
+            "- read `hello.txt` before building\n", encoding="utf-8")
+        (rdir / "diagnostics.json").write_text(json.dumps({
+            "session_id": sid,
+            "bail_trigger": "mid-build-budget-panic",
+            "bail_narrative": "fixture narrative.",
+            "context_loaded": [{"path": "hello.txt",
+                                "verdict": "necessary", "note": ""}],
+            "exploration_paths": [{"what": "sized it",
+                                   "verdict": "productive", "note": ""}],
+            "tool_calls_summary": {"bash": 1},
+            "what_would_save_next_time": ["split the goal"],
+        }) + "\n", encoding="utf-8")
+        tarball = tar_response_dir(rdir)
+        self.assert_ok(run_bale(self.install, ["apply", str(tarball)],
+                                cwd=self.repo, env=self.env))
+        self.assert_ok(run_bale(self.install, ["handoff", str(tarball)],
+                                cwd=self.repo, env=self.env))
+        root = self.repo / ".bale" / "sessions"
+        opened = [d.name for d in root.iterdir() if (d / "open").is_file()]
+        self.assertEqual(len(opened), 1, msg=str(opened))
+        new_sid = opened[0]
+        self.assertNotEqual(new_sid, sid)
+        record = self.telemetry_record(new_sid)
+        self.assertEqual(len(record["attempts"]), 1)
+        attempt = record["attempts"][0]
+        self.assertEqual(attempt["outcome"], "opened")
+        self.assertEqual(attempt["command"], "handoff")
+        self.assertIn("provenance", attempt)
 
 
 if __name__ == "__main__":

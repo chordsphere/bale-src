@@ -1483,6 +1483,79 @@ class DossierE2ETest(unittest.TestCase):
             self._run("--sid", "2026-08-10-e2e-001", "--json"),
             "not a directory")
 
+    # -- v0.4.44, board row 124: the configured agent_dir in messages ---
+
+    def configure_agent_dir(self, name: str = "agent") -> None:
+        (self.repo / "bale.toml").write_text(
+            f'[layout]\nagent_dir = "{name}"\n', encoding="utf-8")
+
+    def test_dossier_miss_names_the_configured_home(self) -> None:
+        """The desk's specimen: a repo with agent_dir = "agent" used to
+        hear `claude/telemetry/` in the dossier miss."""
+        self.configure_agent_dir()
+        miss = self._run("--sid", "2026-08-12-nowhere-001")
+        self.assertEqual(miss.returncode, 0, msg=miss.stderr)
+        self.assertIn("no record under agent/telemetry/ carries this sid",
+                      miss.stdout)
+        self.assertNotIn("claude/telemetry", miss.stdout)
+
+    def test_empty_corpus_epoch_row_names_the_configured_home(self) -> None:
+        self.configure_agent_dir()
+        report = self._run()
+        self.assertEqual(report.returncode, 0, msg=report.stderr)
+        self.assertIn("no records under agent/telemetry/", report.stdout)
+        self.assertNotIn("claude/telemetry", report.stdout)
+
+    def test_unconfigured_repo_keeps_the_default_spelling(self) -> None:
+        miss = self._run("--sid", "2026-08-12-nowhere-001")
+        self.assertIn("no record under claude/telemetry/ carries this sid",
+                      miss.stdout)
+
+
+class TelemetryHomeRenderingTest(unittest.TestCase):
+    """Row 124's renderer half: the pure renderers take the home as a
+    keyword, default to the default agent_dir's rendering, and
+    telemetry_home_display renders the configured directory."""
+
+    def test_renderers_take_the_home(self) -> None:
+        miss = {"session_id": "2026-08-12-x-001", "found": False,
+                "parse_failure": False, "filtered_record_version": False}
+        self.assertIn(
+            "no record under claude/telemetry/ carries",
+            bale_report.format_session_dossier_report(miss))
+        self.assertIn(
+            "no record under agent/telemetry/ carries",
+            bale_report.format_session_dossier_report(
+                miss, telemetry_home="agent/telemetry/"))
+
+    def test_display_defaults_without_a_config(self) -> None:
+        """No bale.toml: the default home (the configured case runs end
+        to end in DossierE2ETest, where bin/bale's fail() is loaded)."""
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(bale_report.telemetry_home_display(Path(d)),
+                             "claude/telemetry/")
+
+    def test_help_reader_never_fails(self) -> None:
+        """layout_agent_dir_for_display — the `bale stats --help` reader
+        — renders the configured value, and degrades to the default with
+        a note on a malformed file or an unusable value, never fail()."""
+        import bale_config
+        read = bale_config.layout_agent_dir_for_display
+        self.assertEqual(read(None), ("claude", None))
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            cfg = repo / "bale.toml"
+            self.assertEqual(read(repo), ("claude", None))
+            cfg.write_text('[layout]\nagent_dir = "ops/agent"\n',
+                           encoding="utf-8")
+            self.assertEqual(read(repo), ("ops/agent", None))
+            for body in ("[layout\n", '[layout]\nagent_dir = "/abs"\n',
+                         "[layout]\nagent_dir = 3\n"):
+                with self.subTest(body=body):
+                    cfg.write_text(body, encoding="utf-8")
+                    name, note = read(repo)
+                    self.assertEqual(name, "claude")
+                    self.assertTrue(note)
 
 if __name__ == "__main__":
     unittest.main()

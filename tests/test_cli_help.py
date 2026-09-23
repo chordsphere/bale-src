@@ -31,6 +31,7 @@ from pathlib import Path
 from harness import (
     bale_env,
     make_install,
+    make_repo,
     make_sandbox_home,
     run_bale,
 )
@@ -133,6 +134,59 @@ class SubcommandHelpLayoutTest(unittest.TestCase):
         self.assertGreater(len(body), 1)
         first = description.index(body[0])
         self.assertEqual(description[first:first + len(body)], body)
+
+
+class StatsHelpTelemetryHomeTest(unittest.TestCase):
+    """v0.4.44, board row 124: `bale stats --help` names the configured
+    telemetry home — rendered when help renders, from the repo holding
+    cwd, never failing on a config it cannot read — and the top-level
+    listing's one-liner names no path at all."""
+
+    COLUMNS = 200  # wide, so the rendered path never wraps mid-token
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-help-home-")
+        self.tmp = Path(self._tmpdir.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.install = make_install(self.tmp)
+        self.repo = make_repo(self.tmp, self.home)
+        self.env = dict(bale_env(self.home, self.tmp),
+                        COLUMNS=str(self.COLUMNS))
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def stats_help(self, cwd: Path) -> str:
+        result = run_bale(self.install, ["stats", "--help"], cwd=cwd,
+                          env=self.env)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        return result.stdout
+
+    def test_configured_agent_dir_renders(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            '[layout]\nagent_dir = "agent"\n', encoding="utf-8")
+        text = self.stats_help(self.repo)
+        self.assertIn("tracked agent/telemetry/ corpus", text)
+        self.assertNotIn("claude/telemetry", text)
+
+    def test_default_renders_outside_a_repo(self) -> None:
+        self.assertIn("tracked claude/telemetry/ corpus",
+                      self.stats_help(self.tmp))
+
+    def test_unreadable_config_still_renders_help(self) -> None:
+        (self.repo / "bale.toml").write_text("[layout\n", encoding="utf-8")
+        text = self.stats_help(self.repo)
+        self.assertIn("claude/telemetry/ (the default", text)
+        self.assertIn("could not be read", text)
+
+    def test_listing_one_liner_names_no_path(self) -> None:
+        result = run_bale(self.install, ["--help"], cwd=self.tmp,
+                          env=self.env)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        line = [ln for ln in result.stdout.splitlines()
+                if ln.strip().startswith("stats ")][0]
+        self.assertIn("telemetry corpus", line)
+        self.assertNotIn("claude/telemetry", line)
 
 
 if __name__ == "__main__":
