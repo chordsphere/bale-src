@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-09-21-sitting-close-deltas-17-009`.
+Last landed by: `2026-09-23-sitting-close-deltas-18-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -341,6 +341,17 @@ source):
   chat-first breach, self-reported and corrected into the relayed
   round (83; §6 entry 127). Re-trigger unchanged; row 85 still
   queued.]
+- A read-only sid that later packs do not sweep: the
+  `2026-09-23-board-100-design-001` record still reads `opened` after
+  three later opens under it, W1 to W3, each a `bale open` replay, and
+  its file is untracked on the tree because no closure ever committed
+  it; the 004 open swept the `2026-09-22-continue-plan-001` master, and
+  the successor's own open swept the `2026-09-22-continue-plan-005`
+  master (§6 entry 212). Re-trigger: the next read-only session that
+  outlives a later pack. Source: the close-18 probe of 2026-09-23T03:15Z
+  (record `outcome: opened`, `git status` `??` on the file). (Opened
+  2026-09-23 at close 18; a watch, not a defect, by the
+  `2026-09-22-continue-plan-005` desk's call.)
 
 **Ruling queue** (desk rulings awaiting a future sitting —
 decisions, not work rows; a ruling becomes a doc delta only if it
@@ -1188,6 +1199,10 @@ with the unverifiable ones carried verbatim and marked):
   continue-plan-005 block's sequencing bullet); the ride condition above
   still binds, so the micro carries it only if its forecast holds both
   files.]
+  [2026-09-23: consumed at `2026-09-22-rider-micro-003`, whose forecast
+  held both files: the held admissions ride the planner HOLD block
+  through `relay_admission_rows`, the worker block byte-identical (Part
+  2 of close 18's brief; the record's `change_paths`).]
 - The `tests/harness.py` comment above `CLI_PATH`, to the past tense:
   rides the next holder of that file (row 113's session may be it). Text
   verbatim from `2026-09-19-board-111-tests-smalls-008`'s Proposals, its
@@ -1217,6 +1232,10 @@ with the unverifiable ones carried verbatim and marked):
   make that visible in telemetry. **Scope hints:** Touches `tools/`,
   which is out of scope here, and only makes sense after this lands and
   requests carry the key."
+  [2026-09-23: consumed at `2026-09-22-tools-micro-002`: under
+  `--request` the lint warns `README_NOT_IN_DOCS_READ` (its claim "lint
+  --request warns on README.md absent from docs_read", observed and
+  `agree`).]
 - Consolidate §7's include-authoring bullets into one: rides the next
   MASTER.md regeneration (a rewording, so never an insertions-only
   close). Close 12's Proposal 1, from
@@ -1263,6 +1282,12 @@ with the unverifiable ones carried verbatim and marked):
   [2026-09-20: row 37's cut did not hold `tests/test_craft_response.py`
   (its forecast, from its record), so the craft guard rides that file's
   next holder.]
+  [2026-09-23: the craft third consumed at `2026-09-22-tools-micro-002`:
+  the `ExchangeBlockParity` path guard is gone and the class passes
+  dotted (its claim of that name, observed and `agree`). The two
+  doc-suite guards still ride each suite's next touch; the tools micro's
+  Proposal 1 is those two, already here (close 18's dispositions
+  entry).]
 - `packed_at` on a pack's `opened` telemetry attempt: accepted at the
   009 sitting as a rider on row 104, which holds `bin/bale_pack.py` and
   the schemas. Close 13's Proposal 1; text verbatim from
@@ -1408,6 +1433,10 @@ with the unverifiable ones carried verbatim and marked):
   [2026-09-21: a source of wave 10's rider micro, which the next master
   authors (§3, the continue-plan-005 block's sequencing bullet), beside
   close 16's Proposal 1 and the findings' §8 item 2 (entries below).]
+  [2026-09-23: consumed at `2026-09-22-rider-micro-003`, 0.4.41: a
+  `rejected` attempt carries `cause`, the first non-blank line of the
+  `SystemExit` that `fail()` now raises, `exit_cause` falling back to
+  `exit <n>` (Part 2 of close 18's brief).]
 - A `swept_by` line in the `bale stats` dossier: rides the next
   `bin/bale_stats.py` holder. 104b's Proposal 1, sent here at the
   `2026-09-20-continue-plan-009` desk (ruling 4). Text verbatim from
@@ -1423,6 +1452,10 @@ with the unverifiable ones carried verbatim and marked):
   [2026-09-21: a source of wave 10's rider micro, which the next master
   authors (§3, the continue-plan-005 block's sequencing bullet), beside
   close 16's Proposal 1 and the findings' §8 item 2 (entries below).]
+  [2026-09-23: consumed at `2026-09-22-rider-micro-003`: the dossier
+  renders `swept by <sid>` with no colon, the 001 desk's pin where the
+  sibling line has one (the dossier-colon entry below), and renders
+  `cause` and `bundle` too.]
 - The cap/breach loop in `bin/bale_pack.py`: 104a's Proposal 2, the
   droppable last rider on 104b, not taken there and back on this list,
   in its worker's words: "The droppable rider (cap-loop extraction) was
@@ -1493,6 +1526,12 @@ with the unverifiable ones carried verbatim and marked):
   `bale open`'s pack replay and the telemetry record schema. Additive.
   Named consumer: the close desk's reconstruction, per DOCS.md §9's
   telemetry rule. I have not seen the code."
+  [2026-09-23: consumed at `2026-09-22-rider-micro-003`, 0.4.41: an
+  `opened` attempt from a bundle carries `bundle`, keys `stem`,
+  `brief_sha256` (required), `checkpoint_sha256` and `manifest_sha256`,
+  `"unreadable"` on a failed re-read. First read at close 18: the 004,
+  successor and 005 records carry it, and W1 to W3's; the two micros'
+  own `opened` attempts predate it (§3, the continue-plan-001 block).]
 - Close 16's Proposal 2, the standing line's place in a master's brief:
   born closed. Accepted at the `2026-09-21-continue-plan-002` desk (its
   ruling 7) as desk practice from its next brief on, with a rider for
@@ -1536,6 +1575,15 @@ with the unverifiable ones carried verbatim and marked):
   entry."; item 4, "`craft_response.py --validation-epilogue` emits the
   definitions and the call in one stream; sonnet5-b pasted them
   together."
+  [2026-09-23: items 1, 3 and 4 consumed at
+  `2026-09-22-tools-micro-002`: emit mode exits 0 once it wrote, 1 with
+  nothing to paste; the lint's `--request` flag, warning
+  `FORECAST_DEPARTURE_UNDECLARED`; the epilogue's stderr log opening
+  "COMBINED emission" and naming `--fragment`, stdout unchanged.]
+  [2026-09-23: item 2 consumed at `2026-09-22-rider-micro-003`: a
+  `relay-refused` attempt, with `cause`, for every refusal of the input
+  itself, and the re-escape check naming the carrier's unescaping while
+  still refusing.]
 - The crafter seeds `forecast_departures`: joins the tools micro's
   sources, by the operator's "as assumed" to the
   `2026-09-21-continue-plan-005` desk's light block four, [1]. Not
@@ -1554,6 +1602,12 @@ with the unverifiable ones carried verbatim and marked):
   would need the matching one-line edit in §5.4. **Scope hints:**
   `tools/craft_response.py`, its suite, §5.4's new sentence. A tool
   change, so out of this session's scope by the brief."
+  [2026-09-23: consumed at `2026-09-22-tools-micro-002`, with TARBALL.md
+  §5.4 reworded in the same session: given `--request`, the crafter
+  seeds a `forecast_departures` stub for every `changes[]` path outside
+  `resolved_scope`, deletions included. The brief's "files/ path" gave
+  way to `changes[]`, the schema's word, a flagged deviation ratified at
+  the 001 desk.]
 - One statement of what each courier carries, for TARBALL.md §5.9: rides
   the next holder of `docs/TARBALL.md` §5.9, by the same ruling. Text
   verbatim from `2026-09-21-board-103-doc-lane-006`'s notes.md, its
@@ -1562,6 +1616,9 @@ with the unverifiable ones carried verbatim and marked):
   each courier carries. Today that is assembled from three places.
   **Why:** writing Delta 6 meant reconstructing it. Small; fits the next
   §5.9 holder."
+  [2026-09-23: stays. TARBALL.md §5.9 was hash-pinned byte-identical at
+  `2026-09-22-tools-micro-002`; the tools micro's Proposal 3, on §5.2.2,
+  rides the same `docs/TARBALL.md` holder (an entry below).]
 - TARBALL.md §7.5's exit codes bind the checkpoint script too: rides the
   next `docs/TARBALL.md` holder, by the operator's "as assumed." to the
   `2026-09-21-continue-plan-008` desk's light block one, [2]. It is the
@@ -1576,6 +1633,10 @@ with the unverifiable ones carried verbatim and marked):
   written is about `validation.sh` alone. A planner following the
   pointer lands on a section that doesn't mention their script. Scope
   hints: `docs/TARBALL.md` §7 or §7.5, one sentence; no pair involved."
+  [2026-09-23: consumed at `2026-09-22-tools-micro-002`, which landed
+  its own VERBATIM sentence in TARBALL.md §7.5 (its claim "VERBATIM-1
+  lands word for word in TARBALL.md 7.5 after the anchor", observed and
+  `agree`).]
 - Suite pins for the riders' two phrases: rides the next
   `tests/test_doc_crossrefs.py` holder, by the same ruling; its worker
   allows that the answer may be a deliberate no. Text verbatim from
@@ -1599,6 +1660,113 @@ with the unverifiable ones carried verbatim and marked):
   its Proposals and code items are disposed on row 103's bracket, rows
   114 to 119 and the §8 entry above. Anything not named here or on those
   rows stands as shipped.
+- The cadence, for PLANNER.md §6: a rider for the next `docs/PLANNER.md`
+  holder, landing §5's contract of 2026-09-22 in §6's "Sitting practice"
+  bullet on masters. Ruled by the operator on 2026-09-22 at the
+  `2026-09-22-continue-plan-001` desk, in that desk's rendering, and
+  confirmed by his "as assumed" to the `2026-09-22-continue-plan-005`
+  desk's light block one, [1]. The two sentences, byte-verbatim, one per
+  line:
+  More project work, less master grooming: an arc's design sitting authors its own wave's bundles once the operator ratifies the decomposition; no master sits between it and its workers.
+  Closes are per wave, not per master. A master's last job is the wave's close, after its project work is dispatched.
+  PLANNER.md is a global doc, so the bullet cites only the five docs,
+  the two tools and bale's own verbs.
+- The lint warns on a declared departure that is not one: rides the next
+  `tools/` touch. The tools micro's Proposal 2, ratified at the
+  `2026-09-22-continue-plan-001` desk; in that desk's words (Part 2 of
+  close 18's brief): "2 (the lint warns on a declared departure that is
+  not one: `path` inside `resolved_scope`, or naming no `changes[]`
+  path) rides the next `tools/` touch".
+- §5.2.2 on the emitter: rides the next `docs/TARBALL.md` holder, beside
+  the §5.9 courier entry above. The tools micro's Proposal 3, same
+  ruling, in the same words: "3 (§5.2.2 says the emitter exits 0 once it
+  writes, what `--request` enables, and whether `--fragment` becomes
+  §7.3's documented default)".
+- A `bale stats` read side for the rider micro's fields, and a closed
+  cause vocabulary: unscheduled until a consumer is named. The rider
+  micro's Proposals 1 and 3, same ruling, in the same words: "1 (a
+  `bale stats` read side: `relay-refused` beside the drift refusals, a
+  cause histogram keyed on the first-colon prefix) unscheduled until a
+  consumer is named" and "3 (a closed `cause_code` vocabulary at the
+  major `fail()` sites) unscheduled, beside 1".
+- Stamp `handoff` on handoff-side opens: rides the next `bin/bale`
+  holder. The rider micro's Proposal 2, same ruling, in the same words:
+  "2 (stamp `handoff` on handoff-side opens: `command="handoff"` at
+  `bin/bale`'s `persist_pack_session` call, plus
+  `tests/test_provenance_at_open.py`) rides the next `bin/bale` holder".
+- The dossier colon: rides the next `bin/bale_report.py` holder,
+  droppable. The 001 desk's own, in its words: "the dossier colon
+  (`swept by:` to match `superseded by:`; one character plus
+  `RiderMicroDossierTest`), droppable, rides the next
+  `bin/bale_report.py` holder".
+- The include rule for checkpoints, two halves: the §3.4 sentence rides
+  the next `docs/TARBALL.md` holder, the crafter refusal the next
+  `tools/` holder. The paired-desk sitting's item 3 [a], placed at the
+  005 desk; the item stands verbatim in §3's 004 block. TARBALL.md §3.4
+  says in one sentence that an `--include` may not name the checkpoint
+  pattern's subtree, broader ancestors being fine and auto-excluded; the
+  crafter refuses a `--pack-arg` under `[validation] base`'s prefix,
+  extending its existing `bale.toml` read.
+- Three planner practices, one entry: rides the next `docs/PLANNER.md`
+  holder. Item 5 [b; the §2 sentence a]: ledger tagging in §3, each
+  ledger line carrying its verifying desk or sid and a file:line,
+  re-tagged on re-verification, and the GUESS-label sentence in §2
+  beside "a wrong fact is worse than a missing fact": a named unknown is
+  not coverage for the unnamed check. Item 8 [a]: transcripts as a
+  `--context` tarball beside a superseding request, cross-model pairing
+  the follow-on once layers 1 to 4 land. The upward report's Proposal 4:
+  a design sitting's `context_included` is its reads. Items 5 and 8
+  stand verbatim in §3's 004 block; the report's text did not travel to
+  close 18.
+- A `light_blocks` count on the read-only closure attempt, prompted at
+  sweep or unlock: unscheduled until a consumer is named. The mechanized
+  half of the paired-desk sitting's item 6 [a mechanized, b as
+  practice]; its practice half landed at W1
+  (`2026-09-23-board-100-w1-doc-sweep-002`) as ruling 6's PLANNER.md §6
+  bullet, a master's self-report in the sitting-close notes, count and
+  disposition per block, and `light_blocks` stays the worker's field.
+- Paired desks as a sitting kind: not taken. The paired-desk sitting's
+  item 7 [ab] is recorded as evidence only (§6 entry 208), following the
+  upward report's Proposal 1: the pattern that worked was a ledger plus
+  a successor re-verifying where it builds.
+- AGENT.md §11.7's "picker" wording, and W3's stamp mismatch in prose:
+  rides the next `docs/AGENT.md` or `docs/TARBALL.md` holder. The upward
+  report's follow-on row (d), as close 18's brief places it. §11.7's
+  model-string column says the string is shown by the model picker and
+  gives `unknown` when the picker is not visible, and W3's worker
+  reported the string from its system prompt instead, ratified at the
+  design sitting; and W3's `stamp_matched: false`, accepted per
+  invocation, owes a prose mention at the next doc landing. The report's
+  own text did not travel to close 18.
+- A stable anchor for the registry's end: rides the next MASTER.md
+  regeneration. Close 17's Proposal 1, carried standing in the 001
+  desk's brief; that close's notes.md did not travel to close 18, so its
+  text is not quoted. Close 18 inserted above
+  `Landed 2026-08-05, non-board`, the line that ends the list today.
+- A trail for planner-desk light blocks: close 17's Proposal 2, not
+  quoted for the same reason. The paired-desk sitting gave it a live
+  specimen, two blocks under one sid and no record (item 6; §6 entry
+  208).
+  [2026-09-23: landed at W1 in its practice half, ruling 6's PLANNER.md
+  §6 bullet; the mechanized half is the `light_blocks` entry above,
+  unscheduled.]
+- Proposals of the `2026-09-22-continue-plan-001`,
+  `2026-09-22-board-100-design-004`, `2026-09-23-board-100-design-001`
+  and `2026-09-22-continue-plan-005` sittings' workers and desks, and
+  close 17's, dispositions: the tools micro's 1 → the three-guards entry
+  above, already here, 2 → the declared-departure entry above, 3 → the
+  §5.2.2 entry above; the rider micro's 1 and 3 → the unscheduled entry
+  above, 2 → the handoff-stamp entry above; the 001 desk's dossier colon
+  → its entry above; the paired-desk items → §3's 004 block, rows 121 to
+  123 and the entries above; the upward report's follow-on rows (a),
+  (b), (c), (e) and (f) → rows 124, 126, 127, 125 and 128, (d) → the
+  §11.7 entry above, and its Proposals 1 → §6 entry 208, 2 → row 125, 3
+  → row 122, 4 → the `docs/PLANNER.md` entry above; close 17's 1 and 2 →
+  their entries above. W1 to W3's own Proposals reached this close
+  through that report, not first-hand. None of the riders queued at
+  2026-09-22 was consumed by W1 to W3, which were authored before they
+  were on the registry. Anything not named here or on those rows stands
+  as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -4647,6 +4815,363 @@ what has no row home; close recorded by
   `format_hold_relay_planner`); the dispositions entry at the list's end
   covers both sittings.
 
+Landed 2026-09-22, the continue-plan-001 sitting (master
+`2026-09-22-continue-plan-001`, read-only, work class meta; bale 0.4.40;
+whole-tree pack; packed 11:57:53Z by its record's `packed_at`, and its
+`created_at` reads 11:57:54Z, one second later; `closed-read-only` at
+23:44:23Z by the `2026-09-22-board-100-design-004` pack, which its
+`swept_by` names and whose `packed_at` is the same second). Four turns,
+four light blocks, all answered "as assumed", none with a question back;
+no probe in its account. It authored wave 10's two micros and the 100
+arc's design sitting's bundle, ratified both micros' notes.md, and
+handed close 18 on. Its brief to the 005 desk (sha256 `aa8d4555…ba9f9`,
+the 005 manifest's `readme` sha), carried byte for byte as Part 2 of
+this close's brief, is this block's source, beside the two wave-10
+records read by key at the 005 desk and again at this close. This block
+carries only what has no row home; close recorded by
+`2026-09-23-sitting-close-deltas-18-005`:
+- Wave 10 as dispatched, from Part 2: two bundles authored at turn two,
+  each a brief, a blind checkpoint and a stored argv in a crafter
+  bundle. The tools micro, bumpless, five named files, carrying the §7.5
+  and §5.4 riders and the lint README rider and leaving the §5.9 courier
+  rider to a §5.9 holder; the rider micro, one bumping session at
+  0.4.41, merging five riders, with a new `relay-refused` outcome. Both
+  cuts by block one's [2] and [3]. The desk read the code every micro
+  source named before either brief, the first desk to (§6 entry 206).
+  Each oracle was rehearsed against the base (expected HOLD), on a
+  throwaway shim landing (all pass), and with negatives for the
+  disjointness probes; rehearsal caught two oracle defects before
+  delivery, and both micros were dress-rehearsed together through the
+  real `bale open` (§6 entry 207).
+- Landing record, in apply order from telemetry.
+  `2026-09-22-tools-micro-002`: opened 12:35:33Z, `packed_at` the same
+  second; `held` at 14:28:01Z, blind checkpoint HOLD, exit 1, stamp
+  matched, one failed probe by label,
+  `lint-request-flag-silent-inside-forecast`, sha256 `f210af21…`; worker
+  validation exit 0 with its fifteen claims each observed and `agree`,
+  the attempt's state HOLD with the checkpoint's. Ruled work-defect at
+  the 001 desk (§6 entry 205). `applied` at 14:35:07Z on
+  `command: retry`, checkpoint PASS, exit 0, the same sha; worker
+  validation PASS, fifteen claims, each observed and all `agree`, one
+  key grown between attempts to end "; silent when all inside"; five
+  `change_paths`; both attempts confined, network grant exercised; no
+  admissions; `budget_pressure: none`; `model_identity` "Claude Opus 5
+  (claude-opus-5)". Bumpless, its request stamped 0.4.40.
+  `2026-09-22-rider-micro-003`: opened 12:36:36Z, `packed_at` 12:36:35Z;
+  `applied` at 14:42:50Z, one attempt, confined, grant exercised;
+  checkpoint PASS, exit 0, stamp matched, no failed probes, sha256
+  `bcd2a6c3…`; worker validation PASS, thirteen claims, each observed
+  and all `agree` (nine test-module claims and four session assertions);
+  19 `change_paths`; no admissions; `budget_pressure: tight`;
+  `model_identity` "Claude Opus 5"; 0.4.41, its `apply.sh` one line,
+  `chmod +x bin/bale`. Neither `opened` attempt carries a `bundle` key:
+  the tools pack predates 0.4.41, and the rider micro's own `opened`
+  attempt was written before the version it introduced.
+- What landed, from Part 2's "Wave 10, landed", in short. The tools
+  micro: emit mode exits 0 when it wrote; `--request` on the lint, with
+  the `FORECAST_DEPARTURE_UNDECLARED` and `README_NOT_IN_DOCS_READ`
+  warnings; the crafter seeding `forecast_departures` for every
+  `changes[]` path outside `resolved_scope`, deletions included (a
+  flagged deviation from the brief's "files/ path", ratified);
+  TARBALL.md §5.4 reworded and the micro's own VERBATIM sentence in
+  §7.5; the craft path guard dropped; the epilogue's stderr log naming
+  `--fragment`; §5.9 hash-pinned byte-identical to the base. The rider
+  micro: `cause` on `rejected` attempts; `bundle` on `opened` attempts;
+  `relay-refused` written with `cause` for every refusal of the input
+  itself; the re-escape check naming the carrier's unescaping; the
+  dossier's `swept by <sid>` line, with no colon; held admissions in the
+  planner HOLD block; a real envelope-subset guard in
+  `test_rollback_telemetry`. Each consumed a registry entry, bracketed
+  there.
+- The design sitting's bundle, authored at turn three: stem
+  `2026-09-22-board-100-design`, brief sha256 `3320ae09…2adf`,
+  checkpoint null, by the 004 record's `bundle` key, the first `bundle`
+  key on a design sitting's opened attempt, written by 0.4.41.
+- Turns and blocks, from Part 2's summary; its blocks are not
+  transported verbatim, so none is quoted here. Block one (turn one):
+  [1] the caveat reading confirmed; [2] the tools micro cut; [3] the
+  rider micro cut. Block two (turn two): [1] open both as delivered; [2]
+  author the 100 arc's design sitting at the desk next turn; [3] paste
+  the micros' relays there. Block three (turn three): [1] ratify both
+  notes.md as listed, six Proposals disposed; [2] open the design
+  sitting, authoring its own wave; [3] end the sitting on a successor
+  brief. Turn four was that brief. Part 2 counts four blocks and four
+  answers, nothing assumed from silence, and names the rows of three.
+- Rulings at the desk, all the operator's "as assumed": both micros cut
+  and opened as delivered; both notes.md ratified with their six
+  Proposals disposed (the registry's 2026-09-22 dispositions, which land
+  at this close); the design sitting authoring its own wave; the cadence
+  of 2026-09-22 (§5), carried in its brief. The desk's own Proposal, the
+  dossier colon, went to the registry.
+- Debt the brief handed on, from Part 2's "Debt this brief hands on":
+  close 18 itself; close 17's Proposal 1 (a registry entry now); DOCS.md
+  and CODE.md unread by the 001 and 008 desks; the findings' packets
+  tarball unshipped anywhere; row 117 still waiting on the operator's
+  ruling. The wave-10 board rows: the findings' items and the riders
+  have no rows of their own, close 17 having landed them as registry
+  entries, so close 18 brackets entries and adds no rows for wave 10.
+- Sequencing for the next desk: see the continue-plan-005 block below;
+  this sitting's own line was the 100 arc next, which ran.
+- Board deltas of this sitting's work: none of its own; the design
+  sitting it authored is row 100's. In §5, the 2026-09-22 cadence block;
+  in §6, entries 205 to 207, and the cadence entry 209 records.
+- Registry deltas of this sitting's work: ten brackets on the nine
+  entries the wave retired (the findings' §8 entry takes two, one per
+  micro); the tools micro's Proposals 2 and 3, the rider micro's 1 to 3
+  and the desk's dossier colon as new entries; the cadence rider; the
+  dispositions entry at the list's end covers all four sittings.
+
+Landed 2026-09-22, the paired-desk sitting
+(`2026-09-22-board-100-design-004`, read-only, work class meta; opened
+2026-09-22T23:44:23Z from the 001 desk's bundle, `packed_at` the same
+second, its pack sweeping the 001 master that second; closed
+`superseded-by-split` at 2026-09-23T00:23:18Z, `superseded_by`
+`2026-09-23-board-100-design-001`; two attempts, one `opened` and the
+closure, and no `swept_by`). The operator opened it twice under the one
+sid, as a trial of paired planner desks; the record carries one `opened`
+attempt, so the second desk is in no record (row 123). Its record is the
+file the two desks merged and signed,
+`board-100-paired-desks-close-18-merged.md`, sha256
+`30ddaf6c2b4d0a0bd7678df18b8af282f46df7b3fedab03d161f9fb58cfcb791`, read
+whole at the 005 desk and not shipped to this close; it is cited by name
+and hash as the operator's carried artifact. This block carries only
+what has no row home; close recorded by
+`2026-09-23-sitting-close-deltas-18-005`:
+- Digest, from close 18's brief: two independent first turns, three
+  relayed rounds, one refused paste (`bale pack`'s include gate on
+  `--include claude/checkpoints`), and a revc bundle re-derived
+  independently by both desks to byte-identical archives, opened as the
+  successor. Two light blocks were emitted under the one sid and neither
+  was answered, the operator carrying rather than ruling; the successor
+  re-asked decisions 1 to 3. By its record the closure is stamped
+  00:23:18Z and the successor it names was created at 00:26:04Z, two
+  minutes and 46 seconds later (item 1; row 121).
+- The nine items both desks signed, verbatim from the merged file's
+  head, one per line (origins kept: [a] first desk, [b] second, [ab]
+  both):
+  1. Argv-only gates run before state-changing exchanges in `cmd_pack`. Tool defect: the refused revb pack had already closed the parent superseded-by-split (`_resolve_supersession`, bale_pack.py:5223) before the include gate fired, so the parent's telemetry carries a closure stamped by a pack that produced no child on its first paste. The idempotent branch recovered it; recovered is not never happened. [ab]
+  2. A pack rehearsal path — `bale pack --dry-run` or `bale open --check` — running pre-flight and writing nothing, extending `pack_argv_preflight` to the include gate. Until it lands, PLANNER.md §4 doctrine: a desk with `bin/` in context rehearses the line in a fixture before delivery. [ab]
+  3. TARBALL.md §3.4 carries the planner-side include rule in one sentence (an `--include` may not name the checkpoint pattern's subtree; broader ancestors are fine and auto-exclude), and the crafter refuses a `--pack-arg` under `[validation] base`'s prefix, extending its existing `bale.toml` read (the `[probe]` clipboard key, tools lines 372–380). [a]
+  4. A desk suffix on a second open of one sid, recorded. Suffix only; refuse would have blocked the experiment that produced the finding. [b]
+  5. Ledger tagging in PLANNER.md §3 (verifying desk/sid + file:line, re-tagged on re-verification), plus the GUESS-label sentence in §2 beside "a wrong fact is worse than a missing fact": a named unknown is not coverage for the unnamed check. [b; the §2 sentence a, promoted by b]
+  6. A trail for planner-desk light blocks: a `light_blocks` count on the read-only closure attempt, prompted at sweep/unlock; the sitting-record self-report until it lands. Close 17's Proposal 2 with a live specimen: two blocks, one sid, no record. [a mechanized, b as practice]
+  7. Paired desks as a trigger-fired sitting kind, two shapes: read-set division for fact ledgers (merge re-reads the other desk's tagged lines); author/adversary for lines and briefs, the adversary's brief being "read the boring gates". Triggers: a brief costed from unverified claims; a bundle the operator will paste blind; an oracle that needs a real second party. [ab]
+  8. Transcripts as a `--context` tarball beside a superseding request; cross-model pairing as the follow-on once layers 1–4 land. [a]
+  9. (Carry decisions, not proposals.) The include gate's line numbers (bale_pack.py:417–471; a specimen oracle reaches a planner session by probe, never by include) and the parent-telemetry fact in item 1 go into the successor's ledger on its first re-verification. The determinism claim in both reports reads "observed twice under 0.4.41's crafter, for identical inputs", not "proven" — applied by each desk on its own report. [ab]
+- Disposition, ruled at the 005 desk's light block one, [3], "as
+  assumed": disposed at this close as registry riders and rows, none
+  dispatched from that desk. Item 1: row 121. Item 2: row 122's first
+  half, its interim PLANNER.md §4 doctrine named on the row. Item 3: two
+  registry riders, the §3.4 sentence for the next `docs/TARBALL.md`
+  holder and the crafter refusal for the next `tools/` holder. Item 4:
+  row 123. Items 5 and 8: one registry entry for the next
+  `docs/PLANNER.md` holder, with the upward report's Proposal 4. Item 6:
+  a registry entry, its mechanized count unscheduled until a consumer,
+  its practice half landed at W1 (ruling 6). Item 7: §6 entry 208 only,
+  no sitting kind (the upward report's Proposal 1). Item 9: a carry, not
+  a proposal; its home was the successor's ledger, which this close did
+  not read. The placements are the 005 desk's, for the operator's
+  ratification at delivery (the continue-plan-005 block).
+- Light-block trail: two blocks, zero answered, no record. Close 17's
+  Proposal 2 with a live specimen (§6 entry 208; the registry's close-17
+  entry).
+- Sequencing for the next desk: none of its own; its successor carried
+  its work.
+- Board deltas of this sitting's work: rows 121, 122 (first half) and
+  123; §6 entry 208; row 100's bracket names it as the first of the
+  design sitting's two opens.
+- Registry deltas of this sitting's work: item 3's two riders, items 5
+  and 8 in the `docs/PLANNER.md` entry, item 6's entry, item 7 as an
+  evidence pointer, and close 17's Proposal 2 bracketed with its
+  specimen.
+
+Landed 2026-09-23, the 100 arc's design sitting and its wave
+(`2026-09-23-board-100-design-001`, read-only, work class meta; the 004
+sitting's successor, by that record's `superseded_by`; bundle stem
+`2026-09-23-board-100-design-revc`, brief sha256
+`e313b60109e2854534d80011ef553bec48b07e48c3697e59fcc7ad1a310f0ac7`,
+equal to `design-brief-board-100-revB.md`'s, checkpoint null, by its
+record's `bundle` key; `packed_at` 00:26:03Z, and its `created_at` reads
+00:26:04Z, one second later; its pack swept the 005 master
+`closed-read-only` at 00:26:02Z, as that closure's `swept_by` says). Its
+record still reads `opened`, and the file is untracked on the tree (§3
+Watches; §6 entry 212). It made rulings 1 to 9 in four light blocks,
+each "as assumed", ran two paste-back probes, both complete (integrity
+486 and 196), authored the wave's three bundles, revised W3's brief to
+revB after W1 and W2 applied (derived, with a "Landed since revA"
+section, checkpoint v1 unchanged), ratified all three notes.md as the
+arc's sub-master, and wrote the arc's upward report. The cadence's first
+application (§5, 2026-09-22): no master sat between it and its workers
+(§6 entry 209). The wave's landings are on row 100's bracket; this block
+carries only what has no row home; close recorded by
+`2026-09-23-sitting-close-deltas-18-005`:
+- The rulings: §5's 2026-09-23 block carries all nine verbatim from the
+  decomposition, one bullet each, with their landings.
+- Its light-block ledger, in its own words: "Four blocks emitted, four
+  answered "as assumed", zero formal, zero unanswered." Two probes, both
+  complete.
+- Its archive, carried to the operator by ruling 9, three files:
+  `design-brief-board-100-revB.md` `e313b601…0ac7` (346 lines),
+  `implementation-decomposition-revA.md` `b2573fd4…4054` and
+  `upward-report-board-100-design.md` `0b1f8081…d97c`. Their home is
+  `claude/context/board-100-arc/`, committed directly by the operator;
+  the directory did not exist at the close-18 probe, and this close does
+  not create it.
+- Ratified at the design sitting, the sub-master's review, from the
+  upward report as the 005 desk digested it. W1's engraving of the noun
+  rule in TARBALL.md §1, its INDEX row for §11.7, its hat-noun choices
+  and the re-pinned STRUCK_PHRASES spelling. W2's `[layout]` at the
+  project layer only, `oneOf` and `pattern` in both subset validators,
+  the corrected remarks, the `layout_agent_dir` short-circuit, the two
+  kept inject senses and the `.baleignore` wizard line. W3's
+  `upgrade.sh` unchanged, argparse order kept with the default flipped,
+  the inline `contract_docs` fixtures moved to `AGENT.md`, and
+  `model_identity` taken from the session's own system prompt rather
+  than `unknown`.
+- Ledger corrections the report feeds upward, tag [w3]: the doc-name
+  sites for the rename were `build.sh`, `install.sh` and `validate.sh`
+  only, the brief's "pre-flight member check" in `upgrade.sh` a wrong
+  fact inherited from the parent ledger (§6 entry 211; row 126); W2's
+  close tally was 1506/48; nine cites drifted 1 to 15 lines and all
+  resolved by phrase match.
+- W3's hold. The checkpoint exited 1 with no failed-probe label while
+  every labeled probe passed and the worker's five claims each came back
+  observed and `agree`. The design sitting ruled it a fixture defect
+  (PLANNER.md §5 step 6), corrected probe 3 as v2 with every non-probe
+  failure route exiting 2, amended it on the tree (commit `9fea009`),
+  and asked for no new response: the held tarball applied at 03:07:57Z
+  on `bale retry`, `stamp_matched: false` accepted per invocation, the
+  prose mention owed by the next doc landing (the registry's report (d)
+  entry; §6 entry 210).
+- Where the brief and the records part, found at this close: W3's
+  `applied` attempt, left by the 005 desk to the record, reads 03:07:57Z
+  on `command: retry`, the same tarball name, no admissions; nowhere
+  else for this sitting.
+- Sequencing for the next desk: none beyond the wave, which landed
+  whole; the report's follow-on rows are placed on the board and the
+  registry, off the standing line.
+- Board deltas of this sitting's work: row 100 DONE with the arc on its
+  bracket; rows 77, 116 and 118 DONE; rows 122 (second half) and 124 to
+  128 from the report; in §5, the 2026-09-23 block; in §6, entries 209
+  to 212 and the brackets on entries 119 and 188; in §7, the 0.4.43
+  landmark and the renamed doc.
+- Registry deltas of this sitting's work: report (d) for the next
+  `docs/AGENT.md` or `docs/TARBALL.md` holder; Proposal 4 in the
+  `docs/PLANNER.md` entry; Proposal 1 as an evidence pointer. None of
+  the riders queued at 2026-09-22 was consumed by W1 to W3, which were
+  authored before they were on the registry.
+
+Landed 2026-09-22, the continue-plan-005 sitting (master
+`2026-09-22-continue-plan-005`, read-only, work class meta; bale 0.4.41;
+whole-tree pack; bundle stem `2026-09-22-continue-plan-close-18`, brief
+sha256 `aa8d4555…ba9f9`, checkpoint null, by its record's `bundle` key;
+packed 23:44:40Z by its record's `packed_at`, and its `created_at` reads
+23:44:41Z, one second later, seventeen seconds after the design
+sitting's open; `closed-read-only` at 2026-09-23T00:26:02Z by the
+`2026-09-23-board-100-design-001` pack, which its `swept_by` names). Its
+desk was first written to after the design sitting's successor had swept
+it and while the 100 wave ran. Three turns, one light block, one probe.
+It authored this close; its brief is this close's brief and this block's
+source. This block carries only what has no row home; close recorded by
+`2026-09-23-sitting-close-deltas-18-005`:
+- The operator's opening note, whole and verbatim:
+  "I'm currently running 3 packs from the board 100 design (which accidentally closed out this read only session), and I also ran a claude-to-claude experiment that resulted in the file attached. Please orient yourself and organize how this session should go (return the 3 packs notes.md? return an upward report from the board 100 master? focus on the claude-to-claude experiment and sitting deltas?)"
+- Turn one read the manifest, CLAUDE.md in full, Part 2, PLANNER.md's
+  core (§1 to §3, §6, §20, §7), TARBALL.md §5.10 and §10.2 to §10.4 and
+  the crafter's light-block path; verified the six base facts (the five
+  `docs/` and both `tools/` byte-identical to the carried copies;
+  `claude/MASTER.md` at 10816 lines, `a8bbbeee…70a9`); read both wave-10
+  records by key; read the merged file whole; and ended on light block
+  one, rendered by the crafter, verbatim, rows joined by " / ":
+  "[1] question: Confirm the cadence: closes are per wave, not per
+  master; close 18 is this desk's last job, and it waits until the 100
+  arc's wave (the three packs now running) has landed and its
+  sub-master's upward report is here? / while doing: reading your
+  2026-09-22 ruling as the brief and the manifest constraint state it;
+  the 100 wave is the design sitting's project work, not this desk's, so
+  this desk has nothing of its own to dispatch ahead of the close unless
+  you name it / would assume: yes; close 18 covers wave 10, the
+  paired-desk sitting 004, its successor design sitting, and the 100
+  wave, and is authored here once the wave and its report are in / why
+  blocked: the brief asks for this reading in the first block, and the
+  brief's own first-job/second-job order reads the other way / [2]
+  question: The three packs' notes.md go to the design sitting's desk
+  (the arc's sub-master), which ratifies them and writes the arc's
+  upward report per PLANNER.md section 20.2; you bring that report here
+  with the three relays, and close 18 consumes them? / while doing:
+  organizing the session as you asked; the cadence ruling puts no master
+  between the design sitting and its workers, and one master per sitting
+  means the desk that authored a wave ratifies it / would assume: yes;
+  this desk reads the report and the records, never the packs' notes.md
+  first-hand / why blocked: you offered to return the notes.md here
+  instead, and what a close covers is yours / [3] question: Treat the
+  merged paired-desk file as sitting 004's record: its nine signed items
+  are disposed at close 18 (registry entries, a section 5 line, section
+  6 evidence, rows where a row is earned), and none is dispatched as a
+  session from this desk before the close? / while doing: sorting the
+  file's carry-over; item 1 is a bale defect and items 4 and 6 are small
+  code changes, so each could be a micro, but a dispatch here needs the
+  100 wave's forecasts, which this tarball does not carry / would
+  assume: yes; disposed at close 18 as registry riders and rows, no
+  session from this desk / why blocked: board rows and Proposals are
+  yours to dispose, and dispatching one would add project work to a desk
+  you sized to a close"
+- The operator's next message, whole and verbatim:
+  "as assumed. I just received the board 100 reports if you're ready for them as well."
+- Turn two ran one paste-back probe, `close-18-records`, built from the
+  crafter's scaffold and rehearsed read-only against the request's own
+  tree; it came back whole (integrity 1302, trailer present), with the
+  three archive files attached. Turn three wrote this close's brief and
+  its oracle, rehearsed and dress-rehearsed, and the bundle.
+- Rulings at the desk, the operator's "as assumed" to block one: [1] the
+  cadence, closes per wave, this desk's last job close 18, waiting on
+  the 100 wave and its upward report (§5, 2026-09-22); [2] the three
+  packs' notes.md to the design sitting's desk, which ratifies them and
+  reports upward, this desk reading the report and the records, never
+  the notes first-hand; [3] the merged file as sitting 004's record, its
+  nine items disposed at close 18, none dispatched from the desk.
+- Light-block ledger (ruling 6's practice), from the 005 desk. This
+  desk: one block emitted, one answered "as assumed", zero formal, zero
+  unanswered; one probe, complete. The 004 desks: two blocks, zero
+  answered, no record. The 001 desk: four blocks, four "as assumed". The
+  successor: four, four "as assumed", two probes, complete. This close's
+  own count is in its notes.md.
+- Desk calls to ratify, the ratification debt this close carries to the
+  operator, as the 005 desk lists them: the placements under "Rows" and
+  "Registry"; the successor's unswept sid recorded as a watch, not a
+  defect; the merged file and the three archive files cited by name and
+  hash rather than shipped; W3's `applied` attempt left to the record;
+  the nine rulings recorded as a §5 block; the four sitting blocks in
+  this order; row 100 closed DONE with the wave on its bracket rather
+  than three rows. Nothing else is unruled: the 001 desk's calls and
+  wave 10's notes.md were ruled at the 001 desk, the 100 wave's at the
+  design sitting.
+  Ratification debt carried forward, per convention: THIS close's notes.md queues to the following open.
+- Where the brief and the records part, found at this close: the rider
+  micro's record carries thirteen claims, each observed and `agree`,
+  where the brief says nine, the count of its `tests.*` module claims
+  alone; the 004 record carries one `opened` attempt for two desks; W3
+  applied on `bale retry` (the design-001 block). The brief asks for the
+  upward report's "Follow-on rows" list quoted verbatim on row 100's
+  bracket; the list did not travel in this close's request, so the
+  bracket cites the report by name and hash and places (a) to (f)
+  without quoting them (this close's notes.md).
+- Sequencing for the next desk: the standing line after the 100 arc,
+  unchanged from the 002 desk's ratified words:
+  "43, 45, S6; row 103 ongoing; row 93 stands".
+  Rows 121 to 128 are not on the line; their order is the operator's and
+  is not ruled. By the cadence, the next master's last job is its wave's
+  close, after the wave's project work is dispatched.
+- Board deltas of this close: row 100's bracket and DONE on rows 77, 116
+  and 118; rows 121 to 128; in §5, the 2026-09-22 and 2026-09-23 blocks;
+  in §6, entries 205 to 212 and the brackets on entries 119 and 188; in
+  §7, the 0.4.43 landmark and what the 005 desk and this close verified;
+  the watch above (§3 Watches).
+- Registry deltas of this close: the retirement brackets on the entries
+  wave 10 consumed, a stays bracket on the §5.9 courier entry, and the
+  new entries in the brief's order, ending on the dispositions entry for
+  all four sittings.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -6230,6 +6755,11 @@ and §8, so done items keep their numbers as one-line pointers.
     specimen at row 70; §6 entry 108).
     [2026-09-15: rides the 100 arc — the same sweep shape over the
     same files.]
+    [2026-09-23: DONE, folded into the 100 arc's wave: the prose sweep
+    at W1 (`2026-09-23-board-100-w1-doc-sweep-002`) and the constant at
+    W2 (`2026-09-23-board-100-w2-code-surfaces-003`), `INJECTED_TOOLS` →
+    `CARRIED_TOOLS` by ruling 8, with the two inject senses W2 kept
+    ratified at the design sitting (§5, 2026-09-23; row 100's bracket).]
 
 78. **admission prompts, composed remedies, hook default — DONE**
     2026-09-14, opened and landed in-sitting
@@ -6893,6 +7423,77 @@ and §8, so done items keep their numbers as one-line pointers.
     arc; row 97's ADR spelling is ratified relative to whatever the
     directory is called. Row 103's findings feed the doc sweep, so 103
     runs before the arc.
+    [2026-09-23: DONE, closed as an arc at close 18. The design sitting
+    ran twice: `2026-09-22-board-100-design-004`, the paired-desk trial,
+    closed `superseded-by-split` at 2026-09-23T00:23:18Z, and its
+    successor `2026-09-23-board-100-design-001` (bundle stem
+    `2026-09-23-board-100-design-revc`, brief sha256 `e313b601…0ac7`),
+    which made rulings 1 to 9 (§5, 2026-09-23), authored the wave's
+    three bundles and ratified their notes.md (§3, the two blocks).
+    Depth: layers 1 to 3 landed, layer 4 as a config key only, renaming
+    no existing repo (ruling 2). The wave, in apply order from
+    telemetry. W1, `2026-09-23-board-100-w1-doc-sweep-002`:
+    contract-doc, bumpless; opened 01:04:36Z, `packed_at` 01:04:35Z;
+    forecast `README.md`, `docs`, `tests/test_doc_crossrefs.py` and
+    `tests/test_sanctioned_pairs.py`; brief `b81a8d61…b294`, checkpoint
+    `058975d0…50e9`; applied 01:45:46Z, one attempt, confined, network
+    grant exercised; checkpoint PASS, exit 0, stamp matched, no failed
+    probes, sha equal to the published; worker validation PASS, three
+    claims each observed, the doc suites `agree`, the full suite (gated
+    `--slow`) `skip`, the session assertions `agree`; drift admitted,
+    `tests/test_global_doc_noun.py` (source `prompt`); nine
+    `change_paths`; `model_identity: anthropic:claude-fable-5.1`;
+    `budget_pressure: none`. It landed the noun sweep, rulings 4 to 7 in
+    the docs, and the guard. W2,
+    `2026-09-23-board-100-w2-code-surfaces-003`: code, 0.4.42; opened
+    01:08:10Z, `packed_at` 01:08:11Z, one second later, the reversed
+    order; forecast `BALE.md`, `bin`, `claude/changelog`, `schemas`,
+    `tools` and seventeen named tests; brief `69cd7805…7d38`, checkpoint
+    `7cdc0b62…ddec`; applied 01:54:02Z, one attempt, confined, grant
+    exercised; checkpoint PASS, exit 0, stamp matched, sha equal; worker
+    validation PASS, two claims observed, the session assertions
+    `agree`, the unit suite `skip`; drift admitted,
+    `tests/test_forecast_ledger.py` and
+    `tests/test_layout_and_formats.py` (`prompt`); 32 `change_paths`. It
+    landed `agent-decides` admitted with the emitted value unchanged
+    (amendment A), `[layout] agent_dir`, the `contract_docs` `oneOf`,
+    the `model_identity` pattern and `CARRIED_TOOLS`. W3,
+    `2026-09-23-board-100-w3-file-rename-004`: mixed, 0.4.43; opened
+    02:00:12Z, `packed_at` 02:00:11Z; forecast the release surface,
+    `BALE.md`, `README.md`, `bin`, `claude/changelog`, `docs`,
+    `install.sh`, `schemas`, `scripts/build.sh`, `tests`, `tools`,
+    `upgrade.sh` and `validate.sh`; brief `aa426b40…7f78` (revB),
+    checkpoint v1 `0ba3d3fd…5917`. HOLD at 02:54:24Z: the checkpoint
+    exited 1 with no failed-probe label, stamp matched, every labeled
+    probe passing and worker validation exiting 0 on five claims, each
+    observed and `agree`. Ruled a fixture defect at the design sitting
+    and corrected as v2, sha256
+    `b8c69ae841956633ede50639c4b9309a80629e3bb8efe82900b045a9b149bed5`,
+    probe 3 only, every non-probe failure route exiting 2, amended on
+    the tree (commit `9fea009`); no new response. Applied at 03:07:57Z
+    on `bale retry` of the held tarball: checkpoint v2 PASS, exit 0,
+    `stamp_matched: false`, accepted per invocation; worker validation
+    PASS, five claims `agree`; no admissions; 47 `change_paths`,
+    `docs/AGENT.md` created and `docs/CLAUDE.md` deleted among them; the
+    suite at 1507 tests, 48 skipped, green, and `validate.sh` at 93
+    checks. Git: `7cb52ce` the landing, `a88f85b` the merge, `d855163`
+    the sweep. The upward report, `upward-report-board-100-design.md`,
+    sha256 `0b1f8081…d97c`, reached the 005 desk with the three relays;
+    its partition, claims, consumed and deferred lists and four
+    Proposals are this bracket's source as that desk digested them. Its
+    six follow-on rows, placed at close 18: (a) → row 124; (b) → row
+    126; (c) → row 127; (d) → the registry, the §11.7 entry; (e) → row
+    125, with Proposal 2; (f) → row 128. Its Proposals: 1 → §6 entry
+    208, no sitting kind; 2 → row 125; 3 → row 122's second half; 4 →
+    the registry's `docs/PLANNER.md` entry. The report's own "Follow-on
+    rows" text did not travel in close 18's request, only its name and
+    hash, so it is not quoted here; a desk holding the archive can
+    bracket it in. The archive, `claude/context/board-100-arc/`,
+    committed directly by the operator (ruling 9):
+    `design-brief-board-100-revB.md` `e313b601…0ac7` (346 lines),
+    `implementation-decomposition-revA.md` `b2573fd4…4054` and the
+    report; the directory did not exist at the close-18 probe. Row 77
+    rode the arc, DONE; rows 116 and 118 were its inputs, DONE.]
 
 101. **Bare `bale apply` bounded resolution — DONE 2026-09-15** at
     `2026-09-15-board-101-bare-apply-cap-007`, 0.4.32 (re-attempt; the
@@ -7389,6 +7990,15 @@ and §8, so done items keep their numbers as one-line pointers.
     5.1 (self-reported)", and
     `2026-09-21-split-transition-unconditional-007` "Claude (Anthropic);
     exact model string not visible to the session".
+    [2026-09-23: DONE, consumed as an input to the 100 arc. Ruling 4
+    (§5, 2026-09-23) answers all three: `model_identity` spelled
+    `<vendor>:<model>` with a pattern in response-manifest.schema.json
+    (W2) and in the docs (W1); `includes_missing` covering a decision as
+    a line opening `decision:`; `linkage.depends_on` null for a
+    same-session round, a doc pin of the schema's own sentence. Every W
+    record since spells it `anthropic:claude-fable-5.1`; the two wave-10
+    micros, before the ruling, spelled it "Claude Opus 5
+    (claude-opus-5)" and "Claude Opus 5".]
 
 117. **A shape for "an attachment did not arrive"** — queued 2026-09-21
     (docs; needs the operator's ruling first). The findings' Proposal 9,
@@ -7412,6 +8022,11 @@ and §8, so done items keep their numbers as one-line pointers.
     verbs and no `validate` (the `2026-09-21-continue-plan-002` desk's
     read of `bin/bale`; §7), so row 103's own "`bale validate`, then
     apply or HOLD" names a verb that does not exist.
+    [2026-09-23: DONE, consumed as an input to the 100 arc. Ruling 5
+    (§5, 2026-09-23) rewords "Validate before apply, always" at both
+    sites to land only through `bale apply`, which validates and stages
+    before it merges, never hand-applying a tarball or bypassing a HOLD;
+    the row type stays operator discipline. Landed at W1.]
 
 119. **Three code smalls from the probe's findings** — queued 2026-09-21
     (code; small; one row). The findings' §8 items 5, 6 and 7, verbatim,
@@ -7441,6 +8056,71 @@ and §8, so done items keep their numbers as one-line pointers.
     invitation to decide whether the gap is wanted. **Scope hints:**
     `bin/bale_staging.py` (`run_validation_sh`); `.validation-logs/` and
     `.bale-manifest.json` would need exempting."
+
+121. **Argv-only gates before state-changing exchanges in `cmd_pack`** —
+    queued 2026-09-23 (code; a bale defect). The paired-desk sitting's
+    item 1 [ab], verbatim in §3's 004 block. A pack whose include gate
+    refuses has already closed its `--supersedes` parent:
+    `_resolve_supersession` runs before the gate, so the parent's record
+    carries a `superseded-by-split` closure stamped by a pack that
+    produced no child on its first paste, which the idempotent branch
+    later recovered. The 004 record shows it: its closure is stamped
+    00:23:18Z and the successor it names was created at 00:26:04Z. Run
+    every argv-only gate before any exchange that writes another
+    session's state. The item's line numbers (bale_pack.py:5223, the
+    gate at 417–471 by item 9) are the desks' reads at 0.4.41; the
+    authoring desk reads the code (§6 entry 188).
+
+122. **Rehearsal verbs** — queued 2026-09-23 (code; one row, two
+    halves). First half, the paired-desk sitting's item 2 [ab]:
+    `bale pack --dry-run` or `bale open --check`, running pre-flight and
+    writing nothing, extending `pack_argv_preflight` to the include
+    gate; the item's interim, until it lands, is PLANNER.md §4 doctrine,
+    a desk with `bin/` in context rehearsing the line in a fixture
+    before delivery, which no registry entry carries yet (close 18's
+    notes.md). Second half, the 100 arc's upward report's Proposal 3:
+    `bale open --dry-run` running a bundle's checkpoint against the
+    base, so a probe a desk cannot run end to end is exercised before
+    delivery (§6 entry 210).
+
+123. **A desk suffix on a second open of one sid** — queued 2026-09-23
+    (code; small). The paired-desk sitting's item 4 [b]: a second open
+    of one sid records a desk suffix and is not refused, since a refusal
+    would have blocked the experiment that produced the finding.
+    Specimen: the 004 record carries one `opened` attempt for the two
+    desks the operator opened under it (§3, the 004 block).
+
+124. **Render the configured `agent_dir` in messages** — queued
+    2026-09-23 (code; small). The 100 arc's upward report, follow-on row
+    (a): about twenty docstrings and messages still spell
+    `claude/telemetry/`, which names the wrong path in a repo whose
+    `[layout] agent_dir` is set. W2 deferred it and W3 left it open.
+
+125. **`.baleignore` hygiene** — queued 2026-09-23 (small). The 100
+    arc's upward report, follow-on row (e) with its Proposal 2:
+    `bin/__pycache__` ships in packs, and the probe scaffold should
+    exclude caches.
+
+126. **`upgrade.sh`'s member list** — queued 2026-09-23 (decide first).
+    The 100 arc's upward report, follow-on row (b). W3's brief said
+    `upgrade.sh` carries a pre-flight member check among the rename's
+    doc-name sites; its worker found `REQUIRED_RELEASE_MEMBERS` is
+    bin/schemas/tools by design, left the file unchanged, and was
+    ratified at the design sitting (§6 entry 211). What to decide:
+    whether the list names the docs. The report's recommendation did not
+    travel in close 18's request; the deciding desk reads it in the
+    archive (row 100's bracket).
+
+127. **A `pattern` for `provenance.packer`** — queued 2026-09-23 (decide
+    first; needs a format ruling). The 100 arc's upward report,
+    follow-on row (c): the other free-text identity beside
+    `model_identity`, which ruling 4 pinned; the same mechanism, a
+    description and a regex, once the format is ruled.
+
+128. **The arc oracle's mechanical home** — queued 2026-09-23 (decide
+    first). The 100 arc's upward report, follow-on row (f): PLANNER.md
+    §20.1's queued slot for an arc-level oracle still has no mechanical
+    home, and the 100 arc is the third arc to close without one.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -8358,6 +9038,67 @@ record with three homes held as one; recorded at close 17):
   finding's §6, by the fix's notes.md; §6 entry 202). Landed at
   `2026-09-21-split-transition-unconditional-007`, non-board (§3, the
   continue-plan-005 block).
+
+New, ratified 2026-09-22 (the operator's ruling at the
+`2026-09-22-continue-plan-001` desk, in that desk's rendering, carried
+in its brief; confirmed at the `2026-09-22-continue-plan-005` desk by
+his "as assumed" to its light block one, [1]; recorded at close 18):
+
+- **Closes are per wave, not per master.** The contract's first sentence
+  pair, byte-verbatim:
+  Closes are per wave, not per master. A master's last job is the wave's close, after its project work is dispatched.
+  A close waits until its wave has landed and, for an arc, until the
+  sub-master's upward report is in; the 005 desk's block one asked
+  exactly that and was answered "as assumed". Close 18 was the 005
+  desk's last job, authored once the 100 wave and its report were in.
+- **No master between a design sitting and its workers.** Byte-verbatim:
+  More project work, less master grooming: an arc's design sitting authors its own wave's bundles once the operator ratifies the decomposition; no master sits between it and its workers.
+  An arc's design sitting ratifies its own wave's notes.md and reports
+  upward, one master per sitting, so the desk that authored a wave
+  ratifies it (the 005 desk's block one, [2]). First application: the
+  100 arc, `2026-09-23-board-100-design-001` authoring W1 to W3 and
+  ratifying their notes.md (§3, its block; §6 entry 209). Home: this
+  section, until a `docs/PLANNER.md` holder carries both sentences to
+  §6's "Sitting practice" bullet on masters (the §3 registry's cadence
+  rider).
+
+New, ratified 2026-09-23 (the `2026-09-23-board-100-design-001` desk,
+the 100 arc's design sitting and the 004 sitting's successor, by the
+operator's "as assumed" to its four light blocks; the rulings verbatim
+from `implementation-decomposition-revA.md`, one line each, as close
+18's brief carries them; recorded at close 18):
+
+- **Ruling 1.** Landed at W1 (`2026-09-23-board-100-w1-doc-sweep-002`),
+  the noun sweep; W1 engraved the rule in TARBALL.md §1 (ratified at the
+  design sitting).
+  1. Noun: "the agent"; per-hat nouns where a sentence means one hat; "I/me" stays.
+- **Ruling 2.** Landed at W3
+  (`2026-09-23-board-100-w3-file-rename-004`), `docs/CLAUDE.md` to
+  `docs/AGENT.md`; layer 4's key, `[layout] agent_dir`, landed at W2
+  under ruling 8's spelling.
+  2. Depth: layers 1-3 now (CLAUDE.md -> AGENT.md); 4 as a config key only, defaulting to "claude", renaming no existing repo.
+- **Ruling 3.** Landed at W3, `validate.sh` refusing a leftover
+  `docs/CLAUDE.md`; the alias and the `contract_docs` `oneOf` it keeps
+  for good landed at W2.
+  3. Compatibility: no window; enum alias and old contract_docs key set for good; validate.sh refuses a leftover docs/CLAUDE.md.
+- **Ruling 4.** Landed at W1 in the docs and at W2 as the
+  `model_identity` pattern in the schema (row 116).
+  4. model_identity: `<vendor>:<model>`, lowercase, spaces->hyphens, `unknown` model token, no suffix; description + regex in response-manifest.schema.json; the telemetry schema's spelling-consolidation rider retires. includes_missing covers decisions (a path, or a line opening `decision:`); array unchanged. linkage.depends_on: null for a same-session round — a doc pin of the schema's own sentence (response-manifest.schema.json:224), no schema change.
+- **Ruling 5.** Landed at W1, at both sites (row 118).
+  5. "Validate before apply, always" rewords at both sites to: land only through `bale apply`, which validates and stages before it merges; never hand-apply a tarball or bypass a HOLD. Row type stays operator discipline.
+- **Ruling 6.** Landed at W1, the PLANNER.md §6 bullet; the mechanized
+  count is a registry entry, unscheduled.
+  6. Light-block trail: a master self-report in the sitting-close notes (PLANNER.md §6 bullet: count, disposition per block); `light_blocks` stays the worker's field.
+- **Ruling 7.** Landed at W1: AGENT.md §11.7, "Surface notes", one row,
+  claude.ai.
+  7. Surface notes: CLAUDE.md §11.1 keeps its four surface-agnostic rules; the claude.ai specifics (:516, :527-532, :641-643) move to §11.7 "Surface notes" past the core banner, a table keyed by surface, one row today.
+- **Ruling 8.** Landed in part at W2 (`agent-decides` admitted,
+  `[layout] agent_dir`, `CARRIED_TOOLS`) and at W3, the default flipped
+  to `agent-decides` with the argparse order kept.
+  8. Spellings: enum `agent-decides`; `[layout] agent_dir = "claude"`; `INJECTED_TOOLS` -> `CARRIED_TOOLS` (worker may deviate, flagged).
+- **Ruling 9.** The operator's to do: `claude/context/board-100-arc/`,
+  not on the tree at the close-18 probe.
+  9. Archive: this directory, committed directly by the operator as carried artifacts.
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -9513,6 +10254,10 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     did not exist (a global-layer path keyed off the wrong root; a
     stub anchored on unwrapped text) — the `PLANNER.md` §4
     rehearsal rule paying for itself before either oracle shipped.
+    [2026-09-23: specimens two and three at the
+    `2026-09-22-continue-plan-001` desk, caught before delivery (entry
+    207); and the obverse at W3, a probe its desk could not rehearse end
+    to end, reaching apply as a hold (entry 210).]
 
 120. **A sanctioned-pair pin protecting an in-flight edit.** The
     TARBALL.md §3.4 extract includes its terminal period, so the
@@ -10157,6 +10902,10 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     against that surface when it is accepted, not only when it is built.
     (Desk-side and worker-side, close 13 and the 006 and 009 sittings;
     two candidates merged at close 16.)
+    [2026-09-23: obeyed for a whole wave at the
+    `2026-09-22-continue-plan-001` desk, three brief claims corrected by
+    the reading and one still imagined (entry 206); and a ledger fact
+    nobody had read, which traveled to W3's brief (entry 211).]
 
 189. **A board row naming a home the code reserves for someone else.**
     Row 103 names `cost.model_tier` per attempt as its telemetry home.
@@ -10452,6 +11201,117 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     stable phrases survives a sibling's rewrite of its files: PLANNER.md
     §3's known-stale rule, exercised from the oracle's side. (Desk-side,
     the 005 sitting; the records read at close 17.)
+
+205. **The silence probe: a blind oracle holding a correct-looking
+    response.** The tools micro's first attempt printed a `[PASS]` line
+    whose registry description named `forecast_departures` for a path
+    inside the forecast. Its worker's tests had checked for the warning
+    code, not for whole-output silence, and passed; the blind
+    checkpoint's `lint-request-flag-silent-inside-forecast` held it, one
+    failed probe by label. Ruled work-defect at the 001 desk; the retry
+    (warnings carrying a `headline`, descriptions no longer naming their
+    subject word, whole-output silence pinned in the suite) applied
+    seven minutes later on `bale retry`, one claim key grown to end ";
+    silent when all inside". A probe asserting absence over the whole
+    output sees what a presence test cannot. Companion to entry 119's
+    class, from the live side. (Worker-side and desk-side, the tools
+    micro and the 001 sitting; Part 2's candidate at close 18.)
+
+206. **A desk that read the code for a whole wave.** The
+    `2026-09-22-continue-plan-001` desk read the code every micro source
+    named before writing either brief, the first desk to obey entry
+    188's rule for a whole wave. The reading corrected three brief
+    claims before dispatch: `--fragment` already existed, relay wrote no
+    telemetry at all, and `stamp_swept_by` already existed. One went out
+    imagined anyway: the rider brief said `test_rollback_telemetry` had
+    an envelope-subset guard, and the rider's worker wrote a real one.
+    Reading the code cut the imagined surfaces from many to one; it did
+    not make them zero. (Desk-side, the 001 sitting; Part 2's candidate
+    at close 18.)
+
+207. **Rehearsal caught two oracle defects; a dress rehearsal opened two
+    sessions together.** At the 001 desk rehearsal caught, before
+    delivery, a fixture that declared its own departure once seeding
+    landed, and `record_version` imagined as an enum where the schema
+    pins `minimum: 1`. Both micros were then opened through the real
+    `bale open` in a scratch repo, isolated `HOME` and piped stdin, argv
+    replayed, the rider pack admitted by the disjointness gate with the
+    tools session open, as entry 190's desk did for wave 8. Entry 119's
+    class, specimens two and three; both micros applied with every claim
+    `agree`, the tools micro after one work-defect hold (entry 205).
+    (Desk-side, the 001 sitting; Part 2's candidate at close 18.)
+
+208. **Paired desks: de-correlated greps, correlated framing.** The
+    `2026-09-22-board-100-design-004` sitting ran two planner desks
+    under one sid. Their first turns were independent and their greps
+    diverged, which is what pairing buys; their framing did not, both
+    working from one brief, and neither saw `bale pack`'s include gate
+    on `--include claude/checkpoints` until a paste was refused. That
+    refused pack had already closed the parent, and the item the desks
+    signed says so: "recovered is not never happened" (row 121). Two
+    light blocks went out under the one sid, neither was answered, and
+    no record holds them: close 17's Proposal 2 with a live specimen.
+    Re-derived independently, the revc bundle came out byte-identical on
+    both desks, a determinism claim both desks worded as observed twice,
+    not proven (item 9). Paired desks are recorded here as evidence, not
+    as a sitting kind: the upward report's Proposal 1 reads the pattern
+    that worked as a ledger plus a successor re-verifying where it
+    builds (§3 registry). (Desk-side, the 004 sitting; its merged file,
+    read at the 005 desk.)
+
+209. **The cadence's first application.** The
+    `2026-09-23-board-100-design-001` desk authored and ratified its own
+    wave with no master between: the successor opened at 00:26:04Z, and
+    W1, W2 and W3 applied at 01:45:46Z, 01:54:02Z and 03:07:57Z, three
+    sessions and two bumps, 0.4.42 and 0.4.43, landed before the
+    close-18 probe at 03:15Z. The one hold was ruled at the desk that
+    wrote the oracle, the three notes.md were ratified there, and the
+    upward report reached the master's desk with the three relays; the
+    close waited for it, per §5's 2026-09-22 block. What it cost: the
+    successor's sid went unswept (entry 212), and one oracle probe went
+    out that its desk could not dry-run (entry 210). (Desk-side, the
+    design-001 sitting; recorded at close 18.)
+
+210. **A probe the desk could not run, and an unlabeled exit 1 read as a
+    verdict.** W3's checkpoint v1 exited 1 with no failed-probe label
+    while every labeled probe passed and the worker's five claims came
+    back observed and `agree`. The design sitting ruled a fixture defect
+    (PLANNER.md §5 step 6): a probe piped the pack report into
+    `python3 -` while feeding the script by heredoc, so `json.load` read
+    nothing and `|| status=1` recorded a defect as a verdict, a probe
+    the desk could not dry-run end to end and had flagged on-watch in
+    its own report. v2 changed probe 3 only and routed every non-probe
+    failure to exit 2 (sha256 `b8c69ae8…`, row 100); it was amended on
+    the tree, and the held tarball applied on `bale retry` with no
+    worker retry. PLANNER.md §4's fixture-defect watch, exercised: an
+    oracle's exit 1 means a check failed only if its own errors route to
+    2. Row 122's second half is the proposed rehearsal. (Desk-side, the
+    design-001 sitting; W3's record.)
+
+211. **A wrong ledger fact that traveled two desks and a successor.**
+    W3's brief listed `upgrade.sh`'s "pre-flight member check" among the
+    rename's doc-name sites. It is none: `REQUIRED_RELEASE_MEMBERS` is
+    bin/schemas/tools by design. The fact came from the parent ledger,
+    crossed the two 004 desks and the successor unverified, and was
+    caught by W3's worker reading the file, which it left unchanged and
+    named (ratified at the design sitting; row 126). The report's other
+    [w3] corrections: the doc-name sites were `build.sh`, `install.sh`
+    and `validate.sh` only; W2's close tally was 1506/48; nine cites had
+    drifted 1 to 15 lines, all resolved by phrase match. Entry 188's
+    family on the ledger side, and the case for item 5's tagging: a
+    ledger line that names who verified it can be told from one that
+    nobody did. (Worker-side, W3; the upward report as the 005 desk
+    digested it.)
+
+212. **An unswept successor sid.** The successor's read-only sid was not
+    swept by any of its three children's opens, each a `bale open`
+    replay, where the 004 open swept the 001 master and the successor's
+    own open swept the 005 master. Its record reads `opened`, and the
+    file is untracked because no closure committed it (the close-18
+    probe, 03:15Z). A design sitting that authors its own wave outlives
+    later packs by the cadence's design, so whether its sid should
+    close, and when, is the new watch's question; recorded as a watch,
+    not a defect, by the 005 desk's call. (Records, at close 18.)
 
 ## 7. Standing environment facts
 
@@ -10797,6 +11657,40 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   walks the tree after it (the doc lane's worker's read of
   `bin/bale_staging.py`), and TARBALL.md §7.1 says the printed list is
   the whole of the check (row 120).
+- Version landmark: 0.4.43 (`2026-09-23-board-100-w3-file-rename-004`);
+  W2 took 0.4.42 (`2026-09-23-board-100-w2-code-surfaces-003`) and the
+  rider micro 0.4.41 (`2026-09-22-rider-micro-003`). The tools micro, W1
+  and close 18 are bumpless. The suite stands at 1507 tests, 48 skipped,
+  and `validate.sh` at 93 checks, by W3's landing as the 005 desk read
+  it.
+- `docs/CLAUDE.md` is `docs/AGENT.md` since 0.4.43; the five globals are
+  AGENT.md, TARBALL.md, DOCS.md, CODE.md and PLANNER.md, and
+  `validate.sh` refuses a leftover `docs/CLAUDE.md` (ruling 3). Earlier
+  text in this doc says CLAUDE.md where it was the name at the time.
+- `expects_probe` defaults to `agent-decides`, and `claude-decides` is
+  accepted for good; `[layout] agent_dir` defaults to `claude`, and no
+  existing repo is renamed; `contract_docs` validates under either key
+  set; `model_identity` is `<vendor>:<model>`, pinned as a pattern;
+  `INJECTED_TOOLS` is `CARRIED_TOOLS` (§5, 2026-09-23).
+- At the close-18 probe, 2026-09-23T03:15Z: git `d855163` on `main`,
+  bale 0.4.43 by `bin/VERSION`, one untracked file,
+  `claude/telemetry/2026-09-23-board-100-design-001.json`; `bale.toml`
+  pins `[validation] base = "claude/checkpoints/{sid}.sh"`;
+  `claude/context/board-100-arc/` did not exist. The 005 desk verified
+  the five `docs/` and both `tools/` byte-identical to its carried
+  copies, and `claude/MASTER.md` at 10816 lines, `a8bbbeee…70a9`; close
+  18 found the same line count and sha256 on its base before inserting.
+- In records written since 0.4.41, an `opened` attempt from a bundle
+  carries `bundle` (stem, `brief_sha256`, `checkpoint_sha256`,
+  `manifest_sha256`), a `rejected` attempt carries `cause`, and
+  `relay-refused` is written for refusals of the input itself; the
+  earlier bullet's "no record names the bundle" holds for older records
+  only.
+- `bale pack`'s include gate refuses an `--include` naming the
+  checkpoint pattern's subtree, `claude/checkpoints`; broader ancestors
+  are fine and auto-exclude (the paired-desk sitting's item 3). At
+  0.4.41 a refused pack carrying `--supersedes` could close the parent
+  before the gate fired (row 121).
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
