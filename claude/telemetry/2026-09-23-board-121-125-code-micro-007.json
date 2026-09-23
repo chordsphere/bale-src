@@ -1,0 +1,933 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-23-board-121-125-code-micro-007",
+  "created_at": "2026-09-23T12:03:38+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-23T12:03:38+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-121-125-code-micro-007.log",
+      "bundle": {
+        "stem": "2026-09-23-board-121-125-code-micro",
+        "brief_sha256": "282d0693942ccfd49832f648c11fb562c31de4590b008ec2081c6e67d3368b72",
+        "checkpoint_sha256": "9b39a9d7e5ebf3792a0aa8b87be0fa73bba11df04469cad82dbadd2f586a6fad",
+        "manifest_sha256": "212bc3fcaff12554c98a7d48d841f11171f14da4c04011e4dc355c8b400b3d45"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-23T12:03:38+00:00"
+      }
+    },
+    {
+      "at": "2026-09-23T13:11:26+00:00",
+      "outcome": "held",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-23-board-121-125-code-micro-007.tar.gz",
+      "validation": {
+        "state": "HOLD",
+        "exit_code": 0,
+        "claims": {
+          "unittest tests/test_supersession_pack.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_pack_guards.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_open_verb.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_provenance_at_open.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_craft_response.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_response_lint.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_context_pack.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_cli_help.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_stats_drilldown.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_changelog_record.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_global_doc_selfcontainment.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_probe_clipboard_config.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_rollback_telemetry.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 121: argv-only gates refuse before the supersession exchange": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 123: a second open records a desk on the same sid": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 124: messages render the configured agent_dir": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 124: remaining claude/telemetry literals state the default": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 125: probe scaffold names __pycache__": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 125: packs ship no __pycache__ member": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: lint warns on a declared departure that is not one": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: crafter refuses a --pack-arg naming the checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: handoff-side opens stamp command handoff": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bump: VERSION 0.4.44 with its changelog record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest tests/test_supersession_pack.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_pack_guards.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_open_verb.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_provenance_at_open.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_craft_response.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_response_lint.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_context_pack.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_cli_help.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_stats_drilldown.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_changelog_record.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_global_doc_selfcontainment.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_probe_clipboard_config.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_rollback_telemetry.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 121: argv-only gates refuse before the supersession exchange": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 123: a second open records a desk on the same sid": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 124: messages render the configured agent_dir": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 124: remaining claude/telemetry literals state the default": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 125: probe scaffold names __pycache__": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 125: packs ship no __pycache__ member": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: lint warns on a declared departure that is not one": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: crafter refuses a --pack-arg naming the checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: handoff-side opens stamp command handoff": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bump: VERSION 0.4.44 with its changelog record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, json)",
+          "unittest tests/test_supersession_pack.py",
+          "unittest tests/test_pack_guards.py",
+          "unittest tests/test_open_verb.py",
+          "unittest tests/test_provenance_at_open.py",
+          "unittest tests/test_craft_response.py",
+          "unittest tests/test_response_lint.py",
+          "unittest tests/test_context_pack.py",
+          "unittest tests/test_cli_help.py",
+          "unittest tests/test_stats_drilldown.py",
+          "unittest tests/test_changelog_record.py",
+          "unittest tests/test_global_doc_selfcontainment.py",
+          "unittest tests/test_probe_clipboard_config.py",
+          "unittest tests/test_rollback_telemetry.py",
+          "row 121: argv-only gates refuse before the supersession exchange",
+          "row 123: a second open records a desk on the same sid",
+          "row 124: messages render the configured agent_dir",
+          "row 124: remaining claude/telemetry literals state the default",
+          "row 125: probe scaffold names __pycache__",
+          "row 125: packs ship no __pycache__ member",
+          "rider: lint warns on a declared departure that is not one",
+          "rider: crafter refuses a --pack-arg naming the checkpoint",
+          "rider: handoff-side opens stamp command handoff",
+          "bump: VERSION 0.4.44 with its changelog record",
+          "exec bits: bin/bale, tools/craft_response.py, tools/response_lint.py"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog/0.4.44.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.43",
+            "contract_docs": {
+              "AGENT.md": "dd22b82cf4b3dc146fa813a862ab03c32d0b94faf8bab5e51218e6cdd5578fed",
+              "TARBALL.md": "7f355f3968604619c2f17d7ff90297f7aba174bc87eb70be7fb0a1df7dfddcb2",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-23-board-121-125-code-micro-007.sh",
+              "sha256": "9b39a9d7e5ebf3792a0aa8b87be0fa73bba11df04469cad82dbadd2f586a6fad"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-23T12:03:38+00:00",
+            "base_files": {
+              "bin/VERSION": "81d23cbc7309058bbd0b0d0c58ae6ecd866c230315a79813b72b62ef2f312d1d",
+              "bin/_bale_toml.py": "5c56a796187ff12d2e9a55fec2336b9634cbcb3478b907a1c1fc17ac22d7bdb3",
+              "bin/bale": "ed8c6e4b58b072c06ba9fd6b28b9561bab294a2dade3769559a77735250ed4fb",
+              "bin/bale_apply.py": "002a4a9595a6728ba05b22d9c9e9beba0d657646048996773ca828873bccfbe0",
+              "bin/bale_config.py": "0abc4946c5f3b6e7167cd70f42a15ea2dea74e4599d4bab032a3204875325f05",
+              "bin/bale_open.py": "ba4a4f2cdb844404961ec6e42701a7e1f3c5d5fc5dd0025a58cea32f9ec9cf95",
+              "bin/bale_pack.py": "a70a0326b93dcbd2d366b8f944c980cb450423017ad8feeb8a429b10d560c5fa",
+              "bin/bale_relay.py": "f302441257cc26090af435f2ea826125aa9a9a8f027ef14d7663da392fec48cd",
+              "bin/bale_report.py": "aef79fc15f88c6fc771c899496d4aa9e0f06bae3d1d63256ae496b4977d0aafa",
+              "bin/bale_rollback.py": "f34bb1b05c1f8e3b3899cd19161173c3cf53b18378e099a39e55b79c89094383",
+              "bin/bale_sandbox.py": "e2950ff6f736b02b564ef7d532c022279488da7703f5a339aebcd0109989b744",
+              "bin/bale_staging.py": "e0a1ea3897f20495c16f63cd37e71998922693753dcd162e88328e42a4103a89",
+              "bin/bale_stats.py": "46d6d2adf78972855eab21b581dd4f94cb30cce63024320d202d3c6c12344794",
+              "bin/bale_validate.py": "c67ed5358eacaa2a698de081271bf00ab75b513ad2d52a17969a3988277dc8c4",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "schemas/telemetry-record.schema.json": "c7e6fc6c1681710ca92cbf676708c23dec6daf8511b9639d6d74ddcff7a3c485",
+              "tests/test_cli_help.py": "4b9780fbd76905c04026d01e8d9d33e45e438b559f90c6f55b0c843e18c65956",
+              "tests/test_context_pack.py": "fc1acf62b6ae57990e0f8b7f70e5e2e9c7bed8117f73ab6c13c60d6edd9e0bea",
+              "tests/test_craft_response.py": "1a2a92a83747749584a3cadf6fe89242fe95b6732f94d23094877174a0019135",
+              "tests/test_open_verb.py": "93167de060f1ddda1108cacf5bde147ef3d63607ea7d0634e55db5095e264bba",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_provenance_at_open.py": "86b60570bcf2563cab2fb2f830b5e1cbfca00a3a7b7ce3c262662c6b7d9c3fc2",
+              "tests/test_response_lint.py": "ac9afdb6f184ff638debe286585d2e0e0e7e07b656ddcb12125caf15b7f46ebb",
+              "tests/test_stats_drilldown.py": "65a32805e8b56047330c74c2ab3a5c3d1fcd94a9da43be2431b164247801be51",
+              "tests/test_supersession_pack.py": "462471b3f7b3fe0ad9c445f8133b705bb07a9391d9e7d1b8f3226893e27dd832",
+              "tools/craft_response.py": "e08e6a88544ebda17531c20ad26501980b2ae9856b500d8636020ad3b94b08c9",
+              "tools/response_lint.py": "92d8492f8f7468b33e49b5d6759a97a8228d2977b9cf3f98e76f9e650a915f98"
+            },
+            "model_identity": "anthropic:claude-opus-5.5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the desk value scheme (desk-N, the first open implicit desk-1) and the <sid>@desk-N name are mine to choose, per the brief",
+            "a second-desk attempt should stamp command 'open' (an additive enum value) rather than 'pack', since no pack runs on that path",
+            "bale.toml's [layout] agent_dir is the only configured-home source help text needs; an unreadable config renders the default with a note"
+          ],
+          "judgment_calls": [
+            "row 121 moves more argv-only gates than the brief named (slug/goal, bundle naming, cap values) and moves the whole blindness gate on the non-deferred path",
+            "row 121 sited as a new pre-exchange pass in cmd_pack; pack_argv_preflight untouched for row 122",
+            "row 123 refuses a desk once the record holds an apply-side event, and sweeps the record only when already tracked",
+            "row 124's stats one-liner names no path; the description renders the home lazily at help time",
+            "row 125: no pack-side leak found; the test child process writing bin/__pycache__ fixed instead; the pack pin is a regression guard that passes on both trees",
+            "rider 3's code half had already landed; shipped only the named test and the stale schema description",
+            "reworded my own pass log line to avoid 'planner-bundle', which test_bundle_denylist reserves, rather than edit that out-of-forecast suite"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (META through 11.2, 11.7)",
+            "README.md (the brief)",
+            "TARBALL.md (INDEX, 1, 2, 5, 7, 10.1)",
+            "bale.toml"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-23-board-121-125-code-micro-007.log",
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "HOLD",
+        "exit_code": 2,
+        "script": {
+          "path": "claude/checkpoints/2026-09-23-board-121-125-code-micro-007.sh",
+          "sha256": "9b39a9d7e5ebf3792a0aa8b87be0fa73bba11df04469cad82dbadd2f586a6fad"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    },
+    {
+      "at": "2026-09-23T13:27:11+00:00",
+      "outcome": "rejected",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-23-board-121-125-code-micro-007.tar.gz",
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-121-125-code-micro-007.log",
+      "cause": "[REJECT] blind checkpoint changed since pack (board 6 provenance contract): the base-tree bytes about to run \u2014 'claude/checkpoints/2026-09-23-board-121-125-code-micro-007.sh' at main's tip (2838b60), sha256 630f1c93c18e \u2014 do not match the request's pack-time provenance stamp: the request stamped sha256 9b39a9d7e5eb for this path. The oracle changed between pack and apply; a legitimate planner edit and interference look identical from here, and either is worth stopping for. Remedies: re-pack against the current tip so the session runs under the oracle the planner ratified; or accept the change deliberately with --accept-checkpoint-change (per-invocation), which executes the current base-tree version \u2014 the planner's latest committed oracle, never the stale stamped bytes \u2014 logs a FORCE: line, and records stamp_matched: false in the attempt's telemetry stamp."
+    },
+    {
+      "at": "2026-09-23T13:37:44+00:00",
+      "outcome": "applied",
+      "command": "retry",
+      "closure_reason": null,
+      "tarball": "response-2026-09-23-board-121-125-code-micro-007.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest tests/test_supersession_pack.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_pack_guards.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_open_verb.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_provenance_at_open.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_craft_response.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_response_lint.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_context_pack.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_cli_help.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_stats_drilldown.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_changelog_record.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_global_doc_selfcontainment.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_probe_clipboard_config.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest tests/test_rollback_telemetry.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 121: argv-only gates refuse before the supersession exchange": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 123: a second open records a desk on the same sid": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 124: messages render the configured agent_dir": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 124: remaining claude/telemetry literals state the default": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 125: probe scaffold names __pycache__": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "row 125: packs ship no __pycache__ member": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: lint warns on a declared departure that is not one": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: crafter refuses a --pack-arg naming the checkpoint": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "rider: handoff-side opens stamp command handoff": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bump: VERSION 0.4.44 with its changelog record": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest tests/test_supersession_pack.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_pack_guards.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_open_verb.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_provenance_at_open.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_craft_response.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_response_lint.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_context_pack.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_cli_help.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_stats_drilldown.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_changelog_record.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_global_doc_selfcontainment.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_probe_clipboard_config.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest tests/test_rollback_telemetry.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 121: argv-only gates refuse before the supersession exchange": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 123: a second open records a desk on the same sid": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 124: messages render the configured agent_dir": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 124: remaining claude/telemetry literals state the default": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 125: probe scaffold names __pycache__": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "row 125: packs ship no __pycache__ member": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: lint warns on a declared departure that is not one": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: crafter refuses a --pack-arg naming the checkpoint": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "rider: handoff-side opens stamp command handoff": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bump: VERSION 0.4.44 with its changelog record": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, json)",
+          "unittest tests/test_supersession_pack.py",
+          "unittest tests/test_pack_guards.py",
+          "unittest tests/test_open_verb.py",
+          "unittest tests/test_provenance_at_open.py",
+          "unittest tests/test_craft_response.py",
+          "unittest tests/test_response_lint.py",
+          "unittest tests/test_context_pack.py",
+          "unittest tests/test_cli_help.py",
+          "unittest tests/test_stats_drilldown.py",
+          "unittest tests/test_changelog_record.py",
+          "unittest tests/test_global_doc_selfcontainment.py",
+          "unittest tests/test_probe_clipboard_config.py",
+          "unittest tests/test_rollback_telemetry.py",
+          "row 121: argv-only gates refuse before the supersession exchange",
+          "row 123: a second open records a desk on the same sid",
+          "row 124: messages render the configured agent_dir",
+          "row 124: remaining claude/telemetry literals state the default",
+          "row 125: probe scaffold names __pycache__",
+          "row 125: packs ship no __pycache__ member",
+          "rider: lint warns on a declared departure that is not one",
+          "rider: crafter refuses a --pack-arg naming the checkpoint",
+          "rider: handoff-side opens stamp command handoff",
+          "bump: VERSION 0.4.44 with its changelog record",
+          "exec bits: bin/bale, tools/craft_response.py, tools/response_lint.py"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin",
+        "claude/changelog",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_guards.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_stats.py",
+        "claude/changelog/0.4.44.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_open_verb.py",
+        "tests/test_provenance_at_open.py",
+        "tests/test_response_lint.py",
+        "tests/test_stats_drilldown.py",
+        "tests/test_supersession_pack.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.43",
+            "contract_docs": {
+              "AGENT.md": "dd22b82cf4b3dc146fa813a862ab03c32d0b94faf8bab5e51218e6cdd5578fed",
+              "TARBALL.md": "7f355f3968604619c2f17d7ff90297f7aba174bc87eb70be7fb0a1df7dfddcb2",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-23-board-121-125-code-micro-007.sh",
+              "sha256": "9b39a9d7e5ebf3792a0aa8b87be0fa73bba11df04469cad82dbadd2f586a6fad"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-23T12:03:38+00:00",
+            "base_files": {
+              "bin/VERSION": "81d23cbc7309058bbd0b0d0c58ae6ecd866c230315a79813b72b62ef2f312d1d",
+              "bin/_bale_toml.py": "5c56a796187ff12d2e9a55fec2336b9634cbcb3478b907a1c1fc17ac22d7bdb3",
+              "bin/bale": "ed8c6e4b58b072c06ba9fd6b28b9561bab294a2dade3769559a77735250ed4fb",
+              "bin/bale_apply.py": "002a4a9595a6728ba05b22d9c9e9beba0d657646048996773ca828873bccfbe0",
+              "bin/bale_config.py": "0abc4946c5f3b6e7167cd70f42a15ea2dea74e4599d4bab032a3204875325f05",
+              "bin/bale_open.py": "ba4a4f2cdb844404961ec6e42701a7e1f3c5d5fc5dd0025a58cea32f9ec9cf95",
+              "bin/bale_pack.py": "a70a0326b93dcbd2d366b8f944c980cb450423017ad8feeb8a429b10d560c5fa",
+              "bin/bale_relay.py": "f302441257cc26090af435f2ea826125aa9a9a8f027ef14d7663da392fec48cd",
+              "bin/bale_report.py": "aef79fc15f88c6fc771c899496d4aa9e0f06bae3d1d63256ae496b4977d0aafa",
+              "bin/bale_rollback.py": "f34bb1b05c1f8e3b3899cd19161173c3cf53b18378e099a39e55b79c89094383",
+              "bin/bale_sandbox.py": "e2950ff6f736b02b564ef7d532c022279488da7703f5a339aebcd0109989b744",
+              "bin/bale_staging.py": "e0a1ea3897f20495c16f63cd37e71998922693753dcd162e88328e42a4103a89",
+              "bin/bale_stats.py": "46d6d2adf78972855eab21b581dd4f94cb30cce63024320d202d3c6c12344794",
+              "bin/bale_validate.py": "c67ed5358eacaa2a698de081271bf00ab75b513ad2d52a17969a3988277dc8c4",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "schemas/telemetry-record.schema.json": "c7e6fc6c1681710ca92cbf676708c23dec6daf8511b9639d6d74ddcff7a3c485",
+              "tests/test_cli_help.py": "4b9780fbd76905c04026d01e8d9d33e45e438b559f90c6f55b0c843e18c65956",
+              "tests/test_context_pack.py": "fc1acf62b6ae57990e0f8b7f70e5e2e9c7bed8117f73ab6c13c60d6edd9e0bea",
+              "tests/test_craft_response.py": "1a2a92a83747749584a3cadf6fe89242fe95b6732f94d23094877174a0019135",
+              "tests/test_open_verb.py": "93167de060f1ddda1108cacf5bde147ef3d63607ea7d0634e55db5095e264bba",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_provenance_at_open.py": "86b60570bcf2563cab2fb2f830b5e1cbfca00a3a7b7ce3c262662c6b7d9c3fc2",
+              "tests/test_response_lint.py": "ac9afdb6f184ff638debe286585d2e0e0e7e07b656ddcb12125caf15b7f46ebb",
+              "tests/test_stats_drilldown.py": "65a32805e8b56047330c74c2ab3a5c3d1fcd94a9da43be2431b164247801be51",
+              "tests/test_supersession_pack.py": "462471b3f7b3fe0ad9c445f8133b705bb07a9391d9e7d1b8f3226893e27dd832",
+              "tools/craft_response.py": "e08e6a88544ebda17531c20ad26501980b2ae9856b500d8636020ad3b94b08c9",
+              "tools/response_lint.py": "92d8492f8f7468b33e49b5d6759a97a8228d2977b9cf3f98e76f9e650a915f98"
+            },
+            "model_identity": "anthropic:claude-opus-5.5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the desk value scheme (desk-N, the first open implicit desk-1) and the <sid>@desk-N name are mine to choose, per the brief",
+            "a second-desk attempt should stamp command 'open' (an additive enum value) rather than 'pack', since no pack runs on that path",
+            "bale.toml's [layout] agent_dir is the only configured-home source help text needs; an unreadable config renders the default with a note"
+          ],
+          "judgment_calls": [
+            "row 121 moves more argv-only gates than the brief named (slug/goal, bundle naming, cap values) and moves the whole blindness gate on the non-deferred path",
+            "row 121 sited as a new pre-exchange pass in cmd_pack; pack_argv_preflight untouched for row 122",
+            "row 123 refuses a desk once the record holds an apply-side event, and sweeps the record only when already tracked",
+            "row 124's stats one-liner names no path; the description renders the home lazily at help time",
+            "row 125: no pack-side leak found; the test child process writing bin/__pycache__ fixed instead; the pack pin is a regression guard that passes on both trees",
+            "rider 3's code half had already landed; shipped only the named test and the stale schema description",
+            "reworded my own pass log line to avoid 'planner-bundle', which test_bundle_denylist reserves, rather than edit that out-of-forecast suite"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (META through 11.2, 11.7)",
+            "README.md (the brief)",
+            "TARBALL.md (INDEX, 1, 2, 5, 7, 10.1)",
+            "bale.toml"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-23-board-121-125-code-micro-007.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-23-board-121-125-code-micro-007.sh",
+          "sha256": "630f1c93c18e6aa409099c499fcbcb961b17d200c568a13a47fc087bfc7a4c35"
+        },
+        "stamp_matched": false,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-23T13:37:44+00:00",
+  "outcome": "applied"
+}
