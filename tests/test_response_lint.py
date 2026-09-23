@@ -265,7 +265,7 @@ class EmitFeedbackMechanical(unittest.TestCase):
         self.fill_manifest(feedback=fb)
         manifest = json.loads(mpath.read_text())
         manifest["feedback"]["mechanical"]["provenance"][
-            "model_identity"] = "fixture-model"
+            "model_identity"] = "fixture:model"
         manifest["feedback"]["self_reported"].update(
             budget_pressure="none", docs_read=["CLAUDE.md"],
             compaction_occurred={"occurred": False, "disclosure_ref": None})

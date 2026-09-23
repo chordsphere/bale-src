@@ -10,7 +10,7 @@ material. The contract under test, outcome by outcome:
   ``<dir>/.bale/outbox/context-<dir>.tar.gz``, exits 0 with piped stdin,
   and carries the tree's files byte for byte under one ``<dir>/``
   folder — and nothing a request carries: no manifest.json, none of the
-  five injected docs, neither injected tool.
+  five carried docs, neither carried tool.
 - It is session-less: no sid (no day counter), nothing under
   ``.bale/sessions/``, no lock, no telemetry record, no session log, no
   opener, no .gitignore edit, no commit; outside a git work tree no
@@ -62,7 +62,7 @@ from harness import (
 )
 
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md", "PLANNER.md")
-INJECTED_TOOLS = ("craft_response.py", "response_lint.py")
+CARRIED_TOOLS = ("craft_response.py", "response_lint.py")
 OPENER_MARKERS = ("--8<-- session opener", "--8<-- end session opener")
 
 
@@ -161,7 +161,7 @@ class NonGitDirectoryTest(_Sandbox):
                             / "context-notes-tree.tar.gz")
         basenames = {n.rsplit("/", 1)[-1] for n in names}
         self.assertNotIn("manifest.json", basenames)
-        for doc in GLOBAL_DOCS + INJECTED_TOOLS:
+        for doc in GLOBAL_DOCS + CARRIED_TOOLS:
             self.assertNotIn(doc, basenames)
 
     def test_filters_keep_secrets_junk_and_bundles_out(self) -> None:

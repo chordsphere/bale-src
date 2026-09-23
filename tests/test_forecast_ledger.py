@@ -191,7 +191,7 @@ def _feedback(work_class: str = "code", departures: list = None) -> dict:
                                   "DOCS.md": "x", "CODE.md": "x"},
                 "packer": "fixture",
                 "work_class": work_class,
-                "model_identity": "fixture",
+                "model_identity": "fixture:model",
             },
         },
         "self_reported": reported,

@@ -49,7 +49,10 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   `compaction_occurred: {}`) so an unfilled block cannot pass, plus
   one optional stub, `docs_read: []` (schema-valid: fill it with the
   docs and sections read, or drop the key to report nothing). The
-  worker fills `model_identity` and `self_reported` BEFORE running
+  worker fills `model_identity` (`<vendor>:<model>`, lowercase,
+  e.g. `anthropic:unknown` when the exact model string is not
+  visible — the response schema's pattern refuses free text) and
+  `self_reported` BEFORE running
   the emitter — a schema gap at emit time would poison the emitted
   `schema_valid` — then pastes the emitter's four values in. For a
   normal response it also seeds `self_reported.forecast_departures`
@@ -140,7 +143,7 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   normalized bytes — the format's own rule, so a transport-mangled
   copy still verifies. The stored `pack_argv` never carries the
   delivery flags (`--readme-file` / `--checkpoint-file`) or the
-  `pack` verb itself — the consumer injects delivery from member
+  `pack` verb itself — the consumer supplies delivery from member
   presence — and the tool refuses an argv that tries (argument
   hygiene, same posture as the rest of this surface). Pre-answered
   intents (`--pre-answered PROMPT=SUBJECT`, closed vocabulary:
@@ -342,7 +345,7 @@ KINDS = ("normal", "bailout", "clarification")
 BUNDLE_SUFFIX = ".bale-bundle"
 INTENT_PROMPTS = ("supersede",)
 
-# The two delivery flags the CONSUMER injects from member presence —
+# The two delivery flags the CONSUMER supplies from member presence —
 # never stored in pack_argv (the member's presence is the single
 # source, so the stored argv can never disagree with the shipped
 # bytes). The emitter refuses an argv naming one, bare or =-glued; the
@@ -792,11 +795,11 @@ def pack_arg_problem(token: str, index: int) -> str | None:
     fails at the desk, where the fix is immediate:
 
     - the delivery flags are never stored (bare or =-glued) — the
-      consumer injects them from member presence, the single source;
+      consumer supplies them from member presence, the single source;
     - the array is the vector AFTER the pack subcommand, so a leading
       'pack' token is a composition error;
     - `--no-readme` is likewise never stored: a null brief slot is
-      the one spelling of no-brief, and the consumer injects the
+      the one spelling of no-brief, and the consumer supplies the
       flag from it (emitter-side hygiene past the gate — flagged as
       such where this tool's docs name it).
     """
@@ -805,13 +808,13 @@ def pack_arg_problem(token: str, index: int) -> str | None:
     for banned in DELIVERY_FLAGS:
         if token == banned or token.startswith(banned + "="):
             return (f"pack_argv[{index}] carries the delivery flag "
-                    f"{banned} — the consumer injects it from member "
+                    f"{banned} — the consumer supplies it from member "
                     f"presence (--brief / --checkpoint are this "
                     f"tool's spellings); never store it")
     if token == "--no-readme":
         return (f"pack_argv[{index}] carries --no-readme — a no-brief "
                 "bundle is spelled --no-brief here, and the consumer "
-                "injects the flag from the null brief slot")
+                "supplies the flag from the null brief slot")
     if index == 0 and token == "pack":
         return ("pack_argv[0] is 'pack' — the array is the argument "
                 "vector AFTER the pack subcommand; drop the verb")
@@ -931,7 +934,7 @@ def read_bundle_input(label: str, path_str: str) -> bytes | str:
 #
 # This tool imports nothing from bale because it
 # runs in a worker session where no bale install exists; and there is no
-# schema file to fall back on either, because TARBALL.md §3.1 injects
+# schema file to fall back on either, because TARBALL.md §3.1 carries
 # exactly the five global docs and the two tools into a request. A
 # project's own `schemas/` reaches `context/` only when its packer names
 # it, and §3.1 permits even that copy to be a partial extract. A lookup
@@ -1955,7 +1958,7 @@ def build_feedback(kind: str, provenance: dict | None) -> dict:
     echo: dict | None = None
     if provenance is not None:
         echo = dict(provenance)
-        echo["model_identity"] = ""      # worker fills: self-reported
+        echo["model_identity"] = ""      # worker fills: <vendor>:<model>
     return {
         "mechanical": {
             "response_kind": kind,
@@ -2535,7 +2538,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("--no-brief", action="store_true",
                     help="with --bundle: pack a deliberate no-brief bundle "
                          "(members.brief is an explicit null; the consumer "
-                         "injects --no-readme from it)")
+                         "supplies --no-readme from it)")
     ap.add_argument("--checkpoint", default=None, metavar="FILE",
                     help="with --bundle: the blind-checkpoint member's file "
                          "(stored flat as checkpoint.sh); absent means "
@@ -3147,7 +3150,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"verbatim from {args.request} ({len(provenance)} key(s), "
                 "bale_version "
                 f"{provenance.get('bale_version', '?')}) plus an empty "
-                "model_identity — fill model_identity (self-reported) and "
+                "model_identity — fill model_identity (self-reported, "
+                "as <vendor>:<model> in lowercase, e.g. anthropic:unknown "
+                "when the exact model string is not visible) and "
                 "self_reported before running the lint's "
                 "--emit-feedback-mechanical, then paste its four values "
                 "over the seeded placeholders")
@@ -3343,6 +3348,7 @@ def main(argv: list[str] | None = None) -> int:
         }[kind]
         if feedback is not None:
             fill += (", plus feedback.mechanical.provenance.model_identity "
+                     "(<vendor>:<model>, lowercase) "
                      "and the self_reported stream (before the lint's "
                      "--emit-feedback-mechanical)")
         log(f"wrote {names} — {fill}, then run tools/response_lint.py")

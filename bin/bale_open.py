@@ -35,12 +35,12 @@ does everything the old ceremony spread across hand-typed steps:
    oracle passes before any work landed) proceeds with a loud
    vacuous-oracle warning — the row ratifies only the exit-2 refusal,
    and an all-invariant checkpoint is the planner's call to make.
-5. **Replay the pack argv** with delivery-flag injection: the stored
+5. **Replay the pack argv** with the delivery flags supplied: the stored
    `pack_argv` never carries `--readme-file`/`--checkpoint-file`
    (validate_bundle_manifest refuses a stored one); this module
    appends them pointing at the extracted members — `--no-readme`
    when the brief slot is an explicit null — so member presence is
-   the single source for flag injection. The bundle's `pre_answered`
+   the single source for the flags. The bundle's `pre_answered`
    intents ride in on the in-process channel (the `pre_answered`
    namespace attribute cmd_pack reads; BALE.md §6.7 — no CLI flag
    can spell one), routed *through* every decline-default exchange,
@@ -489,13 +489,13 @@ def dry_run_checkpoint(repo: Path, script_bytes: bytes, member_name: str,
 # ---------------------------------------------------------------------------
 
 def compose_pack_argv(manifest: dict, extracted: dict[str, Path]) -> list[str]:
-    """Return the full `pack` argv: the stored vector plus the injected
+    """Return the full `pack` argv: the stored vector plus the supplied
     delivery flags.
 
     The stored `pack_argv` is the argument vector AFTER the `pack`
     subcommand and never carries a delivery flag
     (validate_bundle_manifest refused a stored one before this runs);
-    injection follows member presence — the single source, so the
+    the flags follow member presence — the single source, so the
     replayed invocation can never disagree with the shipped bytes
     (BALE.md §6.7): `--readme-file <extracted brief>` when the brief
     member ships, `--no-readme` when the slot is an explicit null, and

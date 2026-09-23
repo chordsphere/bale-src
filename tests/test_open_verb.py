@@ -14,7 +14,7 @@ tests/harness.py):
 - both member hashes verify against LF-normalized bytes (boards
   36/40): a mismatch refuses; a CRLF-mangled transport copy still
   verifies and packs;
-- delivery-flag injection follows member presence: a shipped brief
+- the delivery flags follow member presence: a shipped brief
   becomes the request README byte-for-byte; a null brief packs with
   `--no-readme`; a shipped checkpoint is committed at the resolved
   per-session path by the replayed pack;
@@ -340,10 +340,10 @@ class OpenVerbTest(_OpenVerbBase):
                          msg="the request README should carry the "
                              "LF-normalized brief bytes")
 
-    # -- delivery-flag injection -------------------------------------
+    # -- delivery flags from member presence -------------------------------------
 
     def test_brief_ships_as_request_readme(self) -> None:
-        brief = "# Injected brief\n\nprose context\n"
+        brief = "# Carried brief\n\nprose context\n"
         bundle = self.build_bundle(
             "b.bale-bundle", pack_argv=self.argv("brf"), brief=brief)
         result = self.open_bundle(bundle)
@@ -353,7 +353,7 @@ class OpenVerbTest(_OpenVerbBase):
         self.assertIn("--readme-file", result.stdout)
         self.assertEqual(self.request_readme(result), brief)
 
-    def test_null_brief_injects_no_readme(self) -> None:
+    def test_null_brief_supplies_no_readme(self) -> None:
         bundle = self.build_bundle(
             "b.bale-bundle", pack_argv=self.argv("nul"), brief=None)
         result = self.open_bundle(bundle)
@@ -740,7 +740,7 @@ class CrafterEmissionRoundTrip(_OpenVerbBase):
     hermetic sandbox. The hand-assembled build_bundle covers the
     consumer's refusal surface above; this class pins that the
     emitter's happy path is inside it: the archive is accepted, the
-    hashes verify, the delivery flags inject from member presence,
+    hashes verify, the delivery flags come from member presence,
     the dry-run leg runs the shipped checkpoint, and the crafter's
     printed paste line — the bundle filename only — resolves through
     the configured search path exactly as the desk ships it.
@@ -798,7 +798,7 @@ class CrafterEmissionRoundTrip(_OpenVerbBase):
         self.assertIn("member brief verified", result.stdout)
         self.assertIn("member checkpoint verified", result.stdout)
         self.assertIn("expected-HOLD proof", result.stdout)
-        # Delivery injection from member presence: the packed request
+        # Delivery flags from member presence: the packed request
         # carries the LF-normalized brief byte-for-byte.
         self.assertEqual(self.request_readme(result),
                          brief.replace("\r\n", "\n"))

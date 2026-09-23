@@ -71,9 +71,9 @@ JSON report, never counted as findings.
 
 `claims-value` files CLAIMS_VALUE for a bare-string claims
 value outside pass|fail|untested|unknown — the vocabulary bale's apply
-enforces in Python, which the embedded schema cannot express for the
-bare-string form (no oneOf in the subset validator). Before it, such a
-value linted clean and refused at apply.
+enforces in Python, which the embedded schema does not express for the
+bare-string form (a split that predates the subset validator's oneOf).
+Before it, such a value linted clean and refused at apply.
 `docs-read-stub` warns DOCS_READ_EMPTY_STUB when
 feedback.self_reported.docs_read is present and exactly [] — the
 crafter's seeded stub shipped unfilled: fill it or delete the key.
@@ -213,7 +213,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
     },
     "claims": {
       "type": "object",
-      "description": "Claude's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). A value is the bare claim string ('pass', 'fail', 'untested', 'unknown'), or — from v0.4.7, the manifest carrier for the record-side shape — the annotated object form {\"value\": ..., \"claim_basis\": ...}, declaring at ship time whether the claim was predicted from structural grounds or observed from a real run; apply's verbatim promotion into the telemetry record's attempts[].validation.claims carries the object through unchanged. Bare-string values keep validating (everything additive). The bare-string enum is enforced in Python (validate_response_manifest) — bale's schema-validator subset has no oneOf, so the schema pins only the object form's shape here and the type alternatives.",
+      "description": "The worker's predictions for each project-level check. Keys are freeform check names (must be a subset of validation_will_run; enforced in Python). A value is the bare claim string ('pass', 'fail', 'untested', 'unknown'), or — from v0.4.7, the manifest carrier for the record-side shape — the annotated object form {\"value\": ..., \"claim_basis\": ...}, declaring at ship time whether the claim was predicted from structural grounds or observed from a real run; apply's verbatim promotion into the telemetry record's attempts[].validation.claims carries the object through unchanged. Bare-string values keep validating (everything additive). The bare-string enum is enforced in Python (validate_response_manifest) — the schema pins only the object form's shape here and the type alternatives, a division that predates the subset validator's oneOf (v0.4.42, for contract_docs) and stays as it is.",
       "additionalProperties": {
         "type": ["string", "object"],
         "additionalProperties": false,
@@ -356,16 +356,31 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                 "bale_version": { "type": "string", "minLength": 1 },
                 "contract_docs": {
                   "type": "object",
-                  "additionalProperties": false,
-                  "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
-                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the injected set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid).",
-                  "properties": {
-                    "CLAUDE.md":  { "type": "string", "minLength": 1 },
-                    "TARBALL.md": { "type": "string", "minLength": 1 },
-                    "DOCS.md":    { "type": "string", "minLength": 1 },
-                    "CODE.md":    { "type": "string", "minLength": 1 },
-                    "PLANNER.md": { "type": "string", "minLength": 1 }
-                  }
+                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the carried set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid). Since v0.4.42 a oneOf over the same two key sets the request schema admits — the four-key set keyed by CLAUDE.md, and the same set with AGENT.md in place of CLAUDE.md — so the verbatim echo validates whichever spelling the request was stamped under, for good; exactly one of the pair may be present (request-manifest.schema.json).",
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "required": ["CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+                      "properties": {
+                        "CLAUDE.md": { "type": "string", "minLength": 1 },
+                        "TARBALL.md": { "type": "string", "minLength": 1 },
+                        "DOCS.md":    { "type": "string", "minLength": 1 },
+                        "CODE.md":    { "type": "string", "minLength": 1 },
+                        "PLANNER.md": { "type": "string", "minLength": 1 }
+                      }
+                    },
+                    {
+                      "additionalProperties": false,
+                      "required": ["AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md"],
+                      "properties": {
+                        "AGENT.md":  { "type": "string", "minLength": 1 },
+                        "TARBALL.md": { "type": "string", "minLength": 1 },
+                        "DOCS.md":    { "type": "string", "minLength": 1 },
+                        "CODE.md":    { "type": "string", "minLength": 1 },
+                        "PLANNER.md": { "type": "string", "minLength": 1 }
+                      }
+                    }
+                  ]
                 },
                 "packer": { "type": "string", "minLength": 1 },
                 "work_class": {
@@ -404,7 +419,8 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
                 "model_identity": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "SELF-REPORTED AND UNVERIFIABLE TODAY: the worker states its own model identity; no mechanism attests it. Recorded for longitudinal aggregation, read with that caveat."
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+                  "description": "SELF-REPORTED AND UNVERIFIABLE TODAY: the worker states its own model identity; no mechanism attests it. Recorded for longitudinal aggregation, read with that caveat. Format, pinned since v0.4.42 so the value aggregates instead of splitting into free-text spellings: `<vendor>:<model>` — lowercase throughout, spaces rendered as hyphens, no parenthetical, no `self-reported` suffix (the whole field is self-reported by definition), and the literal `unknown` as the model token when the session cannot see its exact model string. Examples: `anthropic:claude-fable-5.1`, `anthropic:unknown`. The pattern refuses anything else — a free-text spelling with capitals, spaces, a parenthetical or a suffix is a lint error, not a variant."
                 }
               }
             }
@@ -434,7 +450,7 @@ RESPONSE_MANIFEST_SCHEMA_JSON = r"""
             "includes_missing": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
-              "description": "Files or docs the session wanted but the request did not include — packing signal for the planner, one path or description per entry."
+              "description": "What the session wanted but the request did not ship — packing signal for the planner, one entry per miss. Two entry forms, both strings in one array (the shape is unchanged since v0.3.8): a repo-relative path for a file the session needed in context/ (e.g. `bin/bale_config.py`), or a line opening `decision:` for a ruling the brief did not carry and the session had to assume or ask for (e.g. `decision: whether [layout] is project-layer only`). The marker is the literal `decision:` prefix; everything after it is prose."
             },
             "docs_read": {
               "type": "array",
@@ -523,7 +539,7 @@ DIAGNOSTICS_SCHEMA_JSON = r"""
         "mid-build-budget-panic",
         "other"
       ],
-      "description": "Per CLAUDE.md section 11.3. The first two are Claude-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
+      "description": "Per CLAUDE.md section 11.3. The first two are worker-detected; 'other' covers architect-requested bailouts with specifics in bail_narrative."
     },
     "bail_narrative": {
       "type": "string",
@@ -585,7 +601,12 @@ DIAGNOSTICS_SCHEMA_JSON = r"""
 #
 # Implements exactly the keyword subset the two schemas above use:
 #   type (string or list), required, properties, additionalProperties
-#   (boolean or schema), enum, minLength, minimum, items.
+#   (boolean or schema), enum, minLength, minimum, items, and — since
+#   v0.4.42 — pattern (an unanchored search, as in JSON Schema; the
+#   schema anchors a whole-string match) and oneOf (exactly one branch
+#   accepts; zero names each branch's first failure, two or more is an
+#   error too). The same subset lives in bin/bale_validate.py and the
+#   two move together.
 # Collects every violation rather than stopping at the first, matching
 # the lint's never-first-failure-only output contract.
 # ---------------------------------------------------------------------------
@@ -668,6 +689,30 @@ def _schema_walk(instance, schema: dict, loc: str, errors: list[str]) -> None:
                 f"{loc}: string shorter than minLength "
                 f"{schema['minLength']} (got length {len(instance)})"
             )
+    if isinstance(instance, str) and "pattern" in schema:
+        if re.search(schema["pattern"], instance) is None:
+            errors.append(
+                f"{loc}: value {json.dumps(instance)} does not match "
+                f"pattern {schema['pattern']}"
+            )
+
+    # -- oneOf: exactly one branch accepts --
+    if "oneOf" in schema:
+        matched = 0
+        first_failures: list[str] = []
+        for i, branch in enumerate(schema["oneOf"]):
+            branch_errors: list[str] = []
+            _schema_walk(instance, branch, loc, branch_errors)
+            if not branch_errors:
+                matched += 1
+            else:
+                first_failures.append(f"branch {i}: {branch_errors[0]}")
+        if matched == 0:
+            errors.append(f"{loc}: matches none of the oneOf branches — "
+                          + "; ".join(first_failures))
+        elif matched > 1:
+            errors.append(f"{loc}: matches {matched} oneOf branches, "
+                          f"expected exactly one")
 
     # -- numeric keywords --
     if isinstance(instance, (int, float)) and not isinstance(instance, bool):

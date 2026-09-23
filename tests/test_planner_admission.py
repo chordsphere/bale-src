@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Schema-admission pins for the five-doc contract_docs block (v0.4.11).
 
-PLANNER.md joined the injected global-doc set in the planner-injection
+PLANNER.md joined the carried global-doc set in the planner-carriage
 wiring session. The ratified admission posture is allowed-not-required:
 
 - five keys validate (the post-wiring stamp),
@@ -114,7 +114,7 @@ class PlannerAdmissionTest(unittest.TestCase):
                         "contract_docs": contract_docs(docs),
                         "packer": "test",
                         "work_class": "meta",
-                        "model_identity": "test",
+                        "model_identity": "fixture:model",
                     },
                 },
                 "self_reported": {

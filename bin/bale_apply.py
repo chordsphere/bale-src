@@ -1498,7 +1498,7 @@ def admission_prompt_allowed(*, dry_run: bool, no_interact: bool,
     Every non-TTY path therefore declines, and the composed remedy
     line the refusal prints is the same one a TTY decline prints, so
     the operator's next move is a paste either way. `stdin_isatty` is
-    injectable for tests; None reads sys.stdin.
+    overridable for tests; None reads sys.stdin.
     """
     if dry_run:
         return False, "--dry-run predicts, never admits"

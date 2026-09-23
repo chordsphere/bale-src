@@ -66,13 +66,13 @@ GOAL = "handoff happy-path goal: finish rewriting hello.txt"
 SLUG = "handoff-happy"
 VERBOSE_MARKER = "verbose:"
 
-# The bale-injected top-level members every request tarball ships
+# The bale-carried top-level members every request tarball ships
 # (TARBALL.md §3.1) — asserted on the handoff-built tarball so the
 # repackaging path provably goes through the same builder as pack.
-# PLANNER.md joined the injected set in v0.4.11.
+# PLANNER.md joined the carried set in v0.4.11.
 GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
-INJECTED_TOOLS = ("response_lint.py", "craft_response.py")
+CARRIED_TOOLS = ("response_lint.py", "craft_response.py")
 
 
 class HandoffHappyPathTest(unittest.TestCase):
@@ -201,7 +201,7 @@ class HandoffHappyPathTest(unittest.TestCase):
     def test_happy_path_repackages_bailout(self) -> None:
         """The whole job: fresh sid on the same slug, lineage pointer,
         goal verbatim, reading-plan files pre-packed and recorded as
-        the forecast, and a request tarball with the full injected
+        the forecast, and a request tarball with the full carried
         surface. Default run — quiet (the --verbose parity pin's off
         direction rides here)."""
         bailed_sid, tarball = self.packed_and_bailed(
@@ -244,7 +244,7 @@ class HandoffHappyPathTest(unittest.TestCase):
         self.assertEqual(manifest["resolved_scope"], ["hello.txt"])
         self.assertEqual(self.recorded_scope(new_sid), ["hello.txt"])
 
-        # The tarball: request-NNN/ with the injected docs and tools
+        # The tarball: request-NNN/ with the carried docs and tools
         # (same builder as pack), the manifest, handoff.md AND the
         # pre-packed reading-plan file under context/.
         out = self.outbox_tarball(new_sid)
@@ -254,7 +254,7 @@ class HandoffHappyPathTest(unittest.TestCase):
             prefix = f"request-{nnn}"
             for doc in GLOBAL_DOCS:
                 self.assertIn(f"{prefix}/{doc}", members)
-            for tool in INJECTED_TOOLS:
+            for tool in CARRIED_TOOLS:
                 self.assertIn(f"{prefix}/tools/{tool}", members)
             self.assertIn(f"{prefix}/manifest.json", members)
             self.assertIn(f"{prefix}/context/handoff.md", members)
