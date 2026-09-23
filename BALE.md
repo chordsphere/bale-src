@@ -487,14 +487,14 @@ forward-looking entry.
 
 | Command | Purpose | Phase |
 |---------|---------|-------|
-| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. `--context` writes a session-less context tarball of the current directory's tree instead of a request — no sid, no session, no opener (v0.4.39, §7.8). | v0.0.1 |
+| `bale pack` | Build a request tarball from the project + user-specified scope. `--read-only` opens the read-only session shape — empty recorded scope; locks nothing, lands nothing (v0.3.15) — and, since v0.3.21, also sweeps: offers (accept default; piped stdin declines) to close an open read-only session as `closed-read-only`. `--supersedes <sid>` declares a split supersession of an open session (v0.3.17); all in §7.2. `--context` writes a session-less context tarball of the current directory's tree instead of a request — no sid, no session, no opener (v0.4.39, §7.8). `--dry-run` rehearses the line instead of packing it: every argv-only gate against the live tree, then stop — exit 0 or the refusing gate's own text — writing nothing (v0.4.45, §7.1's rehearsal paragraph). | v0.0.1 |
 | `bale apply <tarball>` | Validate and apply a response tarball. Terminal — the wizard ends in merge, revert, or (on HOLD) leaves the session commit on `bale/<sid>` for inspection. The checkout is never consumed (ADR-0008). | v0.0.1 |
 | `bale retry <tarball> [--sid]` | Re-attempt a HOLDed session with a corrected response tarball, keeping the session open so the new attempt lands in the same session id. The session resolves from the tarball's own `manifest.responds_to` — REQUIRED content of every response manifest — however many sessions are open (v0.4.25, board 71; the same board-51 machinery bare `bale apply` uses), and it must name an open session: a `responds_to` naming a closed session refuses naming the record's last outcome, an unknown sid refuses as unknown to this repo, and an unreadable tarball or manifest refuses naming the file — every resolution refusal fires before any HOLD state is touched, so the held branch and staging survive a wrong tarball. `--sid` is vetting, never required: absent, resolution is artifact-borne; present and equal to `responds_to`, proceed; present and different, refuse naming both sids and the tarball. Takes apply's per-attempt flags — `--verbose`, `--no-interact`, `--allow-out-of-scope`, `--json` (parity as of v0.3.14) — since retry reruns the same pipeline; apply's inspection flags (`--show-validator`, `--show-apply-script`, `--dry-run`) are deliberately retry-absent, because they never touch the HOLD state and work verbatim through `bale apply`. | v0.0.x |
 | `bale amend-checkpoint <file> --sha256 <hex> [--sid]` | Commit a desk-published amendment over an open session's blind checkpoint — the operator half of the bad-oracle correction flow (PLANNER.md §5 steps 4–5) as one command (board 53). Resolves the sole open scoped session (`--sid` picks when several; read-only sessions are structurally invisible — empty forecast, checkpoint waived), reads the amendment LF-normalized (CRLF→LF at the ingest edge, board 50), verifies it against the mandatory published sha256, commits the bytes at the per-sid checkpoint path (pathspec-limited, `bale:`-prefixed subject), and ends its report with the paste-ready `bale retry <held-tarball> --accept-checkpoint-change --sid <sid>` line as its named successor — fully composed from the HOLD-time `held_tarball` stamp (§3.4; v0.4.25, board 71), zero placeholders, on both rungs, re-stating every admission the held apply exercised from the HOLD-time `held_admissions` stamp (v0.4.37, board 110); a session with no stamp degrades loudly to the placeholder form with one line saying why, never omitting the successor, and a session with no readable admissions stamp gets one line saying they could not be recovered. Identical committed bytes are the idempotent re-run; committed bytes matching neither the session's pack-time stamp nor the amendment refuse loudly unless `--accept-unaccounted-oracle` deliberately admits the replacement (per-invocation, FORCE-logged naming all three hashes). The verb mechanizes the transport, never the deliberateness: the provenance gate still refuses at retry, the accept stays per-invocation, and `stamp_matched: false` remains the truthful record. See §5.7. | v0.4.17 |
 | `bale revert [sid]` | Discard a held bale branch (validation failed and inspection is done, or user changed their mind). Sid optional with one session open, required with several. `--reason` (v0.3.16) and `--json` (v0.3.19) per §5.4; flow in §9.1. | v0.0.1 |
 | `bale rollback [sid]` | `git revert` an applied bale. Defaults to most recent. `--undo` / `--list` / `--stash`. Clean rollback and clean `--undo` append to the session's telemetry record (v0.3.18, §9.2). | v0.2 |
 | `bale unlock [sid]` | Close an abandoned session (sid optional with one open, required with several), or `--integration` to clear a stale integration lock. `--reason` (v0.3.16) and `--json` (v0.3.18) per §5.4; flow in §9.3. | v0.0.5 |
-| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — the forecast-existence and forecast-disjointness gates — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
+| `bale open <bundle>` | Consume a planner bundle (`.bale-bundle`; §6.7) into a packed session in one paste: gate `bundle.json` (`validate_bundle_manifest`) before trusting anything else, verify both member hashes against LF-normalized bytes (boards 36/40), dry-run the checkpoint member read-only against a scratch copy of the live base with the expected-HOLD proof echoed (exit 1 expected; exit 2 refuses the whole open as a defective oracle; exit 0 warns vacuous and proceeds), then replay the stored pack argv with the delivery flags supplied from member presence and `pre_answered` intents on the in-process channel. bale open parses and gates the stored argv — every argv-only pack gate since v0.4.45 (the flag pairs, the brief and checkpoint reads, the pre-exchange pass with its include-naming checkpoint gate, the supersession guards, forecast existence and disjointness) — before the checkpoint dry-run, so an argv defect refuses without spending the oracle. Two rehearsals stop part-way and write nothing (v0.4.45, §6.7): `--check` stops after the gates, `--dry-run` after the checkpoint dry-run (exit 0 on an oracle exit 0 or 1, nonzero on 2). A second open of a bundle whose session is still open records a further desk on that session instead of opening a new one (v0.4.44, §6.7). `--verbose` streams the dry-run; `--no-sandbox` runs it unconfined (FORCE-logged, per-invocation, ADR-0016 escape), as does the project's `[sandbox] enabled = false` (FORCE-logged naming the key; v0.4.26, §8.5). The bundle argument resolves like apply's tarball argument (cwd, then `apply.search_paths`). `spawn` is the noted harness-era rename candidate. | v0.4.13 |
 | `bale handoff <tarball>` | Repackage a bailout response (TARBALL.md §5.6) into a fresh request tarball that inherits the bailed-on session's goal verbatim and — since v0.4.28 (board 73, ADR-0015) — its recorded write forecast exactly, including a recorded `[]` (a read-only parent resumes read-only). The bailout's reading plan is the read set only: its files ship in `context/` and gate nothing. `--write` / `--read-only` override the inheritance with pack's grammar and refusals (the case where the bailing worker's `handoff.md` argues the ask changed); a missing or unreadable parent record falls back to the reading-plan file set — the whole tree when the plan cites nothing — as an *undeclared* forecast that takes the bare-pack rule (v0.4.9), and the summary's `inherited:` row names which branch fired beside the goal. Runs pack's gates, one implementation each, pre-sid so a refusal consumes nothing: the ADR-0015 forecast-disjointness gate (§7.1 step 5 — admitted beside open sessions whose forecasts are disjoint, which is what makes the command reachable under an always-open read-only master; refused on intersection with handoff's own remedies, never `--supersedes`), the checkpoint blindness gate (§7.1 step 4b, §11 row 30; `--allow-checkpoint-in-scope` admits, FORCE-logged and stamped), and for a `{sid}` base the resolved-existence gate, whose first-named remedy `--checkpoint-file` the command now accepts with pack's one-run install; an empty forecast waives it (§8.5). Stamps the new session's integration target the same way pack does (§7.6), and refuses a detached HEAD in its pre-flight the same way pack does (§7.1 step 4a, §11 row 24). Until 0.4.27 handoff refused while any session was open, forecast its reading plan's file set, and lacked the flag family — ADR-0007's shape, which the ADR-0015 flip had not reached on this path. | v0.0.6 |
 | `bale relay <sid> [<file\|->]` | Record one exchange in a suspended session's clarification thread — a clarification manifest, an exchange record, or the paste block wrapping either, from either side — validate it, preserve it as the next `NNN` under `.bale/clarifications/<sid>/`, retain the lock, and emit the counterpart-facing paste block. Direction is read from the record's `from`, never from a flag; the option surface is exactly `<sid> [<file\|->]` — the file argument is optional since v0.4.22 (board row 60; ADR-0017 Notes), and the no-file form re-emits the latest recorded round's block read-only. Contract in §8.11; usage in §5.8; schema `schemas/exchange-record.schema.json`. | v0.4.18 |
 | `bale config init` | Walk through every configurable at the chosen layer (project or `--global`) and write the resulting `bale.toml`. The canonical discoverable surface for configurables; see `claude/context/bale-internals.md` §4. | v0.0.3 |
@@ -1337,6 +1337,61 @@ parsed pack namespace (the bundle manifest's array, validated by
 `parse_pre_answered_intents`); **no CLI flag exists**, so no typed
 command line can spell a pre-answered accept, blanket or otherwise.
 
+**A second desk (v0.4.44, board row 123).** After the bundle
+verifies and before anything else runs, `bale open` compares the
+bundle's identity — the sha256s of `bundle.json`, the brief and the
+checkpoint, and deliberately not the file stem, so a browser's renamed
+copy is the same bundle — with the `bundle` stamp on each `opened`
+attempt of every open session. A match records a further desk on that
+session instead of opening a new one: one more `opened` attempt with
+`command: "open"`, the bundle and open-time provenance stamps, and
+`desk: "desk-N"` (the first open carries no key and reads as desk-1);
+the record is swept only if the operator already tracks it; the
+summary re-emits the session opener naming the desk-qualified session
+`<sid>@desk-N`, which cannot be mistaken for a sid because `@` never
+occurs in one; exit 0. No pre-flight, dry-run, sweep or replay runs on
+that path, so a second desk can neither close the first desk's session
+nor mint a second sid, and the request tarball is the one desk one
+opened with. The path refuses when the record holds any event past its
+opens — an apply attempt, a HOLD, a refusal — because an `opened`
+attempt after an apply-side event would contradict the record; the
+refusal names continuing the session (`bale status`) or closing it and
+re-opening the bundle. A bundle whose session has closed matches
+nothing and opens a new session exactly as before.
+
+**Rehearsing a bundle (v0.4.45, board row 122).** Two flags stop
+`bale open` part-way along its own pipeline, so a desk can prove a
+bundle on the operator's real tree before delivering it:
+
+- `bale open --check <bundle>` verifies the bundle and runs every
+  argv-only pack gate on the composed replay argv against the live
+  tree (`run_pack_argv_gates`, the same implementations a pack runs —
+  the include-naming checkpoint gate among them), then stops and
+  prints a rehearsal report. Exit 0 when every gate passes; the
+  refusing gate's own text and exit 1 otherwise. No oracle runs.
+- `bale open --dry-run <bundle>` is `--check`, then the checkpoint
+  dry-run against a scratch copy of the live base exactly as an open
+  runs it, verdict lines echoed. Exit 0 when the gates pass and the
+  oracle exits 0 (warned vacuous) or 1 (the expected HOLD a desk
+  wants to see); nonzero when a gate refuses or the oracle exits 2,
+  the message naming which. Its dry-run log — and the sandbox
+  self-probe scratch beside it — lives in a temp directory outside
+  the repository, named in the report, rather than under
+  `.bale/logs/`.
+
+The two are mutually exclusive, and both write nothing: no session,
+lock, telemetry record, outbox tarball, checkpoint commit, closure, or
+stamp on another session's record; `git status --porcelain --ignored`
+is identical before and after. The supersession exchange never runs —
+the report predicts it instead (a matching `supersede` intent would
+accept; a TTY would prompt; piped stdin with no intent refuses, because
+the real pack would), and the parent stays open. A read-only bundle's
+sweep is previewed, never run. On a bundle whose session is still open,
+a rehearsal reports the desk the real open would record, or its
+refusal, and records nothing. A real `bale open` runs the same gate
+step before its oracle, so what `--check` passes, the open's gates
+pass.
+
 **Bundles never ship to workers (the deny-list half).** The bundle
 is oracle-bearing — it carries the blind checkpoint — so it is
 structurally invisible to workers, the same species as the §7.1
@@ -1517,6 +1572,34 @@ The configured checkpoint is auto-excluded from the shipped context of every pac
    exists but doesn't list `.bale/`, bale appends `.bale/` to it with
    a single-line user confirmation in interactive mode (or auto-
    appends with a logged note in piped mode).
+
+**Rehearsal (`bale pack --dry-run`, v0.4.45, board row 122).** With
+`--dry-run`, pack runs the steps above that only read — the path and
+home-directory refusals, the repo-root walk, the detached-HEAD refusal
+(4a), checkpoint blindness (4b), bundle-file naming (4c) and forecast
+disjointness (5) — together with every other refusal the argv alone
+decides: the flag-pair contradictions, the `--readme-file` and
+`--checkpoint-file` reads (an empty brief, a `TODO(brief)` placeholder,
+an unconfigured checkpoint base), the include group's opt-out, slug and
+goal shape, forecast existence, the cap values, the pre-answered
+intents, the `--supersedes` guards (sid resolution, the idempotent
+re-run, the HOLD-branch refusal), the piped-wizard refusal, and the
+piped no-README refusal. Then it stops and prints a rehearsal report:
+exit 0 when every gate passes, the refusing gate's own text otherwise.
+Step 4's walkthrough and step 6 write, so a rehearsal outside a git
+repository refuses, and step 6 never runs. Nothing after pre-flight
+runs either — no wizard prompt, supersession exchange, read-only sweep,
+sid, context walk or caps, hook, tarball, or telemetry — so nothing is
+written, and a `--supersedes` parent stays open: the report predicts
+the exchange instead, and piped stdin with no way to accept refuses,
+because the real pack would. On a TTY with the goal or `--slug`
+missing, the wizard's answers would decide the forecast, so the
+forecast-dependent gates are reported as not rehearsed. `--dry-run`
+refuses beside `--json` (whose one-line report describes a pack that
+ran) and, like every session-only flag, beside `--context`. The gates
+are the functions `bale pack` itself calls (`run_pack_argv_gates` in
+`bin/bale_pack.py`); `bale open --check` rehearses a bundle through the
+same core (§6.7).
 
 ### 7.2 Gather inputs
 
@@ -3702,7 +3785,16 @@ than from `created_at`, whose lag behind the pack is not fixed. Since
 v0.4.41 an `opened` attempt written by a `bale open` replay also carries
 `bundle` beside `provenance` — the crafter bundle's stem and its brief,
 checkpoint and manifest sha256s — so the close desk can say which
-bundle revision an open ran; a hand-typed pack writes no key. The
+bundle revision an open ran; a hand-typed pack writes no key. Such
+an attempt stamps `command: "pack"`, because the open replays pack.
+Since v0.4.44 a second `bale open` of a bundle whose session is
+still open writes a further `opened` attempt onto that session's
+record with `command: "open"` — no pack ran, so the record names
+the command that did — carrying the same `bundle` stamp, the
+open-time `provenance` stamp re-read from the session's manifest,
+and `desk` (`desk-2`, `desk-3`, …; the first open carries no key),
+so the close desk can say which desk a light block came from
+(§6.7). The
 registry-side `provenance.json` stays the pair. On a closure a pack
 makes as a side effect, the closing pack's sid is stamped once it
 exists, because both closes run before the sid is minted:

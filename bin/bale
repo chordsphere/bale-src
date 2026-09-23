@@ -6361,6 +6361,19 @@ def build_parser() -> argparse.ArgumentParser:
              "so stdout carries exactly the JSON line on exit 0 (tail -n 1 "
              "recipes from v0.2.7 keep working).",
     )
+    p_pack.add_argument(
+        "--dry-run", action="store_true",
+        help="Rehearse this line (v0.4.45): run every argv-only gate against "
+             "the live tree — flag pairs, the brief and checkpoint reads, "
+             "detached HEAD, the include group, slug/goal, forecast "
+             "existence, bundle-file naming, cap values, checkpoint "
+             "blindness, the supersession guards, forecast disjointness — "
+             "and stop. Exit 0 when every gate passes, the refusing gate's "
+             "own text otherwise. Writes nothing: no session, lock, "
+             "telemetry, tarball, or closure; the supersession exchange and "
+             "the read-only sweep do not run, and a --supersedes parent "
+             "stays open. Refused beside --json and --context.",
+    )
     p_pack.set_defaults(func=cmd_pack)
 
     # apply
@@ -7058,9 +7071,11 @@ def build_parser() -> argparse.ArgumentParser:
             "through validate_bundle_manifest before trusting anything "
             "else, and verify each member's published sha256 against its "
             "LF-normalized bytes. (2) Parse the stored pack argv with the "
-            "real CLI parser and run the arg-inspectable pack gates — "
-            "forecast existence, then forecast disjointness, the same "
-            "implementations `bale pack` runs (board 68) — so a bundle "
+            "real CLI parser and run every argv-only pack gate — flag "
+            "pairs, the brief and checkpoint reads, the include-naming "
+            "checkpoint gate, the supersession guards, forecast "
+            "existence and disjointness; the same implementations "
+            "`bale pack` runs (boards 68, 122) — so a bundle "
             "the replay would refuse on its argv alone refuses here, in "
             "that gate's own words, with no dry-run spent; refusals name "
             "the resolved project root and the config files judged. (3) "
@@ -7075,7 +7090,9 @@ def build_parser() -> argparse.ArgumentParser:
             "bundle's pre_answered intents riding the in-process channel "
             "— routed through every decline-default exchange, never "
             "around it. The replayed pack re-runs every gate at its own "
-            "site; the early gates are a cost ordering, not a substitute."
+            "site; the early gates are a cost ordering, not a substitute. "
+            "--check and --dry-run rehearse a prefix of this pipeline and "
+            "write nothing (v0.4.45)."
         ),
     )
     p_open.add_argument(
@@ -7100,6 +7117,23 @@ def build_parser() -> argparse.ArgumentParser:
              "enabled = false (v0.4.26) unconfines the dry-run durably, "
              "FORCE-logged naming the key, and this flag is redundant "
              "beside it.",
+    )
+    open_rehearsal = p_open.add_mutually_exclusive_group()
+    open_rehearsal.add_argument(
+        "--check", action="store_true",
+        help="Rehearse steps (1)-(2) and stop (v0.4.45): verify the bundle "
+             "and run every argv-only pack gate against the live tree — "
+             "the include-naming checkpoint gate among them. Exit 0 when "
+             "every gate passes. Spends no oracle and writes nothing.",
+    )
+    open_rehearsal.add_argument(
+        "--dry-run", action="store_true",
+        help="Rehearse steps (1)-(3) and stop (v0.4.45): --check, then the "
+             "checkpoint dry-run against the live base exactly as an open "
+             "runs it, verdict lines echoed and its log kept in a temp "
+             "directory outside the repo. Exit 0 when the gates pass and "
+             "the oracle exits 0 or 1 (an expected HOLD); nonzero when a "
+             "gate refuses or the oracle exits 2. Writes nothing.",
     )
     p_open.set_defaults(func=cmd_open)
 

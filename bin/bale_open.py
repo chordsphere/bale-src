@@ -15,13 +15,15 @@ does everything the old ceremony spread across hand-typed steps:
    present member's LF-normalized bytes must hash to the manifest's
    published sha256. The archive is sealed — an undeclared member, or
    a declared member missing from the archive, refuses.
-3. **Gate the replay argv before the oracle runs** (board 68): the
-   composed pack argv is parsed by the real CLI parser and the
-   arg-inspectable pack gates — forecast existence, forecast
-   disjointness — run through bale_pack.pack_argv_preflight, the
-   same implementations cmd_pack runs, so a bundle the replay would
-   refuse on its argv alone refuses here with that gate's own text
-   and no dry-run is spent. Every refusal from here on names the
+3. **Gate the replay argv before the oracle runs** (boards 68, 122):
+   the composed pack argv is parsed by the real CLI parser and every
+   argv-only pack gate runs through bale_pack.run_pack_argv_gates —
+   the flag pairs, the brief and checkpoint reads, the pre-exchange
+   pass with its include-naming checkpoint gate, the supersession
+   guards, forecast existence and disjointness — the same
+   implementations cmd_pack runs, so a bundle the replay would refuse
+   on its argv alone refuses here with that gate's own text and no
+   dry-run is spent. Every refusal from here on names the
    resolved project root and the config files judged.
 4. **Dry-run the checkpoint read-only against the live base** (board
    48's leg, subsumed): the extracted checkpoint executes against a
@@ -71,6 +73,12 @@ with the desk-qualified name, and exits 0. No pre-flight, dry-run,
 sweep, or replay runs on that path, so desk two can never close desk
 one's session or mint a second sid. A bundle whose session has closed
 opens a new session exactly as before.
+
+Two rehearsals stop part-way along this pipeline and write nothing (v0.4.45,
+board row 122): `--check` stops after step 3, `--dry-run` after step 4 (its
+dry-run log kept in a temp directory outside the repository), each printing
+the rehearsal report bale_pack renders. On a second-desk bundle a rehearsal
+predicts the desk, or its refusal, and records nothing.
 """
 
 from __future__ import annotations
@@ -528,7 +536,9 @@ def compose_pack_argv(manifest: dict, extracted: dict[str, Path]) -> list[str]:
 
 def cmd_open(args: argparse.Namespace) -> int:
     """`bale open <bundle>` — verify, gate, dry-run, replay (board
-    49a-ii; gate order per board 68).
+    49a-ii; gate order per boards 68 and 122). `--check` and `--dry-run`
+    (v0.4.45, board row 122) rehearse a prefix of the same pipeline and
+    stop, writing nothing.
 
     The pipeline, in trust order and cheapest-first; every refusal
     happens before any session state exists:
@@ -537,30 +547,31 @@ def cmd_open(args: argparse.Namespace) -> int:
        kind "bundle"); refuse a file outside the reserved suffix —
        the suffix IS the recognizer (BALE.md §6.7);
     2. read_bundle(): gate the manifest, seal-check the archive,
-       verify both member hashes;
-    3. compose the replay argv and parse it through the real CLI
-       parser (an unparseable stored argv refuses here, before any
-       oracle runs), then run the arg-inspectable pack gates —
-       forecast existence and forecast disjointness — via
-       bale_pack.pack_argv_preflight (board 68): cheap gates before
-       the expensive oracle execution, each the one implementation
-       cmd_pack itself runs, so a bundle the replay would refuse on
-       its argv alone refuses with that gate's own text and no
-       dry-run runs;
-    4. when the checkpoint member ships: refuse up front if the
-       project pins no [validation] base (the same refusal
-       `--checkpoint-file` would give, moved before the dry-run's
-       cost, naming the project root and the config files judged),
-       then dry-run it read-only against the live base and
-       judge the exit code — 1 is the expected-HOLD proof, 0
-       proceeds with a loud vacuous-oracle warning, anything else
-       refuses the open as a defective oracle;
-    5. echo and replay the composed pack invocation with the bundle's
-       `pre_answered` intents on the namespace (the in-process
-       channel; BALE.md §6.7), returning cmd_pack's own exit code.
-       The replay re-runs every gate at its own site — the pre-flight
-       is a cost ordering, not a substitute; the checkpoint-blindness
-       gate in particular runs only there.
+       verify both member hashes; then recognize a second desk
+       (row 123) — a rehearsal predicts that path instead of taking it
+       (_rehearse_second_desk);
+    3. when the checkpoint member ships, refuse up front if the project
+       pins no [validation] base (naming the project root and the config
+       files judged) — the bundle-level check, ahead of the argv gates
+       so its wording, not the replayed --checkpoint-file's, is the one
+       an operator sees;
+    4. compose the replay argv, parse it through the real CLI parser (an
+       unparseable stored argv refuses here), set the bundle's
+       `pre_answered` intents on the namespace, and run every argv-only
+       pack gate via bale_pack.run_pack_argv_gates — the same
+       implementations cmd_pack runs, extended in v0.4.45 by the
+       pre-exchange pass, so the include-naming checkpoint gate refuses
+       here with no oracle spent. `--check` stops here and reports;
+    5. when the checkpoint member ships, dry-run it read-only against the
+       live base and judge the exit code — 1 is the expected-HOLD proof,
+       0 proceeds with a loud vacuous-oracle warning, anything else
+       refuses as a defective oracle. `--dry-run` stops here and
+       reports, its dry-run log kept in a temp directory OUTSIDE the
+       repository (a real open keeps it under .bale/logs/);
+    6. echo and replay the composed pack invocation with the intents on
+       the namespace (the in-process channel; BALE.md §6.7), returning
+       cmd_pack's own exit code. The replay re-runs every gate at its
+       own site — the early gates are a cost ordering, not a substitute.
     """
     from __main__ import (  # lazy — see module docstring
         build_parser,
@@ -573,9 +584,16 @@ def cmd_open(args: argparse.Namespace) -> int:
     from bale_pack import (  # lazy — sibling
         BUNDLE_SUFFIX,
         config_judgment_suffix,
+        format_rehearsal_report,
         is_bundle_file,
-        pack_argv_preflight,
+        rehearse_supersession,
+        run_pack_argv_gates,
     )
+
+    rehearsal = ("check" if getattr(args, "check", False)
+                 else "dry-run" if getattr(args, "dry_run", False)
+                 else None)
+    verb = f"bale open --{rehearsal}" if rehearsal else "bale open"
 
     cwd = Path.cwd().resolve()
     repo = repo_root(cwd)
@@ -597,7 +615,14 @@ def cmd_open(args: argparse.Namespace) -> int:
              f"the recognizer (BALE.md \u00a76.7), and bale open "
              f"consumes only planner bundles.")
 
-    log(f"opening planner bundle {bundle_path}")
+    if rehearsal:
+        log(f"{verb}: rehearsing planner bundle {bundle_path} against the "
+            f"live tree — nothing will be written")
+        if rehearsal == "check" and (args.no_sandbox or args.verbose):
+            log("--check runs no checkpoint, so --no-sandbox/--verbose "
+                "have nothing to act on here (use --dry-run to run it)")
+    else:
+        log(f"opening planner bundle {bundle_path}")
     manifest, members = read_bundle(bundle_path)
 
     # Row 123 (v0.4.44): a second open of a bundle whose session is still
@@ -609,6 +634,8 @@ def cmd_open(args: argparse.Namespace) -> int:
     identity = bundle_identity(bundle_path, manifest)
     match = find_open_session_for_bundle(repo, identity)
     if match is not None:
+        if rehearsal:
+            return _rehearse_second_desk(verb, repo, match[0], match[1])
         return open_second_desk(repo, match[0], match[1], identity,
                                 bundle_path)
 
@@ -621,8 +648,19 @@ def cmd_open(args: argparse.Namespace) -> int:
             log(f"member {slot} verified: {entry['path']} "
                 f"(sha256 {entry['sha256'][:12]}\u2026, LF-normalized)")
 
+    if checkpoint is not None and bale_config.get_validation_base(cfg) is None:
+        fail(f"the bundle ships a checkpoint member "
+             f"({checkpoint['path']}) but this project pins no "
+             f"[validation] base in bale.toml — the replayed "
+             f"pack's --checkpoint-file would refuse for the "
+             f"same reason. Configure [validation] base (see "
+             f"`bale config init`), or use a bundle authored "
+             f"for an oracle-less project."
+             + config_judgment_suffix(repo))
+
     # Extract verified members to a tempdir that outlives the replayed
     # pack — cmd_pack reads the delivery-flag files during its own run.
+    # Outside the repository, so a rehearsal writes nothing there.
     extract_dir = Path(tempfile.mkdtemp(prefix="bale-open-members-"))
     try:
         extracted: dict[str, Path] = {}
@@ -631,29 +669,39 @@ def cmd_open(args: argparse.Namespace) -> int:
             target.write_bytes(data)
             extracted[name] = target
 
-        # Board 68: the arg-inspectable pack gates run here, BEFORE the
-        # checkpoint leg. The replay argv is composed and parsed once
+        # Boards 68 and 122: every argv-only pack gate runs here, BEFORE
+        # the checkpoint leg. The replay argv is composed and parsed once
         # (build_parser is the real CLI parser, so a stored argv that
-        # cannot parse refuses now — argparse's own usage error — with
-        # no dry-run spent), then pack_argv_preflight evaluates the
-        # forecast-existence and forecast-disjointness gates with the
-        # implementations cmd_pack itself runs. The parsed namespace is
-        # the same object the replay below executes.
+        # cannot parse refuses now — argparse's own usage error — with no
+        # dry-run spent); the intents ride the namespace from here on, so
+        # the gates parse them and the supersession prediction reads
+        # them. The parsed namespace is the same object the replay below
+        # executes.
         pack_argv = compose_pack_argv(manifest, extracted)
         parser = build_parser()
         pack_args = parser.parse_args(pack_argv)
-        pack_argv_preflight(repo, pack_args)
+        # The in-process pre-answered-intents channel (BALE.md §6.7):
+        # the raw manifest array rides the namespace attribute cmd_pack
+        # parses at its reject-early site; no CLI flag can spell this.
+        pack_args.pre_answered = manifest["pre_answered"]
+        facts = run_pack_argv_gates(repo, pack_args, cwd,
+                                    announce=bool(rehearsal))
+        supersession_row = (rehearse_supersession(facts) if rehearsal
+                            else None)
+        if rehearsal == "check":
+            print(format_rehearsal_report(
+                verb, repo, pack_args, facts,
+                supersession_row=supersession_row,
+                extra_rows=[("checkpoint dry-run",
+                             "not run (--check spends no oracle)"
+                             if checkpoint is not None
+                             else "no checkpoint member")],
+                trailer=[f"Rehearsal only: `bale open --dry-run` adds the "
+                         f"checkpoint dry-run; `bale open` opens."]))
+            return 0
 
+        checkpoint_row = "no checkpoint member (nothing to dry-run)"
         if checkpoint is not None:
-            if bale_config.get_validation_base(cfg) is None:
-                fail(f"the bundle ships a checkpoint member "
-                     f"({checkpoint['path']}) but this project pins no "
-                     f"[validation] base in bale.toml — the replayed "
-                     f"pack's --checkpoint-file would refuse for the "
-                     f"same reason. Configure [validation] base (see "
-                     f"`bale config init`), or use a bundle authored "
-                     f"for an oracle-less project."
-                     + config_judgment_suffix(repo))
             network = bale_config.get_sandbox_network(cfg)
             # Sandbox-off by config (v0.4.26, board 75) honors the same
             # project-layer key apply does: a namespace-less host runs
@@ -678,8 +726,17 @@ def cmd_open(args: argparse.Namespace) -> int:
                     f"UNCONFINED: operator privileges, inherited "
                     f"environment, network on",
                     force=True)
-            log_path = (repo / ".bale" / "logs" /
-                        f"open-{bundle_path.stem}.log")
+            # A rehearsal keeps its dry-run log — and the sandbox
+            # self-probe scratch that lives beside it — in a temp
+            # directory outside the repository, kept for inspection and
+            # named in the report: nothing lands under .bale/.
+            if rehearsal:
+                log_path = (Path(tempfile.mkdtemp(
+                    prefix="bale-open-rehearsal-"))
+                    / f"open-{bundle_path.stem}.log")
+            else:
+                log_path = (repo / ".bale" / "logs" /
+                            f"open-{bundle_path.stem}.log")
             exit_code = dry_run_checkpoint(
                 repo, members[checkpoint["path"]], checkpoint["path"],
                 log_path=log_path, verbose=args.verbose,
@@ -690,14 +747,20 @@ def cmd_open(args: argparse.Namespace) -> int:
                     f"grades work that has not landed yet, exactly as a "
                     f"blind checkpoint should pre-session (dry-run log: "
                     f"{log_path})")
+                checkpoint_row = (f"exit 1 — the expected HOLD (log: "
+                                  f"{log_path})")
             elif exit_code == _CHECKPOINT_PASS:
                 log(f"WARNING: the checkpoint PASSes against the "
                     f"unmodified live base (exit 0) — a vacuous oracle "
                     f"pre-work: it cannot distinguish the session's "
-                    f"work landed from not landed. Proceeding (only "
-                    f"exit 2 refuses, per the ratified row); the "
+                    f"work landed from not landed. "
+                    + ("A real open proceeds"
+                       if rehearsal else "Proceeding")
+                    + f" (only exit 2 refuses, per the ratified row); the "
                     f"planner should confirm this checkpoint is "
                     f"invariant-only by intent.", force=True)
+                checkpoint_row = (f"exit 0 — PASSes pre-work (vacuous; "
+                                  f"see the warning) (log: {log_path})")
             else:
                 fail(f"the checkpoint dry-run exited {exit_code} — "
                      f"outside the probe contract's 0/1 verdicts "
@@ -710,13 +773,17 @@ def cmd_open(args: argparse.Namespace) -> int:
             log("no checkpoint member: skipping the dry-run leg "
                 "(nothing to prove)")
 
+        if rehearsal == "dry-run":
+            print(format_rehearsal_report(
+                verb, repo, pack_args, facts,
+                supersession_row=supersession_row,
+                extra_rows=[("checkpoint dry-run", checkpoint_row)],
+                trailer=["Rehearsal only: `bale open` with the same "
+                         "bundle opens the session."]))
+            return 0
+
         log(f"replaying pack invocation: "
             f"bale {shlex.join(pack_argv)}")
-        # The in-process pre-answered-intents channel (BALE.md §6.7):
-        # the raw manifest array rides the namespace attribute cmd_pack
-        # parses at its reject-early site; no CLI flag can spell this.
-        # pack_args was parsed above, ahead of the dry-run (board 68).
-        pack_args.pre_answered = manifest["pre_answered"]
         # The bundle channel (v0.4.41): the same in-process posture —
         # cmd_pack hands it to the open-time persist, which stamps it on
         # the opened attempt as `bundle`. No flag can spell it.
@@ -724,6 +791,37 @@ def cmd_open(args: argparse.Namespace) -> int:
         return pack_args.func(pack_args)
     finally:
         shutil.rmtree(extract_dir, ignore_errors=True)
+
+
+def _rehearse_second_desk(verb: str, repo: Path, sid: str,
+                          record: dict) -> int:
+    """A rehearsal's second-desk path (row 123 × row 122): predict what
+    `bale open` would do with a bundle whose session is still open —
+    record the next desk on that session, or refuse — and write nothing.
+    As on the real path, no gate, dry-run, sweep or replay runs: a real
+    second desk runs none, so there is nothing further to rehearse."""
+    from __main__ import fail, log  # lazy — see module docstring
+    from bale_pack import desk_qualified_name  # lazy — sibling
+    from bale_report import format_summary_block  # lazy — sibling
+
+    refusal = second_desk_refusal(sid, record)
+    if refusal is not None:
+        fail(refusal)
+    desk = next_desk_name(record)
+    log(f"second desk: this bundle opened session {sid}, which is still "
+        f"open; `bale open` would record {desk} on it (no pre-flight, "
+        f"dry-run, sweep, or replay runs on that path)")
+    print(format_summary_block([
+        ("rehearsal", verb),
+        ("project root", str(repo.resolve())),
+        ("second desk", f"would record {desk} on open session {sid} "
+                        f"({desk_qualified_name(sid, desk)})"),
+        ("not run", "the desk's opened attempt, its sweep commit, and the "
+                    "opener — a second desk runs no gates or dry-run"),
+        ("wrote", "nothing"),
+    ], trailer=["Rehearsal only: `bale open` with the same bundle joins "
+                "the session as that desk."]))
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +903,34 @@ def _record_is_tracked(repo: Path, rel: str) -> bool:
     return r.returncode == 0
 
 
+def second_desk_refusal(sid: str, record: dict) -> Optional[str]:
+    """The refusal a further desk on `sid` meets, or None when the record
+    holds nothing but opens. Pure: open_second_desk raises it and the
+    rehearsal verbs (v0.4.45, board row 122) predict it without writing.
+
+    An 'opened' attempt after an apply-side event (an apply attempt, a
+    HOLD, a refusal) would contradict the record, whose 'opened' means no
+    close or apply event has landed yet.
+    """
+    later = [a.get("outcome") for a in (record.get("attempts") or [])
+             if a.get("outcome") != "opened"]
+    if not later:
+        return None
+    return (f"this bundle opened session {sid}, which is still open but "
+            f"has recorded events past its opens (latest: {later[-1]}); "
+            f"a further desk is recorded only while the session holds "
+            f"nothing but opens, because an 'opened' attempt after an "
+            f"apply-side event would contradict the record. Continue "
+            f"that session where it stands (`bale status`), or close it "
+            f"and re-open the bundle for a fresh session.")
+
+
+def next_desk_name(record: dict) -> str:
+    """The desk name the next open of the record's bundle would record."""
+    return desk_name(sum(1 for a in (record.get("attempts") or [])
+                         if a.get("outcome") == "opened") + 1)
+
+
 def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
                      bundle_path: Path) -> int:
     """Record a further desk on open session `sid` and re-emit its opener.
@@ -840,19 +966,10 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
         write_telemetry_record,
     )
 
-    attempts = record.get("attempts") or []
-    later = [a.get("outcome") for a in attempts
-             if a.get("outcome") != "opened"]
-    if later:
-        fail(f"this bundle opened session {sid}, which is still open but "
-             f"has recorded events past its opens (latest: {later[-1]}); "
-             f"a further desk is recorded only while the session holds "
-             f"nothing but opens, because an 'opened' attempt after an "
-             f"apply-side event would contradict the record. Continue "
-             f"that session where it stands (`bale status`), or close it "
-             f"and re-open the bundle for a fresh session.")
-    desk = desk_name(sum(1 for a in attempts
-                         if a.get("outcome") == "opened") + 1)
+    refusal = second_desk_refusal(sid, record)
+    if refusal is not None:
+        fail(refusal)
+    desk = next_desk_name(record)
 
     manifest_path = repo / ".bale" / "sessions" / sid / "manifest.json"
     try:

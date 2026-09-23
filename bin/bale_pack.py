@@ -1770,53 +1770,575 @@ def refuse_missing_scope_paths(repo: Path, includes: list,
             )
 
 
-def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
-    """The arg-inspectable pack gates, evaluated before anything
-    expensive (board 68): `bale open` calls this with the composed
-    replay argv, parsed by the real CLI parser, BEFORE the checkpoint
-    dry-run — cheap gates before the oracle execution.
 
-    First a guard (v0.4.39): an argv carrying --context refuses — a
-    bundle opens a session and a context pack opens none. Then two
-    gates, each the one implementation cmd_pack itself runs:
+# ---------------------------------------------------------------------------
+# Argv-only gates as named helpers (v0.4.45, board row 122)
+# ---------------------------------------------------------------------------
+#
+# Each helper below was an inline stanza of cmd_pack, moved verbatim (only
+# re-indented) so the rehearsal verbs — `bale pack --dry-run`, `bale open
+# --check`, `bale open --dry-run` — run the one implementation cmd_pack
+# runs rather than a copy. cmd_pack calls each at its original site, so a
+# real pack's gate order and wording are unchanged. None of them writes
+# anything: they read argv, files, git refs, config and telemetry, log to
+# the terminal, and refuse via fail().
 
-    1. forecast existence — refuse_missing_scope_paths over the
-       --include and --write entries;
-    2. forecast disjointness — run_forecast_disjointness_gate over
-       resolve_write_forecast(args), only when forecast_final_at_parse
-       (the wizard path defers, exactly as cmd_pack does), and with
-       the argv's `--supersedes` sid excluded as pending: its exchange
-       runs inside the replay, so the pre-flight cannot judge it (see
-       the gate's docstring).
+def refuse_contradictory_pack_flags(args: argparse.Namespace) -> None:
+    """The fail-fast flag-pair refusals cmd_pack runs first: --write vs
+    --read-only, --checkpoint-file vs --read-only, --edit vs --no-edit,
+    --no-readme vs --readme-file/--edit, and --edit without a TTY.
 
-    Existence runs first: a forecast entry that does not exist is an
-    argv defect in its own right, and a disjointness verdict computed
-    over a phantom path would name a collision that cannot be reasoned
-    about. The checkpoint-blindness gate deliberately stays in
-    cmd_pack — it is not moved here.
-
-    Passing is silent and returns None; the replayed pack re-runs
-    both gates at their own sites (cheap, and pack's contract stays
-    whole). Refusals are the gates' own text, via fail(), with no
-    session state existing yet. Journal tuples the gate returns are
-    discarded here — the replay's run is the one that journals.
+    README-flag validation, before anything can prompt (the git-init
+    walkthrough is interactive) and before the wizard could collect
+    answers a doomed command line would then throw away. Fail-fast: a
+    contradictory or unusable flag combination should cost the user zero
+    keystrokes. The --write/--read-only contradiction (ADR-0015, design
+    brief I.1) sits first: the empty forecast has exactly one spelling.
+    (--write with zero paths never reaches here: argparse's nargs="+"
+    already refuses it.)
     """
-    # A planner bundle opens a session; a context pack opens none
+    from __main__ import fail  # lazy — see module docstring
+    if args.write and args.read_only:
+        fail(
+            "--write and --read-only are contradictory: one declares a "
+            "non-empty write forecast, the other declares the empty one "
+            "(the read-only session shape). Drop one."
+        )
+    # --checkpoint-file vs --read-only (v0.4.10): contradictory at
+    # arg-parse time, before any prompt — the v0.4.9 read-only waiver
+    # means a read-only pack requires no per-session checkpoint, so
+    # there is nothing to install. Same fail-fast posture as the pairs
+    # around it; the wizard's [r] answer re-runs this check post-wizard.
+    if args.checkpoint_file is not None and args.read_only:
+        fail(
+            "--checkpoint-file and --read-only are contradictory: the "
+            "read-only shape waives the per-session checkpoint (an "
+            "empty forecast lands nothing, so no oracle is required — "
+            "v0.4.9), leaving nothing to install. Drop one."
+        )
+    if args.edit and args.no_edit:
+        fail(
+            "--edit and --no-edit are contradictory: one forces the "
+            "README $EDITOR step, the other suppresses it. Drop one."
+        )
+    if args.no_readme and (args.readme_file is not None or args.edit):
+        fail(
+            "--no-readme is contradictory with --readme-file/--edit: one "
+            "declares the pack deliberately ships no prose, the others "
+            "supply or edit prose. Drop one side."
+        )
+    if args.edit and not sys.stdin.isatty():
+        fail(
+            "--edit needs a TTY (it opens $EDITOR); stdin is not one. "
+            "For non-interactive packs, supply prose via --readme-file "
+            "instead."
+        )
+
+
+def read_pack_delivery_files(args: argparse.Namespace, repo: Optional[Path],
+                             cwd: Path) -> None:
+    """Read --readme-file and --checkpoint-file up front, stashing their
+    bodies on the namespace (`_readme_file_body`/`_readme_file_path`,
+    `_checkpoint_file_bytes`/`_checkpoint_file_path`) — or refuse.
+
+    Reads only: the checkpoint's commit happens much later in cmd_pack,
+    against the peeked sid. `repo` may be None (the pre-git-init path),
+    exactly as at cmd_pack's site.
+    """
+    from __main__ import fail, resolve_inbound_path  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+    # Read --readme-file up front so a bad path or empty file fails here,
+    # not after the wizard/editor. Empty is a hard failure rather than a
+    # silent omit: the flag is an explicit request to ship prose, so an
+    # empty file means something upstream (a generator, a redirect) went
+    # wrong — per the no-silent-skips rule. Deliberate omission is
+    # spelled "don't pass the flag". The body is stashed on args for
+    # _resolve_readme_body, the same private-attr idiom as _readme_body.
+    #
+    # Since v0.3.6 the path resolves through the same inbound search paths
+    # apply/retry/handoff use for their tarball argument
+    # (resolve_inbound_path over apply.search_paths): absolute paths
+    # bypass, cwd is tried first, then each configured directory in order,
+    # and a bare filename that matches nowhere fails naming every
+    # directory consulted. This lets a worker author `--readme-file
+    # request-brief.md` without knowing where the architect's downloads
+    # land. With no search paths configured, resolution is against cwd —
+    # the pre-v0.3.6 behavior, minus one deliberate alignment: the flag
+    # argument is no longer expanduser()'d here, matching the resolver's
+    # contract that the shell already expanded an unquoted `~` and a
+    # quoted one was deliberate. Outside a git repo (the git-init
+    # walkthrough case) only the global config layer can exist, so that
+    # is what's consulted.
+    args._readme_file_body = None
+    args._readme_file_path = None
+    if args.readme_file is not None:
+        if repo is not None:
+            pack_cfg = bale_config.merged_config(repo)
+        else:
+            pack_cfg = bale_config.load_global_config()
+        readme_search_paths = bale_config.get_apply_search_paths(pack_cfg)
+        readme_path = resolve_inbound_path(
+            args.readme_file, cwd, readme_search_paths, kind="readme file"
+        )
+        try:
+            file_body = readme_path.read_text(encoding="utf-8")
+        except OSError as e:
+            fail(f"could not read --readme-file {args.readme_file!r}: {e}")
+        except UnicodeDecodeError as e:
+            fail(
+                f"--readme-file {args.readme_file!r} is not UTF-8 text: {e}. "
+                f"The request README is prose; point the flag at a text file."
+            )
+        if not file_body.strip():
+            fail(
+                f"--readme-file {args.readme_file!r} is empty. The flag "
+                f"asks bale to ship prose context; omit the flag to pack "
+                f"without a README."
+            )
+        # Placeholder refusal (v0.3.21, board 33 rider): a worker-
+        # authored brief scaffolds unfilled slots as lines containing
+        # the sentinel `TODO(brief)` (TARBALL.md §3.4, the --readme-file
+        # row). A brief that still carries one is a generation or
+        # editing step that didn't finish, and shipping it would hand
+        # the worker a hole where intent should be — the same
+        # no-silent-skips posture as the empty-file refusal above, at
+        # the same fail-fast position (read time, before any prompt;
+        # fix or regenerate the file, then re-pack — this fires even
+        # with --edit, matching the empty-file refusal's timing).
+        placeholder_lines = [
+            str(i) for i, ln in enumerate(file_body.splitlines(), 1)
+            if "TODO(brief)" in ln
+        ]
+        if placeholder_lines:
+            fail(
+                f"--readme-file {args.readme_file!r} (resolved to "
+                f"{readme_path}) still contains an unfilled placeholder: "
+                f"line(s) {', '.join(placeholder_lines)} contain the "
+                f"sentinel 'TODO(brief)'. Fill the brief (or regenerate "
+                f"it), then re-pack; a brief with unfilled slots must "
+                f"not ship."
+            )
+        args._readme_file_body = file_body
+        # Stashed for the pack report's README identity echo (v0.3.21,
+        # board 33 rider): the resolved path is the identity the
+        # search-path resolution made ambiguous — echoing it (plus the
+        # shipped body's first heading and sha256, computed at the
+        # report site) is how the operator confirms which brief shipped.
+        args._readme_file_path = readme_path
+
+    # Read --checkpoint-file up front (v0.4.10), same fail-fast
+    # rationale as --readme-file above: a bad path, unreadable or
+    # empty file, or an out-of-v1-scope base ({sid} bases only;
+    # unconfigured refuses rather than ignoring the flag) should cost
+    # zero keystrokes. The commit itself happens much later — against
+    # the peeked sid, immediately before the resolved-existence
+    # pre-flight — because the resolved path does not exist until the
+    # sid is known; only the read and the shape gate are front-loaded.
+    # The private-attr stash is the same idiom as _readme_file_body,
+    # and the wizard's checkpoint prompt fills the same attrs on its
+    # path.
+    args._checkpoint_file_bytes = None
+    args._checkpoint_file_path = None
+    if args.checkpoint_file is not None:
+        checkpoint_file_base_or_refuse(repo)
+        cf_path, cf_data, cf_err = locate_and_read_checkpoint_file(
+            args.checkpoint_file, repo, cwd)
+        if cf_err is not None:
+            fail(cf_err)
+        args._checkpoint_file_path = cf_path
+        args._checkpoint_file_bytes = cf_data
+
+
+def refuse_detached_head(repo: Path) -> str:
+    """Refuse a detached HEAD (BALE.md §7.1 step 4a); return the branch
+    name pack stamps as the session's integration target (ADR-0008)."""
+    from __main__ import current_branch, fail  # lazy — see module docstring
+    pack_branch = current_branch(repo)
+    if pack_branch == "HEAD":
+        fail(
+            "HEAD is detached — bale pack stamps the currently checked-out "
+            "branch as the session's integration target (ADR-0008), and a "
+            "session packed without that stamp can never be applied. Check "
+            "out the branch this session should integrate into, then "
+            "re-pack."
+        )
+    return pack_branch
+
+
+def resolve_pack_include_group(args: argparse.Namespace, repo: Path,
+                               *, announce: bool = True,
+                               ) -> tuple[list, Optional[str], Optional[dict]]:
+    """Evaluate the configured include group for this pack (board 64;
+    BALE.md §7.2): return `(group_adds, group_report, group_json)` — the
+    read-side additions, the human report row, and the --json
+    `include_group` value (None exactly when no row prints).
+
+    Refuses a --no-include-group that names no configured group or the
+    wrong one, and (inside evaluate_include_group) a dangling configured
+    pull. Engagement and the opt-out log, as they always have, unless
+    `announce` is False: `bale open`'s pre-flight (pack_argv_preflight)
+    evaluates the group only to feed the gates and leaves the lines —
+    the opt-out's FORCE line above all, which would otherwise be queued
+    for the session journal twice — to the replay's own run. Refusals
+    are never quieted.
+    """
+    from __main__ import fail, log  # lazy — see module docstring
+
+    def say(msg: str, **kw) -> None:
+        if announce:
+            log(msg, **kw)
+
+    import bale_config  # lazy — see module docstring
+    group_cfg = bale_config.get_pack_include_group(
+        bale_config.merged_config(repo))
+    group_adds: list[str] = []
+    group_report: Optional[str] = None
+    # The same row as data, for pack's --json `include_group` key
+    # (v0.4.40, board 104b): set in exactly the branches that set
+    # group_report, so the key is null exactly when the human report
+    # prints no "include group" row. bale_report owns the shape.
+    from bale_report import format_include_group_json  # lazy — see module docstring
+    group_json: Optional[dict] = None
+    if args.no_include_group is not None:
+        # Opt-out validation is strict in both directions: a flag with
+        # no configured group, or naming a group that is not the
+        # configured one, is a typo or a stale paste — and a typo'd
+        # opt-out that silently opts out of nothing would be the
+        # silent skip the loud-opt-out rule forbids.
+        if group_cfg is None:
+            fail(
+                f"--no-include-group {args.no_include_group!r}: no "
+                f"include group is configured in bale.toml ([pack] "
+                f"include_group), so there is nothing to opt out of. "
+                f"Drop the flag."
+            )
+        if args.no_include_group != group_cfg["name"]:
+            fail(
+                f"--no-include-group {args.no_include_group!r} does not "
+                f"match the configured include group "
+                f"{group_cfg['name']!r}. The flag takes the group's "
+                f"exact name so a typo cannot silently skip the pull."
+            )
+        # FORCE-prefixed deliberately: the opt-out overrides an
+        # automatic behavior the project's config pinned, so it is an
+        # audit-trail event like the other override logs — and the
+        # force queue replays it into the session journal once the sid
+        # opens.
+        say(f"include group {group_cfg['name']!r} opt-out "
+            f"(--no-include-group): automatic engagement disabled for "
+            f"this pack", force=True)
+        group_report = f"{group_cfg['name']} opt-out (--no-include-group)"
+        group_json = format_include_group_json(
+            name=group_cfg["name"], state="opt-out", triggers=[],
+            pulled=[], row=group_report)
+    elif group_cfg is not None:
+        engagement = evaluate_include_group(
+            repo, list(args.include), group_cfg)
+        if engagement["engaged"]:
+            trig = ", ".join(engagement["trigger_hits"])
+            if engagement["adds"]:
+                group_adds = engagement["adds"]
+                say(f"include group {group_cfg['name']!r} engaged "
+                    f"(trigger: {trig}): pulled "
+                    f"{', '.join(group_adds)} into context "
+                    f"(read side only — the write forecast is "
+                    f"unchanged; opt out with --no-include-group "
+                    f"{group_cfg['name']})")
+                group_report = (f"{group_cfg['name']} engaged: pulled "
+                                f"{len(group_adds)} path(s)")
+            else:
+                say(f"include group {group_cfg['name']!r} engaged "
+                    f"(trigger: {trig}): all group paths already "
+                    f"covered by the includes")
+                group_report = (f"{group_cfg['name']} engaged "
+                                f"(already covered)")
+            group_json = format_include_group_json(
+                name=group_cfg["name"], state="engaged",
+                triggers=engagement["trigger_hits"], pulled=group_adds,
+                row=group_report)
+    return group_adds, group_report, group_json
+
+
+def refuse_piped_wizard(args: argparse.Namespace) -> None:
+    """Refuse a wizard-engaging argv (goal or --slug missing) when stdin
+    is not a TTY: the wizard cannot prompt, so the pack cannot proceed."""
+    from __main__ import fail  # lazy — see module docstring
+    if not sys.stdin.isatty():
+        missing = []
+        if args.goal is None:
+            missing.append("goal")
+        if args.slug is None:
+            missing.append("--slug")
+        fail(
+            f"missing required arg(s) ({', '.join(missing)}) and stdin "
+            f"is not a TTY; cannot prompt interactively. Provide them "
+            f"on the command line and re-run."
+        )
+
+
+def guard_readme_absence(args: argparse.Namespace, *,
+                         wizard_engaged: bool) -> None:
+    """The no-readme guard (v0.3.8, board 3), for a pack whose README
+    body resolved to None: log the deliberate cases (--no-readme, a
+    wizard-prompt decline), warn on a TTY, refuse when piped."""
+    from __main__ import fail, log  # lazy — see module docstring
+    if args.no_readme:
+        log("packing without a README (--no-readme)")
+    elif wizard_engaged and not args.no_edit:
+        log("packing without a README (declined at the wizard prompt, "
+            "or the editor buffer held no prose)")
+    elif sys.stdin.isatty():
+        print(
+            "[bale] warning: packing without a README — the request "
+            "ships only the manifest's structured fields. Supply prose "
+            "via --readme-file or --edit, or pass --no-readme to "
+            "acknowledge and silence this.",
+            file=sys.stderr,
+        )
+    else:
+        fail(
+            "packing without a README and without --no-readme: stdin "
+            "is not a TTY, so the warning would be read by nobody. "
+            "Supply prose via --readme-file, or pass --no-readme to "
+            "declare the omission deliberate."
+        )
+
+
+def supersession_guards(args: argparse.Namespace, repo: Path
+                        ) -> tuple[Optional[str], Optional[str]]:
+    """The read-only guards `_resolve_supersession` runs above its
+    exchange: return `(None, None)` when the argv names no --supersedes,
+    `(sid, "rerun")` for the idempotent re-run (the sid is closed and its
+    latest closure is superseded-by-split), `(sid, "open")` for an open
+    parent with no held branch — or refuse (empty sid; nothing to
+    supersede; a HOLD-reached parent). Writes nothing; the exchange
+    itself stays in _resolve_supersession.
+    """
+    from __main__ import fail, git, log, session_is_open  # lazy — see module docstring
+    from bale_report import read_telemetry_record  # lazy — see module docstring
+
+    if args.supersedes is None:
+        return None, None
+    sid = args.supersedes.strip()
+    if not sid:
+        fail("--supersedes requires a session id.")
+
+    if not session_is_open(repo, sid):
+        record = read_telemetry_record(repo, sid)
+        attempts = (record or {}).get("attempts") or []
+        latest = attempts[-1] if attempts else {}
+        if latest.get("closure_reason") == "superseded-by-split":
+            log(f"--supersedes {sid}: not open, but its latest closure "
+                f"is superseded-by-split — treating this as the "
+                f"idempotent re-run of a supersession pack that aborted "
+                f"after the close; lineage will be stamped")
+            return sid, "rerun"
+        fail(
+            f"--supersedes {sid}: no open session with that id, and its "
+            f"telemetry history does not show a superseded-by-split "
+            f"closure — nothing to supersede. Check the sid against "
+            f"`bale status`, or drop --supersedes."
+        )
+
+    # Open parent. A HOLD-reached session owns a bale/<sid> branch;
+    # closing it here would strand the branch the same way cmd_unlock
+    # refuses to. Same remedy: revert first.
+    sid_branch = f"bale/{sid}"
+    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
+                       cwd=repo, check=False)
+    if branch_check.returncode == 0:
+        fail(
+            f"--supersedes {sid}: branch {sid_branch} exists — that "
+            f"session reached HOLD. Run `bale revert {sid}` to discard "
+            f"the held branch and close the session, then re-run this "
+            f"pack (the re-run proceeds via the supersession history "
+            f"only if the revert stamped superseded-by-split; otherwise "
+            f"re-state --supersedes is unnecessary — the parent is "
+            f"closed and the gate no longer collides)."
+        )
+    return sid, "open"
+
+
+def _pending_force_line_count() -> Optional[int]:
+    """Length of bin/bale's queue of FORCE lines awaiting a session log,
+    or None when the running __main__ carries no such queue (an
+    in-process caller that is not the CLI)."""
+    import __main__
+    queue = getattr(__main__, "_pending_log_lines", None)
+    return len(queue) if isinstance(queue, list) else None
+
+
+def _drop_force_lines_queued_since(mark: Optional[int]) -> None:
+    """Drop FORCE lines queued after `mark` (see pack_argv_preflight's
+    `announce`): they already reached the terminal, and the replay that
+    follows queues its own copy for the session journal."""
+    if mark is None:
+        return
+    import __main__
+    queue = getattr(__main__, "_pending_log_lines", None)
+    if isinstance(queue, list):
+        del queue[mark:]
+
+
+def pack_argv_preflight(repo: Path, args: argparse.Namespace, *,
+                        announce: bool = False) -> dict:
+    """The arg-inspectable pack gates, evaluated before anything
+    expensive and before any exchange (board 68; extended by board row
+    122 in v0.4.45). `bale open` calls this with the composed replay
+    argv, parsed by the real CLI parser, BEFORE the checkpoint dry-run;
+    the rehearsal verbs (`bale open --check`/`--dry-run`, `bale pack
+    --dry-run`) call it through run_pack_argv_gates and stop.
+
+    In order, each the one implementation cmd_pack itself runs:
+
+    0. a guard (v0.4.39): an argv carrying --context refuses — a bundle
+       opens a session and a context pack opens none;
+    1. the include group (resolve_pack_include_group) — its opt-out
+       validation, and the read-side additions the blindness gate's
+       read half must see (they ship in context/);
+    2. the pre-exchange pass (pack_pre_exchange_gates, v0.4.44): slug and
+       goal shape, forecast existence, bundle-file naming, the --max-*
+       values, and checkpoint blindness — whole when the forecast is
+       final at parse, its read half on the wizard path. This is the
+       0.4.44 micro's Proposal 3, ratified as row 122's input: the
+       include-naming gate that caught a desk's argv only at replay now
+       refuses here, before the oracle;
+    3. the pre-answered intents parse (parse_pre_answered_intents) —
+       set `pre_answered` on the namespace before calling;
+    4. the supersession guards (supersession_guards) — sid resolution,
+       the idempotent re-run, the HOLD-branch refusal; never the
+       exchange, which only the replay runs;
+    5. forecast disjointness (run_forecast_disjointness_gate), only when
+       forecast_final_at_parse, with the argv's `--supersedes` sid
+       excluded as pending: its exchange runs inside the replay, so the
+       pre-flight cannot judge it (see the gate's docstring).
+
+    Nothing here writes. Refusals are the gates' own text, via fail().
+    `announce` (default False, `bale open`'s real path) quiets the
+    include group's lines and drops any FORCE line this pass queued for
+    the session journal — the replayed pack re-runs every gate at its
+    own site and journals its own run; the rehearsal verbs pass True.
+    Journal tuples the disjointness gate returns are discarded.
+
+    Returns the facts the rehearsal report renders: `gate_deferred`,
+    `group_adds`, `group_report`, `checkpoint_scope_admitted`,
+    `intents` (the parsed list), and `supersession` — `(sid, state)`
+    from supersession_guards.
+    """
+    from __main__ import fail  # lazy — see module docstring
+
+    # 0. A planner bundle opens a session; a context pack opens none
     # (v0.4.39). A stored argv carrying --context is a bundle/argv
     # coherence defect, refused here — before the checkpoint dry-run
     # spends the oracle — rather than at replay, where the supplied
     # README flag would refuse it later and less legibly.
     if getattr(args, "context", False):
-        from __main__ import fail  # lazy — see module docstring
         fail("the stored pack argv carries --context, but a context "
              "pack opens no session and a planner bundle exists to "
              "open one. Re-author the bundle without --context.")
-    refuse_missing_scope_paths(repo, list(args.include), list(args.write))
-    if forecast_final_at_parse(args):
-        run_forecast_disjointness_gate(
-            repo, resolve_write_forecast(args), caller="pack",
-            pending_supersession=(args.supersedes.strip()
-                                  if args.supersedes else None))
+
+    # Imported past the guard: the guard's in-process test drives this
+    # function with only fail() on __main__ (tests/test_context_pack.py).
+    from __main__ import resolved_scope  # lazy — see module docstring
+
+    queued_mark = None if announce else _pending_force_line_count()
+    try:
+        # 1. The include group's read-side additions.
+        group_adds, group_report, _group_json = resolve_pack_include_group(
+            args, repo, announce=announce)
+        # 2. The pre-exchange pass, fed exactly as cmd_pack feeds it.
+        gate_deferred = not forecast_final_at_parse(args)
+        admitted = pack_pre_exchange_gates(
+            repo, args,
+            read_includes=resolved_scope(list(args.include) + group_adds),
+            gate_deferred=gate_deferred)
+        # 3. Pre-answered intents (in-process channel; BALE.md §6.7).
+        try:
+            intents = parse_pre_answered_intents(
+                getattr(args, "pre_answered", None))
+        except ValueError as e:
+            fail(f"pre-answered intents rejected: {e}")
+        # 4. The supersession guards (never the exchange).
+        supersession = supersession_guards(args, repo)
+        # 5. Forecast disjointness, the parent pending.
+        if not gate_deferred:
+            run_forecast_disjointness_gate(
+                repo, resolve_write_forecast(args), caller="pack",
+                pending_supersession=(args.supersedes.strip()
+                                      if args.supersedes else None))
+    finally:
+        _drop_force_lines_queued_since(queued_mark)
+    return {
+        "gate_deferred": gate_deferred,
+        "group_adds": group_adds,
+        "group_report": group_report,
+        "checkpoint_scope_admitted": admitted,
+        "intents": intents,
+        "supersession": supersession,
+    }
+
+
+def run_pack_argv_gates(repo: Path, args: argparse.Namespace, cwd: Path, *,
+                        announce: bool = False) -> dict:
+    """Every argv-only pack gate, in cmd_pack's order, writing nothing
+    (v0.4.45, board row 122) — the shared core of the three rehearsal
+    verbs, and the gate step of a real `bale open`, which rehearses
+    before it acts.
+
+    Beyond pack_argv_preflight: the flag contradictions, the
+    --readme-file/--checkpoint-file reads (a `TODO(brief)` placeholder,
+    an empty brief, an unreadable or unconfigured checkpoint), the
+    system/home-directory refusal at the root, the detached-HEAD
+    refusal, and — once the argv's shape is known — the piped-wizard
+    refusal (goal or --slug missing without a TTY) and the no-README
+    guard's piped refusal. `repo` is an existing git root: outside one,
+    pack runs the git-init walkthrough, which writes, so the rehearsal
+    caller refuses before reaching here.
+
+    What stays out, because it is not decided by the argv alone or it
+    writes: the wizard's prompts, the supersession exchange, the
+    read-only sweep, the sid mint, the context walk and its caps, the
+    hooks, the tarball build and the persist. On the wizard path (a TTY
+    with goal or --slug missing) the forecast-dependent gates wait for
+    answers this function cannot collect; the returned
+    `wizard_engaged` says so, and the report says it loudly.
+
+    Returns pack_argv_preflight's facts plus `branch`,
+    `wizard_engaged`, and `readme` (a short description of the prose
+    the pack would ship).
+    """
+    from __main__ import refuse_system_dir  # lazy — see module docstring
+
+    refuse_contradictory_pack_flags(args)
+    read_pack_delivery_files(args, repo, cwd)
+    refuse_system_dir(repo, force=args.force)
+    branch = refuse_detached_head(repo)
+    facts = pack_argv_preflight(repo, args, announce=announce)
+
+    wizard_engaged = args.goal is None or args.slug is None
+    if wizard_engaged:
+        refuse_piped_wizard(args)
+    # The no-README guard, where its outcome is an argv fact: off the
+    # wizard path, with neither a brief nor --edit, the README body
+    # resolves to None (_resolve_readme_body). --no-readme is the
+    # deliberate spelling and needs no line here (the replay logs it).
+    if (not wizard_engaged and not args.edit and not args.no_readme
+            and args._readme_file_body is None):
+        guard_readme_absence(args, wizard_engaged=False)
+
+    if args.no_readme:
+        readme = "none (--no-readme)"
+    elif args._readme_file_path is not None:
+        readme = f"{args._readme_file_path} (read; no placeholder)"
+    elif args.edit:
+        readme = "$EDITOR step (--edit) — not opened by a rehearsal"
+    elif wizard_engaged:
+        readme = "the wizard's README prompt — not asked by a rehearsal"
+    else:
+        readme = "none — a TTY pack would warn"
+    facts.update(branch=branch, wizard_engaged=wizard_engaged,
+                 readme=readme)
+    return facts
 
 
 def pack_pre_exchange_gates(repo: Path, args: argparse.Namespace, *,
@@ -1871,8 +2393,9 @@ def pack_pre_exchange_gates(repo: Path, args: argparse.Namespace, *,
     refusal (it is a verdict on the exchange itself), and the read-only
     sweep (itself a state-writing exchange). Sited in cmd_pack, not in
     pack_argv_preflight: `bale open` replays through cmd_pack, so the
-    open path is covered by this same pass, and pack_argv_preflight's
-    surface stays exactly what it was (row 122 extends it next).
+    open path is covered by this same pass. Since v0.4.45 (board row
+    122) pack_argv_preflight also calls this pass, before the checkpoint
+    dry-run, and the rehearsal verbs run it through that function.
 
     Refusals are the gates' own text, via fail(); passing logs one line
     naming the pass so a session log shows it ran before the exchange.
@@ -3629,54 +4152,18 @@ def _resolve_supersession(args: argparse.Namespace,
         close_session_with_record,
         confirm_yn_decision,
         fail,
-        git,
         log,
-        session_is_open,
     )
-    from bale_report import (  # lazy — see module docstring
-        format_decline_line,
-        read_telemetry_record,
-    )
+    from bale_report import format_decline_line  # lazy — see module docstring
 
-    if args.supersedes is None:
+    # The guards above the exchange (sid resolution, the idempotent
+    # re-run, the HOLD-branch refusal) are supersession_guards since
+    # v0.4.45 (board row 122), so the rehearsal verbs run them too.
+    sid, state = supersession_guards(args, repo)
+    if sid is None:
         return None, None
-    sid = args.supersedes.strip()
-    if not sid:
-        fail("--supersedes requires a session id.")
-
-    if not session_is_open(repo, sid):
-        record = read_telemetry_record(repo, sid)
-        attempts = (record or {}).get("attempts") or []
-        latest = attempts[-1] if attempts else {}
-        if latest.get("closure_reason") == "superseded-by-split":
-            log(f"--supersedes {sid}: not open, but its latest closure "
-                f"is superseded-by-split — treating this as the "
-                f"idempotent re-run of a supersession pack that aborted "
-                f"after the close; lineage will be stamped")
-            return sid, None
-        fail(
-            f"--supersedes {sid}: no open session with that id, and its "
-            f"telemetry history does not show a superseded-by-split "
-            f"closure — nothing to supersede. Check the sid against "
-            f"`bale status`, or drop --supersedes."
-        )
-
-    # Open parent. A HOLD-reached session owns a bale/<sid> branch;
-    # closing it here would strand the branch the same way cmd_unlock
-    # refuses to. Same remedy: revert first.
-    sid_branch = f"bale/{sid}"
-    branch_check = git(["rev-parse", "--verify", "--quiet", sid_branch],
-                       cwd=repo, check=False)
-    if branch_check.returncode == 0:
-        fail(
-            f"--supersedes {sid}: branch {sid_branch} exists — that "
-            f"session reached HOLD. Run `bale revert {sid}` to discard "
-            f"the held branch and close the session, then re-run this "
-            f"pack (the re-run proceeds via the supersession history "
-            f"only if the revert stamped superseded-by-split; otherwise "
-            f"re-state --supersedes is unnecessary — the parent is "
-            f"closed and the gate no longer collides)."
-        )
+    if state == "rerun":
+        return sid, None
 
     # The exchange (§5.2 wizard idiom): decline default, cost named.
     # A pre-answered intent (v0.4.12) is consulted FIRST — it answers
@@ -4661,6 +5148,9 @@ CONTEXT_SESSION_ONLY_FLAGS = (
     ("work_class", "--work-class", None),
     ("allow_checkpoint_in_scope", "--allow-checkpoint-in-scope", False),
     ("no_include_group", "--no-include-group", None),
+    # v0.4.45 (board row 122): the rehearsal rehearses a session pack,
+    # so beside --context it refuses here like every session-only flag.
+    ("dry_run", "--dry-run", False),
 )
 
 # Flags that compose with --context (argparse dests). Together with the
@@ -5006,6 +5496,185 @@ def cmd_pack_context(args: argparse.Namespace, cwd: Path) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# The rehearsal verbs' pack side (v0.4.45, board row 122)
+# ---------------------------------------------------------------------------
+#
+# `bale pack --dry-run <argv…>` runs every argv-only gate against the live
+# tree (run_pack_argv_gates) and stops; `bale open --check`/`--dry-run`
+# reuse the same core and this module's report. The contract, pinned by the
+# row's brief: nothing is written — no session, lock, telemetry record,
+# outbox tarball, checkpoint commit, closure, or stamp on another session's
+# record. The supersession exchange and the read-only sweep never run; a
+# `--supersedes` parent stays open. What the exchange WOULD do is predicted
+# from the same facts it would read (rehearse_supersession).
+
+REHEARSAL_NOT_RUN = (
+    "the wizard's prompts, the supersession exchange, the read-only "
+    "sweep, the sid mint and session state, the context walk and its "
+    "caps, hooks, the request tarball, and every telemetry write")
+
+
+def rehearse_supersession(facts: dict) -> str:
+    """Predict the supersession exchange without running it; return the
+    report row's text, or refuse when the real pack is certain to.
+
+    The prediction reads the same facts the exchange reads: the guards'
+    verdict (already run by pack_argv_preflight), the parsed intents
+    (consume_supersession_intent, which selects without consuming), and
+    whether stdin is a TTY. Piped stdin with no matching intent takes the
+    decline default, and a declined `--supersedes` pack always refuses
+    (the disjointness gate or the declined-supersession refusal), so the
+    rehearsal refuses too — naming the parent, which stays open.
+    Unmatched intents are reported the way the replay reports them.
+    """
+    from __main__ import fail, log  # lazy — see module docstring
+
+    sid, state = facts["supersession"]
+    intents = facts["intents"]
+    matched = consume_supersession_intent(intents, sid) \
+        if state == "open" else None
+    for intent in intents:
+        if intent is not matched:
+            log(f"pre-answered intent ({intent.prompt} {intent.subject}) "
+                f"would not be consumed: this invocation raises no "
+                f"matching prompt, so the intent would change nothing "
+                f"(the replay reports it the same way)", force=True)
+    if sid is None:
+        return "none (no --supersedes)"
+    if state == "rerun":
+        return (f"idempotent re-run: {sid} already closed "
+                f"superseded-by-split; the pack would stamp lineage")
+    if matched is not None:
+        return (f"a pre-answered intent would accept: {sid} would close "
+                f"as superseded-by-split — not closed now; it stays open")
+    if sys.stdin.isatty():
+        return (f"the exchange would prompt (decline default) to close "
+                f"{sid} — not asked now; it stays open")
+    fail(f"--supersedes {sid}: stdin is not a TTY and no pre-answered "
+         f"intent answers the exchange for {sid}, so the real pack takes "
+         f"the decline default — and a --supersedes pack whose parent "
+         f"stays open refuses (the forecast-disjointness gate, or the "
+         f"declined-supersession refusal). Run the pack on a TTY and "
+         f"accept the prompt, open it from a bundle carrying a "
+         f"`supersede {sid}` intent, or drop --supersedes. Nothing was "
+         f"closed: {sid} is still open.")
+    return ""  # unreachable: fail() raises
+
+
+def rehearse_readonly_sweep(repo: Path, args: argparse.Namespace,
+                            facts: dict) -> Optional[str]:
+    """The read-only sweep's report row — what it WOULD offer, never
+    run — or None when the pack is not read-only (no sweep at all).
+
+    Lists the open sessions whose recorded scope is exactly [] — the
+    sweep's selection rule (_run_readonly_sweep) — minus a parent the
+    supersession exchange would already have closed.
+    """
+    from __main__ import open_sessions, read_session_scope  # lazy
+
+    if not args.read_only:
+        return None
+    sid, state = facts["supersession"]
+    candidates = [s for s in open_sessions(repo)
+                  if s != sid and read_session_scope(repo, s) == []]
+    if not candidates:
+        return "not run; no open read-only session to offer"
+    return (f"not run; would offer to close {len(candidates)} open "
+            f"read-only session(s) ({', '.join(candidates)}) — accept "
+            f"default on a TTY, piped declines; all stay open")
+
+
+def format_rehearsal_report(verb: str, repo: Path, args: argparse.Namespace,
+                            facts: dict, *, supersession_row: str,
+                            extra_rows: Optional[list] = None,
+                            trailer: Optional[list] = None) -> str:
+    """The rehearsal's end-of-run block (bale_report.format_summary_block
+    renders it): what was rehearsed, what the pack would do, what did not
+    run, and the line that the run wrote nothing."""
+    from __main__ import resolved_scope  # lazy — see module docstring
+    from bale_report import format_summary_block  # lazy — see module docstring
+
+    if facts["wizard_engaged"]:
+        gates = ("passed as far as the argv reaches — the wizard would "
+                 "collect the missing goal/--slug (and may set the "
+                 "session shape), and the forecast-dependent gates "
+                 "(blindness forecast half, disjointness) run after its "
+                 "answers: NOT rehearsed")
+        forecast = "decided by the wizard — not rehearsed"
+    else:
+        gates = ("every argv-only gate passed (flag pairs, brief and "
+                 "checkpoint reads, detached HEAD, include group, "
+                 "slug/goal, forecast existence, bundle-file naming, cap "
+                 "values, checkpoint blindness, intents, supersession "
+                 "guards, forecast disjointness)")
+        scope = resolve_write_forecast(args)
+        forecast = ("[] (read-only)" if scope == []
+                    else ", ".join(scope))
+    rows = [
+        ("rehearsal", verb),
+        ("project root", str(repo.resolve())),
+        ("branch", facts["branch"]),
+        ("gates", gates),
+        ("write forecast", forecast),
+        ("read includes", ", ".join(resolved_scope(
+            list(args.include) + facts["group_adds"])) or "(whole repo)"),
+        ("include group", facts["group_report"] or "none engaged"),
+        ("readme", facts["readme"]),
+        ("supersession", supersession_row),
+    ]
+    sweep = rehearse_readonly_sweep(repo, args, facts)
+    if sweep is not None:
+        rows.append(("read-only sweep", sweep))
+    rows += list(extra_rows or [])
+    rows += [
+        ("not run", REHEARSAL_NOT_RUN),
+        ("wrote", "nothing"),
+    ]
+    return format_summary_block(rows, trailer=trailer)
+
+
+def cmd_pack_dry_run(args: argparse.Namespace) -> int:
+    """`bale pack --dry-run <argv…>` — rehearse a hand-typed pack line.
+
+    Runs every argv-only gate against the live tree (run_pack_argv_gates)
+    and prints the rehearsal report; exit 0 when every gate passes, the
+    refusing gate's own text and exit 1 otherwise. Writes nothing (the
+    module banner above names the contract).
+
+    cmd_pack dispatches here after its system/home-directory refusal
+    and after the context branch, which refuses --dry-run beside
+    --context through its session-only table (CONTEXT_SESSION_ONLY_FLAGS).
+    Refused here beside `--json` — pack's --json contract is the
+    one-line report of a pack that ran, and a rehearsal has no sid,
+    tarball or session to report — and outside a git repository, where
+    a real pack runs the git-init walkthrough, which writes.
+    """
+    from __main__ import fail, log, repo_root  # lazy
+
+    if args.json:
+        fail("--dry-run and --json are not supported together: pack's "
+             "--json line reports a pack that ran (sid, tarball, "
+             "session), and a rehearsal runs none. Drop --json to "
+             "rehearse, or --dry-run to pack.")
+    cwd = Path.cwd().resolve()
+    refuse_contradictory_pack_flags(args)
+    repo = repo_root(cwd)
+    if repo is None:
+        fail("--dry-run writes nothing, and outside a git repository "
+             "bale pack would run the git-init walkthrough, which "
+             "writes. cd into the project repository and re-run.")
+    log("pack --dry-run: rehearsing the argv-only gates against the live "
+        "tree — nothing will be written")
+    facts = run_pack_argv_gates(repo, args, cwd, announce=True)
+    row = rehearse_supersession(facts)
+    print(format_rehearsal_report(
+        "bale pack --dry-run", repo, args, facts, supersession_row=row,
+        trailer=["Rehearsal only: the same line without --dry-run packs "
+                 "the session."]))
+    return 0
+
+
 def cmd_pack(args: argparse.Namespace) -> int:
     from __main__ import (  # lazy — see module docstring
         BALEIGNORE_FILE,
@@ -5023,7 +5692,6 @@ def cmd_pack(args: argparse.Namespace) -> int:
         refuse_system_dir,
         register_session,
         repo_root,
-        resolve_inbound_path,
         resolved_scope,
         run_hook,
         scope_intersection,
@@ -5063,6 +5731,14 @@ def cmd_pack(args: argparse.Namespace) -> int:
     if getattr(args, "context", False):
         return cmd_pack_context(args, cwd)
 
+    # The rehearsal (v0.4.45, board row 122) branches off next, after the
+    # system/home-directory refusal it shares and after the context
+    # branch — whose session-only table refuses --dry-run beside
+    # --context, the one refusal every session-only flag gets — and
+    # before everything below, all of which can write.
+    if getattr(args, "dry_run", False):
+        return cmd_pack_dry_run(args)
+
     # README-flag validation, before anything can prompt (the git-init
     # walkthrough below is interactive) and before the wizard could
     # collect answers a doomed command line would then throw away.
@@ -5076,41 +5752,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # prompt — the same fail-fast posture as the README-flag pairs
     # below. (--write with zero paths never reaches here: argparse's
     # nargs="+" already refuses it.)
-    if args.write and args.read_only:
-        fail(
-            "--write and --read-only are contradictory: one declares a "
-            "non-empty write forecast, the other declares the empty one "
-            "(the read-only session shape). Drop one."
-        )
-    # --checkpoint-file vs --read-only (v0.4.10): contradictory at
-    # arg-parse time, before any prompt — the v0.4.9 read-only waiver
-    # means a read-only pack requires no per-session checkpoint, so
-    # there is nothing to install. Same fail-fast posture as the pairs
-    # around it; the wizard's [r] answer re-runs this check post-wizard.
-    if args.checkpoint_file is not None and args.read_only:
-        fail(
-            "--checkpoint-file and --read-only are contradictory: the "
-            "read-only shape waives the per-session checkpoint (an "
-            "empty forecast lands nothing, so no oracle is required — "
-            "v0.4.9), leaving nothing to install. Drop one."
-        )
-    if args.edit and args.no_edit:
-        fail(
-            "--edit and --no-edit are contradictory: one forces the "
-            "README $EDITOR step, the other suppresses it. Drop one."
-        )
-    if args.no_readme and (args.readme_file is not None or args.edit):
-        fail(
-            "--no-readme is contradictory with --readme-file/--edit: one "
-            "declares the pack deliberately ships no prose, the others "
-            "supply or edit prose. Drop one side."
-        )
-    if args.edit and not sys.stdin.isatty():
-        fail(
-            "--edit needs a TTY (it opens $EDITOR); stdin is not one. "
-            "For non-interactive packs, supply prose via --readme-file "
-            "instead."
-        )
+    refuse_contradictory_pack_flags(args)
     # Resolve the repo root before the README-flag read below: the flag's
     # path resolution consults the merged config, and the project layer of
     # that config lives at the root. This is only the walk-up — the
@@ -5119,106 +5761,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # zero keystrokes).
     repo = repo_root(cwd)
 
-    # Read --readme-file up front so a bad path or empty file fails here,
-    # not after the wizard/editor. Empty is a hard failure rather than a
-    # silent omit: the flag is an explicit request to ship prose, so an
-    # empty file means something upstream (a generator, a redirect) went
-    # wrong — per the no-silent-skips rule. Deliberate omission is
-    # spelled "don't pass the flag". The body is stashed on args for
-    # _resolve_readme_body, the same private-attr idiom as _readme_body.
-    #
-    # Since v0.3.6 the path resolves through the same inbound search paths
-    # apply/retry/handoff use for their tarball argument
-    # (resolve_inbound_path over apply.search_paths): absolute paths
-    # bypass, cwd is tried first, then each configured directory in order,
-    # and a bare filename that matches nowhere fails naming every
-    # directory consulted. This lets a worker author `--readme-file
-    # request-brief.md` without knowing where the architect's downloads
-    # land. With no search paths configured, resolution is against cwd —
-    # the pre-v0.3.6 behavior, minus one deliberate alignment: the flag
-    # argument is no longer expanduser()'d here, matching the resolver's
-    # contract that the shell already expanded an unquoted `~` and a
-    # quoted one was deliberate. Outside a git repo (the git-init
-    # walkthrough case) only the global config layer can exist, so that
-    # is what's consulted.
-    args._readme_file_body = None
-    args._readme_file_path = None
-    if args.readme_file is not None:
-        if repo is not None:
-            pack_cfg = bale_config.merged_config(repo)
-        else:
-            pack_cfg = bale_config.load_global_config()
-        readme_search_paths = bale_config.get_apply_search_paths(pack_cfg)
-        readme_path = resolve_inbound_path(
-            args.readme_file, cwd, readme_search_paths, kind="readme file"
-        )
-        try:
-            file_body = readme_path.read_text(encoding="utf-8")
-        except OSError as e:
-            fail(f"could not read --readme-file {args.readme_file!r}: {e}")
-        except UnicodeDecodeError as e:
-            fail(
-                f"--readme-file {args.readme_file!r} is not UTF-8 text: {e}. "
-                f"The request README is prose; point the flag at a text file."
-            )
-        if not file_body.strip():
-            fail(
-                f"--readme-file {args.readme_file!r} is empty. The flag "
-                f"asks bale to ship prose context; omit the flag to pack "
-                f"without a README."
-            )
-        # Placeholder refusal (v0.3.21, board 33 rider): a worker-
-        # authored brief scaffolds unfilled slots as lines containing
-        # the sentinel `TODO(brief)` (TARBALL.md §3.4, the --readme-file
-        # row). A brief that still carries one is a generation or
-        # editing step that didn't finish, and shipping it would hand
-        # the worker a hole where intent should be — the same
-        # no-silent-skips posture as the empty-file refusal above, at
-        # the same fail-fast position (read time, before any prompt;
-        # fix or regenerate the file, then re-pack — this fires even
-        # with --edit, matching the empty-file refusal's timing).
-        placeholder_lines = [
-            str(i) for i, ln in enumerate(file_body.splitlines(), 1)
-            if "TODO(brief)" in ln
-        ]
-        if placeholder_lines:
-            fail(
-                f"--readme-file {args.readme_file!r} (resolved to "
-                f"{readme_path}) still contains an unfilled placeholder: "
-                f"line(s) {', '.join(placeholder_lines)} contain the "
-                f"sentinel 'TODO(brief)'. Fill the brief (or regenerate "
-                f"it), then re-pack; a brief with unfilled slots must "
-                f"not ship."
-            )
-        args._readme_file_body = file_body
-        # Stashed for the pack report's README identity echo (v0.3.21,
-        # board 33 rider): the resolved path is the identity the
-        # search-path resolution made ambiguous — echoing it (plus the
-        # shipped body's first heading and sha256, computed at the
-        # report site) is how the operator confirms which brief shipped.
-        args._readme_file_path = readme_path
-
-    # Read --checkpoint-file up front (v0.4.10), same fail-fast
-    # rationale as --readme-file above: a bad path, unreadable or
-    # empty file, or an out-of-v1-scope base ({sid} bases only;
-    # unconfigured refuses rather than ignoring the flag) should cost
-    # zero keystrokes. The commit itself happens much later — against
-    # the peeked sid, immediately before the resolved-existence
-    # pre-flight — because the resolved path does not exist until the
-    # sid is known; only the read and the shape gate are front-loaded.
-    # The private-attr stash is the same idiom as _readme_file_body,
-    # and the wizard's checkpoint prompt fills the same attrs on its
-    # path.
-    args._checkpoint_file_bytes = None
-    args._checkpoint_file_path = None
-    if args.checkpoint_file is not None:
-        checkpoint_file_base_or_refuse(repo)
-        cf_path, cf_data, cf_err = locate_and_read_checkpoint_file(
-            args.checkpoint_file, repo, cwd)
-        if cf_err is not None:
-            fail(cf_err)
-        args._checkpoint_file_path = cf_path
-        args._checkpoint_file_bytes = cf_data
+    read_pack_delivery_files(args, repo, cwd)
 
     if repo is None:
         # BALE.md §7.1 step 4 / §10: not in a repo → run the walkthrough.
@@ -5243,15 +5786,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # branch, so this fires only for a pre-existing detached checkout.
     # No override flag: there is no session state a detached pack could
     # produce that apply would accept.
-    pack_branch = current_branch(repo)
-    if pack_branch == "HEAD":
-        fail(
-            "HEAD is detached — bale pack stamps the currently checked-out "
-            "branch as the session's integration target (ADR-0008), and a "
-            "session packed without that stamp can never be applied. Check "
-            "out the branch this session should integrate into, then "
-            "re-pack."
-        )
+    pack_branch = refuse_detached_head(repo)
 
     # Tree-position echo (v0.3.31; BALE.md §7.7). Pack says where the
     # tree is at the moment of paste — the current branch and the most
@@ -5290,73 +5825,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     #     naming the group and the flag; a dangling configured pull
     #     refuses (evaluate_include_group). The only silent path is a
     #     group whose triggers this pack's includes never touch.
-    group_cfg = bale_config.get_pack_include_group(
-        bale_config.merged_config(repo))
-    group_adds: list[str] = []
-    group_report: Optional[str] = None
-    # The same row as data, for pack's --json `include_group` key
-    # (v0.4.40, board 104b): set in exactly the branches that set
-    # group_report, so the key is null exactly when the human report
-    # prints no "include group" row. bale_report owns the shape.
-    from bale_report import format_include_group_json  # lazy — see module docstring
-    group_json: Optional[dict] = None
-    if args.no_include_group is not None:
-        # Opt-out validation is strict in both directions: a flag with
-        # no configured group, or naming a group that is not the
-        # configured one, is a typo or a stale paste — and a typo'd
-        # opt-out that silently opts out of nothing would be the
-        # silent skip the loud-opt-out rule forbids.
-        if group_cfg is None:
-            fail(
-                f"--no-include-group {args.no_include_group!r}: no "
-                f"include group is configured in bale.toml ([pack] "
-                f"include_group), so there is nothing to opt out of. "
-                f"Drop the flag."
-            )
-        if args.no_include_group != group_cfg["name"]:
-            fail(
-                f"--no-include-group {args.no_include_group!r} does not "
-                f"match the configured include group "
-                f"{group_cfg['name']!r}. The flag takes the group's "
-                f"exact name so a typo cannot silently skip the pull."
-            )
-        # FORCE-prefixed deliberately: the opt-out overrides an
-        # automatic behavior the project's config pinned, so it is an
-        # audit-trail event like the other override logs — and the
-        # force queue replays it into the session journal once the sid
-        # opens.
-        log(f"include group {group_cfg['name']!r} opt-out "
-            f"(--no-include-group): automatic engagement disabled for "
-            f"this pack", force=True)
-        group_report = f"{group_cfg['name']} opt-out (--no-include-group)"
-        group_json = format_include_group_json(
-            name=group_cfg["name"], state="opt-out", triggers=[],
-            pulled=[], row=group_report)
-    elif group_cfg is not None:
-        engagement = evaluate_include_group(
-            repo, list(args.include), group_cfg)
-        if engagement["engaged"]:
-            trig = ", ".join(engagement["trigger_hits"])
-            if engagement["adds"]:
-                group_adds = engagement["adds"]
-                log(f"include group {group_cfg['name']!r} engaged "
-                    f"(trigger: {trig}): pulled "
-                    f"{', '.join(group_adds)} into context "
-                    f"(read side only — the write forecast is "
-                    f"unchanged; opt out with --no-include-group "
-                    f"{group_cfg['name']})")
-                group_report = (f"{group_cfg['name']} engaged: pulled "
-                                f"{len(group_adds)} path(s)")
-            else:
-                log(f"include group {group_cfg['name']!r} engaged "
-                    f"(trigger: {trig}): all group paths already "
-                    f"covered by the includes")
-                group_report = (f"{group_cfg['name']} engaged "
-                                f"(already covered)")
-            group_json = format_include_group_json(
-                name=group_cfg["name"], state="engaged",
-                triggers=engagement["trigger_hits"], pulled=group_adds,
-                row=group_report)
+    group_adds, group_report, group_json = \
+        resolve_pack_include_group(args, repo)
 
     # Split supersession (v0.3.17, board 26): resolve --supersedes and
     # run its exchange BEFORE the disjointness gate on both paths — the
@@ -5492,17 +5962,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # wizard_engaged tells the resolver whether its lowest-precedence
     # branch (the §7.3 y/N + $EDITOR flow) is on the table.
     if wizard_engaged:
-        if not sys.stdin.isatty():
-            missing = []
-            if args.goal is None:
-                missing.append("goal")
-            if args.slug is None:
-                missing.append("--slug")
-            fail(
-                f"missing required arg(s) ({', '.join(missing)}) and stdin "
-                f"is not a TTY; cannot prompt interactively. Provide them "
-                f"on the command line and re-run."
-            )
+        refuse_piped_wizard(args)
         _wizard_fill_args(args, repo)
         # The [r] answer beside a typed --checkpoint-file (v0.4.10):
         # the same contradiction the fail-fast site refuses, only
@@ -5598,26 +6058,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # wizard_engaged with --no-edit suppresses the prompt, so that
     # combination is NOT exempt.
     if args._readme_body is None:
-        if args.no_readme:
-            log("packing without a README (--no-readme)")
-        elif wizard_engaged and not args.no_edit:
-            log("packing without a README (declined at the wizard prompt, "
-                "or the editor buffer held no prose)")
-        elif sys.stdin.isatty():
-            print(
-                "[bale] warning: packing without a README — the request "
-                "ships only the manifest's structured fields. Supply prose "
-                "via --readme-file or --edit, or pass --no-readme to "
-                "acknowledge and silence this.",
-                file=sys.stderr,
-            )
-        else:
-            fail(
-                "packing without a README and without --no-readme: stdin "
-                "is not a TTY, so the warning would be read by nobody. "
-                "Supply prose via --readme-file, or pass --no-readme to "
-                "declare the omission deliberate."
-            )
+        guard_readme_absence(args, wizard_engaged=wizard_engaged)
 
     # README identity echo (v0.3.21, board 33 rider; evidence 45/47):
     # when a README ships, the pack report echoes its identity — the

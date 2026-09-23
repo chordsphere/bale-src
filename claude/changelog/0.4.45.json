@@ -1,0 +1,37 @@
+{
+  "record_version": 1,
+  "version": "0.4.45",
+  "session_id": "2026-09-23-board-122-rehearsal-verbs-009",
+  "at": "2026-09-23T21:36:05+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale",
+      "change": "row 122: `bale pack --dry-run` (store_true) and a mutually exclusive `bale open --check` / `--dry-run` pair; the open description's step (2) names the full argv-gate set; no existing flag or default changes"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "row 122: cmd_pack's inline argv gates are named helpers it still calls at their original sites, wording byte-identical (refuse_contradictory_pack_flags, read_pack_delivery_files, refuse_detached_head, resolve_pack_include_group with an announce switch, refuse_piped_wizard, guard_readme_absence, supersession_guards \u2014 the last split out of _resolve_supersession, which keeps the exchange); pack_argv_preflight now takes announce= and returns a facts dict instead of None, and after the --context guard runs the include group, pack_pre_exchange_gates (the 0.4.44 micro's Proposal 3), the pre-answered-intents parse, the supersession guards and the disjointness gate; new run_pack_argv_gates is the full write-free gate set; new cmd_pack_dry_run, format_rehearsal_report, rehearse_supersession and rehearse_readonly_sweep; CONTEXT_SESSION_ONLY_FLAGS gains dry_run"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "row 122: cmd_open runs run_pack_argv_gates (not the narrower pack_argv_preflight) before the checkpoint dry-run, with the bundle's pre_answered set on the namespace first; the [validation]-base refusal moved ahead of the argv gates (same text); --check stops after the gates, --dry-run after the checkpoint dry-run (its log in a temp dir outside the repo), each printing a rehearsal report; the second-desk path is predicted, not taken, under a rehearsal; second_desk_refusal and next_desk_name factored out of open_second_desk (same refusal text)"
+    },
+    {
+      "path": "BALE.md",
+      "change": "row 122: \u00a75's pack and open rows name the rehearsal spellings; \u00a76.7 gains the second-desk paragraph (the 0.4.44 micro's Proposal 4) and a bundle-rehearsal paragraph; \u00a77.1 gains the pack --dry-run rehearsal paragraph; \u00a78.9's pack-side stamps name command 'open' and desk on the second-desk attempt"
+    },
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.44 -> 0.4.45"
+    },
+    {
+      "path": "tests/test_rehearsal_verbs.py",
+      "change": "row 122 (new): open --check, open --dry-run and pack --dry-run pins, each asserting a byte snapshot of the repo (every file outside .git, HEAD, refs, git status --porcelain --ignored) is unchanged, on passes and refusals; the specimen include-naming refusal; the supersession parent stays open (predicted accept, TTY prompt, piped refusal); the read-only sweep preview; the second desk rehearsed without a desk recorded; a real open's placeholder-brief refusal before the dry-run"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "row 122: SESSION_ONLY_EXAMPLES gains dry_run, so --dry-run beside --context refuses through the session-only table like every other session flag"
+    }
+  ],
+  "notes": "Behavior change on a real `bale open`: its gate step before the oracle is now the rehearsal's full argv-gate set, so a placeholder brief, a flag contradiction, an unresolvable --supersedes or the include-naming checkpoint gate refuse before the checkpoint dry-run instead of inside the replay. The replay still re-runs every gate at its own site. pack_argv_preflight's return value changed from None to a dict; its only in-tree caller was bale_open."
+}
