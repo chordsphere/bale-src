@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-23-board-100-design-001",
+  "created_at": "2026-09-23T00:26:04+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-23T00:26:04+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-100-design-001.log",
+      "bundle": {
+        "stem": "2026-09-23-board-100-design-revc",
+        "brief_sha256": "e313b60109e2854534d80011ef553bec48b07e48c3697e59fcc7ad1a310f0ac7",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "f143dee887752720b15a556a1f380f09a916b17aeddba6ab567a44e7e82ba4ec"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-23T00:26:03+00:00"
+      }
+    },
+    {
+      "at": "2026-09-23T04:12:09+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-100-design-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-23T04:12:09+00:00",
+  "outcome": "unlocked"
+}
