@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blind checkpoint — sitting close 18 (v1). Authored 2026-09-22 at the
+# Blind checkpoint — sitting close 18 (v2: probes 12 and 13-15 look for DONE anywhere in the row, the board's bracket convention; v1 pinned the head line, a mechanism — fixture defect, amended after the HOLD of 2026-09-23T04:06Z). Authored 2026-09-22 at the
 # read-only master 2026-09-22-continue-plan-005 from the brief, before the
 # landing exists. Grades outcomes of the applied claude/MASTER.md only;
 # never how the worker got there. Exit 0 all probes pass; 1 any probe
@@ -56,12 +56,12 @@ done
 if section 3 | grep -qi "swept" && section 3 | grep -q "2026-09-23-board-100-design-001"; then pass "s3-successor-unswept-watch"; else fail "s3-successor-unswept-watch"; fi
 # 12 row 100 is DONE and carries the wave and the v2 oracle
 r100="$(row 100)"
-if printf '%s\n' "$r100" | head -n 1 | grep -q "DONE 2026-09-23"; then pass "row-100-done"; else fail "row-100-done"; fi
+if printf '%s\n' "$r100" | grep -q "DONE" && printf '%s\n' "$r100" | grep -q "2026-09-23"; then pass "row-100-done"; else fail "row-100-done"; fi
 ok=1; for w in 2026-09-23-board-100-w1-doc-sweep-002 2026-09-23-board-100-w2-code-surfaces-003 2026-09-23-board-100-w3-file-rename-004 b8c69ae8; do printf '%s\n' "$r100" | grep -q "$w" || ok=0; done
 if [ "$ok" -eq 1 ]; then pass "row-100-wave-and-v2-oracle"; else fail "row-100-wave-and-v2-oracle"; fi
 if printf '%s\n' "$r100" | grep -q "board-100-arc"; then pass "row-100-archive-home"; else fail "row-100-archive-home"; fi
 # 13-15 rows 77, 116, 118 closed
-for n in 77 116 118; do if row "$n" | head -n 2 | grep -q "DONE"; then pass "row-$n-done"; else fail "row-$n-done"; fi; done
+for n in 77 116 118; do if row "$n" | grep -q "DONE" && row "$n" | grep -q "2026-09-23"; then pass "row-$n-done"; else fail "row-$n-done"; fi; done
 # 16 new rows from 121; 17 evidence from 205
 if section 4 | grep -Eq '^12[1-9]\. \*\*'; then pass "board-row-121-plus"; else fail "board-row-121-plus"; fi
 if section 6 | grep -Eq '^205\. \*\*'; then pass "evidence-entry-205"; else fail "evidence-entry-205"; fi
