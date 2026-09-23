@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Blind checkpoint — W3 of the 100 arc, the file rename (v1).
+# Blind checkpoint — W3 of the 100 arc, the file rename (v2).
+# v2 amends probe 3 only (PLANNER.md §5 step 4): v1 piped the pack report
+# into a `python3 -` heredoc, so json.load read an empty stdin and an
+# oracle defect surfaced as exit 1 with no label. The report now travels
+# by file, and any exception inside the probe is exit 2, never a verdict.
 # Sitting: 2026-09-23-board-100-design-001 (sub-master desk). Authored from
 # the W3 request before any worker output existed; rehearsed against the
 # 0.4.41 tree (expected HOLD). Runs cwd = staging. Exit: 0 pass, 1 fail,
@@ -44,24 +48,32 @@ git -C "$REPO" init -q && printf 'fixture\n' > "$REPO/README.md" \
 rep="$( cd "$REPO" && printf '' | run_bale pack "fixture rename" --slug ck-rename --read-only --no-readme --json 2>"$TMP/pack.err" )"
 if [ -z "$rep" ]; then failck "fixture pack refused on the applied install (stderr: $(head -c 300 "$TMP/pack.err"))"
 else
-  printf '%s' "$rep" | python3 - <<'PYEOF' || status=1
+  printf '%s' "$rep" > "$TMP/rep.json"
+  python3 - "$TMP/rep.json" <<'PYEOF'
 import sys, json, tarfile
-rep = json.load(sys.stdin)
-fails = []
-def ok(name, cond, extra=""):
-    print(f"[ckpt] {'ok' if cond else 'FAIL'}: {name}" + ("" if cond else f" :: {extra}"))
-    if not cond: fails.append(name)
-with tarfile.open(rep["tarball"]) as t:
-    names = t.getnames()
-    root = [n for n in names if n.endswith("/manifest.json")][0].rsplit("/", 1)[0]
-    ok("request root ships AGENT.md", f"{root}/AGENT.md" in names, str([n for n in names if n.endswith(".md")][:8]))
-    ok("request root ships no CLAUDE.md", f"{root}/CLAUDE.md" not in names)
-    m = json.load(t.extractfile(f"{root}/manifest.json"))
-    ok("untyped pack stamps agent-decides", m.get("expects_probe") == "agent-decides", str(m.get("expects_probe")))
-    cd = (m.get("provenance") or {}).get("contract_docs") or {}
-    ok("contract_docs keyed by AGENT.md", "AGENT.md" in cd and "CLAUDE.md" not in cd, str(sorted(cd)))
+try:
+    rep = json.load(open(sys.argv[1]))
+    fails = []
+    def ok(name, cond, extra=""):
+        print(f"[ckpt] {'ok' if cond else 'FAIL'}: {name}" + ("" if cond else f" :: {extra}"))
+        if not cond: fails.append(name)
+    with tarfile.open(rep["tarball"]) as t:
+        names = t.getnames()
+        root = [n for n in names if n.endswith("/manifest.json")][0].rsplit("/", 1)[0]
+        ok("request root ships AGENT.md", f"{root}/AGENT.md" in names, str([n for n in names if n.endswith(".md")][:8]))
+        ok("request root ships no CLAUDE.md", f"{root}/CLAUDE.md" not in names)
+        m = json.load(t.extractfile(f"{root}/manifest.json"))
+        ok("untyped pack stamps agent-decides", m.get("expects_probe") == "agent-decides", str(m.get("expects_probe")))
+        cd = (m.get("provenance") or {}).get("contract_docs") or {}
+        ok("contract_docs keyed by AGENT.md", "AGENT.md" in cd and "CLAUDE.md" not in cd, str(sorted(cd)))
+except Exception as e:  # the oracle broke, not the work
+    print(f"[ckpt] ERROR (oracle): fixture-pack probe raised {type(e).__name__}: {e}")
+    sys.exit(2)
 sys.exit(1 if fails else 0)
 PYEOF
+  rc=$?
+  [ "$rc" -eq 2 ] && exit 2
+  [ "$rc" -ne 0 ] && status=1
 fi
 grep -q 'AGENT.md' "$TMP/pack.err" && note "pack report names AGENT.md" || note "(pack report on stderr does not mention AGENT.md; opener may be on stdout in --json mode — informational)"
 
