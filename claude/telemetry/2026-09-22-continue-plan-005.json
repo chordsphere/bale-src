@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-22-continue-plan-005",
+  "created_at": "2026-09-22T23:44:41+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-22T23:44:41+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-22-continue-plan-005.log",
+      "bundle": {
+        "stem": "2026-09-22-continue-plan-close-18",
+        "brief_sha256": "aa8d4555ca9d9cc6e61db2b0c5804e6aa38f7e1a62075b1616d5579071eba9f9",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "642035ce08e816d66b59a9383acee3ac350afc9130265be59498daada2dfc74f"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-22T23:44:40+00:00"
+      }
+    },
+    {
+      "at": "2026-09-23T00:26:02+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-22-continue-plan-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-23T00:26:02+00:00",
+  "outcome": "unlocked"
+}
