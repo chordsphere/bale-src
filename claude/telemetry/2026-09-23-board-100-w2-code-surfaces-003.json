@@ -1,0 +1,328 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-23-board-100-w2-code-surfaces-003",
+  "created_at": "2026-09-23T01:08:10+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-23T01:08:10+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/changelog",
+        "schemas",
+        "tests/test_bundle_manifest.py",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_install_precheck.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_opener.py",
+        "tests/test_per_sid_checkpoint.py",
+        "tests/test_planner_admission.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_readme_identity.py",
+        "tests/test_release_packaging.py",
+        "tests/test_response_lint.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_schema_embeds.py",
+        "tests/test_verbose_thread.py",
+        "tools"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-100-w2-code-surfaces-003.log",
+      "bundle": {
+        "stem": "2026-09-23-board-100-w2-code-surfaces",
+        "brief_sha256": "69cd7805a4324e2f0ed8029b1321df4a0879e5f8f688fc4fbca7faf484457d38",
+        "checkpoint_sha256": "7cdc0b62ef0296b436604db239e067af436fc28c71e737e75f72e5d728bfddec",
+        "manifest_sha256": "0627a23b72d7c9c0abf8159c936b2ef3b3f53119161b23b5f250c6ab23921d8a"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-23T01:08:11+00:00"
+      }
+    },
+    {
+      "at": "2026-09-23T01:54:02+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-23-board-100-w2-code-surfaces-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "session assertions (bin/VERSION 0.4.42 with its record; agent-decides admitted; both contract_docs key sets; model_identity pattern; CARRIED_TOOLS; telemetry sites; noun and inject sweeps)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unit suite (python3 -m unittest discover -s tests; ~5 min, gated behind --slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "session assertions (bin/VERSION 0.4.42 with its record; agent-decides admitted; both contract_docs key sets; model_identity pattern; CARRIED_TOOLS; telemetry sites; noun and inject sweeps)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit suite (python3 -m unittest discover -s tests; ~5 min, gated behind --slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python, json, bash)",
+          "schema self-check (schemas/ parse; lint embeds equal source schemas)",
+          "session assertions (bin/VERSION 0.4.42 with its record; agent-decides admitted; both contract_docs key sets; model_identity pattern; CARRIED_TOOLS; telemetry sites; noun and inject sweeps)",
+          "unit suite (python3 -m unittest discover -s tests; ~5 min, gated behind --slow)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "BALE.md",
+        "bin",
+        "claude/changelog",
+        "schemas",
+        "tests/test_bundle_manifest.py",
+        "tests/test_cli_help.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_install_precheck.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_opener.py",
+        "tests/test_per_sid_checkpoint.py",
+        "tests/test_planner_admission.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_readme_identity.py",
+        "tests/test_release_packaging.py",
+        "tests/test_response_lint.py",
+        "tests/test_sandbox_wrapper.py",
+        "tests/test_schema_embeds.py",
+        "tests/test_verbose_thread.py",
+        "tools"
+      ],
+      "overridden_paths": [
+        "tests/test_forecast_ledger.py",
+        "tests/test_layout_and_formats.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_forecast_ledger.py": "prompt",
+        "tests/test_layout_and_formats.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "BALE.md",
+        "bin/VERSION",
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_report.py",
+        "bin/bale_rollback.py",
+        "bin/bale_validate.py",
+        "claude/changelog/0.4.42.json",
+        "schemas/bundle-manifest.schema.json",
+        "schemas/changelog-record.schema.json",
+        "schemas/diagnostics.schema.json",
+        "schemas/request-manifest.schema.json",
+        "schemas/response-manifest.schema.json",
+        "schemas/telemetry-record.schema.json",
+        "tests/test_bundle_manifest.py",
+        "tests/test_context_pack.py",
+        "tests/test_craft_response.py",
+        "tests/test_forecast_ledger.py",
+        "tests/test_handoff_happy.py",
+        "tests/test_install_precheck.py",
+        "tests/test_layout_and_formats.py",
+        "tests/test_open_verb.py",
+        "tests/test_pack_opener.py",
+        "tests/test_planner_admission.py",
+        "tests/test_release_packaging.py",
+        "tests/test_response_lint.py",
+        "tests/test_verbose_thread.py",
+        "tools/craft_response.py",
+        "tools/response_lint.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.41",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "7957d1f458b9e48e6dbee7407dc8a606f1d6f6c851df833b9f9b1a2cea112686",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-23-board-100-w2-code-surfaces-003.sh",
+              "sha256": "7cdc0b62ef0296b436604db239e067af436fc28c71e737e75f72e5d728bfddec"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-23T01:08:11+00:00",
+            "base_files": {
+              "BALE.md": "f4b613bf35eeb39a88039b4bfd8f5b2d7095a9f6bea41ab3817f7cf4cf5323ef",
+              "bin/VERSION": "cb3208f8d22502a2cbbe877c4be79cfdcddaafcb078385e2c0a8c3e292413aea",
+              "bin/_bale_toml.py": "5c56a796187ff12d2e9a55fec2336b9634cbcb3478b907a1c1fc17ac22d7bdb3",
+              "bin/bale": "dc45bac0161f9f75596e5758ea2574d189145d7f1a10ed06f7e362aee6c909b4",
+              "bin/bale_apply.py": "09a86889f50ed0b6e3ecbf0923dcb72985693c6a19174f9add662acfc47929d3",
+              "bin/bale_config.py": "33b4314c4e03860e172dad0bdced3bed368a3c4d1a512681c381a07898764e19",
+              "bin/bale_open.py": "a55c1cee6b22c66f8dbb4e7a457a52245560b8a5740e92a127e6116024a62d5a",
+              "bin/bale_pack.py": "7ed0f0969d884d4fb806a26af8782439709778f94988d8e4c0adc90e44c509cf",
+              "bin/bale_relay.py": "f302441257cc26090af435f2ea826125aa9a9a8f027ef14d7663da392fec48cd",
+              "bin/bale_report.py": "4c5bb8946ed352dcd556e2f9d78f106ffcfb4975d732bb2f24d3ed40c1e953a0",
+              "bin/bale_rollback.py": "d539734d9a90d01ba1fea2e671ddd9e337b32d69c1bb665118dd69c83f0e2527",
+              "bin/bale_sandbox.py": "e2950ff6f736b02b564ef7d532c022279488da7703f5a339aebcd0109989b744",
+              "bin/bale_staging.py": "d58a9f87aafa122d7f72ede3945947592cae33d3b5e276bab115b1598e24bbde",
+              "bin/bale_stats.py": "ab8d8a7a3b90007ceb52be259daf384a0fcc8506dcb86d277e4993853bd85388",
+              "bin/bale_validate.py": "69d87483d50645e5e5fe57fc9593a0831da0ef71df66c7d4415289e9fb55d4d7",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "schemas/bundle-manifest.schema.json": "7de472e7f32927f3f32800ad3b0bf2947037763244f4f3effaf3025027411b9e",
+              "schemas/changelog-record.schema.json": "551ec5a7da618c8e0c415380a53bfde98028c6ae6907129db5fbe8c9cb8637cb",
+              "schemas/diagnostics.schema.json": "4af369855de847f505c2fb0a2d4e3909a1c427622a341e4f0b8aa105bd0fd4ed",
+              "schemas/escalation-record.schema.json": "16729aae82e20425f91b9fb343de6a74d00fa417ce3cd718767413deee550c41",
+              "schemas/exchange-record.schema.json": "c9c291899103c4a73768ef930697722b89c5c3ef8f5b388c78c36741316cddc8",
+              "schemas/request-manifest.schema.json": "4a95cd07221d0015151a0d844afb2e3290713d13e7ccd576b3720bfcec10afeb",
+              "schemas/response-manifest.schema.json": "d5ed116271c07c0173e2b91031a1726b65894b1ab162de970242ebe4defb3b52",
+              "schemas/telemetry-record.schema.json": "b5cb2b8f11b9d632f3241e4dd868ce7e2f5e9f73dea2a21a940fe61d14d4aaca",
+              "tests/test_bundle_manifest.py": "4b1605d20917a49eaad48a5c8418c33264355dcb6d171a1ea7ada27dd2aa90d8",
+              "tests/test_cli_help.py": "4b9780fbd76905c04026d01e8d9d33e45e438b559f90c6f55b0c843e18c65956",
+              "tests/test_context_pack.py": "602ef6cac24ee421d7b2dacd5cda54116b4f8e14223fb48c460b33ce4964d240",
+              "tests/test_craft_response.py": "703c65390ca5bdabafae2c9dffd3ba48df5bc984466811b257abd9ea4b915438",
+              "tests/test_handoff_happy.py": "ca926c81d0639f5104b67807bb2853d99e1b507a5f6d71637b10d28587de24ae",
+              "tests/test_install_precheck.py": "be11f2c334512e06333eb34ac6da090d7202bf5115c21333325e0d944c6f61a3",
+              "tests/test_open_verb.py": "44f2bf70a8f08710658dcdc6e80b5f2e480c572913811af0837d084286762af8",
+              "tests/test_pack_opener.py": "74711c055d6ceff4c8db8b3ce158330cf1eac5c834cdc576407601d8c72059e3",
+              "tests/test_per_sid_checkpoint.py": "9562f22259f89e7b6d69d86027e1398f3570f11d44096da40229b2480ba2042c",
+              "tests/test_planner_admission.py": "343efd7b7a5136867d1eec5f8dac890587a15344a22110805049e3b3c4679e7b",
+              "tests/test_probe_clipboard_config.py": "fb7aa74ae72623a1d06adc0fca00296c7168e493adda6cf6468322db70919488",
+              "tests/test_readme_identity.py": "edf16ba55fd7fa019a5afe437cd3b412457e2e0d8031f0ac919415b7b7c0d1e6",
+              "tests/test_release_packaging.py": "2aebca82000627ea9da6e9a609139c102cda6b8539578a1e567655d6c7ee88b8",
+              "tests/test_response_lint.py": "fd5e0c2c2552150ea24f9670580ab35bdec1896041cb67277505567df70beaa5",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_verbose_thread.py": "4d8f9d16413886cf7bf3e2ae3abec49bd75c75944d466e998418beb87d15c520",
+              "tools/craft_response.py": "3ce81f323589e4e8207da19949918d4cf5d06b91709f920667d4116a8ffe7954",
+              "tools/response_lint.py": "e078d233cac520adeb2964b5499b556a34b73b6f1d4f004dd706c55d42e99334"
+            },
+            "model_identity": "anthropic:claude-fable-5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "[layout] agent_dir is project-layer only (the [validation] ruling's reasoning: it names one repo's tree); the brief said 'walked surface' without naming a layer",
+            "the subset validators had neither `pattern` nor `oneOf`; adding both to bin/bale_validate.py and the lint in step is the only way the brief's schema shapes can be enforced rather than merely written",
+            "the inject sweep targets the docs/tools carriage sense; `prompt injection` (a term of art) and the Python-harness idiom in tests (path-injected import, __main__-injection precedent, git tags injected) are a different sense and stay"
+          ],
+          "judgment_calls": [
+            "CARRIED_TOOLS kept as ruled \u2014 no deviation on the constant's name",
+            "bale_config.layout_agent_dir(repo) short-circuits to the default when the repo has no bale.toml, without touching the config loader, so in-process fixtures (tmp repos, no __main__.fail) keep resolving claude/telemetry",
+            "the stale 'the subset has no oneOf/pattern' remarks in schemas/ descriptions and bin/bale_validate.py comments were corrected rather than left lying once the keywords exist; the Python-side checks they justify stay where they are",
+            "the changelog schema's description saying the version-form check exists 'since the schema subset has no pattern keyword' was reworded to a choice; the check is unchanged",
+            "the `[layout]` prompt says the key moves no directory (rename in git and set the key in one commit) \u2014 the accessor never mkdirs or renames",
+            "the model_identity description's rejected example was reworded so it does not itself carry the capitalized noun",
+            "one bin/bale_config.py .baleignore walkthrough line said the noun reads the file when packing; it now says bale does, which is what happens"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md (core, META through 11.2)",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7, 10.1",
+            "CODE.md 8.5",
+            "schemas/changelog-record.schema.json",
+            "claude/changelog/0.4.41.json"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_forecast_ledger.py",
+              "why": "its response fixture spelled model_identity `fixture`, which the new pattern refuses; one spelling change keeps the suite green (the ADR-0015 enumeration the brief anticipated)"
+            },
+            {
+              "path": "tests/test_layout_and_formats.py",
+              "why": "the brief left a new test for the regex and the key set to my call; it also pins the [layout] accessor and the validator keywords, none of which any owned test covered"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-23-board-100-w2-code-surfaces-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-23-board-100-w2-code-surfaces-003.sh",
+          "sha256": "7cdc0b62ef0296b436604db239e067af436fc28c71e737e75f72e5d728bfddec"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-23T01:54:02+00:00",
+  "outcome": "applied"
+}
