@@ -382,7 +382,7 @@ class RollbackTelemetryTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("read-only", result.stderr)
             # The refusal named the condition instead of silently
-            # ignoring one flag (CLAUDE.md 6: silent skips are bugs).
+            # ignoring one flag (AGENT.md 6: silent skips are bugs).
             self.assertIn("does not take a sid or --undo", result.stderr)
 
     # -- board 35 gap 4b: the plain-commit branch -------------------------

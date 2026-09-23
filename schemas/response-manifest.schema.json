@@ -234,7 +234,7 @@
                 "bale_version": { "type": "string", "minLength": 1 },
                 "contract_docs": {
                   "type": "object",
-                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the carried set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid). Since v0.4.42 a oneOf over the same two key sets the request schema admits — the four-key set keyed by CLAUDE.md, and the same set with AGENT.md in place of CLAUDE.md — so the verbatim echo validates whichever spelling the request was stamped under, for good; exactly one of the pair may be present (request-manifest.schema.json).",
+                  "description": "Verbatim echo of the request's contract_docs. PLANNER.md joined the carried set in v0.4.11 — admitted, not required (one-apply-behind: the wiring session's own response echoes a four-key block, and pre-v0.4.11 echoes stay valid). Since v0.4.42 a oneOf over the same two key sets the request schema admits — the four-key set keyed by CLAUDE.md (every pack before v0.4.43), and the same set with AGENT.md in place of CLAUDE.md (the current spelling, stamped since v0.4.43) — so the verbatim echo validates whichever spelling the request was stamped under, for good; exactly one of the pair may be present (request-manifest.schema.json).",
                   "oneOf": [
                     {
                       "additionalProperties": false,
@@ -323,7 +323,7 @@
             "budget_pressure": {
               "type": "string",
               "enum": ["none", "tight", "bailed"],
-              "description": "The session's own read of its context budget: comfortable throughout, felt the CLAUDE.md section 11.3 pressure without bailing, or this response is a bailout."
+              "description": "The session's own read of its context budget: comfortable throughout, felt the AGENT.md section 11.3 pressure without bailing, or this response is a bailout."
             },
             "includes_missing": {
               "type": "array",
@@ -339,7 +339,7 @@
               "type": "object",
               "additionalProperties": false,
               "required": ["occurred"],
-              "description": "Whether the runtime compacted mid-session (CLAUDE.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
+              "description": "Whether the runtime compacted mid-session (AGENT.md section 11.6). When true, disclosure_ref points at where the disclosure lives.",
               "properties": {
                 "occurred": { "type": "boolean" },
                 "disclosure_ref": {

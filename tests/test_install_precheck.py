@@ -55,7 +55,7 @@ REINSTALL_MARKER = "Reinstall bale."
 # pack E2E below asserts a real pack ships every member and stamps a
 # provenance contract_docs key for each, so a constant edit that misses
 # a consumer fails here, end to end.
-GLOBAL_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md",
+GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
                "PLANNER.md")
 
 

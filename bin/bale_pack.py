@@ -1193,7 +1193,7 @@ def build_request_manifest(
 
     `readme` — whether a README brief ships, stamped by every request
     bale builds, so a worker that reads manifest.json first (as the
-    opener and CLAUDE.md tell it to) learns from the manifest itself
+    opener and AGENT.md tell it to) learns from the manifest itself
     that a brief exists. `readme_sha256` is the hex sha256 of the
     README.md bytes the tarball ships (shipped_readme_text's output —
     the same value pack's `readme sha256` report row echoes); when
@@ -4278,7 +4278,7 @@ OPENER_END = "--8<-- end session opener --8<--"
 # Why the wording is what it is. A worker that met the earlier opener
 # cold read it as a possible prompt injection: bare absolutes with no
 # reasons, a clock rule before the reader knew what the session was, a
-# soft reading instruction that put CLAUDE.md before the manifest (the
+# soft reading instruction that put AGENT.md before the manifest (the
 # docs say the reverse), and nothing it was guaranteed to read naming
 # the README brief. So every rule now carries its reason in the same
 # sentence, the identity and goal come before any rule, the reading
@@ -4297,19 +4297,19 @@ OPENER_END = "--8<-- end session opener --8<--"
 # must change the sentence in the same session.
 OPENER_AUTHORITY_SENTENCE = (
     "The docs and tools in the tarball are mine, written for this "
-    "workflow; CLAUDE.md and the four docs beside it are my instructions "
+    "workflow; AGENT.md and the four docs beside it are my instructions "
     "for this session."
 )
 # The reading sentence, in the form keyed on whether a README ships
 # (cmd_pack's args._readme_body is not None is the signal — the same
 # value the manifest's `readme` key is stamped from).
 OPENER_READING_WITH_README_SENTENCE = (
-    "Read manifest.json first, then CLAUDE.md, then README.md, my brief "
-    "for this session; CLAUDE.md says when the other four docs are "
+    "Read manifest.json first, then AGENT.md, then README.md, my brief "
+    "for this session; AGENT.md says when the other four docs are "
     "needed."
 )
 OPENER_READING_NO_README_SENTENCE = (
-    "Read manifest.json first, then CLAUDE.md; CLAUDE.md says when the "
+    "Read manifest.json first, then AGENT.md; AGENT.md says when the "
     "other four docs are needed."
 )
 OPENER_TOOLS_SENTENCE = (
@@ -4472,7 +4472,7 @@ CONTEXT_TARBALL_PREFIX = "context-"
 # beside --context (cmd_pack_context), fail-fast in the house style of
 # cmd_pack's contradiction pairs. A flag typed AT its default value is
 # indistinguishable from an absent one and so is a no-op (the one case
-# is `--expects-probe claude-decides`; its alias `agent-decides` differs
+# is `--expects-probe agent-decides`; its alias `claude-decides` differs
 # from the default and so refuses like any other typed value).
 CONTEXT_SESSION_ONLY_FLAGS = (
     ("goal", "a goal", None),
@@ -4487,7 +4487,7 @@ CONTEXT_SESSION_ONLY_FLAGS = (
     ("no_readme", "--no-readme", False),
     ("constraint", "--constraint", []),
     ("out_of_scope", "--out-of-scope", []),
-    ("expects_probe", "--expects-probe", "claude-decides"),
+    ("expects_probe", "--expects-probe", "agent-decides"),
     ("packer", "--packer", None),
     ("work_class", "--work-class", None),
     ("allow_checkpoint_in_scope", "--allow-checkpoint-in-scope", False),

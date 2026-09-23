@@ -341,7 +341,7 @@ def _overlay_declared_untracked(repo: Path, staging: Path,
     git-archive tree carries no untracked build or dependency state, and
     without that state validation cannot run at all for most projects.
     Every declared entry is validated before copying, and every violation
-    is loud (the silent-skip rule, CLAUDE.md §6):
+    is loud (the silent-skip rule, AGENT.md §6):
 
       - the path must be safe and repo-relative (`is_path_safe`: no
         absolute paths, no `..`, not under `.git/` or `.bale/`);

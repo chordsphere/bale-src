@@ -36,7 +36,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-FOUR_DOCS = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "CODE.md")
+FOUR_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md")
 FIVE_DOCS = FOUR_DOCS + ("PLANNER.md",)
 
 
@@ -78,7 +78,7 @@ class PlannerAdmissionTest(unittest.TestCase):
                            "previous_probe": None},
             "constraints": [],
             "out_of_scope": [],
-            "expects_probe": "claude-decides",
+            "expects_probe": "agent-decides",
             "context_included": ["context/hello.txt"],
             "resolved_scope": [],
             "provenance": {
@@ -151,7 +151,7 @@ class PlannerAdmissionTest(unittest.TestCase):
         """PLANNER.md present cannot stand in for a required member —
         the failure is the missing required doc, never a new
         PLANNER.md requirement."""
-        docs = ("CLAUDE.md", "TARBALL.md", "DOCS.md", "PLANNER.md")
+        docs = ("AGENT.md", "TARBALL.md", "DOCS.md", "PLANNER.md")
         self.assert_invalid(
             self.request_manifest(docs), self.request_schema,
             why="CODE.md is required; PLANNER.md must not satisfy it")

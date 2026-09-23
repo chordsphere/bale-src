@@ -96,7 +96,7 @@ def _feedback(work_class: str = "code", linkage: object = None) -> dict:
             "linkage": linkage,
             "provenance": {
                 "bale_version": "0.4.19",
-                "contract_docs": {"CLAUDE.md": "x", "TARBALL.md": "x",
+                "contract_docs": {"AGENT.md": "x", "TARBALL.md": "x",
                                   "DOCS.md": "x", "CODE.md": "x",
                                   "PLANNER.md": "x"},
                 "packer": "fixture",

@@ -279,7 +279,7 @@ class VersionTagDriftGuardTest(unittest.TestCase):
     def test_build_passes_when_highest_tag_equals_constant(self) -> None:
         """The equal boundary passes, and the release ships bale_stats."""
         repo = make_release_tree(self.tmp)
-        docs = repo / "docs" / "CLAUDE.md"
+        docs = repo / "docs" / "AGENT.md"
         docs.write_text(f"stub\n<!-- landed in {BENIGN_TAG} -->\n", encoding="utf-8")
         result = run_build(self.tmp, repo)
         self.assertEqual(

@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENT.md
 
 > The working agreement between me and the agent.
 > Read first, every session, before anything else.
@@ -17,7 +17,7 @@ Every session, in this order:
    in scope, what context files are present, what to ignore, and —
    through its `readme` key — whether a brief ships. Read first so
    the triggers below fire correctly.
-2. **This file (`CLAUDE.md`)** — the core in full: META through
+2. **This file (`AGENT.md`)** — the core in full: META through
    §11.2. §11.3–§11.7 are triggered reference, read only when a
    trigger in the INDEX read-paths table below fires.
 3. **The request's `README.md`** — the session's brief, when one
@@ -45,7 +45,7 @@ over the agent's own guidelines.
 
 ### Global vs project docs
 
-`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
+`AGENT.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
 are global — bale carries all five into every request from its own
 installation. The agent does not modify these in response tarballs;
 they evolve only via bale sessions targeting the bale tool's own
@@ -80,7 +80,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.7 are triggered reference); then the request's `README.md` — the session's brief, when one ships; the manifest's `readme` key says whether one does (`null` when none ships); then any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
+| Every session | `manifest.json` first (sets scope); then `AGENT.md`'s core in full — META through §11.2 (§11.3–§11.7 are triggered reference); then the request's `README.md` — the session's brief, when one ships; the manifest's `readme` key says whether one does (`null` when none ships); then any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `claude/context/adr/NNNN-*.md` |
@@ -726,7 +726,7 @@ summary is the lossy part. The agent rebuilds from the durable side:
   `goal`, `constraints`, `out_of_scope`, and `context_included` —
   this is what the session is actually for, and the compacted summary
   is a lossy copy of it.
-- **`CLAUDE.md`** — this file, re-read enough to restore the
+- **`AGENT.md`** — this file, re-read enough to restore the
   operating frame: which mode the session is in, and what the INDEX
   read-paths table prescribes for the goal.
 - **The mode's contract doc.** Tarball mode → re-read `TARBALL.md`

@@ -97,16 +97,16 @@ CLOCK_SENTENCE = (
 )
 OPENER_AUTHORITY_SENTENCE = (
     "The docs and tools in the tarball are mine, written for this "
-    "workflow; CLAUDE.md and the four docs beside it are my instructions "
+    "workflow; AGENT.md and the four docs beside it are my instructions "
     "for this session."
 )
 OPENER_READING_WITH_README_SENTENCE = (
-    "Read manifest.json first, then CLAUDE.md, then README.md, my brief "
-    "for this session; CLAUDE.md says when the other four docs are "
+    "Read manifest.json first, then AGENT.md, then README.md, my brief "
+    "for this session; AGENT.md says when the other four docs are "
     "needed."
 )
 OPENER_READING_NO_README_SENTENCE = (
-    "Read manifest.json first, then CLAUDE.md; CLAUDE.md says when the "
+    "Read manifest.json first, then AGENT.md; AGENT.md says when the "
     "other four docs are needed."
 )
 OPENER_TOOLS_SENTENCE = (
@@ -137,7 +137,7 @@ RETIRED_FRAGMENTS = (
     "Ask me if anything is unclear",
     "Please examine the tarball contents",
     "machine-recognizable shape",
-    "read CLAUDE.md and the four docs beside it as my instructions",
+    "read AGENT.md and the four docs beside it as my instructions",
     "Session ids and every bale timestamp are UTC",
 )
 USING_LINE = (
@@ -589,7 +589,7 @@ class OpenerConstantsInProcessTest(unittest.TestCase):
         for fragment in (
                 "The docs and tools in the tarball are mine",
                 "then README.md, my brief",
-                "Read manifest.json first, then CLAUDE.md; CLAUDE.md",
+                "Read manifest.json first, then AGENT.md; AGENT.md",
                 "response assembled by hand is just as valid.",
                 "(a timezone gap, not an error)",
                 "which tends to get lost.",

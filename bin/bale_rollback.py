@@ -162,7 +162,7 @@ def _extract_summary(subject: str, sid: str) -> str:
     Strips whichever known `[bale ...]` prefix the subject carries for this
     sid. Falls back to the subject verbatim if none match — never returns an
     empty string, because a silent-empty commit message would be a bug
-    (CLAUDE.md §6: silent skips are bugs), not a tidy default.
+    (AGENT.md §6: silent skips are bugs), not a tidy default.
     """
     for prefix in _subject_prefixes(sid):
         if subject.startswith(prefix):
@@ -354,7 +354,7 @@ def _pop_stash(repo: Path, stash_ref: Optional[str]) -> None:
 
     A pop conflict does not fail the rollback — the revert already landed and
     is the primary work; the user is told the stash is preserved to resolve
-    by hand. Surfacing this rather than swallowing it honors CLAUDE.md §6.
+    by hand. Surfacing this rather than swallowing it honors AGENT.md §6.
     """
     if stash_ref is None:
         return
@@ -692,7 +692,7 @@ def cmd_rollback(args) -> int:
     operation is a rollback (default) or its inverse (`--undo`); both mutate
     git history and share the dirty-tree guard, the revert core, and the
     tag-bookkeeping. `--list` with `--undo`/sid is rejected as contradictory
-    rather than silently ignoring one (CLAUDE.md §6: silent skips are bugs).
+    rather than silently ignoring one (AGENT.md §6: silent skips are bugs).
     """
     from __main__ import fail, repo_root, refuse_system_dir, set_log_file
 

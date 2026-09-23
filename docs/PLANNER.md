@@ -1,8 +1,8 @@
 # PLANNER.md
 
 > Planner authoring doctrine and orchestration doctrine.
-> Read when `CLAUDE.md`'s INDEX says so — when authoring is the work.
-> For the *why* behind the workflow itself, see `CLAUDE.md`.
+> Read when `AGENT.md`'s INDEX says so — when authoring is the work.
+> For the *why* behind the workflow itself, see `AGENT.md`.
 
 ---
 
@@ -14,7 +14,7 @@ The planner's practice manual: how to author the artifacts the
 planner role produces — pack commands, request briefs, blind
 checkpoints, rescope offers, and the master sittings that produce
 them — so that what the worker receives transports what the planner
-meant. `CLAUDE.md` §4 sets the authority split; `TARBALL.md` carries
+meant. `AGENT.md` §4 sets the authority split; `TARBALL.md` carries
 the wire format those artifacts ride. This doc covers the *craft*:
 the practices, earned from live traffic, that keep authored
 artifacts honest.
@@ -37,7 +37,7 @@ request brief, a checkpoint oracle, a rescope offer, or a sitting.
 A worker session building a response has a mandatory read of zero —
 this file sits unread exactly like `DOCS.md` in a session that
 touches no docs. An authoring task arriving mid-session is an
-ordinary `CLAUDE.md` §11.2 pre-flight event: estimate whether the
+ordinary `AGENT.md` §11.2 pre-flight event: estimate whether the
 authoring fits the remaining budget, and read this doc before
 producing if it does.
 
@@ -56,7 +56,7 @@ session.
 
 If something here conflicts with what the agent remembers from a prior
 session, **this file wins.** On the wire format itself,
-`TARBALL.md` wins; on values and the authority split, `CLAUDE.md`
+`TARBALL.md` wins; on values and the authority split, `AGENT.md`
 wins; this file wins on authoring practice.
 
 ---
@@ -72,7 +72,7 @@ wins; this file wins on authoring practice.
 | Authoring a blind checkpoint | Sections 1, 4 |
 | A HOLD landed; deciding what the retry session sees | Section 5 |
 | Running a master sitting | Section 6 |
-| A split fired (`CLAUDE.md` §11.2): authoring a subtree's spawn materials as sub-master | Sections 1, 20; §4 per child checkpoint |
+| A split fired (`AGENT.md` §11.2): authoring a subtree's spawn materials as sub-master | Sections 1, 20; §4 per child checkpoint |
 | Hard rules / what counts as an authoring violation | Section 7 |
 | Planning orchestration or harness work | Sections 8–19 (past the core banner) |
 
@@ -105,7 +105,7 @@ practice section here:
 A split fired mid-session authors all of the above at once, for a
 subtree — the sub-master transition, §20.
 
-The authority boundary under all five is `CLAUDE.md` §4's engraved
+The authority boundary under all five is `AGENT.md` §4's engraved
 principle: intent authority is the planner's, mechanism authority is
 the worker's, and the flagged-deviation-plus-ratification loop is
 the joint. Authoring doctrine never overrides that split — it is the
@@ -192,7 +192,7 @@ practice of exercising the planner's half well.
 
 A brief is a transport surface, and transport surfaces fail
 silently. It is also the worker's third read, after `manifest.json`
-and `CLAUDE.md` (`CLAUDE.md` META's reading order): the manifest's
+and `AGENT.md` (`AGENT.md` META's reading order): the manifest's
 `readme` key tells the worker one ships, and the session opener
 names it. Author it as the document the session is read against,
 not an afterthought to the flags. The practices:
@@ -325,7 +325,7 @@ of it, the authoring craft:
   bundle, and the format's mechanical home is
   `schemas/bundle-manifest.schema.json`, shipped with every install
   and enforced by `bale open`'s gate-first validation. Both
-  surfaces are reachable from any project (`CLAUDE.md` META's
+  surfaces are reachable from any project (`AGENT.md` META's
   reachability model); no prose spec is needed to emit or consume
   a bundle.
 - A brief or oracle claim about any surface — tree, reach, or
@@ -415,7 +415,7 @@ is orchestration doctrine, §14.
   go stale under concurrency — are §13, past the core banner.
 - **End at milestones.** Masters end sittings at natural milestones
   rather than resolving open questions on a tired context — the
-  sitting-level form of `CLAUDE.md` §11's bail-early discipline.
+  sitting-level form of `AGENT.md` §11's bail-early discipline.
 - **A sitting closes with a light-block ledger.** The light question
   block (`TARBALL.md` §5.10) is the worker's tier: `light_blocks` in
   the response's feedback is the worker's field, and bale never sees
@@ -435,7 +435,7 @@ is orchestration doctrine, §14.
   the existing machinery — sitting-close deltas, ratification
   microdeltas, evidence-ledger curation, the trust grant as a
   stats-reading judgment point — with no new ceremony; a calendar
-  cadence is rejected as the over-formalization `CLAUDE.md` §7
+  cadence is rejected as the over-formalization `AGENT.md` §7
   warns against. The triggers: clarification clustering against
   one packer crossing threshold; DISAGREE clusters on one check
   class; HOLD clustering per work class; a pending trust grant; N
@@ -468,7 +468,7 @@ Roles are hats, not identities: the session that was a worker the
 moment before the split gate fired is, from the split onward, the
 planner of the sessions the split creates.
 
-In practice: a session that hits the split gate (`CLAUDE.md` §11.2)
+In practice: a session that hits the split gate (`AGENT.md` §11.2)
 does not emit an offer and hand authoring back to the operator. It
 authors its children's spawn materials in full — commands, briefs,
 and, in a checkpoint-configured project, checkpoints — under META's
@@ -528,7 +528,7 @@ the required sections:
 
 ## 7. Hard Rules
 
-All rows are **policy** (labels per `CLAUDE.md` §6): no mechanical
+All rows are **policy** (labels per `AGENT.md` §6): no mechanical
 gate reads an artifact's craft. The enforcement surface is the
 longitudinal record — HOLD and clarification clustering per packer
 grade the planner the way claim/verdict calibration grades the
@@ -663,7 +663,7 @@ for, not a notification stream.
 ## 11. Decomposition at Seams
 
 The orchestrator will split a large goal along real boundaries into
-worker sessions that each fit a context window — `CLAUDE.md` §11.2's
+worker sessions that each fit a context window — `AGENT.md` §11.2's
 seam discipline, promoted from self-rescoping to planning. A worker
 refusing an oversized goal and returning seams is the happy path;
 the orchestrator, not the worker, weighs split economics plan-wide. The
@@ -715,20 +715,20 @@ the fleet-scale rules below are this half's):
 
 Every rule above rests on one premise, and it is a bet rather than a
 law: that each session completes inside a single context window
-(`CLAUDE.md` §1), so the window is the unit a decomposition cuts to.
+(`AGENT.md` §1), so the window is the unit a decomposition cuts to.
 The bail machinery is this premise's machinery — the pre-flight
 split before reading, the handoff when a build outgrows its budget —
 and live traffic has shown where the load actually falls: on
-auto-compacting surfaces, compaction recovery (`CLAUDE.md` §11.6),
+auto-compacting surfaces, compaction recovery (`AGENT.md` §11.6),
 not the reactive bail, has proved the de facto primary defense, while
-the pre-flight check (`CLAUDE.md` §11.2) stands as written. The bet
+the pre-flight check (`AGENT.md` §11.2) stands as written. The bet
 is revisitable, and three conditions would soften it:
 **window growth**, which shrinks the set of goals the premise forces
 to split; **caching economics**, which, once re-feeding a session's
 prior context into a fresh window is cheap, stops spanning windows
 from costing a full re-read; and **session persistence**, a runtime
 that carries working state across windows faithfully enough that
-continuation is a capability rather than the failure `CLAUDE.md`
+continuation is a capability rather than the failure `AGENT.md`
 §11.1 names. An orchestrator treats any of the three as a prompt to
 re-examine split economics against the evidence, never as license to
 plan a session past the window it actually has.
@@ -923,7 +923,7 @@ the harness:
   malformed does not author the context its successor plans by.
 - **Bounded retries, escalating to re-decomposition.** Retry is not
   free and not unbounded. Clustered failures on the same work signal
-  scoping, not discipline — `CLAUDE.md` §11.5's doctrine, held at
+  scoping, not discipline — `AGENT.md` §11.5's doctrine, held at
   the orchestrator level: after bounded retries the move is
   re-decompose the goal, not respawn harder.
 - **Silence.** A worker that never responds is a failure mode with
@@ -1011,7 +1011,7 @@ manual path before the harness inherits it.
 Not a harness design: mechanism detail — schemas, queue transport,
 sandbox mechanism, cap enforcement, dashboard — lives with the
 harness spec-intake and its sessions, which cite this doc for the
-doctrine they implement. Not a worker contract: `CLAUDE.md` and
+doctrine they implement. Not a worker contract: `AGENT.md` and
 `TARBALL.md` already are that contract, worker-agnostic by design,
 and a worker session behaves identically whether a human or an
 orchestrator packed its request. Not a replacement for the project's

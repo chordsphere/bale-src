@@ -106,7 +106,7 @@ def load_schema(name: str) -> dict:
 
     A missing or corrupt schema is fatal: without it bale cannot enforce the
     wire-format shape it promises to enforce (BALE.md §11), and silently
-    skipping the check would be exactly the silent-skip failure mode CLAUDE.md
+    skipping the check would be exactly the silent-skip failure mode AGENT.md
     §6 argues against. So a read/parse error stops the run rather than degrading
     to no validation.
     """

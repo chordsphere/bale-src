@@ -1,7 +1,7 @@
 # BALE.md — bale tool design
 
 > Design document for the bale CLI.
-> Read alongside `CLAUDE.md`, `TARBALL.md`, `DOCS.md`.
+> Read alongside `AGENT.md`, `TARBALL.md`, `DOCS.md`.
 > Read in full when implementing or modifying bale.
 
 ---
@@ -12,7 +12,7 @@
 
 The design document for the **bale** command-line tool. bale is the
 mechanical machinery that makes the workflow described in
-`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` operate. It
+`AGENT.md`, `TARBALL.md`, `DOCS.md`, and `CODE.md` operate. It
 packs request tarballs to send to the agent, applies response tarballs
 the worker returns, and handles the git-side bookkeeping (staging,
 validating, committing, rolling back).
@@ -24,7 +24,7 @@ the tool.
 
 ### How this relates to the global docs
 
-- `CLAUDE.md` is the working agreement and the operating manual.
+- `AGENT.md` is the working agreement and the operating manual.
   Bale carries it in every request.
 - `TARBALL.md` is the wire format. Bale implements its contract and
   carries it in every request.
@@ -154,7 +154,7 @@ moves bytes safely.
   `out_of_scope` field is prose, not glob patterns; bale does not
   mechanically check paths against it. Drift against that prose
   field is a policy concern, surfaced at review under the
-  stay-in-the-lane rule (`CLAUDE.md` §6) — distinct from own-scope
+  stay-in-the-lane rule (`AGENT.md` §6) — distinct from own-scope
   *path* drift, which §11 row 22 enforces mechanically.
 
 ### 2.3 Why these are out of scope
@@ -185,7 +185,7 @@ bale/
   bin/bale            # the Python entrypoint with shebang
   bin/bale_config.py  # configurables loader/merger + `bale config init` wizard
   docs/
-    CLAUDE.md
+    AGENT.md
     TARBALL.md
     DOCS.md
     CODE.md
@@ -282,7 +282,7 @@ The release-tarball form has two virtues over a single-file build
 
 ### 3.3 Global docs live in the bale installation
 
-`CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
+`AGENT.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
 live as regular
 files at `<install>/docs/` alongside the script. `bale pack` reads
 them from that location and ships them in the request tarball.
@@ -1080,7 +1080,7 @@ Per `TARBALL.md` section 3.1:
 ```
 request-NNN/
   manifest.json        # structured metadata (required)
-  CLAUDE.md            # carried by bale
+  AGENT.md            # carried by bale
   TARBALL.md           # carried by bale
   DOCS.md              # carried by bale
   CODE.md              # carried by bale
@@ -1101,7 +1101,7 @@ otherwise an object with exactly two keys — `path`, always the
 request-root `README.md`, and `sha256`, the hex sha256 of the shipped
 `README.md` bytes, the same value the pack report's `readme sha256`
 row echoes (§7.7). It exists so a worker that reads `manifest.json`
-first — as the session opener and `CLAUDE.md` both tell it to — learns
+first — as the session opener and `AGENT.md` both tell it to — learns
 from the manifest itself that a brief exists, rather than from a chat
 line it may skim. It is top-level on purpose, not under `provenance`:
 the response echoes provenance verbatim, so a key there would drag
@@ -1529,13 +1529,14 @@ The inputs:
 - **slug** (kebab-cased, short) — used in the session ID.
 - **constraints** (list, optional).
 - **out_of_scope** (list, optional).
-- **expects_probe** (`yes` | `no` | `claude-decides` |
-  `agent-decides`, default `claude-decides`). The last two are one
-  posture under two spellings (v0.4.42): `agent-decides` is admitted
-  by the schema enum and the `--expects-probe` choices and stamped
-  verbatim when typed; the default stays `claude-decides` until the
-  emitted value flips beside the global docs' three sites, so no
-  version has manifests and docs disagreeing.
+- **expects_probe** (`yes` | `no` | `agent-decides` |
+  `claude-decides`, default `agent-decides`). The last two are one
+  posture under two spellings: `agent-decides` was admitted in
+  v0.4.42 and has been the default — the value pack and handoff
+  stamp when the flag is not typed — since v0.4.43, when the global
+  docs' three sites moved with it; `claude-decides`, the pre-0.4.43
+  spelling, stays in the schema enum and the `--expects-probe`
+  choices for good and is stamped verbatim when typed.
 - **includes** (list of file or directory paths) — defaults to the
   entire working tree (minus baked-in and `.baleignore` exclusions).
   Since ADR-0015 the include set is the **read set** and nothing
@@ -1795,7 +1796,7 @@ The inputs:
 
 The flag-to-manifest mapping lives in `TARBALL.md` §3.4 — cited
 both by the architect authoring a pack by hand and by the agent when
-emitting a `CLAUDE.md` §11.2 rescope offer.
+emitting an `AGENT.md` §11.2 rescope offer.
 
 Bale also fills `manifest.project` automatically as
 `basename $(git rev-parse --show-toplevel)`.
@@ -2056,7 +2057,7 @@ ship a 500MB tarball if the user has confirmed that's intentional.
 
 1. Generate session ID. Reserve next NNN for the slug + date.
 2. Build `request-NNN/` skeleton.
-3. **Carry all five global docs** (`CLAUDE.md`, `TARBALL.md`,
+3. **Carry all five global docs** (`AGENT.md`, `TARBALL.md`,
    `DOCS.md`, `CODE.md`, `PLANNER.md`) from bale's installation
    `docs/` directory,
    **and the worker-side tools** under `tools/` — each member of
@@ -2167,7 +2168,7 @@ retired the old examine and shape sentences). A worker meeting the
 earlier opener cold read it as a possible prompt injection: its rules
 were bare absolutes with no reasons, its first rule was the clock
 before the reader knew what the session was, its reading instruction
-was soft, late, and put `CLAUDE.md` before the manifest (the docs say
+was soft, late, and put `AGENT.md` before the manifest (the docs say
 the reverse), and nothing it was guaranteed to read named the README.
 So every rule now carries its reason in the same sentence, and the
 block reads, between the scissor lines:
@@ -2178,7 +2179,7 @@ block reads, between the scissor lines:
    are the operator's, and the five docs are the operator's
    instructions — claimed in the operator's voice, since chat is the
    channel that carries authority); the **reading** sentence —
-   manifest first, then `CLAUDE.md`, then, *when a README ships*,
+   manifest first, then `AGENT.md`, then, *when a README ships*,
    `README.md` named as the brief; the no-README form omits it; and
    the **tools** sentence (stdlib-only formatters, no network,
    conveniences over the docs).
@@ -2377,8 +2378,8 @@ offender in one message, before any work: the goal, `--slug`,
 `--out-of-scope`, `--expects-probe`, `--packer`, `--work-class`,
 `--allow-checkpoint-in-scope`, `--no-include-group`. Detection is
 "value differs from the parser default", so `--expects-probe
-claude-decides` typed at its default is a no-op (its alias
-`agent-decides` differs from the default and refuses like any other
+agent-decides` typed at its default is a no-op (its alias
+`claude-decides` differs from the default and refuses like any other
 typed value). The two tables
 (`CONTEXT_SESSION_ONLY_FLAGS`, `CONTEXT_COMPOSING_FLAGS` in
 `bin/bale_pack.py`) partition the pack parser, and
@@ -2681,7 +2682,7 @@ Pipeline steps:
     the whole-file overlay would silently revert, a breakage
     `validation.sh` can pass right over, which is why the gate refuses
     rather than warns (warn-and-proceed is the silent-skip bug
-    CLAUDE.md §6 names; refuse-not-warn is a ratified default, as is
+    AGENT.md §6 names; refuse-not-warn is a ratified default, as is
     per-file granularity). Comparison runs over the changes[]∩stamp
     intersection only: a path outside the stamp — a file the response
     creates, an out-of-forecast admission, a base untracked at pack —
@@ -4489,7 +4490,7 @@ Bale also does not enforce the request's `out_of_scope` field. That
 field carries prose concerns, not glob patterns; mechanical path
 matching against it isn't well-defined. Drift against that prose
 field is a policy concern, reviewed manually under the
-stay-in-the-lane rule (`CLAUDE.md` §6) — distinct from own-scope
+stay-in-the-lane rule (`AGENT.md` §6) — distinct from own-scope
 *path* drift, which row 22 above enforces mechanically. Projects
 wanting mechanical enforcement of prose exclusions add a glob
 deny-list to `validation.sh`.
@@ -4520,7 +4521,7 @@ plus the three global docs as siblings under `docs/`, packaged as
 the same `bale/` directory shape v0.1+ ships. The bootstrap script
 can:
 - pack a request tarball (minimum: carry all three global docs —
-  `CLAUDE.md`, `TARBALL.md`, `DOCS.md` — read from `docs/` adjacent
+  `AGENT.md`, `TARBALL.md`, `DOCS.md` — read from `docs/` adjacent
   to the script, take a goal, include named files);
 - apply a response tarball (minimum: manifest validation, sha256
   check, staging, run `validation.sh`, commit per-manifest-entry or
@@ -4543,7 +4544,7 @@ into a distributable release tarball, but the layout itself doesn't
 restructure.
 
 v0.0.1 is hand-written and predates any agent session, so
-`CLAUDE.md` section 6's "tests ship with code" rule (which governs
+`AGENT.md` section 6's "tests ship with code" rule (which governs
 the agent's tarball output) doesn't strictly apply. The same gap
 extends through v0.3, however: the test harness itself doesn't
 arrive until v0.4. Each session producing v0.1–v0.3 carries a
@@ -4588,7 +4589,7 @@ hand-written. Just enough to apply its own first tarball:
 
 No rollback, no unlock, no release-tarball packaging script. The
 working layout is the install layout: `bin/bale` (with shebang and
-`chmod +x`), the three global docs at `docs/CLAUDE.md`,
+`chmod +x`), the three global docs at `docs/AGENT.md`,
 `docs/TARBALL.md`, `docs/DOCS.md`, plus `install.sh`, `validate.sh`,
 and the user-facing `README.md` at the top. `install.sh` finalizes
 an install (chmod, optional PATH symlink, runs `validate.sh`);
@@ -4795,7 +4796,7 @@ follows the same convention. The directory inside still uses
 ## 15. Hard nots
 
 - **Not a project workflow tool.** Bale orchestrates sessions, not
-  workflows. The workflow is in `CLAUDE.md` / `TARBALL.md` /
+  workflows. The workflow is in `AGENT.md` / `TARBALL.md` /
   `DOCS.md` / `CODE.md`, applied at the user's discretion.
 
 For the implementation-scope list (what bale does NOT do), see

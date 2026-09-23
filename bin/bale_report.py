@@ -3262,7 +3262,7 @@ def format_clarification_value(rounds: int, questions=None,
     the caller. `questions` is the latest record's questions[] length,
     or None when that record would not read or parse — spelled out as
     unknown rather than dropped, the silent-skips-are-bugs posture
-    (CLAUDE.md §6) applied to a row value. `latest_record` is the latest
+    (AGENT.md §6) applied to a row value. `latest_record` is the latest
     record's repo-relative path, the pointer the architect opens to
     re-read the questions; omitted when the caller has none.
     `latest_from` is the side that wrote the latest record (`worker` /
