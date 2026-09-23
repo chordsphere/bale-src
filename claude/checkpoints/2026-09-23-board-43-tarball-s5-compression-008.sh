@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Blind checkpoint v1 — row 43, the TARBALL.md §5 compression pilot,
+# Blind checkpoint v3 — row 43, the TARBALL.md §5 compression pilot,
 # authored 2026-09-23 at the 2026-09-23-continue-plan-006 desk, from the
 # request, before any implementation exists. Outcome contracts only.
 # Runs from the staging copy of the applied tree (its cwd). Spans are
@@ -71,10 +71,23 @@ else fail "adr-0013-cites-keyed" "$unkeyed ADR-0013 citations in §5 without a �
 s591="$(sub_span '^#### 5\.9\.1 ')"
 s591_lines="$(printf '%s\n' "$s591" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')"
 ep_count="$(printf '%s\n' "$S5TXT" | grep -c 'expects_probe: no' || true)"
-if [ -n "$s591" ] && [ "$s591_lines" -le 12 ] && [ "$ep_count" -le 2 ] && printf '%s\n' "$s591" | grep -q '3\.3'; then
+# v2 (amended 2026-09-23 after the 008 HOLD, a fixture defect): v1 pinned a
+# 12-line floor on the whole subsection, a size the brief never gave; the
+# brief's outcome is that the collision has one home, §3.3, and §5.9.1
+# keeps a pointer. v2 asserts exactly that: no `expects_probe: no` inside
+# §5, §5.9.1 citing §3.3, and §5.9.1 shorter than the base's 47 non-blank
+# lines. Every other probe is byte-identical to v1.
+# v3 (amended 2026-09-23 after the worker's corrected response): v2 pinned
+# zero mentions, calibrated to the held landing; a pointer that names the
+# flag and its home is the better outcome. v3 asserts the shape: §5.9.1
+# shorter than the base's 47 non-blank lines and citing §3.3, and every
+# §5 line that names expects_probe also names §3.3 (a pointer, never a
+# restatement). Every other probe is byte-identical to v1.
+unpointed="$(printf '%s\n' "$S5TXT" | grep 'expects_probe' | grep -vc '3\.3' || true)"
+if [ -n "$s591" ] && [ "$s591_lines" -lt 47 ] && [ "$unpointed" = "0" ] && printf '%s\n' "$s591" | grep -q '3\.3'; then
   pass "expects-probe-collision-one-home"
 else
-  fail "expects-probe-collision-one-home" "§5.9.1 has $s591_lines non-blank lines (pointer floor 12); expects_probe: no appears $ep_count times in §5; §5.9.1 cites §3.3: $(printf '%s\n' "$s591" | grep -q '3\.3' && echo yes || echo no)"
+  fail "expects-probe-collision-one-home" "§5.9.1 has $s591_lines non-blank lines (base 47); $unpointed §5 line(s) name expects_probe without citing §3.3; §5.9.1 cites §3.3: $(printf '%s\n' "$s591" | grep -q '3\.3' && echo yes || echo no)"
 fi
 
 # ---- probes 7-9: the three VERBATIM riders, byte-exact, in place -------
