@@ -162,95 +162,78 @@ response-NNN/
   notes.md             # optional; include when there's something to surface
 ```
 
-`files/` mirrors the project structure from the repo root. If the
-worker touches `src/components/Foo.vue` and `package.json`, they
-appear at `files/src/components/Foo.vue` and `files/package.json`. Apply is
-then `cp -r response-NNN/files/. <project>/` — no path translation
-required. The mirror is enumerated by its files: an empty directory
-under `files/` declares nothing and is ignored — by the §10.1
-correspondence and by the §5.6.1/§5.9.2 "absent or empty" test
+`files/` mirrors the project tree from the repo root —
+`src/components/Foo.vue` ships as `files/src/components/Foo.vue` —
+so apply is `cp -r response-NNN/files/. <project>/` with no path
+translation. The mirror is enumerated by its files: an empty
+directory under `files/` declares nothing and is ignored, by the
+§10.1 correspondence and the §5.6.1/§5.9.2 "absent or empty" test
 alike.
 
-**`files/` carries source, never generated artifacts.** No bytecode
-(`__pycache__/`, `*.pyc`, `*.pyo`), no dependency trees
-(`node_modules/`), no build output (`dist/`, `build/`). This is a
-**contract** rule (label per `AGENT.md` §6): bale's apply
+**`files/` carries source, never generated artifacts** — no
+`__pycache__/`, `*.pyc`, `*.pyo`, `node_modules/`, `dist/`, or
+`build/`. A **contract** rule (`AGENT.md` §6): bale's apply
 pre-flight rejects a response whose `changes[]` paths include one,
-naming the offending paths, before any staging happens. The deny
-list is exactly the names above — not a heuristic — so a legitimate
-source file that merely resembles one (a script named `build`, a
-`pyc_utils.py`) passes (rationale: ADR-0013). `.bale/` paths are
-also never shipped, but that rejection belongs to path safety, not
-to this rule.
+naming them, before any staging. The deny list is exactly those
+names, not a heuristic, so a source file that merely resembles one
+(a script named `build`, a `pyc_utils.py`) passes (rationale:
+ADR-0013 §5.1). `.bale/` paths are never shipped either, but that
+rejection is path safety's, not this rule's.
 
-The two optional artifacts (README, notes) follow the stub-averse
-principle: include them when there's content; omit them otherwise.
-Absence carries meaning — no extra prose, no surprises, no proposal
-queued. Bale shows them in the apply walkthrough if present and
-stays silent if absent. (`next-prompt.md`, a third optional artifact
-in earlier versions of this contract, is retired — §5.5.)
+`README.md` and `notes.md` ship when they have content and are
+omitted otherwise — absence means nothing more needed saying, and no
+stub is written. Bale shows them in the apply walkthrough when
+present. (`next-prompt.md` is retired, §5.5.)
 
-**File changes go inside the tarball, not alongside it.** When the
-response delivers code or content changes, those changes belong in
-`files/` and `apply.sh`, declared in the manifest — not pasted into
-chat as a preview or as a courtesy copy (rationale: ADR-0013).
+**File changes go inside the tarball, not alongside it**: in
+`files/` and `apply.sh`, declared in the manifest, never pasted into
+chat as a preview or a courtesy copy (rationale: ADR-0013 §5.1). The
+rule binds the deliverable's shape only — when code is the response,
+the tarball is the response — and it does not make every
+tarball-mode reply a tarball. A missing, stale, or unclear
+environment fact takes a probe (section 4); a short, non-blocking
+question set takes a light question block (§5.10); a *blocking*
+intent gap takes the clarification response (§5.9). A concern or a
+scope observation that asks nothing is said in prose; an ask is
+never prose.
 
-This rule is narrow on purpose. Tarball mode does not mean *only*
-tarballs come out of it: a probe (section 4) is the right response
-to a missing, stale, or unclear environment fact; a light question
-block (§5.10) is the right response to a short, non-blocking
-question set — and when an intent gap is *blocking*, the
-clarification response (§5.9) is that ask given a durable wire
-shape. A concern or a scope observation that asks nothing is said
-in prose; an ask is never prose. The constraint is on the
-*deliverable's shape*: when code is the response, the tarball is the
-response, without a parallel copy in chat.
-
-A **bailout** response (§5.6) has a distinct shape: no `files/`,
-no-op `apply.sh` and `validation.sh`, plus mandatory `handoff.md`
-and `diagnostics.json`. It is the response the worker returns when the
-session can't fit the goal within its context budget — see
-`AGENT.md` §11. Bale's apply step treats bailouts as informational
-rather than applicable.
-
-A **clarification** response (§5.9) is the bailout's structural
-sibling for a different failure: the *request* is blocking — an
-intent gap, not a budget or environment gap. Same empty change
-surfaces, but its payload rides in the manifest as a `questions[]`
-block, and unlike a bailout it does not consume the session: the
-lock stays held, the planner answers through the exchange thread
-(§5.9.4), and the same session continues to a normal response.
+Two further response kinds share one set of empty change surfaces —
+no `files/`, a no-op `apply.sh` and `validation.sh` — and §5.9's
+recourse table is how the worker picks between them. A **bailout**
+(§5.6) answers a budget gap: the session can't fit the goal in its
+context window (`AGENT.md` §11); it adds the mandatory `handoff.md`
+and `diagnostics.json`, and apply treats it as informational rather
+than applicable. A **clarification** (§5.9) answers an intent gap:
+the *request* blocks trustworthy work; its payload rides in the
+manifest's `questions[]`, and unlike a bailout it does not consume
+the session — the lock stays held, the planner answers through the
+exchange thread (§5.9.4), and the same session continues to a normal
+response.
 
 ### 5.1.1 apply.sh
 
-`apply.sh` ships operations beyond the cp-and-overwrite that `files/`
-already provides — primarily deletes. Renames are decomposed into a
-`created` entry under `files/` (the new path with its full content)
-plus an `rm` of the old path in `apply.sh`; `apply.sh` itself never
-performs `mv` operations, because the commit step in bale is driven
-per-manifest-entry from `changes[]`, not from a tree-level diff.
+`apply.sh` carries only what the cp-mirror can't express. A delete
+is an `rm` of the path. A rename is a `created` entry under `files/`
+(the new path, full content) plus an `rm` of the old path — never an
+`mv`, because bale's commit step is driven per `changes[]` entry,
+not from a tree-level diff. An executable bit is restored with a
+per-path `chmod +x` (`chmod +x scripts/release.sh`, one line per
+file), because the `files/` overlay strips mode and can't infer
+which `created` or `modified` file was meant to be executable — the
+worker's responsibility (failure analysis: ADR-0013 §5.1.1), with
+§7.7's exec-bit assertion as the validation-side guard.
 
-Executable mode bits are the parallel case the cp-mirror can't
-carry: bale's `files/` overlay strips mode, so a `created` or
-`modified` entry meant to be executable arrives at staging with the
-exec bit cleared. `apply.sh` restores it with a per-path `chmod +x`
-after the overlay applies — `chmod +x scripts/release.sh`, one line
-per file. The responsibility sits on the worker because the overlay
-can't infer intent (failure analysis: ADR-0013). The
-validation-side guard that catches a forgotten `chmod` — an
-exec-bit assertion in `validation.sh` — is §7.7.
+Bale runs `apply.sh` with cwd set to the staging copy, before
+`validation.sh`, then reconciles the result against the manifest:
+every file removed must be a `deleted` entry, every file added a
+`created` one, and every modified file's sha256 must match. An
+`apply.sh` that touches an undeclared file fails reconciliation and
+the tarball is rejected; bale's path-safety check catches escapes
+from the staging tree. The script installs nothing, builds nothing,
+and has no side effects beyond file-tree operations.
 
-Bale runs `apply.sh` in a staging copy of the project before
-`validation.sh`, then verifies the resulting state matches the
-manifest: every file removed from staging must be in
-`manifest.changes` as `action: deleted`; every file added must be
-`action: created`; every modified file's sha256 must match. A
-malformed `apply.sh` that touches files not declared in the manifest
-fails verification and the tarball is rejected.
-
-`apply.sh` is minimal — only the operations the cp-mirror can't
-express. A session with no deletes, renames, or executable bits to
-restore ships a no-op script:
+The scaffold is the crafter's (§5.2): the verbatim no-op when
+nothing needs the script —
 
 ```bash
 #!/usr/bin/env bash
@@ -258,22 +241,9 @@ restore ships a no-op script:
 exit 0
 ```
 
-Typical contents for a delete:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-# Remove src/legacy/Bar.vue — superseded by Foo.vue.
-rm -f src/legacy/Bar.vue
-```
-
-`apply.sh` runs with cwd set to the staging directory. It never
-touches files outside the staging tree (bale's path-safety check
-catches escapes; the post-run manifest reconciliation catches
-unauthorized writes within the tree). The worker does not use `apply.sh`
-to install dependencies, run builds, or perform side effects beyond
-file-tree operations — those are out of scope for the apply
-contract.
+— otherwise an `rm -f` line per `--deleted` path, each under a
+reason comment the worker fills, then the `chmod +x` lines for the
+paths named with `--executable`.
 
 ### 5.2 manifest.json
 
@@ -327,174 +297,97 @@ contract.
 }
 ```
 
-Field semantics:
+The skeleton is mechanized: `tools/craft_response.py`, shipped in
+every request per §3.1, emits it for any kind (`--kind
+{normal,bailout,clarification}`, default `normal`) with the computed
+fields filled — `session_id` and `responds_to` from `--sid`,
+`response_kind` from `--kind`, sizes and hashes per §5.2.1 — plus
+the §5.1.1 `apply.sh` scaffold; the two non-normal kinds' full
+artifact sets are §5.6.1 and §5.9.2. The crafter never validates its
+own output: the worker fills the judgment fields, then the lint
+judges (§5.2.2's workflow). The identity fields' semantics —
+`session_id` equal to `responds_to` on every kind, `corrects`
+naming the response this one re-attempts or null, `response_kind`
+selecting the shape — are `response-manifest.schema.json`'s field
+descriptions (in the bale installation). The judgment fields:
 
+- **`summary`** — one paragraph on what the response delivers.
 - **`changes`** — may be empty: a no-op change set is `changes: []`
   with no files under `files/`; the §10.1 correspondence then holds
   vacuously, and a file under `files/` beside an empty `changes[]`
   is an undeclared file, not an implied change.
-- **`changes[].reason`** — non-empty for every entry. Bale rejects
-  empty strings. The reason is read later by someone who wasn't
-  around for the session.
-- **`changes[].action`** — `created`, `modified`, or `deleted`.
-  `deleted` entries have `size_bytes: 0` and `sha256: null`; the
-  file does not exist under `files/`. The actual removal happens in
-  `apply.sh`.
-- **`deferred`** — explicit list of things the worker considered but
-  didn't do. Each has a `why`. The list is how I know what's not
-  here.
-- **`validation_will_run`** — declarative list of what
-  `validation.sh` is configured to do. Lets me predict the cost
-  before running it.
-- **`claims`** — the worker's prediction for each project-level check,
-  distinct from what validation actually finds. See 5.3.
-- **`responds_to`** — the session ID of the request this response
-  answers (full form: `YYYY-MM-DD-<slug>-NNN`). Bale verifies it
-  matches the locked session. `session_id` equals `responds_to` for
-  normal and bailout responses alike (both answer the request they
-  were built for), and for a clarification too — a clarification
-  suspends rather than consumes its session (§5.9), so it carries
-  the same sid the eventual normal response will.
-- **`corrects`** — optional, default `null`. If this response is a
-  re-attempt at a previous response whose validation failed or
-  whose application revealed a problem, this is the session ID of
-  the response it replaces (e.g., `"2026-05-10-foo-014"`). The
-  replaced response's tarball stays in `claude/responses/` as
-  history; the pointer is how someone reading later traces what
-  happened.
-- **`response_kind`** — `"normal"` (default) for an ordinary
-  response. `"bailout"` when the worker could not fit the goal in this
-  session's context budget (see `AGENT.md` §11); bailout responses
-  follow the distinct shape in section 5.6. `"clarification"` when a
-  blocking intent gap in the request prevents trustworthy work;
-  clarification responses follow the distinct shape in section 5.9.
-- **`feedback`** — optional dual-stream session feedback (v0.3.8+).
-  The two streams, the trust split behind them, and the
-  fill-by-running-the-lint workflow are §5.2.2. Apply persists the
-  block verbatim into the session's telemetry record, which is what
-  makes filling it honestly worth the two minutes.
-
-The skeleton itself is mechanized: `tools/craft_response.py`, shipped
-in every request per §3.1, emits the manifest skeleton for any
-response kind (`--kind {normal,bailout,clarification}`, default
-`normal`) with the computed fields filled and the judgment fields —
-`action`, `reason`, `summary`, `deferred`, `validation_will_run`,
-`claims` — left for the worker, plus the `apply.sh` scaffold of
-§5.1.1 (the no-op, or `rm` lines for deletions and per-path
-`chmod +x` lines for files the worker names executable). The two
-non-normal kinds' full artifact sets are §5.6.1 and §5.9.2. The
-crafter never validates its own output: fill the judgment fields,
-then the lint judges (§5.2.2's workflow). Sizes and hashes: §5.2.1.
+- **`changes[].action`** — `created`, `modified`, or `deleted`. A
+  `deleted` entry has `size_bytes: 0` and `sha256: null` and no file
+  under `files/`; the removal itself is `apply.sh`'s.
+- **`changes[].reason`** — non-empty for every entry (bale rejects
+  empty strings), written for a reader who wasn't around for the
+  session.
+- **`deferred`** — the in-goal work the worker considered and didn't
+  do, each with a `why`: the list is how the planner knows what's
+  not here. How it differs from a Proposal is §5.4.1.
+- **`validation_will_run`** — what `validation.sh` is configured to
+  do, so the planner can predict the cost before running it; each
+  entry is a check's canonical identifier (§5.3).
+- **`claims`** — the worker's prediction per claimable check,
+  distinct from what validation finds (§5.3).
+- **`feedback`** — optional session feedback (§5.2.2).
 
 ### 5.2.1 Computing size_bytes and sha256
 
 `size_bytes` and `sha256` are computed, never transcribed
-(rationale: ADR-0013): bale's pre-flight rejects any tarball whose
-manifest sha256 disagrees with the bytes under `files/` (§7). Run
-the values off the real files.
-
-The computation is the crafter's: `tools/craft_response.py` (shipped
-in every request per §3.1) walks `files/`, computes every
-`size_bytes` and `sha256`, and emits the `changes[]` skeleton with
-the mirror prefix stripped, paste-ready — `--changes-only` for the
-array alone; `--help` for the full surface. `deleted` entries carry
-no file under `files/`; their two literals (`size_bytes: 0`,
-`sha256: null`) are the only size or hash values not computed from
-bytes, and the tool writes them too (`--deleted PATH`). Nothing in
-this field set is ever produced from memory — a hash recalled rather
-than recomputed is exactly what §10.1 step 10 and `AGENT.md` §11.6
-exist to catch.
+(rationale: ADR-0013 §5.2.1): bale's pre-flight rejects any tarball
+whose manifest sha256 disagrees with the bytes under `files/` (§7).
+The computation is the crafter's: `tools/craft_response.py` walks
+`files/`, computes every value, and emits the `changes[]` skeleton
+with the mirror prefix stripped, paste-ready (`--changes-only` for
+the array alone; `--help` for the full surface), and writes the
+`deleted` literals too (`--deleted PATH`). Nothing in this field set
+is produced from memory — a hash recalled rather than recomputed is
+exactly what §10.1 step 10 and `AGENT.md` §11.6 exist to catch.
 
 ### 5.2.2 The feedback block
 
-An optional top-level `feedback` object (v0.3.8; shape in
-`response-manifest.schema.json`) carries the session's own account of
-itself. Bale's apply persists it verbatim into the session's
-telemetry record, where it aggregates across sessions.
-Pre-v0.3.8 manifests omit it and still validate; new responses
-include it.
+An optional top-level `feedback` object carries the session's own
+account of itself; apply persists it verbatim into the session's
+telemetry record, where it aggregates across sessions. A manifest
+without the block still validates; a new response includes it. Its
+field-by-field contract — every member, its shape, and what an
+empty value asserts — is `response-manifest.schema.json`'s field
+descriptions, and this section does not restate them.
 
 The block is **two streams split by trust level** (rationale:
-ADR-0013):
+ADR-0013 §5.2.2). **`mechanical`** holds what the lint
+(`tools/response_lint.py`, shipped in every request per §3.1)
+recomputes — `response_kind`, `schema_valid`, `mirror_agreement`,
+`claims_subset` — plus two members whose shape is fixed though their
+content is the worker's: `linkage`, present when the session went
+through a probe or clarification round, and `provenance`, the
+request's provenance block echoed verbatim plus `model_identity`,
+spelled `<vendor>:<model>` with `unknown` as the model token when
+the surface does not show the string (`AGENT.md` §11.7's table says
+which do). **`self_reported`** holds the worker's judgment, which
+the lint checks for shape only, never content. Honest empties there
+are meaningful — `[]` asserts *none arose* — with one exception:
+`docs_read` is seeded `[]` by the crafter for scaffold presence, so
+a shipped `[]` is indistinguishable from an unfilled stub and the
+lint warns `DOCS_READ_EMPTY_STUB`; fill the list, or delete the key.
+`forecast_departures` is §5.4's twin record.
 
-- **`mechanical`** — values the lint (`tools/response_lint.py`,
-  shipped in every request per §3.1) can recompute and verify:
-  `response_kind` (echo of the manifest's effective kind),
-  `schema_valid`, `mirror_agreement` (the §10.1 both-directions
-  `files/` ↔ `changes[]` result, split by direction), and
-  `claims_subset` (the §5.3 subset rule). Two optional members ride
-  here because their *shape* is fixed even where their content is
-  self-reported: `linkage` (present when the session went through a
-  probe or clarification round — which recourse, and whether the gap
-  surfaced pre-read, pre-build, or mid-build; its `depends_on` is
-  the session ID of the linked round when it exists as a durable
-  artifact (a file-based probe or a shipped clarification
-  response), and null for a paste-back probe or an in-chat ask,
-  which resolve within the session) and `provenance` (the request's
-  provenance block echoed verbatim plus `model_identity`, which is
-  self-reported and unverifiable today — recorded for aggregation,
-  read with that caveat; null when the request carried no
-  provenance — and the echo's schema admits every key the request's
-  provenance block can carry, `base_files` included, so verbatim is
-  followable without dropping a stamp). `model_identity` has one
-  spelling: `<vendor>:<model>`, lowercase, spaces to hyphens, no
-  suffix, with `unknown` as the model token when the surface does
-  not show the string (`AGENT.md` §11.7's table says which do) —
-  the schema pins the same form as a pattern, so a spelling that
-  drifts fails the lint rather than fragmenting the aggregate.
-- **`self_reported`** — worker-authored judgment the lint cannot
-  check: `assumptions` proceeded on without confirmation (the §3.3 /
-  §5.9.1 recoverable-risk posture), `judgment_calls` the planner
-  should find without reading the diff, `budget_pressure` (`none` |
-  `tight` | `bailed` — the session's own read of `AGENT.md` §11),
-  `includes_missing` (what the session wanted but the request didn't
-  ship — packing signal; each entry is a path, for a file, or a line
-  opening `decision:`, for a ruling the packer made but never
-  transported), `compaction_occurred` (with a
-  `disclosure_ref` pointing at where the `AGENT.md` §11.6 disclosure
-  lives when true), `light_blocks` (optional: the number of light
-  question blocks, §5.10, the worker emitted this session — the tier
-  opens no exchange record, so this count is how stats sees it), and
-  `paste_carried_rounds` (optional: the number of exchange rounds
-  whose record traveled by paste block, §5.9.2, rather than tarball —
-  so telemetry stops reading a real round as zero). The two counts
-  are never seeded by the crafter: absence is the honest default, and
-  a worker who emitted a block or carried a round by paste writes the
-  number. Honest empties are meaningful: `[]` asserts
-  *none arose*, and the lint checks shape only, never content. One
-  field is the exception to that rule: `docs_read` (optional — the
-  docs and sections the session actually read) is seeded `[]` by the
-  crafter for scaffold presence, so a shipped `[]` is indistinguishable
-  from an unfilled stub, and `tools/response_lint.py` warns
-  `DOCS_READ_EMPTY_STUB` on it — fill the list, or delete the key
-  (omission means *reported nothing*).
+**Fill the mechanical stream by running the lint, not by hand.**
+Build the response through §10.1 steps 1–9; when the crafter seeded
+the block from the request (`--request`), fill `model_identity` and
+`self_reported` first. Then run `python3 tools/response_lint.py
+<response-dir> --emit-feedback-mechanical`, paste its object in as
+`feedback.mechanical` — over a seeded block's four placeholders key
+for key, never replacing the whole object, which would drop the
+seeded `provenance`; the emitter computes the four values only, and
+`linkage` is the worker's to add — and run the lint once more:
+its feedback-block check recomputes every mechanical value against
+the directory as packed. A mismatch is the tell of a hand-filled or
+stale block, and the fix is to re-run, never to adjust values until
+the check goes quiet.
 
-One member has been documented by its schema description alone
-until now: `forecast_departures` — the block's structured record of
-`changes[]` paths landing outside the request's stamped write
-forecast, the machine-readable twin of the `notes.md` enumeration
-(§5.4). Its stream placement, shape, and fill semantics follow
-`response-manifest.schema.json`'s description, which remains the
-field's full contract; this walk-through names the field so the
-schema is no longer its only documentation.
-
-**Fill the mechanical stream by running the lint, not by hand.** The
-workflow: build the response through §10.1 steps 1–9, run
-`python3 tools/response_lint.py <response-dir>
---emit-feedback-mechanical`, paste the printed object in as
-`feedback.mechanical` (every field is that run's own computation;
-the optional `linkage` and `provenance` members are the worker's to
-add when they apply), fill `self_reported`
-honestly, then run the lint once more — its feedback-block check
-recomputes every mechanical value against the directory as packed and
-flags any disagreement. When the crafter seeded the block from the
-request (--request), fill model_identity and self_reported before
-running the emitter, and paste the emitter's object over the four
-placeholders key for key rather than replacing the mechanical object.
-A mismatch is the tell of a hand-filled or
-stale block (an edit made after the values were copied), and the fix
-is to re-run, not to adjust the values until the check goes quiet
-(rationale: ADR-0013).
+The emitter exits 0 once it has written the block and 1 when there was nothing to paste, so a worker chaining it with `&&` never skips the paste; `--request` lets the lint read `resolved_scope` and warn on an undeclared forecast departure, and lets the crafter seed the departure stubs §5.4 names.
 
 ### 5.3 Claims vs verdict
 
@@ -503,7 +396,7 @@ outcome is a **claim**; what `validation.sh` produces is a
 **verdict**. They're separate fields so disagreement is itself
 diagnostic.
 
-`claims` values per project-level check:
+`claims` values per check:
 
 | Value | Meaning |
 |-------|---------|
@@ -512,51 +405,39 @@ diagnostic.
 | `untested` | The check will be skipped in my environment |
 | `unknown` | The worker genuinely can't tell |
 
-A claim value takes one of two forms (v0.4.7). The bare string from
-the table above remains the default and every earlier manifest keeps
-validating. The **annotated object form** —
-`{"value": "pass", "claim_basis": "predicted"}` — lets the worker
-additionally declare, at ship time, the claim's basis: `predicted`
-from structural grounds, or `observed` from a real run before
-shipping. `value` carries the same vocabulary as the bare string;
-`claim_basis` is optional and its enum is closed (omit the key when
-the basis is unknown — null is not a basis). Apply's verbatim
-promotion of the claims map into the session's telemetry record
-carries the object through unchanged, which is what makes the
-record-side calibration split measurable from ship-time declarations.
+A claim is the bare string, or the annotated object
+`{"value": "pass", "claim_basis": "observed"}`, which adds the
+claim's basis at ship time — `predicted` from structural grounds, or
+`observed` from a real run before shipping; the bare string stays
+valid, and the object's shape is the schema's.
 
 One rule scopes the block: `claims` covers the project-level checks
-(lint, typecheck, build, tests), and when the project has none — no
-lint, typecheck, build, or test surface yet — it covers the
-response's session-specific assertions (§7.2 item 6) instead. Either
-way the keys are genuine predictions about non-tautological checks;
-an empty block while claimable checks ran wastes the calibration
-signal the field exists for. The mechanical checks the worker wrote
-the manifest for (manifest consistency, file syntax) are tautological
-— a `pass` claim adds no information — and are never claimed.
+(lint, typecheck, build, tests), and when the project has none it
+covers the response's session-specific assertions (§7.2 item 6)
+instead. Either way every key is a genuine prediction about a
+non-tautological check; an empty block while claimable checks ran
+wastes the calibration signal the field exists for. The mechanical
+checks the manifest was written against (manifest consistency, file
+syntax) are tautological — a `pass` adds nothing — and are never
+claimed.
 
-A `claims` key is not free text: it is the check's **canonical
-identifier** — its `validation_will_run` entry, reused **verbatim**
-(same characters, same spacing) as the `claims` key and again as the
-verdict label §7.3 reconciles against. That one shared string is
-what makes the reconciliation well-defined; a key with no verbatim
-match in `validation_will_run` is unpairable — a prediction about a
-check the manifest never says will run.
+A `claims` key is the check's **canonical identifier**: its
+`validation_will_run` entry, reused **verbatim** (same characters,
+same spacing) as the key and again as the verdict label §7.3
+reconciles against. A key with no verbatim match in
+`validation_will_run` is unpairable — a prediction about a check the
+manifest never says will run. The match is one-directional:
+`set(claims) ⊆ set(validation_will_run)`, never the converse, since
+`validation_will_run` also lists the unclaimed mechanical checks,
+which stand as run-but-unclaimed. This subset relation is what §10.1
+self-checks before packing and `AGENT.md` §11.6 re-derives after a
+compaction.
 
-The match is one-directional, and the scoping is the point:
-`set(claims) ⊆ set(validation_will_run)`, never the converse.
-`validation_will_run` also lists the mechanical checks excluded from
-`claims` above, and those entries stand as run-but-unclaimed —
-correct, not a gap. This subset relation is what §10.1 self-checks
-before packing and `AGENT.md` §11.6 re-derives after a compaction.
-
-A claim disagreeing with the verdict doesn't reject the tarball; it's
-flagged in validation's end-of-run report (what the disagreement
-pattern is for: ADR-0013).
-
-If the worker marks a check `unknown`, that itself is a finding
-worth a line in `notes.md`: *what would the worker need to know to
-predict?*
+A claim disagreeing with its verdict doesn't reject the tarball;
+it's flagged in validation's end-of-run report (what the
+disagreement pattern is for: ADR-0013 §5.3). A check claimed
+`unknown` earns a line in `notes.md`: *what would the worker need to
+know to predict?*
 
 ### 5.4 notes.md (optional)
 
@@ -580,26 +461,26 @@ Conversational when included. Use it for:
   new file the pack could not have named, or a modification the
   goal turned out to require, that no forecast entry covers. List
   each such path explicitly, with why the goal required it, so the
-  operator can admit it at apply (§3.2). An unenumerated
+  operator can admit it at apply (§3.2); an unenumerated
   out-of-forecast path surfaces as a refusal instead of a decision.
-  Each path listed here is also recorded in the manifest, as
+  Each path listed here is also recorded in the manifest as
   `forecast_departures` under `feedback.self_reported`: one object
   per path, with exactly two keys — `path`, the `changes[]` path,
-  and `why`, the same reason in a sentence (§5.2.2). Given
-  `--request`, `tools/craft_response.py` seeds one such object per
-  `changes[]` path outside the request's `resolved_scope`, its `why`
-  left empty — an unfilled stub cannot pass the lint — so the `why`
-  is the worker's to fill; a session with no such path omits it.
+  and `why`, the same reason in a sentence. Given `--request`, the
+  crafter seeds one such object per `changes[]` path outside the
+  request's `resolved_scope`, its `why` left empty — an unfilled stub
+  cannot pass the lint — so the `why` is the worker's to fill; a
+  session with no such path omits the key.
 - Follow-up work worth suggesting — as a Proposals section (§5.4.1).
 
-If a session has any of the above, write the file. If a session is
-small enough that none of the above apply, don't write a stub.
+If a session is small enough that none of the above apply, don't
+write a stub.
 
 #### 5.4.1 The Proposals section
 
 When a session surfaces follow-up work worth suggesting — a seam
 visible only from inside the code, an out-of-scope fix worth doing
-(rationale: ADR-0013) — `notes.md` carries it under a
+(rationale: ADR-0013 §5.4.1) — `notes.md` carries it under a
 `## Proposals` heading. Each proposal is a short block:
 
 - **What** — the suggested follow-up, in one or two sentences.
@@ -610,162 +491,106 @@ visible only from inside the code, an out-of-scope fix worth doing
 
 Proposals are prose suggestions with rationale, **never ready-to-run
 commands** — no `bale pack` line, no literal paste-this text; §3.4
-carries the reasoning. The planner reads proposals as *input*, decides sequencing,
-and authors its own pack commands (§3.4) from its own understanding.
+carries the reasoning. The planner reads proposals as *input*,
+decides sequencing, and authors its own pack commands (§3.4).
 
 Proposals are distinct from the manifest's `deferred` list (§5.2):
 `deferred` names in-goal work the session considered and didn't do;
 Proposals name work the session's vantage point revealed, whether or
 not the goal asked for it. An item can appear in both — deferred for
 the record, proposed with the rationale — when the worker thinks it
-should be near the top of the queue.
-
-If nothing is worth proposing, omit the section, the same way an
-uneventful session omits the file: absence means *no suggestion*.
+should be near the top of the queue. If nothing is worth proposing,
+omit the section: absence means *no suggestion*.
 
 ### 5.5 next-prompt.md (retired)
 
-Retired as of session `2026-07-06-retire-next-prompt-006`. Responses
-do not ship `next-prompt.md`; the worker does not produce it. The
-artifact carried a ready-to-run `bale pack` command inside the
-response tarball — an *unsolicited, post-work* runnable command,
-exactly the shape §3.4 confines to the pre-flight rescope offer
-(hazards: ADR-0013). Follow-up flows as prose Proposals in
-`notes.md` (§5.4.1); the retirement does not touch bailouts, whose
-unfinished work was always `handoff.md`'s job (§5.7). This section
-number is kept so older cross-references stay resolvable.
-
-Transition tolerance: response tarballs produced before the
-retirement may still contain `next-prompt.md`. Bale's apply
-walkthrough tolerates them — the body is surfaced, labeled
-deprecated — so pre-retirement archives stay reviewable. Nothing new
-ships the file.
+Retired by session `2026-07-06-retire-next-prompt-006`: nothing new
+ships `next-prompt.md` (apply still surfaces one found in an older
+archive, labeled deprecated), follow-up flows as `notes.md`
+Proposals (§5.4.1), and why the shape went is ADR-0013 §5.5.
 
 ### 5.6 Bailout response
 
-A bailout response is what the agent returns when `AGENT.md` §11
-triggers have fired — the goal won't fit in this session's context
-budget and the agent is handing off to a fresh session instead of
-pushing through; the *why* lives in `AGENT.md` §11.
+A bailout is what the worker returns when `AGENT.md` §11's triggers
+have fired — the goal won't fit this session's context budget, and
+the worker hands off to a fresh session instead of pushing through;
+the *why* lives in `AGENT.md` §11.
 
 #### 5.6.1 Shape
 
-The bailout's artifact set is mechanized: when the §11 triggers have
-fired and a bailout is the response, `tools/craft_response.py --kind
-bailout --write` (shipped in every request per §3.1) emits the whole
-set — the manifest with its empty change surfaces (§5.6.2) and no
-`files/` (absent or empty), the no-op `apply.sh` and `validation.sh`
-the kind fixes (nothing changed, nothing to test), the required
-`handoff.md` as a scaffold of §5.7's sections (the content under
-each header is judgment and stays the worker's), and the required
-`diagnostics.json` skeleton (§5.8). `notes.md` remains optional,
-addressed to me rather than the next agent. The crafter never
-validates its own output; the lint judges the finished response, and
-an unfilled skeleton is deliberately lint-invalid.
+The artifact set is mechanized: `tools/craft_response.py --kind
+bailout --write` emits it whole — the manifest with its empty change
+surfaces (§5.6.2) and no `files/` (absent or empty), the no-op
+`apply.sh` and `validation.sh` the kind fixes, the required
+`handoff.md` scaffolded with §5.7's section headers (the content
+under each is the worker's), and the required `diagnostics.json`
+skeleton (§5.8). `README.md` is absent in bailouts: `handoff.md`
+carries the forward-looking content for the next agent, and
+`notes.md`, optional, carries commentary addressed to me. The lint
+judges the finished response, and an unfilled skeleton is
+deliberately lint-invalid.
 
-`response_kind: "bailout"` in the manifest is the canonical marker.
-Bale's apply step branches on it: instead of applying changes, it
-displays the handoff summary and prompts the user to run
-`bale handoff <response-NNN>` to package a fresh session.
-
-`README.md` is absent in bailouts — `handoff.md` carries the
-forward-looking content for the next agent, and `notes.md` (if
-present) carries the user-facing commentary. (`next-prompt.md` is
-retired everywhere, §5.5.)
+`response_kind: "bailout"` is the canonical marker: apply branches on
+it, displaying the handoff summary instead of applying changes and
+prompting for `bale handoff <response-NNN>` to package a fresh
+session.
 
 #### 5.6.2 Manifest specifics for bailouts
 
-When `response_kind: "bailout"`, every change surface is empty:
-nothing changed, nothing ran, nothing is claimable. The empty
-surfaces are mechanized — the crafter (§5.6.1) emits them and the
-lint rejects a bailout that violates them — so only the judgment
-halves remain here: `summary` is one paragraph on what was
-attempted, which trigger fired (per `AGENT.md` §11.3), and what
-the handoff prescribes for the next session; and deferred work
+Every change surface is empty — nothing changed, nothing ran,
+nothing is claimable — and the crafter emits them that way while the
+lint rejects a bailout that violates them. The judgment halves: `summary`
+is one paragraph on what was attempted, which trigger fired
+(`AGENT.md` §11.3), and what the handoff prescribes; deferred work
 lives in `handoff.md`'s prescription, never as a flat `deferred`
-list.
-
-The `responds_to` field still names the request this answers. The
-new session that the user packs after running `bale handoff` will
-have its own fresh `session_id` (same slug, new date+NNN), and its
-`depends_on.previous_response` will point at the bailout.
+list. `responds_to` still names the request this answers; the
+session packed after `bale handoff` gets its own fresh `session_id`
+(same slug, new date and NNN), and its
+`depends_on.previous_response` points at the bailout.
 
 #### 5.6.3 Apply-time UX (moved)
 
-Moved out of this contract, to be maintained beside the bale
-implementation itself — the apply-time behavior is a contract on
-the bale tool, not on the worker, and nothing that binds response
-authoring left this file. This section number is kept so older
-cross-references stay resolvable.
+Moved beside the bale implementation: apply-time behavior is a
+contract on the bale tool, not on the worker, and nothing that binds
+response authoring left with it.
 
 ### 5.7 handoff.md (required in bailout responses)
 
-Written for the **next agent's session**, not for me. Voice is
-terse and instructional — no hedging, no conversational softening,
-no "I" reflection beyond what the next agent needs to plan its
-budget.
+Written for the **next agent's session**, not for me: terse and
+instructional — no hedging, no conversational softening, no "I"
+reflection beyond what the next agent needs to plan its budget. The
+crafter's scaffold carries the required sections in their required
+order; what goes under each:
 
-Required sections, in this order:
-
-```markdown
-# Handoff
-
-## Original goal
-
-[Verbatim copy of `manifest.goal` from the request this bailed on.
-The next session should not have to re-extract this.]
-
-## What I loaded
-
-[Every doc and source file the agent actually read this session, with
-a verdict on whether it earned its budget cost:
-- `path/to/doc.md` — necessary | wasted | partial
-The next agent uses this to skip what wasted budget last time.]
-
-## What I explored
-
-[Reasoning paths the agent pursued — drill-downs, hypotheses, design
-options — with a verdict:
-- `did X` — productive | dead end | inconclusive
-Concrete enough that the next agent can avoid repeating dead
-ends.]
-
-## What I learned
-
-[Concrete observations that compress the next session's reading.
-Example: "The relevant logic for goal X lives in `composables/`,
-not `utils/`." "Skip `src/legacy/` — nothing in it is reachable
-from the current entry points." If nothing useful was learned,
-state that.]
-
-## Reading plan for the next session
-
-[A specific drill-down prescription for the next agent, given the
-original goal. INDEX-table-compatible paths. If reading order
-matters, number it. This is the most important section — its job
-is to put the next agent on the right track in one read, not
-ten.
-
-When the bailing agent has a clear recommendation for what the next
-session should do, the reading plan is written for *that* piece —
-concrete, single-track, ready to execute. Alternatives worth
-preserving are framed as *overrides* ("if the architect picks X
-instead, the reading plan is Y"), not as equal candidates in a
-menu. Defaulting to a menu when a recommendation existed loses the
-recommendation to a "which piece?" round-trip in the next session.
-
-The multiple-choice shape is reserved for genuine close calls where
-the bailing agent couldn't pick. When that case applies, the
-handoff also declares that **the next session opens in
-conversational mode** and transitions to tarball mode after the
-architect picks.]
-
-## Salvageable work
-
-[Any partial decisions, sketches, or code stubs that should not be
-discarded. Verbatim where possible. If nothing is salvageable,
-write: "Nothing to salvage — restart from the reading plan."]
-```
+- **`# Handoff`** — the title line.
+- **`## Original goal`** — `manifest.goal` from the request this
+  bailed on, verbatim, so the next session need not re-extract it.
+- **`## What I loaded`** — every doc and source file actually read,
+  each with a verdict on whether it earned its budget:
+  `path/to/doc.md` — necessary | wasted | partial.
+- **`## What I explored`** — the reasoning paths pursued
+  (drill-downs, hypotheses, design options), each productive | dead
+  end | inconclusive, concretely enough that dead ends aren't
+  repeated.
+- **`## What I learned`** — concrete observations that compress the
+  next session's reading ("the logic for goal X lives in
+  `composables/`, not `utils/`"; "skip `src/legacy/`, nothing in it
+  is reachable"); if nothing useful was learned, say so.
+- **`## Reading plan for the next session`** — the most important
+  section: a specific, INDEX-table-compatible drill-down
+  prescription, numbered where order matters, whose job is to put
+  the next agent on track in one read, not ten. When the bailing
+  agent has a recommendation, the plan is written for *that* piece —
+  concrete, single-track, ready to execute — with alternatives
+  framed as overrides ("if the architect picks X instead, the plan
+  is Y"), never as an equal-candidate menu, which loses the
+  recommendation to a "which piece?" round-trip. A multiple-choice
+  plan is reserved for a genuine close call, and then the handoff
+  also declares that **the next session opens in conversational
+  mode** and moves to tarball mode after the architect picks.
+- **`## Salvageable work`** — partial decisions, sketches, or code
+  stubs worth keeping, verbatim where possible; otherwise "Nothing
+  to salvage — restart from the reading plan."
 
 The next agent reads `handoff.md` as the first `context/` doc. Its
 reading plan is high-value input, ratified by the planner at
@@ -777,39 +602,18 @@ and where the two disagree the manifest wins.
 Structured longitudinal data, aggregated across sessions to
 calibrate where budget actually goes. The shape is mechanized: the
 schema of record is `schemas/diagnostics.schema.json` (in the bale
-installation — the schemas tree ships with the install, reachable
-from any project the same way the `tools/` pair is), the crafter
-(§5.6.1) emits the skeleton carrying its
-required keys — `session_id` filled, everything else empty — and
-the lint validates the filled file against it. Structural detail
-(required keys, enum values, entry shapes) lives in the schema,
-not here.
-
-What the judgment fields want:
-
-- **`bail_trigger`** — the first two enum values match the
-  agent-detected triggers in `AGENT.md` §11.3. The third
-  (architect-requested bailouts — test sessions, deliberate
-  checkpoints; see `AGENT.md` §11.3's third bullet) uses `"other"`
-  and surfaces the specifics in `bail_narrative` rather than minting
-  a new enum value (enum design: ADR-0013).
-- **`bail_narrative`** — the agent's honest paragraph on the bail
-  decision. The retrospective complement to the prescriptive
-  `handoff.md`.
-- **`context_loaded[].verdict`** — the verdict is qualitative;
-  the worker can't measure token-spend per doc precisely.
-- **`what_would_save_next_time`** — each entry a concrete
-  prescription. Overlaps with `handoff.md`'s "What I learned"
-  section; that's intentional — `handoff.md` is for the next
-  the agent, `diagnostics.json` is for the user's longitudinal
-  analysis.
-
-The schema is intentionally loose: new fields can be added in
-future sessions without breaking earlier aggregation, and values
-are honest estimates rather than measurements. Aggregation across
-sessions is `bale stats`'s job: apply keeps each bailout's diagnostics
-with the session's record, and the stats verb reads the accumulated
-records.
+installation, reachable from any project the way the `tools/` pair
+is), whose field descriptions say what each judgment field wants;
+the crafter (§5.6.1) emits the skeleton with its required keys —
+`session_id` filled, everything else empty — and the lint validates
+the filled file against it. Two notes the schema doesn't carry: a
+`bail_trigger` for an architect-requested bailout is `"other"`, with
+the specifics in `bail_narrative`, rather than a new enum value
+(enum design: ADR-0013 §5.8); and each `context_loaded[].verdict`
+is qualitative, since the worker can't measure token spend per doc.
+Aggregation is `bale stats`'s job: apply keeps each bailout's
+diagnostics with the session's record, and the stats verb reads the
+accumulated records.
 
 ### 5.9 Clarification response
 
@@ -826,11 +630,8 @@ originated**:
 | clarification (§5.9) | questions put to the planner | an intent gap — the request is ambiguous, contradictory, or assumes knowledge the worker was never given |
 | bailout (§5.6) | a budget handoff to a fresh session | the goal won't fit the context window |
 
-The mechanics keying (design rationale: ADR-0011) is what makes the
-edge case well-defined: a blocking environment gap under
-`expects_probe: no` (§3.3) may take the clarification shape, because
-with scripting forbidden, questions to the planner — who can read
-their own environment — are the recourse that remains.
+The mechanics keying's design rationale is ADR-0011.
+A gap met under `expects_probe: no` is §3.3's: its one home.
 
 #### 5.9.1 When it engages
 
@@ -838,139 +639,106 @@ Canonical intent-gap triggers: an undefined term in the goal; a
 constraint that conflicts with an included file; a decision the
 packer made but did not transport into the request. No script
 against the environment can answer these — which is exactly why
-they are not probes. The converse admission also holds: when
-probing is unavailable (`expects_probe: no`, §3.3), a blocking
-environment gap is admissible here — the taxonomy keys on
-mechanics (§5.9), and questions to the planner, who can read the
-environment the worker can't script against, are the recourse that
-remains.
+they are not probes.
+A gap met under `expects_probe: no` is §3.3's: its one home.
 
 **Questions must be blocking.** A clarification response asserts:
 *this session cannot produce trustworthy work without these
 answers.* Nice-to-know questions go in `notes.md` Proposals on a
-full response (§5.4.1), not here (precedent: ADR-0011).
+full response (§5.4.1), not here (precedent: ADR-0011). The same
+default-to-ask doctrine that governs probes (§4.1) governs
+clarifications: proceeding on a guessed intent is the confidently
+wrong response this workflow exists to prevent. For a gap that does
+not block — a preference the work can proceed without — two
+lightweight paths stand, and neither is prose: the light question
+block (§5.10), when the set passes its count test, or proceeding on
+the most plausible assumption, named explicitly in `notes.md` and
+flagged for review — the recoverable-risk posture §3.3 takes. The
+test is *blocking*, not *size*: a small question that blocks
+trustworthy work is still the artifact, and a non-blocking set is
+admitted to the light tier by its count, never by how small it
+looks.
 
-**The artifact is the ask shape, on every path.** A blocking ask
-is a clarification response — the manifest with its `questions[]`
-— whoever is at the other end. The shape does not depend on the
+**The artifact is the ask shape, on every path.** A blocking ask is
+a clarification response — the manifest with its `questions[]` —
+whoever is at the other end. The shape does not depend on the
 counterparty (§1): the worker always emits the formal record, bale
 always preserves it and emits the next paste block, and a harness,
 where one exists, only stops the operator from being the one who
-pastes. Which **courier** carries the record is the operator's
-choice — the tarball, or the paste block that wraps the same
-manifest (§5.9.2) — and either way the apply walkthrough or
-`bale relay` surfaces it and the record persists for aggregation
-(§5.9.4). Chat is not a surface for a blocking ask on any path:
-chat carries conversation, never the ask. If the rule is broken and
-a blocking ask resolves in chat anyway, the eventual response's
-`notes.md` records the question and its answer — the §4.5
-provenance rule applied as the fallback: chat is ephemeral, and the
-record is the only way the answer survives it. That fallback is
-provenance for a breach, not a sanctioned path.
-
-The same default-to-ask doctrine that governs probes (§4.1)
-governs clarifications: proceeding on a guessed intent is the
-confidently wrong response this workflow exists to prevent, and
-asking beats guessing. `expects_probe: no` does **not** forbid a
-clarification — that flag governs probes against the environment
-(§3.2), not questions about the request. For a gap that does not
-block — a nice-to-know, a preference the work can proceed without —
-two lightweight paths stand, and neither is prose: the light
-question block (§5.10), when the set passes its count test, or
-proceeding on the most plausible assumption named explicitly in
-`notes.md` and flagged for review, the same recoverable-risk
-posture §3.3 takes. The test is *blocking*, not *size*: a small
-question that blocks trustworthy work is still the artifact, and a
-non-blocking set is admitted to the light tier by its count, never
-by how small it looks.
+pastes. Which courier carries the record is the operator's choice
+(§5.9.2), and either way the record persists for aggregation
+(§5.9.4). Chat is not a surface for a blocking ask on any path. If
+that rule is broken and a blocking ask resolves in chat anyway, the
+eventual response's `notes.md` records the question and its answer —
+the §4.5 provenance rule applied as the fallback, since chat is
+ephemeral; that fallback is provenance for a breach, not a
+sanctioned path.
 
 #### 5.9.2 Shape and manifest specifics
 
 Unlike the bailout there are no companion artifacts: the payload is
 the manifest's own `questions[]` block — required and non-empty on
 this kind, forbidden (or empty) on every other. `README.md` is
-absent on a clarification in either direction — the questions are
-the payload and `notes.md` (optional, addressed to the planner) is
-the prose channel. That channel rides the tarball courier only: the
-paste block's body is the record and nothing else, so anything the
-planner must see before answering goes in the question row's
-`context`, which both couriers carry.
+absent on a clarification in either direction; `notes.md`, optional
+and addressed to the planner, is the prose channel.
 
-The manifest travels by one of two couriers, the operator's choice,
-and the record is the same either way. **The tarball** is the
-response tarball shape with the empty change surfaces below; apply
-ingests it (the apply-time behavior is the bale tool's contract,
-§5.9.3). **The paste block** wraps the same manifest JSON for a
-courier who pastes rather than uploads: a fenced, self-delimited
-block with the probe's four properties (§4.2) — sentinel lines
-`BALE EXCHANGE BEGIN <sid>` and `BALE EXCHANGE END`, the record's
-JSON as the body, a purpose header stating the direction and the
-round, and an integrity trailer carrying the body's sha256 so a
-truncated paste is detected and re-requested instead of reasoned
-from. `bale relay <sid> <file|->` ingests the block (§5.9.4).
-Invoked without the file argument, the same verb re-emits the paste
-block for the thread's latest recorded round — byte-identical to the
-original emission — and records nothing, so a lost or truncated
-paste is recovered by re-emission rather than by a new round.
+Two couriers, one record: the tarball carries the manifest, the empty change surfaces and an optional `notes.md`; the paste block carries the manifest JSON alone; a question row's `context` rides both.
 
-The thread's record is the **exchange record**,
-`exchange-record.schema.json` (in the bale installation, beside
-this kind's manifest schema): one schema for both directions of the
-thread. A record names its `session_id`, its `round`, and `from`
-(`worker` or `planner`); it carries `questions[]` — the same
-question row this section defines, by reference — and `answers[]`
-— each answer keyed to the round and index of the question it
-answers, with a `disposition` of `as-recommended`, `option`, or
-`free-text`, and an optional `amendment_target` naming the
-repo-relative path the answer accretes into. At least one of the
-two arrays is non-empty, and a record may carry both: a planner
-answering and asking back in one turn. A preserved clarification
-manifest reads as the thread's `from: worker` record for its round,
-so round one is the manifest this section already defines and the
-thread continues from it.
+The operator picks the courier; the record is the same either way.
+**The tarball** is the response tarball shape with the empty change
+surfaces, which apply ingests. **The paste block** wraps the same
+JSON for a courier who pastes rather than uploads: a fenced,
+self-delimited block with the probe's four properties (§4.2) —
+sentinel lines `BALE EXCHANGE BEGIN <sid>` and `BALE EXCHANGE END`,
+the record's JSON as the body, a purpose header stating the
+direction and the round, and an integrity trailer carrying the
+body's sha256 so a truncated paste is detected and re-requested
+instead of reasoned from. `bale relay <sid> <file|->` ingests the
+block (§5.9.4); run without the file argument it re-emits the
+thread's latest recorded round, byte-identical, and records nothing,
+so a lost paste is recovered by re-emission rather than by a new
+round.
 
-The shape is mechanized: when the ask takes the artifact shape,
-`tools/craft_response.py --kind clarification` (shipped in every
-request per §3.1) emits the manifest skeleton — `response_kind:
-"clarification"`, the same empty change surfaces as §5.6.2 (nothing
-was applied, nothing ran, nothing to claim; bale rejects a
-clarification that violates these), no `files/` (absent or empty),
-and `questions[]` seeded with four-field entry stubs (`--questions
-N` for more than one) — plus, under `--write`, the no-op `apply.sh`
-and `validation.sh` the kind fixes. The entry fields' schema of
-record is `response-manifest.schema.json` (in the bale
-installation, beside §5.8's); the lint judges the
-finished response, and an unfilled skeleton is deliberately
-lint-invalid.
+Each round of the thread is an **exchange record**,
+`exchange-record.schema.json` (in the bale installation): one schema
+for both directions, whose field descriptions are the record's
+contract. A preserved clarification manifest reads as the thread's
+`from: worker` record for its round, so round one is this manifest
+and the thread continues from it.
 
-Two judgment notes survive the tool: `summary` is one paragraph on
-what the session was asked to do and that it is blocked on the
-questions below; and the `default_assumption` field is load-bearing
-— it lets the planner answer with a single *"your assumption is
-correct"* and surfaces the worker's reasoning for audit.
+The shape is mechanized: `tools/craft_response.py --kind
+clarification` emits the manifest skeleton — `response_kind:
+"clarification"`, the same empty change surfaces as §5.6.2 (bale
+rejects a clarification that violates them), no `files/` (absent or
+empty), and `questions[]` seeded with four-field entry stubs
+(`--questions N` for more than one) — plus, under `--write`, the
+no-op `apply.sh` and `validation.sh` the kind fixes. The row's
+schema of record is `response-manifest.schema.json`; the lint judges
+the finished response, and an unfilled skeleton is deliberately
+lint-invalid. Two judgment notes survive the tool: `summary` is one
+paragraph on what the session was asked to do and that it is
+blocked on the questions below; and `default_assumption` is
+load-bearing — it lets the planner answer with a single *"your
+assumption is correct"* and surfaces the worker's reasoning for
+audit.
 
-**The worker-side flow, when the courier is the paste block.** The
-block is emitted by the same tool that scaffolded the manifest:
-`tools/craft_response.py --emit-block <file|->` renders it to
-stdout. The flow is four steps — scaffold (`--kind clarification`),
-fill the judgment fields, `--emit-block` the filled file, hand the
-block to the courier. The input is either shape the thread carries:
-a filled clarification manifest, which is rendered in its `from:
+**The worker-side flow, when the courier is the paste block.**
+Scaffold (`--kind clarification`), fill the judgment fields, render
+the filled file with `tools/craft_response.py --emit-block <file|->`,
+hand the block to the courier. The input is either shape the thread
+carries: a filled clarification manifest, rendered in its `from:
 worker` reading — `round` from `--round` (an integer at least 1,
 default 1, valid only with `--emit-block`), `created_at` stamped at
-emission, `session_id` and `questions[]` its own — or a filled
-worker exchange record, rendered as it stands once it validates. A
-formal ask ships both transports: the worker delivers the
+emission — or a filled worker exchange record, rendered as it stands
+once it validates. A formal ask ships both transports: the
 clarification tarball **and** the `--emit-block` rendering of the
 same manifest, so the operator chooses the courier at carry time and
-the paste route stays first-class rather than a fallback.
-The record is validated before anything is rendered, and a
-`from: planner` record refuses: the crafter emits the worker's side,
-and the planner's side is emitted by `bale relay`, which has the
-suspended session's thread to sequence it against. A `--round` that
-contradicts a record's own `round` refuses rather than rewrites it.
-stdout is the block and only the block, so a redirect captures it
-clean.
+the paste route stays first-class. The record is validated before
+anything is rendered; a `from: planner` record refuses (the
+planner's side is `bale relay`'s to emit, since it holds the
+thread), and a `--round` that contradicts a record's own `round`
+refuses rather than rewrites it. stdout is the block and only the
+block.
 
 The block reaches chat as a file: redirect `--emit-block` to a file
 and present that file. A block typed inline instead must keep every
@@ -978,38 +746,25 @@ and present that file. A block typed inline instead must keep every
 the trailer hashes those bytes; and on a trailer refusal the worker
 re-presents the file and never retypes the block.
 
-The two emissions of the same block — the worker's here and
-`bale relay`'s on the other side — are byte-identical for the same
-record, and that is a pinned property rather than a coincidence: the
-integrity trailer is a hash of the body, so a body that serialized
-even slightly differently on one side would read as a truncated
-paste on the other. The worker's copy of the layout is therefore
-held to the bale tool's by parity tests rather than by prose, and
-this section describes the flow, never the bytes.
+The worker's emission and `bale relay`'s are byte-identical for the
+same record — a pinned property, held by parity tests, because the
+trailer hashes the body — so this section describes the flow, never
+the bytes.
 
-A question row may additionally carry three optional fields
-(v0.4.7); legacy four-field rows keep validating. **`options`** —
-candidate answers, at least one when present. **`recommendation`**
-— the worker's pick among them. **`priority`** — enum exactly
-`blocking` | `batched`: only critical-path blockers interrupt;
-everything else batches. The doctrine behind all three — why
-questions arrive answerable, and what the two priority classes mean
-for the asker — has one home in `PLANNER.md` §15, and that read is
-planner-side: a worker filling the fields does not follow the
-pointer. What the asker needs from it is this much — a `batched`
-question leaves the worker proceeding on its named
-`default_assumption`, and a `blocking` one suspends the session the
-way a clarification already does (§5.9.4). This section names the
-fields and stops there.
+A question row may also carry `options`, `recommendation`, and
+`priority` (`blocking` | `batched`); a row without them still
+validates, their shapes are the schema's, and their doctrine is
+planner-side (`PLANNER.md` §15), a pointer the worker filling them
+does not follow. What the asker needs is this: a `batched` question
+leaves the worker proceeding on its named `default_assumption`, and
+a `blocking` one suspends the session the way a clarification
+already does (§5.9.4).
 
 #### 5.9.3 Apply-time UX (moved)
 
-Moved out of this contract, to be maintained beside the bale
-implementation itself — the apply-time ingest and the thread it
-opens are contracts on the bale implementation, not on the worker; the worker-facing consequence
-(the session suspends and continues to a normal response) stays in
-§5.9's own prose and §5.9.4. This section number is kept so older
-cross-references stay resolvable.
+Moved beside the bale implementation: the apply-time ingest and the
+thread it opens are bale's contracts, and the worker-facing
+consequence stays in §5.9.4.
 
 #### 5.9.4 Posture and the answer path
 
@@ -1029,17 +784,14 @@ record (§5.9.2): an `answers[]` row per question, `as-recommended`
 when the worker's recommendation or `default_assumption` stands.
 `bale relay` records the answer as the thread's next round, keeps
 the session suspended, and emits the worker-facing paste block; the
-courier carries that block to the worker, who reads it, continues
-under the same session id, and ships the normal response the
-clarification deferred. Run with no file argument,
-`bale relay <sid>` re-emits the latest recorded round's block,
-byte-identical, recording nothing — the recovery path when a block
-is lost between sessions. A planner that cannot answer from its own
-context escalates upward and answers when it can; a planner that
-answers and needs to ask back does both in one record. The artifact
-is identical whoever holds the planner and courier roles; only the
-holder changes. If the gap invalidates the request's framing, the
-recourse is `bale unlock` and a repack — the planner's call.
+courier carries it to the worker, who continues under the same
+session id and ships the normal response the clarification
+deferred. A planner that cannot answer from its own context
+escalates upward and answers when it can; a planner that answers and
+needs to ask back does both in one record. The artifact is identical
+whoever holds the planner and courier roles. If the gap invalidates
+the request's framing, the recourse is `bale unlock` and a repack —
+the planner's call.
 
 ### 5.10 The light question block
 
@@ -1054,10 +806,9 @@ exists because a sufficiently short question set is faster to read
 and answer in chat than to relay through the exchange, and its
 audit trail is the eventual response, not the thread. The block is
 specified here format-first so a worker can author it by hand
-wherever the crafter is unreachable; a mechanized render is a
-convenience over this shape, never its home. That render is `tools/craft_response.py --light-block
-<file>`, which renders the block from a filled clarification
-manifest, the same input `--emit-block` takes.
+wherever the crafter is unreachable; `tools/craft_response.py
+--light-block <file>` is a convenience render over this shape, from
+the same filled clarification manifest `--emit-block` takes.
 
 **Admission is a count, not a judgment.** A question set is
 admitted to the light tier when it holds at most three questions,
@@ -1073,14 +824,12 @@ admits. The count does.
 
 **The block.** Sentinel-bracketed and human-readable, one numbered
 entry per question. The sentinels are `=== LIGHT BEGIN <sid> ===`
-and `=== LIGHT END <sid> ===`, on the probe block's model (§4.2's
-`=== PROBE BEGIN <slug> ===` / `=== PROBE END <slug> ===`), with the
-session id in place of the slug so the block names the session it
-suspends. Each entry renders the four question-row fields of a
-clarification manifest (§5.9.2) under four fixed labels — `[n]
-question` / `while doing` / `would assume` / `why blocked` — which
-map in order onto `question`, `context`, `default_assumption`, and
-`why_blocked`. The rows are the same rows a clarification carries,
+and `=== LIGHT END <sid> ===`, on the probe block's model (§4.2),
+with the session id in place of the slug so the block names the
+session it suspends. Each entry renders a clarification question
+row's four fields (§5.9.2) under four fixed labels — `[n] question`
+/ `while doing` / `would assume` / `why blocked` — mapping in order
+onto `question`, `context`, `default_assumption`, and `why_blocked`,
 so one question row feeds either courier: a light block the packer
 sends formal becomes a clarification with no rewriting.
 
@@ -1102,21 +851,19 @@ The block ends with the packer's three replies, every time. The
 packer replies in one of three ways: answer inline; "as assumed" to
 ratify every default at once; or "formal" to have the same questions
 returned as a clarification response. An inline answer may mix the
-first two — "[1] the component; [2] as assumed" ratifies one default
-and answers the other. "Formal" moves the same rows onto the thread:
-the worker re-emits them through §10.3's path as round one of a
-clarification, and from there the exchange record (§5.9.2) is the
-trail.
+first two — "[1] the component; [2] as assumed". "Formal" moves the
+same rows onto the thread: the worker re-emits them through §10.3's
+path as round one of a clarification, and from there the exchange
+record (§5.9.2) is the trail.
 
 **The trail is the eventual response, not the thread.** A light
 block opens no exchange record and makes no telemetry attempt; the
 session's `clarification.rounds` stays zero, correctly. Instead the
 eventual response's `notes.md` names each question and its answer —
-the same provenance rule §4.5 applies to a probe's output, and the
-rule §5.9.1 falls back on for a breach, here as the sanctioned path.
-A light block answered "as assumed" is recorded the same way, each
-default noted as ratified; silence in `notes.md` about an emitted
-block is the tell of a lost answer.
+the §4.5 provenance rule, here as the sanctioned path — and a block
+answered "as assumed" is recorded the same way, each default noted
+as ratified; silence in `notes.md` about an emitted block is the
+tell of a lost answer.
 
 **The worker does not idle.** With a light block emitted, the turn
 ends; nothing is built ahead of the reply, and the session resumes
@@ -1738,6 +1485,8 @@ child sessions each need their own checkpoint, re-derived for the
 narrowed scope; the offering session authors them as
 sub-master (PLANNER.md carries the doctrine), and the operator
 delivers, never authors.
+
+An `--include` may not name the subtree the `[validation] base` pattern lives under; a broader ancestor is fine, and the checkpoint auto-excludes from it at the walk.
 
 **Planner bundles are oracle-bearing and never ship.** A planner
 bundle is a single planner-emitted file — reserved filename suffix
