@@ -38,6 +38,11 @@ gone from the three docs that carried them, and TARBALL.md 3.4's
 "**Checkpoint-configured projects.**" paragraph stays about
 checkpoints, with no bundle sentence filed under it.
 
+Since the W1 doc sweep (session 2026-09-23-board-100-w1-doc-sweep-002)
+the two hard-rules closings are pinned with the ratified agent noun:
+the sweep changed the subject of both sentences in the same motion,
+and the pins moved with them.
+
 Hermetic and stdlib-only: the docs are read from this repo; nothing
 runs.
 
@@ -87,10 +92,13 @@ PAIRS: dict[str, list[tuple[str, str]]] = {
                     "where it cannot drift from what runs."),
         ("CODE.md", "and the enforcement recipe lives in the emission, "
                     "where it cannot drift from what runs."),
-        ("DOCS.md", "Claude should surface policy concerns in "
+        # The noun in both closings is the ratified agent noun since
+        # 2026-09-23-board-100-w1-doc-sweep-002 (the W1 doc sweep);
+        # the pins moved with the text.
+        ("DOCS.md", "The agent should surface policy concerns in "
                     "`notes.md` precisely because mechanical checks "
                     "won't catch them."),
-        ("CODE.md", "Claude surfaces policy concerns in `notes.md` "
+        ("CODE.md", "The agent surfaces policy concerns in `notes.md` "
                     "precisely because mechanical checks won't catch "
                     "them."),
     ],

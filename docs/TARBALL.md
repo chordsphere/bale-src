@@ -13,11 +13,11 @@
 The wire-format contract for tarball mode. `CLAUDE.md` covers the
 *why* and *when*; this doc covers the *exact shape* of each artifact
 and how the bale tool and `validation.sh` enforce it between them.
-If something here conflicts with what Claude remembers from a prior
+If something here conflicts with what the agent remembers from a prior
 session, **this file wins.**
 
-Bale injects this file into every request, so it is always present.
-If it is missing (a hand-rolled request), Claude pauses and asks
+Bale ships this file in every request, so it is always present.
+If it is missing (a hand-rolled request), the agent pauses and asks
 (rationale: ADR-0013).
 
 The doc's physical order is core-first: the every-read core —
@@ -87,10 +87,11 @@ if it doesn't describe this session, the section stays unread.
   commonly holds several hats (the planner who also operates and
   carries), and the shape of an exchange never depends on that.
   "Architect" names the human where a sentence needs the person
-  rather than the role; "Claude" and "worker" read as the same
-  party in worker-facing prose. The docs use whichever term a
-  sentence inherited, and a rule stated for a role binds whoever
-  holds it.
+  rather than the role. "The agent" is the role-neutral noun for
+  the session these docs address — whichever hat it wears — and a
+  hat noun (worker, planner) is used where a sentence means one
+  hat; in worker-facing prose "the agent" and "the worker" read as
+  the same party. A rule stated for a role binds whoever holds it.
 - **Examples are examples.** Schemas below reference Vue/Vite/etc. to
   make shapes concrete. They are illustrative, not normative.
   Substitute the project's actual stack.
@@ -152,7 +153,7 @@ other session (§5.10).
 response-NNN/
   manifest.json        # every change, structured (required)
   apply.sh             # operations beyond the files/ mirror (required; no-op script if none)
-  validation.sh        # Claude's hypothesis test on the changes (required)
+  validation.sh        # the worker's hypothesis test on the changes (required)
   files/               # mirrors the project tree from repo root (required when changes[] has created/modified entries)
     src/...
     package.json
@@ -161,9 +162,9 @@ response-NNN/
   notes.md             # optional; include when there's something to surface
 ```
 
-`files/` mirrors the project structure from the repo root. If Claude
-touches `src/components/Foo.vue` and `package.json`, they appear at
-`files/src/components/Foo.vue` and `files/package.json`. Apply is
+`files/` mirrors the project structure from the repo root. If the
+worker touches `src/components/Foo.vue` and `package.json`, they
+appear at `files/src/components/Foo.vue` and `files/package.json`. Apply is
 then `cp -r response-NNN/files/. <project>/` — no path translation
 required. The mirror is enumerated by its files: an empty directory
 under `files/` declares nothing and is ignored — by the §10.1
@@ -207,7 +208,7 @@ response, without a parallel copy in chat.
 
 A **bailout** response (§5.6) has a distinct shape: no `files/`,
 no-op `apply.sh` and `validation.sh`, plus mandatory `handoff.md`
-and `diagnostics.json`. It is the response Claude returns when the
+and `diagnostics.json`. It is the response the worker returns when the
 session can't fit the goal within its context budget — see
 `CLAUDE.md` §11. Bale's apply step treats bailouts as informational
 rather than applicable.
@@ -234,7 +235,7 @@ carry: bale's `files/` overlay strips mode, so a `created` or
 `modified` entry meant to be executable arrives at staging with the
 exec bit cleared. `apply.sh` restores it with a per-path `chmod +x`
 after the overlay applies — `chmod +x scripts/release.sh`, one line
-per file. The responsibility sits on Claude because the overlay
+per file. The responsibility sits on the worker because the overlay
 can't infer intent (failure analysis: ADR-0013). The
 validation-side guard that catches a forgotten `chmod` — an
 exec-bit assertion in `validation.sh` — is §7.7.
@@ -269,7 +270,7 @@ rm -f src/legacy/Bar.vue
 `apply.sh` runs with cwd set to the staging directory. It never
 touches files outside the staging tree (bale's path-safety check
 catches escapes; the post-run manifest reconciliation catches
-unauthorized writes within the tree). Claude does not use `apply.sh`
+unauthorized writes within the tree). The worker does not use `apply.sh`
 to install dependencies, run builds, or perform side effects beyond
 file-tree operations — those are out of scope for the apply
 contract.
@@ -339,13 +340,13 @@ Field semantics:
   `deleted` entries have `size_bytes: 0` and `sha256: null`; the
   file does not exist under `files/`. The actual removal happens in
   `apply.sh`.
-- **`deferred`** — explicit list of things Claude considered but
+- **`deferred`** — explicit list of things the worker considered but
   didn't do. Each has a `why`. The list is how I know what's not
   here.
 - **`validation_will_run`** — declarative list of what
   `validation.sh` is configured to do. Lets me predict the cost
   before running it.
-- **`claims`** — Claude's prediction for each project-level check,
+- **`claims`** — the worker's prediction for each project-level check,
   distinct from what validation actually finds. See 5.3.
 - **`responds_to`** — the session ID of the request this response
   answers (full form: `YYYY-MM-DD-<slug>-NNN`). Bale verifies it
@@ -362,7 +363,7 @@ Field semantics:
   history; the pointer is how someone reading later traces what
   happened.
 - **`response_kind`** — `"normal"` (default) for an ordinary
-  response. `"bailout"` when Claude could not fit the goal in this
+  response. `"bailout"` when the worker could not fit the goal in this
   session's context budget (see `CLAUDE.md` §11); bailout responses
   follow the distinct shape in section 5.6. `"clarification"` when a
   blocking intent gap in the request prevents trustworthy work;
@@ -425,20 +426,31 @@ ADR-0013):
   here because their *shape* is fixed even where their content is
   self-reported: `linkage` (present when the session went through a
   probe or clarification round — which recourse, and whether the gap
-  surfaced pre-read, pre-build, or mid-build) and `provenance` (the
-  request's provenance block echoed verbatim plus `model_identity`,
-  which is self-reported and unverifiable today — recorded for
-  aggregation, read with that caveat; null when the request carried
-  no provenance — and the echo's schema admits every key the
-  request's provenance block can carry, `base_files` included, so
-  verbatim is followable without dropping a stamp).
+  surfaced pre-read, pre-build, or mid-build; its `depends_on` is
+  the session ID of the linked round when it exists as a durable
+  artifact (a file-based probe or a shipped clarification
+  response), and null for a paste-back probe or an in-chat ask,
+  which resolve within the session) and `provenance` (the request's
+  provenance block echoed verbatim plus `model_identity`, which is
+  self-reported and unverifiable today — recorded for aggregation,
+  read with that caveat; null when the request carried no
+  provenance — and the echo's schema admits every key the request's
+  provenance block can carry, `base_files` included, so verbatim is
+  followable without dropping a stamp). `model_identity` has one
+  spelling: `<vendor>:<model>`, lowercase, spaces to hyphens, no
+  suffix, with `unknown` as the model token when the surface does
+  not show the string (`CLAUDE.md` §11.7's table says which do) —
+  the schema pins the same form as a pattern, so a spelling that
+  drifts fails the lint rather than fragmenting the aggregate.
 - **`self_reported`** — worker-authored judgment the lint cannot
   check: `assumptions` proceeded on without confirmation (the §3.3 /
   §5.9.1 recoverable-risk posture), `judgment_calls` the planner
   should find without reading the diff, `budget_pressure` (`none` |
   `tight` | `bailed` — the session's own read of `CLAUDE.md` §11),
-  `includes_missing` (files the session wanted but the request didn't
-  ship — packing signal), `compaction_occurred` (with a
+  `includes_missing` (what the session wanted but the request didn't
+  ship — packing signal; each entry is a path, for a file, or a line
+  opening `decision:`, for a ruling the packer made but never
+  transported), `compaction_occurred` (with a
   `disclosure_ref` pointing at where the `CLAUDE.md` §11.6 disclosure
   lives when true), `light_blocks` (optional: the number of light
   question blocks, §5.10, the worker emitted this session — the tier
@@ -486,18 +498,19 @@ is to re-run, not to adjust the values until the check goes quiet
 
 ### 5.3 Claims vs verdict
 
-Claude doesn't run validators. What Claude says about an outcome is a
-**claim**; what `validation.sh` produces is a **verdict**. They're
-separate fields so disagreement is itself diagnostic.
+The worker doesn't run validators. What the worker says about an
+outcome is a **claim**; what `validation.sh` produces is a
+**verdict**. They're separate fields so disagreement is itself
+diagnostic.
 
 `claims` values per project-level check:
 
 | Value | Meaning |
 |-------|---------|
-| `pass` | Claude predicts this check will pass |
-| `fail` | Claude knows this check will fail (e.g. a deliberate WIP) |
+| `pass` | The worker predicts this check will pass |
+| `fail` | The worker knows this check will fail (e.g. a deliberate WIP) |
 | `untested` | The check will be skipped in my environment |
-| `unknown` | Claude genuinely can't tell |
+| `unknown` | The worker genuinely can't tell |
 
 A claim value takes one of two forms (v0.4.7). The bare string from
 the table above remains the default and every earlier manifest keeps
@@ -541,8 +554,9 @@ A claim disagreeing with the verdict doesn't reject the tarball; it's
 flagged in validation's end-of-run report (what the disagreement
 pattern is for: ADR-0013).
 
-If Claude marks a check `unknown`, that itself is a finding worth a
-line in `notes.md`: *what would Claude need to know to predict?*
+If the worker marks a check `unknown`, that itself is a finding
+worth a line in `notes.md`: *what would the worker need to know to
+predict?*
 
 ### 5.4 notes.md (optional)
 
@@ -552,15 +566,15 @@ needed saying."*
 
 Conversational when included. Use it for:
 
-- Decisions Claude made that I should ratify (especially when a probe
-  wasn't possible and Claude had to choose).
+- Decisions the worker made that I should ratify (especially when a
+  probe wasn't possible and the worker had to choose).
 - Places I should look closely on review.
-- Anything surprising Claude found in the existing code.
+- Anything surprising the worker found in the existing code.
 - Honest uncertainty — *"I'm not sure whether X should live in
   `composables/` or `utils/`; I put it in `composables/` because it
   uses reactive state. Move it if that's wrong."*
-- Any `unknown` entry in `claims` — what Claude would need to predict
-  with confidence.
+- Any `unknown` entry in `claims` — what the worker would need to
+  predict with confidence.
 - Things the manifest's structured `reason` field couldn't carry.
 - Every `changes[]` path outside the session's write forecast — a
   new file the pack could not have named, or a modification the
@@ -629,9 +643,9 @@ ships the file.
 
 ### 5.6 Bailout response
 
-A bailout response is what Claude returns when `CLAUDE.md` §11
+A bailout response is what the agent returns when `CLAUDE.md` §11
 triggers have fired — the goal won't fit in this session's context
-budget and Claude is handing off to a fresh session instead of
+budget and the agent is handing off to a fresh session instead of
 pushing through; the *why* lives in `CLAUDE.md` §11.
 
 #### 5.6.1 Shape
@@ -645,7 +659,7 @@ the kind fixes (nothing changed, nothing to test), the required
 `handoff.md` as a scaffold of §5.7's sections (the content under
 each header is judgment and stays the worker's), and the required
 `diagnostics.json` skeleton (§5.8). `notes.md` remains optional,
-addressed to me rather than the next Claude. The crafter never
+addressed to me rather than the next agent. The crafter never
 validates its own output; the lint judges the finished response, and
 an unfilled skeleton is deliberately lint-invalid.
 
@@ -655,7 +669,7 @@ displays the handoff summary and prompts the user to run
 `bale handoff <response-NNN>` to package a fresh session.
 
 `README.md` is absent in bailouts — `handoff.md` carries the
-forward-looking content for the next Claude, and `notes.md` (if
+forward-looking content for the next agent, and `notes.md` (if
 present) carries the user-facing commentary. (`next-prompt.md` is
 retired everywhere, §5.5.)
 
@@ -686,9 +700,9 @@ cross-references stay resolvable.
 
 ### 5.7 handoff.md (required in bailout responses)
 
-Written for the **next Claude session**, not for me. Voice is
+Written for the **next agent's session**, not for me. Voice is
 terse and instructional — no hedging, no conversational softening,
-no "I" reflection beyond what the next Claude needs to plan its
+no "I" reflection beyond what the next agent needs to plan its
 budget.
 
 Required sections, in this order:
@@ -703,17 +717,17 @@ The next session should not have to re-extract this.]
 
 ## What I loaded
 
-[Every doc and source file Claude actually read this session, with
+[Every doc and source file the agent actually read this session, with
 a verdict on whether it earned its budget cost:
 - `path/to/doc.md` — necessary | wasted | partial
-The next Claude uses this to skip what wasted budget last time.]
+The next agent uses this to skip what wasted budget last time.]
 
 ## What I explored
 
-[Reasoning paths Claude pursued — drill-downs, hypotheses, design
+[Reasoning paths the agent pursued — drill-downs, hypotheses, design
 options — with a verdict:
 - `did X` — productive | dead end | inconclusive
-Concrete enough that the next Claude can avoid repeating dead
+Concrete enough that the next agent can avoid repeating dead
 ends.]
 
 ## What I learned
@@ -726,13 +740,13 @@ state that.]
 
 ## Reading plan for the next session
 
-[A specific drill-down prescription for the next Claude, given the
+[A specific drill-down prescription for the next agent, given the
 original goal. INDEX-table-compatible paths. If reading order
 matters, number it. This is the most important section — its job
-is to put the next Claude on the right track in one read, not
+is to put the next agent on the right track in one read, not
 ten.
 
-When the bailing Claude has a clear recommendation for what the next
+When the bailing agent has a clear recommendation for what the next
 session should do, the reading plan is written for *that* piece —
 concrete, single-track, ready to execute. Alternatives worth
 preserving are framed as *overrides* ("if the architect picks X
@@ -741,7 +755,7 @@ menu. Defaulting to a menu when a recommendation existed loses the
 recommendation to a "which piece?" round-trip in the next session.
 
 The multiple-choice shape is reserved for genuine close calls where
-the bailing Claude couldn't pick. When that case applies, the
+the bailing agent couldn't pick. When that case applies, the
 handoff also declares that **the next session opens in
 conversational mode** and transitions to tarball mode after the
 architect picks.]
@@ -753,7 +767,7 @@ discarded. Verbatim where possible. If nothing is salvageable,
 write: "Nothing to salvage — restart from the reading plan."]
 ```
 
-The next Claude reads `handoff.md` as the first `context/` doc. Its
+The next agent reads `handoff.md` as the first `context/` doc. Its
 reading plan is high-value input, ratified by the planner at
 `bale handoff` time — the request manifest remains authoritative,
 and where the two disagree the manifest wins.
@@ -774,20 +788,20 @@ not here.
 What the judgment fields want:
 
 - **`bail_trigger`** — the first two enum values match the
-  Claude-detected triggers in `CLAUDE.md` §11.3. The third
+  agent-detected triggers in `CLAUDE.md` §11.3. The third
   (architect-requested bailouts — test sessions, deliberate
   checkpoints; see `CLAUDE.md` §11.3's third bullet) uses `"other"`
   and surfaces the specifics in `bail_narrative` rather than minting
   a new enum value (enum design: ADR-0013).
-- **`bail_narrative`** — Claude's honest paragraph on the bail
+- **`bail_narrative`** — the agent's honest paragraph on the bail
   decision. The retrospective complement to the prescriptive
   `handoff.md`.
 - **`context_loaded[].verdict`** — the verdict is qualitative;
-  Claude can't measure token-spend per doc precisely.
+  the worker can't measure token-spend per doc precisely.
 - **`what_would_save_next_time`** — each entry a concrete
   prescription. Overlaps with `handoff.md`'s "What I learned"
   section; that's intentional — `handoff.md` is for the next
-  Claude, `diagnostics.json` is for the user's longitudinal
+  the agent, `diagnostics.json` is for the user's longitudinal
   analysis.
 
 The schema is intentionally loose: new fields can be added in
@@ -1131,9 +1145,10 @@ runs first and rejects malformed tarballs before any other work; if
 it rejects, `validation.sh` never runs.
 
 **The response's `validation.sh`** answers *"do the changes do what
-Claude claims they do?"* It is Claude's per-session hypothesis test,
-written fresh for each response — not a fixed project pipeline.
-Claude chooses what to invoke based on what this session actually
+the worker claims they do?"* It is the worker's per-session
+hypothesis test, written fresh for each response — not a fixed
+project pipeline. The worker chooses what to invoke based on what
+this session actually
 touched: typically the project's lint, typecheck, and build against
 the modified files, plus session-specific assertions for behaviors
 that changed. The project's CI plays the regression-prevention role
@@ -1193,7 +1208,7 @@ announce; the printed list is the whole of the check.
 Each check prints `[PASS]`, `[FAIL]`, or `[SKIP] <reason>` on its own
 line. Silent skip is a bug.
 
-Claude chooses which checks to include based on what this session
+The worker chooses which checks to include based on what this session
 touched. A markdown typo session ships file-syntax only; a session
 touching component logic includes lint, typecheck, and likely tests
 plus session-specific assertions. The list below is typical, not
@@ -1212,7 +1227,7 @@ mandatory:
    behaviors this session changed, when `validation_will_run` lists
    it.
 6. **Session-specific assertions**: any change-validating checks
-   Claude wrote for this response — assertions that a new function
+   the worker wrote for this response — assertions that a new function
    returns what the goal called for, that a removed feature really
    is gone, that an INDEX entry exists for a new doc, etc. These
    are inline in `validation.sh` rather than invocations of
@@ -1336,27 +1351,27 @@ same way it omits a build check when nothing built.
 ```
 request-NNN/
   manifest.json        # structured session metadata (required)
-  CLAUDE.md            # injected by bale
-  TARBALL.md           # injected by bale
-  DOCS.md              # injected by bale
-  CODE.md              # injected by bale
-  PLANNER.md           # injected by bale
+  CLAUDE.md            # shipped by bale
+  TARBALL.md           # shipped by bale
+  DOCS.md              # shipped by bale
+  CODE.md              # shipped by bale
+  PLANNER.md           # shipped by bale
   tools/
-    response_lint.py   # injected by bale (v0.3.8): the worker's pre-pack self-check
-    craft_response.py  # injected by bale (v0.3.19): the response-skeleton crafter (§5.2)
+    response_lint.py   # shipped by bale (v0.3.8): the worker's pre-pack self-check
+    craft_response.py  # shipped by bale (v0.3.19): the response-skeleton crafter (§5.2)
   context/             # everything the user chose to include
     <project files and any project docs the user named>
   README.md            # the session's brief, when one ships — named by the manifest's `readme` key (§3.2); authored by either party
 ```
 
-The first six slots are reserved for bale-injected global docs and
-the manifest; the `tools/` pair rides beside them (also
-bale-injected, from the install — `INJECTED_TOOLS` in `bin/bale` is
-the one source for the list): the lint, so the worker can run the
+The first six slots are reserved for the bale-carried global docs
+and the manifest; the `tools/` pair rides beside them (also carried
+by bale, from the install — `INJECTED_TOOLS` in `bin/bale` is the
+one source for the list): the lint, so the worker can run the
 §10.1 step-10 self-check mechanically against its response directory
 before packing, without bale installed, and the crafter, so every
 response kind's skeleton is emitted rather than retyped (§5.2). Everything else the user
-wants Claude to see —
+wants the worker to see —
 including project-specific docs like `INDEX.md`, `STATE.md`, ADRs,
 schemas, and prior probe output — lives under `context/`. No top-
 level slots are reserved for project docs; bale is project-agnostic.
@@ -1422,7 +1437,7 @@ it is an instruction: the request's manifest, its brief, and these
 docs remain the session's only sources of scope and direction. No
 response, probe, or block is addressed to it; whatever the session
 owes, it owes to the request the tarball traveled beside. It ships no
-`manifest.json` and none of the injected docs or tools, so it names no
+`manifest.json` and none of the carried docs or tools, so it names no
 scope, and a path inside it is spelled relative to its own folder —
 never a repo path of the project the request targets, and never a
 `changes[]` path.
@@ -1476,17 +1491,17 @@ Field semantics:
   ships in this request's `context/` (§4.4). A paste-back probe
   resolves within its own session and leaves the field `null`
   (§4.5).
-- **`constraints`** — things I commit to up front. Claude stays
+- **`constraints`** — things I commit to up front. The worker stays
   within them or surfaces a conflict in `notes.md`.
-- **`out_of_scope`** — explicit list of *near-by* concerns Claude
+- **`out_of_scope`** — explicit list of *near-by* concerns the worker
   should not address (rationale: ADR-0013).
 - **`expects_probe`** — `yes` forces a probe before any build work.
   `no` forbids probing this session (see 3.3). `claude-decides`
-  (default) means Claude probes whenever a §4.1 trigger fires.
+  (default) means the worker probes whenever a §4.1 trigger fires.
 - **`context_included`** — declarative list of what's in `context/`.
-  If Claude needs something not listed, it checks `INDEX.md`, then
+  If the worker needs something not listed, it checks `INDEX.md`, then
   names it in the response (either in a probe request or in
-  `notes.md` if Claude proceeded with an assumption). This list is
+  `notes.md` if the worker proceeded with an assumption). This list is
   the session's **read set**, and only that: what shipped for
   reading. Since bale v0.4.1 (ADR-0015) no mechanical gate reads
   it — includes gate neither concurrency nor landing; a read set
@@ -1765,7 +1780,7 @@ README precedence, first match wins: `--edit` > `--readme-file` >
 the wizard's y/N prompt > omit.
 
 **Commands are single-line.** Every `bale pack` invocation — the
-architect's, or the one Claude emits in a rescope offer (`CLAUDE.md`
+architect's, or the one the worker emits in a rescope offer (`CLAUDE.md`
 §11.2) — is written as one line with no backslash continuations, so
 it pastes into a terminal directly. Repeatable flags repeat inline on
 the same line; they do not wrap. The same rule binds every command
@@ -1789,7 +1804,7 @@ bale pack "Add a debounced search box to the catalog page" --slug catalog-search
 ```
 
 A rescope pack — the first session of a split the pre-flight check
-proposed, as Claude would emit it in a `CLAUDE.md` §11.2 offer, with
+proposed, as the worker would emit it in a `CLAUDE.md` §11.2 offer, with
 the deferred half named in `--out-of-scope`:
 
 ```
@@ -1850,7 +1865,7 @@ transport is a **single copy-pasteable shell block**. The courier
 a paste into the chat when the courier is a person; the worker
 reads the output and proceeds. No files change hands.
 
-The block Claude returns is one fenced, self-contained script with
+The block the worker returns is one fenced, self-contained script with
 these required properties:
 
 - **Strictly read-only — zero writes.** stdout is the only output
@@ -2049,7 +2064,7 @@ bale.
 | Rule | Type | Enforcement |
 |------|------|-------------|
 | The tarball is the contract — no side commands, no pasted snippets, no hand-edits | policy | review |
-| Validate before apply, always | operator discipline | the operator's own procedure; no downstream catch |
+| Land only through `bale apply`, which validates and stages before it merges; never hand-apply a tarball or bypass a HOLD | operator discipline | the operator's own procedure; no downstream catch |
 | Tarballs are immutable once delivered | operator discipline | the operator's own procedure; no downstream catch |
 | `validation_will_run` is honest and complete | policy | review |
 | Tarball mode without `TARBALL.md` loaded — pause and ask | policy | the worker's own check at the start of a response |
@@ -2086,7 +2101,7 @@ mechanical checks won't catch them.
 A worker session's checklist. A read-only (planner) session builds
 no response tarball and skips it (§2).
 
-1. Confirm the bale-injected globals are present: `CLAUDE.md`,
+1. Confirm the bale-carried globals are present: `CLAUDE.md`,
    `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md`. The first two
    are the minimum
    for building a response — pause and ask if either is missing.

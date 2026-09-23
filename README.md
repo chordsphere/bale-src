@@ -1,6 +1,6 @@
 # bale
 
-bale runs Claude sessions through tarballs. You pack a **request tarball**
+bale runs agent sessions through tarballs. You pack a **request tarball**
 (a goal, the files to read, the paths the session may change) and hand it
 to the worker; the worker hands back a **response tarball**; `bale apply`
 validates it, stages the changes against a copy of your project, runs the
@@ -53,7 +53,7 @@ bale/
   user/                # YOURS — created on first `bale config init --global`
 ```
 
-bale injects the five `docs/` files and the two `tools/` scripts into every
+bale ships the five `docs/` files and the two `tools/` scripts in every
 request it packs, so every project sees the same contract regardless of its
 own files. `user/` is the one directory bale never owns: your install-wide
 `bale.toml`, global hook scripts under `user/scripts/`, and the hook

@@ -20,13 +20,13 @@ The specific files this doc references — `INDEX.md`, `STATE.md`,
 ADRs, schemas, explainers — are **instances** of the patterns, not
 mandates. A casual project may have none of them. A mature project
 may have all. Most projects sit somewhere between, growing
-structure as it earns its place. Claude reads `DOCS.md` regardless
+structure as it earns its place. The agent reads `DOCS.md` regardless
 of project shape, to understand the vocabulary; what gets
 instantiated is a per-project judgment guided by section 4.1's
 introduction signals.
 
 The file that owns a topic owns the rules for that topic. If
-something here conflicts with what Claude remembers from a prior
+something here conflicts with what the agent remembers from a prior
 session, **this file wins.**
 
 ---
@@ -57,14 +57,14 @@ a purpose, a lifecycle (how it changes over time), a canonical
 location, and a naming convention.
 
 A project may have all of these in active use, some, or none — the
-inventory is what Claude reasons *with*, not a checklist every
+inventory is what the agent reasons *with*, not a checklist every
 project must satisfy. Section 4.1 covers when to introduce a new
 category; this section just names the categories and how each
 behaves once present.
 
 | Category | Examples | Lifecycle | Location | Naming |
 |----------|----------|-----------|----------|--------|
-| **Workflow** | `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` | Rarely changed; project-agnostic; always injected by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
+| **Workflow** | `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` | Rarely changed; project-agnostic; always carried by bale into every request | global (in the bale tool's installation) | `ALL_CAPS.md` |
 | **Project map** | `INDEX.md` | Edited whenever the inventory changes | `claude/` | `ALL_CAPS.md` |
 | **Project snapshot** | `STATE.md` | Edited after sessions that move state; never appended | `claude/` | `ALL_CAPS.md` |
 | **Charter / product** | `charter.md`, `charter-brief.md` | Edited rarely, when product direction shifts | `claude/context/` | `lowercase-hyphenated.md` |
@@ -74,7 +74,7 @@ behaves once present.
 | **Session notes** | `notes.md`, `handoff.md` (bailout only), `diagnostics.json` (bailout only) | Write-once, never edited; archival is opt-in per project, off by default (`CLAUDE.md` §5) | `claude/responses/response-NNN/` (when archival is adopted) | conventional (`.md`, plus `.json` for `diagnostics.json`) |
 
 If a needed document doesn't fit any row, that's a signal — either it
-belongs in a category Claude didn't recognize, or it's the seed of a
+belongs in a category the agent didn't recognize, or it's the seed of a
 new category. **Don't quietly invent a new category;** propose it in
 `notes.md` and let me ratify.
 
@@ -87,17 +87,17 @@ it doesn't yet, section 4.1 covers when to introduce one.
 
 `INDEX.md` is the project's table of contents. Its job is to make the
 drill-down pattern work: when the read-paths table in `CLAUDE.md`
-points Claude at a project-specific doc, INDEX.md is how Claude finds
-the file.
+points the agent at a project-specific doc, INDEX.md is how the
+agent finds the file.
 
 ### 2.1 The non-negotiable rule
 
 **A document isn't real until it's listed in `INDEX.md`.** Adding a
 file to `claude/context/` without updating `INDEX.md` is the same as
-not adding it at all — Claude won't find it via drill-down. Every
+not adding it at all — the agent won't find it via drill-down. Every
 tarball that adds, moves, or removes a doc also modifies `INDEX.md`
 in the same response. A project that wants this rule mechanically
-enforced has Claude include the INDEX-coherence assertion in each
+enforced has the agent include the INDEX-coherence assertion in each
 response's `validation.sh`; bale itself is project-agnostic and
 does not enforce this.
 
@@ -134,9 +134,9 @@ does not enforce this.
 ```
 
 INDEX.md does not list the global docs (`CLAUDE.md`, `TARBALL.md`,
-`DOCS.md`, `CODE.md`, `PLANNER.md`) — those are injected by bale
-from its own
-installation and are not part of the project's inventory.
+`DOCS.md`, `CODE.md`, `PLANNER.md`) — those are carried by bale
+from its own installation and are not part of the project's
+inventory.
 
 ### 2.3 Entry format
 
@@ -205,7 +205,7 @@ The single rule that distinguishes STATE.md from a log:
 - When a recent decision ages out of relevance, **remove it** from
   "Recent decisions." It's still in `context/adr/` for reference.
 
-If Claude finds itself adding a dated section to STATE.md, stop. The
+If the agent finds itself adding a dated section to STATE.md, stop. The
 date goes in git. The change is captured in `notes.md` for that
 session. STATE.md is the *current picture*, not the history of how
 the picture changed.
@@ -238,7 +238,7 @@ to introduce that category's machinery.
 | `INDEX.md` | The project has ~3+ docs that need to be findable by topic. Below that, a one-line note in `STATE.md` or a top-level `README.md` is enough. |
 | `STATE.md` | The project has state worth snapshotting — multiple modules in active development, an "in flight" surface, or deferred decisions ("open seams") accumulating in conversation. A single-script project rarely needs one. |
 | ADRs | The first real decision lands that someone might want to reconsider later. "We chose framework X" doesn't need an ADR until there's a question of whether to switch. The ADR captures the moment the question was first answered. |
-| Charter / charter-brief | Product direction is being discussed and Claude has been answering the same scope questions across multiple sessions. The brief is the consolidated answer. |
+| Charter / charter-brief | Product direction is being discussed and the agent has been answering the same scope questions across multiple sessions. The brief is the consolidated answer. |
 | Schemas | A data contract exists and is referenced by code (or by another doc). |
 | Explainers | A non-obvious thing in the project has been explained more than once. Write it down so the next session doesn't redo the explanation. |
 
@@ -376,7 +376,7 @@ fine. A 200-line doc that mixes philosophy and mechanics isn't.
 1. **Identify the seam.** Usually between *when* something engages
    and *how* it works; or between *what* a thing is and *the schema*
    for it; or between *philosophy* and *reference*.
-2. **The lighter doc keeps the trigger.** It tells Claude *when* to
+2. **The lighter doc keeps the trigger.** It tells the agent *when* to
    read the heavier doc. It does not duplicate the heavier doc's
    contents.
 3. **The heavier doc opens with its own META + INDEX.** *"This file
@@ -395,7 +395,7 @@ fine. A 200-line doc that mixes philosophy and mechanics isn't.
   benefit, just two files instead of one.
 - The proposed lighter doc would be too thin (under 50 lines) and not
   gaining anything by being separate.
-- The seam isn't real. If Claude struggles to decide which file a
+- The seam isn't real. If the agent struggles to decide which file a
   given rule goes in, the seam is wrong and the doc shouldn't split
   yet.
 
@@ -518,7 +518,7 @@ existing pattern and note the awkwardness in `notes.md`.
 
 Bale is project-agnostic and does not enforce doc-inventory rules
 itself. The mechanical checks in the table below run in the
-response's `validation.sh` — Claude includes the corresponding
+response's `validation.sh` — the agent includes the corresponding
 assertions per-session for projects that adopt the DOCS.md
 workflow. The universal bale-enforced rules live in `TARBALL.md`
 section 8, which owns their enumeration.
@@ -556,9 +556,9 @@ parameterized and paste-ready, and the enforcement recipe lives in
 the emission, where it cannot drift from what runs.
 
 Rule labels follow `CLAUDE.md` section 6. A project that wants these
-rules enforced asks Claude to include the corresponding assertions
+rules enforced asks the agent to include the corresponding assertions
 in each response's `validation.sh`; a project that doesn't adopt
-the DOCS.md inventory simply omits them. Claude should surface
+the DOCS.md inventory simply omits them. The agent should surface
 policy concerns in `notes.md` precisely because mechanical checks
 won't catch them.
 

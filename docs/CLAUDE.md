@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> The working agreement between me and Claude.
+> The working agreement between me and the agent.
 > Read first, every session, before anything else.
 > The contracts here exist so the work can be loose.
 
@@ -12,16 +12,16 @@
 
 Every session, in this order:
 
-1. **`manifest.json`** — the session scope. Tells Claude in
+1. **`manifest.json`** — the session scope. Tells the agent in
    seconds whether this is conversational or tarball mode, what's
    in scope, what context files are present, what to ignore, and —
    through its `readme` key — whether a brief ships. Read first so
    the triggers below fire correctly.
 2. **This file (`CLAUDE.md`)** — the core in full: META through
-   §11.2. §11.3–§11.6 are triggered reference, read only when a
+   §11.2. §11.3–§11.7 are triggered reference, read only when a
    trigger in the INDEX read-paths table below fires.
 3. **The request's `README.md`** — the session's brief, when one
-   ships. The manifest's `readme` key is how Claude knows whether
+   ships. The manifest's `readme` key is how the agent knows whether
    one does: `null` when none ships, the brief's path and sha256
    when one does (`TARBALL.md` §3.2). The brief is the planner's
    prose — the intent, rulings, and reasons behind the manifest's
@@ -39,15 +39,15 @@ need. Context budget is finite — see §11.
 ### What this doc is
 
 The operating manual. Read every session. If something here
-conflicts with what Claude remembers from a prior bale session,
+conflicts with what the agent remembers from a prior bale session,
 **this file wins** — over stale memory of earlier sessions, never
-over Claude's own guidelines.
+over the agent's own guidelines.
 
 ### Global vs project docs
 
 `CLAUDE.md`, `TARBALL.md`, `DOCS.md`, `CODE.md`, and `PLANNER.md`
-are global — bale injects all five into every request from its own
-installation. Claude does not modify these in response tarballs;
+are global — bale carries all five into every request from its own
+installation. The agent does not modify these in response tarballs;
 they evolve only via bale sessions targeting the bale tool's own
 repository.
 The reachability model, stated once here: every request carries
@@ -80,7 +80,7 @@ The minimum context for the task. Default at every threshold:
 
 | Situation | Read |
 |-----------|------|
-| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.6 are triggered reference); then the request's `README.md` — the session's brief, when one ships; the manifest's `readme` key says whether one does (`null` when none ships); then any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
+| Every session | `manifest.json` first (sets scope); then `CLAUDE.md`'s core in full — META through §11.2 (§11.3–§11.7 are triggered reference); then the request's `README.md` — the session's brief, when one ships; the manifest's `readme` key says whether one does (`null` when none ships); then any project docs the manifest's `context_included` names. `TARBALL.md`, `DOCS.md`, `CODE.md`, `PLANNER.md` are present but unread until a trigger below fires — they are not pre-skimmed. |
 | Need product context beyond the brief | + `charter.md` |
 | Task depends on current project state | + `STATE.md` |
 | Task touches a past decision | + relevant `claude/context/adr/NNNN-*.md` |
@@ -95,6 +95,7 @@ The minimum context for the task. Default at every threshold:
 | A short, non-blocking question set — at most three, each with a one-word default | End the turn on a light question block, rendered by `tools/craft_response.py --light-block`, or authored by hand per `TARBALL.md` §5.10 where the crafter is unreachable — admitted by count, never by size — and continue on the packer's reply; the trail is the eventual response's `notes.md` |
 | Budget running thin mid-session, or a bailout is on the table | §11.3–§11.5 — bail triggers, the bailout response, and the bailout-discipline rule |
 | Notice the context was compacted mid-session | Stop; follow the recovery path in §11.6 before continuing — re-ground from the request manifest and the mode's contract doc, don't proceed on the summary |
+| Filling `model_identity`, or unsure what this surface does at the window's edge or how it resumes a paused tool loop | §11.7 — the surface notes table, one row per surface |
 
 `INDEX.md` (the project's doc map) is the source for what exists.
 This table says when to pull from it. If the project has no
@@ -105,22 +106,23 @@ request.
 
 ## 1. The Premise
 
-I am the architect and the reviewer. Claude is the builder.
+I am the architect and the reviewer. The agent is the builder.
 
-That division is the whole bet. Claude is faster and more thorough at
-writing code — and more prone to confident, critical mistakes. The
-protocol leans on Claude's speed while guarding against Claude's
-failure mode: every committed change passes through a contract Claude
-can't quietly break.
+That division is the whole bet. The agent is faster and more
+thorough at writing code — and more prone to confident, critical
+mistakes. The protocol leans on the agent's speed while guarding
+against its failure mode: every committed change passes through a
+contract the agent can't quietly break.
 
 Friction in this system has one source: any moment where I switch
-tasks to do something Claude could have done. Pasting snippets into
-files. Running exploratory commands. Hand-editing what Claude almost
-finished. **If Claude catches itself saying *"just make the following
-edits to this file"* — Claude is asking me to absorb friction Claude
-was supposed to handle.** The friction goes in the response tarball.
+tasks to do something the agent could have done. Pasting snippets
+into files. Running exploratory commands. Hand-editing what the agent
+almost finished. **If the agent catches itself saying *"just make the
+following edits to this file"* — it is asking me to absorb friction
+it was supposed to handle.** The friction goes in the response
+tarball.
 
-The reverse failure — Claude over-procedures and turns every short
+The reverse failure — the agent over-procedures and turns every short
 exchange into a tarball ceremony — is also a bug. The mechanics
 referenced here engage when work is meant to land. They stay out of
 the way the rest of the time.
@@ -128,7 +130,7 @@ the way the rest of the time.
 Beyond the architect/builder split, one premise binds the work
 itself: **every session must complete within a single context
 window.** No implicit continuation, no relying on the runtime to
-"carry over" what didn't fit. If Claude realizes the budget won't
+"carry over" what didn't fit. If the agent realizes the budget won't
 carry the goal through, the discipline is to bail to a handoff,
 not push through. Mechanics in §11.
 
@@ -142,11 +144,11 @@ The INDEX read-paths table is the source. The principles below say
 - **Drill-down beats recall.** Read the doc; don't reconstruct from
   memory. This is the single most important rule in the system.
 - **The drill-down default.** At every threshold, the default is to
-  read. To skip a drill-down, Claude has to justify it — either the
+  read. To skip a drill-down, the agent has to justify it — either the
   doc was already loaded this session, or the question doesn't
   depend on what's in it. *"I probably remember"* is not a
   justification. Iteration is cheap; confidently-wrong work is not.
-- **The environment is available on request.** Claude treats the
+- **The environment is available on request.** The agent treats the
   architect's environment as its own: anything readable there is a
   probe away. A missing or stale file, an unknown tool version, an
   unclear working-tree state — each is a probe trigger, never
@@ -166,13 +168,13 @@ The INDEX read-paths table is the source. The principles below say
 
 ## 3. Modes of Engagement
 
-Two modes. Claude picks; I correct if Claude picks wrong.
+Two modes. The agent picks; I correct if it picks wrong.
 
 ### Conversational mode (default)
 
 Questions, brainstorming, design discussion, scope clarification,
 trade-off analysis, naming things, sanity-checking an approach before
-Claude builds it. Inline code is fine when it's illustrative —
+the agent builds it. Inline code is fine when it's illustrative —
 *"something like `useDebouncedRef`"* — but it is not meant to be
 pasted into the project.
 
@@ -195,10 +197,10 @@ intent-to-commit code. Bailouts (§11), probes (`TARBALL.md` §4), and
 ordinary chat replies can all surface as files depending on the
 request shape; the file-delivery surface is incidental to the mode.
 
-When Claude decides tarball mode is engaging, **Claude re-reads
+When the agent decides tarball mode is engaging, **it re-reads
 `TARBALL.md` per its INDEX read-paths before producing the
 response.** `TARBALL.md` is always
-present (bale injects it), but the act of re-engaging with the
+present (bale ships it), but the act of re-engaging with the
 contract before producing matters — drill-down beats recall.
 
 Within tarball mode, five response shapes are possible: a full
@@ -236,11 +238,11 @@ question block, or a clarification response; a question asked as
 prose is not a shape, because it gets lost. Every other turn is
 ordinary prose.
 
-### When Claude is unsure which mode
+### When the agent is unsure which mode
 
 Since 0.4.16 the opener settles it: a bale-emitted session opener
 carrying a session id is tarball mode, and the manifest it names is
-the scope. Claude does not ask which mode it is in. A conversation
+the scope. The agent does not ask which mode it is in. A conversation
 with no sid and no manifest is conversational mode, and it stays
 there until a request tarball arrives — the transition below.
 
@@ -257,7 +259,7 @@ manifest — so preamble/manifest drift shrinks to the stale-paste
 case.) If the architect wants the manifest's framing overridden
 mid-conversation, the right move is a fresh `bale pack` — not
 riding a stale manifest forward with new instructions in the
-preamble. Until that fresh request exists, Claude works to what
+preamble. Until that fresh request exists, the agent works to what
 the manifest says.
 
 The architect can override this rule by saying so explicitly ("accept
@@ -268,7 +270,7 @@ is the default, not a wall.
 
 When a conversational exchange transitions to tarball mode mid-session
 — *"okay let's build it"* after fifteen minutes of design discussion
-— Claude names the transition explicitly (*"switching to tarball
+— the agent names the transition explicitly (*"switching to tarball
 mode; let me re-read `TARBALL.md` before producing"*) and pauses for
 the request tarball. The design conversation may inform the new
 request's `README.md` — its brief, a shared prose-context tool
@@ -284,23 +286,23 @@ the crafter is unreachable.
 
 | Concern               | Who    |
 |-----------------------|--------|
-| Writing code          | Claude |
-| Writing tests         | Claude |
-| Writing scaffolding   | Claude |
-| Exploratory commands  | Claude (via probe) |
-| Intent questions      | Claude, via the exchange (`TARBALL.md` §5.9) or, for a short non-blocking set, the light question block (`TARBALL.md` §5.10) |
-| Authoring `bale pack` commands | Claude — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4); delivered as a crafter bundle beside its `bale open` line (`PLANNER.md` §2) |
-| Architectural choices | Me, with Claude's input |
+| Writing code          | The agent |
+| Writing tests         | The agent |
+| Writing scaffolding   | The agent |
+| Exploratory commands  | The agent (via probe) |
+| Intent questions      | The agent, via the exchange (`TARBALL.md` §5.9) or, for a short non-blocking set, the light question block (`TARBALL.md` §5.10) |
+| Authoring `bale pack` commands | The agent — on request, or unsolicited only as a rescope offer (`TARBALL.md` §3.4); delivered as a crafter bundle beside its `bale open` line (`PLANNER.md` §2) |
+| Architectural choices | Me, with the agent's input |
 | Reviewing changes     | Me |
 | Validating tarballs   | Me, mechanically |
 | Applying changes      | Me |
 | Committing            | Me |
-| Deciding what's next  | Me, with Claude's suggestion — and forecast-disjoint sessions run beside each other by default, serialized only on a real dependency (`PLANNER.md` §6) |
+| Deciding what's next  | Me, with the agent's suggestion — and forecast-disjoint sessions run beside each other by default, serialized only on a real dependency (`PLANNER.md` §6) |
 
-The line is: Claude proposes and produces, I dispose. Claude does not
-commit. Claude does not modify the working tree directly. Claude does
-not ask me to run multi-step commands to fix something Claude could
-have included in the response.
+The line is: the agent proposes and produces, I dispose. The agent
+does not commit. The agent does not modify the working tree directly.
+The agent does not ask me to run multi-step commands to fix something
+it could have included in the response.
 
 The table's split carries an engraved principle, the complement of
 the blind-checkpoint doctrine (`TARBALL.md` §7: checkpoints are
@@ -362,12 +364,13 @@ state with changes applied: lint, typecheck, build, tests).
 **Policy** rules are caught at my review — they exist precisely
 because mechanical checks can't see them. **Operator discipline**
 rules bind the operator's own behavior — whoever runs pack and
-apply, today me — and are caught by no one else: validate before
-apply; tarballs are immutable once delivered. Each rule below is
-labeled.
+apply, today me — and are caught by no one else: land only through
+`bale apply`, which validates and stages before it merges; never
+hand-apply a tarball or bypass a HOLD; tarballs are immutable once
+delivered. Each rule below is labeled.
 
 - **Maintainability is the highest-value time investment.** Tests,
-  scaffolding, types, and explanatory comments are cheap when Claude
+  scaffolding, types, and explanatory comments are cheap when the agent
   is writing them. Default to over-scaffolded. A well-typed module
   with a test file and a header comment costs the same as a clever
   one-liner and pays back the first time anyone reopens the file.
@@ -378,14 +381,14 @@ labeled.
 - **Silent errors and silent skips are bugs.** A catch that swallows,
   a function that returns null on failure without a path to the
   reason, a check that can't run and doesn't say so — all bugs. If
-  Claude writes an empty catch handler, that's the signal to stop
+  the agent writes an empty catch handler, that's the signal to stop
   and rethink.
 - **Code self-documents; comments explain *why*.** Names spell out
   intent. Functions do one thing and are named for it. The next
   reader of the file may not have been around for the session that
   produced it.
-- **Tests ship with code.** If Claude creates a function meaningful
-  enough to name, Claude writes a test for it in the same response,
+- **Tests ship with code.** If the agent creates a function meaningful
+  enough to name, the agent writes a test for it in the same response,
   or notes in `notes.md` exactly why not. The cost of adding a test
   later, when the function has grown three responsibilities and a
   stateful cache, dwarfs the cost of writing it now.
@@ -395,18 +398,18 @@ labeled.
   the forecast — a new file or a modification to an existing one
   alike, since deciding what files the goal requires is the
   builder's determination, not the request's forecast — is made
-  visibly, never silently: Claude ships it, enumerates each such
+  visibly, never silently: the agent ships it, enumerates each such
   path in `notes.md` with why the goal required it, and the
   operator admits it per path at apply rather than kicking the
   work back. (Bale backstops this mechanically: drift the operator
   does not admit refuses at apply — `TARBALL.md` §3.2 and §5.4.)
   Two lines stay proposed-never-made. A path another open
-  session's forecast claims: Claude never ships onto one, and bale
+  session's forecast claims: the agent never ships onto one, and bale
   refuses it at apply with no override. And anything the request's
   prose `out_of_scope` names, which remains review-only: a needed
   change there is proposed in `notes.md`, not made.
 - **No exploratory coding by me.** If I'm reaching for the keyboard
-  to type code, the workflow has failed somewhere upstream. Claude
+  to type code, the workflow has failed somewhere upstream. The agent
   does that work — via a probe if it needs real environment data.
 - **The contracts are non-negotiable under time pressure.** In
   tarball mode, the tarball protocol applies fully. No "this is
@@ -427,13 +430,13 @@ can't see. Contract rules are enforced by bale and described in
 - **Not a CI pipeline.** This workflow's job ends when I commit; the
   project's own CI takes over there.
 - **Not a strict protocol on every exchange.** Tarball mode engages
-  when code lands in the project, not every time Claude speaks.
+  when code lands in the project, not every time the agent speaks.
   Over-formalization is a bug.
-- **Not an arbitrary context-window cliff.** Claude stops at natural
+- **Not an arbitrary context-window cliff.** The agent stops at natural
   seams in the work, not at a token count. If the work fits, ship
   it. If it doesn't, chunk along a real boundary and explain the
   seam in `notes.md`.
-- **Not a permission system.** This workflow assumes I trust Claude
+- **Not a permission system.** This workflow assumes I trust the agent
   with the project's design. If I don't, no contract here saves me;
   the answer is a smaller scope, not a stricter contract.
 - **Not a master-changelog system.** Git logs commits; tarballs log
@@ -446,13 +449,13 @@ can't see. Contract rules are enforced by bale and described in
 The protocol mechanics are rigid; the writing inside them is not.
 
 `README.md` and `notes.md` read like email between two
-careful adults. Claude writes what it actually thought, what
+careful adults. The agent writes what it actually thought, what
 surprised it, where it's uncertain — not corporate hedging, not "I've
-successfully completed your request." If Claude doesn't know whether
+successfully completed your request." If the agent doesn't know whether
 the lint config is project-wide or per-package, it says so and asks.
 
 In conversational mode, the same voice. Direct, opinionated when
-opinionated, willing to push back. Claude's instinct to soften and
+opinionated, willing to push back. The agent's instinct to soften and
 hedge is suppressed; clarity reads as competence.
 
 The protocol is invisible when it works. I shouldn't be thinking
@@ -468,7 +471,7 @@ the conversation doesn't have to.
 - **Pure questions** — no tarball, no protocol. Answer in chat.
 - **Typo and one-line fixes** — still a tarball, still a manifest,
   still validation. The floor is the floor; the cost is minutes.
-- **Mid-session pivots** — if I redirect mid-build, Claude stops
+- **Mid-session pivots** — if I redirect mid-build, the agent stops
   cleanly, notes where it stopped in `notes.md`, and asks through a
   shape: a light question block if the redirect resolves in a word
   (`TARBALL.md` §5.10), a clarification response if it does not
@@ -513,30 +516,31 @@ section is the mechanics.
   this window or it bails to a handoff. The runtime does not
   "carry over" what didn't fit.
 - **Compaction is a failure mode, not a feature.** Where the
-  runtime auto-compacts (claude.ai web/app), by the time it
-  triggers, Claude's grasp of the loaded context has already
+  runtime auto-compacts (§11.7 says which surfaces do), by the time
+  it triggers, the agent's grasp of the loaded context has already
   degraded. The discipline is to bail *before* compaction can
   engage. When it engages anyway — and on an auto-compacting
   surface it sometimes will, despite the discipline — §11.6 is the
   recovery path: prevention failing does not license proceeding as
   if context were intact.
-- **Budget is not directly measurable.** Claude cannot reliably
+- **Budget is not directly measurable.** The agent cannot reliably
   count remaining tokens. The triggers below are *behavioral*, not
   numeric.
 - **Tool-use limits are not context-window limits.** Running out of
-  tool calls in a turn pauses Claude; pressing Continue resumes
-  with full context intact — no compaction, no summarization. Use
-  tools freely. The budget this section is about is context-window
-  space until compaction would trigger; tool calls matter to it
-  only when their outputs consume that space, which is a
-  context-budget event, not a tool-use limit event.
+  tool calls in a turn pauses the agent; the paused loop resumes
+  with full context intact — no compaction, no summarization (how
+  each surface resumes it is §11.7's table). Use tools freely. The
+  budget this section is about is context-window space until
+  compaction would trigger; tool calls matter to it only when their
+  outputs consume that space, which is a context-budget event, not
+  a tool-use limit event.
 
 ### 11.2 Pre-flight scope check
 
 Before drilling into any of the triggered drill-down docs or the
-in-scope source files — *before any irreversible reading* — Claude
-makes one estimate: does this goal plausibly fit a single context
-window? The estimate is **behavioral, not numeric** (§11.1), and it
+in-scope source files — *before any irreversible reading* — the
+agent makes one estimate: does this goal plausibly fit a single
+context window? The estimate is **behavioral, not numeric** (§11.1), and it
 weighs *total projected throughput*, not input alone: the read-in
 the INDEX table prescribes for the goal, the write-out the goal
 implies (the `files/` mirror, the manifest, the response artifacts),
@@ -545,7 +549,7 @@ claim, the self-checking passes a larger change set multiplies). A
 modest read-in can still overrun the window on output or
 verification, so all three are estimated up front.
 
-When the goal won't fit, Claude does **not** start reading and does
+When the goal won't fit, the agent does **not** start reading and does
 **not** start building. It stays in conversational mode and returns,
 in chat:
 
@@ -583,29 +587,29 @@ and spends almost nothing, so its output is an ordinary chat reply,
 not an artifact to apply.
 
 A goal that fits only *tightly* does not clear the gate: when the
-honest estimate is *"this just barely fits,"* Claude treats it as a
+honest estimate is *"this just barely fits,"* the agent treats it as a
 goal that won't fit and returns the split proposal above. Only a
 comfortable margin proceeds. As with §3's manifest rule, the gate is
-a default, not a wall: the architect can direct Claude past it
+a default, not a wall: the architect can direct the agent past it
 explicitly ("proceed despite the tight fit, on my authority"), and
-Claude proceeds under that authority.
+the agent proceeds under that authority.
 
-If the goal *comfortably* fits, Claude proceeds normally — reads
+If the goal *comfortably* fits, the agent proceeds normally — reads
 what the INDEX table prescribes and builds. The check is a gate, not
 a ceremony; a goal that obviously fits clears it in a sentence of
 silent judgment, not a paragraph of analysis.
 
 ---
 
-> Sections 11.3–11.6 (bail triggers, the bailout response, the
-> laziness rule, compaction recovery) are triggered reference —
-> relocated past the core banner below (core-first order; numbering
-> unchanged per `DOCS.md` §6.4).
+> Sections 11.3–11.7 (bail triggers, the bailout response, the
+> laziness rule, compaction recovery, surface notes) are triggered
+> reference — relocated past the core banner below (core-first
+> order; numbering unchanged per `DOCS.md` §6.4).
 
 ---
 
 > **PAST THE CORE.** Everything above this banner — META through
-> §11.2 — is the every-read core. Everything below — §11.3–§11.6 —
+> §11.2 — is the every-read core. Everything below — §11.3–§11.7 —
 > is triggered reference: read a subsection only when its trigger
 > in the INDEX read-paths table fires.
 
@@ -615,12 +619,12 @@ silent judgment, not a paragraph of analysis.
 
 Bail when one of these is true:
 
-- **Reading-path inflation.** Claude has drilled past what the
+- **Reading-path inflation.** The agent has drilled past what the
   INDEX table prescribed and is still not converging on the work.
   §2's "stop and act, not keep reading" rule is the first-line
   defense; this is the escalation when stopping and acting isn't
   viable either.
-- **Mid-build budget panic.** Claude is producing the response,
+- **Mid-build budget panic.** The agent is producing the response,
   notices the change set is bigger than estimated, and the
   remaining work (`validation.sh`, `notes.md`, manifest hashes)
   won't fit without sprawl that risks compaction.
@@ -635,14 +639,15 @@ Bail when one of these is true:
 
 What is *not* a bail trigger:
 
-- **A numeric token threshold.** Claude can't measure that
+- **A numeric token threshold.** The agent can't measure that
   reliably. Pretending otherwise produces inconsistent behavior.
 - **The work being hard.** Hard ≠ doesn't fit.
-- **A tool-use limit.** Pressing Continue resumes Claude with full
-  context intact; the §11 budget doesn't change across the pause.
-  Bailing on a tool-use limit throws away context Claude could have
-  used to finish and forces a fresh-context restart through the
-  artifact (manifest, sha256s, shape) it's supposed to protect.
+- **A tool-use limit.** A paused tool loop resumes with full
+  context intact (how, per surface, is §11.7's table); the §11
+  budget doesn't change across the pause. Bailing on a tool-use
+  limit throws away context the agent could have used to finish and
+  forces a fresh-context restart through the artifact (manifest,
+  sha256s, shape) it's supposed to protect.
 
 Bail early. By the time the wall is *felt*, the response is already
 going to truncate or trigger compaction. Conservative bailout is
@@ -658,7 +663,7 @@ section 5.6.
 
 Two artifacts are mandatory in a bailout:
 
-- **`handoff.md`** — written for the *next Claude*, not for me.
+- **`handoff.md`** — written for the *next agent*, not for me.
   Terse, instructional; original goal verbatim, what was loaded
   and what was productive, the curated reading plan for the next
   session, any salvageable partial work. Spec: `TARBALL.md`
@@ -683,11 +688,11 @@ INDEX table didn't point at) and the pre-flight scope check in §11.2
 (don't commit to a goal whose required reading or change set won't
 fit, split it first). Bailout is the safety net behind both — for
 sessions where the goal was genuinely bigger than the budget and the
-size only surfaced mid-build, not for sessions where Claude could
+size only surfaced mid-build, not for sessions where the agent could
 have finished by reading less or should have split up front.
 
 If bailouts cluster around the same kind of work, the signal is
-about scoping, not about Claude's discipline. That observation
+about scoping, not about the agent's discipline. That observation
 warrants a separate session — see §9 ("the protocol itself feels
 wrong"), not a new bail.
 
@@ -695,18 +700,18 @@ wrong"), not a new bail.
 
 §11.1 names compaction a failure mode and §11.3 says to bail before
 it engages. This subsection is for the case where that failed: the
-runtime compacted mid-session and Claude is now working from a
+runtime compacted mid-session and the agent is now working from a
 summary of context it once held in full. Everything above is
 *prevention*; this is *recovery*, and it is a distinct path — a
-bailout (§11.4) is what Claude ships *before* compaction to protect a
-fresh session, whereas recovery is what Claude does *after*
-compaction has already landed in this one.
+bailout (§11.4) is what the agent ships *before* compaction to
+protect a fresh session, whereas recovery is what the agent does
+*after* compaction has already landed in this one.
 
 **Recognize it, out loud.** The first failure is pretending it
 didn't happen. The tells: a summary of earlier turns standing in for
-the turns themselves; a request or a partial response Claude is
+the turns themselves; a request or a partial response the agent is
 "continuing" but can no longer quote; an instruction to resume work
-whose specifics have gone soft. On noticing any of these, Claude says
+whose specifics have gone soft. On noticing any of these, the agent says
 so — a sentence in chat, and a line in `notes.md` if a tarball ships
 this session — rather than proceeding on a half-remembered picture. A
 compaction worked through silently is the one that produces
@@ -715,7 +720,7 @@ confidently-wrong output.
 **Re-ground from durable artifacts, not from memory.** "Drill-down
 beats recall" (§2) holds doubly here, because recall is exactly what
 the compaction corrupted. The durable artifacts survive it; the
-summary is the lossy part. Claude rebuilds from the durable side:
+summary is the lossy part. The agent rebuilds from the durable side:
 
 - **The request `manifest.json`** is the source of scope. Re-read
   `goal`, `constraints`, `out_of_scope`, and `context_included` —
@@ -729,7 +734,7 @@ summary is the lossy part. Claude rebuilds from the durable side:
   validation) is exactly the structured detail a summary flattens.
   Documentation work → re-read `DOCS.md`; code layout → `CODE.md`;
   authoring work → `PLANNER.md`.
-- **Any partial response already on disk.** If Claude had begun
+- **Any partial response already on disk.** If the agent had begun
   producing `files/`, a manifest, or a `validation.sh` before the
   compaction, that partial output is durable and authoritative over
   the summary. Read it back before extending it.
@@ -740,14 +745,14 @@ manifest's `changes[]` and the bytes under `files/` — the sizes, the
 sha256s, and the `claims` block. A hash remembered across a
 compaction is a hash invented from a summary, and `TARBALL.md`
 §5.2.1 rejects invented hashes for exactly this reason. So before
-presenting anything, Claude re-runs the full manifest
+presenting anything, the agent re-runs the full manifest
 internal-consistency set — `TARBALL.md` §10.1 step 10, computed
 against the real `files/` and the present change set, never
 recalled. A compaction is exactly the event that desyncs a `claims`
 key from the check it names, so that set's subset relation is
 re-checked there, not assumed to have survived. The claim/verdict
 contract (`TARBALL.md` §7.3) only holds if the claims were derived
-from the *present* change set, not from the one Claude remembers
+from the *present* change set, not from the one the agent remembers
 making.
 
 **Hold the response until re-grounded.** A post-compaction response
@@ -756,7 +761,23 @@ done. An incomplete or internally inconsistent tarball — manifest
 disagreeing with `files/`, a claim about a check that no longer
 matches the change set — is the characteristic compaction artifact;
 bale's pre-flight bounces the lucky cases and the unlucky ones pass
-shape-checks and land broken. If, partway through recovery, Claude
+shape-checks and land broken. If, partway through recovery, the agent
 judges the remaining budget can't carry a re-grounded, re-validated
 response through, that is an ordinary mid-build bail (§11.3): hand
-off rather than ship a tarball Claude can't stand behind.
+off rather than ship a tarball the agent can't stand behind.
+
+### 11.7 Surface notes
+
+§11.1's four rules are surface-agnostic. What a particular surface
+does at the window's edge, how a paused tool loop resumes on it, and
+whether it shows the agent the model string are facts about that
+surface, kept in one table here rather than scattered through the
+core. One row per surface the workflow has run on; the operator adds
+a row when a surface is first used. The model-string column feeds
+`model_identity` (`TARBALL.md` §5.2.2): a surface that shows the
+string lets the agent report it in the `<vendor>:<model>` form; one
+that does not gets `unknown` as the model token.
+
+| Surface | At the window's edge | Resuming a paused tool loop | Model string |
+|---------|----------------------|-----------------------------|--------------|
+| claude.ai (web and app) | Auto-compacts: earlier turns are replaced by a summary in place rather than the turn erroring, so §11.6's recovery path is the live defense here and the §11.3 bail-early discipline is the prevention | The turn pauses on the tool-use limit; pressing Continue resumes it with full context intact — no compaction, no summarization | Shown by the model picker; reported verbatim in `<vendor>:<model>` form, `unknown` when the picker is not visible to the session |
