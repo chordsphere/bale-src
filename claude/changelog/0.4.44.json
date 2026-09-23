@@ -1,0 +1,85 @@
+{
+  "record_version": 1,
+  "version": "0.4.44",
+  "session_id": "2026-09-23-board-121-125-code-micro-007",
+  "at": "2026-09-23T12:30:37+00:00",
+  "surfaces": [
+    {
+      "path": "bin/bale_pack.py",
+      "change": "row 121: new pack_pre_exchange_gates runs every argv-only refusal before cmd_pack's first state-changing exchange (the --supersedes close, and so also the read-only sweep): slug/goal when typed, forecast existence, planner-bundle naming, the --max-* values, and checkpoint blindness — the whole gate on the non-deferred path (moved from after the exchange, still ahead of the disjointness gate), its read half on the wizard path; the disjointness gate, declined-supersession refusal and sweep stay where they were; pack_argv_preflight is unchanged; the bundle-naming refusal text is one helper (format_bundle_naming_refusal) for both sites. Row 124: the supersession and read-only-sweep journal lines name the configured <agent_dir>/telemetry/. Row 123: session_opener_block takes an optional desk and adds a paragraph naming <sid>@<desk> (desk_qualified_name, desk_opener_sentence); None leaves the block byte-for-byte"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "row 123: after the bundle verifies and before the pre-flight, dry-run, sweep and replay, a bundle whose identity (manifest, brief and checkpoint hashes; the stem deliberately not) matches an opened attempt of a still-open session records a further desk on that session — an 'opened' attempt with command 'open', the bundle stamp, the provenance stamp and desk 'desk-N' — sweeps the record only if it is already tracked, prints the summary and the opener naming <sid>@desk-N, and exits 0; it refuses when the record holds an event past its opens; a closed session's bundle opens a new session as before"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "row 124: telemetry_home_display(repo) renders <agent_dir>/telemetry/; format_stats_report and format_session_dossier_report take telemetry_home (default claude/telemetry/, the default agent_dir's rendering) for the empty-corpus epoch row and the dossier miss; docstrings say <agent_dir>/telemetry/"
+    },
+    {
+      "path": "bin/bale",
+      "change": "row 124: cmd_stats passes the configured home to both renderers; `bale stats --help` renders the configured <agent_dir>/telemetry/ lazily at help-render time through StatsHelpFormatter (never at parser build, never through a fatal config read — an unreadable bale.toml renders the default with a note); the top-level one-liner names no path; docstrings and the sibling-import comment say <agent_dir>/telemetry/"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "row 124: layout_agent_dir_for_display(repo) — the non-fatal agent_dir reader for help text, returning (name, note) and never calling fail()"
+    },
+    {
+      "path": "bin/bale_stats.py",
+      "change": "row 124: docstrings say <agent_dir>/telemetry/ (the module docstring names claude/telemetry/ as the default)"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "row 124: one docstring says <agent_dir>/telemetry/<sid>.json"
+    },
+    {
+      "path": "schemas/telemetry-record.schema.json",
+      "change": "additive, record_version unchanged: attempts[].desk (string, row 123; consumer: the close desk's reconstruction of which desk a light block came from) beside bundle; command gains 'open' for the second-desk attempt; the command description records that handoff-side opens stamp 'handoff' (the rider found cmd_handoff already passing it)"
+    },
+    {
+      "path": "tools/response_lint.py",
+      "change": "registry rider: with --request, a forecast_departures entry whose path lies inside resolved_scope, or names no changes[] path, warns FORECAST_DEPARTURE_NOT_A_DEPARTURE at the entry's own path (warning tier, beside FORECAST_DEPARTURE_UNDECLARED)"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "registry rider: --bundle refuses a stored --include/--write value that names the [validation] base checkpoint (the base, its {sid} basis, or a path under it — pack's explicit-naming rule), unless the argv carries --allow-checkpoint-in-scope; the [probe] clipboard key's bale.toml scan is factored into scan_bale_toml_key and shared (clipboard notes unchanged). Row 125: the --probe skeleton carries a worked single-line tree listing that excludes caches, naming __pycache__"
+    },
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.43 -> 0.4.44"
+    },
+    {
+      "path": "tests/test_supersession_pack.py",
+      "change": "row 121 pty pins (include naming the checkpoint, a missing include, a bad slug and cap values each refuse before the exchange with the parent untouched; a clean argv logs the pass before the prompt); row 124 journal lines under agent_dir = \"agent\""
+    },
+    {
+      "path": "tests/test_open_verb.py",
+      "change": "row 121: the planner desk's bale open fixture refuses with the parent still 'opened'; row 123: SecondDeskTest (desk-2/desk-3 on one sid, renamed copy, scoped bundle, a different bundle, closed session, refusal after an apply-side event, schema validation of the desk record)"
+    },
+    {
+      "path": "tests/test_stats_drilldown.py",
+      "change": "row 124: the dossier miss and empty-corpus epoch row name agent/telemetry/ under the layout key and the default without it; the non-fatal help reader's cases"
+    },
+    {
+      "path": "tests/test_cli_help.py",
+      "change": "row 124: stats --help renders the configured home, the default outside a repo, a note on an unreadable bale.toml; the listing one-liner names no path"
+    },
+    {
+      "path": "tests/test_provenance_at_open.py",
+      "change": "registry rider: a handoff-side open's 'opened' attempt stamps command 'handoff'"
+    },
+    {
+      "path": "tests/test_response_lint.py",
+      "change": "registry rider: FORECAST_DEPARTURE_NOT_A_DEPARTURE pins"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "registry rider: CraftBundleCheckpointNaming; row 125: the probe skeleton's cache-excluding listing, run as written, lists sources and no cache"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "row 125: CacheHygieneTest — a request pack and a context pack of a repo with untracked and committed bin/__pycache__ and no .gitignore ship no cache member; the in-suite child process that imported the source repo's bin/ now runs with -B, closing the one bin/__pycache__ writer found"
+    }
+  ],
+  "notes": "The four-small code micro (rows 121, 123, 124, 125) with the three registry riders. Row 125's report claim ('bin/__pycache__ ships in packs') did not reproduce: the pack walk drops __pycache__ by path component, tracked or not; the one writer found was a test child process polluting the source repo's bin/, fixed. Row 122's rehearsal verbs build on pack_argv_preflight, which this version leaves untouched; the early gates live in cmd_pack's new pre-exchange pass."
+}

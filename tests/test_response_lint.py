@@ -782,6 +782,67 @@ class ForecastDeparturesWarning(_RequestFlagResponse):
         self.assertIn("file not found", cp.stderr)
 
 
+class ForecastDepartureNotADeparture(_RequestFlagResponse):
+    """v0.4.44, the registry rider: a declared forecast_departures entry
+    that is not a departure — its path inside resolved_scope, or naming
+    no changes[] path — warns FORECAST_DEPARTURE_NOT_A_DEPARTURE at the
+    entry's own path, in the --request pass beside
+    FORECAST_DEPARTURE_UNDECLARED; warning tier, never a finding."""
+
+    CODE = "FORECAST_DEPARTURE_NOT_A_DEPARTURE"
+
+    def lint_with(self, scope: list, entries: list) -> list:
+        self.with_request(resolved_scope=scope, readme=None)
+        self.with_self_reported(docs_read=["AGENT.md"],
+                                forecast_departures=entries)
+        code, report = self.lint_request()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertTrue(report["ok"], "a warning never gates")
+        return self.codes(report["warnings"], self.CODE)
+
+    def test_entry_inside_the_forecast_warns(self):
+        for scope in (["src"], ["src/new.txt"], ["."]):
+            with self.subTest(scope=scope):
+                hits = self.lint_with(scope, [{"path": "src/new.txt",
+                                               "why": "thought it left"}])
+                self.assertEqual(len(hits), 1)
+                self.assertEqual(hits[0]["got"], "src/new.txt")
+                self.assertEqual(
+                    hits[0]["path"], "manifest.json:$.feedback."
+                    "self_reported.forecast_departures[0].path")
+                self.assertIn("inside", hits[0]["message"])
+
+    def test_entry_naming_no_change_warns(self):
+        hits = self.lint_with(["docs"], [
+            {"path": "src/new.txt", "why": "real departure"},
+            {"path": "src/ghost.txt", "why": "never shipped"}])
+        self.assertEqual(len(hits), 1, hits)
+        self.assertEqual(hits[0]["got"], "src/ghost.txt")
+        self.assertIn("forecast_departures[1]", hits[0]["path"])
+        self.assertIn("no changes[]", hits[0]["message"])
+
+    def test_true_departure_is_quiet(self):
+        self.assertEqual(self.lint_with(
+            ["docs"], [{"path": "src/new.txt", "why": "the goal"}]), [])
+
+    def test_human_report_names_the_path(self):
+        self.lint_with(["src"], [{"path": "src/new.txt", "why": "x"}])
+        human = run_lint(str(self.rdir), "--request", str(self.request))
+        self.assertEqual(human.returncode, 0, human.stdout)
+        warn = [ln for ln in human.stdout.splitlines()
+                if ln.startswith("[WARN] forecast-departures")]
+        self.assertTrue(any("src/new.txt" in ln for ln in warn),
+                        human.stdout)
+
+    def test_without_the_flag_nothing_is_judged(self):
+        self.with_self_reported(docs_read=["AGENT.md"],
+                                forecast_departures=[
+                                    {"path": "src/ghost.txt", "why": "x"}])
+        code, report = self.lint_json()
+        self.assertEqual(code, 0, report["findings"])
+        self.assertEqual(self.codes(report["warnings"], self.CODE), [])
+
+
 class ReadmeInDocsReadWarning(_RequestFlagResponse):
     """Wave 10's tools micro, item 3 (the opener-reword-code-004
     proposal): with --request, a non-null readme key and no docs_read

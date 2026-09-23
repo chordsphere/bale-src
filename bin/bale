@@ -153,6 +153,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     format_unlock_json,
     json_mode,
     telemetry_dir,
+    telemetry_home_display,
     telemetry_record_path,
     write_telemetry_record,
     format_stats_json,
@@ -162,7 +163,7 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
 )
 
 # The `bale stats` aggregation core — corpus loading, parsing tolerances,
-# unit classification, and rate computation over claude/telemetry/ — lives
+# unit classification, and rate computation over <agent_dir>/telemetry/ — lives
 # in the sibling bale_stats module (net-new in v0.3.24, board 5 D6, the
 # eighth sibling; same sys.path-insert mechanism as the seven above, and
 # like bale_rollback a from-the-start module rather than an extraction).
@@ -2396,7 +2397,7 @@ def describe_non_open_session(repo: Path, sid: str) -> str:
     Board 71: a refusal that says only "not open" leaves the operator
     guessing between a stale tarball and the wrong repo. Three facts
     separate the cases, checked cheapest-first: a telemetry record at
-    claude/telemetry/<sid>.json means the session ran here and is
+    <agent_dir>/telemetry/<sid>.json means the session ran here and is
     closed — its envelope `outcome` is the last recorded event; a
     session dir with no open marker and no record is a closed session
     whose record never landed (or a consumed bailout kept for handoff);
@@ -5826,7 +5827,8 @@ def cmd_stats(args) -> int:
 
     Read-only: no lock, no git or filesystem writes, no clean-tree
     requirement, exit 0 on a successful read (the `bale status`
-    posture). Reads tracked `claude/telemetry/` ONLY — never `.bale/`
+    posture). Reads tracked `<agent_dir>/telemetry/` ONLY (`claude/telemetry/`
+    by default; [layout] agent_dir moves it) — never `.bale/`
     (board 5 D1: the transient side varies by checkout and would poison
     the rates) — and degrades gracefully when the directory is absent
     or empty: an honest empty report, exit 0, not an error. Outside a
@@ -5863,7 +5865,8 @@ def cmd_stats(args) -> int:
     # `claude` when unset; bale_report.telemetry_dir is the one home.
     corpus_dir = telemetry_dir(base)
     if args.sid is not None:
-        return _stats_dossier(args, corpus_dir)
+        return _stats_dossier(args, corpus_dir,
+                              telemetry_home_display(base))
     since = None
     if args.since:
         try:
@@ -5877,15 +5880,19 @@ def cmd_stats(args) -> int:
     if args.json:
         emit_json_line(format_stats_json(stats))
     else:
-        print(format_stats_report(stats))
+        print(format_stats_report(
+            stats, telemetry_home=telemetry_home_display(base)))
     return 0
 
 
-def _stats_dossier(args, telemetry_dir: Path) -> int:
+def _stats_dossier(args, telemetry_dir: Path,
+                   telemetry_home: str) -> int:
     """The `bale stats --sid SID` branch of cmd_stats (its docstring
     carries the contract): refuse the non-composing filters, a blank sid,
     and an unusable telemetry dir through fail(); otherwise compute and
-    render the dossier, exit 0 — found or not."""
+    render the dossier, exit 0 — found or not. `telemetry_home` is the
+    configured directory as the not-found miss names it (v0.4.44, row
+    124: bale_report.telemetry_home_display)."""
     combined = [flag for flag, value in (("--work-class", args.work_class),
                                          ("--since", args.since))
                 if value is not None]
@@ -5906,7 +5913,8 @@ def _stats_dossier(args, telemetry_dir: Path) -> int:
     if args.json:
         emit_json_line(format_session_dossier_json(dossier))
     else:
-        print(format_session_dossier_report(dossier))
+        print(format_session_dossier_report(
+            dossier, telemetry_home=telemetry_home))
     return 0
 
 
@@ -5962,6 +5970,47 @@ class SubcommandHelpFormatter(argparse.RawDescriptionHelpFormatter):
                 rendered.append(argparse.HelpFormatter._fill_text(
                     self, block, width, indent))
         return "\n\n".join(rendered)
+
+
+# The token `bale stats`'s description carries where it names the
+# telemetry home (v0.4.44, board row 124). StatsHelpFormatter swaps it
+# for the configured `<agent_dir>/telemetry/` at the moment help is
+# rendered — never at parser build, which runs on every invocation
+# before any repo is resolved, and never through a fatal config read.
+TELEMETRY_HOME_TOKEN = "@TELEMETRY_HOME@"
+
+
+def telemetry_home_for_help() -> str:
+    """The telemetry home as `bale stats --help` names it: the configured
+    `<agent_dir>/telemetry/` of the repo containing cwd, the default
+    outside a repo or with no [layout] key, and the default plus a
+    parenthetical when the config cannot be read — help never fails.
+    Outside a repo (or with git absent) the default renders."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                           cwd=Path.cwd(), capture_output=True, text=True)
+        repo = Path(r.stdout.strip()) if r.returncode == 0 else None
+    except OSError:
+        repo = None
+    name, note = bale_config.layout_agent_dir_for_display(repo)
+    home = f"{name}/telemetry/"
+    if note is not None:
+        return (f"{home} (the default — this repo's [layout] agent_dir "
+                f"could not be read: {note})")
+    return home
+
+
+class StatsHelpFormatter(SubcommandHelpFormatter):
+    """SubcommandHelpFormatter plus one substitution: TELEMETRY_HOME_TOKEN
+    in the description becomes telemetry_home_for_help()'s rendering.
+    Resolved lazily, per render, so building the parser stays free of
+    repo and config reads."""
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        if TELEMETRY_HOME_TOKEN in text:
+            text = text.replace(TELEMETRY_HOME_TOKEN,
+                                telemetry_home_for_help())
+        return super()._fill_text(text, width, indent)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -7372,12 +7421,16 @@ def build_parser() -> argparse.ArgumentParser:
     # stats
     p_stats = sub.add_parser(
         "stats",
-        formatter_class=SubcommandHelpFormatter,
-        help="Aggregate the claude/telemetry/ corpus into trust-ledger "
-             "rates.",
+        formatter_class=StatsHelpFormatter,
+        # The one-line listing names no path (the top-level parser's
+        # formatter has no repo to render one from); the description
+        # renders the configured home (v0.4.44, row 124).
+        help="Aggregate the telemetry corpus into trust-ledger rates.",
         description=(
-            "Read-only aggregation over the tracked claude/telemetry/ "
-            "corpus (BALE.md \u00a75.6): per-work-class claim/verdict "
+            f"Read-only aggregation over the tracked "
+            f"{TELEMETRY_HOME_TOKEN} corpus ([layout] agent_dir in "
+            f"bale.toml; claude when unset) "
+            "(BALE.md \u00a75.6): per-work-class claim/verdict "
             "agreement, HOLD, drift-refusal, bailout, and clarification "
             "rates, the closure mix, epoch and coverage rows, and the "
             "dual-stream cross-checks. Takes no lock, writes nothing, "

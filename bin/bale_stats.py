@@ -9,7 +9,8 @@ classification, and rate computation. The division per the ratified board
 5 brief (D6): this module computes, `bale_report.format_stats_json` /
 `format_stats_report` render, `bin/bale` wires the subcommand.
 
-The corpus is `claude/telemetry/*.json` — the tracked per-session records
+The corpus is `<agent_dir>/telemetry/*.json` (`claude/telemetry/` by
+default, bale_report.telemetry_dir) — the tracked per-session records
 `schemas/telemetry-record.schema.json` describes — and NOTHING ELSE. In
 particular `bale stats` never reads `.bale/` (D1): the transient side
 varies by checkout, and an input that varies by checkout would poison
@@ -180,7 +181,7 @@ def _record_shape_ok(loaded: object) -> bool:
 
 
 def load_corpus(telemetry_dir: Path) -> tuple[list[dict], list[str], list[str]]:
-    """Load every claude/telemetry/*.json record, tolerantly.
+    """Load every <agent_dir>/telemetry/*.json record, tolerantly.
 
     Returns (records, parse_failures, filtered_record_versions):
     filenames land in the second list when the file is unreadable, not
@@ -1279,7 +1280,7 @@ def _class_row(sessions: list[dict]) -> dict:
 
 def compute_stats(telemetry_dir: Path, *, work_class: Optional[str] = None,
                   since: Optional[str] = None) -> dict:
-    """Compute the full `bale stats` payload over claude/telemetry/.
+    """Compute the full `bale stats` payload over <agent_dir>/telemetry/.
 
     Filter semantics (D6):
     - `since` (ISO date string, inclusive) restricts membership to
@@ -1822,7 +1823,7 @@ def compute_session_dossier(telemetry_dir: Path, sid: str) -> dict:
     """Compute the board 44 level 2 read: one sid rendered whole.
 
     The dossier replaces the hand-jq walk across the record's surfaces
-    with one computed view over `claude/telemetry/` — the same one
+    with one computed view over `<agent_dir>/telemetry/` — the same one
     substrate, and nothing else (D1: never `.bale/`): the record's
     envelope and status, every attempt with its claim/verdict pairs,
     checkpoint stamp, clarification stamp (rounds and preserved-record

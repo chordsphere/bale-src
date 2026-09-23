@@ -43,7 +43,10 @@ request's resolved_scope (directory entries covering their subtrees)
 that no feedback.self_reported.forecast_departures entry names
 (FORECAST_DEPARTURE_UNDECLARED — a warning, because the path may be
 drift the operator admits at apply, where bale's own-forecast gate
-enforces), and `readme-in-docs-read` warns README_NOT_IN_DOCS_READ
+enforces) and, conversely, every declared entry that is not a
+departure — its path inside resolved_scope, or naming no changes[]
+path (FORECAST_DEPARTURE_NOT_A_DEPARTURE, same tier) — and
+`readme-in-docs-read` warns README_NOT_IN_DOCS_READ
 when the request's `readme` key is non-null (a brief shipped) and no
 docs_read entry names README.md. Without the flag both report [SKIP].
 
@@ -1447,6 +1450,12 @@ def check_forecast_departures(ctx: dict) -> list[dict]:
     visible before packing. An entry's `why` is the schema's to judge
     (minLength 1), so a crafter-seeded stub left unfilled is a schema
     finding, not this check's.
+
+    The converse (v0.4.44): a declared entry that is not a departure —
+    its path inside resolved_scope, or naming no changes[] path — warns
+    FORECAST_DEPARTURE_NOT_A_DEPARTURE at the entry's own path, same
+    tier, because it asks the operator to admit something that needs no
+    admission (or does not ship).
     """
     request = ctx.get("request")
     if request is None:
@@ -1485,6 +1494,44 @@ def check_forecast_departures(ctx: dict) -> list[dict]:
             "(TARBALL.md 5.4)",
             headline=f"{path} has no forecast_departures entry",
         ))
+    # The declared side (v0.4.44, the registry rider): an entry that
+    # declares a departure which is not one — its path inside the
+    # forecast, or naming no changes[] path at all. Same warning tier:
+    # a spurious declaration misleads the operator's admission at apply
+    # (they would be asked to admit a path that needs no admission, or
+    # does not ship), but it breaks nothing bale enforces.
+    change_paths = {e.get("path") for e in changes if isinstance(e, dict)}
+    for j, d in enumerate(declared_raw if isinstance(declared_raw, list)
+                          else []):
+        dpath = d.get("path") if isinstance(d, dict) else None
+        if not isinstance(dpath, str) or not dpath:
+            continue  # the schema check filed it
+        where = (f"manifest.json:$.feedback.self_reported"
+                 f".forecast_departures[{j}].path")
+        if dpath not in change_paths:
+            out.append(warning(
+                "FORECAST_DEPARTURE_NOT_A_DEPARTURE", where,
+                "a changes[] path outside resolved_scope",
+                dpath,
+                f"forecast_departures declares {dpath}, but no changes[] "
+                f"entry has that path — a departure is a path this "
+                f"response ships; drop the entry, or correct its path to "
+                f"the changes[] path it meant (TARBALL.md 5.4)",
+                headline=f"{dpath} is declared but ships in no changes[] "
+                         f"entry",
+            ))
+        elif path_in_forecast(dpath, scope):
+            out.append(warning(
+                "FORECAST_DEPARTURE_NOT_A_DEPARTURE", where,
+                "a changes[] path outside resolved_scope",
+                dpath,
+                f"forecast_departures declares {dpath}, but it lies inside "
+                f"the request's resolved_scope {scope!r} — it needs no "
+                f"admission at apply; drop the entry (and its notes.md "
+                f"enumeration) (TARBALL.md 5.4)",
+                headline=f"{dpath} is declared but lies inside the "
+                         f"forecast",
+            ))
     return out
 
 

@@ -498,6 +498,26 @@ def is_bundle_file(rel: str) -> bool:
     return rel.endswith(BUNDLE_SUFFIX)
 
 
+def format_bundle_naming_refusal(offenders: list) -> str:
+    """The planner-bundle blindness refusal text, one wording for both
+    of cmd_pack's sites (v0.4.44: the pre-exchange pass,
+    pack_pre_exchange_gates, and the post-wizard site). `offenders` is
+    a list of (flag, entry) pairs."""
+    rendered = "; ".join(f"{flag} {entry}" for flag, entry in offenders)
+    return (
+        f"planner-bundle blindness: {rendered} explicitly names a "
+        f"planner bundle ({BUNDLE_SUFFIX} is the reserved bundle "
+        f"suffix, BALE.md \u00a76.7). Bundles carry the planner's "
+        f"blind checkpoint and never ship to — or take landed "
+        f"changes from — the worker they grade; there is no "
+        f"admission flag. Drop the naming entry (a broader "
+        f"directory entry is fine: covered bundle files "
+        f"auto-exclude at the walk with a loud drop line), or "
+        f"rename a non-bundle file that merely collides with the "
+        f"suffix."
+    )
+
+
 def bundle_named_entries(entries: list[str]) -> list[str]:
     """Return the entries that explicitly name a planner bundle file.
 
@@ -1797,6 +1817,130 @@ def pack_argv_preflight(repo: Path, args: argparse.Namespace) -> None:
             repo, resolve_write_forecast(args), caller="pack",
             pending_supersession=(args.supersedes.strip()
                                   if args.supersedes else None))
+
+
+def pack_pre_exchange_gates(repo: Path, args: argparse.Namespace, *,
+                            read_includes: list,
+                            gate_deferred: bool) -> bool:
+    """The argv-only pack gates, run before any exchange that writes
+    another session's state (v0.4.44, board row 121).
+
+    The defect this closes: cmd_pack's two state-changing exchanges —
+    the `--supersedes` close (_resolve_supersession) and the read-only
+    sweep (_run_readonly_sweep) — both write onto ANOTHER session's
+    telemetry record and registry, and several refusals that can be
+    decided from the argv alone used to fire after them. The specimen
+    was a read-only bundle whose argv named `--include
+    claude/checkpoints`: the replay accepted the pre-answered
+    supersession, closed the parent superseded-by-split, and only then
+    refused at the read-side include-naming half of the blindness
+    gate — a closure stamped by a pack that produced no child. The
+    idempotent re-run recovered it; recovered is not never happened.
+    This pass runs every gate that can refuse on argv (plus the
+    committed tree, which no exchange changes) BEFORE the first
+    exchange, so an argv defect refuses with nothing written anywhere.
+
+    The gates, in the order they run here (each the one implementation
+    its later site also runs — those sites stay, cheap and harmless,
+    because the wizard can fill --slug, the goal, and --write after
+    this point):
+
+    1. slug shape (is_valid_slug) and non-empty goal — when given on
+       the command line; a wizard-collected value is validated at its
+       original site;
+    2. forecast existence — refuse_missing_scope_paths over the typed
+       --include and --write entries;
+    3. planner-bundle naming — an --include or typed --write entry
+       that IS a bundle file;
+    4. the --max-files / --max-size / --max-depth values;
+    5. checkpoint blindness. On the non-deferred path (the forecast is
+       final at arg-parse, forecast_final_at_parse) the WHOLE gate runs
+       here and its admission flag is returned — this is its one site on
+       that path now, still ahead of the disjointness gate, which stays
+       where the supersession exchange leaves it (the exchange clears
+       exactly the parent's collision, so that gate must run after it).
+       On the deferred (wizard) path the forecast half cannot be judged
+       yet, so only the read half runs here — the include set is final
+       at arg-parse, the wizard never collects includes — and only
+       without --allow-checkpoint-in-scope (an admitted read half
+       refuses nothing; its admission is stamped by the full post-wizard
+       run, which stays at its site). Returns False on that path.
+
+    What stays after the exchange, deliberately: the disjointness gate
+    (it must see the post-exchange registry), the declined-supersession
+    refusal (it is a verdict on the exchange itself), and the read-only
+    sweep (itself a state-writing exchange). Sited in cmd_pack, not in
+    pack_argv_preflight: `bale open` replays through cmd_pack, so the
+    open path is covered by this same pass, and pack_argv_preflight's
+    surface stays exactly what it was (row 122 extends it next).
+
+    Refusals are the gates' own text, via fail(); passing logs one line
+    naming the pass so a session log shows it ran before the exchange.
+    """
+    from __main__ import fail, is_valid_slug, log  # lazy — see module docstring
+
+    # 1. Slug and goal, when the command line supplied them.
+    if args.slug is not None and not is_valid_slug(args.slug):
+        fail(
+            f"--slug must be kebab-case (lowercase letters, digits, "
+            f"hyphens; no leading/trailing/double hyphens): got {args.slug!r}"
+        )
+    if args.goal is not None and not args.goal.strip():
+        fail("goal must be non-empty.")
+
+    # 2. Forecast existence (the typed entries; wizard-collected --write
+    #    entries were validated at the prompt).
+    refuse_missing_scope_paths(repo, list(args.include), list(args.write))
+
+    # 3. Planner-bundle naming — the same refusal text as the post-wizard
+    #    site (format_bundle_naming_refusal is the one wording).
+    bundle_offenders = (
+        [("--include", e) for e in bundle_named_entries(list(args.include))]
+        + [("--write", e) for e in bundle_named_entries(list(args.write))])
+    if bundle_offenders:
+        fail(format_bundle_naming_refusal(bundle_offenders))
+
+    # 4. The cap flags' values (PackCaps is built from them later).
+    if args.max_files is not None and args.max_files < 1:
+        fail(f"--max-files must be >= 1; got {args.max_files}")
+    if args.max_size is not None:
+        try:
+            parse_size_arg(args.max_size)
+        except ValueError as e:
+            fail(str(e))
+    if args.max_depth is not None and args.max_depth < 0:
+        fail(f"--max-depth must be >= 0; got {args.max_depth}")
+
+    # 5. Checkpoint blindness.
+    admitted = False
+    if not gate_deferred:
+        admitted = checkpoint_blindness_preflight(
+            repo, resolve_write_forecast(args),
+            allow=args.allow_checkpoint_in_scope,
+            read_includes=read_includes,
+            # v0.4.9: the forecast half keys on a DECLARED forecast — a
+            # typed --write, or the read-only shape (whose empty forecast
+            # covers nothing anyway). The include-set default is
+            # governed by the read-side explicit-naming rule.
+            forecast_declared=bool(args.write) or args.read_only)
+    elif not args.allow_checkpoint_in_scope:
+        # Read half only: an empty, undeclared forecast makes the
+        # forecast half vacuous, so the call judges the includes (and
+        # the dangling-at-tip check, which no exchange changes either).
+        checkpoint_blindness_preflight(
+            repo, [], allow=False, read_includes=read_includes,
+            forecast_declared=False)
+
+    # Wording note: "planner-bundle" is reserved for the bundle drop and
+    # refusal lines (tests/test_bundle_denylist.py pins that a clean
+    # pack prints it nowhere), so this passing line says "bundle-file".
+    log("argv-only pack gates passed before any exchange (slug/goal, "
+        "forecast existence, bundle-file naming, cap values, "
+        "checkpoint blindness"
+        + (" read half — the forecast half runs post-wizard"
+           if gate_deferred else "")
+        + ")")
+    return admitted
 
 
 def config_judgment_suffix(repo: Optional[Path]) -> str:
@@ -3613,7 +3757,7 @@ def sweep_superseded_by_stamp(repo: Path, parent_sid: str,
     minted, stamp_superseded_by enriches that already-committed attempt
     with `superseded_by: <child>`, and nothing committed the rewrite:
     with telemetry tracked and the sweep on, an accepted supersession
-    left ` M claude/telemetry/<parent>.json` behind — the very dirt the
+    left ` M <agent_dir>/telemetry/<parent>.json` behind — the very dirt the
     next apply's dirty-target pre-flight then refuses.
 
     The fix sweeps the stamp as its own event, on the same contract as
@@ -3654,7 +3798,7 @@ def sweep_swept_by_stamp(repo: Path, swept_sid: str, pack_sid: str,
     as `[bale sweep <swept>] closed-read-only`. Once the sweeping
     pack's sid exists, stamp_swept_by rewrites that committed record
     to add `swept_by: <pack-sid>`; without this second sweep the pack
-    would leave ` M claude/telemetry/<swept>.json` behind for the next
+    would leave ` M <agent_dir>/telemetry/<swept>.json` behind for the next
     apply's dirty-target pre-flight to refuse.
 
     Same contract as every sweep: pathspec-only on the one rewritten
@@ -4374,8 +4518,24 @@ def _opener_lines(text: str) -> list:
     )
 
 
+def desk_qualified_name(sid: str, desk: str) -> str:
+    """`<sid>@<desk>` — the name a second desk's chat calls itself
+    (v0.4.44, row 123). `@` cannot occur in a session id, so the name
+    can never be mistaken for, or pasted as, a sid."""
+    return f"{sid}@{desk}"
+
+
+def desk_opener_sentence(sid: str, desk: str) -> str:
+    """The second-desk paragraph session_opener_block adds (row 123)."""
+    return (f"This is desk {desk} of that session: it is already open at "
+            f"another desk, and this chat joins it rather than opening a "
+            f"new one. Name this chat {desk_qualified_name(sid, desk)}; the "
+            f"session id stays {sid} in everything bale reads.")
+
+
 def session_opener_block(sid: str, goal: str, *, read_only: bool,
-                         packed_at: str, has_readme: bool) -> list:
+                         packed_at: str, has_readme: bool,
+                         desk: Optional[str] = None) -> list:
     """The session-opening chat paragraph, as report lines (board 52).
 
     Pack's end-of-run report ends with this block on every pack shape —
@@ -4411,6 +4571,13 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
     the reading instructions, still pre-empting the chat's own date
     before the worker dates anything.
 
+    `desk` (v0.4.44, board row 123): set only by `bale open`'s second-
+    desk path — a further open of a bundle whose session is still open.
+    It adds one wrapped paragraph right after the identity line(s),
+    naming the desk-qualified name `<sid>@<desk>` the new chat calls
+    itself and stating that the sid bale reads is unchanged. None (every
+    pack) leaves the block byte-for-byte as before.
+
     Pure: builds the lines, prints nothing. The caller decides the
     surface (trailer vs post-JSON print).
     """
@@ -4422,6 +4589,8 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
         ]
     else:
         identity = [f"This message opens bale session {sid}."]
+    if desk is not None:
+        identity += _opener_lines(desk_opener_sentence(sid, desk))
     reading = (OPENER_READING_WITH_README_SENTENCE if has_readme
                else OPENER_READING_NO_README_SENTENCE)
     deliverable = (OPENER_DELIVERABLE_PLANNER_SENTENCE if read_only
@@ -4872,6 +5041,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         format_pack_sweep_entry,
         format_summary_block,
         format_tree_position,
+        telemetry_home_display,
         tree_position_rows,
     )
     from bale_validate import validate_request_manifest  # lazy — see module docstring
@@ -5209,6 +5379,25 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # whose namespaces lack the attribute, on the no-intents path).
     # Parsed here, at the reject-early site just before the one
     # consumer, so a malformed block refuses before any exchange runs.
+    #
+    # Argv-only gates before any state-changing exchange (v0.4.44,
+    # board row 121): the supersession close below and the read-only
+    # sweep further down both write another session's state, so every
+    # refusal the argv alone can decide runs first — see
+    # pack_pre_exchange_gates for the list and what deliberately stays
+    # behind. Wizard engagement and the gate deferral are argv facts,
+    # so they are decided here rather than after the exchange.
+    wizard_engaged = args.goal is None or args.slug is None
+    # The deferral rule is forecast_final_at_parse's (board 68: one
+    # implementation, shared with `bale open`'s pre-flight).
+    gate_deferred = not forecast_final_at_parse(args)
+    checkpoint_scope_admitted = pack_pre_exchange_gates(
+        repo, args,
+        # The group's read-side additions ride into the read includes
+        # (board 64): they will ship in context/, so the read-half
+        # blindness key must see them.
+        read_includes=resolved_scope(list(args.include) + group_adds),
+        gate_deferred=gate_deferred)
     try:
         pre_answered_intents = parse_pre_answered_intents(
             getattr(args, "pre_answered", None))
@@ -5277,12 +5466,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # where the forecast is already final — fully specified CLI,
     # --read-only given, or --write given — the gate fires here, in
     # pre-flight before any prompt, exactly as before.
-    wizard_engaged = args.goal is None or args.slug is None
-    # The deferral rule is forecast_final_at_parse's (board 68: one
-    # implementation, shared with `bale open`'s pre-flight).
-    gate_deferred = not forecast_final_at_parse(args)
+    # wizard_engaged and gate_deferred were decided before the exchange
+    # (v0.4.44, row 121), where the argv-only pass needed them.
     admitted_alongside: Optional[tuple] = None
-    checkpoint_scope_admitted = False
     if not gate_deferred:
         # The resolved write forecast (ADR-0015): [] for a read-only
         # pack; the --write set when the flag was typed; the resolved
@@ -5290,25 +5476,11 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # default (a pack with no --write behaves byte-for-byte as
         # before the separation). resolve_write_forecast is the one
         # implementation (board 68), shared with open's pre-flight.
+        # The checkpoint blindness gate for this path ran in
+        # pack_pre_exchange_gates (v0.4.44) — still ahead of this
+        # disjointness gate, and now ahead of the supersession
+        # exchange too; checkpoint_scope_admitted carries its verdict.
         _early_scope = resolve_write_forecast(args)
-        # Checkpoint blindness gate (v0.3.28, board 6 session C; BALE.md
-        # §7.1 step 4b) — before the disjointness gate, so a self-oracle
-        # forecast (or a read include set that would ship the oracle's
-        # bytes, the ADR-0015 read-side half) is refused ahead of any
-        # forecast-collision conversation. The include set is final at
-        # arg-parse (the wizard never collects includes), so the read
-        # side is checked at whichever site the gate fires from.
-        checkpoint_scope_admitted = checkpoint_blindness_preflight(
-            repo, _early_scope, allow=args.allow_checkpoint_in_scope,
-            # The group's read-side additions ride into the read
-            # includes (board 64): they will ship in context/, so the
-            # read-half blindness key must see them.
-            read_includes=resolved_scope(list(args.include) + group_adds),
-            # v0.4.9: the forecast half keys on a DECLARED forecast —
-            # a typed --write, or the read-only shape (whose empty
-            # forecast covers nothing anyway). The include-set default
-            # is governed by the read-side explicit-naming rule.
-            forecast_declared=bool(args.write) or args.read_only)
         admitted_alongside = _run_scope_gate(_early_scope)
 
     # Wizard entry (BALE.md §7.3). Engaged when either of the required
@@ -5507,20 +5679,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         [("--include", e) for e in bundle_named_entries(list(args.include))]
         + [("--write", e) for e in bundle_named_entries(list(args.write))])
     if bundle_offenders:
-        rendered = "; ".join(f"{flag} {entry}"
-                             for flag, entry in bundle_offenders)
-        fail(
-            f"planner-bundle blindness: {rendered} explicitly names a "
-            f"planner bundle ({BUNDLE_SUFFIX} is the reserved bundle "
-            f"suffix, BALE.md \u00a76.7). Bundles carry the planner's "
-            f"blind checkpoint and never ship to — or take landed "
-            f"changes from — the worker they grade; there is no "
-            f"admission flag. Drop the naming entry (a broader "
-            f"directory entry is fine: covered bundle files "
-            f"auto-exclude at the walk with a loud drop line), or "
-            f"rename a non-bundle file that merely collides with the "
-            f"suffix."
-        )
+        fail(format_bundle_naming_refusal(bundle_offenders))
 
     # Pack threshold caps (BALE.md §7.4). The --max-* flags override only
     # the hard caps; the soft caps stay at PACK_MAX_*_SOFT so the prompt
@@ -5855,7 +6014,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # child's journal is where a later reader traces this pack, and
         # the parent's telemetry record carries the durable closure.
         log(f"supersedes {superseded_sid}: closed as superseded-by-split "
-            f"(closure record at claude/telemetry/{superseded_sid}.json); "
+            f"(closure record at "
+            f"{telemetry_home_display(repo)}{superseded_sid}.json); "
             f"lineage stamped in depends_on.superseded_session")
         # Reverse lineage (v0.3.23, board 5 D4): stamp superseded_by on
         # the parent's closure attempt, now that the child sid exists.
@@ -5882,7 +6042,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # the close events ran pre-sid; the durable closure lives in
         # each swept sid's telemetry record.
         log(f"read-only sweep: closed {', '.join(swept_sids)} as "
-            f"closed-read-only (closure record(s) under claude/telemetry/)")
+            f"closed-read-only (closure record(s) under "
+            f"{telemetry_home_display(repo)})")
         # The sweeping pack's sid on each closure (v0.4.40, board 104b
         # item 3): the sweep ran pre-sid, so the closed-read-only
         # attempts were written without it — enrich each now, the
