@@ -1,0 +1,236 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-23-board-100-w1-doc-sweep-002",
+  "created_at": "2026-09-23T01:04:36+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-23T01:04:36+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "docs",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-100-w1-doc-sweep-002.log",
+      "bundle": {
+        "stem": "2026-09-23-board-100-w1-doc-sweep",
+        "brief_sha256": "b81a8d613ad9788907a23a9fff180a3d31b8f6426a2a91397cf8bfc1d5a5b294",
+        "checkpoint_sha256": "058975d00a37413da5e6ec4b7e7e74ef29348f9fc076dc3816580538c69f50e9",
+        "manifest_sha256": "9bfac5b002d0e3d0483e8e865a504b1ba61d8be40b4de00d8b186668d86ce523"
+      },
+      "provenance": {
+        "work_class": "contract-doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-23T01:04:35+00:00"
+      }
+    },
+    {
+      "at": "2026-09-23T01:45:46+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-23-board-100-w1-doc-sweep-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests (doc suites)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unit tests (full suite, --slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions (noun sweep, rulings, pins)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unit tests (doc suites)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit tests (full suite, --slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "session assertions (noun sweep, rulings, pins)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (py, sh)",
+          "unit tests (doc suites)",
+          "unit tests (full suite, --slow)",
+          "session assertions (noun sweep, rulings, pins)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "docs",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "overridden_paths": [
+        "tests/test_global_doc_noun.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_global_doc_noun.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "README.md",
+        "docs/CLAUDE.md",
+        "docs/CODE.md",
+        "docs/DOCS.md",
+        "docs/PLANNER.md",
+        "docs/TARBALL.md",
+        "tests/test_doc_crossrefs.py",
+        "tests/test_global_doc_noun.py",
+        "tests/test_sanctioned_pairs.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.41",
+            "contract_docs": {
+              "CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "TARBALL.md": "7957d1f458b9e48e6dbee7407dc8a606f1d6f6c851df833b9f9b1a2cea112686",
+              "DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53"
+            },
+            "packer": "chordsphere",
+            "work_class": "contract-doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-23-board-100-w1-doc-sweep-002.sh",
+              "sha256": "058975d00a37413da5e6ec4b7e7e74ef29348f9fc076dc3816580538c69f50e9"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-23T01:04:35+00:00",
+            "base_files": {
+              "README.md": "df1203fb1505fc82085957f0d12835bdc57e36be9a7967179f1dd5eba0627a53",
+              "docs/CLAUDE.md": "c20fed1862783f4a895a8566a72cf1275cd1145803afb4c831340d2e7829b8d5",
+              "docs/CODE.md": "d3ac27811a92b265d8f4c394b511392b31de4fcd4946f9ed042ca7210cd5edb9",
+              "docs/DOCS.md": "c6bc4146da3c231698439c70e53e28a88ddabfb10eb5ca590aaef53f47ffe7a5",
+              "docs/PLANNER.md": "82521c4eab3cf366ceb31afae3574b3728a9f5b8000e7b7b7c4df0e604501a53",
+              "docs/TARBALL.md": "7957d1f458b9e48e6dbee7407dc8a606f1d6f6c851df833b9f9b1a2cea112686",
+              "tests/test_doc_crossrefs.py": "e1d1165d899c42134db0319a9c2036c6b65fa85bd28958178d9f0de5ded708aa",
+              "tests/test_sanctioned_pairs.py": "293bc2e9e82e571b7faef1ba0acf1acd80363fba68a68cc5e7fe0d00e8592abc"
+            },
+            "model_identity": "anthropic:claude-fable-5.1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The 11.7 claude.ai row's three cells are written from this session's own surface (auto-compaction at the edge, Continue resumes a paused tool loop, the model picker shows the model string); the operator owns the table and corrects any cell that reads wrong on their surface.",
+            "A hyphenated compound counts as the noun or the inject word: `Claude-detected` and `bale-injected` were swept, and the guard's word boundaries treat a hyphen as a boundary."
+          ],
+          "judgment_calls": [
+            "Hat noun \"the worker\" chosen over \"the agent\" in TARBALL.md sentences that mean the response builder (5.1, 5.1.1, 5.2's deferred/claims/bailout bullets, 5.3 whole, 5.4's notes.md bullets, 5.8's context_loaded verdict, 7's lead and 7.2, 3.1's context sentence, 3.2's constraints/out_of_scope/expects_probe/context_included bullets, 3.4's rescope-offer sentences, 4.2's block sentence); every other site keeps the role-neutral noun, including the bailout and handoff prose, which a planner session can also emit.",
+            "TARBALL.md 1's roles bullet no longer says the old noun and worker read as the same party; it now states the noun rule itself (role-neutral default, hat nouns per sentence) and keeps the worker-facing-prose reading.",
+            "The new guard is a separate file rather than a fourth deny table in test_global_doc_selfcontainment.py, because that file is out of scope for this session (its INJECTED_TOOLS mirror is W3's).",
+            "An INDEX read-paths row was added for 11.7 so the past-the-core rule (read a subsection only when its trigger row fires) has a trigger for it; the brief named the table and the banner, not the row.",
+            "The full unit suite is gated behind --slow in validation.sh (it runs ~5 minutes; the 7.6 target is 2), with the four doc suites run unconditionally; both were run here and both are claimed observed."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "CLAUDE.md (in full, META through 11.6)",
+            "README.md (the brief)",
+            "TARBALL.md (in full)",
+            "DOCS.md (in full)",
+            "CODE.md (in full)",
+            "PLANNER.md (in full)",
+            "README.md at the repo root (bale's own README, the sixth swept file)",
+            "tests/test_doc_crossrefs.py",
+            "tests/test_sanctioned_pairs.py",
+            "tests/test_global_doc_selfcontainment.py",
+            "tests/harness.py (normalize)",
+            "tools/craft_response.py (docstring, help, sections 7-8, CLI)",
+            "tools/response_lint.py (docstring, embedded schema, feedback emission, main)",
+            "claude/context/adr/0012-agent-driven-substrate.md"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_global_doc_noun.py",
+              "why": "the brief left the denied-token guard to the worker's call and said it lands as enumerated drift under tests/; the sweep is a prose change with no mechanical pin behind it otherwise, and the checkpoint grades the applied tree's vocabulary, so the guard is what keeps the outcome true after this session"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-09-23-board-100-w1-doc-sweep-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-23-board-100-w1-doc-sweep-002.sh",
+          "sha256": "058975d00a37413da5e6ec4b7e7e74ef29348f9fc076dc3816580538c69f50e9"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-23T01:45:46+00:00",
+  "outcome": "applied"
+}
