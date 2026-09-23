@@ -379,6 +379,7 @@ SESSION_ONLY_EXAMPLES = {
     "work_class": ["--work-class", "doc"],
     "allow_checkpoint_in_scope": ["--allow-checkpoint-in-scope"],
     "no_include_group": ["--no-include-group", "g"],
+    "dry_run": ["--dry-run"],  # v0.4.45, board row 122
 }
 
 
