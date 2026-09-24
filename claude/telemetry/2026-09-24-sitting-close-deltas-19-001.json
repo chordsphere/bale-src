@@ -1,0 +1,217 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-24-sitting-close-deltas-19-001",
+  "created_at": "2026-09-24T13:38:40+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-24T13:38:40+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-24-sitting-close-deltas-19-001.log",
+      "bundle": {
+        "stem": "2026-09-24-sitting-close-deltas-19",
+        "brief_sha256": "5d736a642ddf465cab0f2ba8ff197101ca5de2687e2b0ea7d722f13a2a16a8d8",
+        "checkpoint_sha256": "af8c8efb0cf803ec1804fa74e929bb0086a5ec59250b7993a2847316dd36aef8",
+        "manifest_sha256": "15f9a59d582d7edfa700123e03ac0c434209c82891f6a33058adc166abeab5f0"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-24T13:38:40+00:00"
+      }
+    },
+    {
+      "at": "2026-09-24T15:56:39+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-09-24-sitting-close-deltas-19-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "reversal: removing the declared insertions and restoring line 14 hashes to the base": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "line 14 names 2026-09-24-sitting-close-deltas-19-001": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "every wave-11 and stemwell sid in the brief appears in MASTER.md": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "\u00a76 numbering continuous past 212: entries 213 to 219, in order, once each": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "\u00a74 numbering continuous past 128: rows 129 to 133, in order, once each": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "the doc's section headings unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "the registry ends on close 19's dispositions entry, directly above its Landed 2026-08-05 anchor": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {},
+        "reconciliation_parsed": false,
+        "validation_will_run": [
+          "reversal: removing the declared insertions and restoring line 14 hashes to the base",
+          "line 14 names 2026-09-24-sitting-close-deltas-19-001",
+          "every wave-11 and stemwell sid in the brief appears in MASTER.md",
+          "\u00a76 numbering continuous past 212: entries 213 to 219, in order, once each",
+          "\u00a74 numbering continuous past 128: rows 129 to 133, in order, once each",
+          "the doc's section headings unchanged",
+          "the registry ends on close 19's dispositions entry, directly above its Landed 2026-08-05 anchor"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "linkage": {
+            "kind": "probe",
+            "point": "pre-build",
+            "depends_on": null
+          },
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "dd22b82cf4b3dc146fa813a862ab03c32d0b94faf8bab5e51218e6cdd5578fed",
+              "TARBALL.md": "59ece7fde0adb7dd5c5f5d902d5cf1078c4562cebb82925aa529df19f22d1c8c",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "meta",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-09-24-sitting-close-deltas-19-001.sh",
+              "sha256": "af8c8efb0cf803ec1804fa74e929bb0086a5ec59250b7993a2847316dd36aef8"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-09-24T13:38:40+00:00",
+            "base_files": {
+              "claude/MASTER.md": "2f64cbffc82cee9cf4f75f177a79c7647899674fe46a559f9e684d8c3a9d879d"
+            },
+            "model_identity": "anthropic:claude-opus-5.5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "the attached context-stemwell_tar.gz is the probe's .bale/outbox/context-stemwell.tar.gz: same sha256 330b928d\u2026513f and size",
+            "the brief's rulings and ratifications are the operator's as it states them; they are chat-carried and no record holds them"
+          ],
+          "judgment_calls": [
+            "records over the brief in four places: the micro's rejected retry, two oracle HOLDs not three, design-010's abandoned unlock closure, and the model-identity spellings as two sources rather than one slip",
+            "the dossier-colon entry retired on reading 'drops' as the entry's own 'droppable' taken",
+            "the \u00a75.2.2 emitter entry kept open for its --fragment clause alone, which row 43's Proposal 2 merges into",
+            "close 18's call-5 rider and row 122's Proposal 2 in one PLANNER.md \u00a74 entry, the fixture rule beside it",
+            "the micro's Proposal 4 recorded as consumed across rows 43 and 122, though the brief does not list it",
+            "the report's five Proposals quoted verbatim on rows 129 to 133, their registry entries pointing at the rows",
+            "both lists of refused wording, the brief's and the report's, carried attributed in \u00a76 entry 218",
+            "the headings check kept though it passes on the base too: a preservation guard the brief asks for"
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "context-stemwell.tar.gz (named in the brief as beside the request; did not reach the chat; located by probe and attached on the reply)"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (META through \u00a711.2)",
+            "README.md",
+            "TARBALL.md \u00a71, \u00a72, \u00a74, \u00a75.1\u2013\u00a75.4.1, \u00a75.10, \u00a77, \u00a710.1, \u00a710.2, \u00a710.4",
+            "PLANNER.md \u00a74 (checkpoint authoring, first half)",
+            "DOCS.md (outline)",
+            "claude/MASTER.md (line 14, \u00a73 watches' end, registry 1587\u20131769, \u00a73 blocks 4800\u20135174, rows 43, 45, 116\u2013128, \u00a75 tail, \u00a76 205\u2013212, \u00a77 tail)",
+            "claude/context/board-45-arc/2026-09-24-board-45-close-008-upward-report.md",
+            "claude/responses/*/notes.md (close 18 and the three wave-11 sessions)",
+            "claude/telemetry/* (by key)",
+            "claude/changelog/0.4.44.json",
+            "claude/changelog/0.4.45.json",
+            "context-stemwell.tar.gz: seven notes.md whole, nine telemetry records by key"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-09-24-sitting-close-deltas-19-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-09-24-sitting-close-deltas-19-001.sh",
+          "sha256": "af8c8efb0cf803ec1804fa74e929bb0086a5ec59250b7993a2847316dd36aef8"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-24T15:56:39+00:00",
+  "outcome": "applied"
+}
