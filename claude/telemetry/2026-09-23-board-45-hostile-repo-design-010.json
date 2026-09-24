@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-09-23-board-45-hostile-repo-design-010",
+  "created_at": "2026-09-23T22:08:26+00:00",
+  "attempts": [
+    {
+      "at": "2026-09-23T22:08:26+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-45-hostile-repo-design-010.log",
+      "bundle": {
+        "stem": "2026-09-23-board-45-hostile-repo-design",
+        "brief_sha256": "b5cb96a0d87d6ec8f0127510b215f28cfcff271da9a6b9b1b7bc98677ef726f7",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "3e64575d3769c3688afe27d0707ed0e9a5f4954e4cea9de4e8dbd5e5370b2f06"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-09-23T22:08:25+00:00"
+      }
+    },
+    {
+      "at": "2026-09-24T00:57:39+00:00",
+      "outcome": "unlocked",
+      "command": "unlock",
+      "closure_reason": "abandoned",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-09-23-board-45-hostile-repo-design-010.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-09-24T00:57:39+00:00",
+  "outcome": "unlocked"
+}
