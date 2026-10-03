@@ -149,8 +149,29 @@ carries B1/B2 session letters, and TARBALL.md's session-id examples
 sit adjacent to any loosely anchored date shape. A merged table
 fails the tree in both directions.
 
-Hermetic and stdlib-only: the files are read from this repo; nothing
-runs.
+A fourth scan group, the generated CLI reference (session
+2026-10-03-bale-cli-reference-003), is rendered rather than read:
+every request carries BALE_HELP.md, which bin/bale's
+render_cli_reference() writes from build_parser() at request-build
+time, so there is no file on disk to scan. The group loads bin/bale
+in-process (tests/harness.py's _load_cli), renders the reference,
+and holds its framing (the header, the contents list, the section
+headings: everything outside the code fences) to the docs-and-tools
+deny table, all three halves. The fenced help text is exempt by
+design, not by oversight: it is bin/bale's own help strings,
+verbatim, and several still cite BALE.md and board rows. Whether the
+release ships BALE.md or a string pass qualifies those citations is
+an open desk ruling this guard does not pre-empt, so the scan
+leaves the bodies alone and the reference's header tells its reader
+that a named document the request does not carry is unreachable.
+``FencedBodiesStripTest`` proves the strip removes exactly the
+fenced bodies, so the exemption cannot quietly widen to the framing.
+
+Stdlib-only. The first three groups are hermetic: the files are read
+from this repo and nothing runs. The reference group executes
+bin/bale's module scope and its render; the only subprocess that
+render starts is `bale stats`'s telemetry-home lookup (a `git
+rev-parse` that cannot fail the render).
 
 Run:  python3 -m unittest tests.test_global_doc_selfcontainment -v
   or: python3 -m unittest discover -s tests -p 'test_global_doc_selfcontainment.py'
@@ -274,6 +295,37 @@ def wrapped_occurrences(text: str, pattern) -> list:
         (text.count("\n", 0, m.start()) + 1, " ".join(m.group(0).split()))
         for m in pattern.finditer(text)
     ]
+
+
+def strip_fenced_bodies(text: str) -> tuple:
+    """Return (framing, block_count): `text` with every backtick-fenced
+    block's body removed, keeping the opening and closing fence lines,
+    plus the number of blocks removed. A fence opens on a line of three
+    or more backticks followed by an info string or nothing, and closes
+    on a line of backticks at least as long (CommonMark's rule, which is
+    what render_cli_reference's fences follow). An unclosed fence is an
+    error, not a silent swallow of the rest of the text."""
+    framing: list = []
+    fence = None
+    blocks = 0
+    opened_at = 0
+    for i, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if fence is None:
+            m = re.match(r"(`{3,})[^`]*$", stripped)
+            framing.append(line)
+            if m:
+                fence, opened_at = m.group(1), i
+        else:
+            if re.fullmatch(r"`{3,}", stripped) and len(stripped) >= len(fence):
+                framing.append(line)
+                fence = None
+                blocks += 1
+            else:
+                framing.append("")  # keep line numbers stable
+    if fence is not None:
+        raise ValueError(f"unclosed code fence opened on line {opened_at}")
+    return "\n".join(framing), blocks
 
 
 class GlobalDocSelfContainment(unittest.TestCase):
@@ -459,6 +511,100 @@ class BoardHyphenAnchorTest(unittest.TestCase):
         loud if it moves."""
         self.assertIn("schemas/changelog-record.schema.json",
                       SCANNED_SCHEMAS)
+
+
+class CliReferenceFramingSelfContainment(unittest.TestCase):
+    """The generated CLI reference's framing carries no project-local
+    citation (module docstring, fourth scan group). Rendered, not read:
+    the reference exists only inside request tarballs."""
+
+    @classmethod
+    def setUpClass(cls):
+        # The dotted run form (`python3 -m unittest tests.<suite>`) does
+        # not put tests/ on sys.path; add it before the bare import, as
+        # tests/test_doc_crossrefs.py does. Imported here, not at module
+        # scope, so the three file-reading groups never depend on the
+        # harness.
+        import sys
+        tests_dir = str(Path(__file__).resolve().parent)
+        if tests_dir not in sys.path:
+            sys.path.insert(0, tests_dir)
+        from harness import _load_cli
+        cli = _load_cli()
+        cls.name = cli.CLI_REFERENCE_NAME
+        cls.reference = cli.render_cli_reference()
+        cls.framing, cls.blocks = strip_fenced_bodies(cls.reference)
+        cls.pages = 1 + sum(1 for _ in cli.iter_command_paths(
+            cli.build_parser()))
+
+    def _assert_framing_clean(self, label: str, hits: list):
+        listing = "\n".join(f"  line {n}: {line.strip()}"
+                            for n, line in hits)
+        self.assertEqual(
+            hits, [],
+            f"{self.name}'s framing (render_cli_reference in bin/bale) "
+            f"carries project-local citation {label!r} — "
+            f"{GlobalDocSelfContainment.INJECTED_DOCTRINE}:\n{listing}")
+
+    def test_every_help_page_is_fenced(self):
+        """One fenced body per help page: the exemption covers exactly
+        the verbatim help, so a page rendered outside a fence would be
+        scanned (and a framing line inside one would hide)."""
+        self.assertEqual(self.blocks, self.pages)
+
+    def test_no_project_local_citations(self):
+        for needle in DENIED_SUBSTRINGS:
+            with self.subTest(needle=needle):
+                self._assert_framing_clean(needle, occurrences(
+                    self.framing, lambda line, n=needle: n in line))
+
+    def test_no_citation_shapes(self):
+        for label, pattern in DENIED_PATTERNS:
+            with self.subTest(shape=label):
+                self._assert_framing_clean(label, occurrences(
+                    self.framing,
+                    lambda line, p=pattern: p.search(line) is not None))
+
+    def test_no_wrapped_pointer_shapes(self):
+        for label, pattern in DENIED_WRAPPED_PATTERNS:
+            with self.subTest(shape=label):
+                self._assert_framing_clean(
+                    label, wrapped_occurrences(self.framing, pattern))
+
+
+class FencedBodiesStripTest(unittest.TestCase):
+    """strip_fenced_bodies, graded on specimens independent of the
+    rendered reference: it removes fenced bodies and nothing else, so
+    the reference group's exemption cannot widen to framing prose."""
+
+    def test_body_removed_framing_kept(self):
+        text = ("intro cites nothing\n"
+                "```text\n"
+                "see BALE.md §8.11\n"
+                "```\n"
+                "outro BALE.md\n")
+        framing, blocks = strip_fenced_bodies(text)
+        self.assertEqual(blocks, 1)
+        self.assertEqual(framing.splitlines(),
+                         ["intro cites nothing", "```text", "", "```",
+                          "outro BALE.md"])
+
+    def test_longer_fence_survives_inner_backticks(self):
+        text = "````text\n```\nBALE.md\n````\nafter\n"
+        framing, blocks = strip_fenced_bodies(text)
+        self.assertEqual(blocks, 1)
+        self.assertNotIn("BALE.md", framing)
+        self.assertIn("after", framing)
+
+    def test_inline_backticks_are_not_fences(self):
+        framing, blocks = strip_fenced_bodies(
+            "- `bale help pack` cites BALE.md\n")
+        self.assertEqual(blocks, 0)
+        self.assertIn("BALE.md", framing)
+
+    def test_unclosed_fence_raises(self):
+        with self.assertRaises(ValueError):
+            strip_fenced_bodies("```text\nnever closed\n")
 
 
 if __name__ == "__main__":

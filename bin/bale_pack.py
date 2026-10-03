@@ -3178,6 +3178,8 @@ def build_request_tarball(
         GLOBAL_DOCS,
         CARRIED_TOOLS,
         TOOLS_DIR,
+        CLI_REFERENCE_NAME,
+        render_cli_reference,
     )
 
     def _trail(msg: str) -> None:
@@ -3220,6 +3222,20 @@ def build_request_tarball(
             _trail(f"carry tool tools/{tool}")
             shutil.copy2(TOOLS_DIR / tool, tools_dir / tool,
                          follow_symlinks=False)
+
+        # The generated CLI reference (TARBALL.md §3.1): the running
+        # bale's own `bale help` for every verb, rendered from its parser
+        # now rather than copied from the install, so it is true to the
+        # bale building this request by construction. It sits at the top
+        # level beside the docs (outside context/, which is the packer's
+        # material); bin/bale's CLI_REFERENCE_NAME names it. Both callers
+        # — pack and handoff — reach it through this one site.
+        # Written as bytes, not text: text mode would translate newlines
+        # on a Windows Python, and the reference is byte-identical by
+        # contract.
+        _trail(f"generate CLI reference {CLI_REFERENCE_NAME}")
+        (request_dir / CLI_REFERENCE_NAME).write_bytes(
+            render_cli_reference().encode("utf-8"))
 
         # manifest.json.
         _trail("write manifest.json")

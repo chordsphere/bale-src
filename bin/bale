@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import functools
 import hashlib
 import json
 import os
@@ -73,6 +74,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -368,6 +370,25 @@ GLOBAL_DOCS = ("AGENT.md", "TARBALL.md", "DOCS.md", "CODE.md",
 # copies exactly these members, nothing else.
 TOOLS_DIR = INSTALL_ROOT / "tools"
 CARRIED_TOOLS = ("response_lint.py", "craft_response.py")
+
+# The generated CLI reference carried in every request beside the docs
+# and tools (TARBALL.md §3.1; AGENT.md META's reachability model). A
+# worker in any project is told by the carried docs to emit or cite
+# verbs (`bale open`, `bale relay`, `bale retry`, ...) whose syntax the
+# docs never spell out, and until this file traveled the only correct
+# move was a probe for `bale --help`. Unlike the docs and tools it is
+# not an install file: render_cli_reference() (section 24, beside
+# cmd_help) generates it from build_parser() at request-build time, so
+# it is version-true by construction and there is no release-layout
+# file to keep in step. CLI_REFERENCE_COLUMNS is the fixed width it is
+# rendered at — argparse otherwise wraps to the packing terminal — and
+# is the width `COLUMNS=80 bale help <verb>` prints at, so each section
+# is byte-identical to that command's output. These two names are the
+# single source for carriage (build_request_tarball) and the handoff
+# reading-plan filter; the reference deliberately does not join the
+# provenance stamp, whose bale_version already pins it.
+CLI_REFERENCE_NAME = "BALE_HELP.md"
+CLI_REFERENCE_COLUMNS = 80
 
 # The pack-side exclusion constants (baked-in excluded dirs, secret
 # patterns, secret path excludes) and the pack threshold caps moved to
@@ -3573,8 +3594,9 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
     accept the token as a candidate path when (a) it contains `/` OR has a
     known code/doc extension (per _PATH_LIKE_EXTENSIONS), AND (b) it is
     path-safe per is_path_safe (no leading `/`, no `..`, no `.git/` /
-    `.bale/` prefix). The four bale-carried global docs are filtered out
-    here too — they ship at the request's top level on every pack, so a
+    `.bale/` prefix). The bale-carried global docs (GLOBAL_DOCS) and the
+    generated CLI reference (CLI_REFERENCE_NAME) are filtered out here
+    too — they ship at the request's top level on every pack, so a
     duplicate under context/ would be noise.
 
     Output preserves first-appearance order and is deduped. No filesystem
@@ -3613,7 +3635,11 @@ def extract_paths_from_reading_plan(plan_text: str) -> list[str]:
         # Filter out bale-carried global docs (bare-filename match against
         # GLOBAL_DOCS). A reading plan that says "re-read `BALE.md` §8.7"
         # is informational; bale already ships BALE.md at the top level.
-        if Path(token).name in GLOBAL_DOCS:
+        # The generated CLI reference is carried the same way (it is
+        # rendered into every request, never read from the repo), so a
+        # plan citing it is informational too.
+        if (Path(token).name in GLOBAL_DOCS
+                or Path(token).name == CLI_REFERENCE_NAME):
             continue
         if token in seen:
             continue
@@ -4757,6 +4783,144 @@ def cmd_help(args) -> int:
 
     current.print_help()
     return 0
+
+
+# --- the request-carried CLI reference ---------------------------------------
+#
+# CLI_REFERENCE_NAME (section 1) is carried in every request bale builds:
+# the top-level `bale help` and every verb's `bale help <verb>`, nested
+# verbs included, each verbatim. It is rendered here rather than shipped
+# as an install file so it can never drift from the bale that packed the
+# request (session 2026-10-03-bale-cli-reference-003). Two properties are
+# load-bearing and pinned by tests/test_cli_reference.py:
+#
+# - Verbatim: each section's body is exactly `parser.format_help()` for
+#   that parser — the same call `bale help <verb>` prints through — so
+#   it equals `COLUMNS=80 bale help <verb>` byte for byte.
+# - Width-independent: argparse wraps to the terminal (COLUMNS, then the
+#   tty, then 80), so the render pins the formatter's width to
+#   CLI_REFERENCE_COLUMNS - 2 (argparse's own COLUMNS - 2) rather than
+#   reading the packing terminal. Color is forced off for the same
+#   reason (Python 3.14's argparse colors help when FORCE_COLOR is set),
+#   and any escape sequence that still reaches the text is stripped.
+#
+# One input besides the install feeds it: `bale stats`'s description
+# names the configured telemetry home of the repo being packed
+# (StatsHelpFormatter), so that section reads as `bale help stats` reads
+# in that repo. That is the help as the operator sees it, not drift.
+
+# An SGR escape (color/style). Help text never legitimately carries ESC,
+# so stripping these is lossless; it is the backstop for a color path a
+# future argparse opens before the formatter is constructed.
+_ANSI_SGR = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def iter_command_paths(parser: argparse.ArgumentParser,
+                       prefix: tuple = ()):
+    """Yield (path, subparser) for every command under `parser`,
+    depth-first in the order `bale help` lists them — `("config",)`
+    then `("config", "init")` before `("help",)`. Pure.
+
+    An alias would appear in `_SubParsersAction.choices` under a second
+    name bound to the same parser object; each parser is yielded once,
+    under its first (canonical) name."""
+    sub = _get_subparsers_action(parser)
+    if sub is None:
+        return
+    seen: set = set()
+    for name, child in sub.choices.items():
+        if id(child) in seen:
+            continue
+        seen.add(id(child))
+        path = prefix + (name,)
+        yield path, child
+        yield from iter_command_paths(child, path)
+
+
+def render_fixed_width_help(parser: argparse.ArgumentParser,
+                            columns: int = CLI_REFERENCE_COLUMNS) -> str:
+    """`parser.format_help()` as it renders at `columns` terminal
+    columns, whatever the real terminal is.
+
+    Mutates `parser` (its formatter_class, and its color flag where the
+    running argparse has one), so callers pass a parser built for the
+    render — render_cli_reference builds its own — never one a command
+    is about to print through."""
+    width = columns - 2  # argparse wraps help to COLUMNS - 2
+    parser.formatter_class = functools.partial(parser.formatter_class,
+                                               width=width)
+    if hasattr(parser, "color"):
+        parser.color = False
+    return _ANSI_SGR.sub("", parser.format_help())
+
+
+def _code_fence(body: str) -> str:
+    """A backtick fence longer than any backtick run in `body`, so the
+    fenced help can never be closed early by its own text (CommonMark
+    closes a fence only on a run at least as long as the opener)."""
+    longest = max((len(run) for run in re.findall(r"`+", body)), default=0)
+    return "`" * max(3, longest + 1)
+
+
+def render_cli_reference() -> str:
+    """The text of CLI_REFERENCE_NAME, as every request carries it.
+
+    A short header saying what the file is and how to read it, a
+    contents list, then one section per help page — `bale help` first,
+    then every command path iter_command_paths yields — each holding
+    that page's render_fixed_width_help() output inside a code fence,
+    verbatim. Deterministic for a given install (and, for the stats
+    section, the packed repo's [layout] config): no timestamp, no
+    session id, no terminal input.
+
+    The header is prose a request reader sees, so it is held to the
+    global-doc self-containment guard
+    (tests/test_global_doc_selfcontainment.py scans everything outside
+    the fences); the fenced help text is bin/bale's own and is not
+    rewritten here."""
+    parser = build_parser()
+    pages = [((), parser)] + list(iter_command_paths(parser))
+
+    def heading(path: tuple) -> str:
+        return "bale help" + "".join(f" {name}" for name in path)
+
+    def wrapped(text: str, prefix: str = "") -> list:
+        # The header's prose, wrapped like the docs (70 columns); the
+        # wrap never splits a hyphenated word or a long token.
+        return textwrap.wrap(text, width=70, initial_indent=prefix,
+                             subsequent_indent=prefix,
+                             break_on_hyphens=False,
+                             break_long_words=False)
+
+    lines = [f"# {CLI_REFERENCE_NAME}", ""]
+    lines += wrapped(
+        f"The installed bale's own help for every verb, generated by "
+        f"bale v{VERSION} when it built this request. Read it for a "
+        f"verb's syntax and flags instead of probing for `bale --help`.",
+        prefix="> ")
+    lines.append("")
+    lines += wrapped(
+        f"Each section below is exactly what `bale help <verb>` prints "
+        f"from the bale that built this request, rendered at a fixed "
+        f"{CLI_REFERENCE_COLUMNS} columns so the text is the same "
+        f"whatever terminal packed it. Nothing maintains this file by "
+        f"hand: it is generated from bale's own command parser, so it "
+        f"matches that bale by construction. Where `TARBALL.md` gives a "
+        f"command's contract — §3.4's flag table for `bale pack`, the "
+        f"shapes a worker emits — `TARBALL.md` is the contract and this "
+        f"file is the installed syntax beside it. The help text cites "
+        f"documents by name; one that this request does not carry lives "
+        f"with bale's own source and is not reachable from here.")
+    lines += ["", "## Contents", ""]
+    lines += [f"- `{heading(path)}`" for path, _ in pages]
+    for path, page_parser in pages:
+        body = render_fixed_width_help(page_parser)
+        fence = _code_fence(body)
+        lines += ["", f"## `{heading(path)}`", "", f"{fence}text"]
+        # format_help() ends with exactly one newline; the fence closes
+        # on the line after it, so the fenced bytes are the help verbatim.
+        lines.append(body + fence)
+    return "\n".join(lines) + "\n"
 
 
 # --- bale completion bash ----------------------------------------------------

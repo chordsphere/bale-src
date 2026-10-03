@@ -229,15 +229,19 @@ class InstallPrecheckTest(unittest.TestCase):
                     f"(mode {oct(members[name].mode)})",
             )
         # Every global doc ships at the tarball's top level — and only
-        # those: the top-level .md set IS the GLOBAL_DOCS set (README.md
-        # would join it on packs that ship one; this pack is --no-readme).
+        # those plus the generated CLI reference: the top-level .md set
+        # IS GLOBAL_DOCS + BALE_HELP.md (README.md would join it on packs
+        # that ship one; this pack is --no-readme). The reference is
+        # rendered at build time, not an install file, so it stays out
+        # of the provenance stamp below (tests/test_cli_reference.py
+        # pins its content).
         shipped_docs = {
             Path(name).name for name in members
             if "/" not in name[len(request_dir) + 1:]
             and name.endswith(".md")
         }
         self.assertEqual(
-            shipped_docs, set(GLOBAL_DOCS),
+            shipped_docs, set(GLOBAL_DOCS) | {"BALE_HELP.md"},
             msg=f"top-level doc set mismatch; members:\n"
                 + "\n".join(sorted(members)),
         )

@@ -51,16 +51,22 @@ installation. The agent does not modify these in response tarballs;
 they evolve only via bale sessions targeting the bale tool's own
 repository.
 The reachability model, stated once here: every request carries
-these five docs plus the two request-carried tools,
-`tools/craft_response.py` and `tools/response_lint.py`; and
-wherever a bale install exists — a probe away — `bin/`, `schemas/`,
-and `tools/` plus `validate.sh` are reachable too. Nothing else
-travels: bale's own repo-local documentation and any project's
-local docs are unreachable from other projects by design. That is
-why the five docs and the two tools are self-contained — they cite
-only one another, install-shipped paths (`bin/`, `schemas/`,
+these five docs, the two request-carried tools,
+`tools/craft_response.py` and `tools/response_lint.py`, and
+`BALE_HELP.md`, the installed bale's own help for every verb as the
+bale that built the request generated it, so a verb's syntax and
+flags are a read, not a probe; and wherever a bale install exists —
+a probe away — `bin/`, `schemas/`, and `tools/` plus `validate.sh`
+are reachable too. Nothing else travels: bale's
+own repo-local documentation and any project's local docs are
+unreachable from other projects by design. That is why the five
+docs and the two tools are self-contained — they cite only one
+another, `BALE_HELP.md`, install-shipped paths (`bin/`, `schemas/`,
 `tools/`), and bale's own verbs; a pointer at anything else would
-dangle everywhere except its home repo.
+dangle everywhere except its home repo. `BALE_HELP.md`'s own framing
+holds to the same rule; the help text inside it is bale's, verbatim,
+and a document it names that the request does not carry is not
+reachable.
 `INDEX.md`, `STATE.md`, `charter-brief.md`, ADRs, and schemas are
 project-specific. Bale includes whatever the user names; nothing
 is auto-detected. Drill further into project docs only when the
@@ -90,6 +96,7 @@ The minimum context for the task. Default at every threshold:
 | Authoring is the work — a pack command, a request brief, a checkpoint oracle, a rescope offer, or a sitting | Re-read `PLANNER.md` before producing; a pack command (on request, or unsolicited only as a §11.2 rescope offer) additionally re-reads `TARBALL.md` §3.4, the flag surface |
 | Documentation is the work — adding, splitting, pruning, updating, or auditing docs. A code session that edits a project's user-facing doc along the way — a README, a usage page, help text — does not fire this row: `DOCS.md` governs the doc inventory and holds nothing for that edit | Re-read `DOCS.md` before producing |
 | Code structure is the work — layout decisions, extraction, splitting, indexing, pruning | Re-read `CODE.md` before producing |
+| Need a bale verb's syntax or flags — a `bale` command to emit, cite, or check | + `BALE_HELP.md`, the installed bale's `bale help` for every verb, carried in every request (`TARBALL.md` §3.1) — read it instead of probing for `bale --help`; for `bale pack`, `TARBALL.md` §3.4 stays the flag contract |
 | An environment-specific fact is missing, stale, or unclear | Return a probe rather than guess around the gap — see `TARBALL.md` section 4 |
 | A blocking intent gap in the request | Open the exchange thread with a clarification response — the artifact, never a chat aside — and continue under the same session when the planner's answer arrives via `bale relay`; see `TARBALL.md` §5.9 |
 | A short, non-blocking question set — at most three, each with a one-word default | End the turn on a light question block, rendered by `tools/craft_response.py --light-block`, or authored by hand per `TARBALL.md` §5.10 where the crafter is unreachable — admitted by count, never by size — and continue on the packer's reply; the trail is the eventual response's `notes.md` |

@@ -2367,6 +2367,11 @@ class PackCarriageSurface(unittest.TestCase):
                                 "CODE.md"]
             main.CARRIED_TOOLS = carried
             main.TOOLS_DIR = repo / "tools"
+            # The generated CLI reference rides the same function
+            # (tests/test_cli_reference.py pins it); a stub keeps this
+            # driver about the tool list alone.
+            main.CLI_REFERENCE_NAME = "BALE_HELP.md"
+            main.render_cli_reference = lambda: "# stub reference\\n"
 
             spec = importlib.util.spec_from_file_location(
                 "bale_pack", repo / "bin" / "bale_pack.py")
