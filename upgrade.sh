@@ -126,7 +126,18 @@ fi
 # articulation. bin/_bale_toml.py rides with them: it is load-bearing only
 # on Python 3.10 (bale_config imports it at load time; on 3.11+ it defers
 # to stdlib tomllib internally, but the module itself must import), and a
-# pre-wipe check protects the worst-case runtime, not the best.
+# pre-wipe check protects the worst-case runtime, not the best. Session
+# pack-wizard-ui (2026-10-03) trued the list up again against the same
+# criterion: bin/bale_stats.py, bin/bale_open.py, and bin/bale_relay.py are
+# load-time imports of bin/bale; bin/bale_wizard.py is a load-time import of
+# bin/bale_config.py, itself one; and bin/VERSION is read at load — bin/bale
+# exits before parsing argv when it is missing or empty. bin/bale_sandbox.py
+# stays off, deliberately: every importer loads it lazily, inside the
+# functions that confine a response script (apply/retry staging, open's
+# dry run), so a release without it still loads every verb — the confining
+# step fails loudly by name instead — and install.sh's post-swap layout
+# check names the gap. tests/test_upgrade_required_members.py derives the
+# load-time closure from the sources and pins this list against it.
 TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
   || die "could not read $NEW_TARBALL as a gzip tar — is it a valid bale release tarball?"
 
@@ -140,13 +151,18 @@ TARBALL_LISTING="$(tar -tzf "$NEW_TARBALL" 2>/dev/null)" \
 # at column 0.
 REQUIRED_RELEASE_MEMBERS=(
   bin/bale
+  bin/VERSION
   bin/bale_config.py
   bin/bale_validate.py
   bin/bale_staging.py
   bin/bale_rollback.py
   bin/bale_report.py
+  bin/bale_stats.py
   bin/bale_pack.py
   bin/bale_apply.py
+  bin/bale_open.py
+  bin/bale_relay.py
+  bin/bale_wizard.py
   bin/_bale_toml.py
   schemas/request-manifest.schema.json
   schemas/response-manifest.schema.json
