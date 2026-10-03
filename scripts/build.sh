@@ -100,6 +100,7 @@ RELEASE_FILES=(
   bin/_bale_toml.py
   bin/bale_open.py
   bin/bale_relay.py
+  bin/bale_wizard.py
   docs/AGENT.md
   docs/TARBALL.md
   docs/DOCS.md
