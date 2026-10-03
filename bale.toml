@@ -8,8 +8,8 @@
 # the canonical interface; hand-edits work but the wizard knows only
 # about the configurables it walks through. Re-running the wizard
 # rewrites this file from its walked surface, so any unrecognized
-# keys you hand-edited in will be dropped. At v0.0.x there are no
-# escape hatches for this — set/get/edit subcommands land later.
+# keys you hand-edited in will be dropped. There is no set/get/edit
+# subcommand; the wizard is the writer.
 
 [hooks]
 post_apply_pass = "scripts/reinstall.sh"
@@ -30,3 +30,6 @@ network = true
 include_group = "release-surface"
 include_group_triggers = ["bin", "tests", "schemas"]
 include_group_pulls = ["install.sh", "scripts/build.sh", "validate.sh", "upgrade.sh", "docs", "schemas", "tools"]
+
+[probe]
+clipboard_command = "clip.exe"
