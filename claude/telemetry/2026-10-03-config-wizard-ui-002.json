@@ -1,0 +1,295 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-03-config-wizard-ui-002",
+  "created_at": "2026-10-03T00:47:31+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-03T00:47:31+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_config.py",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-03-config-wizard-ui-002.log",
+      "bundle": {
+        "stem": "2026-10-03-config-wizard-ui",
+        "brief_sha256": "66c98f3767fc9f2f8e6000a9a283b2a8f0e2e742de63495c4ccceb24d2137e45",
+        "checkpoint_sha256": "da309844bfd8088782144713ad6df7c3f9ba1b97fc19f20350771c5013a4874d",
+        "manifest_sha256": "0b891c5aa65784d0ab300fa49fe4bc02a52ffe0a11d07da32f2bc0cde01c66e9"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-03T00:47:31+00:00"
+      }
+    },
+    {
+      "at": "2026-10-03T01:53:21+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-03-config-wizard-ui-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: wizard presentation layer (tests/test_wizard_ui.py)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: config wizard suites (test_probe_clipboard_config, test_layout_and_formats)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: pty wizard surface suites (archive_dir, auto_sweep, blind_checkpoint, required_check_gate, sandbox_wrapper)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: release packaging (test_release_packaging)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/bale_wizard.py in RELEASE_FILES, INSTALL_LAYOUT, and validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/bale_wizard.py imports nothing from bin/": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: piped bale config init writes byte-identical bale.toml and .baleignore": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: full suite (--slow only)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          }
+        },
+        "claim_verdict": {
+          "tests: wizard presentation layer (tests/test_wizard_ui.py)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: config wizard suites (test_probe_clipboard_config, test_layout_and_formats)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: pty wizard surface suites (archive_dir, auto_sweep, blind_checkpoint, required_check_gate, sandbox_wrapper)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: release packaging (test_release_packaging)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/bale_wizard.py in RELEASE_FILES, INSTALL_LAYOUT, and validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/bale_wizard.py imports nothing from bin/": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: piped bale config init writes byte-identical bale.toml and .baleignore": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: full suite (--slow only)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (python ast, bash -n)",
+          "tests: wizard presentation layer (tests/test_wizard_ui.py)",
+          "tests: config wizard suites (test_probe_clipboard_config, test_layout_and_formats)",
+          "tests: pty wizard surface suites (archive_dir, auto_sweep, blind_checkpoint, required_check_gate, sandbox_wrapper)",
+          "tests: release packaging (test_release_packaging)",
+          "assert: bin/bale_wizard.py in RELEASE_FILES, INSTALL_LAYOUT, and validate.sh",
+          "assert: bin/bale_wizard.py imports nothing from bin/",
+          "assert: piped bale config init writes byte-identical bale.toml and .baleignore",
+          "exec-bit assertions (install.sh, scripts/build.sh, validate.sh)",
+          "tests: full suite (--slow only)"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_config.py",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "validate.sh"
+      ],
+      "overridden_paths": [
+        "bin/bale_wizard.py",
+        "tests/test_wizard_ui.py"
+      ],
+      "overridden_path_sources": {
+        "bin/bale_wizard.py": "prompt",
+        "tests/test_wizard_ui.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_config.py",
+        "bin/bale_wizard.py",
+        "claude/context/bale-internals.md",
+        "install.sh",
+        "scripts/build.sh",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_wizard_ui.py",
+        "validate.sh"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "dd22b82cf4b3dc146fa813a862ab03c32d0b94faf8bab5e51218e6cdd5578fed",
+              "TARBALL.md": "59ece7fde0adb7dd5c5f5d902d5cf1078c4562cebb82925aa529df19f22d1c8c",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-03-config-wizard-ui-002.sh",
+              "sha256": "da309844bfd8088782144713ad6df7c3f9ba1b97fc19f20350771c5013a4874d"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-03T00:47:31+00:00",
+            "base_files": {
+              "bin/bale_config.py": "98c1dc20f0a131a1116634f73f75acf4e57132062ec96d816dd8e8fb17dd4688",
+              "claude/context/bale-internals.md": "9ef15ad704b4a2121743ce2f7d896abf38500d477fe1ed31b500ee9a7978eb9c",
+              "install.sh": "ed36c85ccc3e8984283e7647b724859f2577fcc63b20c85d28b61ff88345642c",
+              "scripts/build.sh": "ca7c0e1a071c30b1511d95c1e1b26dab843fc5a6c4c90f1d77c13d9d28cef40a",
+              "tests/test_layout_and_formats.py": "9f27200510a08f5d172518c0c02b0801dc2c0f5826495aeda7a197d943306237",
+              "tests/test_probe_clipboard_config.py": "fb7aa74ae72623a1d06adc0fca00296c7168e493adda6cf6468322db70919488",
+              "validate.sh": "46e587004225d276babe1dc5102684961ce9b675f16ee07cde20f8e653ab34f6"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "^C at the pre-write review gate declines the write (Enter and a closed stdin write); the brief pinned only Enter, and its 'EOF or ^C keeps' reads as being about item prompts.",
+            "A bare '?' at an item prompt is the help gesture and can no longer be typed as a literal value; no plausible value for any walked key is a lone '?'.",
+            "NO_COLOR counts as set when present with any value, empty included; an unset or dumb TERM means plain output.",
+            "model_identity is this session's configured model identifier; the surface notes the serving model can differ."
+          ],
+          "judgment_calls": [
+            "bale_wizard is a stdlib-only leaf imported at module top, not lazily via __main__ (the brief allowed either); validation.sh and a test pin the leaf property.",
+            "The walk order is declared once as data (WIZARD_WALK_ORDER_*); n/N positions and section headings derive from it, and Walk refuses an unlisted key.",
+            "The review skips rewriting a file whose bytes already match (reported 'unchanged'); the .baleignore gate asks only when patterns change.",
+            "Each key got a new one- or two-line summary; the existing descriptions are untouched and show on '?', re-wrapped.",
+            "sandbox.enabled's summary is two explicit lines so 'NEVER silent' stays whole for test_sandbox_wrapper, which is outside the forecast.",
+            "The shared walkthrough_git_identity is restyled on the layer, which also changes how bale_pack's git-init walkthrough draws that step.",
+            "BALE.md, upgrade.sh, bin/bale help text and bale-internals' other siblings are proposed in notes.md, not edited (out of scope or outside the forecast)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (in full, META through 11.7)",
+            "README.md (the brief)",
+            "TARBALL.md (in full: sections 1-10)",
+            "claude/context/bale-internals.md sections 1, 2.5, 3.7, 4",
+            "BALE.md sections 2 (install layout) and 3.6 (grep for config init references only)",
+            "tools/craft_response.py (in full)",
+            "tools/response_lint.py (in full)"
+          ],
+          "forecast_departures": [
+            {
+              "path": "bin/bale_wizard.py",
+              "why": "The goal's shared wizard display layer must be one module bale_pack can import (brief outcome 1), so it is a new bin/ file the pack could not have named."
+            },
+            {
+              "path": "tests/test_wizard_ui.py",
+              "why": "Tests ship with code: the new layer and config init on it need their own suite, a new file the brief anticipated outside the forecast."
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-03-config-wizard-ui-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-03-config-wizard-ui-002.sh",
+          "sha256": "da309844bfd8088782144713ad6df7c3f9ba1b97fc19f20350771c5013a4874d"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-03T01:53:21+00:00",
+  "outcome": "applied"
+}
