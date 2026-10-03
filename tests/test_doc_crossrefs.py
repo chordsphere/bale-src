@@ -50,6 +50,15 @@ are exactly the kind of prose a rewrap-tolerant scan never reads;
 these pins are that content check. Matching is whitespace-normalized
 like every other prose pin here.
 
+Since session 2026-10-03-bale-cli-reference-003 the suite also pins
+the route to the request-carried CLI reference (CliReferenceRoutePins):
+docs/AGENT.md's INDEX row and META reachability paragraph, and
+docs/TARBALL.md's INDEX row, §3.1 shape block, and §3.4's two
+former deferrals each name the file bin/bale's CLI_REFERENCE_NAME
+assigns, and the deferral wording it replaced stays absent. A worker
+in another project finds the reference only through these docs, so a
+pruned row would put it back to probing for `bale --help`.
+
 Since board 109 (from 2026-09-16-board-105-operator-voice-007's
 Proposals) the shape sentence's third home is pinned too. The ruling
 lives in the session opener, docs/AGENT.md §3, and docs/TARBALL.md
@@ -1184,6 +1193,118 @@ class SectionFiveCompressionPins(unittest.TestCase):
             re.findall(r"ADR-0013(\s+§[0-9.]*[0-9])?",
                        "(a: ADR-0013 §5.5.) (b: ADR-0013)"),
             [" §5.5", ""])
+
+
+# The generated CLI reference's route (session
+# 2026-10-03-bale-cli-reference-003). Every request carries
+# BALE_HELP.md, and a worker in another project finds it only through
+# the carried docs; these pins keep that route from being pruned or
+# re-pointed by a docs session that never reads bin/bale. The name is
+# read from bin/bale's CLI_REFERENCE_NAME line (text, not import, so
+# this suite stays hermetic) and the docs must cite that exact name.
+CLI_REFERENCE_NAME_LINE = re.compile(
+    r'^CLI_REFERENCE_NAME = "([^"]+)"\s*$', re.M)
+
+# The two deferrals docs/TARBALL.md §3.4 carried before the reference
+# answered them; each now points at the reference instead.
+RETIRED_CLI_DEFERRALS = (
+    "this reference does not enumerate them",
+    "own behavior, covered in its documentation",
+)
+
+
+def cli_reference_name() -> str:
+    """CLI_REFERENCE_NAME as bin/bale assigns it ('' when the line is
+    gone — the caller asserts on that)."""
+    m = CLI_REFERENCE_NAME_LINE.search(
+        (REPO / "bin" / "bale").read_text(encoding="utf-8"))
+    return m.group(1) if m else ""
+
+
+def index_rows(text: str) -> list[str]:
+    """The table rows of a doc's `## INDEX` section."""
+    m = re.search(r"^## INDEX\s*$", text, re.M)
+    if m is None:
+        return []
+    rest = text[m.end():]
+    nxt = re.search(r"^##\s", rest, re.M)
+    body = rest if nxt is None else rest[:nxt.start()]
+    return [ln for ln in body.splitlines() if ln.startswith("| ")]
+
+
+def routing_rows(text: str, name: str) -> list[str]:
+    """INDEX rows that route a bale verb's syntax to the reference."""
+    return [row for row in index_rows(text)
+            if f"`{name}`" in row and "syntax or flags" in row]
+
+
+class CliReferenceRoutePins(unittest.TestCase):
+    """The carried docs route a worker to the request-carried CLI
+    reference instead of a probe for `bale --help`."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.docs = load_docs()
+        cls.name = cli_reference_name()
+
+    def test_bin_bale_names_the_reference(self):
+        self.assertTrue(self.name, "bin/bale lost its CLI_REFERENCE_NAME "
+                                   "assignment")
+
+    def test_agent_index_routes_syntax_to_the_reference(self):
+        rows = routing_rows(self.docs["AGENT.md"], self.name)
+        self.assertEqual(len(rows), 1,
+                         f"docs/AGENT.md INDEX needs one row routing a "
+                         f"bale verb's syntax or flags to `{self.name}`")
+        self.assertIn("probing", rows[0])
+
+    def test_agent_reachability_model_carries_the_reference(self):
+        body = normalize(self.docs["AGENT.md"])
+        start = body.find("The reachability model, stated once here:")
+        self.assertGreaterEqual(start, 0, "docs/AGENT.md META lost its "
+                                          "reachability paragraph")
+        end = body.find("Nothing else travels", start)
+        self.assertIn(f"`{self.name}`", body[start:end],
+                      "the reachability model's carried set no longer "
+                      "names the CLI reference")
+
+    def test_tarball_index_routes_syntax_to_the_reference(self):
+        self.assertEqual(len(routing_rows(self.docs["TARBALL.md"],
+                                          self.name)), 1)
+
+    def test_tarball_3_1_lists_and_describes_the_reference(self):
+        section = subsection(self.docs["TARBALL.md"], "3.1")
+        self.assertTrue(section, "docs/TARBALL.md has no `### 3.1` heading")
+        self.assertRegex(section, rf"(?m)^  {re.escape(self.name)}\s+#",
+                         "TARBALL.md 3.1's shape block does not list the "
+                         "CLI reference at the request's top level")
+        self.assertIn(normalize(f"no `{self.name}`"), normalize(section),
+                      "TARBALL.md 3.1 no longer says a context tarball "
+                      "carries no CLI reference")
+
+    def test_tarball_3_4_deferrals_point_at_the_reference(self):
+        section = subsection(self.docs["TARBALL.md"], "3.4")
+        caps_row = next((ln for ln in section.splitlines()
+                         if ln.startswith("| `--max-*` |")), "")
+        self.assertIn(f"`{self.name}`", caps_row)
+        # The paragraph itself: from its bold lead to the blank line.
+        supersession = normalize(section.split("**Split supersession.**",
+                                               1)[-1].split("\n\n", 1)[0])
+        self.assertIn(f"`{self.name}`", supersession)
+        self.assertIn("`--supersedes`", supersession)
+        for fragment in RETIRED_CLI_DEFERRALS:
+            with self.subTest(fragment=fragment):
+                self.assertNotIn(normalize(fragment), normalize(section))
+
+    def test_pins_bite(self):
+        """A routing row naming a different file, or none, is not a
+        route; the extractors see what they claim to."""
+        doc = ("## INDEX\n\n| Need a bale verb's syntax or flags | "
+               "`X.md` |\n\n## 1. Next\n| not | index |\n")
+        self.assertEqual(len(routing_rows(doc, "X.md")), 1)
+        self.assertEqual(routing_rows(doc, "Y.md"), [])
+        self.assertEqual(len(index_rows(doc)), 1)
+        self.assertEqual(index_rows("no index here"), [])
 
 
 if __name__ == "__main__":

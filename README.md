@@ -55,7 +55,12 @@ bale/
 
 bale ships the five `docs/` files and the two `tools/` scripts in every
 request it packs, so every project sees the same contract regardless of its
-own files. `user/` is the one directory bale never owns: your install-wide
+own files. Beside them, each request carries `BALE_HELP.md`: this install's
+`bale help` for every command, generated when the request is built (no file
+in the install backs it), so a worker in any project reads a command's syntax
+instead of asking you to run `bale --help`.
+
+`user/` is the one directory bale never owns: your install-wide
 `bale.toml`, global hook scripts under `user/scripts/`, and the hook
 acceptance store live there. The release tarball ships nothing under it, and
 `upgrade.sh` carries it across.
@@ -127,7 +132,8 @@ Cwd is always searched first; `~` and `$VARS` expand at use time.
 ## Daily use
 
 `bale help <command>` (or `bale <command> --help`) is the full flag reference
-for every command below. For bash, `source <(bale completion bash)` adds Tab
+for every command below; every request carries the same text as
+`BALE_HELP.md`. For bash, `source <(bale completion bash)` adds Tab
 completion.
 
 ### Pack a request
@@ -253,7 +259,8 @@ bale config hooks --forget 3fa9c1   # forget one (it asks again next time)
 
 ## Where to read next
 
-- `bale help <command>` — the command reference, in this install.
+- `bale help <command>` — the command reference, in this install; every
+  request carries all of it as `BALE_HELP.md`.
 - `docs/TARBALL.md` — the wire contract: request, response, probe, and the
   clarification and light-question shapes.
 - `docs/AGENT.md` — the worker's working agreement.
