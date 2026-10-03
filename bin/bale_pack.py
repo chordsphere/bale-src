@@ -5,8 +5,9 @@ The sixth sibling module after `bale_config` (v0.0.4), `bale_validate`
 `bale_report` (v0.2.6). Extracted from `bin/bale`'s sections 10–15 in
 v0.3.12, behavior-preserving: file enumeration and filtering, scope
 projection + threshold caps (BALE.md §7.4), manifest and tarball
-construction, the §7.3 wizard, and `cmd_pack` itself (which hosts the
-git-init walkthrough per BALE.md §10). `bin/bale` keeps the CLI entry
+construction, the §7.3 wizard (drawn through `bale_wizard`, the shared
+wizard layer, since session pack-wizard-ui), and `cmd_pack` itself (which
+hosts the git-init walkthrough per BALE.md §10). `bin/bale` keeps the CLI entry
 point and dispatch, plus the helpers the pack and apply paths share —
 the `.baleignore` matcher cluster (`BaleignoreMatcher`,
 `load_baleignore`, `is_baleignore_match`), `is_valid_slug`, and the
@@ -2983,18 +2984,24 @@ def checkpoint_file_candidates(
     return ordered[:limit]
 
 
-def format_checkpoint_candidates(candidates: list[CheckpointCandidate]
-                                 ) -> list[str]:
+def format_checkpoint_candidates(candidates: list[CheckpointCandidate],
+                                 *, indent: int = 2) -> list[str]:
     """Render candidates as the wizard's numbered lines: `[n] path`,
-    then the UTC mtime (bale's one clock) and the sha256 prefix. An
-    empty list renders no lines at all — the prompt prints nothing
-    extra when there is nothing to pick."""
+    then the UTC mtime (bale's one clock) and the sha256 prefix, four
+    columns further in. An empty list renders no lines at all — the
+    prompt prints nothing extra when there is nothing to pick.
+
+    `indent` is the `[n]` column; the walk passes bale_wizard's item
+    body indent so the list sits under its question. The path line names
+    an absolute path and is never broken (the wizard layer's one width
+    exception); the detail line is 54 columns past `indent`."""
+    pad = " " * indent
     lines: list[str] = []
     for i, c in enumerate(candidates, start=1):
         stamp = datetime.fromtimestamp(c.mtime, timezone.utc).strftime(
             "%Y-%m-%d %H:%M UTC")
-        lines.append(f"  [{i}] {c.path}")
-        lines.append(f"      modified {stamp}  sha256 "
+        lines.append(f"{pad}[{i}] {c.path}")
+        lines.append(f"{pad}    modified {stamp}  sha256 "
                      f"{c.sha256[:CHECKPOINT_CANDIDATE_SHA_CHARS]}")
     return lines
 
@@ -3626,48 +3633,317 @@ def _readme_from_editor(body: str, *, scaffold_heading: str
     return stripped
 
 
-def _wizard_input_required(prompt: str, *, validator=None,
-                           validator_hint: str = "") -> str:
-    """Single-line prompt, loops until the user gives a non-empty value
-    that passes `validator` (if supplied). EOF/^C aborts the whole pack.
-    Used for the required wizard fields (goal, slug)."""
-    from __main__ import fail  # lazy — see module docstring
-    while True:
-        try:
-            raw = input(prompt).strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
+# --- The goal-less walk, drawn through the shared wizard layer ---------------
+#
+# Since session pack-wizard-ui (wave 2 of the friction-points arc) the
+# goal-less wizard draws through bale_wizard — the layer `bale config init`
+# already uses — so the two wizards read as one tool: a title screen, ruled
+# section headings, one item per screen headed "n/N  <key>", a short summary,
+# state rows, reject-with-hint warnings, and a prompt that states what Enter
+# does. Every line fits bale_wizard.WIDTH (80) columns, a line naming an
+# absolute path excepted (the layer's one exception).
+#
+# What did NOT move: what an answer means. Every prompt keeps its answer set
+# — the session-shape letters and their spelled-out forms, Enter wherever
+# Enter was accepted, the blank line that closes a list, the checkpoint
+# picker's numbers and typed paths, the README y — and EOF/^C still abort
+# the pack at every walk prompt but the README one, where (as before) they
+# mean "no README". The one new default fills an Enter that used to
+# re-prompt: the slug question offers a slug derived from the goal
+# (suggest_slug). The answer streams the pty suites feed are therefore
+# unchanged; only the drawing is.
+
+# The walk's items. Each item is headed by the command-line spelling that
+# answers it, so the walk doubles as a pointer to the flag that skips the
+# question next time. Two items have no single flag: "shape" is answered by
+# --work-class and/or --read-only, and "readme" by --readme-file / --edit /
+# --no-readme (the item's summary names them).
+WALK_GOAL = "goal"
+WALK_SLUG = "--slug"
+WALK_SHAPE = "shape"
+WALK_WRITE = "--write"
+WALK_CHECKPOINT = "--checkpoint-file"
+WALK_EXCLUDE = "--exclude"
+WALK_CONSTRAINT = "--constraint"
+WALK_OUT_OF_SCOPE = "--out-of-scope"
+WALK_README = "readme"
+
+# Prompt order — the §7.3 order, which this module does not change.
+WALK_ORDER = (
+    WALK_GOAL, WALK_SLUG, WALK_SHAPE, WALK_WRITE, WALK_CHECKPOINT,
+    WALK_EXCLUDE, WALK_CONSTRAINT, WALK_OUT_OF_SCOPE, WALK_README,
+)
+
+# Which section heading each item sits under, and each heading's text.
+# Plain words rather than bale_wizard.Walk's "[section]" — that bracket
+# form is bale.toml's table syntax, and here it would read as a config
+# section the answers are written to.
+WALK_SECTION_OF = {
+    WALK_GOAL: "session", WALK_SLUG: "session", WALK_SHAPE: "session",
+    WALK_WRITE: "scope", WALK_CHECKPOINT: "scope", WALK_EXCLUDE: "scope",
+    WALK_CONSTRAINT: "brief", WALK_OUT_OF_SCOPE: "brief",
+    WALK_README: "brief",
+}
+WALK_SECTION_HEADINGS = {
+    "session": ("Session", "what it is for, and whether it lands changes"),
+    "scope": ("Scope", "where changes land, and what stays out"),
+    "brief": ("Brief", "what the worker reads beside the goal"),
+}
+
+# The work-class answers (shared by both work-class prompts). Bare Enter is
+# 'mixed', the default since v0.3.15.
+_WORK_CLASS_ANSWERS = {
+    "c": "code", "code": "code",
+    "d": "doc", "doc": "doc",
+    "t": "contract-doc", "contract-doc": "contract-doc",
+    "m": "meta", "meta": "meta",
+    "x": "mixed", "mixed": "mixed", "": "mixed",
+}
+_READ_ONLY_ANSWERS = ("r", "read-only", "readonly")
+_WORK_CLASS_ROWS = (
+    ("c", "code"), ("d", "doc"), ("t", "contract-doc"), ("m", "meta"),
+    ("x", "mixed"),
+)
+_READ_ONLY_ROW = ("r", "read-only — nothing lands")
+_READ_ONLY_ASIDE = "discussion, orchestration, audit"
+
+# suggest_slug's shape: at most this many words, at most this many chars.
+SLUG_SUGGESTION_WORDS = 4
+SLUG_SUGGESTION_MAX_CHARS = 40
+# Words a goal sentence carries that say nothing in a slug.
+_SLUG_STOPWORDS = frozenset((
+    "a", "an", "the", "and", "or", "of", "to", "for", "in", "on", "onto",
+    "into", "with", "by", "at", "from", "as", "is", "be", "it", "its",
+    "this", "that",
+))
+
+
+def suggest_slug(goal: str) -> Optional[str]:
+    """A kebab-case slug derived from `goal`, or None when the goal has no
+    ASCII letters or digits to build one from.
+
+    The slug question's Enter default (the walk's one new default, filling
+    an Enter that used to re-prompt "(cannot be empty)"). The first
+    SLUG_SUGGESTION_WORDS words of the goal, lowercased, stopwords dropped
+    (unless nothing else is left), hyphenated words kept whole, stopping
+    short of SLUG_SUGGESTION_MAX_CHARS. Built from [a-z0-9] runs joined by
+    single hyphens, so the result always passes is_valid_slug — the caller
+    still checks, as it checks a typed slug. Pure.
+    """
+    words = re.findall(r"[a-z0-9]+(?:-[a-z0-9]+)*", goal.lower())
+    kept = [w for w in words if w not in _SLUG_STOPWORDS] or words
+    slug = ""
+    for word in kept[:SLUG_SUGGESTION_WORDS]:
+        candidate = f"{slug}-{word}" if slug else word
+        if len(candidate) > SLUG_SUGGESTION_MAX_CHARS:
+            break
+        slug = candidate
+    if not slug and kept:
+        # One word longer than the cap: cut it at a character boundary
+        # rather than offering nothing, then trim any hyphen the cut left.
+        slug = kept[0][:SLUG_SUGGESTION_MAX_CHARS].strip("-")
+    return slug or None
+
+
+def plan_pack_walk(args: argparse.Namespace, repo: Path) -> list[str]:
+    """The walk items this wizard run will ask, in prompt order.
+
+    Mirrors each prompt helper's per-field skip rule — the CLI answered
+    it, or the shape makes it moot — so the "n/N" an item shows counts
+    exactly the questions that will be asked. Two items depend on an
+    answer given mid-walk: --write and --checkpoint-file are planned on
+    the lands-changes assumption, and PackWalk.drop removes them when the
+    session-shape answer turns the pack read-only. Reads the merged
+    config (the checkpoint item exists only for a {sid} base); writes
+    nothing.
+    """
+    import bale_config  # lazy — see module docstring
+    plan: list[str] = []
+    if args.goal is None:
+        plan.append(WALK_GOAL)
+    if args.slug is None:
+        plan.append(WALK_SLUG)
+    if not args.read_only and not (args.work_class is not None
+                                   and args.write):
+        plan.append(WALK_SHAPE)
+    if not args.read_only and not args.write:
+        plan.append(WALK_WRITE)
+    if not args.read_only and args.checkpoint_file is None:
+        base = bale_config.get_validation_base(
+            bale_config.merged_config(repo))
+        if base is not None and "{sid}" in base:
+            plan.append(WALK_CHECKPOINT)
+    if not args.exclude:
+        plan.append(WALK_EXCLUDE)
+    if not args.constraint:
+        plan.append(WALK_CONSTRAINT)
+    if not args.out_of_scope:
+        plan.append(WALK_OUT_OF_SCOPE)
+    if readme_question_planned(args):
+        plan.append(WALK_README)
+    return plan
+
+
+def readme_question_planned(args: argparse.Namespace) -> bool:
+    """Whether _resolve_readme_body will reach its wizard y/N on this
+    argv — the precedence in its docstring, read off the flags: no
+    --no-readme, no --edit, no --readme-file, no --no-edit."""
+    return not (args.no_readme or args.edit or args.no_edit
+                or getattr(args, "_readme_file_body", None) is not None)
+
+
+class PackWalk:
+    """The goal-less wizard's walk: the items it will ask, and where the
+    operator is in them, drawn through bale_wizard.WizardUI.
+
+    Not a bale_wizard.Walk, for two reasons. Walk numbers items against a
+    fixed order, and this walk is partly conditional — the session-shape
+    answer can turn the pack read-only, which removes the forecast and
+    checkpoint questions mid-walk. And Walk heads a section "[name]" from
+    the text before a dotted key's first dot, bale.toml's table syntax,
+    which here would read as a config section. So the plan can shrink
+    (drop), positions are re-derived from the current plan at every item
+    (an item's position is its index, the total the plan's length), and
+    headings come from WALK_SECTION_HEADINGS. The item header still
+    matches bale_wizard.ITEM_HEADER_RE, so the layer's test idiom — find
+    the item an input() belongs to by the last header line — works here.
+    """
+
+    def __init__(self, ui, plan) -> None:
+        plan = list(plan)
+        if len(set(plan)) != len(plan):
+            raise ValueError("walk plan lists an item twice")
+        unknown = [k for k in plan if k not in WALK_SECTION_OF]
+        if unknown:
+            raise ValueError(f"walk plan names unknown item(s): {unknown}")
+        self.ui = ui
+        self.plan = plan
+        self.visited: list[str] = []
+        self._section: Optional[str] = None
+
+    def asks(self, key: str) -> bool:
+        """Whether `key` is (still) in the plan."""
+        return key in self.plan
+
+    def drop(self, *keys: str) -> None:
+        """Remove not-yet-asked items from the plan (a read-only shape
+        answer makes the forecast and checkpoint questions moot)."""
+        for key in keys:
+            if key in self.visited:
+                raise ValueError(f"{key!r} was already asked")
+            if key in self.plan:
+                self.plan.remove(key)
+
+    def begin(self, key: str, *, kind: str, summary) -> None:
+        """Open `key`'s screen: the section heading when the section
+        changes, a blank separator, the item header, the summary."""
+        if key not in self.plan:
+            raise ValueError(f"{key!r} is not in this walk's plan")
+        section = WALK_SECTION_OF[key]
+        if section != self._section:
+            self._section = section
+            title, note = WALK_SECTION_HEADINGS[section]
+            self.ui.heading(title, note)
+        self.ui.blank()
+        self.ui.item(self.plan.index(key) + 1, len(self.plan), key, kind)
+        if summary:
+            self.ui.summary(summary)
+        self.visited.append(key)
+
+    def ask(self, prompt: str) -> str:
+        """One answer, stripped. EOF/^C aborts the whole pack — the walk's
+        contract at every prompt but the README one (which calls
+        ui.ask itself)."""
+        answer = self.ui.ask(prompt)
+        if answer is None:
+            from __main__ import fail  # lazy — see module docstring
             fail("aborted at wizard prompt")
-        if not raw:
-            print("  (cannot be empty)")
-            continue
-        if validator is not None and not validator(raw):
-            print(f"  ({validator_hint})")
-            continue
-        return raw
+        return answer
+
+    def ask_list(self, *, empty: str) -> list[str]:
+        """A list answer: one item per line, a blank line ends it. The
+        first prompt states what Enter means with nothing typed yet
+        (`empty`, e.g. "none"); later ones say Enter is done. EOF/^C
+        aborts the pack, as at every walk prompt — a user bailing out
+        partway signalled they don't want this session, not "ship what
+        was collected so far"."""
+        items: list[str] = []
+        while True:
+            raw = self.ask(f"Enter = {'done' if items else empty} > ")
+            if not raw:
+                return items
+            items.append(raw)
 
 
-def _wizard_input_list(label: str) -> list[str]:
-    """Multi-line prompt; one item per line, blank line ends collection.
-    Used for the optional list fields (constraints, out_of_scope). EOF/^C
-    aborts the whole pack (consistent with the required prompts — a user
-    bailing out partway through has signalled they don't want this
-    session, not "ship what's collected so far")."""
-    from __main__ import fail  # lazy — see module docstring
-    print(label)
-    items: list[str] = []
+def _walk_input_goal(args: argparse.Namespace, walk: PackWalk) -> None:
+    """The goal question: required, one line, asked until non-empty."""
+    walk.begin(WALK_GOAL, kind="required", summary=(
+        "One sentence: what this session should deliver. It ships "
+        "verbatim as the request's goal."))
     while True:
-        try:
-            raw = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            fail("aborted at wizard prompt")
+        raw = walk.ask("goal > ")
+        if raw:
+            args.goal = raw
+            return
+        walk.ui.warn("A goal is required: type one sentence (^C aborts "
+                     "the pack).")
+
+
+def _walk_input_slug(args: argparse.Namespace, walk: PackWalk,
+                     repo: Path) -> None:
+    """The slug question. Enter takes suggest_slug(goal) when the goal
+    yields one — the walk's one new default, filling an Enter that used to
+    re-prompt — and re-prompts otherwise, as before. A typed slug is
+    validated exactly as before."""
+    from __main__ import (  # lazy — see module docstring
+        is_valid_slug,
+        peek_session_id,
+    )
+    suggestion = suggest_slug(args.goal or "")
+    if suggestion is not None and not is_valid_slug(suggestion):
+        suggestion = None  # defense in depth; suggest_slug cannot emit one
+    walk.begin(WALK_SLUG, kind="kebab-case", summary=(
+        "A short name for the session; it becomes the middle of the "
+        "session id, <date>-<slug>-NNN."))
+    prompt = (f"Enter = {suggestion} > " if suggestion is not None
+              else "slug > ")
+    while True:
+        raw = walk.ask(prompt)
+        if not raw and suggestion is not None:
+            raw = suggestion
         if not raw:
-            return items
-        items.append(raw)
+            walk.ui.warn("A slug is required: lowercase letters, digits, "
+                         "and single hyphens.")
+            continue
+        if not is_valid_slug(raw):
+            walk.ui.warn(f"'{_clip(raw)}' is not a slug: it must be "
+                         f"kebab-case (lowercase letters, digits, hyphens; "
+                         f"no leading/trailing/double hyphens).")
+            continue
+        args.slug = raw
+        walk.ui.notice(f"Session id: {peek_session_id(repo, raw)}")
+        return
 
 
-def _wizard_input_session_shape(args: argparse.Namespace) -> None:
+def _clip(value: str, limit: int = 40) -> str:
+    """bale_wizard.clip — an echoed answer shortened for a warn line."""
+    import bale_wizard  # lazy — see module docstring
+    return bale_wizard.clip(value, limit)
+
+
+def _draw_work_class_rows(walk: PackWalk, *, with_read_only: bool) -> None:
+    """The work-class letters as state rows, Enter's answer marked."""
+    rows = list(_WORK_CLASS_ROWS)
+    aside = [""] * len(rows)
+    aside[-1] = "Enter"
+    if with_read_only:
+        rows.append(_READ_ONLY_ROW)
+        aside.append(_READ_ONLY_ASIDE)
+    walk.ui.state(rows, aside=aside)
+
+
+def _wizard_input_session_shape(args: argparse.Namespace,
+                                walk: PackWalk) -> None:
     """The v0.3.15 session-shape prompt (BALE.md §7.3): will this session
     land changes, or is it read-only — and, in the same exchange, what
     work class is it? Mutates args.read_only / args.work_class in place.
@@ -3690,96 +3966,78 @@ def _wizard_input_session_shape(args: argparse.Namespace) -> None:
     The read-only answer sets args.read_only and leaves args.work_class
     for cmd_pack's provenance-time inference (meta, logged there), so
     the inference has one home whichever surface — flag or wizard —
-    declared the shape. EOF/^C aborts the whole pack, consistent with
-    the other wizard prompts.
+    declared the shape; it also drops the forecast and checkpoint items
+    from the walk's plan, which a read-only shape makes moot. EOF/^C
+    aborts the whole pack, consistent with the other wizard prompts.
 
     A typed --write (ADR-0015) declares the lands-changes shape — a
     non-empty write forecast IS the statement that this session lands
     changes, and cmd_pack already refused --write beside --read-only —
     so with the flag present the read-only half of the exchange is
     answered and only the work-class half can remain. Same per-field
-    skip rule as everywhere in the wizard."""
-    from __main__ import fail  # lazy — see module docstring
+    skip rule as everywhere in the wizard.
+
+    Drawn through the walk (PackWalk) since session pack-wizard-ui; the
+    answer sets below are byte-for-byte the pre-move ones."""
     if args.read_only:
         return
+    if args.work_class is not None and args.write:
+        # Both halves answered on the CLI; nothing to ask.
+        return
 
-    if args.work_class is not None or args.write:
-        if args.work_class is not None and args.write:
-            # Both halves answered on the CLI; nothing to ask.
-            return
-        if args.write:
-            # Shape declared by the forecast; only work class remains
-            # (when absent). Same choice set as the combined prompt
-            # below, minus the read-only answer the flag rules out.
-            if args.work_class is not None:
+    if args.write:
+        # Shape declared by the forecast; only work class remains. Same
+        # choice set as the combined prompt below, minus the read-only
+        # answer the flag rules out.
+        walk.begin(WALK_SHAPE, kind="one letter", summary=(
+            "This session lands changes (--write given). What kind of "
+            "work? The answer is stamped as the request's work class."))
+        _draw_work_class_rows(walk, with_read_only=False)
+        while True:
+            raw = walk.ask("Enter = mixed > ").lower()
+            if raw in _WORK_CLASS_ANSWERS:
+                args.work_class = _WORK_CLASS_ANSWERS[raw]
                 return
-            print("This session lands changes (--write given). "
-                  "What kind of work?")
-            print("  [c] code   [d] doc   [t] contract-doc   [m] meta   "
-                  "[x] mixed (default)")
-            choices = {
-                "c": "code", "code": "code",
-                "d": "doc", "doc": "doc",
-                "t": "contract-doc", "contract-doc": "contract-doc",
-                "m": "meta", "meta": "meta",
-                "x": "mixed", "mixed": "mixed", "": "mixed",
-            }
-            while True:
-                try:
-                    raw = input("> ").strip().lower()
-                except (EOFError, KeyboardInterrupt):
-                    print()
-                    fail("aborted at wizard prompt")
-                if raw in choices:
-                    args.work_class = choices[raw]
-                    return
-                print("  (type c, d, t, m, or x — or Enter for mixed)")
+            walk.ui.warn("Type c, d, t, m, or x, or press Enter for mixed.")
+
+    if args.work_class is not None:
         # Work class already declared on the CLI; only the shape half of
         # the exchange remains.
-        prompt = ("Will this session land changes? [Y/n] "
-                  "(n = read-only: discussion, orchestration, audit) > ")
+        walk.begin(WALK_SHAPE, kind="y/n", summary=(
+            f"Will this session land changes? (--work-class "
+            f"{args.work_class} given.)"))
+        walk.ui.state([("y", "yes, it lands changes"),
+                       ("n", "no — read-only, nothing lands")],
+                      aside=["Enter", _READ_ONLY_ASIDE])
         while True:
-            try:
-                raw = input(prompt).strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                fail("aborted at wizard prompt")
+            raw = walk.ask("Enter = yes > ").lower()
             if raw in ("", "y", "yes"):
                 return
-            if raw in ("n", "no", "r", "read-only", "readonly"):
+            if raw in ("n", "no") + _READ_ONLY_ANSWERS:
                 args.read_only = True
+                walk.drop(WALK_WRITE, WALK_CHECKPOINT)
                 return
-            print("  (type y or n)")
+            walk.ui.warn("Type y or n, or press Enter for yes.")
 
-    print("Will this session land changes, and of what kind?")
-    print("  [c] code   [d] doc   [t] contract-doc   [m] meta   "
-          "[x] mixed (default)")
-    print("  [r] read-only — nothing lands (discussion, orchestration, "
-          "audit)")
-    choices = {
-        "c": "code", "code": "code",
-        "d": "doc", "doc": "doc",
-        "t": "contract-doc", "contract-doc": "contract-doc",
-        "m": "meta", "meta": "meta",
-        "x": "mixed", "mixed": "mixed", "": "mixed",
-    }
+    walk.begin(WALK_SHAPE, kind="one letter", summary=(
+        "Will this session land changes, and of what kind? A kind is "
+        "stamped as the request's work class; r packs a read-only "
+        "session that locks nothing."))
+    _draw_work_class_rows(walk, with_read_only=True)
     while True:
-        try:
-            raw = input("> ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            fail("aborted at wizard prompt")
-        if raw in ("r", "read-only", "readonly"):
+        raw = walk.ask("Enter = mixed > ").lower()
+        if raw in _READ_ONLY_ANSWERS:
             args.read_only = True
+            walk.drop(WALK_WRITE, WALK_CHECKPOINT)
             return
-        if raw in choices:
-            args.work_class = choices[raw]
+        if raw in _WORK_CLASS_ANSWERS:
+            args.work_class = _WORK_CLASS_ANSWERS[raw]
             return
-        print("  (type c, d, t, m, x, or r — or Enter for mixed)")
+        walk.ui.warn("Type c, d, t, m, x, or r, or press Enter for mixed.")
 
 
-def _wizard_input_write_forecast(args: argparse.Namespace,
-                                 repo: Path) -> None:
+def _wizard_input_write_forecast(args: argparse.Namespace, repo: Path,
+                                 walk: PackWalk) -> None:
     """The where-will-changes-land follow-up (ADR-0015, design brief
     I.1 / evidence 37) on the session-shape exchange's lands-changes
     branch. Mutates args.write in place.
@@ -3787,8 +4045,9 @@ def _wizard_input_write_forecast(args: argparse.Namespace,
     The cold-start pack is the one command with no agent author, so
     the prompt has to carry the separation to a user who has never
     heard of it: bare Enter takes the forecast-defaults-to-includes
-    resolution — exactly the pre-separation pack — and the prompt
-    names its own semantics in one line (a forecast, not a wall).
+    resolution — exactly the pre-separation pack — and the screen names
+    its own semantics (a forecast, not a wall) and shows what Enter
+    resolves to: the include set, as the gates will record it.
 
     Skips per the wizard's per-field rule: --read-only (or the
     session-shape read-only answer) means the forecast is [] and there
@@ -3799,21 +4058,22 @@ def _wizard_input_write_forecast(args: argparse.Namespace,
     than failing the whole pack after the answers are in. EOF/^C
     aborts the whole pack, consistent with the other wizard prompts.
     """
-    from __main__ import fail  # lazy — see module docstring
+    from __main__ import resolved_scope  # lazy — see module docstring
     if args.read_only or args.write:
         return
 
-    print("Where will changes land? [Enter = same as the includes]")
-    print("  (space-separated paths; a write forecast, not a wall — "
-          "out-of-forecast work")
-    print("  surfaces at apply for per-path admission. Directory "
-          "entries cover subtrees.)")
+    includes = resolved_scope(list(args.include))
+    walk.begin(WALK_WRITE, kind="paths", summary=(
+        "Where will changes land? Space-separated paths: a write "
+        "forecast, not a wall."))
+    walk.ui.notice(
+        "Out-of-forecast work surfaces at apply for per-path admission. "
+        "Directory entries cover subtrees; to forecast new files, name "
+        "the directory they will land under.")
+    walk.ui.state([("includes", ", ".join(includes))],
+                  aside=["the whole tree" if includes == ["."] else ""])
     while True:
-        try:
-            raw = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            fail("aborted at wizard prompt")
+        raw = walk.ask("Enter = the includes > ")
         if not raw:
             # Bare Enter: forecast defaults to the resolved include
             # set — args.write stays empty and cmd_pack's resolution
@@ -3823,17 +4083,41 @@ def _wizard_input_write_forecast(args: argparse.Namespace,
         entries = raw.split()
         missing = [e for e in entries if not (repo / e).exists()]
         if missing:
-            print(f"  (path(s) do not exist: {', '.join(missing)} — "
-                  f"forecast entries name existing files or "
-                  f"directories; to forecast new files, name the "
-                  f"directory they will land under)")
+            walk.ui.warn(
+                f"path(s) do not exist: {', '.join(missing)} — forecast "
+                f"entries name existing files or directories; to forecast "
+                f"new files, name the directory they will land under.")
             continue
         args.write = entries
         return
 
 
-def _wizard_input_checkpoint_file(args: argparse.Namespace,
-                                  repo: Path) -> None:
+def _checkpoint_enter_outcome(repo: Path, base: str,
+                              slug: str) -> Optional[tuple[str, bool]]:
+    """What an empty checkpoint answer leads to: the resolved checkpoint
+    path for the sid this pack will allocate, and whether HEAD already
+    has a file there (the pre-flight then passes) or not (it refuses).
+
+    The same two facts checkpoint_resolved_preflight decides on after the
+    walk — peek_session_id, resolve_checkpoint_path, `git cat-file -e
+    HEAD:<path>` — read early so the prompt can say what Enter does. None
+    when the slug is not a valid slug yet (cannot happen on the walk:
+    the slug is asked, or given and validated later) — the screen then
+    states the rule instead. Reads only.
+    """
+    from __main__ import git, is_valid_slug, peek_session_id  # lazy — see module docstring
+    import bale_config  # lazy — see module docstring
+    if not slug or not is_valid_slug(slug):
+        return None
+    resolved = bale_config.resolve_checkpoint_path(
+        base, peek_session_id(repo, slug))
+    probe = git(["cat-file", "-e", f"HEAD:{resolved}"], cwd=repo,
+                check=False)
+    return resolved, probe.returncode == 0
+
+
+def _wizard_input_checkpoint_file(args: argparse.Namespace, repo: Path,
+                                  walk: PackWalk) -> None:
     """The per-session checkpoint prompt (v0.4.10, revG; ratified
     2026-08-13 sitting): on the wizard path, when the merged config's
     [validation] base carries {sid} and the session shape resolved
@@ -3856,59 +4140,76 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
     `apply.search_paths`, newest first, each with path, UTC mtime, and
     a sha256 prefix, capped at CHECKPOINT_CANDIDATES_MAX. A typed
     number in range picks one; any other answer is a path, resolved
-    exactly as before. With no candidates the prompt reads as it
-    always did — nothing extra is printed.
+    exactly as before. With no candidates nothing extra is listed.
 
     An EMPTY answer deliberately falls through to the named
     resolved-existence refusal (checkpoint_resolved_preflight): the
     operator declined, and the refusal is loud with the remedy —
     unless the resolved checkpoint is already committed, in which case
-    the pre-flight passes exactly as it always did. A non-resolving,
-    unreadable, or empty file re-prompts, matching the forecast
-    prompt's interactive posture rather than failing the whole pack
-    after the answers are in.
+    the pre-flight passes exactly as it always did. Since session
+    pack-wizard-ui the screen says which of the two Enter leads to
+    (_checkpoint_enter_outcome), so the refusal is no longer a surprise.
+    A non-resolving, unreadable, or empty file re-prompts, matching the
+    forecast prompt's interactive posture rather than failing the whole
+    pack after the answers are in.
     """
-    from __main__ import fail  # lazy — see module docstring
     import bale_config  # lazy — see module docstring
+    import bale_wizard  # lazy — see module docstring
 
     if args.read_only or args.checkpoint_file is not None:
         return
-    base = bale_config.get_validation_base(bale_config.merged_config(repo))
+    cfg = bale_config.merged_config(repo)
+    base = bale_config.get_validation_base(cfg)
     if base is None or "{sid}" not in base:
         return
 
     cwd = Path.cwd().resolve()
     candidates = checkpoint_file_candidates(
-        cwd, bale_config.get_apply_search_paths(
-            bale_config.merged_config(repo)))
-    print(f"This project pins a per-session blind checkpoint "
-          f"([validation] base = {base}).")
+        cwd, bale_config.get_apply_search_paths(cfg))
+    outcome = _checkpoint_enter_outcome(repo, base, args.slug or "")
+    walk.begin(WALK_CHECKPOINT, kind="file", summary=(
+        "This project pins a per-session blind checkpoint: the "
+        "planner's script that grades this session at apply."))
+    rows = [("[validation] base", base)]
+    aside = [""]
+    if outcome is not None:
+        rows.append(("this session", outcome[0]))
+        aside.append("committed at HEAD" if outcome[1]
+                     else "not committed yet")
+    walk.ui.state(rows, aside=aside)
     if candidates:
         # The candidate picker (board pack-ux-micro): newest first, so
-        # the file the planner just delivered is [1]. Printed before the
-        # question so the question stays the last thing above "> ".
-        print("Checkpoint candidates (.sh files in cwd and "
-              "apply.search_paths, newest first):")
-        for line in format_checkpoint_candidates(candidates):
+        # the file the planner just delivered is [1]. Listed before the
+        # question so the question stays the last thing above the prompt.
+        walk.ui.notice("Checkpoint candidates (.sh files in cwd and "
+                       "apply.search_paths, newest first):")
+        for line in format_checkpoint_candidates(
+                candidates, indent=bale_wizard.BODY_INDENT):
             print(line)
-    print("Checkpoint file to commit for this session? [Enter = none]")
-    if candidates:
-        print(f"  (a number 1-{len(candidates)} picks a candidate above; "
-              f"a typed path is accepted too.")
-        print("  Paths resolve like --readme-file — cwd, then "
-              "apply.search_paths.")
+    walk.ui.notice("Checkpoint file to commit for this session?")
+    picks = ("1" if len(candidates) == 1
+             else f"1-{len(candidates)}")
+    walk.ui.notice(
+        (f"A number {picks} picks a candidate above; a typed path "
+         f"resolves like --readme-file — cwd, then apply.search_paths.")
+        if candidates else
+        ("The planner's file; a typed path resolves like --readme-file — "
+         "cwd, then apply.search_paths."))
+    if outcome is None:
+        walk.ui.notice("Enter packs without one, and the pack refuses "
+                       "unless the resolved checkpoint is already "
+                       "committed.")
+    elif outcome[1]:
+        walk.ui.notice("Enter packs without one: the checkpoint already "
+                       "committed for this session is the one used.")
     else:
-        print("  (the planner's file; resolves like --readme-file — cwd, "
-              "then apply.search_paths.")
-    print("  An empty answer packs without one, refusing unless the "
-          "resolved checkpoint")
-    print("  is already committed.)")
+        walk.ui.notice("Enter packs without one, and the pack then "
+                       "refuses: no checkpoint is committed for this "
+                       "session yet.")
+    prompt = (f"{picks}, a path, or Enter = none > "
+              if candidates else "a path, or Enter = none > ")
     while True:
-        try:
-            raw = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            fail("aborted at wizard prompt")
+        raw = walk.ask(prompt)
         if not raw:
             return
         if raw.isdigit() and candidates:
@@ -3923,18 +4224,43 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace,
                 # Out of range and not a file literally named that
                 # number: re-prompt naming the range rather than a
                 # confusing "not found; searched:" for "7".
-                print(f"  (no candidate {pick}; pick 1-{len(candidates)}, "
-                      f"type a path, or press Enter for none)")
+                walk.ui.warn(f"no candidate {pick}; pick {picks}, type "
+                             f"a path, or press Enter for none.")
                 continue
         path, data, err = locate_and_read_checkpoint_file(
             raw, repo, cwd)
         if err is not None:
-            print(f"  ({err})")
+            walk.ui.warn(err)
             continue
         args.checkpoint_file = raw
         args._checkpoint_file_path = path
         args._checkpoint_file_bytes = data
         return
+
+
+def _wizard_input_list(label: str) -> list[str]:
+    """Multi-line prompt; one item per line, blank line ends collection.
+    EOF/^C aborts the whole pack (a user bailing out partway through has
+    signalled they don't want this pack, not "ship what's collected so
+    far").
+
+    Serves the prompts OUTSIDE the goal-less walk only — the soft-cap
+    [e] "edit excludes" step of `bale pack` and of `bale pack --context`
+    — which the friction-points arc left on their own styling (the
+    operator's scope reading puts the threshold exchange outside "all
+    wizards"). The walk's list questions are PackWalk.ask_list."""
+    from __main__ import fail  # lazy — see module docstring
+    print(label)
+    items: list[str] = []
+    while True:
+        try:
+            raw = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            fail("aborted at wizard prompt")
+        if not raw:
+            return items
+        items.append(raw)
 
 
 @dataclass
@@ -4436,17 +4762,18 @@ def _run_readonly_sweep(repo: Path,
     return closed
 
 
-def _wizard_input_excludes(repo: Path) -> list[str]:
-    """The §7.3 'anything to exclude' prompt. Previews any persisted
-    `.baleignore` patterns so the user knows what's already filtered before
-    adding session-only ones. Returns the session-scoped additions; the
-    caller composes them with `.baleignore` via `build_pack_matcher`.
+def _wizard_input_excludes(repo: Path, walk: PackWalk) -> list[str]:
+    """The §7.3 'anything to exclude' prompt. Shows any persisted
+    `.baleignore` patterns as the item's state so the user knows what's
+    already filtered before adding session-only ones. Returns the
+    session-scoped additions; the caller composes them with
+    `.baleignore` via `build_pack_matcher`.
 
-    The preview uses the matcher's own normalized form, not raw file
+    The state uses the matcher's own normalized form, not raw file
     bytes — comment lines and blanks are already stripped, so what the
     user sees is what the walk applies. A present-but-empty file shows
-    `(no patterns)` rather than nothing, to distinguish 'file exists,
-    has no effect' from 'no file'.
+    "present, no patterns" rather than nothing, to distinguish 'file
+    exists, has no effect' from 'no file'.
 
     Each pattern goes through BaleignoreMatcher's validator (negation
     rejected, etc.) at compose time in `build_pack_matcher`, so the
@@ -4455,26 +4782,19 @@ def _wizard_input_excludes(repo: Path) -> list[str]:
     error wording the file-load path uses."""
     from __main__ import load_baleignore  # lazy — see module docstring
     matcher = load_baleignore(repo)
+    walk.begin(WALK_EXCLUDE, kind="list", summary=(
+        "Anything else to exclude just for this pack? One "
+        "gitignore-style pattern per line, e.g. data/ or *.parquet."))
     if matcher is None:
-        print(
-            "No .baleignore at the repo root. (Set durable patterns via "
-            "`bale config init` later if you want them; for now, list "
-            "anything to skip just for this pack — gitignore-style "
-            "patterns, e.g. data/, *.parquet, /build/.)"
-        )
+        walk.ui.state([(".baleignore", "none at the repo root")])
+    elif matcher.patterns:
+        walk.ui.state([(".baleignore", list(matcher.patterns))],
+                      aside=["already filtered out"])
     else:
-        persisted = matcher.patterns
-        if persisted:
-            print("Current .baleignore (already filtered out):")
-            for p in persisted:
-                print(f"  {p}")
-        else:
-            print(".baleignore is present but contains no patterns.")
-        print(
-            "Anything else to exclude just for this pack? "
-            "(one per line, blank to finish)"
-        )
-    return _wizard_input_list("> ")
+        walk.ui.state([(".baleignore", "present, but no patterns")])
+    walk.ui.notice("These apply to this pack only; durable patterns "
+                   "belong in .baleignore (`bale config init`).")
+    return walk.ask_list(empty="none")
 
 
 def _prompt_soft_breach_action() -> str:
@@ -4508,8 +4828,29 @@ def _prompt_soft_breach_action() -> str:
         print(f"  (didn't recognize {raw!r}; type y, e, or n)")
 
 
+def _walk_input_readme(walk: PackWalk) -> bool:
+    """The README question, the walk's last item: True to open $EDITOR
+    on the scaffold, False to pack without prose.
+
+    The answer set is the pre-move confirm_yn(default_no=True) one,
+    kept exactly: y or yes (any case) accepts; anything else — Enter, n,
+    a typo — declines without re-asking; EOF and ^C decline too rather
+    than aborting the pack. That is why this item calls ui.ask itself
+    instead of the layer's confirm, which re-asks on an unrecognized
+    answer (a typed "x" would change from "no" to "ask again")."""
+    walk.begin(WALK_README, kind="y/N", summary=(
+        "Add a README with prose context? It ships as the request's "
+        "brief: the intent and reasons behind the fields above."))
+    walk.ui.notice("y opens $EDITOR on a scaffold seeded from these "
+                   "answers; saving it empty adds none. --readme-file, "
+                   "--edit, or --no-readme answer this up front.")
+    answer = walk.ui.ask("y, or Enter = no > ")
+    return answer is not None and answer.lower() in ("y", "yes")
+
+
 def _resolve_readme_body(args: argparse.Namespace, *,
-                         wizard_engaged: bool) -> Optional[str]:
+                         wizard_engaged: bool,
+                         walk: Optional[PackWalk] = None) -> Optional[str]:
     """Resolve the request README's body (BALE.md §7.3). Returns non-empty
     content, or None to omit the file. Called by cmd_pack on both the
     wizard path and the fully-specified path — one resolver so the two
@@ -4535,18 +4876,17 @@ def _resolve_readme_body(args: argparse.Namespace, *,
        and validated the file up front (missing or empty fails loudly
        there), so args._readme_file_body is non-empty whenever it is
        not None.
-    3. Wizard engaged and not --no-edit — the §7.3 y/N prompt; on y,
-       $EDITOR opens with a scaffold pre-populated from the wizard
-       answers. Same _readme_from_editor pass as branch 1: the comment
-       never ships, and an empty or scaffold-only buffer omits.
+    3. Wizard engaged and not --no-edit — the §7.3 y/N prompt, the
+       walk's last item (_walk_input_readme, drawn on `walk` when the
+       caller passes the walk it ran); on y, $EDITOR opens with a
+       scaffold pre-populated from the wizard answers. Same
+       _readme_from_editor pass as branch 1: the comment never ships,
+       and an empty or scaffold-only buffer omits.
     4. Otherwise None — the fully-specified path with no README flags
        has no README, exactly as before v0.2.4; `--no-edit` forces skip
        of the wizard's step regardless (per §7.3).
     """
-    from __main__ import (  # lazy — see module docstring
-        confirm_yn,
-        open_in_editor,
-    )
+    from __main__ import open_in_editor  # lazy — see module docstring
     # The scaffold's first line — the heading _readme_from_editor treats
     # as no prose when it is all a buffer holds.
     scaffold_heading = f"# {args.goal}"
@@ -4582,7 +4922,12 @@ def _resolve_readme_body(args: argparse.Namespace, *,
         return args._readme_file_body
 
     if wizard_engaged and not args.no_edit:
-        if not confirm_yn("Add a README with prose context?", default_no=True):
+        if walk is None or not walk.asks(WALK_README):
+            # A caller that ran no walk (or planned it without the README
+            # item) still gets the question, drawn as a one-item walk.
+            import bale_wizard  # lazy — see module docstring
+            walk = PackWalk(bale_wizard.WizardUI(), [WALK_README])
+        if not _walk_input_readme(walk):
             return None
         body = open_in_editor(
             scaffold,
@@ -4593,41 +4938,72 @@ def _resolve_readme_body(args: argparse.Namespace, *,
     return None
 
 
-def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
+def _walk_given_flags(args: argparse.Namespace) -> list[str]:
+    """The walk fields the command line already answered, by flag — the
+    title screen's "given" row, so a skipped question is explained."""
+    given = [
+        ("goal", args.goal is not None),
+        ("--slug", args.slug is not None),
+        ("--read-only", bool(args.read_only)),
+        ("--work-class", args.work_class is not None),
+        ("--write", bool(args.write)),
+        ("--checkpoint-file", args.checkpoint_file is not None),
+        ("--exclude", bool(args.exclude)),
+        ("--constraint", bool(args.constraint)),
+        ("--out-of-scope", bool(args.out_of_scope)),
+        ("--readme-file", getattr(args, "_readme_file_body", None)
+         is not None),
+        ("--edit", bool(args.edit)),
+        ("--no-readme", bool(args.no_readme)),
+        ("--no-edit", bool(args.no_edit)),
+    ]
+    return [flag for flag, present in given if present]
+
+
+def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> PackWalk:
     """Run the §7.3 wizard, populating any args.* fields the CLI left
-    unset. Mutates args in place; does not return. Caller has already
-    verified stdin is a TTY.
+    unset. Mutates args in place and returns the walk, which cmd_pack
+    hands to _resolve_readme_body so the README question — asked after
+    the post-walk gates — draws as the walk's last item. Caller has
+    already verified stdin is a TTY.
 
     Prompt order matches the §7.3 example: goal → slug → session shape
     (v0.3.15: lands-changes-or-read-only + work class, one exchange) →
-    exclude → constraints → out_of_scope. Each prompt is skipped if its CLI
-    counterpart was already supplied — a user who ran `bale pack
-    "my goal" --constraint foo` only sees the slug/exclude/out_of_scope
-    prompts. The exclude prompt previews any persisted `.baleignore` so
-    the user sees what's already filtered before adding session-only
-    patterns; persistence happens via `bale config init`, not here.
+    write forecast → checkpoint file → exclude → constraints →
+    out_of_scope. Each prompt is skipped if its CLI counterpart was
+    already supplied — a user who ran `bale pack "my goal" --constraint
+    foo` only sees the slug/shape/forecast/exclude/out_of_scope prompts.
+    The exclude prompt previews any persisted `.baleignore` so the user
+    sees what's already filtered before adding session-only patterns;
+    persistence happens via `bale config init`, not here.
 
-    The README step — historically the wizard's last prompt — moved to
-    _resolve_readme_body in v0.2.4, which cmd_pack calls right after
-    this function returns, so the user-visible prompt order is
-    unchanged. The move exists because --readme-file and --edit make
-    README resolution reachable outside the wizard."""
-    from __main__ import is_valid_slug  # lazy — see module docstring
-    print("[bale pack] interactive mode — fill missing fields. ^C to abort.")
-    print()
+    Drawn through bale_wizard since session pack-wizard-ui: a title
+    screen naming what the command line already answered, then one item
+    per question (PackWalk; plan_pack_walk decides the items up front so
+    each shows its true position). The README step — historically the
+    wizard's last prompt — moved to _resolve_readme_body in v0.2.4,
+    which cmd_pack calls right after the post-walk gates, so the
+    user-visible prompt order is unchanged. The move exists because
+    --readme-file and --edit make README resolution reachable outside
+    the wizard."""
+    import bale_wizard  # lazy — see module docstring
+    ui = bale_wizard.WizardUI()
+    walk = PackWalk(ui, plan_pack_walk(args, repo))
+    given = _walk_given_flags(args)
+    rows = [("repo", str(repo))]
+    if given:
+        rows.append(("given", ", ".join(given)))
+    # "interactive mode" is the phrase the wizard has always opened with;
+    # tests/test_context_pack.py looks for it to tell the walk engaged.
+    ui.title("bale pack — interactive mode", rows=rows, intro=(
+        "Each question fills a field the command line left out and says "
+        "what Enter does. ^C aborts the pack."))
 
     if args.goal is None:
-        args.goal = _wizard_input_required("Goal (one sentence)? > ")
+        _walk_input_goal(args, walk)
 
     if args.slug is None:
-        args.slug = _wizard_input_required(
-            "Short slug (kebab-case)? > ",
-            validator=is_valid_slug,
-            validator_hint=(
-                "must be kebab-case: lowercase letters, digits, hyphens; "
-                "no leading/trailing/double hyphens"
-            ),
-        )
+        _walk_input_slug(args, walk, repo)
 
     # Session shape (v0.3.15) — the lands-changes-or-read-only question,
     # asked in the same exchange as (or instead of) work class. Sits
@@ -4636,7 +5012,7 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     # cold-start pack therefore no longer resolves to whole-tree scope
     # by silent omission — the whole-tree default is now an answered
     # default (bare Enter).
-    _wizard_input_session_shape(args)
+    _wizard_input_session_shape(args, walk)
 
     # The where-will-changes-land follow-up (ADR-0015) rides the
     # lands-changes branch of the exchange above: asked immediately
@@ -4644,7 +5020,7 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     # --write already answered it. Bare Enter keeps the
     # forecast-defaults-to-includes resolution — the cold-start user
     # presses Enter and gets exactly the pre-separation pack.
-    _wizard_input_write_forecast(args, repo)
+    _wizard_input_write_forecast(args, repo, walk)
 
     # The per-session checkpoint prompt (v0.4.10, revG) rides the
     # scoped branch, once the shape and forecast are final: a
@@ -4652,24 +5028,113 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> None:
     # checkpoint file here so the walk's happy path needs no refusal
     # loop. The helper itself skips read-only shapes, a typed
     # --checkpoint-file, and non-{sid} bases.
-    _wizard_input_checkpoint_file(args, repo)
+    _wizard_input_checkpoint_file(args, repo, walk)
 
     # Session excludes — skipped when --exclude was already provided on
-    # the CLI (parallel to --constraint / --out-of-scope). The §7.3 prompt
-    # order puts this between slug and constraints; if the CLI pre-filled
-    # it, we silently skip and proceed.
+    # the CLI (parallel to --constraint / --out-of-scope).
     if not args.exclude:
-        args.exclude = _wizard_input_excludes(repo)
+        args.exclude = _wizard_input_excludes(repo, walk)
 
     if not args.constraint:
-        args.constraint = _wizard_input_list(
-            "Any constraints? (one per line, blank to finish)"
-        )
+        walk.begin(WALK_CONSTRAINT, kind="list", summary=(
+            "Any constraints? One per line: rules the session must hold "
+            "to, shipped as the request's constraints."))
+        args.constraint = walk.ask_list(empty="none")
 
     if not args.out_of_scope:
-        args.out_of_scope = _wizard_input_list(
-            "Any out-of-scope concerns? (one per line, blank to finish)"
-        )
+        walk.begin(WALK_OUT_OF_SCOPE, kind="list", summary=(
+            "Any out-of-scope concerns? One per line: what the session "
+            "must leave alone, shipped as the request's out_of_scope."))
+        args.out_of_scope = walk.ask_list(empty="none")
+    return walk
+
+
+class WalkLogHold:
+    """Holds bale's `[bale] ` log lines for the span of the goal-less walk
+    and replays them, in order, once the walk's last question is answered.
+
+    Why: the gates cmd_pack runs between the walk's list questions and its
+    README question — the deferred checkpoint-blindness and
+    forecast-disjointness gates, and on a read-only pack the sweep — log as
+    they go, and their lines (up to 200 columns) landed among the
+    questions. The walk's contract is that no `[bale] ` line prints between
+    its first answer and its last question; logging that belongs to the
+    pack comes before the walk or after it. Moving each gate's logging
+    would mean threading an output channel through gates `bale handoff`
+    shares, plus bin/bale helpers they call (close_session_with_record);
+    holding at the one shared emitter covers all of them, today's and
+    tomorrow's.
+
+    How: hold() rebinds bin/bale's `log` and `fail` on `__main__` — the
+    names every pack-path function imports lazily at call time (the
+    module docstring's idiom), the same reach-in pack_argv_preflight's
+    FORCE-queue helpers already make. A held line is recorded with its
+    `force` flag and replayed through the real log() at release(), so its
+    text, its journaling, and a FORCE line's queueing for the session log
+    are exactly what they would have been; only the moment it prints
+    moves. A fail() while holding releases first, so a refusal still
+    reads its context lines before its error line. release() is
+    idempotent and registered with atexit as a backstop, so an unexpected
+    exception can delay a held line but never swallow it.
+
+    Callers that bound `log` before hold() (cmd_pack's own top-of-function
+    import) are not held; cmd_pack logs nothing itself inside the span,
+    and its one fail() there goes through `self.fail`.
+    """
+
+    def __init__(self) -> None:
+        self._main = None
+        self._log = None
+        self._fail = None
+        self.lines: list[tuple[str, bool]] = []
+
+    @property
+    def holding(self) -> bool:
+        return self._main is not None
+
+    def hold(self) -> None:
+        """Start holding. A no-op when `__main__` is not bin/bale (an
+        in-process caller with no log/fail to rebind) or already held."""
+        if self._main is not None:
+            return
+        main = sys.modules.get("__main__")
+        log = getattr(main, "log", None)
+        fail = getattr(main, "fail", None)
+        if not callable(log) or not callable(fail):
+            return
+        self._main, self._log, self._fail = main, log, fail
+        main.log = self._held_log
+        main.fail = self.fail
+        import atexit
+        atexit.register(self.release)
+
+    def _held_log(self, msg: str, *, force: bool = False) -> None:
+        self.lines.append((msg, force))
+
+    def fail(self, msg: str, code: int = 1) -> None:
+        """fail() that releases the held lines first, so they print
+        before the error line. Usable whether or not holding."""
+        real_fail = self._fail
+        self.release()
+        if real_fail is None:
+            from __main__ import fail as real_fail  # lazy — see module docstring
+        real_fail(msg, code)
+
+    def release(self) -> None:
+        """Stop holding: restore `log`/`fail` and replay the held lines
+        through the real log(), after a blank separator line."""
+        if self._main is None:
+            return
+        main, log = self._main, self._log
+        main.log, main.fail = self._log, self._fail
+        self._main = None
+        import atexit
+        atexit.unregister(self.release)
+        lines, self.lines = self.lines, []
+        if lines:
+            print()
+        for msg, force in lines:
+            log(msg, force=force)
 
 
 # ---------------------------------------------------------------------------
@@ -5977,16 +6442,27 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # happens just below via _resolve_readme_body on both paths —
     # wizard_engaged tells the resolver whether its lowest-precedence
     # branch (the §7.3 y/N + $EDITOR flow) is on the table.
+    #
+    # From the walk's first question through its last (the README
+    # question, below the post-walk gates), bale's [bale] log lines are
+    # held and replayed once the README is resolved (WalkLogHold): the
+    # gates and the read-only sweep that run between the walk's list
+    # questions and its README question still log everything they
+    # logged, just after the walk instead of among its questions. Every
+    # fail() in the span releases the held lines first.
+    walk_logs = WalkLogHold()
+    pack_walk: Optional[PackWalk] = None
     if wizard_engaged:
         refuse_piped_wizard(args)
-        _wizard_fill_args(args, repo)
+        walk_logs.hold()
+        pack_walk = _wizard_fill_args(args, repo)
         # The [r] answer beside a typed --checkpoint-file (v0.4.10):
         # the same contradiction the fail-fast site refuses, only
         # discoverable once the wizard's session-shape answer is in.
         # Same message, same posture — the two surfaces must not read
         # differently.
         if args.checkpoint_file is not None and args.read_only:
-            fail(
+            walk_logs.fail(
                 "--checkpoint-file and --read-only are contradictory: "
                 "the read-only shape waives the per-session checkpoint "
                 "(an empty forecast lands nothing, so no oracle is "
@@ -6031,7 +6507,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # _resolve_supersession already refused at the decline, before any
     # prompt could collect throwaway answers.
     if declined_supersession is not None:
-        fail(
+        walk_logs.fail(
             f"supersession of {declined_supersession} was declined and "
             f"its scope does not collide with this pack, but a "
             f"--supersedes pack that closes nothing and stamps no "
@@ -6059,7 +6535,11 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # the user-visible prompt order matches the pre-v0.2.4 wizard, where
     # README was the last step. _readme_body rides on args to the build
     # step downstream, exactly as before.
-    args._readme_body = _resolve_readme_body(args, wizard_engaged=wizard_engaged)
+    args._readme_body = _resolve_readme_body(
+        args, wizard_engaged=wizard_engaged, walk=pack_walk)
+    # The walk is over (the README question was its last): replay the
+    # [bale] lines held since its first question.
+    walk_logs.release()
 
     # No-readme guard (v0.3.8, board 3): a pack shipping no prose is
     # either deliberate or an oversight, and the two must not look the
