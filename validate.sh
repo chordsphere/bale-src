@@ -94,6 +94,9 @@ section "filesystem layout"
 # list in the same change.
 [[ -f "$INSTALL_DIR/bin/bale_open.py" ]]        && pass "bin/bale_open.py present" || fail "bin/bale_open.py present"
 [[ -f "$INSTALL_DIR/bin/bale_relay.py" ]]       && pass "bin/bale_relay.py present" || fail "bin/bale_relay.py present"
+# bale_wizard (session config-wizard-ui): the shared wizard presentation layer, a
+# load-time import of bale_config (itself a load-time import of bin/bale).
+[[ -f "$INSTALL_DIR/bin/bale_wizard.py" ]]      && pass "bin/bale_wizard.py present" || fail "bin/bale_wizard.py present"
 [[ -f "$INSTALL_DIR/install.sh"  ]]             && pass "install.sh present"     || fail "install.sh present"
 [[ -x "$INSTALL_DIR/validate.sh" ]]             && pass "validate.sh executable" || fail "validate.sh executable"
 [[ -f "$INSTALL_DIR/upgrade.sh"  ]]             && pass "upgrade.sh present"     || fail "upgrade.sh present"

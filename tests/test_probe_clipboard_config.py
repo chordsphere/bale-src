@@ -22,7 +22,8 @@ Three tiers, cheapest first:
   check refuses would have read back as unset — so the refusal is
   load-bearing, not taste.
 - **Wizard**: `walk_configurables` driven with a label-aware input
-  stand-in (set, reject-and-keep, global never walks), and the PTY
+  stand-in (set, reject-and-keep, global never walks, the full
+  description reachable through the '?' gesture), and the PTY
   discoverable-surface pair through a real `bale config init` (the
   test_sandbox_wrapper / test_blind_checkpoint precedent): the project
   wizard walks and preserves the key and states why it is project-only;
@@ -61,6 +62,7 @@ from harness import (
 
 sys.path.insert(0, str(REPO_ROOT / "bin"))
 import bale_config  # noqa: E402  (path-injected sibling import)
+import bale_wizard  # noqa: E402  (the wizard presentation layer)
 import _bale_toml as tomllib  # noqa: E402  (the module's own TOML shim)
 
 CRAFTER_PATH = REPO_ROOT / "tools" / "craft_response.py"
@@ -391,23 +393,31 @@ class CrafterAgreementTest(_HermeticConfigBase):
 
 
 def _walk_with_answers(existing: dict, *, layer: str,
-                       answers: dict[str, str]) -> tuple[dict, str]:
+                       answers: dict) -> tuple[dict, str]:
     """Run walk_configurables with input() answering by prompt label.
 
-    Every prompt prints `[<label>]` before its input() call; the stand-in
-    finds the most recent label in the captured output and answers from
-    `answers` (Enter otherwise). Order-independent, so adding a
-    configurable elsewhere in the walk cannot shift these answers.
+    Every item screen opens with a header line matching
+    bale_wizard.ITEM_HEADER_RE (`  18/19  probe.clipboard_command ...`)
+    before its input() call; the stand-in finds the most recent header in
+    the captured output and answers from `answers` (Enter otherwise). An
+    answer may be a list, consumed one entry per input() call for that
+    item — how a test types '?' and then its real answer. Order-
+    independent, so adding a configurable elsewhere in the walk cannot
+    shift these answers.
     """
     buffer = io.StringIO()
+    pending = {key: (list(value) if isinstance(value, list) else [value])
+               for key, value in answers.items()}
 
     def fake_input(_prompt: str = "") -> str:
         label = None
         for line in reversed(buffer.getvalue().splitlines()):
-            if line.startswith("[") and line.endswith("]"):
-                label = line[1:-1]
+            match = bale_wizard.ITEM_HEADER_RE.match(line)
+            if match:
+                label = match.group(3)
                 break
-        return answers.get(label, "")
+        queue = pending.get(label) or []
+        return queue.pop(0) if queue else ""
 
     saved_input = builtins.input
     builtins.input = fake_input
@@ -429,7 +439,8 @@ class WizardWalkUnitTest(unittest.TestCase):
             answers={"probe.clipboard_command": "xclip -selection clipboard"})
         self.assertEqual(new.get("probe"),
                          {"clipboard_command": "xclip -selection clipboard"})
-        self.assertIn("[probe.clipboard_command]", out)
+        self.assertRegex(out, r"(?m)^\s*\d+/\d+  probe\.clipboard_command\b",
+                         msg="the item screen names its dotted key")
 
     def test_project_walk_enter_keeps_the_existing_value(self) -> None:
         new, _out = _walk_with_answers(
@@ -461,8 +472,20 @@ class WizardWalkUnitTest(unittest.TestCase):
                 self.assertIn("Keeping current", out)
 
     def test_prompt_states_the_project_only_reason(self) -> None:
-        _new, out = _walk_with_answers({}, layer="project", answers={})
-        self.assertIn("would never reach the probe epilogue", out)
+        """The full description — the project-only reason included — is
+        one '?' away; the default view stays short and omits it."""
+        _new, out = _walk_with_answers(
+            {}, layer="project",
+            answers={"probe.clipboard_command": ["?", ""]})
+        # The help is re-wrapped to the width, so match across line breaks.
+        self.assertIn("would never reach the probe epilogue",
+                      " ".join(out.split()))
+        _new, short = _walk_with_answers({}, layer="project", answers={})
+        self.assertNotIn("would never reach the probe epilogue",
+                         " ".join(short.split()),
+                         msg="the full description shows on demand only")
+        self.assertIn("project layer only", short,
+                      msg="the [probe] heading still says so at a glance")
 
     def test_global_walk_never_offers_the_key(self) -> None:
         new, out = _walk_with_answers({}, layer="global", answers={})

@@ -24,6 +24,11 @@ functions; the benefit is that this module's top-level imports stay
 clean and the module loads regardless of where `bin/bale`'s own
 top-level execution is at the moment of import.
 
+The one sibling imported at module top is `bale_wizard`, the shared
+wizard presentation layer section 3 draws through: it is a stdlib-only
+leaf that imports nothing from `bin/`, so it carries no circular-import
+hazard to sidestep.
+
 Sections:
   1. Imports + constants                              (~line  60)
   2. Configurables: load and merge                    (~line 140)
@@ -62,6 +67,13 @@ from typing import Optional
 # on sys.path (bin/bale prepends it; see this module's top docstring). Aliased
 # to `tomllib` so the call sites below read as ordinary tomllib usage.
 import _bale_toml as tomllib
+
+# The shared wizard presentation layer (section 3 draws through it). A
+# stdlib-only leaf sibling that imports nothing from bin/, so — unlike
+# bin/bale's helpers, which this module pulls lazily from __main__ — it is
+# safe to import at module top by bare name, for the same sys.path reason
+# as _bale_toml above.
+import bale_wizard
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +117,8 @@ HOOK_ACCEPTANCES_NAME = "hook-acceptances.json"
 HOOK_ACCEPTANCES_PATH = GLOBAL_USER_DIR / HOOK_ACCEPTANCES_NAME
 
 # Hooks bale knows how to invoke. Sessions adding a new hook extend this
-# tuple AND walk_configurables() AND render_bale_toml() in the same
+# tuple AND walk_configurables() (with its WIZARD_WALK_ORDER_* entry) AND
+# render_bale_toml() in the same
 # response — the wizard is the single source of truth for the
 # discoverable surface, so a hook that's invoked but not in the wizard
 # is a contract violation.
@@ -1672,12 +1685,162 @@ def layout_agent_dir_for_display(repo: Optional[Path]) -> tuple[str, Optional[st
 # user re-confirm, change, or clear each one. The wizard is the single source
 # of truth for the discoverable surface — a configurable bale invokes but
 # the wizard doesn't walk is a contract violation.
+#
+# Presentation vs meaning (session config-wizard-ui, after v0.4.45). How the
+# wizard DRAWS — section headings, one item per screen with its n/N
+# position and dotted key, the state rows, the Enter-stating prompt, the
+# on-demand '?' help, warnings, the pre-write review — is
+# bale_wizard's (the shared wizard presentation layer, a stdlib-only leaf
+# sibling). What an answer MEANS — Enter keeps, '-' clears, 'x'
+# suppresses, the bool spellings, the reject-with-hint checks — stays
+# here, in the _prompt_* helpers and walk_configurables, unchanged. The
+# walk order is declared once (WIZARD_WALK_ORDER_* below) and is what the
+# n/N positions and the section headings are derived from.
 
-def _prompt_value(label: str, *, current: Optional[str],
+# The keys `bale config init` walks, as dotted keys, in prompt order.
+# Both-layer keys first, then the project-layer-only sections (the rulings
+# recorded on VALIDATION_VALUES, SANDBOX_VALUES, PACK_VALUES, PROBE_VALUES,
+# and LAYOUT_VALUES). walk_configurables() opens each key's screen through
+# bale_wizard.Walk, which refuses a key missing from this tuple, and the
+# tests pin that the walk visits exactly these keys in exactly this order —
+# so a configurable added to walk_configurables() must be added here too,
+# and the "3/19" a user sees cannot drift from the keys actually walked.
+WIZARD_WALK_ORDER_BOTH_LAYERS = (
+    "hooks.post_pack",
+    "hooks.post_apply_pass",
+    "apply.search_paths",
+    "apply.no_interact",
+    "apply.hook_auto_accept",
+    "apply.archive_dir",
+    "apply.sweep",
+    "staging.strategy",
+    "staging.untracked_inputs",
+    "identity.packer",
+)
+WIZARD_WALK_ORDER_PROJECT_ONLY = (
+    "validation.base",
+    "validation.required",
+    "sandbox.network",
+    "sandbox.enabled",
+    "pack.include_group",
+    "pack.include_group_triggers",
+    "pack.include_group_pulls",
+    "probe.clipboard_command",
+    "layout.agent_dir",
+)
+
+# One heading note per TOML section, shown on the section's heading line.
+# Project-layer-only sections say so on the heading, once, rather than in
+# every item's summary.
+_WIZARD_SECTION_NOTES = {
+    "hooks": "scripts bale runs after pack and apply",
+    "apply": "inbound files and apply-time behavior",
+    "staging": "how apply builds the validation tree",
+    "identity": "who authors packs",
+    "validation": "blind checkpoint, required checks",
+    "sandbox": "confinement of response scripts",
+    "pack": "the include group",
+    "probe": "probe scaffold clipboard epilogue",
+    "layout": "where the agent-facing tree lives",
+}
+_PROJECT_ONLY_SECTIONS = ("validation", "sandbox", "pack", "probe", "layout")
+
+
+def wizard_walk_order(layer: str) -> tuple[str, ...]:
+    """The dotted keys `bale config init` walks at `layer`, in order."""
+    if layer == "project":
+        return WIZARD_WALK_ORDER_BOTH_LAYERS + WIZARD_WALK_ORDER_PROJECT_ONLY
+    if layer == "global":
+        return WIZARD_WALK_ORDER_BOTH_LAYERS
+    raise ValueError(f"unknown layer: {layer!r}")
+
+
+def _wizard_walk(layer: str,
+                 ui: Optional[bale_wizard.WizardUI] = None) -> bale_wizard.Walk:
+    """A Walk over `layer`'s keys with the section heading notes."""
+    notes = {
+        section: (f"{note} · project layer only"
+                  if section in _PROJECT_ONLY_SECTIONS else note)
+        for section, note in _WIZARD_SECTION_NOTES.items()
+    }
+    return bale_wizard.Walk(ui or bale_wizard.WizardUI(),
+                            wizard_walk_order(layer), notes)
+
+
+def _help_paragraphs(description: list[str]) -> list[str]:
+    """A key's full description as one re-flowable paragraph.
+
+    The descriptions are written as pre-broken lines for the old fixed
+    indent; the layer re-wraps them to the width, so they are joined
+    first. A line ending in a hyphen before a lowercase word was a word
+    broken across lines ("response-" / "script"), joined without a space.
+    """
+    text = ""
+    for line in (ln.strip() for ln in description):
+        if not line:
+            continue
+        if text.endswith("-") and line[:1].islower():
+            text += line
+        else:
+            text = f"{text} {line}" if text else line
+    return [text] if text else []
+
+
+def _enter_action(*, unset: bool, suppressed: bool, inherits: bool) -> str:
+    """What Enter does at this item, in the prompt's words."""
+    if unset:
+        return "Enter keeps inheriting" if inherits else "Enter leaves it unset"
+    if suppressed:
+        return "Enter keeps it suppressed"
+    return "Enter keeps current"
+
+
+def _show_help(walk: bale_wizard.Walk, label: str, description: list[str],
+               answers: str):
+    """The '?' callback for one item."""
+    return lambda: walk.ui.help(label, _help_paragraphs(description), answers)
+
+
+def wizard_grammar(ui: bale_wizard.WizardUI, *, layer: str) -> None:
+    """The answer grammar, explained once, before the first key.
+
+    Per-item prompts only state what Enter does and offer '?'; this table
+    is the one place the rest of the grammar is spelled out (and each
+    item's '?' help repeats the line that applies to it).
+    """
+    ui.heading("How to answer")
+    ui.emit("Each key gets one screen: a short summary, its state, and a "
+            "prompt that says what Enter does there. Every key is "
+            "optional.", indent=2)
+    rows = [
+        ("Enter", "keep: each prompt says what that means for its key"),
+        ("a value", "set the key at this layer: true or false for on/off "
+                    "keys, colon-separated entries for lists"),
+        ("-", "clear the key at this layer"
+              + ("; a global value then applies" if layer == "project"
+                 else "")),
+    ]
+    if layer == "project":
+        rows.append(("x", "suppress an inherited global value (offered on "
+                          "keys that show one)"))
+    rows.append(("?", "show the key's full description, then answer"))
+    ui.table(rows, indent=4)
+    ui.emit("Nothing is written until the review after the last key.",
+            indent=2)
+
+
+def _prompt_value(walk: bale_wizard.Walk, label: str, *,
+                  current: Optional[str],
                   inherited: Optional[str] = None,
+                  kind: str = "text",
+                  summary,
                   description: list[str],
                   unset_effective: str = "(no hook will run)") -> Optional[str]:
     """Generic value-prompt for the wizard.
+
+    `walk` draws the screen (bale_wizard); `label` is the dotted key.
+    `summary` is the short default view; `description` is the full text
+    shown on '?'. `kind` names the answer shape on the item header.
 
     `unset_effective` is the effective-line rendering when no layer sets
     the key (or this layer suppresses it). The default keeps the hook
@@ -1701,6 +1864,8 @@ def _prompt_value(label: str, *, current: Optional[str],
       - 'x'                 → return "" (explicit suppress). Only offered when
                               `inherited` is set; otherwise treated as a typo
                               and rejected with a hint.
+      - '?'                 → show the full description, ask again (consumed
+                              by the presentation layer; never a value).
       - any other text      → return that text (set value).
       - EOF/^C              → keep current (safer than clearing).
 
@@ -1708,22 +1873,22 @@ def _prompt_value(label: str, *, current: Optional[str],
     would produce, so the user sees at a glance what they're about to keep,
     change, or override.
     """
-    print(f"[{label}]")
-    for line in description:
-        print(f"  {line}")
+    ui = walk.ui
+    walk.begin(label, kind=kind, summary=summary)
 
-    # Display current state at this layer.
     if current is None:
-        print(f"  current at this layer: (unset)")
+        current_shown = "(unset)"
     elif current == "":
-        print(f"  current at this layer: (suppressed — empty string; the inherited value is ignored)")
+        current_shown = '(suppressed: "" ignores the inherited value)'
     else:
-        print(f"  current at this layer: {current}")
-
-    # Display inherited (only present when this is the project layer and the
-    # global layer has a value).
+        current_shown = current
+    rows: list = [("current", current_shown)]
+    aside = [""]
+    # Inherited shows only when this is the project layer and the global
+    # layer has a value; the 'x' sigil is offered exactly then.
     if inherited:
-        print(f"  inherited from global: {inherited}")
+        rows.append(("inherited", inherited))
+        aside.append("from global; x suppresses")
 
     # Effective value the merge would produce given current state.
     if current is None:
@@ -1732,24 +1897,22 @@ def _prompt_value(label: str, *, current: Optional[str],
         effective = None
     else:
         effective = current
-    if effective:
-        print(f"  effective: {effective}")
-    else:
-        print(f"  effective: {unset_effective}")
+    rows.append(("effective", effective if effective else unset_effective))
+    aside.append("")
+    ui.state(rows, aside)
 
-    # Prompt instructions. Suppress option only appears when there's something
-    # to suppress; that keeps the wording minimal in the common case (global
-    # walk, or project walk with no inherited value).
-    print(f"  Enter to keep. Type a value to set. Type '-' to clear (unset at this layer).")
+    answers = ("Answers: Enter keeps · a value sets it at this layer "
+               "· - clears it at this layer")
     if inherited:
-        print(f"  Type 'x' to suppress (write an empty string — ignores the inherited value).")
-
-    try:
-        raw = input(f"  > ")
-    except (EOFError, KeyboardInterrupt):
-        print()
+        answers += (" · x suppresses the inherited value (writes an "
+                    "empty string)")
+    raw = ui.ask_item(
+        _enter_action(unset=current is None, suppressed=current == "",
+                      inherits=bool(inherited)),
+        show_help=_show_help(walk, label, description, answers))
+    if raw is None:
         return current
-    val = raw.strip()
+    val = raw
     if val == "":
         return current
     if val == "-":
@@ -1761,14 +1924,17 @@ def _prompt_value(label: str, *, current: Optional[str],
         # silently treat it as a literal value (the user almost certainly
         # meant the suppress sigil). Ask again would mean recursing; the
         # cheaper move is to keep current and surface the mistake.
-        print(f"  '{val}' is the suppression sigil, only meaningful when a global "
-              f"value is inherited. No global value is set for this key; keeping current.")
+        ui.warn(f"'{val}' is the suppression sigil, only meaningful when a "
+                f"global value is inherited. No global value is set for "
+                f"this key; keeping current.")
         return current
     return val
 
 
-def _prompt_bool(label: str, *, current: Optional[bool],
+def _prompt_bool(walk: bale_wizard.Walk, label: str, *,
+                 current: Optional[bool],
                  inherited: Optional[bool] = None,
+                 summary,
                  description: list[str],
                  unset_effective: str = "(unset — off)") -> Optional[bool]:
     """Boolean prompt for the wizard, mirroring `_prompt_value` semantics.
@@ -1785,42 +1951,46 @@ def _prompt_bool(label: str, *, current: Optional[bool],
 
     No 'x' suppress sigil: booleans have no empty form, and an explicit
     `false` at the project layer already overrides an inherited `true`
-    (per-key replacement). The prompt says so when an inherited value shows.
+    (per-key replacement). The inherited row and the '?' help say so.
 
     Input semantics:
       - Enter               → keep current (None/True/False as passed in).
       - true/t/yes/y/1      → True.
       - false/f/no/n/0      → False.
       - '-'                 → None (clear at this layer).
+      - '?'                 → show the full description, ask again.
       - anything else       → keep current, with a hint.
       - EOF/^C              → keep current (safer than clearing).
     """
     def _show(v: Optional[bool]) -> str:
         return "(unset)" if v is None else ("true" if v else "false")
 
-    print(f"[{label}]")
-    for line in description:
-        print(f"  {line}")
+    ui = walk.ui
+    walk.begin(label, kind="true/false", summary=summary)
 
-    print(f"  current at this layer: {_show(current)}")
+    rows: list = [("current", _show(current))]
+    aside = [""]
     if inherited is not None:
-        print(f"  inherited from global: {_show(inherited)}")
-
+        rows.append(("inherited", _show(inherited)))
+        aside.append("from global; false here overrides")
     effective = current if current is not None else inherited
-    print(f"  effective: {unset_effective if effective is None else _show(effective)}")
+    rows.append(("effective",
+                 unset_effective if effective is None else _show(effective)))
+    aside.append("")
+    ui.state(rows, aside)
 
-    print(f"  Enter to keep. Type true or false to set. Type '-' to clear "
-          f"(unset at this layer).")
+    answers = ("Answers: Enter keeps · true or false (also y/n, yes/no, "
+               "1/0) sets it at this layer · - clears it at this layer")
     if inherited is not None:
-        print(f"  (No 'x' sigil for booleans — an explicit 'false' here already "
-              f"overrides the inherited value.)")
-
-    try:
-        raw = input(f"  > ")
-    except (EOFError, KeyboardInterrupt):
-        print()
+        answers += (" · no 'x' sigil for booleans: an explicit 'false' "
+                    "here already overrides the inherited value")
+    raw = ui.ask_item(
+        _enter_action(unset=current is None, suppressed=False,
+                      inherits=inherited is not None),
+        show_help=_show_help(walk, label, description, answers))
+    if raw is None:
         return current
-    val = raw.strip().lower()
+    val = raw.lower()
     if val == "":
         return current
     if val == "-":
@@ -1829,13 +1999,16 @@ def _prompt_bool(label: str, *, current: Optional[bool],
         return True
     if val in ("false", "f", "no", "n", "0"):
         return False
-    print(f"  '{raw.strip()}' is not a boolean; expected true/false (or Enter "
-          f"to keep, '-' to clear). Keeping current.")
+    ui.warn(f"'{bale_wizard.clip(raw)}' is not a boolean; expected "
+            f"true/false (or Enter to keep, '-' to clear). Keeping current.")
     return current
 
 
-def _prompt_path_list(label: str, *, current: Optional[list[str]],
+def _prompt_path_list(walk: bale_wizard.Walk, label: str, *,
+                      current: Optional[list[str]],
                       inherited: Optional[list[str]] = None,
+                      kind: str = "paths, colon-separated",
+                      summary,
                       description: list[str],
                       unset_effective: str = "(no extra search paths)"
                       ) -> Optional[list[str]]:
@@ -1858,59 +2031,55 @@ def _prompt_path_list(label: str, *, current: Optional[list[str]],
       - 'x'                                  → return [] (explicit suppress).
                                                Only offered when `inherited`
                                                is non-empty.
+      - '?'                                  → show the full description,
+                                               ask again.
       - colon-separated paths                → return parsed list (empties
                                                dropped — stray colons in input
                                                shouldn't introduce ""-entries).
       - EOF/^C                               → keep current.
 
-    The display format prefers one path per line — colon-joined lists are
+    The display prefers one path per line — colon-joined lists are
     unreadable at length. This is the canonical wizard interface for list-
     shaped configurables; future list-shaped configurables should reuse this.
     """
-    print(f"[{label}]")
-    for line in description:
-        print(f"  {line}")
+    ui = walk.ui
+    walk.begin(label, kind=kind, summary=summary)
 
-    # Display current at this layer.
     if current is None:
-        print(f"  current at this layer: (unset)")
+        current_shown: object = "(unset)"
     elif current == []:
-        print(f"  current at this layer: (suppressed — empty list)")
+        current_shown = "(suppressed: empty list)"
     else:
-        print(f"  current at this layer:")
-        for p in current:
-            print(f"    {p}")
-
-    # Display inherited.
+        current_shown = list(current)
+    rows: list = [("current", current_shown)]
+    aside = [""]
     if inherited:
-        print(f"  inherited from global:")
-        for p in inherited:
-            print(f"    {p}")
+        rows.append(("inherited", list(inherited)))
+        aside.append("from global; x suppresses")
 
-    # Effective.
     if current is None:
         effective = inherited
     elif current == []:
         effective = None
     else:
         effective = current
-    if effective:
-        print(f"  effective:")
-        for p in effective:
-            print(f"    {p}")
-    else:
-        print(f"  effective: {unset_effective}")
+    rows.append(("effective", list(effective) if effective
+                 else unset_effective))
+    aside.append("")
+    ui.state(rows, aside)
 
-    print(f"  Enter to keep. Type colon-separated paths to set. Type '-' to clear.")
+    answers = ("Answers: Enter keeps · colon-separated entries set the "
+               "list at this layer · - clears it at this layer")
     if inherited:
-        print(f"  Type 'x' to suppress (write empty list — overrides inherited).")
-
-    try:
-        raw = input(f"  > ")
-    except (EOFError, KeyboardInterrupt):
-        print()
+        answers += (" · x suppresses the inherited list (writes an "
+                    "empty list)")
+    raw = ui.ask_item(
+        _enter_action(unset=current is None, suppressed=current == [],
+                      inherits=bool(inherited)),
+        show_help=_show_help(walk, label, description, answers))
+    if raw is None:
         return current
-    val = raw.strip()
+    val = raw
     if val == "":
         return current
     if val == "-":
@@ -1918,8 +2087,9 @@ def _prompt_path_list(label: str, *, current: Optional[list[str]],
     if val == "x":
         if inherited:
             return []
-        print(f"  '{val}' is the suppression sigil, only meaningful when a global "
-              f"value is inherited. No global value is set for this key; keeping current.")
+        ui.warn(f"'{val}' is the suppression sigil, only meaningful when a "
+                f"global value is inherited. No global value is set for "
+                f"this key; keeping current.")
         return current
     # Drop empties — stray colons in input shouldn't introduce ""-entries
     # that then survive into bale.toml.
@@ -1928,58 +2098,67 @@ def _prompt_path_list(label: str, *, current: Optional[list[str]],
     return parts or None
 
 
-def walkthrough_git_identity(repo: Path) -> None:
+def walkthrough_git_identity(
+        repo: Path, ui: Optional[bale_wizard.WizardUI] = None) -> None:
     """Per constraint: check git user.name and user.email; if either is
     unset, prompt and write to the repo-local git config (never --global).
 
     Idempotent: already-set values (from any scope, repo-local or global)
     are reported and left alone. The constraint says "if unset, prompt
     and write to local" — already-set anywhere counts as set.
+
+    Shared with bale_pack's git-init walkthrough, which calls it with the
+    repo alone; `ui` defaults to a fresh WizardUI either way.
     """
     from __main__ import git
 
-    print()
-    print("Git identity (used for commit attribution on bale apply)")
+    ui = ui or bale_wizard.WizardUI()
+    ui.heading("Git identity", "commit attribution on bale apply")
+    width = len("git user.email")
     for key, label in (("user.name", "name"), ("user.email", "email")):
         result = git(["config", "--get", key], cwd=repo, check=False)
         current = result.stdout.strip() if result.returncode == 0 else ""
+        row_label = f"git {key}".ljust(width)
         if current:
-            print(f"  git {key}: {current}  (set)")
+            ui.table([(row_label, current)], indent=2, aside=["set"])
             continue
-        print(f"  git {key}: (unset)")
-        try:
-            val = input(f"  enter your {label} (Enter to skip): ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            val = ""
+        ui.table([(row_label, "(unset)")], indent=2)
+        val = ui.ask(f"enter your {label} · Enter skips > ", indent=2)
+        val = val or ""
         if val:
             # Repo-local. Never --global per the constraint.
             git(["config", key, val], cwd=repo)
-            print(f"  wrote {key} = {val} to repo-local git config")
+            ui.notice(f"wrote {key} = {val} to repo-local git config",
+                      indent=2)
         else:
-            print(f"  skipped; commits during this session may be attributed")
-            print(f"  to a fallback identity until {key} is set.")
+            ui.notice(f"skipped; commits during this session may be "
+                      f"attributed to a fallback identity until {key} is "
+                      f"set.", indent=2)
 
 
 def walk_configurables(existing: dict, *, layer: str,
-                       inherited: Optional[dict] = None) -> dict:
+                       inherited: Optional[dict] = None,
+                       ui: Optional[bale_wizard.WizardUI] = None) -> dict:
     """Walk every configurable; return the new dict for the layer being edited.
 
     `existing` is the current contents of the file being written. `layer` is
     "project" or "global". `inherited` is the lower layer (the global config)
     when walking the project layer, or None when walking global (no layer
-    below to inherit from).
+    below to inherit from). `ui` is the presentation layer to draw with
+    (default: a fresh bale_wizard.WizardUI).
 
     The presence of a key in the returned dict, including the empty-string /
     empty-list "suppress" form, determines what render_bale_toml emits.
 
     Sessions adding new configurables extend this function in the same
-    response. The wizard is the discoverable surface; if a configurable isn't
-    here, there's no canonical way to opt in to it.
+    response — and WIZARD_WALK_ORDER_* above, which the walk refuses to
+    run without. The wizard is the discoverable surface; if a configurable
+    isn't here, there's no canonical way to opt in to it.
     """
     if layer not in ("project", "global"):
         raise ValueError(f"unknown layer: {layer!r}")
     inherited = inherited or {}
+    walk = _wizard_walk(layer, ui)
 
     # Layer-specific phrasing for hook descriptions. The mechanics are the
     # same at both layers; what differs is where paths resolve to and where
@@ -2009,7 +2188,12 @@ def walk_configurables(existing: dict, *, layer: str,
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
 
     val = _prompt_value(
-        "hooks.post_pack",
+        walk, "hooks.post_pack",
+        kind="script path",
+        summary=(
+            "Script bale runs after `bale pack` writes a request tarball "
+            "(bale asks before running it)."
+        ),
         current=current,
         inherited=inh,
         description=[
@@ -2035,7 +2219,12 @@ def walk_configurables(existing: dict, *, layer: str,
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
 
     val = _prompt_value(
-        "hooks.post_apply_pass",
+        walk, "hooks.post_apply_pass",
+        kind="script path",
+        summary=(
+            "Script bale runs after a passing `bale apply` merges (bale "
+            "asks before running it)."
+        ),
         current=current,
         inherited=inh,
         description=[
@@ -2083,7 +2272,12 @@ def walk_configurables(existing: dict, *, layer: str,
         inh_list = None
 
     val_list = _prompt_path_list(
-        "apply.search_paths",
+        walk, "apply.search_paths",
+        kind="paths, colon-separated",
+        summary=(
+            "Directories searched, after cwd, for a relative inbound-file"
+            " name: tarballs, briefs, bundles, checkpoint files."
+        ),
         current=current_list,
         inherited=inh_list,
         description=[
@@ -2120,7 +2314,11 @@ def walk_configurables(existing: dict, *, layer: str,
     inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
 
     val_b = _prompt_bool(
-        "apply.no_interact",
+        walk, "apply.no_interact",
+        summary=(
+            "true = `bale apply` and `bale retry` run non-interactively, "
+            "each prompt taking its default (logged)."
+        ),
         current=current_b,
         inherited=inh_b,
         description=[
@@ -2145,7 +2343,11 @@ def walk_configurables(existing: dict, *, layer: str,
     inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
 
     val_b = _prompt_bool(
-        "apply.hook_auto_accept",
+        walk, "apply.hook_auto_accept",
+        summary=(
+            "Non-interactive mode only: true = hooks run without their "
+            "confirmation prompt."
+        ),
         current=current_b,
         inherited=inh_b,
         description=[
@@ -2175,7 +2377,12 @@ def walk_configurables(existing: dict, *, layer: str,
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
 
     val = _prompt_value(
-        "apply.archive_dir",
+        walk, "apply.archive_dir",
+        kind="repo-relative dir",
+        summary=(
+            "Directory a merged response's README.md and notes.md are "
+            "copied into, untracked."
+        ),
         current=current,
         inherited=inh,
         description=[
@@ -2205,7 +2412,11 @@ def walk_configurables(existing: dict, *, layer: str,
     inh_b = raw_inh_b if isinstance(raw_inh_b, bool) else None
 
     val_b = _prompt_bool(
-        "apply.sweep",
+        walk, "apply.sweep",
+        summary=(
+            "true = at a session-closing event, bale commits exactly the "
+            "bookkeeping files it just wrote."
+        ),
         current=current_b,
         inherited=inh_b,
         description=[
@@ -2240,7 +2451,12 @@ def walk_configurables(existing: dict, *, layer: str,
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
 
     val = _prompt_value(
-        "staging.strategy",
+        walk, "staging.strategy",
+        kind="working-tree | target-base",
+        summary=(
+            "How `bale apply` builds the staging tree that validation.sh "
+            "runs in."
+        ),
         current=current,
         inherited=inh,
         description=[
@@ -2257,8 +2473,9 @@ def walk_configurables(existing: dict, *, layer: str,
         unset_effective="(unset — working-tree)",
     )
     if val not in (None, "") and val.strip() not in STAGING_STRATEGIES:
-        print(f"  '{val}' is not a staging strategy; expected one of: "
-              f"{', '.join(STAGING_STRATEGIES)}. Keeping current.")
+        walk.ui.warn(f"'{bale_wizard.clip(val)}' is not a staging "
+                     f"strategy; expected one of: "
+                     f"{', '.join(STAGING_STRATEGIES)}. Keeping current.")
         val = current
     if val is not None:
         new.setdefault("staging", {})["strategy"] = val
@@ -2273,7 +2490,12 @@ def walk_configurables(existing: dict, *, layer: str,
         inh_list = None
 
     val_list = _prompt_path_list(
-        "staging.untracked_inputs",
+        walk, "staging.untracked_inputs",
+        kind="paths, colon-separated",
+        summary=(
+            "target-base only: untracked build or dependency paths (e.g. "
+            ".venv) copied into staging."
+        ),
         current=current_list,
         inherited=inh_list,
         description=[
@@ -2307,7 +2529,12 @@ def walk_configurables(existing: dict, *, layer: str,
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
 
     val = _prompt_value(
-        "identity.packer",
+        walk, "identity.packer",
+        kind="name",
+        summary=(
+            "Who authors packs here; stamped into each request as "
+            "provenance.packer."
+        ),
         current=current,
         inherited=inh,
         description=[
@@ -2340,7 +2567,12 @@ def walk_configurables(existing: dict, *, layer: str,
         current = raw_cur if isinstance(raw_cur, str) else None
 
         val = _prompt_value(
-            "validation.base",
+            walk, "validation.base",
+            kind="repo-relative path",
+            summary=(
+                "The committed blind checkpoint script `bale apply` runs "
+                "before validation.sh."
+            ),
             current=current,
             inherited=None,
             description=[
@@ -2379,7 +2611,12 @@ def walk_configurables(existing: dict, *, layer: str,
                         if raw_cur_list is not None else None)
 
         val_list = _prompt_path_list(
-            "validation.required",
+            walk, "validation.required",
+            kind="names, colon-separated",
+            summary=(
+                "Check names every response that ships changes must declare "
+                "in validation_will_run."
+            ),
             current=current_list,
             inherited=None,
             description=[
@@ -2413,7 +2650,11 @@ def walk_configurables(existing: dict, *, layer: str,
         current_b = raw_cur_b if isinstance(raw_cur_b, bool) else None
 
         val_b = _prompt_bool(
-            "sandbox.network",
+            walk, "sandbox.network",
+            summary=(
+                "true = this repo's confined response scripts (apply.sh, the "
+                "checkpoint, validation.sh) get network."
+            ),
             current=current_b,
             inherited=None,
             description=[
@@ -2448,7 +2689,15 @@ def walk_configurables(existing: dict, *, layer: str,
         current_e = raw_cur_e if isinstance(raw_cur_e, bool) else None
 
         val_e = _prompt_bool(
-            "sandbox.enabled",
+            walk, "sandbox.enabled",
+            # Two explicit lines: "NEVER silent" opens the second, so the
+            # loudness guarantee is read whole, never split by a wrap.
+            summary=(
+                "false = response scripts run UNCONFINED, as --no-sandbox "
+                "does.",
+                "NEVER silent: each such run is FORCE-logged and stamped in "
+                "telemetry.",
+            ),
             current=current_e,
             inherited=None,
             description=[
@@ -2489,7 +2738,12 @@ def walk_configurables(existing: dict, *, layer: str,
         current = raw_cur if isinstance(raw_cur, str) else None
 
         val = _prompt_value(
-            "pack.include_group",
+            walk, "pack.include_group",
+            kind="name",
+            summary=(
+                "Name of the include group: paths a pack pulls in whenever "
+                "its includes touch the group's triggers."
+            ),
             current=current,
             inherited=None,
             description=[
@@ -2518,7 +2772,12 @@ def walk_configurables(existing: dict, *, layer: str,
                         if raw_cur_list is not None else None)
 
         val_list = _prompt_path_list(
-            "pack.include_group_triggers",
+            walk, "pack.include_group_triggers",
+            kind="paths, colon-separated",
+            summary=(
+                "Paths that engage the include group (required once the group"
+                " has a name)."
+            ),
             current=current_list,
             inherited=None,
             description=[
@@ -2541,7 +2800,12 @@ def walk_configurables(existing: dict, *, layer: str,
                         if raw_cur_list is not None else None)
 
         val_list = _prompt_path_list(
-            "pack.include_group_pulls",
+            walk, "pack.include_group_pulls",
+            kind="paths, colon-separated",
+            summary=(
+                "Paths the engaged group adds to the pack's shipped context "
+                "(required once the group has a name)."
+            ),
             current=current_list,
             inherited=None,
             description=[
@@ -2576,7 +2840,12 @@ def walk_configurables(existing: dict, *, layer: str,
         current = raw_cur if isinstance(raw_cur, str) else None
 
         val = _prompt_value(
-            "probe.clipboard_command",
+            walk, "probe.clipboard_command",
+            kind="shell command",
+            summary=(
+                "Command a probe script pipes its output into (pbcopy, "
+                "clip.exe, ...)."
+            ),
             current=current,
             inherited=None,
             description=[
@@ -2600,8 +2869,9 @@ def walk_configurables(existing: dict, *, layer: str,
         if val not in (None, ""):
             problem = probe_clipboard_command_problem(val)
             if problem is not None:
-                print(f"  '{val}' {problem}; the probe scaffold's reader "
-                      f"would treat it as unset. Keeping current.")
+                walk.ui.warn(f"'{bale_wizard.clip(val)}' {problem}; the "
+                             f"probe scaffold's reader would treat it as "
+                             f"unset. Keeping current.")
                 val = current
         if val is not None:
             new.setdefault("probe", {})["clipboard_command"] = val
@@ -2622,7 +2892,12 @@ def walk_configurables(existing: dict, *, layer: str,
         current = raw_cur if isinstance(raw_cur, str) else None
 
         val = _prompt_value(
-            "layout.agent_dir",
+            walk, "layout.agent_dir",
+            kind="repo-relative dir",
+            summary=(
+                "Directory holding the agent-facing tree bale writes to "
+                "(telemetry lives under it)."
+            ),
             current=current,
             inherited=None,
             description=[
@@ -2643,7 +2918,8 @@ def walk_configurables(existing: dict, *, layer: str,
         if val not in (None, ""):
             problem = layout_agent_dir_problem(val.strip())
             if problem is not None:
-                print(f"  '{val}' {problem}. Keeping current.")
+                walk.ui.warn(f"'{bale_wizard.clip(val)}' {problem}. "
+                             f"Keeping current.")
                 val = current
         if val is not None:
             new.setdefault("layout", {})["agent_dir"] = val
@@ -2886,26 +3162,160 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
     return "\n".join(parts)
 
 
-def walkthrough_baleignore(repo: Path) -> None:
+def _flatten_config(cfg: dict, prefix: str = "") -> dict:
+    """A parsed bale.toml as {dotted key: value}, tables recursed.
+
+    Empty tables carry no value and are skipped; the review compares
+    values, and the byte comparison beside it catches anything else.
+    """
+    flat: dict = {}
+    for key, value in cfg.items():
+        dotted = f"{prefix}{key}"
+        if isinstance(value, dict):
+            flat.update(_flatten_config(value, dotted + "."))
+        else:
+            flat[dotted] = value
+    return flat
+
+
+def _toml_display(value) -> str:
+    """A value as it reads in bale.toml (strings quoted, lists bracketed)."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_display(v) for v in value) + "]"
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        return repr(value)
+
+
+def config_changes(old: dict, new: dict, *,
+                   layer: str) -> list[tuple[str, str]]:
+    """What writing `new` over a file that parses to `old` changes, per key.
+
+    Returns review rows (marker, text): "+" a key the file gains, "~" a
+    key whose value changes, "-" a key the file loses. Rows follow the
+    walk order, then any other keys alphabetically. A lost key the walk
+    covers was cleared; one it does not cover was hand-edited in and is
+    dropped by the rewrite (the header comment's warning, made visible).
+    """
+    before = _flatten_config(old)
+    after = _flatten_config(new)
+    order = wizard_walk_order(layer)
+    rank = {key: i for i, key in enumerate(order)}
+    keys = sorted(set(before) | set(after),
+                  key=lambda k: (rank.get(k, len(order)), k))
+    rows: list[tuple[str, str]] = []
+    for key in keys:
+        if key not in before:
+            rows.append(("+", f"{key} = {_toml_display(after[key])}"))
+        elif key not in after:
+            why = ("cleared" if key in rank
+                   else "not walked at this layer; dropped")
+            rows.append(("-", f"{key} = {_toml_display(before[key])}  "
+                              f"({why})"))
+        elif before[key] != after[key] or type(before[key]) is not type(
+                after[key]):
+            rows.append(("~", f"{key} = {_toml_display(before[key])} "
+                              f"→ {_toml_display(after[key])}"))
+    return rows
+
+
+def review_and_write_config(ui: bale_wizard.WizardUI, cfg_path: Path, *,
+                            existing: dict, new_cfg: dict, rendered: str,
+                            layer: str) -> str:
+    """Show what the walk changes in `cfg_path`, then write on confirm.
+
+    The gate is the wizard's one write decision for bale.toml. Enter
+    writes — so an Enter-through run lands the file exactly as the
+    pre-review wizard did — and so does a closed stdin (scripted runs);
+    only a typed n, or ^C at this prompt, leaves the file alone. A file
+    whose bytes already equal the rendering is reported as unchanged and
+    not rewritten (there is nothing a write could change).
+
+    Returns the outcome for the closing summary: "created", "updated",
+    "unchanged", or "not written".
+    """
+    from __main__ import log
+
+    name = cfg_path.name
+    on_disk: Optional[str] = None
+    if cfg_path.is_file():
+        try:
+            on_disk = cfg_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            # load_config already parsed it, so this is unexpected; say so
+            # and review as if the bytes differ (the write still asks).
+            ui.warn(f"could not re-read {cfg_path} for the review: {e}",
+                    indent=2)
+            on_disk = ""
+
+    rows = config_changes(existing, new_cfg, layer=layer)
+    if on_disk is None:
+        target = f"{cfg_path} (new file)"
+        set_count = len(_flatten_config(new_cfg))
+        verdict = (f"creates {name} with {set_count} key"
+                   f"{'' if set_count == 1 else 's'} set" if set_count
+                   else f"creates {name} with no keys set "
+                        f"(only its header comment)")
+        note = ""
+    elif on_disk == rendered:
+        ui.review(f"Review: {name}", target=str(cfg_path),
+                  verdict="no changes: the file already matches the walk")
+        log(f"{cfg_path} unchanged (already matches the walk)")
+        return "unchanged"
+    else:
+        target = str(cfg_path)
+        if rows:
+            verdict = f"{len(rows)} change{'' if len(rows) == 1 else 's'}"
+            note = ""
+        else:
+            verdict = "no value changes"
+            note = ("The file is rewritten in the wizard's layout (header "
+                    "comment, key order); every value stays the same.")
+    ui.review(f"Review: {name}", target=target, verdict=verdict,
+              changes=rows, note=note)
+
+    if not ui.confirm(f"Write {name}?", default=True, eof=True,
+                      interrupt=False):
+        log(f"{cfg_path} not written (declined at the review)")
+        ui.notice(f"{name} not written; the file on disk is unchanged.",
+                  indent=2)
+        return "not written"
+    cfg_path.write_text(rendered, encoding="utf-8")
+    log(f"wrote {cfg_path}")
+    return "updated" if on_disk is not None else "created"
+
+
+def walkthrough_baleignore(
+        repo: Path, ui: Optional[bale_wizard.WizardUI] = None) -> None:
     """Walk the user through `<repo>/.baleignore` — the user-managed
     exclusion file the pack/apply pipelines read at BALE.md §6.4 / §11
     rule 14. Project-mode only; called from _cmd_config_init_project
-    after the bale.toml is written.
+    after the bale.toml step.
 
-    The walk has three phases, each idempotent:
+    The walk has four phases, each idempotent:
 
-      1. If a `.baleignore` exists, walk its lines one at a time and
-         ask "keep this pattern?" — default is keep (Enter).
+      1. If a `.baleignore` exists, walk its patterns one at a time —
+         Enter keeps, n removes (default is keep).
       2. Prompt for additions, one per line, blank to finish.
-      3. Write the file (or remove it, if the keep+add net is empty).
+      3. Review: the patterns removed and added versus the file on disk
+         ("no changes" included).
+      4. Write the file (or remove it, if the keep+add net is empty).
+         When the review shows a change, a confirm gates the write —
+         Enter (and a closed stdin) proceed, a typed n or ^C leaves the
+         file alone; with no pattern change, the step proceeds as it
+         always has, without asking.
 
     The file format: one pattern per line, blank lines and `#`-comments
     permitted. The walk preserves user-authored comments by passing them
-    through verbatim in phase 1 (we show them inline, but don't ask
-    keep/remove — they're orientation for the patterns near them, and
-    asking the user 'keep this comment?' for every comment would be
-    noise). New patterns from phase 2 don't get auto-comments; the user
-    is the canonical author of comments in this file.
+    through verbatim in phase 1 (they're orientation for the patterns
+    near them, and asking the user 'keep this comment?' for every comment
+    would be noise). New patterns from phase 2 don't get auto-comments;
+    the user is the canonical author of comments in this file.
 
     Syntax explanation is inline at the top of phase 2 so the user
     doesn't need to read BALE.md §6.4 to fill in a pattern. The phrasing
@@ -2921,76 +3331,89 @@ def walkthrough_baleignore(repo: Path) -> None:
     """
     from __main__ import log
 
+    ui = ui or bale_wizard.WizardUI()
     BALEIGNORE = ".baleignore"
     path = repo / BALEIGNORE
 
-    print()
-    print(".baleignore — files and patterns to exclude from request tarballs")
-    print(f"  file: {path}")
-    print(f"  applies on top of bale's baked-in exclusions and your .gitignore.")
-    print(f"  bale reads this file when packing, and apply rejects a")
-    print(f"  response whose changes touch a matched path (BALE.md §11 rule 14).")
+    ui.heading(BALEIGNORE, "patterns excluded from request tarballs")
+    ui.table([("file", str(path))], indent=2)
+    ui.emit("Applies on top of bale's baked-in exclusions and your "
+            ".gitignore. bale reads this file when packing, and apply "
+            "rejects a response whose changes touch a matched path "
+            "(BALE.md §11 rule 14).", indent=2)
 
     existing_lines: list[str] = []
     if path.is_file():
         try:
             existing_lines = path.read_text(encoding="utf-8").splitlines()
         except OSError as e:
-            print(f"  could not read {path}: {e} — skipping .baleignore step.")
+            ui.warn(f"could not read {path}: {e}; skipping the .baleignore "
+                    f"step.", indent=2)
             return
-        print(f"  (existing file; walk each pattern to keep or remove,")
-        print(f"  then add more if you like.)")
+        ui.notice("Existing file: each pattern is walked to keep or "
+                  "remove, then you can add more.", indent=2)
     else:
-        print(f"  (no file yet; pressing Enter through skips creation.)")
+        ui.notice("No file yet; pressing Enter through skips creation.",
+                  indent=2)
 
     # Phase 1: walk existing lines. Comments and blanks pass through
-    # verbatim; pattern lines get a y/n. EOF/^C at any prompt is
+    # verbatim; pattern lines get a keep/remove. EOF/^C at any prompt is
     # interpreted as "keep" (consistent with the wizard's general bias
     # toward preservation on accidental aborts — the file is rewritten
     # only after the user finishes the walk).
-    kept_lines: list[str] = []
-    for line in existing_lines:
+    def _is_pattern(line: str) -> bool:
         stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+        return bool(stripped) and not stripped.startswith("#")
+
+    existing_patterns = [ln.strip() for ln in existing_lines
+                         if _is_pattern(ln)]
+    kept_lines: list[str] = []
+    removed: list[str] = []
+    position = 0
+    for line in existing_lines:
+        if not _is_pattern(line):
             # Pass through verbatim — these are the user's comments and
             # spacing, not patterns we walk.
             kept_lines.append(line)
             continue
-        print()
-        print(f"  pattern: {stripped}")
-        try:
-            raw = input(f"  keep this pattern? [Y/n] ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            raw = ""
+        stripped = line.strip()
+        position += 1
+        ui.blank()
+        ui.table([(f"pattern {position}/{len(existing_patterns)}",
+                   stripped)], indent=2)
+        raw = (ui.ask("keep? Enter keeps · n removes > ", indent=2)
+               or "").lower()
         if raw in ("n", "no"):
             # Drop this line. Adjacent comment lines are preserved
             # above; the user may want to clean them up next run.
+            removed.append(stripped)
             continue
         kept_lines.append(line)
 
     # Phase 2: prompt for additions. Show a brief syntax reminder so the
     # user doesn't need to read the spec.
-    print()
-    print("  Add new patterns? (one per line, blank to finish)")
-    print("  Syntax (subset of gitignore):")
-    print("    data/         — directory named 'data' anywhere")
-    print("    /build/       — directory named 'build' at repo root only")
-    print("    *.parquet     — files ending in .parquet, any depth")
-    print("    src/legacy/   — that exact dir and everything under it")
-    print("    src/legacy/*.vue — .vue files directly in src/legacy/")
-    print("  Patterns starting with '!' (negation) are not supported.")
+    ui.blank()
+    ui.emit("Add new patterns, one per line; an empty line finishes.",
+            indent=2)
+    ui.emit("Syntax (a subset of gitignore):", indent=2)
+    ui.table([
+        ("data/", "directory named 'data' anywhere"),
+        ("/build/", "directory named 'build' at repo root only"),
+        ("*.parquet", "files ending in .parquet, any depth"),
+        ("src/legacy/", "that exact dir and everything under it"),
+        ("src/legacy/*.vue", ".vue files directly in src/legacy/"),
+    ], indent=4)
+    ui.emit("Patterns starting with '!' (negation) are not supported.",
+            indent=2)
     added: list[str] = []
     while True:
-        try:
-            raw = input("  > ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
+        raw = ui.ask("add > ", indent=2)
         if not raw:
+            # Empty line finishes; EOF/^C (None) finishes too.
             break
         if raw.startswith("!"):
-            print(f"  (negation patterns aren't supported; skipping {raw!r})")
+            ui.warn(f"negation patterns aren't supported; skipping "
+                    f"{bale_wizard.clip(raw)!r}", indent=2)
             continue
         added.append(raw)
 
@@ -3000,25 +3423,54 @@ def walkthrough_baleignore(repo: Path) -> None:
     # kept-from-existing set and the user added nothing, also remove —
     # comments without patterns aren't load-bearing and a missing file
     # is the canonical "no .baleignore" state.
-    new_pattern_lines = [
-        ln for ln in kept_lines
-        if ln.strip() and not ln.strip().startswith("#")
-    ] + added
+    new_pattern_lines = [ln for ln in kept_lines if _is_pattern(ln)] + added
+    changes = ([("-", p) for p in removed] + [("+", p) for p in added])
+
+    # Phase 3: review, before anything is written.
     if not new_pattern_lines:
         if path.is_file():
+            ui.review(f"Review: {BALEIGNORE}", target=str(path),
+                      verdict="removes the file: no patterns kept or added",
+                      changes=changes)
+            if not ui.confirm(f"Remove {BALEIGNORE}?", default=True,
+                              eof=True, interrupt=False):
+                log(f"{path} left in place (declined at the review)")
+                ui.notice(f"{BALEIGNORE} left unchanged.", indent=2)
+                return
             try:
                 path.unlink()
                 log(f"removed {path} (no patterns kept or added)")
-                print(f"  removed {BALEIGNORE} — no patterns active.")
+                ui.notice(f"removed {BALEIGNORE}: no patterns active.",
+                          indent=2)
             except OSError as e:
                 # Surface the failure but don't abort the wizard — the
-                # bale.toml has already been written by this point.
-                print(f"  could not remove {path}: {e}")
+                # bale.toml step has already run by this point.
+                ui.warn(f"could not remove {path}: {e}", indent=2)
         else:
-            print(f"  no .baleignore created — no patterns to write.")
+            ui.review(f"Review: {BALEIGNORE}", target=str(path),
+                      verdict="no changes")
+            ui.notice("no .baleignore created: no patterns to write.",
+                      indent=2)
         return
 
-    # Write the file. Compose by stitching together the kept lines (in
+    if changes:
+        count = len(changes)
+        ui.review(f"Review: {BALEIGNORE}",
+                  target=str(path) + ("" if path.is_file()
+                                      else " (new file)"),
+                  verdict=f"{count} pattern change{'' if count == 1 else 's'}",
+                  changes=changes)
+        if not ui.confirm(f"Write {BALEIGNORE}?", default=True, eof=True,
+                          interrupt=False):
+            log(f"{path} not written (declined at the review)")
+            ui.notice(f"{BALEIGNORE} not written; the file on disk is "
+                      f"unchanged.", indent=2)
+            return
+    else:
+        ui.review(f"Review: {BALEIGNORE}", target=str(path),
+                  verdict="no changes")
+
+    # Phase 4: write. Compose by stitching together the kept lines (in
     # original order, comments and patterns intermingled) and then the
     # additions at the end. A trailing newline is appended so the file
     # is a clean text file rather than missing-newline-EOF.
@@ -3039,15 +3491,13 @@ def walkthrough_baleignore(repo: Path) -> None:
         path.write_text(body, encoding="utf-8")
     except OSError as e:
         # Same not-aborting reasoning as the unlink branch above.
-        print(f"  could not write {path}: {e}")
+        ui.warn(f"could not write {path}: {e}", indent=2)
         return
 
-    pattern_count = sum(
-        1 for ln in body_lines
-        if ln.strip() and not ln.strip().startswith("#")
-    )
+    pattern_count = sum(1 for ln in body_lines if _is_pattern(ln))
     log(f"wrote {path} ({pattern_count} pattern(s))")
-    print(f"  wrote {BALEIGNORE} ({pattern_count} pattern(s) active).")
+    ui.notice(f"wrote {BALEIGNORE} ({pattern_count} pattern(s) active).",
+              indent=2)
 
 
 def cmd_config_init(args: argparse.Namespace) -> int:
@@ -3072,7 +3522,7 @@ def cmd_config_init(args: argparse.Namespace) -> int:
 
 
 def _cmd_config_init_project() -> int:
-    from __main__ import fail, log, refuse_system_dir, repo_root
+    from __main__ import fail, refuse_system_dir, repo_root
 
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
@@ -3093,23 +3543,29 @@ def _cmd_config_init_project() -> int:
     existing = load_config(repo)
     inherited = load_global_config()
     is_existing = cfg_path.is_file()
+    ui = bale_wizard.WizardUI()
 
-    print()
-    print("bale config init (project layer)")
-    print("  Canonical setup walkthrough for using bale on this repo.")
-    print("  Idempotent — re-run any time to review or change. Everything")
-    print("  past git identity is optional; pressing Enter through the rest")
-    print("  leaves the repo in a perfectly usable state.")
+    ui.title(
+        "bale config init · project layer",
+        rows=[("repo", str(repo)),
+              ("config", f"{cfg_path} "
+                         f"({'exists' if is_existing else 'new'})")],
+        intro=("Canonical setup walkthrough for using bale on this repo. "
+               "Idempotent: re-run any time to review or change. "
+               "Everything past git identity is optional; pressing Enter "
+               "through the rest leaves the repo in a perfectly usable "
+               "state."))
 
-    walkthrough_git_identity(repo)
+    walkthrough_git_identity(repo, ui)
 
-    print()
-    print("Configurables (project layer)")
-    new_cfg = walk_configurables(existing, layer="project", inherited=inherited)
+    wizard_grammar(ui, layer="project")
+    new_cfg = walk_configurables(existing, layer="project",
+                                 inherited=inherited, ui=ui)
 
     rendered = render_bale_toml(new_cfg, layer="project")
-    cfg_path.write_text(rendered, encoding="utf-8")
-    log(f"wrote {cfg_path}")
+    outcome = review_and_write_config(
+        ui, cfg_path, existing=existing, new_cfg=new_cfg, rendered=rendered,
+        layer="project")
 
     # .baleignore walkthrough — project-mode only. The file lives at the
     # repo root and is the user-facing exclusion surface that pack and
@@ -3117,19 +3573,19 @@ def _cmd_config_init_project() -> int:
     # rather than in bin/bale's pack wizard because `bale config init` is
     # the canonical "set up bale for this project" surface — the user
     # who never runs `bale pack` interactively still configures here.
-    walkthrough_baleignore(repo)
+    walkthrough_baleignore(repo, ui)
 
     # Key information last: the paths touched, what was written, and how to
     # re-run — the summary sits nearest the prompt (the main-CLI output idiom).
-    print()
-    print("bale config init — done (project layer)")
-    print(f"  repo:    {repo}")
-    print(f"  config:  {cfg_path} ({'updated' if is_existing else 'created'})")
-    if GLOBAL_CONFIG_PATH.is_file():
-        print(f"  global:  {GLOBAL_CONFIG_PATH} (inherited)")
-    else:
-        print(f"  global:  {GLOBAL_CONFIG_PATH} (not configured)")
-    print("  Re-run `bale config init` any time to review or change.")
+    ui.heading("Done", "bale config init · project layer")
+    ui.table([
+        ("repo", str(repo)),
+        ("config", f"{cfg_path} ({outcome})"),
+        ("global", f"{GLOBAL_CONFIG_PATH} "
+                   f"({'inherited' if GLOBAL_CONFIG_PATH.is_file() else 'not configured'})"),
+    ], indent=2)
+    ui.emit("Re-run `bale config init` any time to review or change.",
+            indent=2)
     return 0
 
 
@@ -3141,7 +3597,7 @@ def _cmd_config_init_global() -> int:
     outside any git repo is fine. Refuses system dirs out of caution
     (cwd parity with project mode), even though we don't read cwd otherwise.
     """
-    from __main__ import log, refuse_system_dir
+    from __main__ import refuse_system_dir
 
     cwd = Path.cwd().resolve()
     refuse_system_dir(cwd)
@@ -3149,38 +3605,47 @@ def _cmd_config_init_global() -> int:
     cfg_path = GLOBAL_CONFIG_PATH
     existing = load_global_config()
     is_existing = cfg_path.is_file()
+    ui = bale_wizard.WizardUI()
 
     # Create the user/ subtree on first write. Idempotent: exist_ok=True.
     # parents=True covers the (theoretical) case where install root exists
     # but user/ has been deleted manually.
     GLOBAL_USER_DIR.mkdir(parents=True, exist_ok=True)
 
-    print()
-    print("bale config init --global")
-    print("  Configures the install-wide global layer for this bale install.")
-    print("  Every project that runs this bale inherits these defaults; each")
-    print("  project's own bale.toml can override per-key. Hook scripts")
-    print("  referenced here live under <install>/user/scripts/ and are")
-    print("  preserved across upgrades (via `upgrade.sh`). Idempotent —")
-    print("  re-run any time to review or change.")
+    ui.title(
+        "bale config init --global · install layer",
+        rows=[("install", str(INSTALL_ROOT)),
+              ("config", f"{cfg_path} "
+                         f"({'exists' if is_existing else 'new'})")],
+        intro=("Configures the install-wide global layer for this bale "
+               "install. Every project that runs this bale inherits these "
+               "defaults; each project's own bale.toml can override "
+               "per-key. Hook scripts referenced here live under "
+               "<install>/user/scripts/ and are preserved across upgrades "
+               "(via `upgrade.sh`). Idempotent: re-run any time to review "
+               "or change."))
 
-    print()
-    print("Configurables (global layer)")
+    wizard_grammar(ui, layer="global")
     # No inherited layer below global.
-    new_cfg = walk_configurables(existing, layer="global", inherited=None)
+    new_cfg = walk_configurables(existing, layer="global", inherited=None,
+                                 ui=ui)
 
     rendered = render_bale_toml(new_cfg, layer="global")
-    cfg_path.write_text(rendered, encoding="utf-8")
-    log(f"wrote {cfg_path}")
+    outcome = review_and_write_config(
+        ui, cfg_path, existing=existing, new_cfg=new_cfg, rendered=rendered,
+        layer="global")
 
     # Key information last (same idiom as project mode): install + config
     # paths, what was written, the scripts dir, and how to re-run.
-    print()
-    print("bale config init --global — done")
-    print(f"  install:      {INSTALL_ROOT}")
-    print(f"  config:       {cfg_path} ({'updated' if is_existing else 'created'})")
-    print(f"  scripts dir:  {GLOBAL_USER_DIR / 'scripts'} (place global hook scripts here)")
-    print("  Re-run `bale config init --global` any time to review or change.")
+    ui.heading("Done", "bale config init --global")
+    ui.table([
+        ("install", str(INSTALL_ROOT)),
+        ("config", f"{cfg_path} ({outcome})"),
+        ("scripts dir", f"{GLOBAL_USER_DIR / 'scripts'} "
+                        f"(place global hook scripts here)"),
+    ], indent=2)
+    ui.emit("Re-run `bale config init --global` any time to review or "
+            "change.", indent=2)
     return 0
 
 

@@ -52,6 +52,7 @@ from pathlib import Path
 from harness import REPO_ROOT, _load_module
 
 bale_config = _load_module("bale_config")
+bale_wizard = _load_module("bale_wizard")
 bale_validate = _load_module("bale_validate")
 bale_report = _load_module("bale_report")
 bale_rollback = _load_module("bale_rollback")
@@ -453,18 +454,25 @@ class LayoutAccessorTest(_LayoutBase):
 
 
 def _walk_with_answers(existing: dict, *, layer: str,
-                       answers: dict[str, str]) -> tuple[dict, str]:
+                       answers: dict) -> tuple[dict, str]:
     """Drive walk_configurables with input() answering by prompt label
-    (the test_probe_clipboard_config driver, order-independent)."""
+    (the test_probe_clipboard_config driver, order-independent): the item
+    an input() belongs to is the most recent line matching
+    bale_wizard.ITEM_HEADER_RE, and a list answer is consumed one entry
+    per input() call for that item ('?' then the real answer)."""
     buffer = io.StringIO()
+    pending = {key: (list(value) if isinstance(value, list) else [value])
+               for key, value in answers.items()}
 
     def fake_input(_prompt: str = "") -> str:
         label = None
         for line in reversed(buffer.getvalue().splitlines()):
-            if line.startswith("[") and line.endswith("]"):
-                label = line[1:-1]
+            match = bale_wizard.ITEM_HEADER_RE.match(line)
+            if match:
+                label = match.group(3)
                 break
-        return answers.get(label, "")
+        queue = pending.get(label) or []
+        return queue.pop(0) if queue else ""
 
     saved_input = builtins.input
     builtins.input = fake_input
@@ -482,7 +490,8 @@ class LayoutWizardWalkTest(unittest.TestCase):
         new, out = _walk_with_answers(
             {}, layer="project", answers={"layout.agent_dir": "agent"})
         self.assertEqual(new.get("layout"), {"agent_dir": "agent"})
-        self.assertIn("[layout.agent_dir]", out)
+        self.assertRegex(out, r"(?m)^\s*\d+/\d+  layout\.agent_dir\b",
+                         msg="the item screen names its dotted key")
 
     def test_project_walk_enter_keeps_and_names_the_default(self) -> None:
         new, out = _walk_with_answers({}, layer="project", answers={})
@@ -507,9 +516,14 @@ class LayoutWizardWalkTest(unittest.TestCase):
         self.assertIn("not absolute", out)
 
     def test_prompt_says_it_moves_nothing_and_is_project_only(self) -> None:
-        _new, out = _walk_with_answers({}, layer="project", answers={})
+        """The full description is one '?' away; the [layout] heading
+        carries the project-only note in the default view."""
+        _new, out = _walk_with_answers(
+            {}, layer="project", answers={"layout.agent_dir": ["?", ""]})
         self.assertIn("rename", out)
-        self.assertIn("Project-layer only", out)
+        self.assertIn("Project-layer only", " ".join(out.split()))
+        _new, short = _walk_with_answers({}, layer="project", answers={})
+        self.assertRegex(short, r"\[layout\].*project layer only")
 
     def test_global_walk_never_offers_the_key(self) -> None:
         new, out = _walk_with_answers({}, layer="global", answers={})

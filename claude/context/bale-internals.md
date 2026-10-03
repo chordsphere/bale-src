@@ -7,9 +7,9 @@
 
 ---
 
-## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`, `bale_apply.py`, `bale_stats.py`)
+## 1. The shape of `bin/bale` and the sibling modules (`bale_config.py`, `bale_validate.py`, `bale_staging.py`, `bale_rollback.py`, `bale_report.py`, `bale_pack.py`, `bale_apply.py`, `bale_stats.py`, `bale_wizard.py`)
 
-Nine Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
+Thirteen Python files in `bin/` (plus the vendored `_bale_toml.py` TOML
 shim), no third-party dependencies. `bin/bale` is
 the entry point. `bin/bale_config.py` is a sibling module imported by
 `bin/bale` for the configurables loader/merger and the `bale config init`
@@ -312,15 +312,47 @@ loader/merger (`load_config`, `load_global_config`, `merged_config`,
 `get_apply_no_interact` / `get_apply_hook_auto_accept` over a shared
 `_get_apply_bool`, and `apply_bool_source`, the layer-provenance
 helper the non-interactive apply mode's decision logging uses); the
-wizard (`_prompt_value`, `_prompt_bool`, `_prompt_path_list`,
+wizard (the walk order `WIZARD_WALK_ORDER_BOTH_LAYERS` /
+`WIZARD_WALK_ORDER_PROJECT_ONLY` behind `wizard_walk_order`,
+`wizard_grammar`, `_prompt_value`, `_prompt_bool`, `_prompt_path_list`,
 `walkthrough_git_identity`, `walk_configurables`,
-`render_bale_toml`, `walkthrough_baleignore`, `cmd_config_init` and
-its layer-specific implementations); and the module-level constants
+`render_bale_toml`, the pre-write review `config_changes` /
+`review_and_write_config`, `walkthrough_baleignore`,
+`cmd_config_init` and its layer-specific implementations); and the
+module-level constants
 listed above (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
 `GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, `APPLY_VALUES`). It imports `log`,
 `fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
 `__main__` (i.e. `bin/bale`) inside the functions that use them — see
 the module docstring for why this pattern over a third shared module.
+The wizard draws through `bale_wizard` (below), imported at module top.
+
+`bin/bale_wizard.py` (added by session `config-wizard-ui`, after v0.4.45) is
+the shared wizard presentation layer — net-new code, placed in its own
+module so every bale wizard draws the same way: `bale config init`
+today, the goal-less `bale pack` wizard next. It owns how a wizard
+looks, never what an answer means: `WizardUI` draws the title, section
+headings, one item per screen (`item`, whose header line matches the
+exported `ITEM_HEADER_RE` — `  3/19  apply.search_paths` — which the
+in-process test drivers key on), state rows (`state` / `table`),
+notices and reject-with-hint warnings (`notice` / `warn`), on-demand
+help (`help`), and the pre-write review (`review`); it reads answers
+through `ask`, `ask_item` (states the Enter action and consumes a bare
+`?` by showing the item's full help and asking again), and `confirm`
+(a yes/no gate whose Enter, EOF, and ^C outcomes are the caller's).
+`Walk` derives each item's `n/N` position and the per-section headings
+from a declared key order, refusing a key the order does not list.
+Output rules: every line fits 80 columns (`wrap`) except a line naming
+an absolute path, which is never broken; styling only when stdout is a
+TTY, `NO_COLOR` is absent, and `TERM` is set and not `dumb`. It is a
+**leaf**: stdlib only, importing nothing from `bin/`, so siblings
+import it at module top by bare name with no circular-import hazard —
+the one sibling that does not take the lazy-`__main__` idiom, because
+it needs nothing from `bin/bale`. It never writes files and never
+logs; the caller logs what it wrote. Like the other single-cluster
+siblings it carries only a module docstring (no index header — CODE.md
+§2.1). `tests/test_wizard_ui.py` pins the layer and the
+`bale config init` screens drawn with it.
 
 `bin/bale_validate.py` is a single cohesive cluster, not a multi-section
 file, so it carries only a module docstring (no index header — CODE.md
@@ -657,8 +689,9 @@ by every relative inbound-file argument — the tarball for `bale apply`
 renaming or aliasing it would cost a migration layer for zero
 behavioral gain. Future sessions add more keys under `[hooks]` and
 (potentially) new top-level sections; each new key extends
-`walk_configurables()` in the same session so the discoverable surface
-stays in sync.
+`walk_configurables()` — and the declared walk order
+(`WIZARD_WALK_ORDER_*`, which the walk refuses to run without) — in the
+same session so the discoverable surface stays in sync.
 
 The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
 mode: `no_interact = true` opts `bale apply` and `bale retry` into the
@@ -778,8 +811,8 @@ not implemented yet.
   the tarball wherever it landed without retyping the path.
 
 This extension slots into the existing mechanism: a new branch in
-`walk_configurables()` and `render_bale_toml()`. No new hook entry, no
-new bale command.
+`walk_configurables()` and `render_bale_toml()`, and a key in the
+wizard's walk order. No new hook entry, no new bale command.
 
 ---
 
@@ -806,6 +839,7 @@ doesn't walk through is a contract violation.
 | Requires git repo? | Yes (refuses if not in one) | No |
 | Walks git identity? | Yes | No (identity is per-repo) |
 | Shows inherited values? | Yes — global is below, displayed as inherited | No — no layer below |
+| Keys walked | 19 — the ten both-layer keys, then the nine project-layer-only ones | 10 — the both-layer keys |
 | Hook-path hint | "Path relative to `<repo>/`" | "Path relative to `<install>/user/`" |
 | Header in generated file | project-flavored | global-flavored |
 
@@ -822,9 +856,18 @@ doesn't walk through is a contract violation.
    - If unset everywhere, prompt. Non-empty input is written to the
      **repo-local** git config (`git config <key> <value>`, no
      `--global`). Empty input is treated as a skip.
-4. Walk every configurable in `walk_configurables()`. For each, display
-   shows the current at this layer AND any inherited-from-global value
-   AND the effective value the merge would produce. Input semantics:
+4. Explain the answer grammar once (`wizard_grammar`: Enter, a typed
+   value, `-`, `x`, `?`), then walk every configurable in
+   `walk_configurables()`, drawn through `bale_wizard` (§1): a heading
+   per TOML section in walk order (project-layer-only sections say so
+   on the heading), then one screen per key — its `n/N` position and
+   dotted key, a one- or two-line summary, the state (current at this
+   layer, the inherited-from-global value when there is one, and the
+   effective value the merge would produce), and a prompt stating what
+   Enter does there. The key's full description is one `?` away and
+   never leaves the walk. The order is declared once, in
+   `WIZARD_WALK_ORDER_BOTH_LAYERS` + `WIZARD_WALK_ORDER_PROJECT_ONLY`;
+   positions and headings derive from it. Input semantics:
    - Empty input → keep current at this layer.
    - Non-empty value → set at this layer (overrides any inherited).
    - Literal `-` → clear at this layer (revert to inheriting if a global
@@ -832,19 +875,34 @@ doesn't walk through is a contract violation.
    - Literal `x` (offered only when an inherited value is shown) →
      write empty string / empty list — explicit suppression of the
      inherited value.
-5. Render via `render_bale_toml(cfg, layer="project")` and write to
-   `<repo>/bale.toml`.
+   - Literal `?` → show the full description and ask again (never a
+     value).
+   - EOF / ^C → keep current.
+   The reject-with-hint checks (`staging.strategy`'s enum,
+   `probe.clipboard_command`'s crafter-readable shape,
+   `layout.agent_dir`'s repo-relative shape) keep current and say why.
+5. Render via `render_bale_toml(cfg, layer="project")`, then **review
+   before writing** (`review_and_write_config`): the per-key changes
+   versus the file on disk (`config_changes` — added, changed, cleared,
+   and hand-edited keys the rewrite drops), or "no changes". A file
+   whose bytes already equal the rendering is left untouched. Otherwise
+   a `Write bale.toml? [Y/n]` gate: Enter writes (so an Enter-through
+   re-run lands the file exactly as before the review existed), a
+   closed stdin writes, and only a typed `n` or ^C at the gate leaves
+   `<repo>/bale.toml` as it was.
 6. **`.baleignore` walkthrough** (added in v0.0.10). Project mode
    only — `.baleignore` lives at the repo root and has no install-
-   layer equivalent. The walk has three idempotent phases: (a) if
-   `<repo>/.baleignore` exists, walk each pattern line and prompt
-   `keep this pattern? [Y/n]` — comments and blanks pass through
-   verbatim, not prompted; (b) prompt for additions, one per line,
-   blank to finish, with a brief syntax reminder inline (gitignore
-   subset, no negation); (c) write the composed file, or remove it
-   if the kept-plus-added pattern set is empty (a missing file is
-   the canonical "no .baleignore" state, so an all-removed walk
-   collapses to file-deleted rather than file-of-comments). The
+   layer equivalent. The walk has four idempotent phases: (a) if
+   `<repo>/.baleignore` exists, walk each pattern line — Enter keeps,
+   `n` removes; comments and blanks pass through verbatim, not
+   prompted; (b) prompt for additions, one per line, blank to finish,
+   with a brief syntax reminder inline (gitignore subset, no
+   negation); (c) review the removed and added patterns ("no changes"
+   included); (d) write the composed file, or remove it if the
+   kept-plus-added pattern set is empty (a missing file is the
+   canonical "no .baleignore" state, so an all-removed walk collapses
+   to file-deleted rather than file-of-comments). A review that shows
+   a change gates (d) on the same Enter-writes confirm as step 5. The
    walk doesn't import bale itself — patterns are validated lazily
    the next time pack or apply loads the file via
    `BaleignoreMatcher` (cluster 10).
@@ -855,23 +913,28 @@ doesn't walk through is a contract violation.
 2. Load existing `<install>/user/bale.toml` (if present). No inherited
    layer below.
 3. No git-identity walk.
-4. Walk every configurable. Display shows only the current value (no
-   "inherited" line, no `x` option — nothing to suppress). Input
-   semantics:
+4. Create `<install>/user/` if it doesn't exist (this is the global
+   layer's first write).
+5. Explain the answer grammar once (no `x` row), then walk the ten
+   both-layer keys (`WIZARD_WALK_ORDER_BOTH_LAYERS`), drawn as in
+   project mode. Display shows only the current value (no "inherited"
+   line, no `x` option — nothing to suppress). Input semantics:
    - Empty input → keep current.
    - Non-empty value → set.
    - Literal `-` → clear.
-5. Create `<install>/user/` if it doesn't exist (this is the global
-   layer's first write).
-6. Render via `render_bale_toml(cfg, layer="global")` and write to
-   `<install>/user/bale.toml`.
+   - Literal `?` → full description, ask again.
+6. Render via `render_bale_toml(cfg, layer="global")`, review, and write
+   to `<install>/user/bale.toml` on the same Enter-writes gate as
+   project mode.
 
 ### 4.5 Idempotency
 
 Re-running at either layer shows the current value for each configurable
 and accepts Enter to keep. The output file after a re-run-with-all-Enters
 equals the input file modulo trailing whitespace — the wizard is safe
-to run on a whim.
+to run on a whim. The review says so before the write: "no changes"
+(nothing rewritten) when the file already matches, "no value changes"
+when only the layout is normalized, and Enter at its gate writes.
 
 ### 4.6 Headers in the generated files
 
