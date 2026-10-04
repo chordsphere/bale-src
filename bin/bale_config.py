@@ -30,10 +30,12 @@ leaf that imports nothing from `bin/`, so it carries no circular-import
 hazard to sidestep.
 
 Sections:
-  1. Imports + constants                              (~line  60)
-  2. Configurables: load and merge                    (~line 140)
-  3. `bale config init` wizard                        (~line 430)
-  4. `bale config hooks` — the acceptance store view  (end of file)
+  1. Imports + constants                              (~line   85)
+  2. Configurables: load and merge                    (~line  460)
+  3. `bale config init` wizard                        (~line 1885)
+     (its detected-defaults block, the alternatives each screen
+     offers, starts ~line 1990)
+  4. `bale config hooks` — the acceptance store view  (~line 4465)
 
 Constants exported for `bin/bale`'s use (referenced by `run_hook` for
 layer detection, and by `build_parser` for command dispatch):
@@ -45,9 +47,11 @@ layer detection, and by `build_parser` for command dispatch):
   - cmd_config_hooks — argparse-bound entry point for `bale config
     hooks` (v0.4.29, board 83; section 4).
 
-Sections are [hooks], [apply], [staging], [identity] (both layers) and
-[validation], [sandbox], [pack], [probe], [layout] (project layer only);
-each section's tuple below documents its keys and its layer ruling.
+Sections are [hooks], [apply], [staging], [identity], [probe] (both
+layers) and [validation], [sandbox], [pack], [layout] (project layer
+only); each section's tuple below documents its keys and its layer
+ruling. ([probe] joined the both-layer set with session wizard-defaults:
+the clipboard command is per-machine, see PROBE_VALUES.)
 """
 
 from __future__ import annotations
@@ -56,8 +60,12 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional, Sequence
 
 # TOML parsing goes through the in-tree shim rather than stdlib `tomllib`
 # directly: `tomllib` is stdlib only on Python 3.11+, and bale supports 3.10
@@ -270,8 +278,10 @@ VALIDATION_VALUES = (
     # with the session id at pack time and everywhere downstream via
     # resolve_checkpoint_path — per-session checkpoints; a value without
     # the token behaves byte-for-byte as before. Any other {token} is
-    # refused at config read (get_validation_base). Conventional path
-    # the wizard suggests: scripts/validation.base.sh.
+    # refused at config read (get_validation_base). The wizard offers
+    # both conventions by number (validation_base_alternatives): the
+    # per-session <agent_dir>/checkpoints/{sid}.sh and the shared
+    # scripts/validation.base.sh.
     "base",
     # Flat list of check names (board 6 session B): the project's
     # REQUIRED validation checks. When non-empty, apply's pre-flight
@@ -372,32 +382,54 @@ PACK_VALUES = (
     "include_group_pulls",
 )
 
-# Value-shaped configurables under the [probe] section — the probe
-# scaffold's opt-in clipboard epilogue (registry fold-in, ratified
-# 2026-08-18, configurable-never-core; the config-side carrier landed
-# with board 99a). Same trio contract as the sections above: a typed
-# accessor (get_probe_clipboard_command), a walk_configurables() block,
-# and a render_bale_toml() branch.
+# Value-shaped configurables under the [probe] section — this machine's
+# clipboard command (registry fold-in, ratified 2026-08-18,
+# configurable-never-core; the config-side carrier landed with board
+# 99a). Same trio contract as the sections above: a typed accessor
+# (get_probe_clipboard_command, plus effective_clipboard_command for
+# bale code), a walk_configurables() block, and a render_bale_toml()
+# branch.
 #
-# The consumer is NOT bin/: it is tools/craft_response.py's --probe
-# emission, which reads `[probe] clipboard_command` with its own
-# stdlib-only single-key scan (read_clipboard_command) from ./bale.toml
-# or ./context/bale.toml — the project file, as shipped in a request's
-# context/. That reach decides the layer: the section is PROJECT-LAYER
-# ONLY, because a global-layer value would never reach the probe
-# epilogue. The global wizard never walks it, and merged_config never
-# inherits it — a key the wizard offered but no reader consulted would
-# be a prompt that lies.
+# BOTH LAYERS since session wizard-defaults (friction-points arc, wave
+# 2, ruling 1 answered "as assumed"): the command is a property of the
+# machine, so it is set once in the global file and a project may
+# override it, or suppress it with "" — per-key replacement, exactly as
+# [identity] packer layers. That reverses the earlier project-only
+# ruling, whose reason was reach: the key's first consumer,
+# tools/craft_response.py --probe, reads `[probe] clipboard_command`
+# with its own stdlib-only scan (read_clipboard_command) from the
+# project file as shipped in a request, and never sees the global file.
+# The reversal rests on bale doing the copy itself (session D, wave 3),
+# which reads the effective, merged value. Until then a global value
+# configures bale-side readers only, and the crafter keeps reading the
+# project file — which is why the key keeps its spelling: a project
+# bale.toml that sets it today is still read by the crafter after any
+# `bale config init` re-run, with no migration and no alias.
 PROBE_VALUES = (
-    # String: the shell command probe output is piped into (e.g.
-    # "pbcopy", "xclip -selection clipboard", "clip.exe"). Absent or
-    # empty = no clipboard epilogue; the scaffold carries remedy text
-    # walking the operator through this opt-in instead. The value must
-    # stay inside the crafter scan's readable shape — one line, no
+    # String: the shell command that copies its stdin to the clipboard
+    # (e.g. "pbcopy", "xclip -selection clipboard", "clip.exe"). Absent
+    # or empty = no clipboard copy; the probe scaffold carries remedy
+    # text walking the operator through this opt-in instead. The value
+    # must stay inside the crafter scan's readable shape — one line, no
     # backslash, no double quote, no control characters — so the
     # accessor and the wizard refuse anything the crafter would
-    # silently read as unset (probe_clipboard_command_problem).
+    # silently read as unset (probe_clipboard_command_problem); and the
+    # line itself must be spelled the way the scan reads it — a one-line
+    # basic or literal string under a [probe] header, never
+    # triple-quoted (clipboard_command_spelling_problem).
     "clipboard_command",
+)
+
+# The named clipboard commands `bale config init` offers on the
+# probe.clipboard_command screen, always, whatever the machine: (value,
+# aside). Detection (detect_clipboard_command) marks one as detected and
+# moves it to [1]; it never sets anything.
+CLIPBOARD_ALTERNATIVES = (
+    ("pbcopy", "macOS"),
+    ("clip.exe", "Windows and WSL"),
+    ("wl-copy", "Wayland"),
+    ("xclip -selection clipboard", "X11"),
+    ("xsel --clipboard --input", "X11"),
 )
 
 # Value-shaped configurables under the [layout] section — where the
@@ -650,18 +682,19 @@ def merged_config(repo: Path) -> dict:
     if out_pack:
         merged["pack"] = out_pack
 
-    # [probe] — PROJECT LAYER ONLY (board 99a; see PROBE_VALUES).
-    # Deliberately no `elif key in g_probe` branch: the key's only reader
-    # (the crafter's probe scaffold) sees the project bale.toml as shipped
-    # in the request, never <install>/user/bale.toml, so a global value
-    # would configure nothing. A hand-edited global [probe] is ignored
-    # here, never inherited.
-    p_probe = (p.get("probe")
-               if isinstance(p.get("probe"), dict) else {})
+    # [probe] — both layers since session wizard-defaults (see
+    # PROBE_VALUES): the same per-key replacement as [identity]. A key
+    # set at the project layer wins; absent inherits global; the
+    # empty-string form passes through and reads as "unset" in the
+    # typed accessor, giving the project layer its suppress form.
+    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
+    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
     out_probe: dict = {}
     for key in PROBE_VALUES:
         if key in p_probe:
             out_probe[key] = p_probe[key]
+        elif key in g_probe:
+            out_probe[key] = g_probe[key]
     if out_probe:
         merged["probe"] = out_probe
 
@@ -1510,10 +1543,13 @@ def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
     state. A set value comes back stripped, which is exactly what the
     crafter's scan yields for the same bytes.
 
-    Merged-config note: [probe] is project-layer only (PROBE_VALUES owns
-    the rationale) — merged_config never carries a global value into
-    this section, so this accessor reads the project's own key or
-    nothing.
+    Merged-config note: [probe] layers like [identity] (PROBE_VALUES
+    owns the rationale) — given merged_config's output, this returns
+    the project's value, else the inherited global one, and None when
+    the project suppresses with "". Bale code that wants the effective
+    command calls effective_clipboard_command(repo), which also checks
+    how the supplying file spells the key; this dict-level accessor
+    cannot see spelling.
 
     Shape posture: a non-table section or a non-string value is fatal,
     as in the sibling string accessors. So is a string the crafter's
@@ -1547,6 +1583,183 @@ def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
              f"backslashes or double quotes (wrap it in a script if it "
              f"needs them).")
     return val
+
+
+def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str]:
+    """Read `[probe] clipboard_command` from bale.toml text the way the
+    probe scaffold's reader does. Returns (status, value, raw).
+
+    A deliberate twin of tools/craft_response.py's scan_bale_toml_key
+    plus one_line_quoted_value (bin/ never imports tools/, so the rule
+    is restated here; tests/test_probe_clipboard_config.py pins the two
+    against one corpus of lines). status is "set" (value is the
+    stripped command), "bad-shape" (the key's line is there but is not
+    a one-line basic or literal string — raw is its value text, so a
+    caller can say "triple-quoted"), or "unset" (no such line under a
+    [probe] header). Only the spelling is judged: the content rules
+    (backslash, double quote, control characters) belong to
+    probe_clipboard_command_problem, and a value that breaks them reads
+    here as bad-shape too, exactly as it does crafter-side.
+    """
+    section = None
+    for line in (raw.strip() for raw in text.splitlines()):
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            continue
+        if section != "probe" or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() != "clipboard_command":
+            continue
+        value = value.strip()
+        got = _one_line_quoted_value(value)
+        if got is not None:
+            return "set", got, value
+        return "bad-shape", None, value
+    return "unset", None, ""
+
+
+def _one_line_quoted_value(value: str) -> Optional[str]:
+    """The twin of the crafter's one_line_quoted_value: the stripped
+    command inside a one-line basic ("...") or literal ('...') string,
+    or None when the shape is outside what that reader reads. The first
+    matching quote after the opener closes the value (no escapes are
+    read), only a trailing `# comment` may follow, and a triple-quoted
+    opener closes at once on an empty value — which is how both
+    multi-line forms come out unread."""
+    if not value or value[0] not in ('"', "'"):
+        return None
+    quote = value[0]
+    closing = value.find(quote, 1)
+    if closing < 0:
+        return None
+    cmd = value[1:closing].strip()
+    rest = value[closing + 1:].strip()
+    if not cmd or (rest and not rest.startswith("#")):
+        return None
+    if probe_clipboard_command_problem(cmd) is not None:
+        return None
+    return cmd
+
+
+def clipboard_command_spelling_problem(path: Path) -> Optional[str]:
+    """Say why `path` spells a set `[probe] clipboard_command` in a form
+    the probe scaffold's reader cannot see, or None.
+
+    The rider routed to this session from 005/69: bale's TOML parser
+    reads a triple-quoted value ('''pbcopy''' or \"\"\"pbcopy\"\"\") that
+    tools/craft_response.py's one-line scan treats as unset — the one
+    known split left after board 69. This closes it bale-side by
+    refusing the spelling rather than parsing it: the key has one
+    spelling, `clipboard_command = "<command>"` (or single-quoted) on
+    one line under a `[probe]` header, at both layers, so a line copied
+    from the global file into a project file keeps working. Also
+    caught, for the same reason: a dotted key (`probe.clipboard_command
+    = ...`) or an inline table, which bale parses and the scan never
+    finds.
+
+    Call only when the parsed file sets the key to a non-empty string
+    (an absent or empty key has no spelling to judge). An unreadable
+    file is reported as the problem rather than passed: the loaders
+    parsed it a moment ago, so failing to re-read it is worth saying.
+    The wizard rewrites the key in the readable spelling on its next
+    write (render_bale_toml), so the remedy is one `bale config init`.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        return f"could not be re-read to check its spelling ({e})"
+    status, _value, raw = _scan_clipboard_line(text)
+    if status == "set":
+        return None
+    if status == "bad-shape":
+        if raw.startswith('"""') or raw.startswith("'''"):
+            return "is triple-quoted"
+        return "is not a one-line quoted string"
+    return ("is not written as a clipboard_command = \"...\" line under "
+            "a [probe] header (a dotted key or an inline table, for "
+            "example)")
+
+
+def _probe_layers(repo: Optional[Path]) -> tuple[dict, dict]:
+    """The raw [probe] tables of the project file (empty when repo is
+    None or the file has none) and the global file. Loading goes through
+    load_config / load_global_config, so a malformed file is fatal here
+    exactly as everywhere else."""
+    p = load_config(repo) if repo is not None else {}
+    g = load_global_config()
+    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
+    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
+    return p_probe, g_probe
+
+
+def clipboard_command_source(repo: Optional[Path]) -> Optional[str]:
+    """"project" or "global" — the layer whose file decides
+    probe.clipboard_command under the per-key merge — or None when
+    neither file sets the key.
+
+    "project" includes the suppress form (`clipboard_command = ""`): the
+    project decided, and decided "none". `repo` None means no project
+    is in play (a command run outside a repo), so only the global file
+    can decide. The display twin of effective_clipboard_command, for a
+    status row that names where the value came from (apply_bool_source
+    is the precedent).
+    """
+    p_probe, g_probe = _probe_layers(repo)
+    if "clipboard_command" in p_probe:
+        return "project"
+    if "clipboard_command" in g_probe:
+        return "global"
+    return None
+
+
+def effective_clipboard_command(repo: Optional[Path]) -> Optional[str]:
+    """The clipboard command bale should use here, or None for "no copy".
+
+    The accessor bale code calls (session D's paste-block copying
+    builds on it): the project's [probe] clipboard_command when the
+    project file sets it, else the global file's, with "" at the
+    project layer suppressing an inherited value; `repo` None reads the
+    global file alone. The value comes back stripped.
+
+    Fatal, never silent, on anything the dict accessor is fatal on (a
+    non-string, a backslash, a double quote, a control character), and
+    on a supplying file that spells the key in a form the probe
+    scaffold's reader cannot see — triple-quoted above all
+    (clipboard_command_spelling_problem). Right or loud, never split:
+    bale and the crafter never disagree about whether a file configures
+    a clipboard command.
+
+    Nothing here detects anything. A command detected by `bale config
+    init` is only ever a suggestion on the wizard screen; bale uses a
+    command only once it is written to a bale.toml (the registry
+    fold-in's "configurable-never-core").
+    """
+    from __main__ import fail
+
+    p_probe, g_probe = _probe_layers(repo)
+    if "clipboard_command" in p_probe:
+        cfg, path = {"probe": p_probe}, (repo / BALE_CONFIG)
+    elif "clipboard_command" in g_probe:
+        cfg, path = {"probe": g_probe}, GLOBAL_CONFIG_PATH
+    else:
+        return None
+    value = get_probe_clipboard_command(cfg)
+    if value is None:
+        return None
+    problem = clipboard_command_spelling_problem(path)
+    if problem is not None:
+        rerun = ("bale config init --global" if path == GLOBAL_CONFIG_PATH
+                 else "bale config init")
+        fail(f"{path}: probe.clipboard_command {problem}. bale reads the "
+             f"key only in the one-line spelling the probe scaffold's "
+             f"reader (tools/craft_response.py) can see — "
+             f'clipboard_command = "<command>" under a [probe] header. '
+             f"Re-run `{rerun}` (it rewrites the key that way) or edit "
+             f"the line.")
+    return value
 
 
 def layout_agent_dir_problem(value: str) -> Optional[str]:
@@ -1699,8 +1912,8 @@ def layout_agent_dir_for_display(repo: Optional[Path]) -> tuple[str, Optional[st
 
 # The keys `bale config init` walks, as dotted keys, in prompt order.
 # Both-layer keys first, then the project-layer-only sections (the rulings
-# recorded on VALIDATION_VALUES, SANDBOX_VALUES, PACK_VALUES, PROBE_VALUES,
-# and LAYOUT_VALUES). walk_configurables() opens each key's screen through
+# recorded on VALIDATION_VALUES, SANDBOX_VALUES, PACK_VALUES, and
+# LAYOUT_VALUES). walk_configurables() opens each key's screen through
 # bale_wizard.Walk, which refuses a key missing from this tuple, and the
 # tests pin that the walk visits exactly these keys in exactly this order —
 # so a configurable added to walk_configurables() must be added here too,
@@ -1716,6 +1929,10 @@ WIZARD_WALK_ORDER_BOTH_LAYERS = (
     "staging.strategy",
     "staging.untracked_inputs",
     "identity.packer",
+    # Both layers since session wizard-defaults (PROBE_VALUES): last of
+    # the both-layer keys, so the global walk ends on it and the project
+    # walk reaches it before the project-only sections.
+    "probe.clipboard_command",
 )
 WIZARD_WALK_ORDER_PROJECT_ONLY = (
     "validation.base",
@@ -1725,7 +1942,6 @@ WIZARD_WALK_ORDER_PROJECT_ONLY = (
     "pack.include_group",
     "pack.include_group_triggers",
     "pack.include_group_pulls",
-    "probe.clipboard_command",
     "layout.agent_dir",
 )
 
@@ -1740,10 +1956,10 @@ _WIZARD_SECTION_NOTES = {
     "validation": "blind checkpoint, required checks",
     "sandbox": "confinement of response scripts",
     "pack": "the include group",
-    "probe": "probe scaffold clipboard epilogue",
+    "probe": "this machine's clipboard command",
     "layout": "where the agent-facing tree lives",
 }
-_PROJECT_ONLY_SECTIONS = ("validation", "sandbox", "pack", "probe", "layout")
+_PROJECT_ONLY_SECTIONS = ("validation", "sandbox", "pack", "layout")
 
 
 def wizard_walk_order(layer: str) -> tuple[str, ...]:
@@ -1765,6 +1981,460 @@ def _wizard_walk(layer: str,
     }
     return bale_wizard.Walk(ui or bale_wizard.WizardUI(),
                             wizard_walk_order(layer), notes)
+
+
+# ---- Detected defaults and named alternatives (session wizard-defaults) ---
+#
+# The friction-points review found that several keys make the operator
+# remember a value bale could have offered: the clipboard command, the
+# WSL Downloads path, git's user.name, the response-archive and
+# checkpoint conventions, the two staging strategies, the untracked
+# dependency directories, and .baleignore patterns for what the repo
+# actually holds. Each of those screens now lists numbered alternatives
+# (bale_wizard.Alternative, drawn by WizardUI.alternatives) and reads its
+# answer with WizardUI.ask_choice, where a number takes that value.
+#
+# Three rules bind everything below:
+#   - Detection only suggests. A detected value is listed first and
+#     marked "detected"; nothing is set until the operator types its
+#     number or the value. Nothing outside the wizard screen reads these
+#     functions (the registry fold-in's configurable-never-core).
+#   - Enter keeps the meaning it always had on every key (keep current,
+#     keep inheriting, leave unset), so an Enter-through run still
+#     writes nothing the operator did not choose.
+#   - Detection never fails the wizard. Finding nothing degrades to the
+#     static alternatives, or to the screen as it was; a detector that
+#     could not run (git missing, a timeout) leaves its key without the
+#     detected rows and says so in one dim line on that key's screen
+#     (WizardSuggestions.notes) rather than skipping silently.
+#
+# Every detector takes its environment as parameters (platform, environ,
+# which, home, the repo) so the tests pin each outcome without touching
+# the machine they run on; suggest_wizard_values gathers them for a walk.
+
+# Seconds any one detection subprocess (git) may take before it is
+# abandoned. The wizard is interactive; a hung git must not hang it.
+DETECTION_TIMEOUT = 5
+
+# Untracked dependency directories offered for staging.untracked_inputs
+# when present at the repo root and untracked (a gitignored directory
+# counts — that is the usual case).
+UNTRACKED_INPUT_CANDIDATES = (".venv", "node_modules")
+
+# Windows profile directories under /mnt/c/Users that are not a person's
+# profile; their Downloads (when any) is never offered.
+_WINDOWS_NON_PROFILES = frozenset({
+    "public", "default", "default user", "all users",
+    "defaultapppool", "wdagutilityaccount",
+})
+
+# How many Windows-side Downloads directories to offer at most (a shared
+# machine can have several profiles; the one matching $USER comes first).
+WINDOWS_DOWNLOADS_MAX = 3
+
+# .baleignore suggestion signals (the session's judgment, recorded in its
+# notes): bulky or binary formats a request tarball rarely needs, by
+# extension; directory names that usually hold data or vendored code;
+# and any single shippable file at least BALEIGNORE_LARGE_FILE_BYTES
+# that neither rule covers. Only what pack would ship is counted —
+# tracked plus untracked-not-ignored files (git ls-files, as pack lists
+# them), outside pack's baked-in excluded directories.
+BALEIGNORE_SUGGEST_EXTENSIONS = frozenset({
+    # data and serialized models
+    "parquet", "feather", "arrow", "avro", "orc", "h5", "hdf5", "npy",
+    "npz", "pkl", "pickle", "joblib", "sqlite", "sqlite3", "db", "duckdb",
+    "onnx", "pt", "pth", "ckpt", "safetensors",
+    # archives and packages
+    "zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar", "jar", "war",
+    "whl", "egg", "iso", "dmg",
+    # media
+    "mp4", "mov", "avi", "mkv", "wav", "mp3", "flac",
+    # compiled
+    "exe", "dll", "so", "dylib",
+})
+BALEIGNORE_SUGGEST_DIRS = ("data", "datasets", "vendor", "third_party",
+                           ".idea", ".vscode")
+BALEIGNORE_LARGE_FILE_BYTES = 1024 * 1024
+BALEIGNORE_SUGGESTIONS_MAX = 6
+
+
+@dataclass
+class WizardSuggestions:
+    """What one `bale config init` walk offers beside its prompts.
+
+    `alternatives` maps a dotted key to its offered values (in any
+    order; `for_key` puts the detected ones first, which is the order
+    the screen numbers). `notes` are dim informational lines for a key's
+    screen (a detector that could not run); `warnings` are reject-style
+    lines (the file spells the key in a form a reader cannot see). An
+    empty WizardSuggestions draws every screen exactly as it was before
+    alternatives existed — which is what the tests pass when they mean
+    "no detection".
+    """
+    alternatives: dict = field(default_factory=dict)
+    notes: dict = field(default_factory=dict)
+    warnings: dict = field(default_factory=dict)
+
+    def for_key(self, key: str) -> list:
+        return bale_wizard.detected_first(self.alternatives.get(key, ()))
+
+    def note(self, key: str, text: str) -> None:
+        self.notes.setdefault(key, []).append(text)
+
+    def warn(self, key: str, text: str) -> None:
+        self.warnings.setdefault(key, []).append(text)
+
+
+def is_wsl(environ: Optional[dict] = None,
+           osrelease: Path = Path("/proc/sys/kernel/osrelease")) -> bool:
+    """Whether this looks like Windows Subsystem for Linux.
+
+    WSL sets WSL_DISTRO_NAME (and WSL_INTEROP) in every shell; the
+    kernel release string names Microsoft as a fallback for a scrubbed
+    environment. A missing or unreadable osrelease means not Linux, so
+    not WSL — an answer, not a failure.
+    """
+    environ = os.environ if environ is None else environ
+    if environ.get("WSL_DISTRO_NAME") or environ.get("WSL_INTEROP"):
+        return True
+    try:
+        return "microsoft" in osrelease.read_text(encoding="utf-8").lower()
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def detect_clipboard_command(*, platform: Optional[str] = None,
+                             environ: Optional[dict] = None,
+                             which: Optional[Callable] = None,
+                             wsl: Optional[bool] = None) -> Optional[str]:
+    """The CLIPBOARD_ALTERNATIVES value this machine looks set up for.
+
+    The environment picks the candidates — macOS: pbcopy; Windows or
+    WSL: clip.exe; otherwise WAYLAND_DISPLAY: wl-copy, then DISPLAY:
+    xclip, then xsel — and the first whose program is on PATH wins. No
+    signal, or no program found, is None: the screen then lists the
+    alternatives with nothing marked. Never runs the command.
+    """
+    platform = sys.platform if platform is None else platform
+    environ = os.environ if environ is None else environ
+    which = shutil.which if which is None else which
+    if platform == "darwin":
+        candidates = ["pbcopy"]
+    elif platform in ("win32", "cygwin", "msys"):
+        candidates = ["clip.exe"]
+    elif (is_wsl(environ) if wsl is None else wsl):
+        candidates = ["clip.exe"]
+    else:
+        candidates = []
+        if environ.get("WAYLAND_DISPLAY"):
+            candidates.append("wl-copy")
+        if environ.get("DISPLAY"):
+            candidates += ["xclip -selection clipboard",
+                           "xsel --clipboard --input"]
+    for command in candidates:
+        if which(command.split()[0]):
+            return command
+    return None
+
+
+def clipboard_alternatives(**detect) -> list:
+    """Every CLIPBOARD_ALTERNATIVES value, the detected one marked
+    (keyword arguments pass through to detect_clipboard_command)."""
+    found = detect_clipboard_command(**detect)
+    return bale_wizard.detected_first(
+        bale_wizard.Alternative(value, note, value == found)
+        for value, note in CLIPBOARD_ALTERNATIVES)
+
+
+def search_path_alternatives(*, home: Optional[Path] = None,
+                             environ: Optional[dict] = None,
+                             wsl: Optional[bool] = None,
+                             windows_users: Path = Path("/mnt/c/Users"),
+                             ) -> list:
+    """The inbound directories that exist on this machine.
+
+    Under WSL, each person's Windows-side Downloads
+    (/mnt/c/Users/<you>/Downloads), the profile matching $USER first, at
+    most WINDOWS_DOWNLOADS_MAX; and the home directory's Downloads,
+    offered as `~/Downloads` because search_paths expands tilde at use
+    time — the literal stays portable in a committed file. Only
+    directories that exist are offered, each marked detected; none is
+    an empty list (the screen as it was).
+    """
+    environ = os.environ if environ is None else environ
+    home = Path.home() if home is None else home
+    found: list = []
+    if is_wsl(environ) if wsl is None else wsl:
+        try:
+            profiles = sorted(windows_users.iterdir())
+        except OSError:
+            profiles = []  # no Windows drive mounted: nothing to offer
+        me = (environ.get("USER") or "").lower()
+        downloads = [p / "Downloads" for p in profiles
+                     if p.name.lower() not in _WINDOWS_NON_PROFILES
+                     and (p / "Downloads").is_dir()]
+        downloads.sort(key=lambda d: (d.parent.name.lower() != me,
+                                      d.parent.name.lower()))
+        found += [bale_wizard.Alternative(str(d), "Windows Downloads", True)
+                  for d in downloads[:WINDOWS_DOWNLOADS_MAX]]
+    if (home / "Downloads").is_dir():
+        found.append(bale_wizard.Alternative("~/Downloads", "home Downloads",
+                                             True))
+    return found
+
+
+def _run_git(args: list, cwd: Optional[Path]):
+    """One detection git call: (completed process, None) or (None, why).
+
+    Never raises: a missing git, a timeout, or an OS error comes back as
+    a short reason for the key's dim note.
+    """
+    try:
+        return subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True,
+            stdin=subprocess.DEVNULL, timeout=DETECTION_TIMEOUT), None
+    except FileNotFoundError:
+        return None, "git not found"
+    except subprocess.TimeoutExpired:
+        return None, f"git timed out after {DETECTION_TIMEOUT}s"
+    except OSError as e:
+        return None, f"git could not run ({e})"
+
+
+def detect_git_user_name(repo: Optional[Path]) -> tuple[Optional[str],
+                                                         Optional[str]]:
+    """git's user.name as (name, None), (None, None) when unset, or
+    (None, reason) when git could not answer.
+
+    With a repo, every scope git consults there (repo-local over
+    global); without one (the global wizard), the global scope alone, so
+    the answer does not depend on whatever directory the wizard ran in.
+    """
+    args = (["config", "--get", "user.name"] if repo is not None
+            else ["config", "--global", "--get", "user.name"])
+    result, why = _run_git(args, repo)
+    if result is None:
+        return None, why
+    if result.returncode == 0:
+        return (result.stdout.strip() or None), None
+    if result.returncode == 1:
+        return None, None  # git's "key not set" exit: nothing found
+    return None, f"git config exited {result.returncode}"
+
+
+def untracked_input_alternatives(repo: Path) -> tuple[list, Optional[str]]:
+    """UNTRACKED_INPUT_CANDIDATES present at the repo root and untracked.
+
+    "Untracked" means git tracks nothing at or under the path (a
+    gitignored directory is the usual case). Returns (alternatives,
+    reason) — reason set only when git could not answer, in which case
+    nothing is offered rather than a guess.
+    """
+    present = [name for name in UNTRACKED_INPUT_CANDIDATES
+               if (repo / name).exists()]
+    if not present:
+        return [], None
+    result, why = _run_git(["ls-files", "-z", "--", *present], repo)
+    if result is None:
+        return [], why
+    if result.returncode != 0:
+        return [], f"git ls-files exited {result.returncode}"
+    tracked = {path.split("/", 1)[0]
+               for path in result.stdout.split("\0") if path}
+    return [bale_wizard.Alternative(name, "present, untracked", True)
+            for name in present if name not in tracked], None
+
+
+def archive_dir_alternatives(agent_dir: str,
+                             repo: Optional[Path]) -> list:
+    """`<agent_dir>/responses`, the response-archive convention;
+    detected when the directory already exists in the repo."""
+    value = f"{agent_dir}/responses"
+    exists = repo is not None and (repo / value).is_dir()
+    return [bale_wizard.Alternative(
+        value, "exists" if exists else "the archive convention", exists)]
+
+
+def validation_base_alternatives(agent_dir: str,
+                                 repo: Optional[Path]) -> list:
+    """Both checkpoint conventions, always: the per-session
+    `<agent_dir>/checkpoints/{sid}.sh` and the shared
+    `scripts/validation.base.sh`. Each is detected when its directory
+    (per-session) or file (shared) is already in the repo."""
+    per_session = f"{agent_dir}/checkpoints/{{sid}}.sh"
+    shared = "scripts/validation.base.sh"
+    has_dir = repo is not None and (repo / agent_dir / "checkpoints").is_dir()
+    has_file = repo is not None and (repo / shared).is_file()
+    return bale_wizard.detected_first([
+        bale_wizard.Alternative(per_session, "one per session", has_dir),
+        bale_wizard.Alternative(shared, "one shared script", has_file),
+    ])
+
+
+def staging_strategy_alternatives() -> list:
+    """Both STAGING_STRATEGIES, named; nothing to detect."""
+    return [
+        bale_wizard.Alternative("working-tree", "default: the checkout"),
+        bale_wizard.Alternative("target-base", "the target tip's tree"),
+    ]
+
+
+def _baked_in_exclude_dirs() -> frozenset:
+    """Pack's baked-in excluded directory names, for the .baleignore
+    signals (a file pack never ships needs no pattern).
+
+    Read from bale_pack, the constant's one home, lazily (the module is
+    large and only this step needs it). If it cannot be read — the name
+    moved — the suggestions simply count those files too: noisier, never
+    wrong about what a pattern would match, and the wizard still runs.
+    """
+    try:
+        import bale_pack  # lazy: see the docstring
+        return frozenset(bale_pack.BAKED_IN_EXCLUDE_DIRS)
+    except (ImportError, AttributeError):
+        return frozenset()
+
+
+def _human_size(size: int) -> str:
+    """1024-based, one decimal under 10 (pack's size idiom)."""
+    if size < 1024:
+        return f"{size} B"
+    units = ("KB", "MB", "GB")
+    value, index = size / 1024, 0
+    while value >= 1024 and index < len(units) - 1:
+        value, index = value / 1024, index + 1
+    return (f"{value:.1f} {units[index]}" if value < 10
+            else f"{value:.0f} {units[index]}")
+
+
+def baleignore_suggestions(repo: Path,
+                           existing: Sequence[str] = ()
+                           ) -> tuple[list, Optional[str]]:
+    """.baleignore patterns drawn from what this repo would ship.
+
+    Lists what pack lists (git ls-files --cached --others
+    --exclude-standard), drops what pack's baked-in exclusions already
+    drop, and groups the rest under three signals, in this order of
+    precedence for any one file: a directory in BALEIGNORE_SUGGEST_DIRS
+    on its path (suggested as `name/`), an extension in
+    BALEIGNORE_SUGGEST_EXTENSIONS (`*.ext`, in the case found), or a
+    single file of at least BALEIGNORE_LARGE_FILE_BYTES (its own path,
+    `/name` at the root so the pattern stays anchored). Patterns already
+    in `existing` are not offered again. The heaviest
+    BALEIGNORE_SUGGESTIONS_MAX are returned, each aside giving the file
+    count and total size; (alternatives, reason) — reason set only when
+    git could not list the files.
+    """
+    result, why = _run_git(
+        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        repo)
+    if result is None:
+        return [], why
+    if result.returncode != 0:
+        return [], f"git ls-files exited {result.returncode}"
+    baked = _baked_in_exclude_dirs()
+    have = {p.strip() for p in existing}
+    groups: dict = {}
+    for rel in (p for p in result.stdout.split("\0") if p):
+        parts = rel.split("/")
+        if any(part in baked for part in parts):
+            continue
+        try:
+            size = (repo / rel).stat().st_size
+        except OSError:
+            continue  # listed but gone (deleted, not yet staged): not shipped
+        folder = next((part for part in parts[:-1]
+                       if part in BALEIGNORE_SUGGEST_DIRS), None)
+        suffix = Path(parts[-1]).suffix
+        if folder is not None:
+            pattern = f"{folder}/"
+        elif suffix[1:].lower() in BALEIGNORE_SUGGEST_EXTENSIONS:
+            pattern = f"*{suffix}"
+        elif (size >= BALEIGNORE_LARGE_FILE_BYTES
+              and not any(ch in rel for ch in "*?[]")):
+            pattern = rel if "/" in rel else f"/{rel}"
+        else:
+            continue
+        count, total = groups.get(pattern, (0, 0))
+        groups[pattern] = (count + 1, total + size)
+    ranked = sorted(((p, c, t) for p, (c, t) in groups.items()
+                     if p not in have),
+                    key=lambda row: (-row[2], row[0]))
+    return [bale_wizard.Alternative(
+                pattern,
+                f"{count} file{'' if count == 1 else 's'}, "
+                f"{_human_size(total)}")
+            for pattern, count, total in
+            ranked[:BALEIGNORE_SUGGESTIONS_MAX]], None
+
+
+def _agent_dir_for_suggestions(existing: dict, layer: str) -> str:
+    """The agent directory the conventions are spelled under: the
+    project file's [layout] agent_dir when usable, else the default (the
+    global layer has no [layout])."""
+    if layer == "project":
+        layout = existing.get("layout")
+        raw = layout.get("agent_dir") if isinstance(layout, dict) else None
+        if isinstance(raw, str) and raw.strip() \
+                and layout_agent_dir_problem(raw.strip()) is None:
+            return raw.strip()
+    return DEFAULT_AGENT_DIR
+
+
+def suggest_wizard_values(layer: str, existing: Optional[dict] = None, *,
+                          repo: Optional[Path] = None,
+                          config_path: Optional[Path] = None,
+                          environ: Optional[dict] = None,
+                          home: Optional[Path] = None,
+                          platform: Optional[str] = None,
+                          which: Optional[Callable] = None,
+                          wsl: Optional[bool] = None) -> WizardSuggestions:
+    """Gather every key's alternatives for one walk at `layer`.
+
+    Machine-level offers (the clipboard command, the inbound
+    directories, git's user.name) are made at both layers; repo-level
+    ones (untracked inputs, which conventions already exist) only when
+    `repo` is given. `config_path`, the file being walked, lets the
+    clipboard screen warn when that file spells the key in a form the
+    probe scaffold's reader cannot see. The keyword arguments after it
+    stand in for the machine in tests.
+    """
+    existing = existing or {}
+    out = WizardSuggestions()
+    agent_dir = _agent_dir_for_suggestions(existing, layer)
+
+    out.alternatives["apply.search_paths"] = search_path_alternatives(
+        home=home, environ=environ, wsl=wsl)
+    out.alternatives["apply.archive_dir"] = archive_dir_alternatives(
+        agent_dir, repo)
+    out.alternatives["staging.strategy"] = staging_strategy_alternatives()
+    if repo is not None:
+        inputs, why = untracked_input_alternatives(repo)
+        out.alternatives["staging.untracked_inputs"] = inputs
+        if why:
+            out.note("staging.untracked_inputs", f"detection skipped: {why}")
+    name, why = detect_git_user_name(repo)
+    if name:
+        out.alternatives["identity.packer"] = [
+            bale_wizard.Alternative(name, "git user.name", True)]
+    elif why:
+        out.note("identity.packer", f"detection skipped: {why}")
+    out.alternatives["probe.clipboard_command"] = clipboard_alternatives(
+        platform=platform, environ=environ, which=which, wsl=wsl)
+    if layer == "project":
+        out.alternatives["validation.base"] = validation_base_alternatives(
+            agent_dir, repo)
+
+    probe = existing.get("probe")
+    raw = probe.get("clipboard_command") if isinstance(probe, dict) else None
+    if config_path is not None and isinstance(raw, str) and raw.strip():
+        problem = clipboard_command_spelling_problem(config_path)
+        if problem is not None:
+            out.warn("probe.clipboard_command",
+                     f"this file's clipboard_command {problem}, which the "
+                     f"probe scaffold's reader cannot see; writing the "
+                     f"file rewrites it as a one-line string.")
+    return out
 
 
 def _help_paragraphs(description: list[str]) -> list[str]:
@@ -1816,6 +2486,9 @@ def wizard_grammar(ui: bale_wizard.WizardUI, *, layer: str) -> None:
         ("Enter", "keep: each prompt says what that means for its key"),
         ("a value", "set the key at this layer: true or false for on/off "
                     "keys, colon-separated entries for lists"),
+        ("a number", "set the numbered alternative listed above the "
+                     "prompt, the same as typing it (in a list, numbers "
+                     "and values mix: 1:2)"),
         ("-", "clear the key at this layer"
               + ("; a global value then applies" if layer == "project"
                  else "")),
@@ -1829,18 +2502,69 @@ def wizard_grammar(ui: bale_wizard.WizardUI, *, layer: str) -> None:
             indent=2)
 
 
+def _screen_extras(walk: bale_wizard.Walk,
+                   suggestions: Optional[WizardSuggestions],
+                   label: str) -> list:
+    """Draw a key's notes and warnings, then its numbered alternatives;
+    return the alternatives in screen order (empty when none)."""
+    if suggestions is None:
+        return []
+    for text in suggestions.warnings.get(label, ()):
+        walk.ui.warn(text)
+    for text in suggestions.notes.get(label, ()):
+        walk.ui.emit(text, indent=bale_wizard.BODY_INDENT, style=("dim",))
+    alternatives = suggestions.for_key(label)
+    walk.ui.alternatives(alternatives)
+    return alternatives
+
+
+_PICK_ANSWER = (" · a number sets the alternative listed above, the same "
+                "as typing it")
+
+
+def _ask_with_alternatives(walk: bale_wizard.Walk, alternatives: list,
+                           enter_action: str, show_help,
+                           separator: Optional[str] = None
+                           ) -> Optional[str]:
+    """ask_item on a screen without alternatives (unchanged), ask_choice
+    on one with them."""
+    if not alternatives:
+        return walk.ui.ask_item(enter_action, show_help=show_help)
+    return walk.ui.ask_choice(enter_action, count=len(alternatives),
+                              show_help=show_help, separator=separator)
+
+
+def _picked(entry: str, alternatives: list) -> str:
+    """`entry` with an in-range number replaced by its alternative's
+    value (ask_choice has already re-asked on any out-of-range one)."""
+    number = bale_wizard.pick_number(entry)
+    if number is not None and 1 <= number <= len(alternatives):
+        return alternatives[number - 1].value
+    return entry
+
+
 def _prompt_value(walk: bale_wizard.Walk, label: str, *,
                   current: Optional[str],
                   inherited: Optional[str] = None,
                   kind: str = "text",
                   summary,
                   description: list[str],
-                  unset_effective: str = "(no hook will run)") -> Optional[str]:
+                  unset_effective: str = "(no hook will run)",
+                  suggestions: Optional[WizardSuggestions] = None,
+                  ) -> Optional[str]:
     """Generic value-prompt for the wizard.
 
     `walk` draws the screen (bale_wizard); `label` is the dotted key.
     `summary` is the short default view; `description` is the full text
     shown on '?'. `kind` names the answer shape on the item header.
+
+    `suggestions` (session wizard-defaults) carries the key's numbered
+    alternatives and any note or warning for its screen; with
+    alternatives, a typed number in range sets that alternative's value
+    — exactly as if the value had been typed, so every check the caller
+    runs after the prompt applies to it too — and one out of range is
+    re-asked (bale_wizard.ask_choice). Every other answer below keeps
+    its meaning.
 
     `unset_effective` is the effective-line rendering when no layer sets
     the key (or this layer suppresses it). The default keeps the hook
@@ -1900,19 +2624,23 @@ def _prompt_value(walk: bale_wizard.Walk, label: str, *,
     rows.append(("effective", effective if effective else unset_effective))
     aside.append("")
     ui.state(rows, aside)
+    alternatives = _screen_extras(walk, suggestions, label)
 
     answers = ("Answers: Enter keeps · a value sets it at this layer "
                "· - clears it at this layer")
     if inherited:
         answers += (" · x suppresses the inherited value (writes an "
                     "empty string)")
-    raw = ui.ask_item(
+    if alternatives:
+        answers += _PICK_ANSWER
+    raw = _ask_with_alternatives(
+        walk, alternatives,
         _enter_action(unset=current is None, suppressed=current == "",
                       inherits=bool(inherited)),
-        show_help=_show_help(walk, label, description, answers))
+        _show_help(walk, label, description, answers))
     if raw is None:
         return current
-    val = raw
+    val = _picked(raw, alternatives)
     if val == "":
         return current
     if val == "-":
@@ -2010,9 +2738,15 @@ def _prompt_path_list(walk: bale_wizard.Walk, label: str, *,
                       kind: str = "paths, colon-separated",
                       summary,
                       description: list[str],
-                      unset_effective: str = "(no extra search paths)"
+                      unset_effective: str = "(no extra search paths)",
+                      suggestions: Optional[WizardSuggestions] = None,
                       ) -> Optional[list[str]]:
     """List-of-paths prompt for the wizard, mirroring `_prompt_value` semantics.
+
+    `suggestions` works as in `_prompt_value`, entry by entry: each
+    colon-separated entry that is an in-range number becomes that
+    alternative's value, so `1` sets a one-entry list, `1:2` takes two
+    alternatives, and `1:inbox` mixes a pick with a typed path.
 
     `unset_effective` is the effective-line rendering when the list is
     unset or suppressed. The default keeps apply.search_paths' wording;
@@ -2067,16 +2801,21 @@ def _prompt_path_list(walk: bale_wizard.Walk, label: str, *,
                  else unset_effective))
     aside.append("")
     ui.state(rows, aside)
+    alternatives = _screen_extras(walk, suggestions, label)
 
     answers = ("Answers: Enter keeps · colon-separated entries set the "
                "list at this layer · - clears it at this layer")
     if inherited:
         answers += (" · x suppresses the inherited list (writes an "
                     "empty list)")
-    raw = ui.ask_item(
+    if alternatives:
+        answers += (" · a number sets the alternative listed above as an "
+                    "entry, the same as typing it (1:2 takes two)")
+    raw = _ask_with_alternatives(
+        walk, alternatives,
         _enter_action(unset=current is None, suppressed=current == [],
                       inherits=bool(inherited)),
-        show_help=_show_help(walk, label, description, answers))
+        _show_help(walk, label, description, answers), separator=":")
     if raw is None:
         return current
     val = raw
@@ -2092,8 +2831,9 @@ def _prompt_path_list(walk: bale_wizard.Walk, label: str, *,
                 f"this key; keeping current.")
         return current
     # Drop empties — stray colons in input shouldn't introduce ""-entries
-    # that then survive into bale.toml.
-    parts = [p.strip() for p in val.split(":")]
+    # that then survive into bale.toml. Numbers become their alternatives
+    # entry by entry (a no-op on a screen without alternatives).
+    parts = [_picked(p.strip(), alternatives) for p in val.split(":")]
     parts = [p for p in parts if p]
     return parts or None
 
@@ -2138,7 +2878,10 @@ def walkthrough_git_identity(
 
 def walk_configurables(existing: dict, *, layer: str,
                        inherited: Optional[dict] = None,
-                       ui: Optional[bale_wizard.WizardUI] = None) -> dict:
+                       ui: Optional[bale_wizard.WizardUI] = None,
+                       repo: Optional[Path] = None,
+                       suggestions: Optional[WizardSuggestions] = None,
+                       ) -> dict:
     """Walk every configurable; return the new dict for the layer being edited.
 
     `existing` is the current contents of the file being written. `layer` is
@@ -2146,6 +2889,13 @@ def walk_configurables(existing: dict, *, layer: str,
     when walking the project layer, or None when walking global (no layer
     below to inherit from). `ui` is the presentation layer to draw with
     (default: a fresh bale_wizard.WizardUI).
+
+    `suggestions` (session wizard-defaults) is what the walk offers beside
+    its prompts: the numbered alternatives, detected values first, and any
+    note or warning per key. None gathers them now from this machine and,
+    when `repo` is given, from the repo (suggest_wizard_values); an empty
+    WizardSuggestions() offers nothing, drawing every screen as it was
+    before alternatives existed. Offers never change what Enter means.
 
     The presence of a key in the returned dict, including the empty-string /
     empty-list "suppress" form, determines what render_bale_toml emits.
@@ -2159,6 +2909,8 @@ def walk_configurables(existing: dict, *, layer: str,
         raise ValueError(f"unknown layer: {layer!r}")
     inherited = inherited or {}
     walk = _wizard_walk(layer, ui)
+    if suggestions is None:
+        suggestions = suggest_wizard_values(layer, existing, repo=repo)
 
     # Layer-specific phrasing for hook descriptions. The mechanics are the
     # same at both layers; what differs is where paths resolve to and where
@@ -2273,6 +3025,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
     val_list = _prompt_path_list(
         walk, "apply.search_paths",
+        suggestions=suggestions,
         kind="paths, colon-separated",
         summary=(
             "Directories searched, after cwd, for a relative inbound-file"
@@ -2378,6 +3131,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
     val = _prompt_value(
         walk, "apply.archive_dir",
+        suggestions=suggestions,
         kind="repo-relative dir",
         summary=(
             "Directory a merged response's README.md and notes.md are "
@@ -2452,6 +3206,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
     val = _prompt_value(
         walk, "staging.strategy",
+        suggestions=suggestions,
         kind="working-tree | target-base",
         summary=(
             "How `bale apply` builds the staging tree that validation.sh "
@@ -2491,6 +3246,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
     val_list = _prompt_path_list(
         walk, "staging.untracked_inputs",
+        suggestions=suggestions,
         kind="paths, colon-separated",
         summary=(
             "target-base only: untracked build or dependency paths (e.g. "
@@ -2530,6 +3286,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
     val = _prompt_value(
         walk, "identity.packer",
+        suggestions=suggestions,
         kind="name",
         summary=(
             "Who authors packs here; stamped into each request as "
@@ -2551,6 +3308,70 @@ def walk_configurables(existing: dict, *, layer: str,
     if val is not None:
         new.setdefault("identity", {})["packer"] = val
 
+    # ---- [probe].clipboard_command (both layers) ----------------------------
+    # This machine's clipboard command (board 99a's key; both layers since
+    # session wizard-defaults — PROBE_VALUES owns the ruling). Walked at
+    # both layers with the [identity] mechanics: string value, "" suppress
+    # form when a global value is inherited. The alternatives are always
+    # the five named commands (CLIPBOARD_ALTERNATIVES), the detected one
+    # first. The crafter-readable shape check runs after the prompt with
+    # the staging.strategy reject-with-hint posture — on a picked number
+    # as on a typed value — so an unreadable value keeps current rather
+    # than landing a key the crafter would silently treat as unset.
+    existing_probe = (existing.get("probe")
+                      if isinstance(existing.get("probe"), dict) else {})
+    inherited_probe = (inherited.get("probe")
+                       if isinstance(inherited.get("probe"), dict) else {})
+    raw_cur = existing_probe.get("clipboard_command")
+    current = raw_cur if isinstance(raw_cur, str) else None
+    raw_inh = inherited_probe.get("clipboard_command")
+    inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+
+    val = _prompt_value(
+        walk, "probe.clipboard_command",
+        kind="shell command",
+        suggestions=suggestions,
+        summary=(
+            "Command that copies its stdin to this machine's clipboard "
+            "(pbcopy, clip.exe, ...)."
+        ),
+        current=current,
+        inherited=inh,
+        description=[
+            "Optional. Enter to skip (no clipboard copy).",
+            "Shell command that copies its standard input to this",
+            "machine's clipboard: pbcopy (macOS), clip.exe (Windows and",
+            "WSL), wl-copy (Wayland), xclip -selection clipboard or xsel",
+            "--clipboard --input (X11). They are listed by number, the",
+            "one detected on this machine first; detection only",
+            "suggests, and nothing is set until you pick or type one.",
+            "Per-machine: set it once with `bale config init --global`;",
+            "a project may override it, or suppress it with x.",
+            "Today's reader is the probe scaffold: a probe script emitted",
+            "by `tools/craft_response.py --probe` ends by piping its",
+            "PROBE BEGIN/END block into this command, reporting success",
+            "or failure and never failing the probe over it; unset, the",
+            "scaffold carries setup remedy text instead. That reader sees",
+            "the project bale.toml as shipped in a request, never the",
+            "global file, so for probes the project value is the one",
+            "that counts until bale copies paste blocks itself. Setting",
+            "the key is the opt-in to that copying, which overwrites your",
+            "clipboard with each paste block once it lands. One line, no",
+            "backslashes or double quotes (wrap anything fancier in a",
+            "script).",
+        ],
+        unset_effective="(unset — no clipboard copy)",
+    )
+    if val not in (None, ""):
+        problem = probe_clipboard_command_problem(val)
+        if problem is not None:
+            walk.ui.warn(f"'{bale_wizard.clip(val)}' {problem}; the "
+                         f"probe scaffold's reader would treat it as "
+                         f"unset. Keeping current.")
+            val = current
+    if val is not None:
+        new.setdefault("probe", {})["clipboard_command"] = val
+
     # ---- [validation].base (PROJECT LAYER ONLY) -----------------------------
     # Walked only in project mode, per the ratified disposition 1 recorded
     # on VALIDATION_VALUES: the checkpoint must be committed per-repo
@@ -2568,6 +3389,7 @@ def walk_configurables(existing: dict, *, layer: str,
 
         val = _prompt_value(
             walk, "validation.base",
+            suggestions=suggestions,
             kind="repo-relative path",
             summary=(
                 "The committed blind checkpoint script `bale apply` runs "
@@ -2587,9 +3409,11 @@ def walk_configurables(existing: dict, *, layer: str,
                 "the apply loudly. The value may contain the literal",
                 "token {sid}, resolved with the session id at pack",
                 "time — per-session checkpoints instead of one shared",
-                "oracle (BALE.md 8.5). Conventional path:",
-                "scripts/validation.base.sh. Project-layer only — the",
-                "global wizard does not walk this key.",
+                "oracle (BALE.md 8.5). Both conventions are offered by",
+                "number: <agent_dir>/checkpoints/{sid}.sh, one script per",
+                "session, and scripts/validation.base.sh, one shared",
+                "script. Project-layer only — the global wizard does not",
+                "walk this key.",
             ],
             unset_effective="(unset — no blind checkpoint)",
         )
@@ -2821,60 +3645,6 @@ def walk_configurables(existing: dict, *, layer: str,
         )
         if val_list is not None:
             new.setdefault("pack", {})["include_group_pulls"] = val_list
-
-        # ---- [probe].clipboard_command (PROJECT LAYER ONLY) --------------
-        # The probe scaffold's opt-in clipboard epilogue (board 99a; see
-        # PROBE_VALUES). Walked only in project mode because the key's one
-        # reader — tools/craft_response.py's --probe emission — reads the
-        # project bale.toml as shipped in the request; a global value
-        # would never reach it. `inherited` is deliberately None (and
-        # merged_config never inherits [probe]), so 'x' is never offered.
-        # The crafter-readable shape check runs after the prompt with the
-        # staging.strategy reject-with-hint posture: an unreadable value
-        # keeps current rather than landing a key the crafter would
-        # silently treat as unset.
-        existing_probe = (existing.get("probe")
-                          if isinstance(existing.get("probe"), dict)
-                          else {})
-        raw_cur = existing_probe.get("clipboard_command")
-        current = raw_cur if isinstance(raw_cur, str) else None
-
-        val = _prompt_value(
-            walk, "probe.clipboard_command",
-            kind="shell command",
-            summary=(
-                "Command a probe script pipes its output into (pbcopy, "
-                "clip.exe, ...)."
-            ),
-            current=current,
-            inherited=None,
-            description=[
-                "Optional. Enter to skip (no clipboard epilogue).",
-                "Shell command the probe scaffold pipes its output into —",
-                "e.g. pbcopy, xclip -selection clipboard, or clip.exe.",
-                "When set, a probe script emitted by `tools/craft_response.py",
-                "--probe` ends by copying its PROBE BEGIN/END block into",
-                "this command, reporting success or failure and never",
-                "failing the probe over it. Unset = no clipboard epilogue:",
-                "the scaffold carries setup remedy text instead, and you",
-                "select between the banners by hand. One line, no",
-                "backslashes or double quotes (wrap anything fancier in a",
-                "script). Project-layer only: the crafter reads this",
-                "repo's bale.toml as shipped in the request, so a",
-                "global-layer value would never reach the probe epilogue —",
-                "the global wizard neither walks nor inherits this key.",
-            ],
-            unset_effective="(unset — no clipboard epilogue)",
-        )
-        if val not in (None, ""):
-            problem = probe_clipboard_command_problem(val)
-            if problem is not None:
-                walk.ui.warn(f"'{bale_wizard.clip(val)}' {problem}; the "
-                             f"probe scaffold's reader would treat it as "
-                             f"unset. Keeping current.")
-                val = current
-        if val is not None:
-            new.setdefault("probe", {})["clipboard_command"] = val
 
         # ---- [layout].agent_dir (PROJECT LAYER ONLY) ----------------------
         # The agent-facing directory name (v0.4.42; see LAYOUT_VALUES).
@@ -3291,7 +4061,9 @@ def review_and_write_config(ui: bale_wizard.WizardUI, cfg_path: Path, *,
 
 
 def walkthrough_baleignore(
-        repo: Path, ui: Optional[bale_wizard.WizardUI] = None) -> None:
+        repo: Path, ui: Optional[bale_wizard.WizardUI] = None, *,
+        suggestions: Optional[Sequence[bale_wizard.Alternative]] = None,
+        ) -> None:
     """Walk the user through `<repo>/.baleignore` — the user-managed
     exclusion file the pack/apply pipelines read at BALE.md §6.4 / §11
     rule 14. Project-mode only; called from _cmd_config_init_project
@@ -3321,6 +4093,16 @@ def walkthrough_baleignore(
     doesn't need to read BALE.md §6.4 to fill in a pattern. The phrasing
     matches what bin/bale's BaleignoreMatcher actually does — a single
     place where the supported subset is described to the user.
+
+    Phase 2 also offers patterns drawn from what the repo actually holds
+    (session wizard-defaults; baleignore_suggestions says which signals
+    count), as numbered `[n] pattern  (count, size)` lines: typing a
+    number at the add prompt adds that pattern, the same as typing it;
+    one out of range is not a pick and re-asks (the checkpoint picker's
+    rule). `suggestions` overrides the detection (tests pass their own;
+    an empty sequence offers nothing). Patterns already kept are never
+    offered, and a pick already added is not added twice. Enter still
+    finishes, so an Enter-through run adds nothing.
 
     The function does not import bale (or its matcher) — keeps this
     module's circular-import surface minimal, and any pattern the user
@@ -3405,12 +4187,40 @@ def walkthrough_baleignore(
     ], indent=4)
     ui.emit("Patterns starting with '!' (negation) are not supported.",
             indent=2)
+
+    kept_patterns = [ln.strip() for ln in kept_lines if _is_pattern(ln)]
+    if suggestions is None:
+        found, why = baleignore_suggestions(repo, kept_patterns)
+        if why:
+            ui.emit(f"suggestions skipped: {why}", indent=2, style=("dim",))
+    else:
+        found = [alt for alt in suggestions
+                 if alt.value.strip() not in kept_patterns]
+    offered = bale_wizard.detected_first(found)
+    if offered:
+        ui.emit("Suggested from what this repo would ship (a number adds "
+                "it):", indent=2)
+        ui.alternatives(offered, indent=4, label="")
+    picks = bale_wizard.pick_range(len(offered)) if offered else ""
+    prompt = f"add · {picks} picks > " if offered else "add > "
+
     added: list[str] = []
     while True:
-        raw = ui.ask("add > ", indent=2)
+        raw = ui.ask(prompt, indent=2)
         if not raw:
             # Empty line finishes; EOF/^C (None) finishes too.
             break
+        number = bale_wizard.pick_number(raw) if offered else None
+        if number is not None:
+            if not 1 <= number <= len(offered):
+                ui.warn(f"no suggestion {number}; pick {picks}, type a "
+                        f"pattern, or press Enter to finish.", indent=2)
+                continue
+            raw = offered[number - 1].value
+            if raw in added:
+                ui.notice(f"{raw} is already added.", indent=2)
+                continue
+            ui.notice(f"added {raw}", indent=2)
         if raw.startswith("!"):
             ui.warn(f"negation patterns aren't supported; skipping "
                     f"{bale_wizard.clip(raw)!r}", indent=2)
@@ -3559,8 +4369,11 @@ def _cmd_config_init_project() -> int:
     walkthrough_git_identity(repo, ui)
 
     wizard_grammar(ui, layer="project")
+    suggestions = suggest_wizard_values("project", existing, repo=repo,
+                                        config_path=cfg_path)
     new_cfg = walk_configurables(existing, layer="project",
-                                 inherited=inherited, ui=ui)
+                                 inherited=inherited, ui=ui, repo=repo,
+                                 suggestions=suggestions)
 
     rendered = render_bale_toml(new_cfg, layer="project")
     outcome = review_and_write_config(
@@ -3627,8 +4440,10 @@ def _cmd_config_init_global() -> int:
 
     wizard_grammar(ui, layer="global")
     # No inherited layer below global.
+    suggestions = suggest_wizard_values("global", existing,
+                                        config_path=cfg_path)
     new_cfg = walk_configurables(existing, layer="global", inherited=None,
-                                 ui=ui)
+                                 ui=ui, suggestions=suggestions)
 
     rendered = render_bale_toml(new_cfg, layer="global")
     outcome = review_and_write_config(

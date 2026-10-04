@@ -42,12 +42,18 @@ Output rules (the wizard UI contract, pinned by tests/test_wizard_ui.py):
     in-process test drivers) see every line and every prompt.
 
 Extension points (for the sessions queued behind this one):
-  - A choice prompt ("detected default plus a few named alternatives")
-    belongs here as a sibling of `ask_item`: render the alternatives as
-    numbered state rows, return the raw answer, and let the caller map a
-    number to its value. `Walk.begin` already carries the item header,
-    and `state` already renders labelled rows with an aside, which is
-    the shape a numbered alternative list needs.
+  - The choice prompt ("detected default plus a few named alternatives")
+    landed with session wizard-defaults as a sibling of `ask_item`:
+    `alternatives` draws the numbered lines — each `[n] value` on a line
+    of its own, the value exactly as it would be typed, an optional
+    aside in parentheses — and `ask_choice` reads the answer, returning
+    it raw so the caller maps a number to its value (`pick_number`
+    parses one). The one thing ask_choice decides itself is the one
+    the checkpoint picker in bale_pack decides: a number outside the
+    list is not a pick, so it warns, names the range, and asks again.
+    Enter, '?', and every other answer mean exactly what they mean at
+    `ask_item`. `Alternative` is the row type and `detected_first`
+    orders a list so a detected value is [1].
   - The pack wizard's prompts map onto `heading`, `ask`, `confirm`, and
     `notice` directly; its y/N exchanges keep their own decline
     defaults by passing `eof=`/`interrupt=` to `confirm`.
@@ -59,7 +65,7 @@ import os
 import re
 import sys
 import textwrap
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, NamedTuple, Optional, Sequence, Union
 
 # ---------------------------------------------------------------------------
 # Layout constants
@@ -171,6 +177,57 @@ def clip(value: str, limit: int = 40) -> str:
 
 # Rows for `state` and `table`: a value is one string or a list of lines.
 Value = Union[str, Sequence[str]]
+
+
+class Alternative(NamedTuple):
+    """One offered alternative on a choice screen.
+
+    `value` is drawn exactly as the operator would type it, so picking
+    its number and typing it are the same answer. `note` is a short
+    aside ("macOS", "Wayland"); `detected` marks the value detection
+    found on this machine or repo, which the aside says and
+    `detected_first` puts at [1]. Detection only suggests: nothing in
+    this layer acts on a detected value.
+    """
+    value: str
+    note: str = ""
+    detected: bool = False
+
+    def aside(self) -> str:
+        """The parenthesized text after the value ("" for none)."""
+        if self.detected:
+            return f"{self.note}, detected" if self.note else "detected"
+        return self.note
+
+
+def detected_first(alternatives: Sequence[Alternative]) -> list[Alternative]:
+    """`alternatives` with the detected ones first, order otherwise kept.
+
+    The caller numbers the returned list, so the detected value's number
+    is 1 — the one keystroke that takes it.
+    """
+    alts = list(alternatives)
+    return ([a for a in alts if a.detected]
+            + [a for a in alts if not a.detected])
+
+
+def pick_range(count: int) -> str:
+    """How a prompt names the numbers on offer: "1" or "1-<count>"."""
+    return "1" if count == 1 else f"1-{count}"
+
+
+def pick_number(text: str) -> Optional[int]:
+    """The number `text` spells (ASCII digits only), else None.
+
+    Only plain ASCII digits count: "²" or "٣" are values, not picks, and
+    a sign or a decimal point makes the text a value too. Whether the
+    number is in range is the caller's question (ask_choice re-asks on
+    an out-of-range one before the caller ever sees it).
+    """
+    text = text.strip()
+    if text and text.isascii() and text.isdigit():
+        return int(text)
+    return None
 
 
 class WizardUI:
@@ -316,6 +373,43 @@ class WizardUI:
         """The item's state rows (current / inherited / effective)."""
         self.table(rows, indent=BODY_INDENT, aside=aside)
 
+    def alternatives(self, alternatives: Sequence[Alternative], *,
+                     indent: int = BODY_INDENT,
+                     label: str = "alternatives") -> None:
+        """The numbered alternatives, one `[n] value  (aside)` per line.
+
+        Numbering follows the sequence as given (use `detected_first`
+        before calling, and map numbers against that same list). The
+        value is never broken: it is what the operator would type. A
+        line naming an absolute path may run past the width (the
+        contract's exception); otherwise an aside that does not fit
+        moves to the next line, under the value. An empty sequence
+        draws nothing, label included, so a screen with nothing to offer
+        looks exactly as it did before alternatives existed.
+        """
+        if not alternatives:
+            return
+        if label:
+            self.emit(label, indent=indent, style=("dim",))
+        for n, alt in enumerate(alternatives, start=1):
+            self._alternative(n, alt, indent)
+
+    def _alternative(self, n: int, alt: Alternative, indent: int) -> None:
+        lead = f"[{n}] {alt.value}"
+        hang = indent + len(f"[{n}] ")
+        aside = alt.aside()
+        if aside and indent + len(lead) + 2 + len(aside) + 2 <= WIDTH:
+            self._write(" " * indent + lead + "  "
+                        + self._styled(f"({aside})", "dim"))
+            return
+        if names_absolute_path(lead) or indent + len(lead) <= WIDTH:
+            self._write(" " * indent + lead)
+        else:
+            self.emit(lead, indent=indent, hang=hang)
+        if aside:
+            self.emit(f"({aside})", indent=hang, hang=hang + 1,
+                      style=("dim",))
+
     def notice(self, text: str, *, indent: int = BODY_INDENT) -> None:
         """An informational line (what happened, what was skipped)."""
         self.emit(text, indent=indent)
@@ -387,6 +481,41 @@ class WizardUI:
             if answer != "?":
                 return answer
             show_help()
+
+    def ask_choice(self, enter_action: str, *, count: int,
+                   show_help: Callable[[], None],
+                   separator: Optional[str] = None) -> Optional[str]:
+        """The item prompt on a screen with `count` numbered alternatives.
+
+        `ask_item`'s contract plus numbers: the prompt states the Enter
+        action and the range on offer, a bare '?' shows help and asks
+        again, and the answer comes back raw \u2014 "" for Enter, None for
+        EOF/^C, a number as typed \u2014 for the caller to map. A number
+        outside 1..count is not a pick (the pack wizard's checkpoint
+        picker rule): a warning names the range and the prompt asks
+        again, so the caller only ever sees in-range numbers. With a
+        `separator` (":" for a list key) each entry is judged on its
+        own, so "1:2" picks two and "1:9" re-asks.
+        """
+        if count < 1:
+            raise ValueError("ask_choice needs at least one alternative")
+        picks = pick_range(count)
+        offer = "1 picks it" if count == 1 else f"{picks} picks"
+        while True:
+            answer = self.ask(f"{enter_action} \u00b7 {offer} \u00b7 ? help > ")
+            if answer is None:
+                return None
+            if answer == "?":
+                show_help()
+                continue
+            entries = answer.split(separator) if separator else [answer]
+            stray = [n for n in (pick_number(e) for e in entries)
+                     if n is not None and not 1 <= n <= count]
+            if stray:
+                self.warn(f"no alternative {stray[0]}; pick {picks}, type "
+                          f"a value, or press Enter.")
+                continue
+            return answer
 
     def confirm(self, question: str, *, default: bool = True,
                 eof: bool = True, interrupt: bool = False) -> bool:
