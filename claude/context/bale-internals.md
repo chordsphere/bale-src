@@ -69,9 +69,11 @@ is *for* — and stays stable as the per-section line numbers drift:
    `SECRET_PATTERNS`, `SECRET_PATH_EXCLUDES`, and the `PACK_MAX_*`
    threshold caps) moved to `bale_pack` with the pack path in v0.3.12;
    `BALEIGNORE_FILE` stayed because the matcher it names is shared by
-   pack's filter chain and apply's rule-14 check. The `BALE_CONFIG`,
-   `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`, `GLOBAL_CONFIG_PATH`,
-   `HOOK_NAMES`, and `APPLY_VALUES` constants live in `bale_config`.
+   pack's filter chain and apply's rule-14 check. The configurables
+   constants — `BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
+   `GLOBAL_CONFIG_PATH`, `HOOK_ACCEPTANCES_NAME` / `_PATH`, `HOOK_NAMES`,
+   and the per-section key tuples (`APPLY_VALUES` through
+   `LAYOUT_VALUES`) — live in `bale_config`.
 2. **Logging.** `log()`, `fail()`, `set_log_file()`. Logging is
    first-draft, not retrofit — every non-trivial action goes through
    them, and `log(..., force=True)` buffers FORCE: lines emitted
@@ -306,26 +308,59 @@ is *for* — and stays stable as the per-section line numbers drift:
     physical order, the same posture the 11–18 extraction gap already
     established.
 
-`bin/bale_config.py` has three sections (with its own index header):
-loader/merger (`load_config`, `load_global_config`, `merged_config`,
-`get_hook`, `get_apply_search_paths`, the bool accessors
-`get_apply_no_interact` / `get_apply_hook_auto_accept` over a shared
-`_get_apply_bool`, and `apply_bool_source`, the layer-provenance
-helper the non-interactive apply mode's decision logging uses); the
-wizard (the walk order `WIZARD_WALK_ORDER_BOTH_LAYERS` /
-`WIZARD_WALK_ORDER_PROJECT_ONLY` behind `wizard_walk_order`,
-`wizard_grammar`, `_prompt_value`, `_prompt_bool`, `_prompt_path_list`,
-`walkthrough_git_identity`, `walk_configurables`,
-`render_bale_toml`, the pre-write review `config_changes` /
-`review_and_write_config`, `walkthrough_baleignore`,
-`cmd_config_init` and its layer-specific implementations); and the
-module-level constants
-listed above (`BALE_CONFIG`, `GLOBAL_USER_DIR_NAME`, `GLOBAL_USER_DIR`,
-`GLOBAL_CONFIG_PATH`, `HOOK_NAMES`, `APPLY_VALUES`). It imports `log`,
-`fail`, `git`, `repo_root`, and `refuse_system_dir` lazily from
-`__main__` (i.e. `bin/bale`) inside the functions that use them — see
-the module docstring for why this pattern over a third shared module.
-The wizard draws through `bale_wizard` (below), imported at module top.
+`bin/bale_config.py` has four sections (with its own index header).
+**1, constants:** the paths above, `HOOK_NAMES`, one key tuple per
+TOML section (`APPLY_VALUES`, `STAGING_VALUES` with
+`STAGING_STRATEGIES`, `IDENTITY_VALUES`, `VALIDATION_VALUES`,
+`SANDBOX_VALUES`, `PACK_VALUES`, `PROBE_VALUES` with the
+`CLIPBOARD_ALTERNATIVES` the wizard offers, `LAYOUT_VALUES` with
+`DEFAULT_AGENT_DIR`), each tuple's comment carrying its layer ruling.
+**2, load and merge:** `load_config`, `load_global_config`,
+`merged_config`; the hook acceptance store (`hook_script_sha256`,
+`load_hook_acceptances`, `hook_previously_accepted`,
+`record_hook_acceptance`, `write_hook_acceptances`,
+`resolve_hook_acceptance_key`, `forget_hook_acceptance`); and one
+strict typed accessor per key — `get_hook`, `get_apply_search_paths`,
+the bool readers over `_get_apply_bool`, `get_apply_archive_dir`,
+`get_staging_strategy`, `get_staging_untracked_inputs`,
+`get_identity_packer`, `get_validation_base` with
+`resolve_checkpoint_path`, `get_validation_required`, the two sandbox
+bools, `get_pack_include_group`, `get_probe_clipboard_command`, and
+`get_layout_agent_dir` with its `layout_agent_dir` /
+`layout_agent_dir_for_display` conveniences. Two provenance helpers
+sit beside them: `apply_bool_source`, which the non-interactive apply
+mode's decision logging uses, and `clipboard_command_source`. The
+clipboard key also has the repo-level reader bale code calls,
+`effective_clipboard_command(repo)` — the merged value, plus the
+refusal of a spelling the probe scaffold's reader cannot see
+(`clipboard_command_spelling_problem`, over `_scan_clipboard_line`,
+a twin of the crafter's scan that the tests pin to it). **3, the
+wizard:** the walk order (`WIZARD_WALK_ORDER_BOTH_LAYERS` /
+`WIZARD_WALK_ORDER_PROJECT_ONLY` behind `wizard_walk_order`); the
+detected-defaults block (session `wizard-defaults`) —
+`WizardSuggestions`, `suggest_wizard_values`, and one detector or
+offer per key (`detect_clipboard_command` / `clipboard_alternatives`,
+`search_path_alternatives` with `is_wsl`, `detect_git_user_name`,
+`untracked_input_alternatives`, `archive_dir_alternatives`,
+`validation_base_alternatives`, `staging_strategy_alternatives`,
+`baleignore_suggestions`), every one taking its environment as
+parameters; `wizard_grammar`; the prompt helpers `_prompt_value`,
+`_prompt_bool`, `_prompt_path_list` (the value and list helpers draw
+a key's alternatives and map a picked number to its value);
+`walkthrough_git_identity`, `walk_configurables`, `render_bale_toml`,
+the pre-write review `config_changes` / `review_and_write_config`,
+`walkthrough_baleignore`, and `cmd_config_init` with its two
+layer-specific implementations. **4, `bale config hooks`:** the
+acceptance store's listing and forget verb (`cmd_config_hooks`). It
+imports `log`, `fail`, `git`, `repo_root`, and `refuse_system_dir`
+lazily from `__main__` (i.e. `bin/bale`) inside the functions that use
+them — see the module docstring for why this pattern over a third
+shared module; the detectors run git through their own
+`subprocess` call (`_run_git`) instead, because they must answer with
+a reason, never `fail()`, and the in-process tests drive them with no
+`bin/bale` on `__main__`. The wizard draws through `bale_wizard`
+(below), imported at module top; `bale_pack` is imported lazily in one
+place, for its baked-in exclusion names.
 
 `bin/bale_wizard.py` (added by session `config-wizard-ui`, after v0.4.45) is
 the shared wizard presentation layer — net-new code, placed in its own
@@ -336,10 +371,18 @@ headings, one item per screen (`item`, whose header line matches the
 exported `ITEM_HEADER_RE` — `  3/19  apply.search_paths` — which the
 in-process test drivers key on), state rows (`state` / `table`),
 notices and reject-with-hint warnings (`notice` / `warn`), on-demand
-help (`help`), and the pre-write review (`review`); it reads answers
-through `ask`, `ask_item` (states the Enter action and consumes a bare
-`?` by showing the item's full help and asking again), and `confirm`
-(a yes/no gate whose Enter, EOF, and ^C outcomes are the caller's).
+help (`help`), the numbered alternatives (`alternatives`, one
+`[n] value  (aside)` line each, the value exactly as typed), and the
+pre-write review (`review`); it reads answers through `ask`,
+`ask_item` (states the Enter action and consumes a bare `?` by showing
+the item's full help and asking again), `ask_choice` (ask_item plus
+numbers: the prompt names the range, and a number outside it is not a
+pick — warned and re-asked, the pack checkpoint picker's rule — while
+an in-range number comes back raw for the caller to map), and
+`confirm` (a yes/no gate whose Enter, EOF, and ^C outcomes are the
+caller's). `Alternative` is the row type, `detected_first` puts a
+detected value at `[1]`, and `pick_number` / `pick_range` parse and
+name the numbers.
 `Walk` derives each item's `n/N` position and the per-section headings
 from a declared key order, refusing a key the order does not list.
 Output rules: every line fits 80 columns (`wrap`) except a line naming
@@ -693,6 +736,17 @@ behavioral gain. Future sessions add more keys under `[hooks]` and
 (`WIZARD_WALK_ORDER_*`, which the walk refuses to run without) — in the
 same session so the discoverable surface stays in sync.
 
+`[probe] clipboard_command` names the machine's clipboard command. It
+is a both-layer key since session `wizard-defaults`: set once in the
+global file, overridden per project, suppressed with `""` — the
+`[identity] packer` mechanics. The spelling stayed, so a project file
+that set it before keeps working with the probe scaffold, whose reader
+(`tools/craft_response.py --probe`) sees only the project file as
+shipped in a request; bale code reads the effective value through
+`effective_clipboard_command(repo)`, which refuses a value or a
+spelling that reader could not see (a triple-quoted string above all),
+so bale and the crafter never disagree about whether a file sets it.
+
 The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
 mode: `no_interact = true` opts `bale apply` and `bale retry` into the
 mode per config (the `--no-interact` flag is the per-invocation form);
@@ -839,7 +893,7 @@ doesn't walk through is a contract violation.
 | Requires git repo? | Yes (refuses if not in one) | No |
 | Walks git identity? | Yes | No (identity is per-repo) |
 | Shows inherited values? | Yes — global is below, displayed as inherited | No — no layer below |
-| Keys walked | 19 — the ten both-layer keys, then the nine project-layer-only ones | 10 — the both-layer keys |
+| Keys walked | 19 — the eleven both-layer keys, then the eight project-layer-only ones | 11 — the both-layer keys |
 | Hook-path hint | "Path relative to `<repo>/`" | "Path relative to `<install>/user/`" |
 | Header in generated file | project-flavored | global-flavored |
 
@@ -857,7 +911,7 @@ doesn't walk through is a contract violation.
      **repo-local** git config (`git config <key> <value>`, no
      `--global`). Empty input is treated as a skip.
 4. Explain the answer grammar once (`wizard_grammar`: Enter, a typed
-   value, `-`, `x`, `?`), then walk every configurable in
+   value, a number, `-`, `x`, `?`), then walk every configurable in
    `walk_configurables()`, drawn through `bale_wizard` (§1): a heading
    per TOML section in walk order (project-layer-only sections say so
    on the heading), then one screen per key — its `n/N` position and
@@ -867,9 +921,30 @@ doesn't walk through is a contract violation.
    Enter does there. The key's full description is one `?` away and
    never leaves the walk. The order is declared once, in
    `WIZARD_WALK_ORDER_BOTH_LAYERS` + `WIZARD_WALK_ORDER_PROJECT_ONLY`;
-   positions and headings derive from it. Input semantics:
-   - Empty input → keep current at this layer.
+   positions and headings derive from it. Eight keys also list
+   **numbered alternatives** above the prompt (session
+   `wizard-defaults`), each on a line of its own — `[n]`, then the value
+   exactly as it would be typed, then an optional aside:
+   `apply.search_paths` (the Windows-side Downloads under WSL and
+   `~/Downloads`, whichever exist), `apply.archive_dir`
+   (`<agent_dir>/responses`), `staging.strategy` (both values),
+   `staging.untracked_inputs` (`.venv` / `node_modules` when present
+   and untracked), `identity.packer` (git's `user.name`),
+   `probe.clipboard_command` (always `pbcopy`, `clip.exe`, `wl-copy`,
+   `xclip -selection clipboard`, `xsel --clipboard --input`), and
+   `validation.base` (both checkpoint conventions). A value detection
+   found is listed first and marked "detected". Detection only
+   suggests: nothing is set until a number or a value is typed, and a
+   detector that cannot run degrades to the static list or to the
+   screen as it was, with a one-line note. Input semantics:
+   - Empty input → keep current at this layer (unchanged on a key
+     with alternatives, detected or not).
    - Non-empty value → set at this layer (overrides any inherited).
+   - A number on a key with alternatives → set that alternative's
+     value, the same as typing it (the reject-with-hint checks below
+     apply to it too); in a list key each colon-separated entry may be
+     a number (`1:2`, `1:inbox`); a number outside the list is not a
+     pick — the wizard warns, names the range, and asks again.
    - Literal `-` → clear at this layer (revert to inheriting if a global
      value exists, else unset).
    - Literal `x` (offered only when an inherited value is shown) →
@@ -897,7 +972,12 @@ doesn't walk through is a contract violation.
    `n` removes; comments and blanks pass through verbatim, not
    prompted; (b) prompt for additions, one per line, blank to finish,
    with a brief syntax reminder inline (gitignore subset, no
-   negation); (c) review the removed and added patterns ("no changes"
+   negation) and patterns suggested from what the repo would ship, in
+   the same `[n]` shape — bulky or binary formats by extension
+   (`*.parquet`), data or vendored directory names (`data/`), and any
+   single file of 1 MiB or more, counted over the files pack would
+   list, heaviest first, at most six; a number adds its pattern;
+   (c) review the removed and added patterns ("no changes"
    included); (d) write the composed file, or remove it if the
    kept-plus-added pattern set is empty (a missing file is the
    canonical "no .baleignore" state, so an all-removed walk collapses
@@ -915,12 +995,15 @@ doesn't walk through is a contract violation.
 3. No git-identity walk.
 4. Create `<install>/user/` if it doesn't exist (this is the global
    layer's first write).
-5. Explain the answer grammar once (no `x` row), then walk the ten
+5. Explain the answer grammar once (no `x` row), then walk the eleven
    both-layer keys (`WIZARD_WALK_ORDER_BOTH_LAYERS`), drawn as in
-   project mode. Display shows only the current value (no "inherited"
-   line, no `x` option — nothing to suppress). Input semantics:
+   project mode, alternatives included (the machine-level ones; the
+   repo-level detections need a repo). Display shows only the current
+   value (no "inherited" line, no `x` option — nothing to suppress).
+   Input semantics:
    - Empty input → keep current.
    - Non-empty value → set.
+   - A number on a key with alternatives → set that alternative.
    - Literal `-` → clear.
    - Literal `?` → full description, ask again.
 6. Render via `render_bale_toml(cfg, layer="global")`, review, and write
@@ -932,7 +1015,10 @@ doesn't walk through is a contract violation.
 Re-running at either layer shows the current value for each configurable
 and accepts Enter to keep. The output file after a re-run-with-all-Enters
 equals the input file modulo trailing whitespace — the wizard is safe
-to run on a whim. The review says so before the write: "no changes"
+to run on a whim — offered alternatives included: a detected value is
+only ever on screen until its number is typed, so the clipboard
+opt-in (bale overwriting the clipboard once a command is set) is never
+taken by pressing Enter. The review says so before the write: "no changes"
 (nothing rewritten) when the file already matches, "no value changes"
 when only the layout is normalized, and Enter at its gate writes.
 

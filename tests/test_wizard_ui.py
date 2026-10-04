@@ -125,14 +125,15 @@ def _answer(value):
 
 
 def walk_with_answers(existing: dict, *, layer: str, answers: dict,
-                      inherited=None):
+                      inherited=None, suggestions=None):
     """Drive walk_configurables in-process, answering by item key.
 
     The item an input() belongs to is the most recent line matching
     bale_wizard.ITEM_HEADER_RE. An answer may be a list (consumed one
     entry per input() call — '?' then the real answer), EOF_ANSWER, or
     INTERRUPT. Returns (new_cfg, output, prompts) where prompts are the
-    (key, prompt text) pairs input() was called with.
+    (key, prompt text) pairs input() was called with. `suggestions`
+    passes through (None: detect from the machine running the test).
     """
     buffer = io.StringIO()
     pending = {k: (list(v) if isinstance(v, list) else [v])
@@ -156,7 +157,8 @@ def walk_with_answers(existing: dict, *, layer: str, answers: dict,
         with contextlib.redirect_stdout(buffer):
             new = bale_config.walk_configurables(
                 copy.deepcopy(existing), layer=layer,
-                inherited=copy.deepcopy(inherited))
+                inherited=copy.deepcopy(inherited),
+                suggestions=suggestions)
     finally:
         builtins.input = saved
     return new, buffer.getvalue(), prompts
@@ -401,16 +403,19 @@ class WalkOrderTest(unittest.TestCase):
             + [f"apply.{k}" for k in bale_config.APPLY_VALUES]
             + [f"staging.{k}" for k in bale_config.STAGING_VALUES]
             + [f"identity.{k}" for k in bale_config.IDENTITY_VALUES]
+            # [probe] is a both-layer section since session
+            # wizard-defaults (the clipboard command is per-machine), so
+            # it closes the both-layer run, before the project-only ones.
+            + [f"probe.{k}" for k in bale_config.PROBE_VALUES]
             + [f"validation.{k}" for k in bale_config.VALIDATION_VALUES]
             + [f"sandbox.{k}" for k in bale_config.SANDBOX_VALUES]
             + [f"pack.{k}" for k in bale_config.PACK_VALUES]
-            + [f"probe.{k}" for k in bale_config.PROBE_VALUES]
             + [f"layout.{k}" for k in bale_config.LAYOUT_VALUES]
         )
         self.assertEqual(list(PROJECT_KEYS), declared)
         self.assertEqual(len(PROJECT_KEYS), 19)
-        self.assertEqual(len(GLOBAL_KEYS), 10)
-        self.assertEqual(PROJECT_KEYS[:10], GLOBAL_KEYS)
+        self.assertEqual(len(GLOBAL_KEYS), 11)
+        self.assertEqual(PROJECT_KEYS[:11], GLOBAL_KEYS)
 
     def test_unknown_layer_refuses(self) -> None:
         with self.assertRaises(ValueError):
@@ -441,8 +446,7 @@ class WalkOrderTest(unittest.TestCase):
             heading = re.findall(rf"(?m)^\S+ \[{section}\]  .*$", out)
             self.assertEqual(len(heading), 1, msg=section)
             positions.append(out.index(heading[0]))
-            only = section in ("validation", "sandbox", "pack", "probe",
-                               "layout")
+            only = section in ("validation", "sandbox", "pack", "layout")
             self.assertEqual("project layer only" in heading[0], only,
                              msg=heading[0])
         self.assertEqual(positions, sorted(positions))
@@ -601,11 +605,13 @@ SEMANTICS = [
      {"staging": {"strategy": "target-base"},
       "probe": {"clipboard_command": "pbcopy"},
       "layout": {"agent_dir": "agent"}}),
-    ("global walks only its ten keys", "global",
+    # Eleven since session wizard-defaults: probe.clipboard_command is
+    # walked at the global layer now; validation.base still is not.
+    ("global walks only its eleven keys", "global",
      {"validation": {"base": "x.sh"}, "probe": {"clipboard_command": "p"},
       "identity": {"packer": "alice"}}, None,
      {"validation.base": "y.sh", "probe.clipboard_command": "q"},
-     {"identity": {"packer": "alice"}}),
+     {"identity": {"packer": "alice"}, "probe": {"clipboard_command": "q"}}),
     ("misshapen values read as unset", "project",
      {"apply": {"no_interact": "yes", "search_paths": [1]},
       "identity": {"packer": 7}}, None, {}, {}),
@@ -796,6 +802,557 @@ class BaleignoreStepTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Detected defaults and named alternatives (session wizard-defaults)
+# ---------------------------------------------------------------------------
+
+Alt = bale_wizard.Alternative
+ALT_LINE_RE = re.compile(r"^\s+\[(\d+)\] (.+?)(?:  \((.*)\))?$")
+
+
+def alt_lines(output: str) -> list[tuple[int, str, str]]:
+    """(number, value, aside) for every `[n] value  (aside)` line."""
+    found = []
+    for line in ANSI_RE.sub("", output).splitlines():
+        match = ALT_LINE_RE.match(line)
+        if match:
+            found.append((int(match.group(1)), match.group(2),
+                          match.group(3) or ""))
+    return found
+
+
+def rich_suggestions(**overrides) -> "bale_config.WizardSuggestions":
+    """A WizardSuggestions offering something on every key that can
+    take alternatives — the walk's widest screens, machine-independent."""
+    alternatives = {
+        "apply.search_paths": [
+            Alt("/mnt/c/Users/alice/Downloads", "Windows Downloads", True),
+            Alt("~/Downloads", "home Downloads", True)],
+        "apply.archive_dir": [Alt("claude/responses", "exists", True)],
+        "staging.strategy": bale_config.staging_strategy_alternatives(),
+        "staging.untracked_inputs": [
+            Alt(".venv", "present, untracked", True),
+            Alt("node_modules", "present, untracked", True)],
+        "identity.packer": [Alt("Alice Example", "git user.name", True)],
+        "probe.clipboard_command": bale_config.clipboard_alternatives(
+            platform="linux", environ={"WAYLAND_DISPLAY": "wayland-0"},
+            which=lambda name: f"/usr/bin/{name}", wsl=False),
+        "validation.base": bale_config.validation_base_alternatives(
+            "claude", None),
+    }
+    alternatives.update(overrides)
+    return bale_config.WizardSuggestions(alternatives=alternatives)
+
+
+class ChoiceLayerTest(unittest.TestCase):
+    """bale_wizard's choice primitives, additive beside ask_item."""
+
+    def capture(self, fn):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            fn(bale_wizard.WizardUI())
+        return buffer.getvalue()
+
+    def test_existing_surface_is_unchanged(self) -> None:
+        """Session B builds on these names concurrently: the header
+        pattern and ask_item's signature are part of the contract."""
+        import inspect
+        self.assertEqual(bale_wizard.ITEM_HEADER_RE.pattern,
+                         r"^\s*(\d+)/(\d+)  (\S+)")
+        self.assertEqual(
+            list(inspect.signature(
+                bale_wizard.WizardUI.ask_item).parameters),
+            ["self", "enter_action", "show_help"])
+        self.assertEqual(bale_wizard.BODY_INDENT, 9)
+
+    def test_aside_and_detected_first(self) -> None:
+        self.assertEqual(Alt("pbcopy", "macOS", True).aside(),
+                         "macOS, detected")
+        self.assertEqual(Alt("x", "", True).aside(), "detected")
+        self.assertEqual(Alt("x", "note").aside(), "note")
+        ordered = bale_wizard.detected_first(
+            [Alt("a"), Alt("b", detected=True), Alt("c"),
+             Alt("d", detected=True)])
+        self.assertEqual([a.value for a in ordered], ["b", "d", "a", "c"])
+
+    def test_pick_number_reads_plain_digits_only(self) -> None:
+        self.assertEqual(bale_wizard.pick_number(" 3 "), 3)
+        self.assertEqual(bale_wizard.pick_number("0"), 0)
+        for text in ("", "-1", "+2", "2.0", "²", "٣", "1:2", "a1"):
+            with self.subTest(text=text):
+                self.assertIsNone(bale_wizard.pick_number(text))
+
+    def test_lines_take_the_pinned_shape(self) -> None:
+        out = self.capture(lambda ui: ui.alternatives(
+            [Alt("pbcopy", "macOS", True), Alt("wl-copy", "Wayland"),
+             Alt("xclip -selection clipboard")]))
+        lines = out.splitlines()
+        self.assertEqual(lines[0].strip(), "alternatives")
+        self.assertEqual(lines[1:], [
+            "         [1] pbcopy  (macOS, detected)",
+            "         [2] wl-copy  (Wayland)",
+            "         [3] xclip -selection clipboard",
+        ])
+        self.assertEqual(item_headers(out), [],
+                         msg="an alternative line never reads as an item "
+                             "header to the test drivers")
+
+    def test_nothing_to_offer_draws_nothing(self) -> None:
+        self.assertEqual(self.capture(lambda ui: ui.alternatives([])), "")
+
+    def test_long_values_keep_the_width_contract(self) -> None:
+        path = "/mnt/c/Users/" + "averyverylongprofilename" * 3 + "/Downloads"
+        out = self.capture(lambda ui: ui.alternatives(
+            [Alt(path, "Windows Downloads", True),
+             Alt("short", "an aside long enough that it cannot ride beside "
+                          "its value on one eighty-column line")]))
+        self.assertIn(f"[1] {path}", out, msg="an absolute path stays whole")
+        self.assertEqual(overwide(out), [])
+        self.assertIn("(Windows Downloads, detected)", out)
+
+    def test_forced_color_keeps_the_value_whole(self) -> None:
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            bale_wizard.WizardUI(color=True).alternatives(
+                [Alt("wl-copy", "Wayland")])
+        self.assertIn("[1] wl-copy", buffer.getvalue())
+
+    def test_ask_choice_returns_in_range_answers_raw(self) -> None:
+        ui = bale_wizard.WizardUI()
+        for typed in ("2", "", "value", "-", "x", " 3 "):
+            with self.subTest(typed=typed):
+                answer, _out, prompts = run_with_inputs(
+                    ui.ask_choice, [typed], "Enter keeps current", count=3,
+                    show_help=lambda: None)
+                self.assertEqual(answer, typed.strip())
+                self.assertEqual(len(prompts), 1)
+                self.assertIn("Enter keeps current", prompts[0])
+                self.assertIn("1-3 picks", prompts[0])
+                self.assertIn("? help", prompts[0])
+
+    def test_out_of_range_is_not_a_pick_and_asks_again(self) -> None:
+        ui = bale_wizard.WizardUI()
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["7", "0", "2"], "Enter keeps current", count=2,
+            show_help=lambda: None)
+        self.assertEqual(answer, "2")
+        self.assertEqual(len(prompts), 3)
+        self.assertIn("no alternative 7; pick 1-2", " ".join(out.split()))
+        self.assertIn("no alternative 0", out)
+
+    def test_separator_judges_each_entry(self) -> None:
+        ui = bale_wizard.WizardUI()
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["1:9", "1:2:inbox"], "Enter", count=2,
+            show_help=lambda: None, separator=":")
+        self.assertEqual(answer, "1:2:inbox")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("no alternative 9", out)
+
+    def test_help_eof_and_single_alternative(self) -> None:
+        ui = bale_wizard.WizardUI()
+        shown = []
+        answer, _out, prompts = run_with_inputs(
+            ui.ask_choice, ["?", "1"], "Enter leaves it unset", count=1,
+            show_help=lambda: shown.append(1))
+        self.assertEqual((answer, len(shown)), ("1", 1))
+        self.assertIn("1 picks it", prompts[0])
+        for gesture in (EOF_ANSWER, INTERRUPT):
+            with self.subTest(gesture=gesture):
+                answer, _o, _p = run_with_inputs(
+                    ui.ask_choice, [gesture], "Enter", count=2,
+                    show_help=lambda: None)
+                self.assertIsNone(answer)
+        with self.assertRaises(ValueError):
+            ui.ask_choice("Enter", count=0, show_help=lambda: None)
+
+
+class ChoiceWalkTest(unittest.TestCase):
+    """The alternatives through walk_configurables: a number sets the
+    value at the layer walked; Enter keeps meaning what it meant."""
+
+    def test_enter_through_writes_nothing_with_every_offer_shown(self) -> None:
+        """The clipboard opt-in rests on this: detected values are on
+        screen, and an Enter-through still returns the file unchanged."""
+        cases = [({}, None), (SEMANTICS[0][2], None),
+                 ({"probe": {"clipboard_command": "pbcopy"}},
+                  {"probe": {"clipboard_command": "xclip"},
+                   "identity": {"packer": "alice"}})]
+        for layer in ("project", "global"):
+            for existing, inherited in cases:
+                with self.subTest(layer=layer, existing=existing):
+                    plain, _o, _p = walk_with_answers(
+                        existing, layer=layer, answers={},
+                        inherited=inherited if layer == "project" else None,
+                        suggestions=bale_config.WizardSuggestions())
+                    offered, out, _p = walk_with_answers(
+                        existing, layer=layer, answers={},
+                        inherited=inherited if layer == "project" else None,
+                        suggestions=rich_suggestions())
+                    self.assertEqual(offered, plain)
+                    self.assertTrue(alt_lines(out))
+
+    def test_numbers_set_values_at_the_layer_walked(self) -> None:
+        answers = {"apply.search_paths": "1:2",
+                   "apply.archive_dir": "1",
+                   "staging.strategy": "2",
+                   "staging.untracked_inputs": "1:vendor",
+                   "identity.packer": "1",
+                   "probe.clipboard_command": "1",
+                   "validation.base": "1"}
+        new, _out, _p = walk_with_answers(
+            {}, layer="project", answers=answers,
+            suggestions=rich_suggestions())
+        self.assertEqual(new, {
+            "apply": {"search_paths": ["/mnt/c/Users/alice/Downloads",
+                                       "~/Downloads"],
+                      "archive_dir": "claude/responses"},
+            "staging": {"strategy": "target-base",
+                        "untracked_inputs": [".venv", "vendor"]},
+            "identity": {"packer": "Alice Example"},
+            "probe": {"clipboard_command": "wl-copy"},
+            "validation": {"base": "claude/checkpoints/{sid}.sh"},
+        })
+        new, _out, _p = walk_with_answers(
+            {}, layer="global",
+            answers={"probe.clipboard_command": "4", "identity.packer": "1"},
+            suggestions=rich_suggestions())
+        self.assertEqual(new, {
+            "identity": {"packer": "Alice Example"},
+            "probe": {"clipboard_command": "xclip -selection clipboard"}})
+
+    def test_a_pick_equals_typing_the_value(self) -> None:
+        suggestions = rich_suggestions()
+        for key, number in (("probe.clipboard_command", "3"),
+                            ("staging.strategy", "1"),
+                            ("identity.packer", "1")):
+            value = suggestions.for_key(key)[int(number) - 1].value
+            with self.subTest(key=key):
+                picked, _o, _p = walk_with_answers(
+                    {}, layer="project", answers={key: number},
+                    suggestions=suggestions)
+                typed, _o, _p = walk_with_answers(
+                    {}, layer="project", answers={key: value},
+                    suggestions=suggestions)
+                self.assertEqual(picked, typed)
+
+    def test_every_other_answer_keeps_its_meaning(self) -> None:
+        inherited = {"identity": {"packer": "alice"},
+                     "probe": {"clipboard_command": "xclip"}}
+        existing = {"apply": {"archive_dir": "keep/me"}}
+        new, out, _p = walk_with_answers(
+            existing, layer="project", inherited=inherited,
+            suggestions=rich_suggestions(),
+            answers={"identity.packer": "x",
+                     "probe.clipboard_command": ["?", "x"],
+                     "apply.archive_dir": ["9", ""],
+                     "staging.strategy": "fast"})
+        self.assertEqual(new, {"apply": {"archive_dir": "keep/me"},
+                               "identity": {"packer": ""},
+                               "probe": {"clipboard_command": ""}})
+        flat = " ".join(out.split())
+        self.assertIn("no alternative 9; pick 1", flat)
+        self.assertIn("is not a staging strategy", flat)
+        self.assertIn("a number sets the alternative listed above", flat,
+                      msg="the '?' help names the number gesture")
+
+    def test_alternatives_sit_above_the_prompt_in_the_pinned_shape(self) -> None:
+        _new, out, prompts = walk_with_answers(
+            {}, layer="project", answers={},
+            suggestions=rich_suggestions())
+        rows = alt_lines(out)
+        self.assertIn((1, "wl-copy", "Wayland, detected"), rows)
+        self.assertIn((2, "pbcopy", "macOS"), rows)
+        self.assertIn((1, "/mnt/c/Users/alice/Downloads",
+                       "Windows Downloads, detected"), rows)
+        by_key = dict(prompts)
+        self.assertIn("1-5 picks", by_key["probe.clipboard_command"])
+        self.assertIn("1 picks it", by_key["identity.packer"])
+        self.assertNotIn("picks", by_key["apply.sweep"],
+                         msg="a key with nothing to offer asks as before")
+        self.assertEqual(overwide(out), [])
+
+    def test_no_offer_draws_the_screen_as_it_was(self) -> None:
+        _new, out, prompts = walk_with_answers(
+            {}, layer="project", answers={},
+            suggestions=bale_config.WizardSuggestions())
+        self.assertEqual(alt_lines(out), [])
+        self.assertNotIn("alternatives", out)
+        self.assertTrue(all(p.endswith(" · ? help > ")
+                            and "picks" not in p for _k, p in prompts))
+
+    def test_notes_and_warnings_reach_their_screen(self) -> None:
+        suggestions = bale_config.WizardSuggestions()
+        suggestions.note("identity.packer", "detection skipped: git not found")
+        suggestions.warn("probe.clipboard_command", "spelled oddly")
+        _new, out, _p = walk_with_answers(
+            {}, layer="global", answers={}, suggestions=suggestions)
+        packer = out.index("identity.packer")
+        self.assertLess(packer, out.index("detection skipped: git not found"))
+        self.assertIn("! spelled oddly", out)
+
+
+class DetectionTest(unittest.TestCase):
+    """Each detector with its environment injected: suggestions only,
+    and nothing found degrades to the static list or to nothing."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-wizdet-")
+        self.tmp = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_clipboard_detection_matrix(self) -> None:
+        def which_of(*present):
+            return lambda name: f"/bin/{name}" if name in present else None
+        cases = [
+            ("darwin", {}, which_of("pbcopy"), False, "pbcopy"),
+            ("darwin", {}, which_of(), False, None),
+            ("win32", {}, which_of("clip.exe"), False, "clip.exe"),
+            ("linux", {}, which_of("clip.exe"), True, "clip.exe"),
+            ("linux", {"WAYLAND_DISPLAY": "w"}, which_of("wl-copy"), False,
+             "wl-copy"),
+            ("linux", {"WAYLAND_DISPLAY": "w", "DISPLAY": ":0"},
+             which_of("xclip"), False, "xclip -selection clipboard"),
+            ("linux", {"DISPLAY": ":0"}, which_of("xsel"), False,
+             "xsel --clipboard --input"),
+            ("linux", {}, which_of("xclip", "wl-copy"), False, None),
+        ]
+        for platform, env, which, wsl, expected in cases:
+            with self.subTest(platform=platform, env=env, wsl=wsl):
+                self.assertEqual(bale_config.detect_clipboard_command(
+                    platform=platform, environ=env, which=which, wsl=wsl),
+                    expected)
+
+    def test_clipboard_alternatives_are_always_the_five(self) -> None:
+        none = bale_config.clipboard_alternatives(
+            platform="linux", environ={}, which=lambda n: None, wsl=False)
+        self.assertEqual([a.value for a in none],
+                         [v for v, _n in bale_config.CLIPBOARD_ALTERNATIVES])
+        self.assertFalse(any(a.detected for a in none))
+        mac = bale_config.clipboard_alternatives(
+            platform="darwin", environ={}, which=lambda n: "/x", wsl=False)
+        self.assertEqual(mac[0], Alt("pbcopy", "macOS", True))
+        wsl = bale_config.clipboard_alternatives(
+            platform="linux", environ={}, which=lambda n: "/x", wsl=True)
+        self.assertEqual((wsl[0].value, wsl[0].detected), ("clip.exe", True))
+        self.assertEqual(len(wsl), 5)
+
+    def test_is_wsl(self) -> None:
+        osrelease = self.tmp / "osrelease"
+        self.assertTrue(bale_config.is_wsl({"WSL_DISTRO_NAME": "Ubuntu"},
+                                           osrelease))
+        self.assertFalse(bale_config.is_wsl({}, osrelease), msg="no file")
+        osrelease.write_text("5.15.153.1-microsoft-standard-WSL2\n")
+        self.assertTrue(bale_config.is_wsl({}, osrelease))
+        osrelease.write_text("6.8.0-generic\n")
+        self.assertFalse(bale_config.is_wsl({}, osrelease))
+
+    def test_search_paths_offer_what_exists(self) -> None:
+        users = self.tmp / "Users"
+        for name in ("alice", "Public", "zed", "bob"):
+            (users / name).mkdir(parents=True)
+        for name in ("alice", "Public", "zed"):
+            (users / name / "Downloads").mkdir()
+        home = self.tmp / "home"
+        home.mkdir()
+        self.assertEqual(bale_config.search_path_alternatives(
+            home=home, environ={"USER": "zed"}, wsl=True,
+            windows_users=users), [
+            Alt(str(users / "zed" / "Downloads"), "Windows Downloads", True),
+            Alt(str(users / "alice" / "Downloads"), "Windows Downloads",
+                True)])
+        (home / "Downloads").mkdir()
+        both = bale_config.search_path_alternatives(
+            home=home, environ={"USER": "alice"}, wsl=True,
+            windows_users=users)
+        self.assertEqual([a.value for a in both],
+                         [str(users / "alice" / "Downloads"),
+                          str(users / "zed" / "Downloads"), "~/Downloads"])
+        self.assertEqual(bale_config.search_path_alternatives(
+            home=home, environ={}, wsl=False, windows_users=users),
+            [Alt("~/Downloads", "home Downloads", True)])
+        self.assertEqual(bale_config.search_path_alternatives(
+            home=self.tmp / "nohome", environ={}, wsl=True,
+            windows_users=self.tmp / "nomount"), [])
+
+    def test_conventions_mark_what_the_repo_already_has(self) -> None:
+        repo = self.tmp
+        self.assertEqual(bale_config.archive_dir_alternatives("agent", repo),
+                         [Alt("agent/responses", "the archive convention")])
+        (repo / "agent" / "responses").mkdir(parents=True)
+        self.assertEqual(bale_config.archive_dir_alternatives("agent", repo),
+                         [Alt("agent/responses", "exists", True)])
+        base = bale_config.validation_base_alternatives("agent", repo)
+        self.assertEqual([a.value for a in base],
+                         ["agent/checkpoints/{sid}.sh",
+                          "scripts/validation.base.sh"])
+        self.assertFalse(any(a.detected for a in base))
+        (repo / "scripts").mkdir()
+        (repo / "scripts" / "validation.base.sh").write_text("exit 0\n")
+        base = bale_config.validation_base_alternatives("agent", repo)
+        self.assertEqual((base[0].value, base[0].detected),
+                         ("scripts/validation.base.sh", True),
+                         msg="the detected convention moves to [1]")
+        self.assertEqual(
+            [a.value for a in bale_config.staging_strategy_alternatives()],
+            list(bale_config.STAGING_STRATEGIES))
+
+    def test_agent_dir_follows_the_project_layout(self) -> None:
+        sugg = bale_config.suggest_wizard_values(
+            "project", {"layout": {"agent_dir": "agent"}}, repo=None,
+            environ={}, home=self.tmp, platform="linux",
+            which=lambda n: None, wsl=False)
+        self.assertEqual(sugg.for_key("apply.archive_dir")[0].value,
+                         "agent/responses")
+        self.assertEqual(sugg.for_key("validation.base")[0].value,
+                         "agent/checkpoints/{sid}.sh")
+        glob = bale_config.suggest_wizard_values(
+            "global", {}, environ={}, home=self.tmp, platform="linux",
+            which=lambda n: None, wsl=False)
+        self.assertEqual(glob.for_key("validation.base"), [],
+                         msg="no project-only offers at the global layer")
+        self.assertEqual(glob.for_key("staging.untracked_inputs"), [],
+                         msg="no repo, no untracked-input detection")
+
+
+class GitDetectionTest(unittest.TestCase):
+    """The git-backed detectors, against a real scratch repo."""
+
+    def setUp(self) -> None:
+        import os
+        import subprocess
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-wizgit-")
+        self.tmp = Path(self._tmp.name)
+        self.home = make_sandbox_home(self.tmp)
+        self.repo = make_repo(self.tmp, home=self.home)
+        # Detection runs git with this process's environment: point it at
+        # the sandbox identity so the machine's own gitconfig never leaks.
+        self._env = {k: os.environ.get(k) for k in
+                     ("HOME", "GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_GLOBAL",
+                      "XDG_CONFIG_HOME")}
+        os.environ["HOME"] = str(self.home)
+        os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+        os.environ.pop("GIT_CONFIG_GLOBAL", None)
+        os.environ.pop("XDG_CONFIG_HOME", None)
+        self.git = lambda *a: subprocess.run(
+            ["git", *a], cwd=self.repo, check=True, capture_output=True)
+
+    def tearDown(self) -> None:
+        import os
+        for key, value in self._env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        self._tmp.cleanup()
+
+    def test_git_user_name(self) -> None:
+        self.assertEqual(bale_config.detect_git_user_name(self.repo),
+                         ("Bale Test Sandbox", None))
+        self.assertEqual(bale_config.detect_git_user_name(None),
+                         ("Bale Test Sandbox", None))
+        self.git("config", "user.name", "Repo Local")
+        self.assertEqual(bale_config.detect_git_user_name(self.repo),
+                         ("Repo Local", None))
+        (self.home / ".gitconfig").write_text("[init]\n")
+        self.assertEqual(bale_config.detect_git_user_name(None), (None, None),
+                         msg="unset is nothing found, not a failure")
+
+    def test_untracked_inputs_need_presence_and_no_tracking(self) -> None:
+        self.assertEqual(
+            bale_config.untracked_input_alternatives(self.repo), ([], None))
+        (self.repo / ".venv" / "bin").mkdir(parents=True)
+        (self.repo / ".venv" / "bin" / "python").write_text("")
+        (self.repo / ".gitignore").write_text(".venv/\n")
+        (self.repo / "node_modules").mkdir()
+        (self.repo / "node_modules" / "pkg.js").write_text("")
+        self.git("add", "-f", "node_modules/pkg.js")
+        self.assertEqual(
+            bale_config.untracked_input_alternatives(self.repo),
+            ([Alt(".venv", "present, untracked", True)], None))
+
+    def test_baleignore_suggestions_follow_what_pack_would_ship(self) -> None:
+        def write(rel, size):
+            path = self.repo / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"x" * size)
+        write("data/a.csv", 3000)
+        write("data/sub/b.parquet", 1000)
+        write("models/m.parquet", 5000)
+        write("models/n.PARQUET", 10)
+        write("big.json", 2 * 1024 * 1024)
+        write("docs/notes.md", 4 * 1024 * 1024)
+        write("dist/pkg.whl", 9 * 1024 * 1024)   # pack's baked-in excludes
+        write("small.txt", 10)
+        write("ignored/huge.zip", 8 * 1024 * 1024)
+        (self.repo / ".gitignore").write_text("ignored/\n")
+        found, why = bale_config.baleignore_suggestions(self.repo)
+        self.assertIsNone(why)
+        self.assertEqual([a.value for a in found],
+                         ["docs/notes.md", "/big.json", "*.parquet",
+                          "data/", "*.PARQUET"])
+        self.assertEqual(found[2].note, "1 file, 4.9 KB")
+        self.assertEqual(found[3].note, "2 files, 3.9 KB")
+        again, _w = bale_config.baleignore_suggestions(
+            self.repo, ["data/", " /big.json "])
+        self.assertNotIn("data/", [a.value for a in again])
+        self.assertNotIn("/big.json", [a.value for a in again])
+
+    def test_not_a_repo_degrades_with_a_reason(self) -> None:
+        found, why = bale_config.baleignore_suggestions(self.tmp / "home")
+        self.assertEqual(found, [])
+        self.assertIn("git ls-files exited", why)
+
+
+class BaleignoreSuggestionStepTest(unittest.TestCase):
+    """The .baleignore step's [n] picks, with suggestions injected."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-wizbis-")
+        self.repo = Path(self._tmp.name)
+        self.path = self.repo / ".baleignore"
+        self.main = _MainStandIns().__enter__()
+        self.offer = [Alt("*.parquet", "3 files, 40 MB"),
+                      Alt("data/", "12 files, 2.0 MB")]
+
+    def tearDown(self) -> None:
+        self.main.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def walk(self, inputs, offer=None):
+        return run_with_inputs(
+            bale_config.walkthrough_baleignore, inputs, self.repo,
+            bale_wizard.WizardUI(),
+            suggestions=self.offer if offer is None else offer)
+
+    def test_enter_through_adds_nothing(self) -> None:
+        _r, out, prompts = self.walk([])
+        self.assertFalse(self.path.exists())
+        self.assertEqual(alt_lines(out), [(1, "*.parquet", "3 files, 40 MB"),
+                                          (2, "data/", "12 files, 2.0 MB")])
+        self.assertIn("1-2 picks", prompts[0])
+
+    def test_a_number_adds_its_pattern_once(self) -> None:
+        _r, out, _p = self.walk(["2", "7", "2", "1", "", ""])
+        self.assertEqual(self.path.read_text(encoding="utf-8"),
+                         "data/\n*.parquet\n")
+        self.assertIn("no suggestion 7; pick 1-2", " ".join(out.split()))
+        self.assertIn("data/ is already added", out)
+
+    def test_kept_patterns_are_not_offered_again(self) -> None:
+        self.path.write_text("data/\n", encoding="utf-8")
+        _r, out, _p = self.walk([])
+        self.assertEqual(alt_lines(out), [(1, "*.parquet", "3 files, 40 MB")])
+
+    def test_without_suggestions_a_digit_is_a_pattern(self) -> None:
+        _r, out, prompts = self.walk(["2024", "", ""], offer=[])
+        self.assertEqual(self.path.read_text(encoding="utf-8"), "2024\n")
+        self.assertEqual(alt_lines(out), [])
+        self.assertEqual(prompts[0].strip(), "add >")
+
+
+# ---------------------------------------------------------------------------
 # End to end under a pty
 # ---------------------------------------------------------------------------
 
@@ -866,7 +1423,7 @@ class EndToEndTest(unittest.TestCase):
         out = self.init(global_layer=True)
         self.assertEqual(
             item_headers(out),
-            [(i + 1, 10, key) for i, key in enumerate(GLOBAL_KEYS)])
+            [(i + 1, 11, key) for i, key in enumerate(GLOBAL_KEYS)])
         self.assertEqual(overwide(out), [])
         self.assertNotIn("Git identity", out)
         self.assertNotIn(".baleignore", out)

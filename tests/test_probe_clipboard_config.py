@@ -13,8 +13,12 @@ Three tiers, cheapest first:
 
 - **Unit** (no subprocess): `get_probe_clipboard_command` semantics —
   absent/empty read as unset, set values come back stripped, non-string
-  and crafter-unreadable shapes are fatal — plus the project-only merge
-  ruling (a global [probe] is never inherited) and the renderer's
+  and crafter-unreadable shapes are fatal — plus the both-layer merge
+  (session wizard-defaults: a global [probe] is inherited, a project
+  value wins, "" at the project suppresses), the accessors bale code
+  calls (`effective_clipboard_command`, `clipboard_command_source`),
+  the bale-side refusal of spellings the crafter cannot see
+  (triple-quoted above all — the 005/69 rider), and the renderer's
   `[probe]` branch, including literal non-ASCII.
 - **Agreement** (the crafter's own reader, imported from tools/): every
   value the accessor accepts, rendered by `render_bale_toml`, reads back
@@ -22,12 +26,12 @@ Three tiers, cheapest first:
   check refuses would have read back as unset — so the refusal is
   load-bearing, not taste.
 - **Wizard**: `walk_configurables` driven with a label-aware input
-  stand-in (set, reject-and-keep, global never walks, the full
-  description reachable through the '?' gesture), and the PTY
-  discoverable-surface pair through a real `bale config init` (the
-  test_sandbox_wrapper / test_blind_checkpoint precedent): the project
-  wizard walks and preserves the key and states why it is project-only;
-  the global wizard never offers it.
+  stand-in (set, reject-and-keep, set and suppress at both layers, a
+  numbered pick, the spelling warning, the full description reachable
+  through the '?' gesture), and the PTY discoverable-surface pair
+  through a real `bale config init`: both wizards walk the key, and a
+  project bale.toml that sets it is still read by the crafter after an
+  Enter-through re-run (the session's back-compat constraint).
 
 Board 69's registry rider (session 2026-09-16-board-69-tools-pair-008)
 extends the agreement tier to the hand-edited TOML literal string: for
@@ -179,17 +183,23 @@ class AccessorUnitTest(_HermeticConfigBase):
                 self.write_project(f"[probe]\n{body}\n")
                 self.assertIsNone(self.accessor())
 
-    def test_global_probe_section_is_never_inherited(self) -> None:
-        """A global value would never reach the crafter, which reads the
-        project bale.toml as shipped in the request — so the merge drops
-        it rather than reporting a configuration nothing consults."""
+    def test_global_probe_section_is_inherited(self) -> None:
+        """Per-machine since session wizard-defaults (ruling 1): a
+        global value applies wherever the project does not set the key."""
         self.global_toml.parent.mkdir(parents=True)
         self.global_toml.write_text(
             '[probe]\nclipboard_command = "pbcopy"\n', encoding="utf-8")
         cfg = bale_config.merged_config(self.repo)
-        self.assertNotIn("probe", cfg,
-                         msg="a global [probe] leaked into the merge")
-        self.assertIsNone(bale_config.get_probe_clipboard_command(cfg))
+        self.assertEqual(cfg.get("probe"), {"clipboard_command": "pbcopy"})
+        self.assertEqual(bale_config.get_probe_clipboard_command(cfg),
+                         "pbcopy")
+
+    def test_project_empty_string_suppresses_the_global(self) -> None:
+        self.global_toml.parent.mkdir(parents=True)
+        self.global_toml.write_text(
+            '[probe]\nclipboard_command = "pbcopy"\n', encoding="utf-8")
+        self.write_project('[probe]\nclipboard_command = ""\n')
+        self.assertIsNone(self.accessor())
 
     def test_project_value_wins_with_a_global_present(self) -> None:
         self.global_toml.parent.mkdir(parents=True)
@@ -392,12 +402,137 @@ class CrafterAgreementTest(_HermeticConfigBase):
                 self.assertIn("'single-quoted'", note)
 
 
-def _walk_with_answers(existing: dict, *, layer: str,
-                       answers: dict) -> tuple[dict, str]:
+class EffectiveAccessorTest(_HermeticConfigBase):
+    """effective_clipboard_command and clipboard_command_source — the
+    readers session D's bale-side copying builds on — and the bale-side
+    refusal of spellings the crafter's scan cannot see (the 005/69
+    rider routed to this session)."""
+
+    def write_global(self, body: str) -> None:
+        self.global_toml.parent.mkdir(parents=True, exist_ok=True)
+        self.global_toml.write_text(body, encoding="utf-8")
+
+    def test_layering_and_source(self) -> None:
+        eff = bale_config.effective_clipboard_command
+        src = bale_config.clipboard_command_source
+        self.assertEqual((eff(self.repo), src(self.repo)), (None, None))
+        self.write_global('[probe]\nclipboard_command = "wl-copy"\n')
+        self.assertEqual((eff(self.repo), src(self.repo)),
+                         ("wl-copy", "global"))
+        self.assertEqual((eff(None), src(None)), ("wl-copy", "global"),
+                         msg="outside a repo the global file decides")
+        self.write_project('[probe]\nclipboard_command = " pbcopy "\n')
+        self.assertEqual((eff(self.repo), src(self.repo)),
+                         ("pbcopy", "project"))
+        self.write_project('[probe]\nclipboard_command = ""\n')
+        self.assertEqual((eff(self.repo), src(self.repo)),
+                         (None, "project"),
+                         msg="the project decided: none here")
+
+    def test_content_problems_stay_fatal_at_either_layer(self) -> None:
+        self.write_global('[probe]\nclipboard_command = "a\\\\b"\n')
+        with self.assertRaises(_FailRaises.Fatal) as ctx:
+            bale_config.effective_clipboard_command(self.repo)
+        self.assertIn("backslash", str(ctx.exception))
+
+    def test_triple_quoted_is_refused_at_both_layers(self) -> None:
+        for line in ("clipboard_command = '''pbcopy'''",
+                     'clipboard_command = """pbcopy"""',
+                     'clipboard_command = """\npbcopy"""'):
+            for layer in ("project", "global"):
+                with self.subTest(line=line, layer=layer):
+                    (self.repo / "bale.toml").unlink(missing_ok=True)
+                    self.global_toml.unlink(missing_ok=True)
+                    write = (self.write_project if layer == "project"
+                             else self.write_global)
+                    write(f"[probe]\n{line}\n")
+                    with self.assertRaises(_FailRaises.Fatal) as ctx:
+                        bale_config.effective_clipboard_command(self.repo)
+                    message = str(ctx.exception)
+                    self.assertIn("is triple-quoted", message)
+                    self.assertIn("craft_response.py", message)
+                    rerun = ("bale config init --global" if layer == "global"
+                             else "bale config init`")
+                    self.assertIn(rerun, message)
+
+    def test_other_unseen_spellings_are_refused(self) -> None:
+        for body in ('probe.clipboard_command = "pbcopy"\n',
+                     'probe = { clipboard_command = "pbcopy" }\n',
+                     '[probe] # mine\nclipboard_command = "pbcopy"\n'):
+            with self.subTest(body=body):
+                self.write_project(body)
+                self.assertEqual(
+                    bale_config.get_probe_clipboard_command(
+                        bale_config.merged_config(self.repo)), "pbcopy",
+                    msg="bale's parser reads it")
+                with self.assertRaises(_FailRaises.Fatal) as ctx:
+                    bale_config.effective_clipboard_command(self.repo)
+                self.assertIn("[probe] header", str(ctx.exception))
+
+    def test_readable_spellings_pass(self) -> None:
+        for body in ('[probe]\nclipboard_command = "pbcopy"\n',
+                     "[probe]\nclipboard_command = 'pbcopy'  # mine\n",
+                     '[ probe ]\n  clipboard_command="pbcopy"\n',
+                     '[hooks]\n[probe]\nclipboard_command = """"""\n'):
+            with self.subTest(body=body):
+                self.write_project(body)
+                expected = None if '""""""' in body else "pbcopy"
+                self.assertEqual(
+                    bale_config.effective_clipboard_command(self.repo),
+                    expected)
+
+    def test_spelling_problem_reads_the_file(self) -> None:
+        self.write_project('[probe]\nclipboard_command = "pbcopy"\n')
+        self.assertIsNone(bale_config.clipboard_command_spelling_problem(
+            self.repo / "bale.toml"))
+        self.assertIn("could not be re-read",
+                      bale_config.clipboard_command_spelling_problem(
+                          self.repo / "missing.toml"))
+
+
+@unittest.skipUnless(CRAFTER_PATH.is_file(),
+                     "tools/craft_response.py not shipped in this sandbox")
+class SpellingTwinTest(_HermeticConfigBase):
+    """bin/ restates the crafter's one-line scan (it never imports
+    tools/); this pins the twin against the original on one corpus."""
+
+    LINES = (
+        'clipboard_command = "pbcopy"',
+        "clipboard_command = 'pbcopy'",
+        'clipboard_command = "  xclip -selection clipboard  "  # c',
+        "clipboard_command = '''pbcopy'''",
+        'clipboard_command = """pbcopy"""',
+        'clipboard_command = "a\\\\b"',
+        "clipboard_command = 'sh -c \"x\"'",
+        'clipboard_command = "pbcopy" trailing',
+        'clipboard_command = ""',
+        "clipboard_command = pbcopy",
+        'clipboard_command = "unterminated',
+        'clipboard_command = "tab\there"',
+        'other = "pbcopy"',
+    )
+
+    def test_twin_agrees_with_the_crafter_on_every_line(self) -> None:
+        crafter = load_crafter()
+        for line in self.LINES:
+            for header in ("[probe]", "[hooks]"):
+                text = f"{header}\n{line}\n"
+                with self.subTest(text=text):
+                    self.write_project(text)
+                    value, status, _rel = crafter.scan_bale_toml_key(
+                        "probe", "clipboard_command", self.repo)
+                    twin_status, twin_value, _raw = \
+                        bale_config._scan_clipboard_line(text)
+                    self.assertEqual((twin_status, twin_value),
+                                     (status, value))
+
+
+def _walk_with_answers(existing: dict, *, layer: str, answers: dict,
+                       inherited=None, suggestions=None) -> tuple[dict, str]:
     """Run walk_configurables with input() answering by prompt label.
 
     Every item screen opens with a header line matching
-    bale_wizard.ITEM_HEADER_RE (`  18/19  probe.clipboard_command ...`)
+    bale_wizard.ITEM_HEADER_RE (`  11/19  probe.clipboard_command ...`)
     before its input() call; the stand-in finds the most recent header in
     the captured output and answers from `answers` (Enter otherwise). An
     answer may be a list, consumed one entry per input() call for that
@@ -424,7 +559,8 @@ def _walk_with_answers(existing: dict, *, layer: str,
     try:
         with contextlib.redirect_stdout(buffer):
             new = bale_config.walk_configurables(
-                existing, layer=layer, inherited=None)
+                existing, layer=layer, inherited=inherited,
+                suggestions=suggestions)
     finally:
         builtins.input = saved_input
     return new, buffer.getvalue()
@@ -451,7 +587,7 @@ class WizardWalkUnitTest(unittest.TestCase):
     def test_project_walk_enter_on_fresh_repo_writes_nothing(self) -> None:
         new, out = _walk_with_answers({}, layer="project", answers={})
         self.assertNotIn("probe", new)
-        self.assertIn("(unset — no clipboard epilogue)", out)
+        self.assertIn("(unset — no clipboard copy)", out)
 
     def test_project_walk_dash_clears_the_key(self) -> None:
         new, _out = _walk_with_answers(
@@ -471,26 +607,96 @@ class WizardWalkUnitTest(unittest.TestCase):
                 self.assertIn(reason, out)
                 self.assertIn("Keeping current", out)
 
-    def test_prompt_states_the_project_only_reason(self) -> None:
-        """The full description — the project-only reason included — is
-        one '?' away; the default view stays short and omits it."""
+    def test_help_states_the_per_machine_layering_and_the_reader(self) -> None:
+        """The full description — where to set it, and which reader sees
+        which file today — is one '?' away; the default view stays short."""
         _new, out = _walk_with_answers(
             {}, layer="project",
             answers={"probe.clipboard_command": ["?", ""]})
         # The help is re-wrapped to the width, so match across line breaks.
-        self.assertIn("would never reach the probe epilogue",
-                      " ".join(out.split()))
+        flat = " ".join(out.split())
+        for phrase in ("Per-machine: set it once with `bale config init "
+                       "--global`", "never the global file",
+                       "detection only suggests"):
+            self.assertIn(phrase, flat)
         _new, short = _walk_with_answers({}, layer="project", answers={})
-        self.assertNotIn("would never reach the probe epilogue",
-                         " ".join(short.split()),
+        self.assertNotIn("never the global file", " ".join(short.split()),
                          msg="the full description shows on demand only")
-        self.assertIn("project layer only", short,
-                      msg="the [probe] heading still says so at a glance")
+        heading = [ln for ln in short.splitlines() if "[probe]" in ln]
+        self.assertEqual(len(heading), 1)
+        self.assertNotIn("project layer only", heading[0])
 
-    def test_global_walk_never_offers_the_key(self) -> None:
-        new, out = _walk_with_answers({}, layer="global", answers={})
-        self.assertNotIn("probe.clipboard_command", out)
-        self.assertNotIn("probe", new)
+    def test_global_walk_offers_sets_and_keeps_the_key(self) -> None:
+        new, out = _walk_with_answers(
+            {}, layer="global", answers={"probe.clipboard_command": "pbcopy"})
+        self.assertRegex(out, r"(?m)^\s*11/11  probe\.clipboard_command\b")
+        self.assertEqual(new.get("probe"), {"clipboard_command": "pbcopy"})
+        new, _out = _walk_with_answers(
+            {"probe": {"clipboard_command": "wl-copy"}}, layer="global",
+            answers={})
+        self.assertEqual(new.get("probe"), {"clipboard_command": "wl-copy"})
+
+    def test_project_walk_shows_the_inherited_value_and_x_suppresses(self) -> None:
+        inherited = {"probe": {"clipboard_command": "pbcopy"}}
+        new, out = _walk_with_answers({}, layer="project", answers={},
+                                      inherited=inherited)
+        self.assertNotIn("probe", new, msg="Enter keeps inheriting")
+        self.assertIn("pbcopy  (from global; x suppresses)", out)
+        new, _out = _walk_with_answers(
+            {}, layer="project", inherited=inherited,
+            answers={"probe.clipboard_command": "x"})
+        self.assertEqual(new.get("probe"), {"clipboard_command": ""})
+
+    def test_a_number_picks_a_named_command(self) -> None:
+        suggestions = bale_config.WizardSuggestions(alternatives={
+            "probe.clipboard_command": bale_config.clipboard_alternatives(
+                platform="darwin", environ={}, which=lambda n: "/usr/bin/x",
+                wsl=False)})
+        new, out = _walk_with_answers(
+            {}, layer="project", answers={"probe.clipboard_command": "1"},
+            suggestions=suggestions)
+        self.assertEqual(new.get("probe"), {"clipboard_command": "pbcopy"})
+        self.assertIn("[1] pbcopy  (macOS, detected)", out)
+        self.assertIn("[2] clip.exe  (Windows and WSL)", out)
+        new, _out = _walk_with_answers(
+            {}, layer="project", answers={"probe.clipboard_command": "5"},
+            suggestions=suggestions)
+        self.assertEqual(new.get("probe"),
+                         {"clipboard_command": "xsel --clipboard --input"})
+
+
+class WizardSpellingWarningTest(_HermeticConfigBase):
+    """A file that spells the key triple-quoted: the wizard warns on the
+    key's screen, Enter keeps the value, and the rewrite is readable."""
+
+    @unittest.skipUnless(CRAFTER_PATH.is_file(),
+                         "tools/craft_response.py not shipped in this sandbox")
+    def test_warns_and_the_rewrite_reads_back(self) -> None:
+        self.write_project("[probe]\nclipboard_command = '''pbcopy'''\n")
+        existing = bale_config.load_config(self.repo)
+        suggestions = bale_config.suggest_wizard_values(
+            "project", existing, config_path=self.repo / "bale.toml",
+            environ={}, home=self.tmp, platform="linux",
+            which=lambda n: None, wsl=False)
+        new, out = _walk_with_answers(existing, layer="project", answers={},
+                                      suggestions=suggestions)
+        flat = " ".join(out.split())
+        self.assertIn("! this file's clipboard_command is triple-quoted",
+                      flat)
+        self.assertEqual(new.get("probe"), {"clipboard_command": "pbcopy"})
+        self.write_project(bale_config.render_bale_toml(new))
+        crafter_cmd, note = load_crafter().read_clipboard_command(self.repo)
+        self.assertEqual(crafter_cmd, "pbcopy", msg=note)
+        self.assertEqual(bale_config.effective_clipboard_command(self.repo),
+                         "pbcopy")
+
+    def test_no_warning_for_a_readable_file(self) -> None:
+        self.write_project('[probe]\nclipboard_command = "pbcopy"\n')
+        suggestions = bale_config.suggest_wizard_values(
+            "project", bale_config.load_config(self.repo),
+            config_path=self.repo / "bale.toml", environ={}, home=self.tmp,
+            platform="linux", which=lambda n: None, wsl=False)
+        self.assertEqual(suggestions.warnings, {})
 
 
 class WizardSurfaceTest(unittest.TestCase):
@@ -524,14 +730,49 @@ class WizardSurfaceTest(unittest.TestCase):
                       msg="Enter-through re-runs preserve the set value — "
                           "the renderer-preservation precedent")
 
-    def test_global_wizard_never_walks_the_key(self) -> None:
+    def test_global_wizard_walks_the_key(self) -> None:
+        """Per-machine since session wizard-defaults: the global wizard
+        offers the key with its named alternatives, and an Enter-through
+        sets nothing."""
         code, output = run_bale_pty(
             self.install, ["config", "init", "--global"],
             cwd=self.repo, env=self.env, answers="\n" * 40)
         self.assertEqual(code, 0, msg=output)
-        self.assertNotIn("probe.clipboard_command", output,
-                         msg="the global wizard must not offer a key no "
-                             "global-layer reader consults")
+        self.assertIn("probe.clipboard_command", output)
+        self.assertIn("] xclip -selection clipboard  (X11", output)
+        rendered = (self.install / "user" / "bale.toml").read_text(
+            encoding="utf-8")
+        self.assertNotIn("[probe]", rendered,
+                         msg="an Enter-through writes nothing the "
+                             "operator did not choose")
+
+    @unittest.skipUnless(CRAFTER_PATH.is_file(),
+                         "tools/craft_response.py not shipped in this sandbox")
+    def test_crafter_still_reads_the_project_key_after_enter_through(self) -> None:
+        """The session's back-compat constraint: a project bale.toml that
+        sets [probe] clipboard_command is still read by the crafter's
+        --probe reader after an Enter-through `bale config init` — with
+        a different global value present, which must not leak into the
+        project file."""
+        user = self.install / "user"
+        user.mkdir()
+        (user / "bale.toml").write_text(
+            "[probe]\nclipboard_command = \"xclip -selection clipboard\"\n",
+            encoding="utf-8")
+        (self.repo / "bale.toml").write_text(
+            "[probe]\nclipboard_command = 'pbcopy'\n", encoding="utf-8")
+        code, output = run_bale_pty(
+            self.install, ["config", "init"],
+            cwd=self.repo, env=self.env, answers="\n" * 40)
+        self.assertEqual(code, 0, msg=output)
+        crafter_cmd, note = load_crafter().read_clipboard_command(self.repo)
+        self.assertEqual(crafter_cmd, "pbcopy", msg=note)
+        self.assertIn("xclip -selection clipboard  (from global; x "
+                      "suppresses)", output,
+                      msg="the inherited global value is on screen")
+        rendered = (self.repo / "bale.toml").read_text(encoding="utf-8")
+        self.assertIn('clipboard_command = "pbcopy"', rendered)
+        self.assertNotIn("xclip", rendered)
 
 
 if __name__ == "__main__":
