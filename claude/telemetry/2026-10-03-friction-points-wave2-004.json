@@ -70,7 +70,8 @@
       "clarification": {
         "rounds": 0,
         "records": []
-      }
+      },
+      "swept_by": "2026-10-04-friction-points-cleanup-002"
     }
   ],
   "updated_at": "2026-10-04T01:58:35+00:00",
