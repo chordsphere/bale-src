@@ -1,0 +1,309 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-04-clipboard-paste-blocks-001",
+  "created_at": "2026-10-04T00:45:33+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-04T00:45:33+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_probe_clipboard_config.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-04-clipboard-paste-blocks-001.log",
+      "bundle": {
+        "stem": "2026-10-04-clipboard-paste-blocks",
+        "brief_sha256": "d0804222c4db911684cfa7c5ee3f29fc72841ea4fff431ffc44e2f992e6a0ddf",
+        "checkpoint_sha256": "1af313a6a26cff77232d4bf12fe7dafef7c6cabb78e5f68d85ed2d40c8ca3a79",
+        "manifest_sha256": "4cdbdb57950f6ccc02a81a6739972b558f6e45da2588a221ccdcddafcf2d7e28"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-04T00:45:32+00:00"
+      }
+    },
+    {
+      "at": "2026-10-04T01:51:27+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-04-clipboard-paste-blocks-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unit tests: touched suites": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "unit tests: full discover (--slow)": {
+            "value": "pass",
+            "claim_basis": "predicted"
+          },
+          "opener copy equals the scissor-bracketed lines (pack --json)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "failing clipboard command keeps pack exit 0": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unset key copies nothing with clipboard programs on PATH": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "bale clipboard copies stdin byte for byte": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "probe copies through the installed bale": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "status shows the clipboard row": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "docs and help text trued up": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unit tests: touched suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unit tests: full discover (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "opener copy equals the scissor-bracketed lines (pack --json)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "failing clipboard command keeps pack exit 0": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unset key copies nothing with clipboard programs on PATH": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "bale clipboard copies stdin byte for byte": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "probe copies through the installed bale": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "status shows the clipboard row": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "docs and help text trued up": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (changed files)",
+          "unit tests: touched suites",
+          "unit tests: full discover (--slow)",
+          "opener copy equals the scissor-bracketed lines (pack --json)",
+          "failing clipboard command keeps pack exit 0",
+          "unset key copies nothing with clipboard programs on PATH",
+          "bale clipboard copies stdin byte for byte",
+          "probe copies through the installed bale",
+          "status shows the clipboard row",
+          "docs and help text trued up"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "docs/TARBALL.md",
+        "tests/test_craft_response.py",
+        "tests/test_probe_clipboard_config.py",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [
+        "tests/test_clipboard_paste_blocks.py"
+      ],
+      "overridden_path_sources": {
+        "tests/test_clipboard_paste_blocks.py": "prompt"
+      },
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale",
+        "bin/bale_apply.py",
+        "bin/bale_config.py",
+        "bin/bale_open.py",
+        "bin/bale_pack.py",
+        "bin/bale_relay.py",
+        "bin/bale_report.py",
+        "docs/TARBALL.md",
+        "tests/test_clipboard_paste_blocks.py",
+        "tests/test_craft_response.py",
+        "tests/test_probe_clipboard_config.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "004d4389c984e322c6b0e2ac57e1a2ee87fbc62d8f70ddacfc2104cc17464bab",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-04-clipboard-paste-blocks-001.sh",
+              "sha256": "1af313a6a26cff77232d4bf12fe7dafef7c6cabb78e5f68d85ed2d40c8ca3a79"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-04T00:45:32+00:00",
+            "base_files": {
+              "bin/bale": "3f0e48c0855ed996dee063aed69f62d9ae7bd0216de3907df25c890e1ec183c0",
+              "bin/bale_apply.py": "69a9036adc5e2e32778c15abd26b269f83bd1bd35ee6ea710c4ba45353a6422c",
+              "bin/bale_config.py": "6c81fc959e132115ed91ba2b99ce1318d4f04d0d8a51313c8a7e770949549161",
+              "bin/bale_open.py": "a6c763d54113f002ad857a125e6b5edb655993ae1734451e7c45dfc56acad5e3",
+              "bin/bale_pack.py": "77eaed08dc59c6779d280a347b0fe45324a239c790626b987646e06833602d87",
+              "bin/bale_relay.py": "f302441257cc26090af435f2ea826125aa9a9a8f027ef14d7663da392fec48cd",
+              "bin/bale_report.py": "7af2f7aca3082160dbf45849d91f28bac926c3d31ee7c1bc123f3fcba7e0759b",
+              "docs/TARBALL.md": "004d4389c984e322c6b0e2ac57e1a2ee87fbc62d8f70ddacfc2104cc17464bab",
+              "tests/test_craft_response.py": "955c5593e2a59fea02784157a4a4e40b45934e50aa60c3853029472716c45b8e",
+              "tests/test_probe_clipboard_config.py": "8dff2f119163887db2e1b8b0217a8c6b739b0081ec4450f0424ce876a6003551",
+              "tools/craft_response.py": "66d389865447aa445a517b1113f9f8cf32d7d2d059a631f1388e9f1b6541738c"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Copying happens whether or not stdout is a terminal (the brief's flagged judgment call): the key is an explicit per-machine opt-in, so piped and --json runs copy too.",
+            "The clipboard text ends in one trailing newline for every block (the opener's lines joined with LF plus a final LF; sentinel blocks as printed), matching what the pre-session probe tee carried.",
+            "`clipboard_command = \"\"` at the global layer reads as unset, as C's accessor already did."
+          ],
+          "judgment_calls": [
+            "The probe asks bale through a new verb, `bale clipboard` (stdin in, exit 0 copied / 1 not copied / other = verb unavailable), rather than a print-the-command flag: bale runs the copy, so the probe and every other paste point share one runner and one notice.",
+            "A request-shipped project key still bakes into the scaffold, but only as clip_fallback for a machine without a usable bale; when bale answers (0 or 1) the script never second-guesses it.",
+            "No 'run bale config init' nudge on pack/relay/apply when unset: those commands stay silent for operators who never opted in. The nudge lives in `bale clipboard` (the probe path), the status row, and the probe's runtime remedy.",
+            "The copy helper lives in bale_report.py (in forecast, beside the stream-discipline helpers) rather than a new bin/ sibling, which would have pulled scripts/build.sh and the upgrade member list out of forecast.",
+            "Status row label is `probe clipboard`, matching the rider's wording and the key's section until the neutral rename.",
+            "The accessor's fail() line is captured (not printed as `[bale] error:`) and restated in the notice; fail() still journals it into an open session log.",
+            "Clipboard commands are bounded at 10s; a stuck one is stopped and reported.",
+            "validation.sh runs the touched suites as two parallel groups (~74s observed) and gates the full discover behind --slow (~7 min)."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.2 and the 11.7 surface row",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7, 4, 10.1"
+          ],
+          "forecast_departures": [
+            {
+              "path": "tests/test_clipboard_paste_blocks.py",
+              "why": "the paste-block copying, the status row, the verb, and the probe-through-bale path are new behavior with no existing suite; tests ship with code"
+            }
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-04-clipboard-paste-blocks-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-04-clipboard-paste-blocks-001.sh",
+          "sha256": "1af313a6a26cff77232d4bf12fe7dafef7c6cabb78e5f68d85ed2d40c8ca3a79"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-04T01:51:27+00:00",
+  "outcome": "applied"
+}
