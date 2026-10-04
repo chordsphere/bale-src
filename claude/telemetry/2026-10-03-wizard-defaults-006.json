@@ -1,0 +1,225 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-03-wizard-defaults-006",
+  "created_at": "2026-10-03T23:36:23+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-03T23:36:23+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_config.py",
+        "bin/bale_wizard.py",
+        "claude/context/bale-internals.md",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_wizard_ui.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-03-wizard-defaults-006.log",
+      "bundle": {
+        "stem": "2026-10-03-wizard-defaults",
+        "brief_sha256": "2f4d1d1eecd51bbd98f97687393c937c74f79b908f60b1c9231296656b08d463",
+        "checkpoint_sha256": "02eca53ce74ba2806f82b72a5da785d355705476ee79e1bfc122b934d098fa2d",
+        "manifest_sha256": "3e8c70b28568215bf5b8eb1bad3af5c4c400eda44f1440e2c3bb44a8d5b35607"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-03T23:36:23+00:00"
+      }
+    },
+    {
+      "at": "2026-10-04T00:22:03+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-03-wizard-defaults-006.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "tests: forecast suites (wizard_ui, probe_clipboard_config, layout_and_formats)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "tests: neighbor wizard suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "session assertions: alternatives, Enter, clipboard layering, widths": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "tests: forecast suites (wizard_ui, probe_clipboard_config, layout_and_formats)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "tests: neighbor wizard suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "session assertions: alternatives, Enter, clipboard layering, widths": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (changed modules and suites)",
+          "tests: forecast suites (wizard_ui, probe_clipboard_config, layout_and_formats)",
+          "tests: neighbor wizard suites",
+          "session assertions: alternatives, Enter, clipboard layering, widths"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/bale_config.py",
+        "bin/bale_wizard.py",
+        "claude/context/bale-internals.md",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_wizard_ui.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/bale_config.py",
+        "bin/bale_wizard.py",
+        "claude/context/bale-internals.md",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_wizard_ui.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "004d4389c984e322c6b0e2ac57e1a2ee87fbc62d8f70ddacfc2104cc17464bab",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-03-wizard-defaults-006.sh",
+              "sha256": "02eca53ce74ba2806f82b72a5da785d355705476ee79e1bfc122b934d098fa2d"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-03T23:36:23+00:00",
+            "base_files": {
+              "bin/bale_config.py": "f9d1b66c39f1aa33e13f9ca1947fa480a650258a3d751ca4bed0a244c351c647",
+              "bin/bale_wizard.py": "5ca56dd01002ec50847fc9bbb31a9564d8f027beddd3c31d57bfd914ec1b5c0d",
+              "claude/context/bale-internals.md": "d408fec06e3f4fd355d386428daf8a1aba1288333559eaef1bb8643901f3ea7d",
+              "tests/test_layout_and_formats.py": "9cdd7adc58550673ce63990a0f3fb47ca5ecd1b722addfebd1a23ac2e8f07445",
+              "tests/test_probe_clipboard_config.py": "44235386bc0f64303d2ed2768ce886064a20df3c02bf920ea0c1198243419cd3",
+              "tests/test_wizard_ui.py": "dfee06d21d00e7b463af6427ab09779e01a062c53d35ff86c50e4ebf8cd862db"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The detected clipboard command must also be on PATH (shutil.which): an environment that looks like X11 or Wayland with no copy tool installed marks nothing detected rather than suggesting a command that would fail.",
+            "Under WSL every Windows profile's Downloads that exists is offered (at most three, the one matching $USER first), since the Windows user name can differ from the Linux one."
+          ],
+          "judgment_calls": [
+            "Kept the key spelled [probe] clipboard_command and made it both-layer, rather than introducing a new key with an alias: the crafter keeps reading project files with no migration, and an Enter-through re-run still writes the same line.",
+            "probe.clipboard_command sits last in WIZARD_WALK_ORDER_BOTH_LAYERS (11/19 in project mode); the renderer keeps [probe] where it was in the file.",
+            "On a key with alternatives, a value made only of digits is read as a pick, and one out of range re-asks (the checkpoint picker rule); keys without alternatives keep reading digits as values (bools still take 0/1).",
+            "In a list key each colon-separated entry may be a number (1:2, 1:inbox).",
+            "The triple-quote refusal lives in effective_clipboard_command (and a warning on the wizard screen), not in load_config, so `bale config init` can still open and rewrite such a file; it applies at both layers so the key has one spelling everywhere.",
+            ".baleignore signals: bulky or binary extensions, data or vendored directory names, and single files of 1 MiB or more, counted over the files pack would list, minus pack's baked-in excluded directories, heaviest first, at most six.",
+            "A detector that cannot run (git missing, timeout) shows a one-line dim note on its key's screen instead of degrading silently."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [
+            "claude/changelog/0.4.45.json",
+            "claude/context/adr/0013-*.md",
+            "bale.toml"
+          ],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7, 10.1",
+            "bin/bale_config.py sections 1-3",
+            "bin/bale_wizard.py",
+            "bin/bale_pack.py checkpoint picker and baked-in exclusions",
+            "tools/craft_response.py read_clipboard_command and scan helpers",
+            "claude/context/bale-internals.md sections 1, 2, 4",
+            "tests/test_wizard_ui.py, tests/test_probe_clipboard_config.py, tests/test_layout_and_formats.py, tests/harness.py"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-03-wizard-defaults-006.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-03-wizard-defaults-006.sh",
+          "sha256": "02eca53ce74ba2806f82b72a5da785d355705476ee79e1bfc122b934d098fa2d"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-04T00:22:03+00:00",
+  "outcome": "applied"
+}
