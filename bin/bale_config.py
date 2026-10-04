@@ -399,12 +399,15 @@ PACK_VALUES = (
 # tools/craft_response.py --probe, reads `[probe] clipboard_command`
 # with its own stdlib-only scan (read_clipboard_command) from the
 # project file as shipped in a request, and never sees the global file.
-# The reversal rests on bale doing the copy itself (session D, wave 3),
-# which reads the effective, merged value. Until then a global value
-# configures bale-side readers only, and the crafter keeps reading the
-# project file — which is why the key keeps its spelling: a project
-# bale.toml that sets it today is still read by the crafter after any
-# `bale config init` re-run, with no migration and no alias.
+# The reversal rests on bale doing the copy itself, which landed in
+# session clipboard-paste-blocks (D, wave 3): every paste block bale
+# prints is copied through effective_clipboard_command, and the probe
+# scaffold copies through the installed bale (`bale clipboard`), so a
+# global value reaches probes too. The crafter still reads the project
+# file at craft time, for one fallback only (a machine with no bale on
+# PATH) — which is why the key keeps its spelling: a project bale.toml
+# that sets it is still read by the crafter after any `bale config
+# init` re-run, with no migration and no alias.
 PROBE_VALUES = (
     # String: the shell command that copies its stdin to the clipboard
     # (e.g. "pbcopy", "xclip -selection clipboard", "clip.exe"). Absent
@@ -3347,18 +3350,20 @@ def walk_configurables(existing: dict, *, layer: str,
             "suggests, and nothing is set until you pick or type one.",
             "Per-machine: set it once with `bale config init --global`;",
             "a project may override it, or suppress it with x.",
-            "Today's reader is the probe scaffold: a probe script emitted",
-            "by `tools/craft_response.py --probe` ends by piping its",
-            "PROBE BEGIN/END block into this command, reporting success",
-            "or failure and never failing the probe over it; unset, the",
-            "scaffold carries setup remedy text instead. That reader sees",
-            "the project bale.toml as shipped in a request, never the",
-            "global file, so for probes the project value is the one",
-            "that counts until bale copies paste blocks itself. Setting",
-            "the key is the opt-in to that copying, which overwrites your",
-            "clipboard with each paste block once it lands. One line, no",
-            "backslashes or double quotes (wrap anything fancier in a",
-            "script).",
+            "bale copies every paste block it prints for you to carry",
+            "into a chat with this command: pack's session opener,",
+            "relay's exchange block, and apply's and retry's HOLD and",
+            "APPLIED relay blocks, each with a one-line notice. A probe",
+            "script emitted by `tools/craft_response.py --probe` copies",
+            "its PROBE BEGIN/END block the same way, through the",
+            "installed bale (`bale clipboard`), so it uses this machine's",
+            "value, global or project, whether or not the request",
+            "shipped a bale.toml. Setting the key is the opt-in to that",
+            "copying, which overwrites your clipboard with each paste",
+            "block; a missing or failing command never fails a command,",
+            "it only says the copy did not happen. Unset, nothing is",
+            "copied. One line, no backslashes or double quotes (wrap",
+            "anything fancier in a script).",
         ],
         unset_effective="(unset — no clipboard copy)",
     )

@@ -451,7 +451,9 @@ def _cmd_reemit(repo: Path, sid: str) -> int:
     from __main__ import fail, log  # lazy — see module docstring
     from bale_apply import clarifications_dir  # lazy — sibling, loaded by bin/bale
     from bale_report import (  # lazy — sibling, loaded by bin/bale
+        PASTE_BLOCK_EXCHANGE,
         awaiting_side,
+        copy_paste_block,
         emit_stdout_block,
         format_summary_block,
     )
@@ -491,6 +493,10 @@ def _cmd_reemit(repo: Path, sid: str) -> int:
         f"recorded round (v0.4.22)")
     block = format_exchange_block(sid, body_record)
     emit_stdout_block(block)
+    # Session clipboard-paste-blocks: the block, BEGIN through END, to
+    # the clipboard when one is configured. stdout stays exactly the
+    # block; the one notice rides stderr (copy_paste_block's contract).
+    copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
     awaiting = awaiting_side(side)
     log(f"relay: {kind} at {rel_path} (round {rnd}, from {side}) "
         f"re-emitted; nothing recorded — the thread, the session, and "
@@ -581,9 +587,12 @@ def cmd_relay(args: argparse.Namespace) -> int:
        — the session stays open and suspended, so stats counts it
        in-flight. The session gates in step 1 record nothing.
     7. Emit the counterpart-facing block on stdout (the machine-report
-       stream discipline: `[bale] ` lines and the trailer on stderr) and
-       end with the next-step hint — answer it as the planner, or carry
-       it to the worker.
+       stream discipline: `[bale] ` lines and the trailer on stderr),
+       copy it to the clipboard when a clipboard command is configured
+       (session clipboard-paste-blocks: one stderr notice, stdout and
+       the exit untouched — the no-file re-emit copies too), and end
+       with the next-step hint — answer it as the planner, or carry it
+       to the worker.
     """
     from __main__ import (  # lazy — see module docstring
         _branch_exists,
@@ -759,7 +768,9 @@ def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
     from __main__ import fail, log  # lazy — see module docstring
     from bale_apply import preserve_clarification_record  # lazy — sibling
     from bale_report import (  # lazy — sibling, loaded by bin/bale
+        PASTE_BLOCK_EXCHANGE,
         awaiting_side,
+        copy_paste_block,
         emit_stdout_block,
         format_summary_block,
     )
@@ -782,6 +793,9 @@ def _preserve_and_emit(repo: Path, sid: str, record: dict, kind: str,
                    if is_manifest else record)
     block = format_exchange_block(sid, body_record)
     emit_stdout_block(block)
+    # Session clipboard-paste-blocks: as in _cmd_reemit — the block to
+    # the clipboard, the notice on stderr, stdout untouched.
+    copy_paste_block(repo, PASTE_BLOCK_EXCHANGE, block)
 
     awaiting = awaiting_side(side)
     trailer = _next_step_trailer(sid, awaiting, next_seq)

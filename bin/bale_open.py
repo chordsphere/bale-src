@@ -940,9 +940,11 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
     re-read from the session's stamped manifest, and `desk`) onto the
     existing record, journals the event into the session's own log, and
     prints the summary block ending in the session opener with the
-    desk-qualified name. Nothing else changes: one session stays open,
-    no sid is minted, no sweep or replay runs, and the request tarball in
-    the outbox is the one desk one opened with. Exit 0.
+    desk-qualified name, then copies that opener to the clipboard when
+    a clipboard command is configured. Nothing else changes: one
+    session stays open, no sid is minted, no sweep or replay runs, and
+    the request tarball in the outbox is the one desk one opened with.
+    Exit 0.
 
     Refuses (fail) — rather than silently minting a second session —
     when the record shows an event past its opens (an apply attempt, a
@@ -958,9 +960,15 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
         set_log_file,
         sweep_commit,
     )
-    from bale_pack import desk_qualified_name, session_opener_block  # lazy — sibling
+    from bale_pack import (  # lazy — sibling
+        desk_qualified_name,
+        opener_paste_text,
+        session_opener_block,
+    )
     from bale_report import (  # lazy — sibling
+        PASTE_BLOCK_OPENER,
         build_telemetry_attempt,
+        copy_paste_block,
         format_summary_block,
         telemetry_home_display,
         write_telemetry_record,
@@ -1028,8 +1036,13 @@ def open_second_desk(repo: Path, sid: str, record: dict, identity: dict,
         f"Attach the same request tarball to the new chat; this desk "
         f"joins session {sid} and opens nothing new.",
     ]
-    trailer += session_opener_block(
+    opener = session_opener_block(
         sid, goal, read_only=read_only, packed_at=packed_at,
         has_readme=stamped.get("readme") is not None, desk=desk)
+    trailer += opener
     print(format_summary_block(rows, trailer=trailer))
+    # Session clipboard-paste-blocks: this desk's opener (its own copy,
+    # with the desk paragraph) goes to the clipboard like pack's does —
+    # one stderr notice, exit unchanged (copy_paste_block's contract).
+    copy_paste_block(repo, PASTE_BLOCK_OPENER, opener_paste_text(opener))
     return 0

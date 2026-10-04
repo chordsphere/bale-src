@@ -32,6 +32,7 @@ Sections:
   23. Hook invocation                                     (~line  3670)
   24. Help and completion                                 (~line  3830)
   25. Status                                              (~line  4235)
+  30. Clipboard (the probe scaffold's copy route)         (~line  5000)
   27. Stats                                               (~line  5005)
   26. CLI                                                 (~line  5065)
 
@@ -55,8 +56,11 @@ renumbering. Section 29 (Relay, v0.4.18) sat after it for the same
 reason — the exchange-thread verb beside the lifecycle verbs it
 suspends between — until it was extracted to bin/bale_relay.py in
 v0.4.21, behavior-preserving, on the bale_pack/bale_apply pattern: the
-sibling owns the verb, this file keeps the CLI wiring. The listing
-above is in physical order, the numbers stay stable.
+sibling owns the verb, this file keeps the CLI wiring. Section 30
+(Clipboard, session clipboard-paste-blocks) sits right after section
+25 with a fresh number, the same way: `bale clipboard` reads the
+per-machine key the status row reports. The listing above is in
+physical order, the numbers stay stable.
 """
 
 from __future__ import annotations
@@ -132,10 +136,14 @@ from bale_rollback import cmd_rollback  # noqa: E402 — sys.path tweak is load-
 # first_section_of_handoff) lazily from __main__, the same idiom the other
 # siblings use.
 from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
+    CLIPBOARD_COPIED,
     CLOSURE_REASONS,
     HOLD_JUDGE_CHECKPOINT,
     RULING_FIXTURE_DEFECT,
     awaiting_side,
+    copy_paste_block,
+    describe_clipboard_state,
+    resolve_clipboard_command,
     build_telemetry_attempt,
     compose_hold_successors,
     read_clarification_summary,
@@ -5471,6 +5479,16 @@ class StatusReport:
     # that won't parse still reports {"path": ...} so the held fact is
     # never silently dropped.
     integration_lock: Optional[dict] = None
+    # The clipboard row (session clipboard-paste-blocks; the MASTER.md
+    # rider "a `bale status` row (probe clipboard: <cmd> / unset)",
+    # re-worded for the key as session C left it): the effective
+    # command, the layer that decided it, and the accessor's refusal
+    # reason when the key cannot be read — resolve_clipboard_command's
+    # triple. Gathered in and out of a repo (the global layer exists
+    # everywhere); a refusal is a row, never a failed status.
+    clipboard_command: Optional[str] = None
+    clipboard_source: Optional[str] = None
+    clipboard_problem: Optional[str] = None
 
 
 def _branch_exists(repo: Path, branch: str) -> bool:
@@ -5611,6 +5629,7 @@ def _gather_status(cwd: Path) -> StatusReport:
         # Outside a git repo there's no per-repo state to read; only the global
         # config layer and the tool version are meaningful.
         _summarise_config(None, report)
+        _gather_clipboard(None, report)
         return report
 
     report.branch = current_branch(repo)
@@ -5745,7 +5764,19 @@ def _gather_status(cwd: Path) -> StatusReport:
 
     report.applied_count, report.applied_latest = applied_tags(repo)
     _summarise_config(repo, report)
+    _gather_clipboard(repo, report)
     return report
+
+
+def _gather_clipboard(repo: Optional[Path], report: StatusReport) -> None:
+    """Fill the clipboard row's facts through the accessors bale's copy
+    path uses (bale_report.resolve_clipboard_command over
+    bale_config.effective_clipboard_command and clipboard_command_source),
+    so status shows exactly what the next pack, relay, apply, or probe
+    will do. Read-only; never raises — an unreadable key comes back as a
+    reason, not an exit (status reports problems as rows)."""
+    (report.clipboard_command, report.clipboard_source,
+     report.clipboard_problem) = resolve_clipboard_command(repo)
 
 
 def _render_status(report: StatusReport) -> str:
@@ -5924,6 +5955,13 @@ def _render_status(report: StatusReport) -> str:
         if detail:
             config_value += f"; {'; '.join(detail)}"
     rows.append(("config", config_value))
+    # The clipboard row (session clipboard-paste-blocks): the command and
+    # its layer, suppressed, unset, or UNREADABLE with the reason — the
+    # key keeps its `[probe] clipboard_command` spelling, hence the label.
+    rows.append(("probe clipboard",
+                 describe_clipboard_state(report.clipboard_command,
+                                          report.clipboard_source,
+                                          report.clipboard_problem)))
 
     headline_kwargs = {}
     if report.session_sid is not None:
@@ -5967,6 +6005,59 @@ def cmd_status(args) -> int:
     else:
         print(_render_status(report))
     return 0
+
+
+# ---------------------------------------------------------------------------
+# 30. Clipboard (the probe scaffold's copy route)
+# ---------------------------------------------------------------------------
+#
+# Session clipboard-paste-blocks, ruling 1: bale does the copy, from the
+# per-machine key, so a probe in any project copies without the request
+# shipping bale.toml. The probe scaffold (tools/craft_response.py
+# --probe) pipes its PROBE BEGIN/END block into this verb; the verb
+# copies its stdin through the same copy_paste_block every other paste
+# point uses. Exit codes are the scaffold's contract: 0 copied, 1 not
+# copied (a notice on stderr says why), anything else means the verb
+# could not run (an older bale has no `clipboard` verb and argparse
+# exits 2) — the scaffold then says so itself.
+
+CLIPBOARD_EXIT_COPIED = 0
+CLIPBOARD_EXIT_NOT_COPIED = 1
+
+
+def cmd_clipboard(args) -> int:
+    """`bale clipboard` — copy standard input to this machine's
+    clipboard with the configured command ([probe] clipboard_command:
+    the project's value in a repo, else the global one).
+
+    Reads stdin to EOF and hands the bytes, unchanged, to
+    copy_paste_block, which prints one `[bale] clipboard:` notice on
+    stderr. Writes nothing to stdout and nothing to disk; takes no lock;
+    needs no repo (outside one, the global file decides). An unset key
+    prints the setup remedy (`bale config init --global`) — piping into
+    this verb is asking for a copy. Refuses a terminal stdin rather than
+    wait for ^D: the verb copies what is piped into it.
+    """
+    stdin = sys.stdin
+    if stdin is None or stdin.isatty():
+        fail("`bale clipboard` copies its standard input, and stdin is a "
+             "terminal — pipe the block into it, e.g. `printf '%s\\n' "
+             "\"$block\" | bale clipboard`", code=2)
+    try:
+        data = stdin.buffer.read()
+    except OSError as e:
+        print(f"[bale] clipboard: could not read standard input ({e}); "
+              f"nothing was copied", file=sys.stderr)
+        return CLIPBOARD_EXIT_NOT_COPIED
+    block = (args.block or "").strip() or "standard input"
+    # The repo decides the project layer; without git on PATH there is no
+    # repo to ask, and the global file alone decides (repo_root would
+    # refuse instead — a copy is not worth refusing over).
+    repo = (repo_root(Path.cwd().resolve()) if shutil.which("git")
+            else None)
+    outcome = copy_paste_block(repo, block, data, announce_unset=True)
+    return (CLIPBOARD_EXIT_COPIED if outcome == CLIPBOARD_COPIED
+            else CLIPBOARD_EXIT_NOT_COPIED)
 
 
 # ---------------------------------------------------------------------------
@@ -7457,14 +7548,24 @@ def build_parser() -> argparse.ArgumentParser:
             "Walk through every configurable on this repo (default) or "
             "for this install (--global), or re-confirm existing values. "
             "Idempotent: re-running shows current values and lets you keep, "
-            "change, suppress, or clear each one. "
+            "change, suppress, or clear each one. Each key gets one "
+            "screen; where bale can suggest values (this machine's "
+            "clipboard command, apply search paths, the checkpoint "
+            "path, ...) they are listed by number, the detected one "
+            "first, and typing the number sets it — detection only "
+            "suggests. '?' at any prompt shows the key's full "
+            "description. Nothing is written until the review after the "
+            "last key, which shows what changes against the file on disk "
+            "and asks before writing. "
             "Default writes <repo>/bale.toml, after checking git identity, "
             "and ends with the .baleignore walkthrough. With --global, "
             "writes <install>/user/bale.toml — the install-wide layer that "
-            "every project using this bale install inherits per-key. "
+            "every project using this bale install inherits per-key; set "
+            "this machine's clipboard command there, and bale copies "
+            "every paste block it prints. "
             "Project values override globals when both are set. Some "
             "sections are project-layer only — [validation], [sandbox], "
-            "[pack], and [probe] — so the global walk never offers them "
+            "[pack], and [layout] — so the global walk never offers them "
             "and a global value for them is never inherited. Re-running "
             "rewrites the file from the walked surface: hand-edited keys "
             "the wizard does not walk are dropped."
@@ -7615,6 +7716,42 @@ def build_parser() -> argparse.ArgumentParser:
              "exit 0 on a successful read.",
     )
     p_status.set_defaults(func=cmd_status)
+
+    # clipboard — section 30 (session clipboard-paste-blocks): the copy
+    # route the probe scaffold pipes its block into, so bale (not the
+    # request's bale.toml) supplies this machine's clipboard command.
+    p_clipboard = sub.add_parser(
+        "clipboard",
+        formatter_class=SubcommandHelpFormatter,
+        help="Copy standard input to this machine's clipboard with the "
+             "configured clipboard command (what probe scripts pipe "
+             "their block into).",
+        description=(
+            "Copy standard input to the clipboard with this machine's "
+            "configured clipboard command — [probe] clipboard_command in "
+            "bale.toml: the project's value inside a repo (\"\" there "
+            "suppresses), else the global one at <install>/user/bale.toml. "
+            "Set it once with `bale config init --global`. bale copies "
+            "every operator-side paste block itself when the key is set "
+            "— pack's session opener, relay's exchange block, apply's "
+            "and retry's HOLD and APPLIED relay blocks — and this verb is "
+            "the same copy for a block bale did not print: a probe "
+            "script from `tools/craft_response.py --probe` ends by piping "
+            "its PROBE BEGIN/END block here. Nothing is detected at run "
+            "time: with the key unset nothing is copied, whatever "
+            "clipboard program is installed. Prints one '[bale] "
+            "clipboard:' line on stderr and nothing on stdout; writes no "
+            "file. Exit 0 when the block was copied, 1 when it was not "
+            "(unset, unreadable key, or the command failed — the line "
+            "says which), 2 on a terminal stdin."
+        ),
+    )
+    p_clipboard.add_argument(
+        "--block", default=None, metavar="NAME",
+        help="What the piped text is, for the notice line (e.g. 'probe "
+             "block'). Default: 'standard input'.",
+    )
+    p_clipboard.set_defaults(func=cmd_clipboard)
 
     # stats
     p_stats = sub.add_parser(

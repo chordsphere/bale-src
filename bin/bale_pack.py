@@ -5581,6 +5581,26 @@ def session_opener_block(sid: str, goal: str, *, read_only: bool,
     ]
 
 
+def opener_paste_text(block_lines: list) -> str:
+    """What the operator pastes from a session opener block: the lines
+    strictly between OPENER_BEGIN and OPENER_END (the scissor lines
+    themselves excluded), joined with LF, ending in one LF — the text
+    the clipboard copy carries (session clipboard-paste-blocks).
+
+    `block_lines` is session_opener_block's return, which always carries
+    the pair. Raises ValueError when the pair is not there in order —
+    only a caller handing over some other list can reach that, and a bug
+    of that kind should be loud, not a silently empty clipboard. Pure.
+    """
+    try:
+        start = block_lines.index(OPENER_BEGIN)
+        end = block_lines.index(OPENER_END, start + 1)
+    except ValueError:
+        raise ValueError("opener_paste_text: the block has no "
+                         "OPENER_BEGIN ... OPENER_END scissor pair") from None
+    return "\n".join(block_lines[start + 1:end]) + "\n"
+
+
 # --- cmd_pack ----------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
@@ -6184,6 +6204,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # itself call, an invitation for a future cleanup to break pack.
     import bale_config  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
+        PASTE_BLOCK_OPENER,
+        copy_paste_block,
         emit_json_line,
         enable_json_mode,
         format_pack_json,
@@ -7168,14 +7190,16 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # contract untouched; the opener block prints here, after the
         # report line, and rides stderr — enable_json_mode() rebound
         # sys.stdout to stderr, the same route as every other
-        # human-facing line under json mode. It still ends the run:
-        # nothing prints after it. (A structured `opener` key in the
+        # human-facing line under json mode. It still ends the report:
+        # only the clipboard notice (stderr, and only when a clipboard
+        # command is configured) follows it. (A structured `opener` key in the
         # JSON report would need a format_pack_json change in
         # bale_report.py; proposed by board 52, not made.)
-        print("\n".join(
-            session_opener_block(sid, goal, read_only=args.read_only,
-                                 packed_at=provenance["packed_at"],
-                                 has_readme=opener_has_readme)))
+        opener = session_opener_block(
+            sid, goal, read_only=args.read_only,
+            packed_at=provenance["packed_at"],
+            has_readme=opener_has_readme)
+        print("\n".join(opener))
     else:
         rows = [
             ("session id", sid),
@@ -7234,12 +7258,20 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # the paragraph they paste next. format_summary_block emits
         # trailer lines verbatim and never wraps them, which is what
         # keeps the sid and the goal line intact.
-        trailer += session_opener_block(
+        opener = session_opener_block(
             sid, goal, read_only=args.read_only,
             packed_at=provenance["packed_at"],
             has_readme=opener_has_readme)
+        trailer += opener
         print(format_summary_block(
             rows,
             trailer=trailer,
         ))
+    # Session clipboard-paste-blocks: the opener just printed (stdout, or
+    # stderr under --json) goes to the clipboard when a clipboard command
+    # is configured — the lines between the scissor lines, exactly what
+    # the operator pastes. One notice line on stderr; never changes the
+    # report, the JSON line, or the exit code (copy_paste_block's
+    # contract). `bale open` reaches this through its replayed pack.
+    copy_paste_block(repo, PASTE_BLOCK_OPENER, opener_paste_text(opener))
     return 0

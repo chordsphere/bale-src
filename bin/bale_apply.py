@@ -1730,8 +1730,12 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
     )
     from bale_validate import validate_response_manifest  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
+        PASTE_BLOCK_APPLIED_RELAY,
+        RELAY_TO_PLANNER,
+        RELAY_TO_WORKER,
         build_telemetry_attempt,
         compose_admission_command,
+        copy_paste_block,
         emit_json_line,
         format_apply_json,
         format_base_drift_refusal,
@@ -1747,9 +1751,13 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
         format_staging_row,
         format_summary_block,
         format_walkthrough_summary,
+        hold_judge,
+        hold_relay_block_name,
         json_mode,
         parse_failed_probe_labels,
         read_clarification_summary,
+        relay_send_first,
+        relay_sentinels,
         split_attempt_bands,
         write_telemetry_record,
     )
@@ -3464,7 +3472,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # (the summary-last rule); under --json it lands on stderr
             # with every other human line.
             notes_text, notes_problem = _read_response_notes(response_dir)
-            print(format_apply_relay_planner(
+            applied_relay = format_apply_relay_planner(
                 sid=locked_sid, origin_branch=origin_branch,
                 exit_code=exit_code,
                 checkpoint=(checkpoint_stamp if checkpoint_result is not None
@@ -3481,7 +3489,14 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                     "checkpoint_change_accepted":
                         checkpoint_result is not None
                         and checkpoint_stamp_matched is False,
-                }))
+                })
+            print(applied_relay)
+            # Session clipboard-paste-blocks: the ratification relay, BEGIN
+            # through END, to the clipboard when a clipboard command is
+            # configured — one stderr notice; the merge, the banner, the
+            # --json line, and the exit are untouched.
+            copy_paste_block(repo, PASTE_BLOCK_APPLIED_RELAY,
+                             applied_relay + "\n")
             print(format_summary_block(
                 summary_rows,
                 status="PASS",
@@ -3634,7 +3649,7 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
             # planner block inlines this attempt's log bands.
             hold_checkpoint = (checkpoint_stamp
                                if checkpoint_result is not None else None)
-            for block in format_hold_relay_blocks(
+            relay_blocks = format_hold_relay_blocks(
                     sid=locked_sid, exit_code=exit_code,
                     checkpoint=hold_checkpoint,
                     worker_output=val_output,
@@ -3657,9 +3672,34 @@ def apply_pipeline(repo: Path, tarball_path: Path, locked_sid: str,
                             list(base_drift_overridden),
                         "checkpoint_change_accepted":
                             readmissions["accept_checkpoint_change"],
-                    }):
+                    })
+            for block in relay_blocks:
                 print("")
                 print(block)
+            # Session clipboard-paste-blocks: the block the card's `send
+            # first:` line names goes to the clipboard (the desk ruling
+            # the card encodes — relay_send_first, the same order
+            # format_hold_relay_blocks printed in); the other stays
+            # printed above, and the notice says so. Never changes the
+            # HOLD, the card, or the exit.
+            first = relay_send_first(
+                hold_judge(hold_checkpoint, exit_code)["case"])
+            second = (RELAY_TO_WORKER if first == RELAY_TO_PLANNER
+                      else RELAY_TO_PLANNER)
+            first_begin = relay_sentinels(locked_sid, first)[0]
+            first_block = next((b for b in relay_blocks
+                                if b.startswith(first_begin + "\n")),
+                               relay_blocks[0])
+            copy_paste_block(
+                repo, hold_relay_block_name(first) + " (send first)",
+                first_block + "\n",
+                aside=(f"; the {hold_relay_block_name(second)} stays "
+                       f"printed above, not copied — "
+                       + ("send it only after the planner rules, and only "
+                          "on a work defect"
+                          if second == RELAY_TO_WORKER
+                          else "send it after the worker block, for the "
+                               "desk's record")))
             print(format_hold_card(
                 sid=locked_sid,
                 exit_code=exit_code,

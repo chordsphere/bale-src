@@ -195,17 +195,37 @@ hint: terminal, like stats). Aggregation stays in `bin/bale_stats.py`
 (`compute_session_dossier`); `bin/bale` keeps wiring only, per the
 standing division.
 
+Session clipboard-paste-blocks (friction-points wave 3, session D)
+adds the paste-block clipboard copy, beside the stream-discipline
+helpers it must respect: `copy_paste_block` is the one entry every
+operator-side paste point calls — pack's session opener (and `bale
+open`'s, through the replayed pack and the second-desk path), `bale
+relay`'s exchange block, `bale apply` / `bale retry`'s HOLD and
+APPLIED relay blocks, and `bale clipboard`, the verb the probe scaffold
+pipes its block into. It reads the effective command through
+`bale_config.effective_clipboard_command` (`resolve_clipboard_command`
+turns that accessor's fail()-raised refusal into a reason instead of an
+exit), runs it with the block on stdin (`run_clipboard_command`), and
+prints one `[bale] clipboard:` notice line on stderr. It is the third
+deliberate exception to the pure-assembler rule — it runs a command —
+and it never raises, never touches stdout, and never changes an exit
+code: copying is a side channel, not a step of the command.
+
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
 """
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import os
 import re
 import subprocess
 import sys
 import textwrap
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -1991,6 +2011,371 @@ def emit_stdout_block(text: str) -> None:
     out = _json_real_stdout if _json_real_stdout is not None else sys.stdout
     out.write(text if text.endswith("\n") else text + "\n")
     out.flush()
+
+
+# ---------------------------------------------------------------------------
+# Paste-block clipboard copy (session clipboard-paste-blocks)
+# ---------------------------------------------------------------------------
+#
+# Every block the operator carries from this terminal into a chat — the
+# session opener, the exchange block, the HOLD and APPLIED relay blocks,
+# and probe output — is copied to the clipboard when, and only when,
+# bale_config.effective_clipboard_command returns a command for the repo
+# the command runs in (the per-machine `[probe] clipboard_command`, the
+# project's value overriding the global one). Nothing is detected here:
+# an unset key copies nothing, whatever clipboard program is on PATH —
+# detection lives only in `bale config init`'s suggestions (the
+# registry fold-in, configurable-never-core).
+#
+# The contract every caller relies on (the brief's outcome 3): a copy
+# never changes what the command does. The block is printed exactly as
+# before; the copy happens after it prints; the one notice line goes to
+# stderr; a missing, failing, slow, or unreadable clipboard command
+# skips the copy with that notice and never raises, never fails the
+# command, never changes its exit code. Copying does not depend on
+# stdout being a terminal: the key is an explicit per-machine opt-in,
+# and a piped run (`bale relay <sid> <file> > block.txt`, `bale pack
+# --json`) copies the same block an interactive one does.
+
+CLIPBOARD_NOTICE_PREFIX = "[bale] clipboard: "
+
+# How long a clipboard command may run before bale stops it. The common
+# commands return at once (pbcopy, clip.exe) or fork a selection owner
+# and return (xclip, xsel, wl-copy); a command still running after this
+# is stuck, and a stuck clipboard must not hang a pack or an apply.
+CLIPBOARD_TIMEOUT_SECONDS = 10
+
+# The remedy an unset key's notice names (only `bale clipboard` prints
+# it — an operator who pipes a block into that verb asked for a copy;
+# pack, relay, and apply stay silent when the operator never opted in).
+CLIPBOARD_SETUP_REMEDY = (
+    "set this machine's clipboard command once with `bale config init "
+    "--global` (it lists pbcopy, clip.exe, wl-copy, xclip, and xsel by "
+    "number, the one it detects first)")
+
+# The block names the notices use — one vocabulary for every paste point.
+PASTE_BLOCK_OPENER = "session opener"
+PASTE_BLOCK_EXCHANGE = "exchange block"
+PASTE_BLOCK_APPLIED_RELAY = "APPLIED relay block (to the planner)"
+PASTE_BLOCK_PROBE = "probe block"
+
+
+def hold_relay_block_name(addressee: str) -> str:
+    """The notice name of one HOLD relay block. Pure."""
+    return f"HOLD relay block to the {addressee}"
+
+
+def _one_line(text: str) -> str:
+    """`text` with every whitespace run collapsed to one space — a
+    notice is one line however many lines its reason had. Pure."""
+    return " ".join(str(text).split())
+
+
+def _refusal_reason(captured_stderr: str, exc: BaseException) -> str:
+    """Why effective_clipboard_command refused, from what its fail()
+    printed (the `[bale] error: ` prefix dropped) or, when nothing was
+    printed (an in-process fail() stand-in), from the exception itself:
+    fail()'s `bale_cause`, else the exception's text. Never empty."""
+    lines = []
+    for raw in captured_stderr.splitlines():
+        line = raw.strip()
+        if line.startswith("[bale] error: "):
+            line = line[len("[bale] error: "):]
+        if line:
+            lines.append(line)
+    if lines:
+        return _one_line(" ".join(lines))
+    cause = getattr(exc, "bale_cause", None)
+    if isinstance(cause, str) and cause.strip():
+        return _one_line(cause)
+    text = str(exc).strip()
+    if text and not isinstance(exc, SystemExit):
+        return _one_line(text)
+    code = getattr(exc, "code", None)
+    return (f"the config refused it ({type(exc).__name__}"
+            + (f", exit {code}" if code is not None else "") + ")")
+
+
+def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
+    """(command, source, problem) for `repo` (None outside a repo).
+
+    command is effective_clipboard_command's answer — the command to
+    run, or None for "no copy"; source is clipboard_command_source's
+    "project" / "global" / None. problem is None unless the accessor
+    refused (a triple-quoted, dotted, or inline-table spelling, a
+    backslash, a double quote, a control character, a malformed
+    bale.toml): then command is None and problem is the refusal's text,
+    remedy included, as one line.
+
+    The accessor refuses through fail(), which prints `[bale] error:` on
+    stderr and raises SystemExit. Here that is a reason, not an exit:
+    stderr is captured for the call so the refusal is not printed as an
+    error of the command (the caller's notice says it instead), and the
+    SystemExit — or any exception — is caught. fail() still journals
+    its line into an open session log, which is the honest record of
+    what bale read. Never raises.
+    """
+    import bale_config  # lazy — sibling module, loaded by bin/bale
+    captured = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(captured):
+            command = bale_config.effective_clipboard_command(repo)
+    except (SystemExit, Exception) as exc:  # noqa: BLE001 — never take the command down
+        return None, _clipboard_source_or_none(repo), \
+            _refusal_reason(captured.getvalue(), exc)
+    leaked = captured.getvalue()
+    if leaked:
+        # The accessor printed something without refusing: pass it on
+        # rather than lose it.
+        sys.stderr.write(leaked)
+    return command, _clipboard_source_or_none(repo), None
+
+
+def _clipboard_source_or_none(repo: Optional[Path]) -> Optional[str]:
+    """clipboard_command_source, or None when it cannot be read (the
+    same malformed file the accessor refused — the problem text already
+    says so). Never raises, prints nothing."""
+    import bale_config  # lazy — sibling module, loaded by bin/bale
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            return bale_config.clipboard_command_source(repo)
+    except (SystemExit, Exception):  # noqa: BLE001 — display-only
+        return None
+
+
+def _read_available(stream) -> str:
+    """Whatever a finished command left on its stderr pipe, without
+    waiting for EOF: a forking clipboard owner (xclip, wl-copy) keeps
+    the pipe open long after the command itself exits, so a blocking
+    read would hang. Closes the stream. Never raises."""
+    if stream is None:
+        return ""
+    chunk = None
+    try:
+        os.set_blocking(stream.fileno(), False)
+        chunk = stream.read(4096)
+    except (BlockingIOError, OSError, ValueError):
+        chunk = None
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
+    return (chunk or b"").decode("utf-8", errors="replace")
+
+
+def _stop_group(proc) -> None:
+    """Kill `proc` and everything it started (its own session/process
+    group, POSIX), then reap it — a hung `a | b` pipeline must not
+    outlive bale. Falls back to killing the shell alone where process
+    groups are not available. Never raises."""
+    try:
+        if hasattr(os, "killpg"):
+            os.killpg(proc.pid, 9)
+        else:
+            proc.kill()
+    except OSError:
+        try:
+            proc.kill()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def run_clipboard_command(command: str, data: bytes, *,
+                          timeout: float = CLIPBOARD_TIMEOUT_SECONDS
+                          ) -> tuple:
+    """Run `command` through the shell with `data` on its stdin.
+    Returns (ok, detail): ok True only when it exited 0 having taken the
+    whole block; otherwise detail says what happened — not startable,
+    exit code plus the first line of its stderr, exited before reading
+    everything, or stopped after `timeout` seconds. Never raises.
+
+    The command's stdout goes to /dev/null, so nothing it prints can
+    reach bale's stdout (relay's block, pack --json's one line). stdin
+    is written from a thread so a command that never reads cannot
+    deadlock bale on a full pipe; the timeout bounds the whole run. The
+    command runs in its own session, so a timeout (or a block it left
+    half-read) stops the whole pipeline it started, not just the shell;
+    a selection owner it forked on success (xclip, wl-copy) is left
+    alone and keeps serving the clipboard.
+    """
+    try:
+        proc = subprocess.Popen(command, shell=True,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.PIPE,
+                                start_new_session=True)
+    except OSError as e:
+        return False, f"could not be started ({e})"
+
+    def feed() -> None:
+        try:
+            proc.stdin.write(data)
+        except OSError:
+            # The command closed its stdin early (BrokenPipeError and
+            # kin); its exit status, read below, says whether that was
+            # a failure.
+            pass
+        finally:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+
+    writer = threading.Thread(target=feed, daemon=True)
+    writer.start()
+    try:
+        code = proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _stop_group(proc)
+        _read_available(proc.stderr)
+        return False, f"did not finish within {timeout:g}s and was stopped"
+    writer.join(timeout=2)
+    err = _read_available(proc.stderr)
+    if code != 0:
+        first = next((ln.strip() for ln in err.splitlines() if ln.strip()),
+                     "")
+        return False, f"exited {code}" + (f" ({_one_line(first)})"
+                                          if first else "")
+    if writer.is_alive():
+        # Exited 0, but something it started still holds stdin unread:
+        # the clipboard did not get the whole block. Stop what is left
+        # (which also frees the writer) and say so.
+        _stop_group(proc)
+        return False, ("exited 0 before reading the whole block (a "
+                       "process it started still held its input)")
+    return True, ""
+
+
+def _journal_notice(line: str) -> None:
+    """Append a notice to the open session log, if bin/bale has one open
+    (the log() journaling shape: UTC timestamp, then the line). The
+    terminal copy went to stderr already; this is the durable record.
+    A failed write is said on stderr, never raised (log()'s posture)."""
+    main = sys.modules.get("__main__")
+    log_file = getattr(main, "_log_file", None)
+    if not isinstance(log_file, Path):
+        return
+    try:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        with log_file.open("a", encoding="utf-8") as f:
+            ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            f.write(f"{ts} {line}\n")
+    except OSError as e:
+        print(f"[bale] (log-write failed: {e})", file=sys.stderr)
+
+
+def _clipboard_notice(text: str) -> None:
+    """Print one clipboard notice line on stderr — after flushing
+    stdout, so the notice lands below the block it names even when both
+    streams share a terminal or a file — and journal it."""
+    line = CLIPBOARD_NOTICE_PREFIX + _one_line(text)
+    try:
+        sys.stdout.flush()
+    except (OSError, ValueError):
+        pass
+    print(line, file=sys.stderr, flush=True)
+    _journal_notice(line)
+
+
+# copy_paste_block's outcomes, for callers and tests.
+CLIPBOARD_COPIED = "copied"
+CLIPBOARD_FAILED = "failed"
+CLIPBOARD_UNREADABLE = "unreadable"
+CLIPBOARD_UNSET = "unset"
+CLIPBOARD_EMPTY = "empty"
+
+
+def copy_paste_block(repo: Optional[Path], block: str, text, *,
+                     aside: str = "", announce_unset: bool = False) -> str:
+    """Copy one paste block to the clipboard, if one is configured.
+
+    `repo` is the repo the command runs in (None outside one); `block`
+    names the block in the notice (the PASTE_BLOCK_* vocabulary);
+    `text` is exactly what the operator pastes — str (written UTF-8) or
+    bytes (written as-is). `aside` is appended to the copied notice (a
+    HOLD names the block it left printed). `announce_unset` makes an
+    unset key print its remedy line (`bale clipboard` only — elsewhere
+    an operator who never opted in sees nothing new).
+
+    Returns one of CLIPBOARD_COPIED / _FAILED / _UNREADABLE / _UNSET /
+    _EMPTY. Prints at most one notice line, on stderr; never raises,
+    never writes stdout.
+    """
+    try:
+        data = text if isinstance(text, bytes) else str(text).encode("utf-8")
+        if not data:
+            _clipboard_notice(f"nothing to copy — the {block} is empty; "
+                              f"nothing was copied")
+            return CLIPBOARD_EMPTY
+        command, source, problem = resolve_clipboard_command(repo)
+        if problem is not None:
+            _clipboard_notice(
+                f"the {block} was NOT copied — the configured clipboard "
+                f"command cannot be read: {problem} (`bale status` shows "
+                f"the clipboard row)")
+            return CLIPBOARD_UNREADABLE
+        if command is None:
+            if announce_unset and source == "project":
+                _clipboard_notice(
+                    f"the {block} was not copied — this project suppresses "
+                    f"the clipboard command (its bale.toml sets "
+                    f"clipboard_command = \"\"); clear that key with `bale "
+                    f"config init` here to use this machine's command")
+            elif announce_unset:
+                _clipboard_notice(
+                    f"the {block} was not copied — no clipboard command "
+                    f"is configured here; " + CLIPBOARD_SETUP_REMEDY)
+            return CLIPBOARD_UNSET
+        ok, detail = run_clipboard_command(command, data)
+        layer = f"{source} " if source else ""
+        if ok:
+            _clipboard_notice(f"copied the {block} to the clipboard "
+                              f"(`{command}`, {layer}bale.toml){aside}")
+            return CLIPBOARD_COPIED
+        _clipboard_notice(
+            f"the {block} was NOT copied — `{command}` ({layer}bale.toml) "
+            f"{detail}; copy the printed block by hand")
+        return CLIPBOARD_FAILED
+    except Exception as e:  # noqa: BLE001 — a copy never takes a command down
+        try:
+            _clipboard_notice(f"the {block} was NOT copied — unexpected "
+                              f"error ({type(e).__name__}: {e})")
+        except Exception:  # noqa: BLE001
+            pass
+        return CLIPBOARD_FAILED
+
+
+def describe_clipboard_state(command: Optional[str], source: Optional[str],
+                             problem: Optional[str]) -> str:
+    """The `bale status` clipboard row's value (the MASTER.md rider,
+    re-worded for the key as session C left it), from
+    resolve_clipboard_command's triple. Pure.
+
+    Names the command and the layer it came from; "suppressed" when the
+    project sets clipboard_command = ""; unset with its remedy; and an
+    unreadable key with the accessor's reason — so a hand edit the
+    probe scaffold cannot read surfaces here before a copy silently
+    falls back.
+    """
+    if problem is not None:
+        return (f"UNREADABLE — nothing is copied until it is fixed: "
+                f"{problem}")
+    if command is not None:
+        return (f"{command} ({source or 'unknown'} layer) — every "
+                f"paste block is copied")
+    if source == "project":
+        return ("suppressed here (this project's bale.toml sets "
+                "clipboard_command = \"\") — nothing is copied")
+    if source == "global":
+        return ("unset (the global bale.toml sets it empty) — nothing is "
+                "copied; `bale config init --global` sets one")
+    return ("unset — nothing is copied; `bale config init --global` "
+            "sets one for this machine")
 
 
 def format_pack_json(
