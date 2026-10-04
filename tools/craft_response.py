@@ -4,7 +4,7 @@
 Sections:
   1. Imports + constants                                                   (~line 307)
   2. Shared helpers (slug, log, exit)                                      (~line 581)
-  3. Probe clipboard config (the opt-in epilogue's key)                    (~line 615)
+  3. Probe clipboard config (the craft-time fallback's key)               (~line 615)
   4. Planner-bundle emission (--bundle)                                    (~line 732)
   5. Exchange block emission (--emit-block; the worker side of the thread) (~line 897)
   6. Light question block emission (--light-block; TARBALL.md §5.10)       (~line 1481)
@@ -113,18 +113,21 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   no lint runs on it — the architect audits the pasted block by eye,
   so the unfilled placeholders are the unfilled-cannot-pass analog:
   visibly not ready to paste. The scaffold's tail is the opt-in
-  clipboard epilogue (registry fold-in, ratified 2026-08-18,
-  configurable-never-core): when a `clipboard_command` under
-  `[probe]` is readable from `bale.toml` (looked up in `./bale.toml`
-  then `./context/bale.toml` — the repo-root and request-root
-  layouts), the scaffold ends with a tee of the sentinel-bracketed
-  block into that command, reporting success or failure loudly at
-  runtime and never failing the probe over it; the sentinel banners
-  always emit either way (the dependency-free selection aid), and
-  the unset or misconfigured path emits remedy text walking the
-  operator through setup instead — never fails, never silently
-  skips. The key's future config-side carrier (bin/bale_config.py)
-  must land the same spelling: `[probe] clipboard_command`;
+  clipboard copy (registry fold-in, ratified 2026-08-18,
+  configurable-never-core; through bale since session
+  clipboard-paste-blocks): the script pipes its sentinel-bracketed
+  block into the installed bale (`bale clipboard`), which copies it
+  with that machine's `[probe] clipboard_command` — project value,
+  else the global one — and says so either way, never failing the
+  probe. Where bale is not on PATH (or has no such verb), the script
+  falls back to a tee into the request's own key when one is readable
+  from `bale.toml` at craft time (looked up in `./bale.toml` then
+  `./context/bale.toml` — the repo-root and request-root layouts),
+  and to remedy text naming `bale config init --global` when none
+  is; the sentinel banners always emit either way (the
+  dependency-free selection aid) — never fails, never silently skips.
+  The key keeps the spelling bin/bale_config.py reads: `[probe]
+  clipboard_command`;
 
 - (bundle; the format's mechanical home is
   schemas/bundle-manifest.schema.json, shipped with every install)
@@ -366,19 +369,21 @@ CHECKPOINT_MEMBER = "checkpoint.sh"
 # the fix is immediate, instead of at the operator's `bale open`.
 BRIEF_PLACEHOLDER = "TODO(brief)"
 
-# --- Probe clipboard epilogue (registry fold-in, ratified 2026-08-18,
+# --- Probe clipboard key (registry fold-in, ratified 2026-08-18,
 #     configurable-never-core) ---
 #
 # The opt-in config key naming the environment's clipboard command.
-# NAMED LOUDLY on purpose: the config-side carrier (the next
-# bin/bale_config.py touch) must land the same spelling — section
-# `[probe]`, key `clipboard_command`, a one-line TOML basic ("...") or
-# literal ('...') string whose value is the shell command probe output
-# is piped into (e.g.
-# "pbcopy", "xclip -selection clipboard"). This tool reads the key
-# with a deliberately minimal single-key scan (stdlib-only, no TOML
-# parser is available standalone on 3.10), looked up in ./bale.toml
-# then ./context/bale.toml — the repo-root and request-root layouts.
+# NAMED LOUDLY on purpose: bin/bale_config.py reads the same spelling —
+# section `[probe]`, key `clipboard_command`, a one-line TOML basic
+# ("...") or literal ('...') string whose value is the shell command
+# probe output is piped into (e.g. "pbcopy", "xclip -selection
+# clipboard"). Since session clipboard-paste-blocks the scaffold copies
+# through the installed bale, which reads the key at both layers; this
+# tool reads only the project file, for the scaffold's fallback on a
+# machine without bale, with a deliberately minimal single-key scan
+# (stdlib-only, no TOML parser is available standalone on 3.10),
+# looked up in ./bale.toml then ./context/bale.toml — the repo-root
+# and request-root layouts.
 CLIPBOARD_SECTION = "probe"
 CLIPBOARD_KEY = "clipboard_command"
 CLIPBOARD_CONFIG_CANDIDATES = ("bale.toml", "context/bale.toml")
@@ -480,34 +485,56 @@ emit_probe_block() {{
 emit_probe_block
 """
 
-# The keyless tail of the probe scaffold: remedy text walking the
-# operator through the clipboard opt-in (TARBALL.md 4.3). Comments
-# only — nothing runs, nothing fails, and the manual selection path
-# (the sentinel banners) is named. Emitted whenever no usable
-# clipboard_command was readable at craft time.
-PROBE_CLIPBOARD_REMEDY = """\
-# Clipboard epilogue not emitted (opt-in, unset at craft time). To have
-# this scaffold tee its own output to your clipboard, set in bale.toml:
-#     [probe]
-#     clipboard_command = "<your clipboard command>"   # e.g. pbcopy
-# and ship bale.toml in the request's context/ so the crafter can read
-# it (it looks in ./bale.toml, then ./context/bale.toml). Manual path:
-# select between the PROBE BEGIN/END banners above and copy.
+# The probe scaffold's clipboard tail (TARBALL.md 4.3; session
+# clipboard-paste-blocks, ruling 1: bale copies, from the per-machine
+# key, through the installed CLI). Always emitted: the script pipes its
+# sentinel-bracketed block into `bale clipboard`, which copies it with
+# this machine's effective [probe] clipboard_command — the project's
+# value in a repo, else the global one — so a request that ships no
+# bale.toml still copies. bale prints the notice; the script adds a
+# line only when bale is not on PATH, or exits outside its 0 (copied) /
+# 1 (not copied, said why) contract — an older bale without the verb.
+# Both of those go to clip_fallback, which is one of the two bodies
+# below. Never fails the probe; the banners always print.
+# PYTHONDONTWRITEBYTECODE keeps bale's own imports from writing caches:
+# a probe is read-only (4.2).
+PROBE_CLIPBOARD_TAIL = """\
+# Clipboard copy (TARBALL.md 4.3): the installed bale copies the block
+# above with this machine's clipboard command, [probe] clipboard_command
+# in bale.toml (the project's value, else the global one; set it once
+# with `bale config init --global`). This never fails the probe, and the
+# PROBE BEGIN/END banners above stay the dependency-free selection aid.
+clip_fallback() {{
+{fallback}}}
+if command -v bale >/dev/null 2>&1; then
+  emit_probe_block | PYTHONDONTWRITEBYTECODE=1 bale clipboard --block "probe block"
+  clip_rc=$?
+  if [ "$clip_rc" -gt 1 ]; then
+    echo "[clipboard] 'bale clipboard' exited $clip_rc, which is not a copy answer (0 copied, 1 not copied); a bale that predates paste-block copying has no clipboard verb, so upgrade it if that is the cause" >&2
+    clip_fallback
+  fi
+else
+  echo "[clipboard] bale is not on PATH, so this machine's clipboard command could not be looked up" >&2
+  clip_fallback
+fi
 """
 
-# The key-set tail: tee the sentinel-bracketed block into the
-# configured command. Loud either way at runtime, and the epilogue can
-# never fail the probe — a missing or failing clipboard command reports
-# and the banners remain the dependency-free selection aid.
-PROBE_CLIPBOARD_EPILOGUE = """\
-# Clipboard epilogue (opt-in; bale.toml [probe] clipboard_command).
-# Tees the sentinel-bracketed block above into the configured command;
-# the banners stay the dependency-free selection aid if this fails.
-if emit_probe_block | {clip} 2>/dev/null; then
-  echo "[clipboard] probe output copied (bale.toml [probe] clipboard_command)" >&2
-else
-  echo "[clipboard] the configured clipboard command failed or is missing — select between the PROBE BEGIN/END banners and copy manually" >&2
-fi
+# clip_fallback's body when no project key was readable at craft time:
+# remedy text naming the per-machine setup and the manual path.
+PROBE_CLIPBOARD_FALLBACK_REMEDY = """\
+  echo "[clipboard] probe output not copied: probes copy themselves through a current bale on PATH once 'bale config init --global' has set this machine's clipboard command; meanwhile select between the PROBE BEGIN/END banners and copy manually" >&2
+"""
+
+# clip_fallback's body when the request's bale.toml set the key readably
+# at craft time: the pre-session-D epilogue, kept as the fallback for a
+# machine where bale cannot answer. It is the project layer — the value
+# that wins when bale can answer, too — so it never contradicts bale.
+PROBE_CLIPBOARD_FALLBACK_EPILOGUE = """\
+  if emit_probe_block | {clip} 2>/dev/null; then
+    echo "[clipboard] probe output copied with the request's bale.toml [probe] clipboard_command, read at craft time" >&2
+  else
+    echo "[clipboard] the request's bale.toml clipboard command failed or is missing: select between the PROBE BEGIN/END banners and copy manually ('bale config init --global' sets this machine's command)" >&2
+  fi
 """
 
 
@@ -631,7 +658,7 @@ def die(msg: str) -> "int":
 
 
 # ---------------------------------------------------------------------------
-# 3. Probe clipboard config (the opt-in epilogue's key)
+# 3. Probe clipboard config (the craft-time fallback's key)
 # ---------------------------------------------------------------------------
 
 def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
@@ -651,9 +678,9 @@ def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
     too, rather than call a working key unset). Anything richer — an
     escape, a triple-quoted multi-line form, an embedded double quote, a
     control character — is treated as unset: the never-fails,
-    never-silently-skips path, where the scaffold carries remedy text
-    instead of the epilogue and the note names the accepted forms and
-    the unread triple-quoted ones. bin/bale_config.py's
+    never-silently-skips path, where the scaffold's fallback carries
+    remedy text instead of a tee and the note names the accepted forms
+    and the unread triple-quoted ones. bin/bale_config.py's
     get_probe_clipboard_command is the full reader; its shape check
     (probe_clipboard_command_problem) refuses the contents this scan
     cannot read, so the two agree on every one-line basic or literal
@@ -768,16 +795,19 @@ def one_line_quoted_value(value: str) -> str | None:
 
 
 def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
-    """The full --probe emission: the fixed skeleton plus one of the
-    two clipboard tails — the epilogue when a command is configured,
-    the remedy text when it is not. One of the two always emits; the
-    epilogue never touches stdout (status lines go to stderr) and
-    never affects the probe's exit."""
+    """The full --probe emission: the fixed skeleton plus the clipboard
+    tail, which always copies through the installed bale (`bale
+    clipboard`). `clipboard_cmd` — the request's project key, read at
+    craft time — only chooses clip_fallback's body for a machine where
+    bale cannot answer: that command teed the old way when set, remedy
+    text naming `bale config init --global` when None. The tail never
+    touches stdout (bale's notice and the script's lines go to stderr)
+    and never affects the probe's exit."""
     body = PROBE_SCAFFOLD.format(slug=slug)
-    if clipboard_cmd is not None:
-        return body + "\n" + PROBE_CLIPBOARD_EPILOGUE.format(
-            clip=clipboard_cmd)
-    return body + "\n" + PROBE_CLIPBOARD_REMEDY
+    fallback = (PROBE_CLIPBOARD_FALLBACK_EPILOGUE.format(clip=clipboard_cmd)
+                if clipboard_cmd is not None
+                else PROBE_CLIPBOARD_FALLBACK_REMEDY)
+    return body + "\n" + PROBE_CLIPBOARD_TAIL.format(fallback=fallback)
 
 
 # ---------------------------------------------------------------------------
@@ -2875,14 +2905,18 @@ def main(argv: list[str] | None = None) -> int:
             return die(f"--probe: {problem}")
         clip, note = read_clipboard_command()
         sys.stdout.write(build_probe_scaffold(args.probe, clip))
+        log("clipboard copy wired through the installed bale (`bale "
+            "clipboard`): at run time it copies the PROBE BEGIN/END block "
+            "with that machine's [probe] clipboard_command, project or "
+            "global, and says so either way")
         if clip is not None:
-            log(f"clipboard epilogue emitted ({note}) — the scaffold "
-                "tees its sentinel-bracketed output to the configured "
-                "command at run time, loudly either way")
+            log(f"fallback for a machine without bale on PATH: the "
+                f"request's key ({note}) — the scaffold tees into it "
+                f"there, loudly either way")
         else:
-            log(f"clipboard epilogue not emitted ({note}) — remedy "
-                "text in the scaffold walks the operator through the "
-                "[probe] clipboard_command opt-in")
+            log(f"fallback for a machine without bale on PATH: remedy "
+                f"text naming `bale config init --global` (no request "
+                f"key: {note})")
         log("probe skeleton emitted — fill the TODO placeholders (what, "
             "why, real sections with caps), then paste into chat; no lint "
             "runs on a probe — the architect audits it by eye "

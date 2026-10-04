@@ -608,19 +608,29 @@ class WizardWalkUnitTest(unittest.TestCase):
                 self.assertIn("Keeping current", out)
 
     def test_help_states_the_per_machine_layering_and_the_reader(self) -> None:
-        """The full description — where to set it, and which reader sees
-        which file today — is one '?' away; the default view stays short."""
+        """The full description — where to set it, and what bale copies
+        with it now that it does (session clipboard-paste-blocks: C's two
+        future-tense phrases are present tense) — is one '?' away; the
+        default view stays short."""
         _new, out = _walk_with_answers(
             {}, layer="project",
             answers={"probe.clipboard_command": ["?", ""]})
         # The help is re-wrapped to the width, so match across line breaks.
         flat = " ".join(out.split())
         for phrase in ("Per-machine: set it once with `bale config init "
-                       "--global`", "never the global file",
+                       "--global`",
+                       "bale copies every paste block it prints",
+                       "through the installed bale (`bale clipboard`)",
+                       "whether or not the request shipped a bale.toml",
                        "detection only suggests"):
             self.assertIn(phrase, flat)
+        for gone in ("until bale copies paste blocks itself",
+                     "once it lands", "never the global file"):
+            self.assertNotIn(gone, flat,
+                             msg="the pre-session-D future tense is gone")
         _new, short = _walk_with_answers({}, layer="project", answers={})
-        self.assertNotIn("never the global file", " ".join(short.split()),
+        self.assertNotIn("bale copies every paste block",
+                         " ".join(short.split()),
                          msg="the full description shows on demand only")
         heading = [ln for ln in short.splitlines() if "[probe]" in ln]
         self.assertEqual(len(heading), 1)

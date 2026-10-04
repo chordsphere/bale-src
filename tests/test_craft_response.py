@@ -69,11 +69,15 @@ refusals (delivery flags bare and =-glued, a leading 'pack' verb,
 --no-readme, stem shapes, intent vocabulary and duplicates, the
 TODO(brief) sentinel, hollow member files) and the mode's mutual
 exclusion, both directions against --probe and the response-directory
-surface. CraftProbeClipboard proves the epilogue's contract per the
-fold-in text: emitted only when [probe] clipboard_command is readable
-(./bale.toml then ./context/bale.toml), sentinel banners always,
-runtime tee loud on success and failure and never failing the probe,
-remedy text on the unset and misconfigured paths. BundlePackParity
+surface. CraftProbeClipboard proves the clipboard tail's contract —
+reworked by session clipboard-paste-blocks, where bale does the copy
+(ruling 1): the scaffold always pipes its sentinel block into the
+installed `bale clipboard` and trusts its 0/1 answer; only where bale
+is absent or predates the verb does it fall back, to a tee into the
+request's [probe] clipboard_command when readable at craft time
+(./bale.toml then ./context/bale.toml) and to remedy text naming
+`bale config init --global` otherwise — sentinel banners always,
+loud either way, never failing the probe. BundlePackParity
 (skipUnless bin/, the PackCarriageSurface rider pattern) pins the
 re-declared constants equal to bale_pack's, the TODO(brief) literal
 still present in the pack source, and the emitted bundle.json passing
@@ -2175,14 +2179,30 @@ class CraftBundleHygiene(unittest.TestCase):
                 self.assertIn("--bundle", cp.stderr)
 
 
+def path_without_bale(*prepend: Path) -> str:
+    """This process's PATH minus every directory holding an executable
+    `bale`, with `prepend` in front — so a scaffold run sees exactly the
+    bale a test provides (a stub) or none, never the developer's real
+    install."""
+    dirs = [d for d in os.environ.get("PATH", "/usr/bin:/bin").split(
+                os.pathsep)
+            if d and not os.access(os.path.join(d, "bale"), os.X_OK)]
+    return os.pathsep.join([str(d) for d in prepend] + dirs)
+
+
 class CraftProbeClipboard(unittest.TestCase):
-    """The probe scaffold's opt-in clipboard epilogue (registry
-    fold-in, configurable-never-core): emitted only when [probe]
-    clipboard_command is readable at craft time, sentinel banners
-    always, runtime loud either way and never failing the probe,
-    remedy text on every unset or misconfigured path."""
+    """The probe scaffold's clipboard tail (registry fold-in,
+    configurable-never-core; through bale since session
+    clipboard-paste-blocks): always a pipe into the installed `bale
+    clipboard`, whose 0 (copied) / 1 (not copied, said why) the script
+    trusts; a fallback only where bale is absent or exits outside that
+    contract — a tee into the request's key when readable at craft
+    time, remedy text naming `bale config init --global` otherwise.
+    Banners always; never fails the probe."""
 
     SLUG = "fixture-probe"
+    BALE_PIPE = ('emit_probe_block | PYTHONDONTWRITEBYTECODE=1 bale '
+                 'clipboard --block "probe block"')
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -2197,55 +2217,142 @@ class CraftProbeClipboard(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"[probe]\n{value_line}\n", encoding="utf-8")
 
-    def run_scaffold(self, script_text: str) -> subprocess.CompletedProcess:
+    def stub_bale(self, body: str) -> Path:
+        """A `bale` on a private bin dir: a shell script with `body`."""
+        bindir = self.tmp / "stubbin"
+        bindir.mkdir(exist_ok=True)
+        stub = bindir / "bale"
+        stub.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+        stub.chmod(0o755)
+        return bindir
+
+    def run_scaffold(self, script_text: str, *, bale_dir: Path | None = None
+                     ) -> subprocess.CompletedProcess:
         script = self.tmp / "probe.sh"
         script.write_text(script_text)
         chk = subprocess.run(["bash", "-n", str(script)],
                              capture_output=True, text=True)
         self.assertEqual(chk.returncode, 0, chk.stderr)
-        return subprocess.run(["bash", str(script)], cwd=self.tmp,
+        env = dict(os.environ)
+        env["PATH"] = (path_without_bale(bale_dir) if bale_dir is not None
+                       else path_without_bale())
+        return subprocess.run(["bash", str(script)], cwd=self.tmp, env=env,
                               capture_output=True, text=True)
 
-    def test_keyless_emits_remedy_and_no_epilogue(self):
-        cp = self.emit()
-        self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("Clipboard epilogue not emitted", cp.stdout)
-        self.assertIn("clipboard_command", cp.stdout)
-        self.assertIn("[probe]", cp.stdout)
-        self.assertNotIn("emit_probe_block |", cp.stdout)
-        self.assertIn("clipboard epilogue not emitted", cp.stderr)
-        run = self.run_scaffold(cp.stdout)
-        self.assertEqual(run.returncode, 0, run.stderr)
+    def assert_banners(self, run: subprocess.CompletedProcess) -> None:
         body = run.stdout.splitlines()
         self.assertEqual(body[0], f"=== PROBE BEGIN {self.SLUG} ===")
         self.assertEqual(body[-1], f"=== PROBE END {self.SLUG} ===")
 
-    def test_key_set_tees_the_sentinel_block(self):
+    def test_every_scaffold_copies_through_bale(self):
+        """Keyless or keyed, the tail pipes into the installed bale."""
+        for key in (None, 'clipboard_command = "pbcopy"'):
+            with self.subTest(key=key):
+                (self.tmp / "bale.toml").unlink(missing_ok=True)
+                if key:
+                    self.set_key(key)
+                cp = self.emit()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn(self.BALE_PIPE, cp.stdout)
+                self.assertIn("bale config init --global", cp.stdout)
+                self.assertIn("clipboard copy wired through the installed "
+                              "bale", cp.stderr)
+
+    def test_bale_on_path_receives_exactly_the_sentinel_block(self):
+        """The stub bale stands in for the installed CLI: it captures its
+        stdin and its argv. What reaches bale is the block stdout shows,
+        byte for byte — what lands on the clipboard is what is pasted."""
+        self.set_key('clipboard_command = "cat >fallback-capture.txt"')
+        cp = self.emit()
+        bindir = self.stub_bale(
+            'printf "%s\\n" "$*" >argv.txt\n'
+            'cat >bale-capture.txt\n'
+            'echo "[bale] clipboard: copied the probe block (stub)" >&2\n'
+            'exit 0\n')
+        run = self.run_scaffold(cp.stdout, bale_dir=bindir)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assert_banners(run)
+        self.assertEqual((self.tmp / "bale-capture.txt").read_bytes(),
+                         run.stdout.encode("utf-8"))
+        self.assertEqual((self.tmp / "argv.txt").read_text().strip(),
+                         "clipboard --block probe block")
+        self.assertIn("copied the probe block (stub)", run.stderr)
+        self.assertFalse((self.tmp / "fallback-capture.txt").exists(),
+                         "bale answered; the request's key is not used")
+        self.assertNotIn("[clipboard]", run.stderr,
+                         "bale's own notice is the whole report")
+
+    def test_bale_saying_not_copied_is_not_second_guessed(self):
+        """Exit 1 is bale's 'not copied, and I said why' — the script adds
+        nothing and never falls back to the request's key (bale saw the
+        machine's real config: a suppress, an unreadable key, ...)."""
+        self.set_key('clipboard_command = "cat >fallback-capture.txt"')
+        cp = self.emit()
+        bindir = self.stub_bale('cat >/dev/null\n'
+                                'echo "[bale] clipboard: not copied (stub)" >&2\n'
+                                'exit 1\n')
+        run = self.run_scaffold(cp.stdout, bale_dir=bindir)
+        self.assertEqual(run.returncode, 0,
+                         "a copy that did not happen never fails the probe")
+        self.assert_banners(run)
+        self.assertIn("not copied (stub)", run.stderr)
+        self.assertNotIn("[clipboard]", run.stderr)
+        self.assertFalse((self.tmp / "fallback-capture.txt").exists())
+
+    def test_older_bale_falls_back_to_the_request_key(self):
+        """argparse's exit 2 (no `clipboard` verb) is outside the 0/1
+        contract: the script says so and tees into the request's key."""
+        self.set_key('clipboard_command = "cat >fallback-capture.txt"')
+        cp = self.emit()
+        bindir = self.stub_bale("echo \"bale: error: argument <command>: "
+                                "invalid choice: 'clipboard'\" >&2\nexit 2\n")
+        run = self.run_scaffold(cp.stdout, bale_dir=bindir)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("'bale clipboard' exited 2", run.stderr)
+        self.assertIn("predates paste-block copying", run.stderr)
+        self.assertIn("probe output copied with the request's bale.toml",
+                      run.stderr)
+        self.assertEqual((self.tmp / "fallback-capture.txt").read_bytes(),
+                         run.stdout.encode("utf-8"))
+
+    def test_no_bale_with_a_request_key_tees_the_sentinel_block(self):
         self.set_key('clipboard_command = "cat >clipboard-capture.txt"')
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
         self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
                       cp.stdout)
-        self.assertIn("clipboard epilogue emitted", cp.stderr)
+        self.assertIn("fallback for a machine without bale on PATH: the "
+                      "request's key", cp.stderr)
         run = self.run_scaffold(cp.stdout)
         self.assertEqual(run.returncode, 0, run.stderr)
         # stdout is exactly the sentinel-bracketed block (status lines
-        # ride stderr); the capture is the same block, byte for byte —
-        # what lands on the operator's clipboard is what they paste.
-        body = run.stdout.splitlines()
-        self.assertEqual(body[0], f"=== PROBE BEGIN {self.SLUG} ===")
-        self.assertEqual(body[-1], f"=== PROBE END {self.SLUG} ===")
+        # ride stderr); the capture is the same block, byte for byte.
+        self.assert_banners(run)
+        self.assertIn("bale is not on PATH", run.stderr)
         self.assertIn("probe output copied", run.stderr)
         capture = (self.tmp / "clipboard-capture.txt").read_bytes()
         self.assertEqual(capture, run.stdout.encode("utf-8"))
 
-    def test_failing_command_is_loud_and_never_fails_the_probe(self):
+    def test_no_bale_and_no_key_prints_the_remedy(self):
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("remedy text naming `bale config init --global`",
+                      cp.stderr)
+        run = self.run_scaffold(cp.stdout)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assert_banners(run)
+        self.assertIn("bale is not on PATH", run.stderr)
+        self.assertIn("probe output not copied", run.stderr)
+        self.assertIn("'bale config init --global'", run.stderr)
+        self.assertIn("PROBE BEGIN/END banners", run.stderr)
+
+    def test_failing_fallback_command_is_loud_and_never_fails_the_probe(self):
         self.set_key('clipboard_command = "false"')
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
         run = self.run_scaffold(cp.stdout)
         self.assertEqual(run.returncode, 0,
-                         "the epilogue must never fail the probe")
+                         "the fallback must never fail the probe")
         self.assertIn("failed or is missing", run.stderr)
         self.assertIn("PROBE BEGIN", run.stdout)
 
@@ -2265,8 +2372,8 @@ class CraftProbeClipboard(unittest.TestCase):
                 self.set_key(bad)
                 cp = self.emit()
                 self.assertEqual(cp.returncode, 0, cp.stderr)
-                self.assertIn("Clipboard epilogue not emitted",
-                              cp.stdout)
+                self.assertIn("probe output not copied", cp.stdout)
+                self.assertIn(self.BALE_PIPE, cp.stdout)
                 self.assertIn("treated as unset", cp.stderr)
 
     def test_key_outside_the_probe_section_is_unset(self):
@@ -2274,7 +2381,8 @@ class CraftProbeClipboard(unittest.TestCase):
             '[hooks]\nclipboard_command = "pbcopy"\n', encoding="utf-8")
         cp = self.emit()
         self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("Clipboard epilogue not emitted", cp.stdout)
+        self.assertIn("probe output not copied", cp.stdout)
+        self.assertNotIn("| pbcopy", cp.stdout)
         self.assertIn("unset", cp.stderr)
 
 
