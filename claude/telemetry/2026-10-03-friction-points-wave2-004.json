@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-03-friction-points-wave2-004",
+  "created_at": "2026-10-03T03:01:12+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-03T03:01:12+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-03-friction-points-wave2-004.log",
+      "bundle": {
+        "stem": "2026-10-03-friction-points-wave2-desk",
+        "brief_sha256": "46e196f0a07b30f5c4256f49c5ab04c9294a68b5eb1ac40801fd8f0e81ea270f",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "9ea06e308eb2374ac25d6d977bf403a26820980d66b5bf91906f6ff3f9db4937"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-03T03:01:11+00:00"
+      }
+    },
+    {
+      "at": "2026-10-04T01:58:35+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-03-friction-points-wave2-004.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-04T01:58:35+00:00",
+  "outcome": "unlocked"
+}
