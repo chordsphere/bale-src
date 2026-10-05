@@ -4728,6 +4728,12 @@ def _run_readonly_sweep(repo: Path,
                 f"its registry entry and .bale/sessions/ state are removed "
                 f"and a closure record is written.",
                 default_no=False,
+                # Laid out to the terminal's width (80 on an 80-column
+                # terminal) — layout only, per the operator's ruling
+                # (session log-hold): Enter, y/yes, any other answer,
+                # EOF/^C, and the piped decline below all mean what they
+                # meant, and nothing re-asks.
+                wrap=True,
             )
             accepted = decision.accepted
         else:
@@ -5047,94 +5053,6 @@ def _wizard_fill_args(args: argparse.Namespace, repo: Path) -> PackWalk:
             "must leave alone, shipped as the request's out_of_scope."))
         args.out_of_scope = walk.ask_list(empty="none")
     return walk
-
-
-class WalkLogHold:
-    """Holds bale's `[bale] ` log lines for the span of the goal-less walk
-    and replays them, in order, once the walk's last question is answered.
-
-    Why: the gates cmd_pack runs between the walk's list questions and its
-    README question — the deferred checkpoint-blindness and
-    forecast-disjointness gates, and on a read-only pack the sweep — log as
-    they go, and their lines (up to 200 columns) landed among the
-    questions. The walk's contract is that no `[bale] ` line prints between
-    its first answer and its last question; logging that belongs to the
-    pack comes before the walk or after it. Moving each gate's logging
-    would mean threading an output channel through gates `bale handoff`
-    shares, plus bin/bale helpers they call (close_session_with_record);
-    holding at the one shared emitter covers all of them, today's and
-    tomorrow's.
-
-    How: hold() rebinds bin/bale's `log` and `fail` on `__main__` — the
-    names every pack-path function imports lazily at call time (the
-    module docstring's idiom), the same reach-in pack_argv_preflight's
-    FORCE-queue helpers already make. A held line is recorded with its
-    `force` flag and replayed through the real log() at release(), so its
-    text, its journaling, and a FORCE line's queueing for the session log
-    are exactly what they would have been; only the moment it prints
-    moves. A fail() while holding releases first, so a refusal still
-    reads its context lines before its error line. release() is
-    idempotent and registered with atexit as a backstop, so an unexpected
-    exception can delay a held line but never swallow it.
-
-    Callers that bound `log` before hold() (cmd_pack's own top-of-function
-    import) are not held; cmd_pack logs nothing itself inside the span,
-    and its one fail() there goes through `self.fail`.
-    """
-
-    def __init__(self) -> None:
-        self._main = None
-        self._log = None
-        self._fail = None
-        self.lines: list[tuple[str, bool]] = []
-
-    @property
-    def holding(self) -> bool:
-        return self._main is not None
-
-    def hold(self) -> None:
-        """Start holding. A no-op when `__main__` is not bin/bale (an
-        in-process caller with no log/fail to rebind) or already held."""
-        if self._main is not None:
-            return
-        main = sys.modules.get("__main__")
-        log = getattr(main, "log", None)
-        fail = getattr(main, "fail", None)
-        if not callable(log) or not callable(fail):
-            return
-        self._main, self._log, self._fail = main, log, fail
-        main.log = self._held_log
-        main.fail = self.fail
-        import atexit
-        atexit.register(self.release)
-
-    def _held_log(self, msg: str, *, force: bool = False) -> None:
-        self.lines.append((msg, force))
-
-    def fail(self, msg: str, code: int = 1) -> None:
-        """fail() that releases the held lines first, so they print
-        before the error line. Usable whether or not holding."""
-        real_fail = self._fail
-        self.release()
-        if real_fail is None:
-            from __main__ import fail as real_fail  # lazy — see module docstring
-        real_fail(msg, code)
-
-    def release(self) -> None:
-        """Stop holding: restore `log`/`fail` and replay the held lines
-        through the real log(), after a blank separator line."""
-        if self._main is None:
-            return
-        main, log = self._main, self._log
-        main.log, main.fail = self._log, self._fail
-        self._main = None
-        import atexit
-        atexit.unregister(self.release)
-        lines, self.lines = self.lines, []
-        if lines:
-            print()
-        for msg, force in lines:
-            log(msg, force=force)
 
 
 # ---------------------------------------------------------------------------
@@ -6184,6 +6102,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         ensure_bale_gitignored,
         fail,
         git,
+        hold_log,
         is_valid_slug,
         log,
         next_session_id,
@@ -6192,10 +6111,12 @@ def cmd_pack(args: argparse.Namespace) -> int:
         read_session_scope,
         refuse_system_dir,
         register_session,
+        release_log,
         repo_root,
         resolved_scope,
         run_hook,
         scope_intersection,
+        set_log_display_wrap,
         set_log_file,
     )
     # Sibling-owned entry points come from their owning modules directly
@@ -6241,6 +6162,17 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # before everything below, all of which can write.
     if getattr(args, "dry_run", False):
         return cmd_pack_dry_run(args)
+
+    # Terminal display wrapping of [bale] lines (session log-hold,
+    # outcome 4): from here until the walk's first question —
+    # on the fully specified path, the same point in the pipeline — a
+    # [bale] line wider than the terminal is word-wrapped for display,
+    # so the tree-position echo, the argv-only gates line, an include
+    # group's engagement line, and the supersession exchange's lines fit
+    # an 80-column terminal before the operator invests any answers.
+    # Display only (bin/bale section 2): the journal and piped output
+    # are unchanged. Restored just before the wizard block below.
+    pre_walk_wrap = set_log_display_wrap(True)
 
     # README-flag validation, before anything can prompt (the git-init
     # walkthrough below is interactive) and before the wizard could
@@ -6467,16 +6399,22 @@ def cmd_pack(args: argparse.Namespace) -> int:
     #
     # From the walk's first question through its last (the README
     # question, below the post-walk gates), bale's [bale] log lines are
-    # held and replayed once the README is resolved (WalkLogHold): the
+    # held by bin/bale's native log hold (hold_log / release_log, since
+    # session log-hold, which retired WalkLogHold's rebinding of
+    # __main__.log/fail): the
     # gates and the read-only sweep that run between the walk's list
-    # questions and its README question still log everything they
-    # logged, just after the walk instead of among its questions. Every
-    # fail() in the span releases the held lines first.
-    walk_logs = WalkLogHold()
+    # questions and its README question still log, and journal,
+    # everything they logged, but print it just after the walk instead
+    # of among its questions. Every fail() — here or in any helper —
+    # releases the held lines before its error line; bin/bale's atexit
+    # backstop covers an unexpected exit.
+    # The pre-walk lines are done; everything from here prints as it
+    # always has (the held lines included, at release).
+    set_log_display_wrap(pre_walk_wrap)
     pack_walk: Optional[PackWalk] = None
     if wizard_engaged:
         refuse_piped_wizard(args)
-        walk_logs.hold()
+        hold_log()
         pack_walk = _wizard_fill_args(args, repo)
         # The [r] answer beside a typed --checkpoint-file (v0.4.10):
         # the same contradiction the fail-fast site refuses, only
@@ -6484,7 +6422,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
         # Same message, same posture — the two surfaces must not read
         # differently.
         if args.checkpoint_file is not None and args.read_only:
-            walk_logs.fail(
+            fail(
                 "--checkpoint-file and --read-only are contradictory: "
                 "the read-only shape waives the per-session checkpoint "
                 "(an empty forecast lands nothing, so no oracle is "
@@ -6529,7 +6467,7 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # _resolve_supersession already refused at the decline, before any
     # prompt could collect throwaway answers.
     if declined_supersession is not None:
-        walk_logs.fail(
+        fail(
             f"supersession of {declined_supersession} was declined and "
             f"its scope does not collide with this pack, but a "
             f"--supersedes pack that closes nothing and stamps no "
@@ -6559,9 +6497,9 @@ def cmd_pack(args: argparse.Namespace) -> int:
     # step downstream, exactly as before.
     args._readme_body = _resolve_readme_body(
         args, wizard_engaged=wizard_engaged, walk=pack_walk)
-    # The walk is over (the README question was its last): replay the
-    # [bale] lines held since its first question.
-    walk_logs.release()
+    # The walk is over (the README question was its last): print the
+    # [bale] lines held since its first question. A no-op off the walk.
+    release_log()
 
     # No-readme guard (v0.3.8, board 3): a pack shipping no prose is
     # either deliberate or an oversight, and the two must not look the

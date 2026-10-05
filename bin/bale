@@ -66,6 +66,8 @@ physical order, the numbers stay stable.
 from __future__ import annotations
 
 import argparse
+import atexit
+import contextlib
 import fnmatch
 import functools
 import hashlib
@@ -468,6 +470,186 @@ def set_log_file(p: Optional[Path]) -> None:
     _pending_log_lines.clear()
 
 
+# The log hold (session log-hold; it retired bale_pack's WalkLogHold,
+# which rebound this module's `log` and `fail` from outside).
+# While held, log() does everything it always does at the moment it is
+# called — journals the line into an open session log, or queues a FORCE
+# line for the session log when none is open yet — except print it: the
+# line waits here, in order, and release_log() prints the waiting lines
+# after one blank separator line. So a held line keeps its text, its
+# journal entry (timestamped when it happened, not when it printed), and
+# its FORCE queueing; only the moment it reaches the terminal moves.
+# fail() releases first, so a refusal still reads its context lines above
+# its error line, and an atexit backstop releases whatever an unexpected
+# exit left waiting: a held line can be delayed, never lost.
+#
+# None means "not holding"; [] means holding with nothing waiting. One
+# level only: hold_log() while holding is a no-op, and one release_log()
+# ends the hold. The pack walk (bale_pack.cmd_pack) is the one holder
+# today — from the walk's first question through its README question.
+_held_log_lines: Optional[list[str]] = None
+
+# Terminal display of [bale] lines (session log-hold). While
+# display wrapping is on (set_log_display_wrap), a line longer than the
+# terminal is word-wrapped for display, continuation lines indented
+# under the text after "[bale] ", so an 80-column terminal never
+# hard-breaks one mid-word. Display only: the session journal gets the
+# line exactly as logged (one entry per logged line), and output that
+# is not a terminal — a pipe, a file, a test capture — is byte-identical
+# to what it was before, so nothing machine-read moves. A token longer
+# than the width (a long path, a URL) is never broken; its line runs
+# past the width instead, as the wizard layer's lines naming an absolute
+# path do (bale_wizard's one exception).
+#
+# Off by default, on where a caller turns it on: today that is
+# bale_pack.cmd_pack, from its start until the walk's first question
+# (the lines an operator reads before investing any answers — session
+# log-hold's outcome 4). Every other line of every verb prints exactly
+# as before, including the fixed decline lines the pty suites and blind
+# checkpoints read whole off a terminal; turning it on for every verb
+# is one call at main() plus those suites' pins, left as a Proposal.
+_log_display_wrap = False
+
+LOG_WRAP_HANG = len("[bale] ")
+# Narrower than this and wrapping would leave too little room per line to
+# read; such a terminal gets this width and soft-wraps the rest itself.
+LOG_WRAP_MIN_WIDTH = 40
+LOG_WRAP_FALLBACK_WIDTH = 80
+
+
+def log_display_width(stream) -> Optional[int]:
+    """The width to lay a [bale] line out for on `stream`, or None when
+    the stream is not a terminal (the line prints exactly as logged).
+
+    $COLUMNS when it is a positive integer (the convention
+    shutil.get_terminal_size follows), else the terminal's own width,
+    else LOG_WRAP_FALLBACK_WIDTH (a pty that reports no size); floored
+    at LOG_WRAP_MIN_WIDTH. The stream measured is the one the line
+    prints to — under --json that is stderr, since json mode rebinds
+    sys.stdout to it. Never raises."""
+    isatty = getattr(stream, "isatty", None)
+    try:
+        if not (isatty and isatty()):
+            return None
+    except (OSError, ValueError):
+        return None
+    try:
+        columns = int(os.environ.get("COLUMNS", ""))
+    except ValueError:
+        columns = 0
+    if columns <= 0:
+        try:
+            columns = os.get_terminal_size(stream.fileno()).columns
+        except (AttributeError, OSError, ValueError):
+            columns = 0
+    if columns <= 0:
+        columns = LOG_WRAP_FALLBACK_WIDTH
+    return max(columns, LOG_WRAP_MIN_WIDTH)
+
+
+def wrap_log_line(line: str, width: Optional[int]) -> str:
+    """`line` laid out for a terminal `width` columns wide; unchanged
+    when `width` is None. Pure; the tests call it directly.
+
+    Each physical line of `line` (a message may carry its own newlines)
+    that fits is kept byte-for-byte. One that does not is word-wrapped:
+    the first physical line's continuations hang under the text after
+    the "[bale] " prefix; a later physical line's continuations keep
+    that line's own leading indent. Words are never broken and hyphens
+    never split, so sids, flags, and paths stay whole — a single token
+    wider than the width is left to run long."""
+    if width is None:
+        return line
+    out: list[str] = []
+    for index, physical in enumerate(line.split("\n")):
+        if len(physical) <= width:
+            out.append(physical)
+            continue
+        body = physical.lstrip(" ")
+        lead = physical[:len(physical) - len(body)]
+        hang = " " * LOG_WRAP_HANG if index == 0 else lead
+        wrapper = textwrap.TextWrapper(
+            width=width, initial_indent=lead, subsequent_indent=hang,
+            break_long_words=False, break_on_hyphens=False,
+            replace_whitespace=False)
+        try:
+            wrapped = wrapper.wrap(body)
+        except ValueError:
+            # An indent wider than the width leaves textwrap no room;
+            # the line prints as logged rather than not at all.
+            wrapped = []
+        out.extend(wrapped or [physical])
+    return "\n".join(out)
+
+
+def set_log_display_wrap(enabled: bool) -> bool:
+    """Turn terminal display wrapping of [bale] lines on or off (the
+    section comment above has the contract); returns the previous
+    setting, so a caller can restore it."""
+    global _log_display_wrap
+    previous, _log_display_wrap = _log_display_wrap, bool(enabled)
+    return previous
+
+
+def _print_log_line(line: str) -> None:
+    """Print one logged line to stdout (looked up at call time, so json
+    mode's rebinding and a test's redirect_stdout both see it), laid
+    out for the terminal when display wrapping is on and stdout is
+    one."""
+    stream = sys.stdout
+    if _log_display_wrap:
+        line = wrap_log_line(line, log_display_width(stream))
+    print(line, file=stream)
+
+
+def hold_log() -> None:
+    """Start holding [bale] lines: from now until release_log(), log()
+    journals as always but prints nothing (the section comment above
+    has the contract). A no-op while already holding."""
+    global _held_log_lines
+    if _held_log_lines is None:
+        _held_log_lines = []
+
+
+def release_log() -> None:
+    """End the hold: print the waiting lines, in order, after one blank
+    separator line (none when nothing waited). Idempotent, and a no-op
+    when not holding — fail() and the atexit backstop both call it.
+    Journaling already happened when each line was logged, so this
+    only prints."""
+    global _held_log_lines
+    lines, _held_log_lines = _held_log_lines, None
+    if not lines:
+        return
+    print()
+    for line in lines:
+        _print_log_line(line)
+
+
+def log_holding() -> bool:
+    """True while [bale] lines are being held."""
+    return _held_log_lines is not None
+
+
+@contextlib.contextmanager
+def log_held():
+    """hold_log() for the span of a `with` block, released on the way
+    out whatever ends the block — the form a caller whose span is one
+    block uses; cmd_pack's span crosses an `if`, so it pairs the two
+    calls itself."""
+    hold_log()
+    try:
+        yield
+    finally:
+        release_log()
+
+
+# The backstop: an exit nobody expected (an uncaught exception, a bare
+# sys.exit) between hold_log() and release_log() still prints what was
+# waiting. A no-op when nothing holds.
+atexit.register(release_log)
+
+
 def log(msg: str, *, force: bool = False) -> None:
     """Emit a [bale] line to stdout, and (if a session log is open) journal it.
 
@@ -475,10 +657,19 @@ def log(msg: str, *, force: bool = False) -> None:
     session log is open yet, queues the line for replay once one is. Use it
     only for --force-override events (home-dir, threshold caps) where the
     journal entry is the audit trail; ordinary informational logs leave
-    `force=False` so they don't clutter the FORCE: prefix or queue."""
+    `force=False` so they don't clutter the FORCE: prefix or queue.
+
+    While display wrapping is on (set_log_display_wrap) and stdout is a
+    terminal, the printed copy is word-wrapped to the terminal's width
+    (wrap_log_line); the journal entry is always the line as logged.
+    While the log is held (hold_log) the print waits for release_log();
+    the journal entry and the FORCE queueing do not."""
     prefix = "[bale] FORCE: " if force else "[bale] "
     line = f"{prefix}{msg}"
-    print(line)
+    if _held_log_lines is not None:
+        _held_log_lines.append(line)
+    else:
+        _print_log_line(line)
     if _log_file is not None:
         try:
             _log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -530,7 +721,12 @@ def fail(msg: str, code: int = 1) -> None:
     refusal paths — record_rejected_attempt for apply/retry, the relay's
     refusal recorder — read it off the exception they catch, so the
     cause travels with the exit rather than through module state that
-    a nested fail() could overwrite."""
+    a nested fail() could overwrite.
+
+    Held [bale] lines (hold_log) are released first, so a refusal
+    inside a hold still prints its context lines above its error line.
+    The error line itself prints as written, unwrapped."""
+    release_log()
     line = f"[bale] error: {msg}"
     print(line, file=sys.stderr)
     if _log_file is not None:
@@ -4428,8 +4624,29 @@ class ConfirmDecision:
         return CONFIRM_BRANCH_ANSWERED
 
 
+# Room a wrapped y/N prompt leaves on its last line for the space after
+# the suffix and a typed "yes", so the echoed answer stays inside the width.
+YN_ANSWER_ROOM = 4
+
+
+def layout_yn_prompt(text: str, width: Optional[int]) -> list[str]:
+    """`text` (the prompt with its [y/N] suffix) as the lines a wrapped
+    y/N prints: one line, unchanged, when `width` is None or it already
+    fits with YN_ANSWER_ROOM to spare; otherwise word-wrapped to
+    `width - YN_ANSWER_ROOM` with a two-space hang, the suffix riding on
+    the last line. Words never break (a sid stays whole). Pure; the
+    tests call it directly."""
+    if width is None or len(text) + YN_ANSWER_ROOM <= width:
+        return [text]
+    wrapper = textwrap.TextWrapper(
+        width=max(width - YN_ANSWER_ROOM, 1), subsequent_indent="  ",
+        break_long_words=False, break_on_hyphens=False)
+    return wrapper.wrap(text) or [text]
+
+
 def confirm_yn_decision(prompt: str, *,
-                        default_no: bool = True) -> ConfirmDecision:
+                        default_no: bool = True,
+                        wrap: bool = False) -> ConfirmDecision:
     """Interactive y/N prompt that reports its decision AND its cause.
 
     default_no=True biases toward declining — appropriate for hooks since
@@ -4437,10 +4654,25 @@ def confirm_yn_decision(prompt: str, *,
     decline. Every branch is a distinct ConfirmDecision so a caller can
     log why the prompt declined; confirm_yn below is the bool projection
     for callers that only need the verdict.
+
+    `wrap=True` (session log-hold; the read-only sweep is its one
+    caller) lays a long prompt out for the terminal on stdout
+    (layout_yn_prompt at
+    log_display_width): every line but the last prints first, and
+    input() shows the last, so the answer is typed after the suffix as
+    before. Layout only — the answer is read and judged by exactly the
+    code below, wrapped or not — and a stdout that is not a terminal
+    gets the one-line prompt unchanged. Every other caller keeps the
+    one-line prompt byte-for-byte.
     """
     suffix = " [y/N]" if default_no else " [Y/n]"
+    lines = [f"{prompt}{suffix}"]
+    if wrap:
+        lines = layout_yn_prompt(lines[0], log_display_width(sys.stdout))
+    for line in lines[:-1]:
+        print(line)
     try:
-        ans = input(f"{prompt}{suffix} ").strip().lower()
+        ans = input(f"{lines[-1]} ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
         return ConfirmDecision(accepted=False, stdin_closed=True,
@@ -5771,7 +6003,8 @@ def _gather_status(cwd: Path) -> StatusReport:
 def _gather_clipboard(repo: Optional[Path], report: StatusReport) -> None:
     """Fill the clipboard row's facts through the accessors bale's copy
     path uses (bale_report.resolve_clipboard_command over
-    bale_config.effective_clipboard_command and clipboard_command_source),
+    bale_config.clipboard_command_reading, the non-exiting form of
+    effective_clipboard_command),
     so status shows exactly what the next pack, relay, apply, or probe
     will do. Read-only; never raises — an unreadable key comes back as a
     reason, not an exit (status reports problems as rows)."""

@@ -16,8 +16,18 @@ This suite pins what that move promised:
 - **Width**: every line from the title screen through the last question
   fits 80 columns, a line naming an absolute path excepted.
 - **No `[bale] ` line between the first question and the last**: the
-  post-walk gates' log lines are held (WalkLogHold) and replay after the
-  README question, and before the error line of a refusal.
+  post-walk gates' log lines are held and print after the README
+  question, and before the error line of a refusal. Since session
+  log-hold the hold is bin/bale's own (hold_log / release_log in its
+  logging section); bale_pack's WalkLogHold, which rebound
+  `__main__.log` / `__main__.fail`, is retired.
+- **80 columns before and inside the walk** (session log-hold): from
+  its start until the walk's first question, cmd_pack turns on
+  bin/bale's display wrapping, so on a terminal the pre-walk [bale]
+  lines are word-wrapped to its width; the read-only sweep's y/N is laid
+  out the same way — layout only, its answers mean what they meant.
+  Piped output, the session journal, and every line outside that span
+  are byte-identical to before.
 - **One visual grammar**: item headers match bale_wizard.ITEM_HEADER_RE,
   and the n/N count re-derives when a read-only answer drops items.
 
@@ -47,8 +57,10 @@ from argparse import Namespace
 from pathlib import Path
 
 from harness import (
+    BIN_DIR,
     PTY_TIMEOUT,
     SUBPROCESS_TIMEOUT,
+    _load_cli,
     _load_module,
     bale_env,
     git_env,
@@ -452,75 +464,294 @@ class SlugAnswersTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# WalkLogHold — the hold/replay mechanics, in-process
+# The native log hold — bin/bale's logging section, in-process
 # ---------------------------------------------------------------------------
 
-class WalkLogHoldTest(unittest.TestCase):
+class _TTY(io.StringIO):
+    """A captured stream that says it is a terminal (no fileno, so the
+    width comes from $COLUMNS or the 80-column fallback)."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+@contextlib.contextmanager
+def columns(value):
+    """Set (or, with None, unset) $COLUMNS for the block."""
+    saved = os.environ.get("COLUMNS")
+    if value is None:
+        os.environ.pop("COLUMNS", None)
+    else:
+        os.environ["COLUMNS"] = str(value)
+    try:
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop("COLUMNS", None)
+        else:
+            os.environ["COLUMNS"] = saved
+
+
+class NativeLogHoldTest(unittest.TestCase):
+    """hold_log / release_log / log_held and fail()'s release, driven on
+    a freshly loaded bin/bale (harness._load_cli) — no __main__ rebinding
+    anywhere."""
+
     def setUp(self) -> None:
-        self._saved_main = sys.modules["__main__"]
-        self.events: list = []
-        fake = types.ModuleType("__main__")
-
-        def log(msg, *, force=False):
-            self.events.append(("log", msg, force))
-
-        def fail(msg, code=1):
-            self.events.append(("fail", msg, code))
-            raise SystemExit(code)
-
-        fake.log, fake.fail = log, fail
-        self.real_log, self.real_fail = log, fail
-        self.main = fake
-        sys.modules["__main__"] = fake
+        self.cli = _load_cli()
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-loghold-")
+        self.journal = Path(self._tmpdir.name) / "s.log"
 
     def tearDown(self) -> None:
-        sys.modules["__main__"] = self._saved_main
+        self.cli.release_log()
+        self.cli.set_log_file(None)
+        self._tmpdir.cleanup()
 
-    def test_lines_hold_then_replay_in_order_with_force(self) -> None:
-        hold = bale_pack.WalkLogHold()
-        hold.hold()
-        self.main.log("one")
-        self.main.log("two", force=True)
-        self.assertEqual(self.events, [])
+    def journal_lines(self) -> list:
+        if not self.journal.is_file():
+            return []
+        # Each entry is "<timestamp> <line>"; keep the line.
+        return [ln.split(" ", 1)[1] for ln in
+                self.journal.read_text(encoding="utf-8").splitlines()]
+
+    def test_held_lines_journal_now_and_print_at_release_in_order(self) -> None:
+        self.cli.set_log_file(self.journal)
         with contextlib.redirect_stdout(io.StringIO()) as out:
-            hold.release()
-        self.assertEqual(self.events, [("log", "one", False),
-                                       ("log", "two", True)])
-        self.assertEqual(out.getvalue(), "\n", "one blank separator")
-        self.assertIs(self.main.log, self.real_log)
-        self.assertIs(self.main.fail, self.real_fail)
+            self.cli.hold_log()
+            self.assertTrue(self.cli.log_holding())
+            self.cli.log("one")
+            self.cli.log("two", force=True)
+            self.assertEqual(out.getvalue(), "", "nothing prints while held")
+            self.assertEqual(self.journal_lines(),
+                             ["[bale] one", "[bale] FORCE: two"],
+                             "journaled at the moment of logging")
+            self.cli.release_log()
+        self.assertEqual(out.getvalue(),
+                         "\n[bale] one\n[bale] FORCE: two\n",
+                         "one blank separator, then the lines in order")
+        self.assertFalse(self.cli.log_holding())
+        self.assertEqual(len(self.journal_lines()), 2,
+                         "release prints; it does not journal again")
 
-    def test_fail_releases_before_the_error(self) -> None:
-        hold = bale_pack.WalkLogHold()
-        hold.hold()
-        self.main.log("context")
-        with contextlib.redirect_stdout(io.StringIO()), \
-                self.assertRaises(SystemExit):
-            self.main.fail("refused", 3)
-        self.assertEqual(self.events, [("log", "context", False),
-                                       ("fail", "refused", 3)])
-        self.assertFalse(hold.holding)
+    def test_force_line_queues_for_the_session_log_while_held(self) -> None:
+        self.cli._pending_log_lines.clear()
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.cli.hold_log()
+            self.cli.log("override", force=True)
+            self.cli.log("ordinary")
+            self.assertEqual(self.cli._pending_log_lines,
+                             ["[bale] FORCE: override"])
+            self.cli.release_log()
+        self.cli.set_log_file(self.journal)
+        self.assertEqual(self.journal_lines(), ["[bale] FORCE: override"])
+
+    def test_fail_releases_before_its_error_line(self) -> None:
+        both = io.StringIO()
+        with contextlib.redirect_stdout(both), \
+                contextlib.redirect_stderr(both), \
+                self.assertRaises(SystemExit) as ctx:
+            self.cli.hold_log()
+            self.cli.log("context")
+            self.cli.fail("refused", 3)
+        self.assertEqual(ctx.exception.code, 3)
+        self.assertEqual(both.getvalue(),
+                         "\n[bale] context\n[bale] error: refused\n")
+        self.assertFalse(self.cli.log_holding())
 
     def test_release_is_idempotent_and_silent_when_empty(self) -> None:
-        hold = bale_pack.WalkLogHold()
-        hold.hold()
         with contextlib.redirect_stdout(io.StringIO()) as out:
-            hold.release()
-            hold.release()
-        self.assertEqual(out.getvalue(), "")
-        self.assertEqual(self.events, [])
+            self.cli.release_log()
+            self.cli.hold_log()
+            self.cli.hold_log()  # one level: a second hold is a no-op
+            self.cli.release_log()
+            self.cli.release_log()
+            self.cli.log("after")
+        self.assertEqual(out.getvalue(), "[bale] after\n")
 
-    def test_fail_when_not_holding_reaches_the_real_fail(self) -> None:
-        hold = bale_pack.WalkLogHold()
-        with self.assertRaises(SystemExit):
-            hold.fail("plain")
-        self.assertEqual(self.events, [("fail", "plain", 1)])
+    def test_log_held_releases_on_the_way_out_of_an_exception(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as out, \
+                self.assertRaises(RuntimeError):
+            with self.cli.log_held():
+                self.cli.log("waited")
+                raise RuntimeError("boom")
+        self.assertEqual(out.getvalue(), "\n[bale] waited\n")
+        self.assertFalse(self.cli.log_holding())
 
-    def test_no_op_without_a_cli_main(self) -> None:
-        sys.modules["__main__"] = types.ModuleType("__main__")
-        hold = bale_pack.WalkLogHold()
-        hold.hold()
-        self.assertFalse(hold.holding)
+    def test_no_module_under_bin_rebinds_log_or_fail(self) -> None:
+        """Outcome 1: the rebinding is retired — nothing under bin/
+        assigns a `log` or `fail` attribute, and WalkLogHold is gone."""
+        assign = re.compile(r"\.\s*(log|fail)\s*=(?!=)")
+        for path in sorted(BIN_DIR.iterdir()):
+            if path.suffix not in ("", ".py") or not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            for n, line in enumerate(text.splitlines(), 1):
+                code = line.split("#", 1)[0]
+                self.assertIsNone(assign.search(code),
+                                  f"{path.name}:{n}: {line.strip()}")
+        self.assertFalse(hasattr(bale_pack, "WalkLogHold"))
+
+
+class LogDisplayWrapTest(unittest.TestCase):
+    """log()'s terminal layout: wrap_log_line (pure) and log() on a
+    terminal vs a pipe, wrapping on vs off, with the journal untouched
+    either way."""
+
+    def setUp(self) -> None:
+        self.cli = _load_cli()
+
+    def tearDown(self) -> None:
+        self.cli.set_log_display_wrap(False)
+
+    def test_short_lines_and_no_terminal_are_untouched(self) -> None:
+        long = "[bale] " + "word " * 40
+        self.assertEqual(self.cli.wrap_log_line(long, None), long)
+        self.assertEqual(self.cli.wrap_log_line("[bale] short", 80),
+                         "[bale] short")
+
+    def test_wraps_under_the_text_after_the_prefix(self) -> None:
+        line = ("[bale] argv-only pack gates passed before any exchange "
+                "(slug/goal, forecast existence, bundle-file naming, cap "
+                "values, checkpoint blindness read half — the forecast "
+                "half runs post-wizard)")
+        out = self.cli.wrap_log_line(line, 80).split("\n")
+        self.assertGreater(len(out), 1)
+        self.assertTrue(all(len(ln) <= 80 for ln in out), out)
+        self.assertTrue(out[0].startswith("[bale] argv-only pack gates"))
+        self.assertTrue(all(ln.startswith(" " * 7) and ln[7] != " "
+                            for ln in out[1:]), out)
+        self.assertEqual(" ".join(" ".join(out).split()),
+                         " ".join(line.split()), "words kept, in order")
+
+    def test_never_breaks_a_token(self) -> None:
+        token = "a" * 120
+        out = self.cli.wrap_log_line(f"[bale] see {token} now", 80)
+        self.assertIn(" " * 7 + token, out.split("\n"),
+                      "the token runs long on its own line, whole")
+        self.assertIn("2026-10-04-very-long-session-slug-for-width-001",
+                      self.cli.wrap_log_line(
+                          "[bale] " + "x " * 30 + "closed "
+                          "2026-10-04-very-long-session-slug-for-width-001",
+                          60))
+
+    def test_later_physical_lines_keep_their_indent(self) -> None:
+        line = "[bale] head\n    " + "detail " * 20
+        out = self.cli.wrap_log_line(line, 60).split("\n")
+        self.assertEqual(out[0], "[bale] head")
+        self.assertTrue(all(ln.startswith("    ") for ln in out[1:]))
+        self.assertTrue(all(len(ln) <= 60 for ln in out))
+
+    def test_width_follows_columns_then_falls_back_to_80(self) -> None:
+        tty = _TTY()
+        with columns(None):
+            self.assertEqual(self.cli.log_display_width(tty), 80)
+        with columns(132):
+            self.assertEqual(self.cli.log_display_width(tty), 132)
+        with columns(10):
+            self.assertEqual(self.cli.log_display_width(tty),
+                             self.cli.LOG_WRAP_MIN_WIDTH)
+        with columns(80):
+            self.assertIsNone(self.cli.log_display_width(io.StringIO()))
+
+    def test_log_wraps_on_a_terminal_and_journals_one_entry(self) -> None:
+        msg = "read-only sweep: " + "something long " * 10
+        with tempfile.TemporaryDirectory() as tmp:
+            journal = Path(tmp) / "s.log"
+            self.cli.set_log_file(journal)
+            try:
+                with columns(80):
+                    tty, pipe, off = _TTY(), io.StringIO(), _TTY()
+                    self.assertFalse(self.cli.set_log_display_wrap(True),
+                                     "off by default")
+                    with contextlib.redirect_stdout(tty):
+                        self.cli.log(msg)
+                    with contextlib.redirect_stdout(pipe):
+                        self.cli.log(msg)
+                    self.assertTrue(self.cli.set_log_display_wrap(False))
+                    with contextlib.redirect_stdout(off):
+                        self.cli.log(msg)
+            finally:
+                self.cli.set_log_file(None)
+            entries = journal.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(pipe.getvalue(), f"[bale] {msg}\n",
+                         "piped output is byte-identical to before")
+        self.assertEqual(off.getvalue(), f"[bale] {msg}\n",
+                         "with wrapping off a terminal gets the line whole")
+        shown = tty.getvalue().splitlines()
+        self.assertGreater(len(shown), 1)
+        self.assertTrue(all(len(ln) <= 80 for ln in shown))
+        self.assertEqual(len(entries), 3, "one journal entry per log()")
+        self.assertTrue(all(e.endswith(f"[bale] {msg}") for e in entries))
+
+
+class SweepPromptLayoutTest(unittest.TestCase):
+    """The read-only sweep's y/N (confirm_yn_decision(..., wrap=True)):
+    width only. Every answer decides exactly what the one-line prompt
+    decides, nothing re-asks, and the prompt fits 80 columns with the
+    typed answer."""
+
+    SID = "2026-10-04-a-twenty-char-001"
+    ANSWERS = ["", "y", "Y", "yes", "YES", " yes ", "n", "no", "nope",
+               "maybe", "yess", EOF, "^C"]
+
+    def setUp(self) -> None:
+        self.cli = _load_cli()
+        self.prompt = (
+            f"Close open read-only session {self.SID} as closed-read-only? "
+            f"A read-only session lands nothing, so no work is lost; its "
+            f"registry entry and .bale/sessions/ state are removed and a "
+            f"closure record is written.")
+
+    def decide(self, answer: str, *, wrap: bool):
+        prompts: list = []
+
+        def fake_input(prompt=""):
+            prompts.append(prompt)
+            if answer == EOF:
+                raise EOFError
+            if answer == "^C":
+                raise KeyboardInterrupt
+            return answer
+
+        saved = builtins.input
+        builtins.input = fake_input
+        try:
+            with columns(80), contextlib.redirect_stdout(_TTY()) as out:
+                decision = self.cli.confirm_yn_decision(
+                    self.prompt, default_no=False, wrap=wrap)
+        finally:
+            builtins.input = saved
+        return decision, prompts, out.getvalue()
+
+    def test_every_answer_means_what_it_meant(self) -> None:
+        for answer in self.ANSWERS:
+            with self.subTest(answer=answer):
+                wrapped, prompts, _ = self.decide(answer, wrap=True)
+                plain, _, _ = self.decide(answer, wrap=False)
+                self.assertEqual(wrapped, plain)
+                self.assertEqual(len(prompts), 1, "nothing re-asks")
+        accepts = [a for a in self.ANSWERS
+                   if self.decide(a, wrap=True)[0].accepted]
+        self.assertEqual(accepts, ["", "y", "Y", "yes", "YES", " yes "])
+
+    def test_the_prompt_fits_80_columns_with_its_answer(self) -> None:
+        _, prompts, printed = self.decide("yes", wrap=True)
+        lines = printed.splitlines() + [prompts[0] + "yes"]
+        self.assertGreater(len(lines), 1)
+        self.assertTrue(all(len(ln) <= 80 for ln in lines), lines)
+        self.assertTrue(lines[0].startswith(
+            f"Close open read-only session {self.SID}"))
+        self.assertTrue(prompts[0].endswith("[Y/n] "))
+        self.assertEqual(" ".join(" ".join(lines[:-1] + [prompts[0]]).split()),
+                         " ".join((self.prompt + " [Y/n]").split()))
+
+    def test_unwrapped_and_piped_prompts_are_one_line(self) -> None:
+        _, prompts, printed = self.decide("", wrap=False)
+        self.assertEqual((printed, prompts),
+                         ("", [self.prompt + " [Y/n] "]))
+        self.assertEqual(
+            self.cli.layout_yn_prompt(self.prompt + " [Y/n]", None),
+            [self.prompt + " [Y/n]"])
 
 
 # ---------------------------------------------------------------------------
@@ -680,9 +911,10 @@ class HeldLogLinesTest(_PtyFixture):
                            out.index(TITLE_MARKER))
 
     def test_read_only_sweep_lines_wait_for_the_readme_question(self) -> None:
-        """The sweep's prompt stays where it was (it is outside the walk,
-        between its list questions and its README question); its log
-        lines move after the walk."""
+        """The sweep's prompt stays where it was (between the walk's list
+        questions and its README question) and, since session log-hold,
+        fits the width with the rest of the span; its log lines move
+        after the walk."""
         ro = run_bale(self.install,
                       ["pack", "an earlier desk", "--slug", "desk",
                        "--read-only", "--no-readme"],
@@ -694,13 +926,93 @@ class HeldLogLinesTest(_PtyFixture):
                                "", ""])
         self.assertEqual(code, 0, out)
         self.assertIn(SWEEP_PROMPT_MARKER, out)
-        span = [ln for ln in walk_span(out, last=README_PROMPT)
-                if SWEEP_PROMPT_MARKER not in ln]
+        span = walk_span(out, last=README_PROMPT)
+        self.assertTrue(any(SWEEP_PROMPT_MARKER in ln for ln in span))
         self.assert_layout(span)
         closed = f"[bale] read-only sweep: closed {earlier[0]}"
         self.assertGreater(out.index(closed), out.index(README_PROMPT))
+        self.assertTrue(any(ln.startswith(closed) and ln.endswith(".json)")
+                            for ln in out.split("\n")),
+                        "a held line prints whole, as it always did")
         self.assertNotIn(earlier[0], self.open_sids())
 
+
+
+class PreWalkWidthTest(_PtyFixture):
+    """Outcome 4 (session log-hold): on an 80-column terminal the
+    [bale] lines pack prints before the walk's first question fit —
+    bin/bale's log() wraps them for display — while piped output keeps
+    each logged line whole."""
+
+    LONG_SID = "2026-10-04-clipboard-paste-blocks-and-a-long-tail-001"
+    GATES = "[bale] argv-only pack gates passed before any exchange"
+
+    def pre_title(self, out: str) -> list:
+        lines = out.split("\n")
+        return lines[:next(i for i, ln in enumerate(lines)
+                           if TITLE_MARKER in ln)]
+
+    def assert_fits(self, lines: list) -> None:
+        for line in lines:
+            if len(line) > bale_wizard.WIDTH:
+                self.assertTrue(bale_wizard.names_absolute_path(line),
+                                f"{len(line)} columns: {line!r}")
+
+    def test_pre_walk_lines_fit_and_keep_their_words(self) -> None:
+        run_checked(["git", "tag", f"applied/{self.LONG_SID}"],
+                    cwd=self.repo, env=self.genv)
+        code, out = self.walk(["Tidy hello", "", "", "", "", "", "", ""])
+        self.assertEqual(code, 0, out)
+        before = self.pre_title(out)
+        self.assert_fits(before)
+        joined = " ".join(" ".join(before).split())
+        self.assertIn(f"[bale] tree position: branch ", joined)
+        self.assertIn(f"latest applied {self.LONG_SID}", joined)
+        self.assertIn(self.GATES + " (slug/goal, forecast existence, "
+                      "bundle-file naming, cap values, checkpoint "
+                      "blindness read half — the forecast half runs "
+                      "post-wizard)", joined)
+        self.assertTrue(any(ln.startswith(" " * 7) and ln.strip()
+                            for ln in before),
+                        "a wrapped line hangs under its text")
+
+    def test_fully_specified_read_only_sweep_prompt_fits(self) -> None:
+        ro = run_bale(self.install,
+                      ["pack", "an earlier desk", "--slug", "desk",
+                       "--read-only", "--no-readme"],
+                      cwd=self.repo, env=self.env)
+        self.assertEqual(ro.returncode, 0, ro.stderr)
+        earlier = self.open_sids()
+        code, out = run_walk_pty(
+            self.install,
+            ["pack", "a later desk", "--slug", "desk-two",
+             "--include", "hello.txt", "--no-readme", "--read-only"],
+            cwd=self.repo, env=self.env, answers=["n"])
+        self.assertEqual(code, 0, out)
+        lines = out.split("\n")
+        prompt_end = next(i for i, ln in enumerate(lines)
+                          if "[Y/n]" in ln)
+        self.assertTrue(any(SWEEP_PROMPT_MARKER in ln
+                            for ln in lines[:prompt_end + 1]))
+        self.assert_fits(lines[:prompt_end + 1])
+        self.assertTrue(lines[prompt_end].endswith("[Y/n] n"),
+                        "the typed answer follows the suffix")
+        self.assertIn(earlier[0], self.open_sids(),
+                      "'n' declined: the earlier desk stays open")
+
+    def test_piped_pack_keeps_each_logged_line_whole(self) -> None:
+        r = run_bale(self.install,
+                     ["pack", "a piped pack", "--slug", "piped",
+                      "--include", "hello.txt", "--no-readme"],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        gates = [ln for ln in r.stdout.splitlines()
+                 if ln.startswith(self.GATES)]
+        self.assertEqual(len(gates), 1, r.stdout)
+        self.assertTrue(gates[0].endswith("checkpoint blindness)"),
+                        gates[0])
+        self.assertGreater(len(gates[0]), bale_wizard.WIDTH,
+                           "unwrapped when stdout is not a terminal")
 
 if __name__ == "__main__":
     unittest.main()
