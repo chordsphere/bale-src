@@ -1,0 +1,226 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-05-sitting-close-deltas-20-001",
+  "created_at": "2026-10-05T00:28:56+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-05T00:28:56+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-05-sitting-close-deltas-20-001.log",
+      "bundle": {
+        "stem": "2026-10-04-sitting-close-deltas-20",
+        "brief_sha256": "5975e49f2a06169d438feacb74301fdaa09192ee37dcd6dfccd4ac992136f26d",
+        "checkpoint_sha256": "bf6dc8915806cc9b376d0dd91e99e441d66c8e1805122b499e6b9af5f0942b71",
+        "manifest_sha256": "74e9f984e17ef23201234afd21d7e55f0ab5e7112a26492070787a34b0d2047f"
+      },
+      "provenance": {
+        "work_class": "doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-05T00:28:56+00:00"
+      }
+    },
+    {
+      "at": "2026-10-05T01:03:02+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-05-sitting-close-deltas-20-001.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "reversal: removing this close's insertions restores the base sha256": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "header: Last landed by names this session, edited in place": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "\u00a76 numbering: entries 10 to 223 contiguous": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "anchors: three sitting blocks, four watches, six dated brackets, two \u00a75 blocks, one \u00a77 bullet": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim: the five 99b sentence sets match claude/responses/*/notes.md": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "reversal: removing this close's insertions restores the base sha256": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header: Last landed by names this session, edited in place": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "\u00a76 numbering: entries 10 to 223 contiguous": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "anchors: three sitting blocks, four watches, six dated brackets, two \u00a75 blocks, one \u00a77 bullet": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim: the five 99b sentence sets match claude/responses/*/notes.md": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax: claude/MASTER.md is UTF-8 with LF line endings",
+          "reversal: removing this close's insertions restores the base sha256",
+          "header: Last landed by names this session, edited in place",
+          "\u00a76 numbering: entries 10 to 223 contiguous",
+          "anchors: three sitting blocks, four watches, six dated brackets, two \u00a75 blocks, one \u00a77 bullet",
+          "verbatim: the five 99b sentence sets match claude/responses/*/notes.md"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "f6c3326ee3c827498371886ead46349b50fa4f448e2facb0d40ee4d137ce234a",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-05-sitting-close-deltas-20-001.sh",
+              "sha256": "bf6dc8915806cc9b376d0dd91e99e441d66c8e1805122b499e6b9af5f0942b71"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-05T00:28:56+00:00",
+            "base_files": {
+              "claude/MASTER.md": "4b45a684a46adf835c554f6d4ae8197de995f7f3686962e0a46d966d691d3eb8"
+            },
+            "model_identity": "anthropic:claude-fable-5-1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Transported quotes are verbatim modulo whitespace: lines joined, nested bullet markers dropped and re-wrapped at 72 columns, the way closes 18 and 19 flattened Proposals; light blocks are carried with rows joined by ' / ' as close 18 did. The pre-ship check compares every quote to its source with all whitespace removed.",
+            "The session id's date, 2026-10-05, dates the sitting blocks and every bracket, as TARBALL.md \u00a71 directs, though the arc's desks sat on 2026-10-03/04.",
+            "The three cleanup sessions are recorded as dispatched only, with log-hold's apply stated on the brief's word; close 20's request carries no record of it, nor of the May sid.",
+            "The arc is non-board, so no board row is added; row 99 gains a bracket because 99b's inputs grew.",
+            "model_identity is this session's configured identifier; the surface says the serving model may differ."
+          ],
+          "judgment_calls": [
+            "Rulings land in \u00a75 (two dated blocks) and ratifications in the \u00a73 sitting blocks, following close 18/19's split; the wave2-004 desk's brief correction stays in its \u00a73 block and \u00a76 entry 220 rather than becoming a \u00a75 line.",
+            "The stale 'project layer only' is bracketed in three places (the 99b riders entry, the config-side carrier entry, row 99) rather than edited, keeping each entry's text as the registry convention asks.",
+            "One \u00a77 bullet of standing facts (bumpless version, suite counts, BALE_HELP.md, contract_docs movement, model identities, this close's base) is added beyond the brief's eight outcomes, following closes 18 and 19; it is one removable insertion.",
+            "The recount bracket records this close's own recount against the carried BALE_HELP.md, which confirmed the cleanup desk's figures, and names the one line where E's classification differed.",
+            "E's unreconciled claims are recorded as a records finding in the \u00a73 block and deferred, not filed as a \u00a76 defect.",
+            "validation.sh embeds the insertion ledger and performs the reversal as exact string removals plus the header restore, so the proof is that the declared insertions are the only change; it also checks the five 99b sentence sets against the archived notes.md in the tree, skipping when the archive is absent."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through section 11.2",
+            "README.md (the brief, with its appendices)",
+            "TARBALL.md sections 1, 2, 5 (5.1-5.4.1), 7, 8, 10.1",
+            "DOCS.md (in full)",
+            "PLANNER.md section 6",
+            "BALE_HELP.md (recounted for BALE.md and board citations)",
+            "claude/MASTER.md: header, section 3 (Watches, Ruling queue, Fold-in registry head and tail, the close-18 and close-19 sitting blocks), section 5's last three blocks, section 6 entries 212-219, section 7's tail, row 99's brackets",
+            "claude/responses/*/notes.md, all five",
+            "claude/telemetry/*.json, all eight",
+            "tools/craft_response.py (docstring and constants)",
+            "tools/response_lint.py (docstring)"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-05-sitting-close-deltas-20-001.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-05-sitting-close-deltas-20-001.sh",
+          "sha256": "bf6dc8915806cc9b376d0dd91e99e441d66c8e1805122b499e6b9af5f0942b71"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-05T01:03:02+00:00",
+  "outcome": "applied"
+}
