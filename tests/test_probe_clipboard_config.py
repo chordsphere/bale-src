@@ -492,6 +492,99 @@ class EffectiveAccessorTest(_HermeticConfigBase):
 
 @unittest.skipUnless(CRAFTER_PATH.is_file(),
                      "tools/craft_response.py not shipped in this sandbox")
+class NonExitingReadingTest(_HermeticConfigBase):
+    """clipboard_command_reading — the non-exiting form of
+    effective_clipboard_command (session log-hold, session D's first
+    rider): the same answer for every readable file, and for every file
+    the fatal accessor refuses, the same refusal text returned as a
+    value — with fail() never called (the stand-in raises, so a call
+    would surface here as _FailRaises.Fatal)."""
+
+    def write_global(self, body: str) -> None:
+        self.global_toml.parent.mkdir(parents=True, exist_ok=True)
+        self.global_toml.write_text(body, encoding="utf-8")
+
+    def reset(self) -> None:
+        (self.repo / "bale.toml").unlink(missing_ok=True)
+        self.global_toml.unlink(missing_ok=True)
+
+    def test_readable_states_match_the_fatal_accessor_and_source(self) -> None:
+        cases = (
+            (None, None),
+            (None, '[probe]\nclipboard_command = "wl-copy"\n'),
+            ('[probe]\nclipboard_command = " pbcopy "\n',
+             '[probe]\nclipboard_command = "wl-copy"\n'),
+            ('[probe]\nclipboard_command = ""\n',
+             '[probe]\nclipboard_command = "wl-copy"\n'),
+            ('[hooks]\n', None),
+        )
+        for project, glob in cases:
+            with self.subTest(project=project, glob=glob):
+                self.reset()
+                if project is not None:
+                    self.write_project(project)
+                if glob is not None:
+                    self.write_global(glob)
+                for repo in (self.repo, None):
+                    reading = bale_config.clipboard_command_reading(repo)
+                    self.assertIsNone(reading.refusal)
+                    self.assertEqual(
+                        (reading.command, reading.source),
+                        (bale_config.effective_clipboard_command(repo),
+                         bale_config.clipboard_command_source(repo)))
+
+    def test_every_refusal_is_the_fatal_message_and_never_fails(self) -> None:
+        refusals = (
+            # (layer, file body, a phrase the refusal carries)
+            ("project", "[probe\n", "is malformed TOML"),
+            ("global", "[probe\n", "is malformed TOML"),
+            ("global", '[probe]\nclipboard_command = "a\\\\b"\n',
+             "backslash"),
+            ("project", "[probe]\nclipboard_command = 3\n",
+             "must be a string"),
+            ("project", "[probe]\nclipboard_command = '''pbcopy'''\n",
+             "is triple-quoted"),
+            ("global", "[probe]\nclipboard_command = '''pbcopy'''\n",
+             "is triple-quoted"),
+            ("project", 'probe.clipboard_command = "pbcopy"\n',
+             "[probe] header"),
+        )
+        for layer, body, phrase in refusals:
+            with self.subTest(layer=layer, body=body):
+                self.reset()
+                (self.write_project if layer == "project"
+                 else self.write_global)(body)
+                reading = bale_config.clipboard_command_reading(self.repo)
+                self.assertIsNone(reading.command)
+                self.assertIn(phrase, reading.refusal or "")
+                with self.assertRaises(_FailRaises.Fatal) as ctx:
+                    bale_config.effective_clipboard_command(self.repo)
+                self.assertEqual(str(ctx.exception), reading.refusal,
+                                 msg="one refusal text, two forms")
+
+    def test_refusal_keeps_the_deciding_layer_as_source(self) -> None:
+        self.write_global("[probe]\nclipboard_command = '''x'''\n")
+        self.assertEqual(
+            bale_config.clipboard_command_reading(self.repo).source,
+            "global")
+        self.write_project("[probe\n")
+        self.assertIsNone(
+            bale_config.clipboard_command_reading(self.repo).source,
+            msg="an unparsable file decides nothing")
+
+    def test_loaders_share_the_reader_and_stay_fatal(self) -> None:
+        self.write_project("[probe\n")
+        cfg, refusal = bale_config.read_config_file(self.repo / "bale.toml")
+        self.assertEqual(cfg, {})
+        self.assertIn("is malformed TOML", refusal)
+        with self.assertRaises(_FailRaises.Fatal) as ctx:
+            bale_config.load_config(self.repo)
+        self.assertEqual(str(ctx.exception), refusal)
+        self.assertEqual(
+            bale_config.read_config_file(self.tmp / "absent.toml"),
+            ({}, None))
+
+
 class SpellingTwinTest(_HermeticConfigBase):
     """bin/ restates the crafter's one-line scan (it never imports
     tools/); this pins the twin against the original on one corpus."""

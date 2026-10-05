@@ -65,7 +65,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional, Sequence
+from typing import Callable, NamedTuple, Optional, Sequence
 
 # TOML parsing goes through the in-tree shim rather than stdlib `tomllib`
 # directly: `tomllib` is stdlib only on Python 3.11+, and bale supports 3.10
@@ -490,6 +490,27 @@ DEFAULT_AGENT_DIR = "claude"
 # just point back at the wizard. Schema and layering live in
 # claude/context/bale-internals.md.
 
+def read_config_file(path: Path) -> tuple[dict, Optional[str]]:
+    """(parsed, refusal) for one bale.toml layer file — never exits.
+
+    ({}, None) when the file is absent; (dict, None) when it parses;
+    ({}, "<why>") when it is malformed or unreadable, the refusal worded
+    exactly as load_config / load_global_config's fail() words it. The
+    one implementation of both loaders (session log-hold): they fail() on the
+    refusal, and clipboard_command_reading returns it as a value, so a
+    reader that must not end the command reads the same bytes the same
+    way."""
+    if not path.is_file():
+        return {}, None
+    try:
+        with path.open("rb") as f:
+            return tomllib.load(f), None
+    except tomllib.TOMLDecodeError as e:
+        return {}, f"{path} is malformed TOML: {e}"
+    except OSError as e:
+        return {}, f"could not read {path}: {e}"
+
+
 def load_config(repo: Path) -> dict:
     """Return parsed <repo>/bale.toml as a dict, or {} if the file is absent.
 
@@ -502,16 +523,10 @@ def load_config(repo: Path) -> dict:
     """
     from __main__ import fail
 
-    cfg_path = repo / BALE_CONFIG
-    if not cfg_path.is_file():
-        return {}
-    try:
-        with cfg_path.open("rb") as f:
-            return tomllib.load(f)
-    except tomllib.TOMLDecodeError as e:
-        fail(f"{cfg_path} is malformed TOML: {e}")
-    except OSError as e:
-        fail(f"could not read {cfg_path}: {e}")
+    cfg, refusal = read_config_file(repo / BALE_CONFIG)
+    if refusal is not None:
+        fail(refusal)
+    return cfg
 
 
 def load_global_config() -> dict:
@@ -525,15 +540,10 @@ def load_global_config() -> dict:
     """
     from __main__ import fail
 
-    if not GLOBAL_CONFIG_PATH.is_file():
-        return {}
-    try:
-        with GLOBAL_CONFIG_PATH.open("rb") as f:
-            return tomllib.load(f)
-    except tomllib.TOMLDecodeError as e:
-        fail(f"{GLOBAL_CONFIG_PATH} is malformed TOML: {e}")
-    except OSError as e:
-        fail(f"could not read {GLOBAL_CONFIG_PATH}: {e}")
+    cfg, refusal = read_config_file(GLOBAL_CONFIG_PATH)
+    if refusal is not None:
+        fail(refusal)
+    return cfg
 
 
 def merged_config(repo: Path) -> dict:
@@ -1560,32 +1570,46 @@ def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
     crafter would treat it as unset and emit remedy text, so accepting
     it here would leave bale and the crafter disagreeing about whether
     the opt-in is configured. Right or loud, never split.
+
+    The judging is _probe_clipboard_value's (shared with the non-exiting
+    clipboard_command_reading); this accessor makes its refusal fatal.
     """
     from __main__ import fail
 
+    value, refusal = _probe_clipboard_value(cfg)
+    if refusal is not None:
+        fail(refusal)
+    return value
+
+
+def _probe_clipboard_value(cfg: dict) -> tuple[Optional[str], Optional[str]]:
+    """(value, refusal) for [probe].clipboard_command in `cfg` — never
+    exits. value is get_probe_clipboard_command's answer when the
+    config is acceptable (refusal None); otherwise value is None and
+    refusal is the message that accessor fails with, word for word."""
     probe_section = cfg.get("probe")
     if probe_section is None:
-        return None
+        return None, None
     if not isinstance(probe_section, dict):
-        fail(f"{BALE_CONFIG}: [probe] must be a table, "
-             f"got {type(probe_section).__name__}")
+        return None, (f"{BALE_CONFIG}: [probe] must be a table, "
+                      f"got {type(probe_section).__name__}")
     raw = probe_section.get("clipboard_command")
     if raw is None:
-        return None
+        return None, None
     if not isinstance(raw, str):
-        fail(f"{BALE_CONFIG}: probe.clipboard_command must be a string, "
-             f"got {type(raw).__name__}")
+        return None, (f"{BALE_CONFIG}: probe.clipboard_command must be a "
+                      f"string, got {type(raw).__name__}")
     val = raw.strip()
     if not val:
-        return None
+        return None, None
     problem = probe_clipboard_command_problem(val)
     if problem is not None:
-        fail(f"{BALE_CONFIG}: probe.clipboard_command {problem}; the "
-             f"probe scaffold's reader (tools/craft_response.py) would "
-             f"treat it as unset. Use a one-line command with no "
-             f"backslashes or double quotes (wrap it in a script if it "
-             f"needs them).")
-    return val
+        return None, (f"{BALE_CONFIG}: probe.clipboard_command {problem}; "
+                      f"the probe scaffold's reader (tools/craft_response.py) "
+                      f"would treat it as unset. Use a one-line command with "
+                      f"no backslashes or double quotes (wrap it in a script "
+                      f"if it needs them).")
+    return val, None
 
 
 def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str]:
@@ -1739,30 +1763,81 @@ def effective_clipboard_command(repo: Optional[Path]) -> Optional[str]:
     init` is only ever a suggestion on the wizard screen; bale uses a
     command only once it is written to a bale.toml (the registry
     fold-in's "configurable-never-core").
+
+    The fatal form of clipboard_command_reading (session log-hold):
+    same reading, same refusal text, same order of checks, with the
+    refusal raised through fail(). A caller that must not end the
+    command — the paste-block copy, the status row — reads
+    clipboard_command_reading instead and gets the refusal as a value.
     """
     from __main__ import fail
 
-    p_probe, g_probe = _probe_layers(repo)
-    if "clipboard_command" in p_probe:
-        cfg, path = {"probe": p_probe}, (repo / BALE_CONFIG)
-    elif "clipboard_command" in g_probe:
-        cfg, path = {"probe": g_probe}, GLOBAL_CONFIG_PATH
+    reading = clipboard_command_reading(repo)
+    if reading.refusal is not None:
+        fail(reading.refusal)
+    return reading.command
+
+
+class ClipboardCommandReading(NamedTuple):
+    """What clipboard_command_reading found. `command` is the command
+    to run, or None for "no copy"; `source` is the layer whose file
+    decides the key — "project" / "global", None when neither sets it
+    or a config file could not be parsed (clipboard_command_source's
+    values); `refusal` is None, or the text effective_clipboard_command
+    would fail() with — and then `command` is None."""
+    command: Optional[str]
+    source: Optional[str]
+    refusal: Optional[str]
+
+
+def clipboard_command_reading(repo: Optional[Path]) -> ClipboardCommandReading:
+    """effective_clipboard_command's answer without the exit (session
+    log-hold, landing session D's first rider).
+
+    Reads exactly what the fatal accessor reads, in the same order —
+    both layer files (a malformed or unreadable one refuses, project
+    first), the deciding layer's value (a non-string, a backslash, a
+    double quote, a control character refuses), then that file's
+    spelling of the key (triple-quoted, dotted, inline-table refuses) —
+    and returns any refusal as a value instead of calling fail(). So
+    nothing is printed, nothing is journaled into an open session log,
+    and nothing raises SystemExit: bale_report.copy_paste_block turns a
+    refusal into its one "NOT copied" notice and the command goes on.
+    """
+    if repo is not None:
+        p, refusal = read_config_file(repo / BALE_CONFIG)
+        if refusal is not None:
+            return ClipboardCommandReading(None, None, refusal)
     else:
-        return None
-    value = get_probe_clipboard_command(cfg)
+        p = {}
+    g, refusal = read_config_file(GLOBAL_CONFIG_PATH)
+    if refusal is not None:
+        return ClipboardCommandReading(None, None, refusal)
+    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
+    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
+    if "clipboard_command" in p_probe:
+        cfg, path, source = {"probe": p_probe}, (repo / BALE_CONFIG), "project"
+    elif "clipboard_command" in g_probe:
+        cfg, path, source = {"probe": g_probe}, GLOBAL_CONFIG_PATH, "global"
+    else:
+        return ClipboardCommandReading(None, None, None)
+    value, refusal = _probe_clipboard_value(cfg)
+    if refusal is not None:
+        return ClipboardCommandReading(None, source, refusal)
     if value is None:
-        return None
+        return ClipboardCommandReading(None, source, None)
     problem = clipboard_command_spelling_problem(path)
     if problem is not None:
         rerun = ("bale config init --global" if path == GLOBAL_CONFIG_PATH
                  else "bale config init")
-        fail(f"{path}: probe.clipboard_command {problem}. bale reads the "
-             f"key only in the one-line spelling the probe scaffold's "
-             f"reader (tools/craft_response.py) can see — "
-             f'clipboard_command = "<command>" under a [probe] header. '
-             f"Re-run `{rerun}` (it rewrites the key that way) or edit "
-             f"the line.")
-    return value
+        return ClipboardCommandReading(None, source, (
+            f"{path}: probe.clipboard_command {problem}. bale reads the "
+            f"key only in the one-line spelling the probe scaffold's "
+            f"reader (tools/craft_response.py) can see — "
+            f'clipboard_command = "<command>" under a [probe] header. '
+            f"Re-run `{rerun}` (it rewrites the key that way) or edit "
+            f"the line."))
+    return ClipboardCommandReading(value, source, None)
 
 
 def layout_agent_dir_problem(value: str) -> Optional[str]:

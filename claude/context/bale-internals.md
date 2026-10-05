@@ -78,7 +78,20 @@ is *for* — and stays stable as the per-section line numbers drift:
    first-draft, not retrofit — every non-trivial action goes through
    them, and `log(..., force=True)` buffers FORCE: lines emitted
    before sid allocation so they reach the session log when one
-   opens.
+   opens. Since session log-hold the section also owns the
+   log hold — `hold_log()` / `release_log()` (and the `log_held()`
+   context manager over them): while held, `log()` journals and
+   FORCE-queues as always but its terminal print waits for
+   `release_log()`, `fail()` releases before its error line, and an
+   atexit backstop releases on an unexpected exit; the goal-less pack
+   walk holds through it, which retired `bale_pack`'s `WalkLogHold`
+   and its rebinding of `__main__.log` / `__main__.fail` — and the
+   terminal layout of a logged line: while display wrapping is on
+   (`set_log_display_wrap`; `cmd_pack` turns it on from its start to
+   the walk's first question), `log()` word-wraps a line wider than the
+   terminal (`wrap_log_line` at `log_display_width`, hanging under the
+   text after `[bale] `); piped output, the session journal, and every
+   line printed with wrapping off get the line exactly as logged.
 3. **Shell / git helpers.** `run()`, `git()`, `repo_root()`,
    `current_branch()`, `working_tree_clean()`. Subprocess wrappers with
    capture-and-text defaults, plus the two read-only git-state helpers
@@ -202,7 +215,11 @@ is *for* — and stays stable as the per-section line numbers drift:
     their consumers.
 15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
-    which layer the script came from.
+    which layer the script came from. `confirm_yn_decision()`, the
+    shared y/N every bale prompt goes through, lives here too; its
+    `wrap=True` (the read-only sweep is the one caller) lays a long
+    prompt out for the terminal (`layout_yn_prompt`) without touching
+    how the answer is read.
 16. **CLI parser + `main`.** The `bale config init` subparser wires
     `func=bale_config.cmd_config_init`; the `pack` subparser wires
     `func=cmd_pack`, imported from `bale_pack` since v0.3.12 (the
@@ -307,6 +324,14 @@ is *for* — and stays stable as the per-section line numbers drift:
     the CLI section stays the file's tail — stable numbers over
     physical order, the same posture the 11–18 extraction gap already
     established.
+20. **Clipboard verb.** `cmd_clipboard` (session
+    clipboard-paste-blocks): `bale clipboard` copies its stdin through
+    `bale_report.copy_paste_block`, the route the probe scaffold pipes
+    its PROBE block into; exit 0 copied, 1 not copied (the notice says
+    why), and a terminal stdin is refused. Wiring only — the copy and
+    its notices are `bale_report`'s. By file order this cluster is
+    banner section 30, placed right after Status (banner section 25)
+    with a fresh number, the stable-numbering posture above.
 
 `bin/bale_config.py` has four sections (with its own index header).
 **1, constants:** the paths above, `HOOK_NAMES`, one key tuple per
@@ -334,7 +359,14 @@ clipboard key also has the repo-level reader bale code calls,
 `effective_clipboard_command(repo)` — the merged value, plus the
 refusal of a spelling the probe scaffold's reader cannot see
 (`clipboard_command_spelling_problem`, over `_scan_clipboard_line`,
-a twin of the crafter's scan that the tests pin to it). **3, the
+a twin of the crafter's scan that the tests pin to it). Since session
+log-hold it is the fatal wrapper over `clipboard_command_reading(repo)`,
+which reads the same bytes in the same order and returns a
+`ClipboardCommandReading` (command, source, refusal) instead of
+calling `fail()` — the form the paste-block copy and the status row
+read, so an unreadable key never journals a `[bale] error:` line.
+Both config loaders share `read_config_file`, which returns a
+malformed or unreadable file's refusal as a value. **3, the
 wizard:** the walk order (`WIZARD_WALK_ORDER_BOTH_LAYERS` /
 `WIZARD_WALK_ORDER_PROJECT_ONLY` behind `wizard_walk_order`); the
 detected-defaults block (session `wizard-defaults`) —
@@ -480,7 +512,17 @@ config) — each one compact line of JSON on stdout whose keys are a stable
 downstream contract, plus the json-mode stream-discipline state the three
 share (`enable_json_mode` / `json_mode` / `emit_json_line`, v0.2.8: every
 human-facing line goes to stderr under a --json run, so stdout carries
-exactly the report line). The
+exactly the report line). Its paste-block copy section (session
+clipboard-paste-blocks) is the one place bale runs the clipboard
+command: `copy_paste_block` is the entry every paste point calls (pack's
+and `bale open`'s session opener, `bale relay`'s exchange block, apply's
+and retry's HOLD and APPLIED relay blocks, and `bale clipboard`, cluster
+20 above), reading the command through `resolve_clipboard_command` over
+`bale_config.clipboard_command_reading`, running it through
+`run_clipboard_command`, and printing and journaling one `[bale]
+clipboard:` notice; `describe_clipboard_state` renders `bale status`'s
+clipboard row from the same triple. It never raises and never changes
+an exit code — a copy is a side channel, not a step of the command. The
 reference-material-first / crisp-verdict-last rule that drives the
 human-facing renderers is stated once, in the module docstring; the JSON
 renderers sit outside it, being verdict-only by design. A single cohesive
@@ -746,6 +788,9 @@ shipped in a request; bale code reads the effective value through
 `effective_clipboard_command(repo)`, which refuses a value or a
 spelling that reader could not see (a triple-quoted string above all),
 so bale and the crafter never disagree about whether a file sets it.
+The copy path and the status row read its non-exiting form,
+`clipboard_command_reading(repo)`, so the same refusal is a notice or a
+row there, never an error of the command.
 
 The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
 mode: `no_interact = true` opts `bale apply` and `bale retry` into the

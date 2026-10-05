@@ -207,6 +207,25 @@ class PackOpenerCopyTest(_Fixture):
                          msg="the refusal is a notice, not an error")
         self.assertEqual(len(self.open_sids()), 1)
 
+    def test_unreadable_key_journals_the_notice_not_an_error(self) -> None:
+        """Session log-hold's rider: the copy reads the key through the
+        non-exiting clipboard_command_reading, so the session log holds
+        the "NOT copied" notice and no `[bale] error:` entry above it
+        (session D's fail()-routed read journaled one)."""
+        self.global_toml().parent.mkdir(parents=True, exist_ok=True)
+        self.global_toml().write_text(
+            "[probe]\nclipboard_command = '''cat >/dev/null'''\n",
+            encoding="utf-8")
+        sid = self.packed("journal")
+        journal = (self.repo / ".bale" / "logs" / f"{sid}.log").read_text(
+            encoding="utf-8")
+        self.assertNotIn("[bale] error:", journal)
+        noticed = [ln for ln in journal.splitlines()
+                   if "[bale] clipboard: the session opener was NOT copied"
+                   in ln]
+        self.assertEqual(len(noticed), 1, msg=journal)
+        self.assertIn("is triple-quoted", noticed[0])
+
     def test_unset_copies_nothing_with_clipboard_programs_on_path(self) -> None:
         fakebin = self.tmp / "fakebin"
         fakebin.mkdir()

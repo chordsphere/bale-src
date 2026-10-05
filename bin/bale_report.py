@@ -203,9 +203,10 @@ open`'s, through the replayed pack and the second-desk path), `bale
 relay`'s exchange block, `bale apply` / `bale retry`'s HOLD and
 APPLIED relay blocks, and `bale clipboard`, the verb the probe scaffold
 pipes its block into. It reads the effective command through
-`bale_config.effective_clipboard_command` (`resolve_clipboard_command`
-turns that accessor's fail()-raised refusal into a reason instead of an
-exit), runs it with the block on stdin (`run_clipboard_command`), and
+`bale_config.clipboard_command_reading` (`resolve_clipboard_command`;
+the non-exiting form of `effective_clipboard_command` since session
+log-hold, so a refusal is a reason, never a `[bale] error:` line or a
+journal entry), runs it with the block on stdin (`run_clipboard_command`), and
 prints one `[bale] clipboard:` notice line on stderr. It is the third
 deliberate exception to the pure-assembler rule — it runs a command —
 and it never raises, never touches stdout, and never changes an exit
@@ -217,8 +218,6 @@ See claude/context/bale-internals.md for how this module sits next to
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import os
 import re
@@ -2072,10 +2071,12 @@ def _one_line(text: str) -> str:
 
 
 def _refusal_reason(captured_stderr: str, exc: BaseException) -> str:
-    """Why effective_clipboard_command refused, from what its fail()
+    """Why reading the clipboard command failed, from what a fail()
     printed (the `[bale] error: ` prefix dropped) or, when nothing was
-    printed (an in-process fail() stand-in), from the exception itself:
-    fail()'s `bale_cause`, else the exception's text. Never empty."""
+    printed, from the exception itself: fail()'s `bale_cause`, else the
+    exception's text. Never empty. Since session log-hold the reader
+    returns its refusals as values, so resolve_clipboard_command reaches
+    this only for an exception nobody planned (with nothing captured)."""
     lines = []
     for raw in captured_stderr.splitlines():
         line = raw.strip()
@@ -2107,40 +2108,24 @@ def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
     bale.toml): then command is None and problem is the refusal's text,
     remedy included, as one line.
 
-    The accessor refuses through fail(), which prints `[bale] error:` on
-    stderr and raises SystemExit. Here that is a reason, not an exit:
-    stderr is captured for the call so the refusal is not printed as an
-    error of the command (the caller's notice says it instead), and the
-    SystemExit — or any exception — is caught. fail() still journals
-    its line into an open session log, which is the honest record of
-    what bale read. Never raises.
+    Reads bale_config.clipboard_command_reading, the accessor's
+    non-exiting form (session log-hold): the refusal comes back as a
+    value, so nothing is printed as an error of the command, nothing
+    is journaled into an open session log as one (the caller's notice
+    is the record), and no SystemExit is raised. Before that session
+    this captured fail()'s stderr and caught its SystemExit, and the
+    `[bale] error:` line still reached the session log above the
+    notice. Never raises: an unexpected exception from the reader is
+    turned into the problem text too.
     """
     import bale_config  # lazy — sibling module, loaded by bin/bale
-    captured = io.StringIO()
     try:
-        with contextlib.redirect_stderr(captured):
-            command = bale_config.effective_clipboard_command(repo)
+        reading = bale_config.clipboard_command_reading(repo)
     except (SystemExit, Exception) as exc:  # noqa: BLE001 — never take the command down
-        return None, _clipboard_source_or_none(repo), \
-            _refusal_reason(captured.getvalue(), exc)
-    leaked = captured.getvalue()
-    if leaked:
-        # The accessor printed something without refusing: pass it on
-        # rather than lose it.
-        sys.stderr.write(leaked)
-    return command, _clipboard_source_or_none(repo), None
-
-
-def _clipboard_source_or_none(repo: Optional[Path]) -> Optional[str]:
-    """clipboard_command_source, or None when it cannot be read (the
-    same malformed file the accessor refused — the problem text already
-    says so). Never raises, prints nothing."""
-    import bale_config  # lazy — sibling module, loaded by bin/bale
-    try:
-        with contextlib.redirect_stderr(io.StringIO()):
-            return bale_config.clipboard_command_source(repo)
-    except (SystemExit, Exception):  # noqa: BLE001 — display-only
-        return None
+        return None, None, _refusal_reason("", exc)
+    if reading.refusal is not None:
+        return None, reading.source, _one_line(reading.refusal)
+    return reading.command, reading.source, None
 
 
 def _read_available(stream) -> str:
