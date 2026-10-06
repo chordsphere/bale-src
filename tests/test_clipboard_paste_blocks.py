@@ -28,10 +28,14 @@ Pinned, outcome by outcome (the brief's section 4):
   pack, relay, and apply still succeed.
 - **Unset means no copy, and nothing is detected.** With pbcopy,
   xclip, xsel, wl-copy, and clip.exe all on PATH and no key, nothing
-  runs and nothing is said; a project's `clipboard_command = ""`
-  suppresses the global value.
+  runs and nothing is said; a project's `command = ""` suppresses the
+  global value.
 - **`bale status` gains the clipboard row**: command and layer,
   suppressed, unset, and UNREADABLE with the reason — exit 0 always.
+  Labelled `clipboard` since session clipboard-key-rename, which moved
+  the key to `[clipboard] command`; this suite's fixtures write the new
+  spelling, and tests/test_clipboard_key_rename.py pins the legacy
+  alias, the precedence, and the `--json` object.
 - **The probe copies through the installed bale.** A scaffold crafted
   with no bale.toml anywhere, run with a `bale` on PATH, lands its
   PROBE BEGIN/END block on the global command; a project value
@@ -128,10 +132,11 @@ class _ClipboardMixin:
 
     def set_global(self, line: str) -> None:
         self.global_toml().parent.mkdir(parents=True, exist_ok=True)
-        self.global_toml().write_text(f"[probe]\n{line}\n", encoding="utf-8")
+        self.global_toml().write_text(f"[clipboard]\n{line}\n",
+                                      encoding="utf-8")
 
     def capture_globally(self) -> None:
-        self.set_global(f'clipboard_command = "cat >{self.capture}"')
+        self.set_global(f'command = "cat >{self.capture}"')
 
     def clip(self) -> bytes:
         self.assertTrue(self.capture.is_file(),
@@ -183,7 +188,7 @@ class PackOpenerCopyTest(_Fixture):
         self.assertEqual(len(notices(r.stderr)), 1)
 
     def test_failing_command_changes_nothing_but_the_notice(self) -> None:
-        self.set_global('clipboard_command = "echo boom >&2; exit 3"')
+        self.set_global('command = "echo boom >&2; exit 3"')
         r = self.pack("openfail", "--include", "hello.txt")
         self.assert_ok(r)
         [line] = notices(r.stderr)
@@ -195,7 +200,7 @@ class PackOpenerCopyTest(_Fixture):
     def test_unreadable_global_key_skips_with_reason_and_remedy(self) -> None:
         self.global_toml().parent.mkdir(parents=True, exist_ok=True)
         self.global_toml().write_text(
-            "[probe]\nclipboard_command = '''cat >/dev/null'''\n",
+            "[clipboard]\ncommand = '''cat >/dev/null'''\n",
             encoding="utf-8")
         r = self.pack("openbad", "--include", "hello.txt")
         self.assert_ok(r)
@@ -214,7 +219,7 @@ class PackOpenerCopyTest(_Fixture):
         (session D's fail()-routed read journaled one)."""
         self.global_toml().parent.mkdir(parents=True, exist_ok=True)
         self.global_toml().write_text(
-            "[probe]\nclipboard_command = '''cat >/dev/null'''\n",
+            "[clipboard]\ncommand = '''cat >/dev/null'''\n",
             encoding="utf-8")
         sid = self.packed("journal")
         journal = (self.repo / ".bale" / "logs" / f"{sid}.log").read_text(
@@ -244,7 +249,7 @@ class PackOpenerCopyTest(_Fixture):
 
     def test_project_suppress_beats_the_global(self) -> None:
         self.capture_globally()
-        self.commit_files({"bale.toml": '[probe]\nclipboard_command = ""\n'},
+        self.commit_files({"bale.toml": '[clipboard]\ncommand = ""\n'},
                           "suppress the clipboard here")
         r = self.pack("suppressed", "--include", "hello.txt")
         self.assert_ok(r)
@@ -255,7 +260,7 @@ class PackOpenerCopyTest(_Fixture):
         self.capture_globally()
         project_capture = self.tmp / "project-capture.txt"
         self.commit_files(
-            {"bale.toml": f'[probe]\nclipboard_command = '
+            {"bale.toml": f'[clipboard]\ncommand = '
                           f'"cat >{project_capture}"\n'},
             "a project clipboard command")
         r = self.pack("override", "--include", "hello.txt")
@@ -328,8 +333,8 @@ class RelayCopyTest(_Fixture):
     def test_failing_or_unreadable_command_keeps_exit_and_stdout(self) -> None:
         self.assert_ok(self.relay(str(self.manifest)))
         baseline = self.relay()
-        for line, needle in (('clipboard_command = "false"', "exited 1"),
-                             ("clipboard_command = '''x'''",
+        for line, needle in (('command = "false"', "exited 1"),
+                             ("command = '''x'''",
                               "is triple-quoted")):
             with self.subTest(line=line):
                 self.set_global(line)
@@ -437,8 +442,8 @@ class ApplyRelayCopyTest(_Fixture):
                                                        "planner"))
 
     def test_failing_or_unreadable_command_keeps_the_exit_codes(self) -> None:
-        for line, needle in (('clipboard_command = "false"', "exited 1"),
-                             ("clipboard_command = '''x'''",
+        for line, needle in (('command = "false"', "exited 1"),
+                             ("command = '''x'''",
                               "is triple-quoted")):
             with self.subTest(line=line):
                 self.set_global(line)
@@ -513,8 +518,8 @@ class ClipboardVerbTest(_Fixture):
         self.assertEqual(r.returncode, 1)
         self.assertIn(b"no clipboard command is configured", r.stderr)
         self.assertIn(b"bale config init --global", r.stderr)
-        for line, needle in (('clipboard_command = "false"', b"exited 1"),
-                             ("clipboard_command = '''x'''",
+        for line, needle in (('command = "false"', b"exited 1"),
+                             ("command = '''x'''",
                               b"is triple-quoted")):
             with self.subTest(line=line):
                 self.set_global(line)
@@ -537,7 +542,9 @@ class ClipboardVerbTest(_Fixture):
                      env=dict(self.env, COLUMNS="80"))
         self.assert_ok(r)
         flat = " ".join(r.stdout.split())
-        for phrase in ("[probe] clipboard_command",
+        for phrase in ("[clipboard] command",
+                       "[probe] clipboard_command",
+                       "legacy alias",
                        "`bale config init --global`",
                        "Nothing is detected at run time",
                        "Exit 0 when the block was copied, 1 when it was not",
@@ -552,33 +559,39 @@ class StatusClipboardRowTest(_Fixture):
                      env=dict(self.env, COLUMNS="400"))
         self.assert_ok(r)
         hits = [ln.strip() for ln in r.stdout.splitlines()
-                if ln.strip().startswith("probe clipboard:")]
+                if ln.strip().startswith("clipboard:")]
         self.assertEqual(len(hits), 1, msg=r.stdout)
-        return hits[0][len("probe clipboard:"):].strip()
+        self.assertNotIn("probe clipboard:", r.stdout,
+                         msg="the row is labelled `clipboard` since the "
+                             "key moved to [clipboard] command")
+        return hits[0][len("clipboard:"):].strip()
 
     def test_each_state_reads_as_a_row(self) -> None:
         self.assertIn("unset", self.row())
         self.assertIn("bale config init --global", self.row())
-        self.set_global('clipboard_command = "pbcopy"')
+        self.set_global('command = "pbcopy"')
         self.assertTrue(self.row().startswith("pbcopy (global layer)"))
         (self.repo / "bale.toml").write_text(
-            '[probe]\nclipboard_command = "wl-copy"\n', encoding="utf-8")
+            '[clipboard]\ncommand = "wl-copy"\n', encoding="utf-8")
         self.assertTrue(self.row().startswith("wl-copy (project layer)"))
         (self.repo / "bale.toml").write_text(
-            '[probe]\nclipboard_command = ""\n', encoding="utf-8")
+            '[clipboard]\ncommand = ""\n', encoding="utf-8")
         self.assertTrue(self.row().startswith("suppressed here"))
+        self.assertIn('sets [clipboard] command = ""', self.row())
         (self.repo / "bale.toml").write_text(
-            "[probe]\nclipboard_command = '''pbcopy'''\n", encoding="utf-8")
+            "[clipboard]\ncommand = '''pbcopy'''\n", encoding="utf-8")
         row = self.row()
         self.assertTrue(row.startswith("UNREADABLE"), msg=row)
         self.assertIn("is triple-quoted", row)
 
     def test_row_outside_a_repo(self) -> None:
-        self.set_global('clipboard_command = "pbcopy"')
+        self.set_global('command = "pbcopy"')
         r = run_bale(self.install, ["status"], cwd=self.tmp,
                      env=dict(self.env, COLUMNS="400"))
         self.assert_ok(r)
-        self.assertIn("probe clipboard: pbcopy (global layer)", r.stdout)
+        self.assertIn("clipboard: pbcopy (global layer)",
+                      " ".join(r.stdout.split()))
+        self.assertNotIn("probe clipboard:", r.stdout)
 
 
 # ---------------------------------------------------------------------------
@@ -637,7 +650,7 @@ class ProbeThroughInstalledBaleTest(_Fixture):
         self.capture_globally()
         project_capture = self.tmp / "project-capture.txt"
         (self.repo / "bale.toml").write_text(
-            f'[probe]\nclipboard_command = "cat >{project_capture}"\n',
+            f'[clipboard]\ncommand = "cat >{project_capture}"\n',
             encoding="utf-8")
         r = self.run_probe(self.scaffold())
         self.assertEqual(r.returncode, 0, msg=r.stderr)
@@ -736,6 +749,8 @@ class PureHelperUnitTest(unittest.TestCase):
         d = bale_report.describe_clipboard_state
         self.assertTrue(d("pbcopy", "global", None).startswith(
             "pbcopy (global layer)"))
+        self.assertEqual(d("pbcopy", "global", None, key="clipboard.command"),
+                         "pbcopy (global layer) — every paste block is copied")
         self.assertTrue(d(None, "project", None).startswith(
             "suppressed here"))
         self.assertIn("bale config init --global", d(None, None, None))

@@ -437,14 +437,17 @@ class LayoutAccessorTest(_LayoutBase):
         self.write_project('[layout]\nagent_dir = "agent"\n')
         self.assertEqual(bale_config.layout_agent_dir(self.repo), "agent")
 
-    def test_renderer_emits_the_section_after_probe(self) -> None:
+    def test_renderer_emits_the_section_after_clipboard(self) -> None:
+        # [clipboard] since session clipboard-key-rename (the renderer
+        # never writes the legacy [probe] spelling).
         rendered = bale_config.render_bale_toml(
-            {"probe": {"clipboard_command": "pbcopy"},
+            {"clipboard": {"command": "pbcopy"},
              "layout": {"agent_dir": "agent"}}, layer="project")
         self.assertIn('[layout]\nagent_dir = "agent"\n', rendered)
-        self.assertLess(rendered.index("[probe]"), rendered.index("[layout]"))
+        self.assertLess(rendered.index("[clipboard]"),
+                        rendered.index("[layout]"))
         self.assertNotIn("[layout]", bale_config.render_bale_toml(
-            {"probe": {"clipboard_command": "pbcopy"}}, layer="project"))
+            {"clipboard": {"command": "pbcopy"}}, layer="project"))
 
     def test_render_then_load_round_trips(self) -> None:
         rendered = bale_config.render_bale_toml(

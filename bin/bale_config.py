@@ -47,11 +47,14 @@ layer detection, and by `build_parser` for command dispatch):
   - cmd_config_hooks — argparse-bound entry point for `bale config
     hooks` (v0.4.29, board 83; section 4).
 
-Sections are [hooks], [apply], [staging], [identity], [probe] (both
+Sections are [hooks], [apply], [staging], [identity], [clipboard] (both
 layers) and [validation], [sandbox], [pack], [layout] (project layer
 only); each section's tuple below documents its keys and its layer
-ruling. ([probe] joined the both-layer set with session wizard-defaults:
-the clipboard command is per-machine, see PROBE_VALUES.)
+ruling. The clipboard command is per-machine (both layers since session
+wizard-defaults); its key is `[clipboard] command` since session
+clipboard-key-rename, with `[probe] clipboard_command` — the spelling
+before it — read as a legacy alias at both layers and never written
+again (CLIPBOARD_VALUES, PROBE_VALUES).
 """
 
 from __future__ import annotations
@@ -382,33 +385,33 @@ PACK_VALUES = (
     "include_group_pulls",
 )
 
-# Value-shaped configurables under the [probe] section — this machine's
-# clipboard command (registry fold-in, ratified 2026-08-18,
+# Value-shaped configurables under the [clipboard] section — this
+# machine's clipboard command (registry fold-in, ratified 2026-08-18,
 # configurable-never-core; the config-side carrier landed with board
-# 99a). Same trio contract as the sections above: a typed accessor
-# (get_probe_clipboard_command, plus effective_clipboard_command for
-# bale code), a walk_configurables() block, and a render_bale_toml()
+# 99a as `[probe] clipboard_command`, and session clipboard-key-rename
+# moved it to this neutral section once bale copied every paste block,
+# not only probe output). Same trio contract as the sections above: a
+# typed accessor (get_clipboard_command, plus effective_clipboard_command
+# for bale code), a walk_configurables() block, and a render_bale_toml()
 # branch.
 #
 # BOTH LAYERS since session wizard-defaults (friction-points arc, wave
 # 2, ruling 1 answered "as assumed"): the command is a property of the
 # machine, so it is set once in the global file and a project may
 # override it, or suppress it with "" — per-key replacement, exactly as
-# [identity] packer layers. That reverses the earlier project-only
+# [identity] packer layers. That reversed the earlier project-only
 # ruling, whose reason was reach: the key's first consumer,
-# tools/craft_response.py --probe, reads `[probe] clipboard_command`
-# with its own stdlib-only scan (read_clipboard_command) from the
-# project file as shipped in a request, and never sees the global file.
-# The reversal rests on bale doing the copy itself, which landed in
-# session clipboard-paste-blocks (D, wave 3): every paste block bale
-# prints is copied through effective_clipboard_command, and the probe
-# scaffold copies through the installed bale (`bale clipboard`), so a
-# global value reaches probes too. The crafter still reads the project
-# file at craft time, for one fallback only (a machine with no bale on
-# PATH) — which is why the key keeps its spelling: a project bale.toml
-# that sets it is still read by the crafter after any `bale config
-# init` re-run, with no migration and no alias.
-PROBE_VALUES = (
+# tools/craft_response.py --probe, reads the key with its own
+# stdlib-only scan (read_clipboard_command) from the project file as
+# shipped in a request, and never sees the global file. The reversal
+# rests on bale doing the copy itself, which landed in session
+# clipboard-paste-blocks (D, wave 3): every paste block bale prints is
+# copied through effective_clipboard_command, and the probe scaffold
+# copies through the installed bale (`bale clipboard`), so a global
+# value reaches probes too. The crafter still reads the project file at
+# craft time, for one fallback only (a machine with no bale on PATH),
+# and reads both spellings with the in-file precedence below.
+CLIPBOARD_VALUES = (
     # String: the shell command that copies its stdin to the clipboard
     # (e.g. "pbcopy", "xclip -selection clipboard", "clip.exe"). Absent
     # or empty = no clipboard copy; the probe scaffold carries remedy
@@ -416,15 +419,61 @@ PROBE_VALUES = (
     # must stay inside the crafter scan's readable shape — one line, no
     # backslash, no double quote, no control characters — so the
     # accessor and the wizard refuse anything the crafter would
-    # silently read as unset (probe_clipboard_command_problem); and the
+    # silently read as unset (clipboard_command_problem); and the
     # line itself must be spelled the way the scan reads it — a one-line
-    # basic or literal string under a [probe] header, never
-    # triple-quoted (clipboard_command_spelling_problem).
+    # basic or literal string under a [clipboard] header, never
+    # triple-quoted, dotted, or an inline table
+    # (clipboard_command_spelling_problem).
+    "command",
+)
+
+# The LEGACY spelling of the one clipboard key: `[probe]
+# clipboard_command`, the key's name from board 99a through session D.
+# Read as an alias of `[clipboard] command` at both layers, with the same
+# value rules and the same one-line spelling rule, so every file that
+# configured a clipboard command before the rename reads the same after
+# it; never written — render_bale_toml carries a legacy value into the
+# new spelling on the wizard's next write (same value, new spelling),
+# and the wizard walks `clipboard.command` only. The two-key precedence
+# rule (the planning desk's pin, session clipboard-key-rename): within
+# one file `[clipboard] command` wins when both spellings are set, and
+# the file is never silent about it (`bale status`'s clipboard row and
+# `bale status --json` name the spelling bale used and the one it
+# ignored); across files the layer rule is unchanged — the project file
+# decides when it sets the key in EITHER spelling (`""` in either
+# spelling suppressing), else the global file decides, in either
+# spelling. CLIPBOARD_SPELLINGS below is that order, and every reader of
+# the key — merged_config, the accessors, the wizard's current/inherited
+# rows, the restated scan — walks it rather than naming a section.
+PROBE_VALUES = (
     "clipboard_command",
 )
 
+# The one clipboard key's two spellings as (section, key) pairs, in
+# in-file precedence order: the first spelling a file sets decides for
+# that file. Dotted forms beside them, for messages, the wizard's screen
+# labels, and the status report's `key` / `shadowed` values.
+CLIPBOARD_SECTION = "clipboard"
+CLIPBOARD_KEY = CLIPBOARD_VALUES[0]
+LEGACY_CLIPBOARD_SECTION = "probe"
+LEGACY_CLIPBOARD_KEY = PROBE_VALUES[0]
+CLIPBOARD_SPELLINGS = (
+    (CLIPBOARD_SECTION, CLIPBOARD_KEY),
+    (LEGACY_CLIPBOARD_SECTION, LEGACY_CLIPBOARD_KEY),
+)
+CLIPBOARD_DOTTED = f"{CLIPBOARD_SECTION}.{CLIPBOARD_KEY}"
+LEGACY_CLIPBOARD_DOTTED = f"{LEGACY_CLIPBOARD_SECTION}.{LEGACY_CLIPBOARD_KEY}"
+
+
+def clipboard_key_display(dotted: str) -> str:
+    """A clipboard key's dotted name as a reader meets it in bale.toml:
+    `clipboard.command` → `[clipboard] command`. Pure."""
+    section, _, key = dotted.partition(".")
+    return f"[{section}] {key}"
+
+
 # The named clipboard commands `bale config init` offers on the
-# probe.clipboard_command screen, always, whatever the machine: (value,
+# clipboard.command screen, always, whatever the machine: (value,
 # aside). Detection (detect_clipboard_command) marks one as detected and
 # moves it to [1]; it never sets anything.
 CLIPBOARD_ALTERNATIVES = (
@@ -695,21 +744,20 @@ def merged_config(repo: Path) -> dict:
     if out_pack:
         merged["pack"] = out_pack
 
-    # [probe] — both layers since session wizard-defaults (see
-    # PROBE_VALUES): the same per-key replacement as [identity]. A key
-    # set at the project layer wins; absent inherits global; the
-    # empty-string form passes through and reads as "unset" in the
-    # typed accessor, giving the project layer its suppress form.
-    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
-    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
-    out_probe: dict = {}
-    for key in PROBE_VALUES:
-        if key in p_probe:
-            out_probe[key] = p_probe[key]
-        elif key in g_probe:
-            out_probe[key] = g_probe[key]
-    if out_probe:
-        merged["probe"] = out_probe
+    # [clipboard], with [probe] clipboard_command as its legacy alias —
+    # both layers since session wizard-defaults (see CLIPBOARD_VALUES and
+    # PROBE_VALUES): one logical key under two spellings, layered as a
+    # unit (session clipboard-key-rename). The project file decides when
+    # it sets EITHER spelling — the empty-string form in either passes
+    # through and reads as "unset" in the typed accessor, giving the
+    # project layer its suppress form — else the global file decides, in
+    # either spelling. The deciding file's spelling(s) pass through
+    # untouched, under their own section names, so the typed accessor
+    # can apply the in-file precedence ([clipboard] command wins) and
+    # name the key it read in a refusal. Nothing from the other layer is
+    # mixed in: a project `[probe] clipboard_command` beside a global
+    # `[clipboard] command` is the project's decision, not two keys.
+    merged.update(_layer_clipboard_tables(p) or _layer_clipboard_tables(g))
 
     # [layout] — PROJECT LAYER ONLY (v0.4.42; see LAYOUT_VALUES). No
     # `elif key in g_layout` branch: the key names a directory of one
@@ -1520,8 +1568,8 @@ def get_pack_include_group(cfg: dict) -> Optional[dict]:
     return {"name": name, "triggers": triggers, "pulls": pulls}
 
 
-def probe_clipboard_command_problem(value: str) -> Optional[str]:
-    """Say why `value` is not a usable [probe] clipboard_command, or None.
+def clipboard_command_problem(value: str) -> Optional[str]:
+    """Say why `value` is not a usable clipboard command, or None.
 
     The crafter's reader (tools/craft_response.py read_clipboard_command)
     is a deliberately minimal single-key scan of a one-line TOML basic
@@ -1534,7 +1582,9 @@ def probe_clipboard_command_problem(value: str) -> Optional[str]:
     to refuse up front. Non-ASCII is fine: the renderer writes it
     literally (ensure_ascii=False). Whitespace at either end is not a
     problem; both readers strip it. The empty string is not judged here
-    — callers read it as unset.
+    — callers read it as unset. The same rules bind both spellings of
+    the key (CLIPBOARD_SPELLINGS): the content never knew which section
+    it sat under.
     """
     if "\\" in value:
         return "contains a backslash"
@@ -1547,87 +1597,163 @@ def probe_clipboard_command_problem(value: str) -> Optional[str]:
     return None
 
 
-def get_probe_clipboard_command(cfg: dict) -> Optional[str]:
-    """Return [probe].clipboard_command from the merged config, or None.
+# The pre-rename name (board 99a through session D), kept as an alias so
+# a caller or test that still spells it reads the same function.
+probe_clipboard_command_problem = clipboard_command_problem
 
-    The config-side carrier of the probe scaffold's opt-in clipboard
-    epilogue (PROBE_VALUES). None when the section or key is absent, or
-    the value is empty after stripping — the "no clipboard epilogue"
-    state. A set value comes back stripped, which is exactly what the
-    crafter's scan yields for the same bytes.
 
-    Merged-config note: [probe] layers like [identity] (PROBE_VALUES
-    owns the rationale) — given merged_config's output, this returns
-    the project's value, else the inherited global one, and None when
-    the project suppresses with "". Bale code that wants the effective
-    command calls effective_clipboard_command(repo), which also checks
-    how the supplying file spells the key; this dict-level accessor
-    cannot see spelling.
+def _layer_clipboard_tables(file_cfg: dict) -> dict:
+    """What one parsed layer file says about the clipboard command, as a
+    dict the typed accessor reads: `{"clipboard": {"command": raw}}`
+    and/or `{"probe": {"clipboard_command": raw}}`, exactly the
+    spellings the file sets (CLIPBOARD_SPELLINGS) and nothing else from
+    either section. Empty when the file sets neither — the layer
+    decides nothing, and the merge looks at the next layer.
+
+    A section that is present but not a table (`clipboard = "pbcopy"`)
+    is carried through as-is, so the accessor refuses it loudly rather
+    than the merge dropping it in silence (`[clipboard] must be a
+    table`). Pure.
+    """
+    out: dict = {}
+    for section, key in CLIPBOARD_SPELLINGS:
+        table = file_cfg.get(section)
+        if table is None:
+            continue
+        if not isinstance(table, dict):
+            out[section] = table
+        elif key in table:
+            out[section] = {key: table[key]}
+    return out
+
+
+def clipboard_spellings_set(file_cfg: dict) -> list:
+    """The dotted names of every clipboard spelling one parsed file sets,
+    in precedence order: `["clipboard.command"]`,
+    `["probe.clipboard_command"]`, both, or `[]`. A section present but
+    not a table counts as setting its spelling (the accessor refuses it).
+    Pure."""
+    tables = _layer_clipboard_tables(file_cfg)
+    return [f"{section}.{key}" for section, key in CLIPBOARD_SPELLINGS
+            if section in tables]
+
+
+def _clipboard_current(file_cfg: dict) -> tuple[Optional[str], object]:
+    """(dotted key, raw value) of the clipboard spelling one parsed layer
+    file is read by under the in-file precedence — `[clipboard] command`
+    when that table carries the key, else the legacy `[probe]
+    clipboard_command` — or (None, None) when the file sets neither.
+    The wizard's current/inherited rows read this (walk_configurables),
+    so a legacy-only file shows its value and the write carries it into
+    the new spelling. A section present but not a table carries no raw
+    value here (None): the wizard reads misshapen values as unset, the
+    accessors refuse them. Pure."""
+    for section, key in CLIPBOARD_SPELLINGS:
+        table = file_cfg.get(section)
+        if table is None:
+            continue
+        if not isinstance(table, dict):
+            return f"{section}.{key}", None
+        if key in table:
+            return f"{section}.{key}", table[key]
+    return None, None
+
+
+def get_clipboard_command(cfg: dict) -> Optional[str]:
+    """Return the clipboard command from the merged config, or None.
+
+    The config-side carrier of the paste-block copy (CLIPBOARD_VALUES;
+    `[probe] clipboard_command` read as the legacy alias, PROBE_VALUES).
+    None when neither spelling is set, or the deciding value is empty
+    after stripping — the "no clipboard copy" state. A set value comes
+    back stripped, which is exactly what the crafter's scan yields for
+    the same bytes.
+
+    Merged-config note: merged_config lays the deciding layer's
+    spelling(s) in under their own section names (one layer, never a
+    mix), and this accessor applies the in-file precedence — `[clipboard]
+    command` when set, else `[probe] clipboard_command` — so given
+    merged_config's output it returns the project's value, else the
+    inherited global one, and None when the project suppresses with ""
+    in either spelling. Bale code that wants the effective command calls
+    effective_clipboard_command(repo), which also checks how the
+    supplying file spells the key; this dict-level accessor cannot see
+    spelling.
 
     Shape posture: a non-table section or a non-string value is fatal,
     as in the sibling string accessors. So is a string the crafter's
-    minimal reader cannot read (probe_clipboard_command_problem): the
-    crafter would treat it as unset and emit remedy text, so accepting
-    it here would leave bale and the crafter disagreeing about whether
-    the opt-in is configured. Right or loud, never split.
+    minimal reader cannot read (clipboard_command_problem): the crafter
+    would treat it as unset and emit remedy text, so accepting it here
+    would leave bale and the crafter disagreeing about whether the
+    opt-in is configured. Right or loud, never split.
 
-    The judging is _probe_clipboard_value's (shared with the non-exiting
+    The judging is _clipboard_value's (shared with the non-exiting
     clipboard_command_reading); this accessor makes its refusal fatal.
     """
     from __main__ import fail
 
-    value, refusal = _probe_clipboard_value(cfg)
+    value, refusal, _dotted = _clipboard_value(cfg)
     if refusal is not None:
         fail(refusal)
     return value
 
 
-def _probe_clipboard_value(cfg: dict) -> tuple[Optional[str], Optional[str]]:
-    """(value, refusal) for [probe].clipboard_command in `cfg` — never
-    exits. value is get_probe_clipboard_command's answer when the
-    config is acceptable (refusal None); otherwise value is None and
-    refusal is the message that accessor fails with, word for word."""
-    probe_section = cfg.get("probe")
-    if probe_section is None:
-        return None, None
-    if not isinstance(probe_section, dict):
-        return None, (f"{BALE_CONFIG}: [probe] must be a table, "
-                      f"got {type(probe_section).__name__}")
-    raw = probe_section.get("clipboard_command")
-    if raw is None:
-        return None, None
-    if not isinstance(raw, str):
-        return None, (f"{BALE_CONFIG}: probe.clipboard_command must be a "
-                      f"string, got {type(raw).__name__}")
-    val = raw.strip()
-    if not val:
-        return None, None
-    problem = probe_clipboard_command_problem(val)
-    if problem is not None:
-        return None, (f"{BALE_CONFIG}: probe.clipboard_command {problem}; "
-                      f"the probe scaffold's reader (tools/craft_response.py) "
-                      f"would treat it as unset. Use a one-line command with "
-                      f"no backslashes or double quotes (wrap it in a script "
-                      f"if it needs them).")
-    return val, None
+# The pre-rename name, kept as an alias (see probe_clipboard_command_problem).
+get_probe_clipboard_command = get_clipboard_command
 
 
-def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str]:
-    """Read `[probe] clipboard_command` from bale.toml text the way the
-    probe scaffold's reader does. Returns (status, value, raw).
+def _clipboard_value(cfg: dict) -> tuple[Optional[str], Optional[str],
+                                         Optional[str]]:
+    """(value, refusal, key) for the clipboard command in `cfg` — never
+    exits. value is get_clipboard_command's answer when the config is
+    acceptable (refusal None); otherwise value is None and refusal is
+    the message that accessor fails with, word for word. key is the
+    dotted spelling that decided — `clipboard.command` or
+    `probe.clipboard_command` — or None when neither is present; it is
+    set on a refusal too, so a caller can say which key it is about.
 
-    A deliberate twin of tools/craft_response.py's scan_bale_toml_key
-    plus one_line_quoted_value (bin/ never imports tools/, so the rule
-    is restated here; tests/test_probe_clipboard_config.py pins the two
-    against one corpus of lines). status is "set" (value is the
-    stripped command), "bad-shape" (the key's line is there but is not
-    a one-line basic or literal string — raw is its value text, so a
-    caller can say "triple-quoted"), or "unset" (no such line under a
-    [probe] header). Only the spelling is judged: the content rules
-    (backslash, double quote, control characters) belong to
-    probe_clipboard_command_problem, and a value that breaks them reads
-    here as bad-shape too, exactly as it does crafter-side.
-    """
+    In-file precedence: the first spelling in CLIPBOARD_SPELLINGS whose
+    section is present with the key (or present and not a table, which
+    refuses) decides; a `[clipboard]` table without `command` falls
+    through to the legacy spelling."""
+    for section, key in CLIPBOARD_SPELLINGS:
+        table = cfg.get(section)
+        if table is None:
+            continue
+        dotted = f"{section}.{key}"
+        if not isinstance(table, dict):
+            return None, (f"{BALE_CONFIG}: [{section}] must be a table, "
+                          f"got {type(table).__name__}"), dotted
+        if key not in table:
+            continue
+        raw = table[key]
+        if not isinstance(raw, str):
+            return None, (f"{BALE_CONFIG}: {dotted} must be a "
+                          f"string, got {type(raw).__name__}"), dotted
+        val = raw.strip()
+        if not val:
+            return None, None, dotted
+        problem = clipboard_command_problem(val)
+        if problem is not None:
+            return None, (f"{BALE_CONFIG}: {dotted} {problem}; "
+                          f"the probe scaffold's reader (tools/craft_response.py) "
+                          f"would treat it as unset. Use a one-line command with "
+                          f"no backslashes or double quotes (wrap it in a script "
+                          f"if it needs them)."), dotted
+        return val, None, dotted
+    return None, None, None
+
+
+def _scan_toml_text_key(text: str, section_name: str,
+                        key_name: str) -> tuple[str, Optional[str], str]:
+    """One spelling's line in bale.toml text, the way the probe
+    scaffold's reader scans it. Returns (status, value, raw): "set"
+    (value is the stripped command), "bad-shape" (the key's line is there
+    but is not a one-line basic or literal string — raw is its value
+    text, so a caller can say "triple-quoted"), or "unset" (no such line
+    under that header). The twin of tools/craft_response.py's
+    scan_toml_text_key; _scan_clipboard_line walks the two spellings over
+    it."""
     section = None
     for line in (raw.strip() for raw in text.splitlines()):
         if not line or line.startswith("#"):
@@ -1635,10 +1761,10 @@ def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str]:
         if line.startswith("[") and line.endswith("]"):
             section = line[1:-1].strip()
             continue
-        if section != "probe" or "=" not in line:
+        if section != section_name or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        if key.strip() != "clipboard_command":
+        if key.strip() != key_name:
             continue
         value = value.strip()
         got = _one_line_quoted_value(value)
@@ -1646,6 +1772,36 @@ def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str]:
             return "set", got, value
         return "bad-shape", None, value
     return "unset", None, ""
+
+
+def _scan_clipboard_line(text: str) -> tuple[str, Optional[str], str,
+                                             Optional[str]]:
+    """Read the clipboard command from bale.toml text the way the probe
+    scaffold's reader does — both spellings, `[clipboard] command` first
+    (session clipboard-key-rename). Returns (status, value, raw, key).
+
+    A deliberate twin of tools/craft_response.py's scan_clipboard_command
+    over scan_toml_text_key plus one_line_quoted_value (bin/ never
+    imports tools/, so the rule is restated here;
+    tests/test_probe_clipboard_config.py pins the two against one corpus
+    of lines). status is "set" (value is the stripped command),
+    "bad-shape" (the key's line is there but is not a one-line basic or
+    literal string — raw is its value text), or "unset" (no such line
+    under either header, key None). key is the dotted spelling whose
+    line answered. The in-file precedence is the scan's too: a
+    `[clipboard] command` line that is there at all — set or bad-shape
+    — decides, and the legacy `[probe] clipboard_command` line is read
+    only when there is none, so the scan and bale's parser agree on
+    which spelling a file is judged by. Only the spelling is judged: the
+    content rules (backslash, double quote, control characters) belong
+    to clipboard_command_problem, and a value that breaks them reads
+    here as bad-shape too, exactly as it does crafter-side.
+    """
+    for section, key in CLIPBOARD_SPELLINGS:
+        status, value, raw = _scan_toml_text_key(text, section, key)
+        if status != "unset":
+            return status, value, raw, f"{section}.{key}"
+    return "unset", None, "", None
 
 
 def _one_line_quoted_value(value: str) -> Optional[str]:
@@ -1666,78 +1822,95 @@ def _one_line_quoted_value(value: str) -> Optional[str]:
     rest = value[closing + 1:].strip()
     if not cmd or (rest and not rest.startswith("#")):
         return None
-    if probe_clipboard_command_problem(cmd) is not None:
+    if clipboard_command_problem(cmd) is not None:
         return None
     return cmd
 
 
-def clipboard_command_spelling_problem(path: Path) -> Optional[str]:
-    """Say why `path` spells a set `[probe] clipboard_command` in a form
-    the probe scaffold's reader cannot see, or None.
+def clipboard_command_spelling_problem(path: Path,
+                                       dotted: Optional[str] = None
+                                       ) -> Optional[str]:
+    """Say why `path` spells its set clipboard command in a form the
+    probe scaffold's reader cannot see, or None.
 
-    The rider routed to this session from 005/69: bale's TOML parser
-    reads a triple-quoted value ('''pbcopy''' or \"\"\"pbcopy\"\"\") that
+    The rider routed to session C from 005/69: bale's TOML parser reads
+    a triple-quoted value ('''pbcopy''' or \"\"\"pbcopy\"\"\") that
     tools/craft_response.py's one-line scan treats as unset — the one
     known split left after board 69. This closes it bale-side by
     refusing the spelling rather than parsing it: the key has one
-    spelling, `clipboard_command = "<command>"` (or single-quoted) on
-    one line under a `[probe]` header, at both layers, so a line copied
-    from the global file into a project file keeps working. Also
-    caught, for the same reason: a dotted key (`probe.clipboard_command
-    = ...`) or an inline table, which bale parses and the scan never
-    finds.
+    spelling per section name, `command = "<command>"` (or
+    single-quoted) on one line under a `[clipboard]` header — or, for
+    the legacy alias, `clipboard_command = "<command>"` under `[probe]`
+    — at both layers, so a line copied from the global file into a
+    project file keeps working. Also caught, for the same reason: a
+    dotted key (`clipboard.command = ...`) or an inline table, which
+    bale parses and the scan never finds.
 
-    Call only when the parsed file sets the key to a non-empty string
-    (an absent or empty key has no spelling to judge). An unreadable
-    file is reported as the problem rather than passed: the loaders
-    parsed it a moment ago, so failing to re-read it is worth saying.
-    The wizard rewrites the key in the readable spelling on its next
-    write (render_bale_toml), so the remedy is one `bale config init`.
+    `dotted` names the spelling to judge — the one bale's parser decided
+    the file by (`_clipboard_value`'s key). None re-reads the parsed file
+    to find it; a file that sets neither spelling, or sets it empty, has
+    no spelling to judge and passes. The scan carries the same in-file
+    precedence as the parser, so when the two disagree about which
+    spelling answers — a dotted `clipboard.command` beside a readable
+    legacy line, say — that is a spelling problem of the deciding key.
+    An unreadable file is reported as the problem rather than passed:
+    the loaders parsed it a moment ago, so failing to re-read it is
+    worth saying. The wizard rewrites the key in the readable spelling,
+    as `[clipboard] command`, on its next write (render_bale_toml), so
+    the remedy is one `bale config init`.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
         return f"could not be re-read to check its spelling ({e})"
-    status, _value, raw = _scan_clipboard_line(text)
-    if status == "set":
+    if dotted is None:
+        try:
+            parsed = tomllib.loads(text)
+        except tomllib.TOMLDecodeError as e:
+            return f"could not be re-parsed to check its spelling ({e})"
+        value, _refusal, dotted = _clipboard_value(
+            _layer_clipboard_tables(parsed))
+        if value is None or dotted is None:
+            return None
+    status, _value, raw, found = _scan_clipboard_line(text)
+    if found == dotted and status == "set":
         return None
-    if status == "bad-shape":
+    if found == dotted and status == "bad-shape":
         if raw.startswith('"""') or raw.startswith("'''"):
             return "is triple-quoted"
         return "is not a one-line quoted string"
-    return ("is not written as a clipboard_command = \"...\" line under "
-            "a [probe] header (a dotted key or an inline table, for "
+    section, _, key = dotted.partition(".")
+    return (f"is not written as a {key} = \"...\" line under "
+            f"a [{section}] header (a dotted key or an inline table, for "
             "example)")
 
 
-def _probe_layers(repo: Optional[Path]) -> tuple[dict, dict]:
-    """The raw [probe] tables of the project file (empty when repo is
-    None or the file has none) and the global file. Loading goes through
-    load_config / load_global_config, so a malformed file is fatal here
-    exactly as everywhere else."""
+def _clipboard_layers(repo: Optional[Path]) -> tuple[dict, dict]:
+    """The parsed project file (empty when repo is None or the file is
+    absent) and the parsed global file. Loading goes through load_config
+    / load_global_config, so a malformed file is fatal here exactly as
+    everywhere else."""
     p = load_config(repo) if repo is not None else {}
     g = load_global_config()
-    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
-    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
-    return p_probe, g_probe
+    return p, g
 
 
 def clipboard_command_source(repo: Optional[Path]) -> Optional[str]:
-    """"project" or "global" — the layer whose file decides
-    probe.clipboard_command under the per-key merge — or None when
-    neither file sets the key.
+    """"project" or "global" — the layer whose file decides the
+    clipboard command under the per-key merge — or None when neither
+    file sets the key in either spelling.
 
-    "project" includes the suppress form (`clipboard_command = ""`): the
-    project decided, and decided "none". `repo` None means no project
-    is in play (a command run outside a repo), so only the global file
-    can decide. The display twin of effective_clipboard_command, for a
-    status row that names where the value came from (apply_bool_source
-    is the precedent).
+    "project" includes the suppress form (`command = ""`, or
+    `clipboard_command = ""` under `[probe]`): the project decided, and
+    decided "none". `repo` None means no project is in play (a command
+    run outside a repo), so only the global file can decide. The display
+    twin of effective_clipboard_command, for a status row that names
+    where the value came from (apply_bool_source is the precedent).
     """
-    p_probe, g_probe = _probe_layers(repo)
-    if "clipboard_command" in p_probe:
+    p, g = _clipboard_layers(repo)
+    if _layer_clipboard_tables(p):
         return "project"
-    if "clipboard_command" in g_probe:
+    if _layer_clipboard_tables(g):
         return "global"
     return None
 
@@ -1746,18 +1919,20 @@ def effective_clipboard_command(repo: Optional[Path]) -> Optional[str]:
     """The clipboard command bale should use here, or None for "no copy".
 
     The accessor bale code calls (session D's paste-block copying
-    builds on it): the project's [probe] clipboard_command when the
-    project file sets it, else the global file's, with "" at the
-    project layer suppressing an inherited value; `repo` None reads the
-    global file alone. The value comes back stripped.
+    builds on it): the project's clipboard command when the project
+    file sets it in either spelling, else the global file's, with "" at
+    the project layer (either spelling) suppressing an inherited value;
+    within one file `[clipboard] command` wins over the legacy `[probe]
+    clipboard_command`; `repo` None reads the global file alone. The
+    value comes back stripped.
 
     Fatal, never silent, on anything the dict accessor is fatal on (a
-    non-string, a backslash, a double quote, a control character), and
-    on a supplying file that spells the key in a form the probe
-    scaffold's reader cannot see — triple-quoted above all
-    (clipboard_command_spelling_problem). Right or loud, never split:
-    bale and the crafter never disagree about whether a file configures
-    a clipboard command.
+    non-table section, a non-string, a backslash, a double quote, a
+    control character), and on a supplying file that spells the
+    deciding key in a form the probe scaffold's reader cannot see —
+    triple-quoted above all (clipboard_command_spelling_problem). Right
+    or loud, never split: bale and the crafter never disagree about
+    whether a file configures a clipboard command.
 
     Nothing here detects anything. A command detected by `bale config
     init` is only ever a suggestion on the wizard screen; bale uses a
@@ -1784,10 +1959,17 @@ class ClipboardCommandReading(NamedTuple):
     decides the key — "project" / "global", None when neither sets it
     or a config file could not be parsed (clipboard_command_source's
     values); `refusal` is None, or the text effective_clipboard_command
-    would fail() with — and then `command` is None."""
+    would fail() with — and then `command` is None. Two fields since
+    session clipboard-key-rename, for the row and the JSON report:
+    `key` is the dotted spelling the deciding file was read by —
+    "clipboard.command" or "probe.clipboard_command" — None when no file
+    sets either; `shadowed` is the other spelling the same file also
+    sets, which bale ignored under the in-file precedence, or None."""
     command: Optional[str]
     source: Optional[str]
     refusal: Optional[str]
+    key: Optional[str] = None
+    shadowed: Optional[str] = None
 
 
 def clipboard_command_reading(repo: Optional[Path]) -> ClipboardCommandReading:
@@ -1796,10 +1978,11 @@ def clipboard_command_reading(repo: Optional[Path]) -> ClipboardCommandReading:
 
     Reads exactly what the fatal accessor reads, in the same order —
     both layer files (a malformed or unreadable one refuses, project
-    first), the deciding layer's value (a non-string, a backslash, a
-    double quote, a control character refuses), then that file's
-    spelling of the key (triple-quoted, dotted, inline-table refuses) —
-    and returns any refusal as a value instead of calling fail(). So
+    first), the deciding layer's value under the in-file precedence (a
+    non-table section, a non-string, a backslash, a double quote, a
+    control character refuses), then that file's spelling of the
+    deciding key (triple-quoted, dotted, inline-table refuses) — and
+    returns any refusal as a value instead of calling fail(). So
     nothing is printed, nothing is journaled into an open session log,
     and nothing raises SystemExit: bale_report.copy_paste_block turns a
     refusal into its one "NOT copied" notice and the command goes on.
@@ -1813,31 +1996,37 @@ def clipboard_command_reading(repo: Optional[Path]) -> ClipboardCommandReading:
     g, refusal = read_config_file(GLOBAL_CONFIG_PATH)
     if refusal is not None:
         return ClipboardCommandReading(None, None, refusal)
-    p_probe = p.get("probe") if isinstance(p.get("probe"), dict) else {}
-    g_probe = g.get("probe") if isinstance(g.get("probe"), dict) else {}
-    if "clipboard_command" in p_probe:
-        cfg, path, source = {"probe": p_probe}, (repo / BALE_CONFIG), "project"
-    elif "clipboard_command" in g_probe:
-        cfg, path, source = {"probe": g_probe}, GLOBAL_CONFIG_PATH, "global"
+    p_tables = _layer_clipboard_tables(p)
+    g_tables = _layer_clipboard_tables(g)
+    if p_tables:
+        cfg, path, source = p_tables, (repo / BALE_CONFIG), "project"
+    elif g_tables:
+        cfg, path, source = g_tables, GLOBAL_CONFIG_PATH, "global"
     else:
         return ClipboardCommandReading(None, None, None)
-    value, refusal = _probe_clipboard_value(cfg)
+    value, refusal, dotted = _clipboard_value(cfg)
+    present = [f"{section}.{key}" for section, key in CLIPBOARD_SPELLINGS
+               if section in cfg]
+    shadowed = next((d for d in present if d != dotted), None)
     if refusal is not None:
-        return ClipboardCommandReading(None, source, refusal)
+        return ClipboardCommandReading(None, source, refusal, dotted, shadowed)
     if value is None:
-        return ClipboardCommandReading(None, source, None)
-    problem = clipboard_command_spelling_problem(path)
+        return ClipboardCommandReading(None, source, None, dotted, shadowed)
+    problem = clipboard_command_spelling_problem(path, dotted)
     if problem is not None:
         rerun = ("bale config init --global" if path == GLOBAL_CONFIG_PATH
                  else "bale config init")
+        section, _, key = dotted.partition(".")
+        moves = (f", as {clipboard_key_display(CLIPBOARD_DOTTED)}"
+                 if dotted != CLIPBOARD_DOTTED else "")
         return ClipboardCommandReading(None, source, (
-            f"{path}: probe.clipboard_command {problem}. bale reads the "
+            f"{path}: {dotted} {problem}. bale reads the "
             f"key only in the one-line spelling the probe scaffold's "
             f"reader (tools/craft_response.py) can see — "
-            f'clipboard_command = "<command>" under a [probe] header. '
-            f"Re-run `{rerun}` (it rewrites the key that way) or edit "
-            f"the line."))
-    return ClipboardCommandReading(value, source, None)
+            f'{key} = "<command>" under a [{section}] header. '
+            f"Re-run `{rerun}` (it rewrites the key that way{moves}) or "
+            f"edit the line."), dotted, shadowed)
+    return ClipboardCommandReading(value, source, None, dotted, shadowed)
 
 
 def layout_agent_dir_problem(value: str) -> Optional[str]:
@@ -2007,10 +2196,13 @@ WIZARD_WALK_ORDER_BOTH_LAYERS = (
     "staging.strategy",
     "staging.untracked_inputs",
     "identity.packer",
-    # Both layers since session wizard-defaults (PROBE_VALUES): last of
-    # the both-layer keys, so the global walk ends on it and the project
-    # walk reaches it before the project-only sections.
-    "probe.clipboard_command",
+    # Both layers since session wizard-defaults (CLIPBOARD_VALUES): last
+    # of the both-layer keys, so the global walk ends on it and the
+    # project walk reaches it before the project-only sections. Walked
+    # under its [clipboard] spelling only (session clipboard-key-rename);
+    # a file's legacy `probe.clipboard_command` shows on this screen as
+    # the current value and is written back as `clipboard.command`.
+    "clipboard.command",
 )
 WIZARD_WALK_ORDER_PROJECT_ONLY = (
     "validation.base",
@@ -2034,7 +2226,7 @@ _WIZARD_SECTION_NOTES = {
     "validation": "blind checkpoint, required checks",
     "sandbox": "confinement of response scripts",
     "pack": "the include group",
-    "probe": "this machine's clipboard command",
+    "clipboard": "this machine's clipboard command",
     "layout": "where the agent-facing tree lives",
 }
 _PROJECT_ONLY_SECTIONS = ("validation", "sandbox", "pack", "layout")
@@ -2497,21 +2689,34 @@ def suggest_wizard_values(layer: str, existing: Optional[dict] = None, *,
             bale_wizard.Alternative(name, "git user.name", True)]
     elif why:
         out.note("identity.packer", f"detection skipped: {why}")
-    out.alternatives["probe.clipboard_command"] = clipboard_alternatives(
+    out.alternatives[CLIPBOARD_DOTTED] = clipboard_alternatives(
         platform=platform, environ=environ, which=which, wsl=wsl)
     if layer == "project":
         out.alternatives["validation.base"] = validation_base_alternatives(
             agent_dir, repo)
 
-    probe = existing.get("probe")
-    raw = probe.get("clipboard_command") if isinstance(probe, dict) else None
-    if config_path is not None and isinstance(raw, str) and raw.strip():
-        problem = clipboard_command_spelling_problem(config_path)
+    # The clipboard screen's warnings: the deciding spelling (in-file
+    # precedence, _clipboard_value) written in a form the probe
+    # scaffold's reader cannot see, and — session clipboard-key-rename —
+    # a file that sets both spellings, so the operator learns which one
+    # this walk shows and which the write drops.
+    raw, _refusal, dotted = _clipboard_value(_layer_clipboard_tables(existing))
+    spellings = clipboard_spellings_set(existing)
+    if config_path is not None and raw is not None and dotted is not None:
+        problem = clipboard_command_spelling_problem(config_path, dotted)
         if problem is not None:
-            out.warn("probe.clipboard_command",
-                     f"this file's clipboard_command {problem}, which the "
-                     f"probe scaffold's reader cannot see; writing the "
-                     f"file rewrites it as a one-line string.")
+            out.warn(CLIPBOARD_DOTTED,
+                     f"this file's {clipboard_key_display(dotted)} "
+                     f"{problem}, which the probe scaffold's reader "
+                     f"cannot see; writing the file rewrites it as a "
+                     f"one-line {clipboard_key_display(CLIPBOARD_DOTTED)} "
+                     f"string.")
+    if len(spellings) > 1:
+        out.warn(CLIPBOARD_DOTTED,
+                 f"this file sets both {clipboard_key_display(spellings[0])} "
+                 f"(shown here, and what bale uses) and the legacy "
+                 f"{clipboard_key_display(spellings[1])} (ignored); writing "
+                 f"the file keeps only {clipboard_key_display(CLIPBOARD_DOTTED)}.")
     return out
 
 
@@ -2629,12 +2834,16 @@ def _prompt_value(walk: bale_wizard.Walk, label: str, *,
                   description: list[str],
                   unset_effective: str = "(no hook will run)",
                   suggestions: Optional[WizardSuggestions] = None,
+                  current_aside: str = "",
                   ) -> Optional[str]:
     """Generic value-prompt for the wizard.
 
     `walk` draws the screen (bale_wizard); `label` is the dotted key.
     `summary` is the short default view; `description` is the full text
     shown on '?'. `kind` names the answer shape on the item header.
+    `current_aside` is drawn beside the current row when given — the
+    clipboard screen uses it to say a current value was read from the
+    file's legacy spelling (session clipboard-key-rename).
 
     `suggestions` (session wizard-defaults) carries the key's numbered
     alternatives and any note or warning for its screen; with
@@ -2685,7 +2894,7 @@ def _prompt_value(walk: bale_wizard.Walk, label: str, *,
     else:
         current_shown = current
     rows: list = [("current", current_shown)]
-    aside = [""]
+    aside = [current_aside]
     # Inherited shows only when this is the project layer and the global
     # layer has a value; the 'x' sigil is offered exactly then.
     if inherited:
@@ -3386,27 +3595,36 @@ def walk_configurables(existing: dict, *, layer: str,
     if val is not None:
         new.setdefault("identity", {})["packer"] = val
 
-    # ---- [probe].clipboard_command (both layers) ----------------------------
-    # This machine's clipboard command (board 99a's key; both layers since
-    # session wizard-defaults — PROBE_VALUES owns the ruling). Walked at
-    # both layers with the [identity] mechanics: string value, "" suppress
-    # form when a global value is inherited. The alternatives are always
-    # the five named commands (CLIPBOARD_ALTERNATIVES), the detected one
-    # first. The crafter-readable shape check runs after the prompt with
-    # the staging.strategy reject-with-hint posture — on a picked number
-    # as on a typed value — so an unreadable value keeps current rather
+    # ---- [clipboard].command (both layers) ----------------------------------
+    # This machine's clipboard command (board 99a's key, moved to its
+    # neutral section by session clipboard-key-rename; both layers since
+    # session wizard-defaults — CLIPBOARD_VALUES owns the ruling). Walked
+    # at both layers with the [identity] mechanics: string value, ""
+    # suppress form when a global value is inherited. The current and
+    # inherited rows are read through the in-file precedence
+    # (_clipboard_current): a file that still carries only the legacy
+    # `[probe] clipboard_command` shows that value as current, says so
+    # beside it, and Enter carries it into `clipboard.command` — the
+    # value is unchanged, only the spelling moves on the write. The
+    # alternatives are always the five named commands
+    # (CLIPBOARD_ALTERNATIVES), the detected one first. The
+    # crafter-readable shape check runs after the prompt with the
+    # staging.strategy reject-with-hint posture — on a picked number as
+    # on a typed value — so an unreadable value keeps current rather
     # than landing a key the crafter would silently treat as unset.
-    existing_probe = (existing.get("probe")
-                      if isinstance(existing.get("probe"), dict) else {})
-    inherited_probe = (inherited.get("probe")
-                       if isinstance(inherited.get("probe"), dict) else {})
-    raw_cur = existing_probe.get("clipboard_command")
+    cur_key, raw_cur = _clipboard_current(existing)
     current = raw_cur if isinstance(raw_cur, str) else None
-    raw_inh = inherited_probe.get("clipboard_command")
+    _inh_key, raw_inh = _clipboard_current(inherited)
     inh = raw_inh.strip() if isinstance(raw_inh, str) and raw_inh.strip() else None
+    legacy_aside = ""
+    if current is not None and cur_key == LEGACY_CLIPBOARD_DOTTED:
+        legacy_aside = (f"read from this file's legacy "
+                        f"{clipboard_key_display(LEGACY_CLIPBOARD_DOTTED)}; "
+                        f"the write moves it to "
+                        f"{clipboard_key_display(CLIPBOARD_DOTTED)}")
 
     val = _prompt_value(
-        walk, "probe.clipboard_command",
+        walk, CLIPBOARD_DOTTED,
         kind="shell command",
         suggestions=suggestions,
         summary=(
@@ -3415,6 +3633,7 @@ def walk_configurables(existing: dict, *, layer: str,
         ),
         current=current,
         inherited=inh,
+        current_aside=legacy_aside,
         description=[
             "Optional. Enter to skip (no clipboard copy).",
             "Shell command that copies its standard input to this",
@@ -3439,18 +3658,25 @@ def walk_configurables(existing: dict, *, layer: str,
             "it only says the copy did not happen. Unset, nothing is",
             "copied. One line, no backslashes or double quotes (wrap",
             "anything fancier in a script).",
+            "Written as `command` under a `[clipboard]` header. The",
+            "key's earlier spelling, `clipboard_command` under `[probe]`,",
+            "is still read as a legacy alias at both layers, with the",
+            "same rules; this wizard shows such a value as current and",
+            "writes it back under [clipboard], the value unchanged. When",
+            "one file sets both spellings, [clipboard] command wins and",
+            "`bale status` says so.",
         ],
         unset_effective="(unset — no clipboard copy)",
     )
     if val not in (None, ""):
-        problem = probe_clipboard_command_problem(val)
+        problem = clipboard_command_problem(val)
         if problem is not None:
             walk.ui.warn(f"'{bale_wizard.clip(val)}' {problem}; the "
                          f"probe scaffold's reader would treat it as "
                          f"unset. Keeping current.")
             val = current
     if val is not None:
-        new.setdefault("probe", {})["clipboard_command"] = val
+        new.setdefault(CLIPBOARD_SECTION, {})[CLIPBOARD_KEY] = val
 
     # ---- [validation].base (PROJECT LAYER ONLY) -----------------------------
     # Walked only in project mode, per the ratified disposition 1 recorded
@@ -3979,22 +4205,28 @@ def render_bale_toml(cfg: dict, *, layer: str = "project") -> str:
                     parts.append(f"{key} = {json.dumps(v)}")
         parts.append("")
 
-    # [probe] section (board 99a — the probe scaffold's clipboard
-    # epilogue). One string key, emitted in PROBE_VALUES order.
+    # [clipboard] section (board 99a's clipboard command, in the neutral
+    # section session clipboard-key-rename moved it to). One string key,
+    # emitted in CLIPBOARD_VALUES order; both layers (CLIPBOARD_VALUES).
     # ensure_ascii=False is deliberate: json.dumps' default escapes
     # non-ASCII into \uXXXX sequences, and the crafter's minimal reader
     # treats any backslash as unset — so a command with a non-ASCII
     # character would round-trip through tomllib yet vanish at craft
-    # time. Literal UTF-8 is a valid TOML basic string. Project-layer
-    # only by walk (the ruling on PROBE_VALUES): the global wizard never
-    # puts this section in its dict.
-    probe_section = cfg.get("probe") or {}
-    if probe_section:
-        parts.append("[probe]")
-        for key in PROBE_VALUES:
-            if key in probe_section:
-                parts.append(f"{key} = "
-                             f"{json.dumps(probe_section[key], ensure_ascii=False)}")
+    # time. Literal UTF-8 is a valid TOML basic string.
+    #
+    # The legacy spelling is never written: a dict that carries only
+    # `probe.clipboard_command` (a parsed pre-rename file handed straight
+    # to the renderer) has that value carried into `[clipboard] command`
+    # here — the value unchanged, only the spelling moves — and a dict
+    # carrying both writes the [clipboard] one, the in-file precedence.
+    # The wizard's own dict never holds [probe] (walk_configurables
+    # reads the legacy value onto the clipboard.command screen); this
+    # branch is the renderer keeping the same promise on its own.
+    clipboard_key, clipboard_value = _clipboard_current(cfg)
+    if clipboard_key is not None and clipboard_value is not None:
+        parts.append(f"[{CLIPBOARD_SECTION}]")
+        parts.append(f"{CLIPBOARD_KEY} = "
+                     f"{json.dumps(clipboard_value, ensure_ascii=False)}")
         parts.append("")
 
     # [layout] section (v0.4.42 — the agent-facing directory name). One
@@ -4051,20 +4283,53 @@ def config_changes(old: dict, new: dict, *,
     walk order, then any other keys alphabetically. A lost key the walk
     covers was cleared; one it does not cover was hand-edited in and is
     dropped by the rewrite (the header comment's warning, made visible).
+
+    The clipboard key's legacy spelling (session clipboard-key-rename)
+    is reviewed as the key it aliases, never as a hand-edited stranger:
+    a file carrying `probe.clipboard_command` that the walk writes back
+    as `clipboard.command` gets one "~" row naming the move (the value
+    beside it, unchanged or not), a legacy line the walk cleared reads
+    "(cleared)", and a legacy line beside a `clipboard.command` the file
+    already had — ignored by bale, dropped by the write — says so.
     """
     before = _flatten_config(old)
     after = _flatten_config(new)
     order = wizard_walk_order(layer)
     rank = {key: i for i, key in enumerate(order)}
+    # The legacy clipboard spelling ranks with the key it aliases, so its
+    # row sits where the clipboard screen sat in the walk.
+    rank[LEGACY_CLIPBOARD_DOTTED] = rank.get(CLIPBOARD_DOTTED, len(order))
+    moved = (LEGACY_CLIPBOARD_DOTTED in before
+             and CLIPBOARD_DOTTED not in before
+             and CLIPBOARD_DOTTED in after)
     keys = sorted(set(before) | set(after),
                   key=lambda k: (rank.get(k, len(order)), k))
     rows: list[tuple[str, str]] = []
     for key in keys:
+        if moved and key == CLIPBOARD_DOTTED:
+            # One row for the move: the legacy value → the new key.
+            old_value, new_value = before[LEGACY_CLIPBOARD_DOTTED], after[key]
+            if old_value == new_value and type(old_value) is type(new_value):
+                rows.append(("~", f"{LEGACY_CLIPBOARD_DOTTED} → {key} = "
+                                  f"{_toml_display(new_value)}  (the legacy "
+                                  f"spelling moves; same value)"))
+            else:
+                rows.append(("~", f"{LEGACY_CLIPBOARD_DOTTED} = "
+                                  f"{_toml_display(old_value)} → {key} = "
+                                  f"{_toml_display(new_value)}  (the legacy "
+                                  f"spelling moves)"))
+            continue
+        if moved and key == LEGACY_CLIPBOARD_DOTTED:
+            continue  # reported on the clipboard.command row above
         if key not in before:
             rows.append(("+", f"{key} = {_toml_display(after[key])}"))
         elif key not in after:
-            why = ("cleared" if key in rank
-                   else "not walked at this layer; dropped")
+            if key == LEGACY_CLIPBOARD_DOTTED and CLIPBOARD_DOTTED in before:
+                why = (f"legacy spelling beside {CLIPBOARD_DOTTED}, which "
+                       f"wins; ignored by bale, dropped by the write")
+            else:
+                why = ("cleared" if key in rank
+                       else "not walked at this layer; dropped")
             rows.append(("-", f"{key} = {_toml_display(before[key])}  "
                               f"({why})"))
         elif before[key] != after[key] or type(before[key]) is not type(

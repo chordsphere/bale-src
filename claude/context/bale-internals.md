@@ -337,9 +337,12 @@ is *for* — and stays stable as the per-section line numbers drift:
 **1, constants:** the paths above, `HOOK_NAMES`, one key tuple per
 TOML section (`APPLY_VALUES`, `STAGING_VALUES` with
 `STAGING_STRATEGIES`, `IDENTITY_VALUES`, `VALIDATION_VALUES`,
-`SANDBOX_VALUES`, `PACK_VALUES`, `PROBE_VALUES` with the
-`CLIPBOARD_ALTERNATIVES` the wizard offers, `LAYOUT_VALUES` with
-`DEFAULT_AGENT_DIR`), each tuple's comment carrying its layer ruling.
+`SANDBOX_VALUES`, `PACK_VALUES`, `CLIPBOARD_VALUES` with the
+`CLIPBOARD_ALTERNATIVES` the wizard offers and `PROBE_VALUES`, the
+clipboard key's legacy spelling (the two joined as
+`CLIPBOARD_SPELLINGS`, the in-file precedence order), `LAYOUT_VALUES`
+with `DEFAULT_AGENT_DIR`), each tuple's comment carrying its layer
+ruling.
 **2, load and merge:** `load_config`, `load_global_config`,
 `merged_config`; the hook acceptance store (`hook_script_sha256`,
 `load_hook_acceptances`, `hook_previously_accepted`,
@@ -350,7 +353,8 @@ the bool readers over `_get_apply_bool`, `get_apply_archive_dir`,
 `get_staging_strategy`, `get_staging_untracked_inputs`,
 `get_identity_packer`, `get_validation_base` with
 `resolve_checkpoint_path`, `get_validation_required`, the two sandbox
-bools, `get_pack_include_group`, `get_probe_clipboard_command`, and
+bools, `get_pack_include_group`, `get_clipboard_command` (its
+pre-rename name `get_probe_clipboard_command` kept as an alias), and
 `get_layout_agent_dir` with its `layout_agent_dir` /
 `layout_agent_dir_for_display` conveniences. Two provenance helpers
 sit beside them: `apply_bool_source`, which the non-interactive apply
@@ -362,9 +366,16 @@ refusal of a spelling the probe scaffold's reader cannot see
 a twin of the crafter's scan that the tests pin to it). Since session
 log-hold it is the fatal wrapper over `clipboard_command_reading(repo)`,
 which reads the same bytes in the same order and returns a
-`ClipboardCommandReading` (command, source, refusal) instead of
-calling `fail()` — the form the paste-block copy and the status row
-read, so an unreadable key never journals a `[bale] error:` line.
+`ClipboardCommandReading` (command, source, refusal, and since session
+clipboard-key-rename `key` and `shadowed` — the dotted spelling the
+deciding file was read by and the other spelling it also sets, if any)
+instead of calling `fail()` — the form the paste-block copy and the
+status row read, so an unreadable key never journals a `[bale] error:`
+line. The key's two spellings are one logical key: `CLIPBOARD_SPELLINGS`
+is the in-file precedence order, `_layer_clipboard_tables` is what one
+parsed file says about it (the merge and the readers both go through
+it), and `_clipboard_value` applies the precedence and names the key it
+read.
 Both config loaders share `read_config_file`, which returns a
 malformed or unreadable file's refusal as a value. **3, the
 wizard:** the walk order (`WIZARD_WALK_ORDER_BOTH_LAYERS` /
@@ -778,19 +789,36 @@ behavioral gain. Future sessions add more keys under `[hooks]` and
 (`WIZARD_WALK_ORDER_*`, which the walk refuses to run without) — in the
 same session so the discoverable surface stays in sync.
 
-`[probe] clipboard_command` names the machine's clipboard command. It
-is a both-layer key since session `wizard-defaults`: set once in the
-global file, overridden per project, suppressed with `""` — the
-`[identity] packer` mechanics. The spelling stayed, so a project file
-that set it before keeps working with the probe scaffold, whose reader
-(`tools/craft_response.py --probe`) sees only the project file as
-shipped in a request; bale code reads the effective value through
-`effective_clipboard_command(repo)`, which refuses a value or a
-spelling that reader could not see (a triple-quoted string above all),
-so bale and the crafter never disagree about whether a file sets it.
-The copy path and the status row read its non-exiting form,
+`[clipboard] command` names the machine's clipboard command. It is a
+both-layer key since session `wizard-defaults`: set once in the global
+file, overridden per project, suppressed with `""` — the `[identity]
+packer` mechanics. Session `clipboard-key-rename` moved it to this
+neutral section from `[probe] clipboard_command` (board 99a's spelling,
+which undersold the key once bale copied every paste block, not only
+probe output); the legacy spelling is still read as an alias at both
+layers, with the same value rules and the same one-line spelling rule,
+and is never written — the wizard shows a legacy value as the
+`clipboard.command` screen's current value and writes it back under
+`[clipboard]`, the value unchanged. The two-key precedence rule (the
+planning desk's pin): within one file `[clipboard] command` wins when
+both spellings are set, and the file is never silent about it — the
+status row and `bale status --json`'s `clipboard` object name the
+spelling bale used and the one it ignored; across files the layer rule
+is unchanged — the project file decides when it sets either spelling
+(`""` in either suppressing), else the global file decides, in either
+spelling. A project file that set the key before the rename keeps
+working with the probe scaffold, whose reader (`tools/craft_response.py
+--probe`) sees only the project file as shipped in a request and reads
+both spellings with the same in-file precedence; bale code reads the
+effective value through `effective_clipboard_command(repo)`, which
+refuses a value or a spelling that reader could not see (a
+triple-quoted string above all, in either spelling), so bale and the
+crafter never disagree about whether a file sets it. The copy path and
+the status row read its non-exiting form,
 `clipboard_command_reading(repo)`, so the same refusal is a notice or a
-row there, never an error of the command.
+row there, never an error of the command. bale-src's own committed
+`bale.toml` keeps the legacy spelling on purpose: it exercises the alias
+until the operator's next `bale config init` moves it.
 
 The two boolean `[apply]` keys (v0.2.5) drive the non-interactive apply
 mode: `no_interact = true` opts `bale apply` and `bale retry` into the
@@ -975,7 +1003,7 @@ doesn't walk through is a contract violation.
    (`<agent_dir>/responses`), `staging.strategy` (both values),
    `staging.untracked_inputs` (`.venv` / `node_modules` when present
    and untracked), `identity.packer` (git's `user.name`),
-   `probe.clipboard_command` (always `pbcopy`, `clip.exe`, `wl-copy`,
+   `clipboard.command` (always `pbcopy`, `clip.exe`, `wl-copy`,
    `xclip -selection clipboard`, `xsel --clipboard --input`), and
    `validation.base` (both checkpoint conventions). A value detection
    found is listed first and marked "detected". Detection only
@@ -999,8 +1027,13 @@ doesn't walk through is a contract violation.
      value).
    - EOF / ^C → keep current.
    The reject-with-hint checks (`staging.strategy`'s enum,
-   `probe.clipboard_command`'s crafter-readable shape,
+   `clipboard.command`'s crafter-readable shape,
    `layout.agent_dir`'s repo-relative shape) keep current and say why.
+   The `clipboard.command` screen reads its current and inherited rows
+   through the key's in-file precedence, so a file carrying only the
+   legacy `probe.clipboard_command` shows that value as current, says
+   so beside it, and Enter carries it into the new spelling (the review
+   renders the move as one `~` row, never as a dropped stranger).
 5. Render via `render_bale_toml(cfg, layer="project")`, then **review
    before writing** (`review_and_write_config`): the per-key changes
    versus the file on disk (`config_changes` — added, changed, cleared,

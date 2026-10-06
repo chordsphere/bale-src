@@ -1708,20 +1708,24 @@ These apply to both the paste-back shape and the §4.4 fallback:
 The crafter's probe scaffold additionally ends with an opt-in
 clipboard copy, made by bale: the emitted script pipes its
 sentinel-bracketed output into `bale clipboard`, so the installed
-bale copies it with the machine's configured command —
-`clipboard_command` under `[probe]` in `bale.toml`, the project's
-value or else the per-machine global one, which `bale config init
---global` sets once — and a request that ships no `bale.toml` still
-copies. bale copies every other operator-side paste block it prints
-the same way: the session opener, the exchange block, and the HOLD
-and APPLIED relay blocks. The copy reports success or failure loudly
-and never fails the probe; with no command configured nothing is
-copied, whatever clipboard program is installed. Where bale is not on
-PATH (or predates the verb), the script tees into the request's own
-`[probe] clipboard_command` when the crafter could read one at craft
-time, and otherwise prints remedy text naming `bale config init
---global`; the `PROBE BEGIN`/`END` banners always emit either way, as
-the dependency-free selection aid.
+bale copies it with the machine's configured command — `command`
+under `[clipboard]` in `bale.toml`, the project's value or else the
+per-machine global one, which `bale config init --global` sets once —
+and a request that ships no `bale.toml` still copies. The key's
+earlier spelling, `[probe] clipboard_command`, is still read as a
+legacy alias at both layers, with the same rules; when one file sets
+both, `[clipboard] command` wins, and `bale status`'s `clipboard` row
+says which spelling bale used. bale copies every other operator-side
+paste block it prints the same way: the session opener, the exchange
+block, and the HOLD and APPLIED relay blocks. The copy reports success
+or failure loudly and never fails the probe; with no command
+configured nothing is copied, whatever clipboard program is installed.
+Where bale is not on PATH (or predates the verb), the script tees into
+the request's own clipboard command — either spelling, the same
+precedence — when the crafter could read one at craft time, and
+otherwise prints remedy text naming `bale config init --global`; the
+`PROBE BEGIN`/`END` banners always emit either way, as the
+dependency-free selection aid.
 
 `probe.ps1` is conditional. Most environments (Linux container,
 macOS, WSL) run the bash variant natively. Offer a PowerShell variant

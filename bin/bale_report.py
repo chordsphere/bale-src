@@ -203,14 +203,21 @@ open`'s, through the replayed pack and the second-desk path), `bale
 relay`'s exchange block, `bale apply` / `bale retry`'s HOLD and
 APPLIED relay blocks, and `bale clipboard`, the verb the probe scaffold
 pipes its block into. It reads the effective command through
-`bale_config.clipboard_command_reading` (`resolve_clipboard_command`;
-the non-exiting form of `effective_clipboard_command` since session
-log-hold, so a refusal is a reason, never a `[bale] error:` line or a
-journal entry), runs it with the block on stdin (`run_clipboard_command`), and
-prints one `[bale] clipboard:` notice line on stderr. It is the third
-deliberate exception to the pure-assembler rule — it runs a command —
-and it never raises, never touches stdout, and never changes an exit
-code: copying is a side channel, not a step of the command.
+`bale_config.clipboard_command_reading` (`resolve_clipboard`, whose
+first three facts `resolve_clipboard_command` still returns as the
+pre-rename triple; the non-exiting form of `effective_clipboard_command`
+since session log-hold, so a refusal is a reason, never a `[bale]
+error:` line or a journal entry), runs it with the block on stdin
+(`run_clipboard_command`), and prints one `[bale] clipboard:` notice
+line on stderr. It is the third deliberate exception to the
+pure-assembler rule — it runs a command — and it never raises, never
+touches stdout, and never changes an exit code: copying is a side
+channel, not a step of the command. Session clipboard-key-rename moved
+the key to `[clipboard] command` (the legacy `[probe]
+clipboard_command` still read): `describe_clipboard_state` renders the
+`clipboard` status row from the same five facts, naming the spelling
+when it is the legacy one or when a file sets both, and
+`format_status_json` carries them as the additive `clipboard` object.
 
 See claude/context/bale-internals.md for how this module sits next to
 `bin/bale` and the other siblings.
@@ -227,7 +234,7 @@ import textwrap
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 
 def format_summary_block(
@@ -2020,8 +2027,10 @@ def emit_stdout_block(text: str) -> None:
 # session opener, the exchange block, the HOLD and APPLIED relay blocks,
 # and probe output — is copied to the clipboard when, and only when,
 # bale_config.effective_clipboard_command returns a command for the repo
-# the command runs in (the per-machine `[probe] clipboard_command`, the
-# project's value overriding the global one). Nothing is detected here:
+# the command runs in (the per-machine `[clipboard] command`, read under
+# its legacy spelling `[probe] clipboard_command` too — session
+# clipboard-key-rename — the project's value overriding the global
+# one). Nothing is detected here:
 # an unset key copies nothing, whatever clipboard program is on PATH —
 # detection lives only in `bale config init`'s suggestions (the
 # registry fold-in, configurable-never-core).
@@ -2097,8 +2106,25 @@ def _refusal_reason(captured_stderr: str, exc: BaseException) -> str:
             + (f", exit {code}" if code is not None else "") + ")")
 
 
-def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
-    """(command, source, problem) for `repo` (None outside a repo).
+class ClipboardResolution(NamedTuple):
+    """resolve_clipboard's answer — the status row's and the JSON
+    report's five facts. `command`, `source`, `problem` are
+    resolve_clipboard_command's triple; `key` is the dotted spelling the
+    deciding file was read by — "clipboard.command" or the legacy
+    "probe.clipboard_command" — or None when no file sets either (or the
+    read failed before a file decided); `shadowed` is the other spelling
+    the same file also sets, which bale ignored under the in-file
+    precedence (session clipboard-key-rename), or None."""
+    command: Optional[str]
+    source: Optional[str]
+    problem: Optional[str]
+    key: Optional[str]
+    shadowed: Optional[str]
+
+
+def resolve_clipboard(repo: Optional[Path]) -> ClipboardResolution:
+    """Everything bale knows about the clipboard command for `repo`
+    (None outside a repo), never raising.
 
     command is effective_clipboard_command's answer — the command to
     run, or None for "no copy"; source is clipboard_command_source's
@@ -2106,7 +2132,8 @@ def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
     refused (a triple-quoted, dotted, or inline-table spelling, a
     backslash, a double quote, a control character, a malformed
     bale.toml): then command is None and problem is the refusal's text,
-    remedy included, as one line.
+    remedy included, as one line. key and shadowed are the deciding
+    file's spellings (ClipboardResolution).
 
     Reads bale_config.clipboard_command_reading, the accessor's
     non-exiting form (session log-hold): the refusal comes back as a
@@ -2122,10 +2149,33 @@ def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
     try:
         reading = bale_config.clipboard_command_reading(repo)
     except (SystemExit, Exception) as exc:  # noqa: BLE001 — never take the command down
-        return None, None, _refusal_reason("", exc)
+        return ClipboardResolution(None, None, _refusal_reason("", exc),
+                                   None, None)
     if reading.refusal is not None:
-        return None, reading.source, _one_line(reading.refusal)
-    return reading.command, reading.source, None
+        return ClipboardResolution(None, reading.source,
+                                   _one_line(reading.refusal),
+                                   reading.key, reading.shadowed)
+    return ClipboardResolution(reading.command, reading.source, None,
+                               reading.key, reading.shadowed)
+
+
+def resolve_clipboard_command(repo: Optional[Path]) -> tuple:
+    """(command, source, problem) for `repo` (None outside a repo) — the
+    first three of resolve_clipboard's facts, kept as the triple every
+    caller before session clipboard-key-rename unpacks. Never raises."""
+    resolution = resolve_clipboard(repo)
+    return resolution.command, resolution.source, resolution.problem
+
+
+def clipboard_key_display(dotted: Optional[str]) -> str:
+    """A clipboard key's dotted name as a reader meets it in bale.toml:
+    `clipboard.command` → `[clipboard] command`; None → "the clipboard
+    command" (nothing set). The twin of bale_config's, restated so this
+    pure renderer imports nothing. Pure."""
+    if not dotted:
+        return "the clipboard command"
+    section, _, key = dotted.partition(".")
+    return f"[{section}] {key}"
 
 
 def _read_available(stream) -> str:
@@ -2297,7 +2347,7 @@ def copy_paste_block(repo: Optional[Path], block: str, text, *,
             _clipboard_notice(f"nothing to copy — the {block} is empty; "
                               f"nothing was copied")
             return CLIPBOARD_EMPTY
-        command, source, problem = resolve_clipboard_command(repo)
+        command, source, problem, key, _shadowed = resolve_clipboard(repo)
         if problem is not None:
             _clipboard_notice(
                 f"the {block} was NOT copied — the configured clipboard "
@@ -2309,8 +2359,9 @@ def copy_paste_block(repo: Optional[Path], block: str, text, *,
                 _clipboard_notice(
                     f"the {block} was not copied — this project suppresses "
                     f"the clipboard command (its bale.toml sets "
-                    f"clipboard_command = \"\"); clear that key with `bale "
-                    f"config init` here to use this machine's command")
+                    f"{clipboard_key_display(key)} = \"\"); clear that key "
+                    f"with `bale config init` here to use this machine's "
+                    f"command")
             elif announce_unset:
                 _clipboard_notice(
                     f"the {block} was not copied — no clipboard command "
@@ -2336,29 +2387,47 @@ def copy_paste_block(repo: Optional[Path], block: str, text, *,
 
 
 def describe_clipboard_state(command: Optional[str], source: Optional[str],
-                             problem: Optional[str]) -> str:
+                             problem: Optional[str], *,
+                             key: Optional[str] = None,
+                             shadowed: Optional[str] = None) -> str:
     """The `bale status` clipboard row's value (the MASTER.md rider,
-    re-worded for the key as session C left it), from
-    resolve_clipboard_command's triple. Pure.
+    re-worded for the key as session C left it and labelled `clipboard`
+    since session clipboard-key-rename), from resolve_clipboard's facts
+    — the triple positionally, the two spellings by keyword, so the
+    pre-rename triple call still reads. Pure.
 
     Names the command and the layer it came from; "suppressed" when the
-    project sets clipboard_command = ""; unset with its remedy; and an
-    unreadable key with the accessor's reason — so a hand edit the
-    probe scaffold cannot read surfaces here before a copy silently
-    falls back.
+    project sets the key to "" (naming the spelling it used); unset with
+    its remedy; and an unreadable key with the accessor's reason — so a
+    hand edit the probe scaffold cannot read surfaces here before a copy
+    silently falls back. The spelling is named only when a reader would
+    want it: a value read from the legacy `[probe] clipboard_command`
+    says so (the next `bale config init` moves it), and a file that
+    sets both spellings is never silent — the row says which one bale
+    used and which it ignored (the desk's precedence pin).
     """
     if problem is not None:
         return (f"UNREADABLE — nothing is copied until it is fixed: "
                 f"{problem}")
+    spelled = []
+    if key is not None and key != "clipboard.command":
+        spelled.append(f"via the legacy {clipboard_key_display(key)}")
+    if shadowed is not None:
+        spelled.append(f"{clipboard_key_display(key)}, which wins over the "
+                       f"same file's {clipboard_key_display(shadowed)} — "
+                       f"ignored")
+    aside = f"; {'; '.join(spelled)}" if spelled else ""
     if command is not None:
-        return (f"{command} ({source or 'unknown'} layer) — every "
+        return (f"{command} ({source or 'unknown'} layer{aside}) — every "
                 f"paste block is copied")
     if source == "project":
-        return ("suppressed here (this project's bale.toml sets "
-                "clipboard_command = \"\") — nothing is copied")
+        return (f"suppressed here (this project's bale.toml sets "
+                f"{clipboard_key_display(key)} = \"\"{aside}) — nothing is "
+                f"copied")
     if source == "global":
-        return ("unset (the global bale.toml sets it empty) — nothing is "
-                "copied; `bale config init --global` sets one")
+        return (f"unset (the global bale.toml sets "
+                f"{clipboard_key_display(key)} empty{aside}) — nothing is "
+                f"copied; `bale config init --global` sets one")
     return ("unset — nothing is copied; `bale config init --global` "
             "sets one for this machine")
 
@@ -3120,6 +3189,40 @@ def format_status_json(report) -> str:
                                  are still valid; hooks_wired /
                                  search_paths are then empty/zero —
                                  unknown rather than known-absent.
+      clipboard  (additive, session clipboard-key-rename — session D's
+               deferred Proposal 3) always an object, in and out of a
+               repo (the global layer exists everywhere): the machine
+               reading of the human `clipboard` row, meaning what that
+               row means — the facts `bale status` gathers through
+               resolve_clipboard, the same read the next pack, relay,
+               apply, or probe copy makes:
+                 command   the effective clipboard command, stripped, or
+                           null for "nothing is copied" (unset,
+                           suppressed, or unreadable — `problem` and
+                           `source` say which)
+                 source    "project" | "global" — the layer whose
+                           bale.toml decides the key, the suppress form
+                           included — or null when neither file sets it
+                           (or a file could not be parsed)
+                 key       the dotted spelling the deciding file was
+                           read by: "clipboard.command", or the legacy
+                           "probe.clipboard_command"; null when no file
+                           sets either. Additive detail beyond the
+                           Proposal's three keys, so a consumer can tell
+                           a file the next `bale config init` will
+                           re-spell.
+                 shadowed  the other spelling the same file also sets,
+                           which bale ignored under the in-file
+                           precedence ([clipboard] command wins), or
+                           null — the row's "never silent about both
+                           spellings" promise, as data.
+                 problem   null, or the accessor's one-line refusal
+                           (a triple-quoted, dotted, or inline-table
+                           spelling, a backslash, a double quote, a
+                           control character, a malformed bale.toml) —
+                           then command is null and nothing is copied
+                           until it is fixed. The human row's prose
+                           around these facts is not in the contract.
 
     Pure: builds a string, prints nothing; the caller emits it, which
     supplies the trailing newline.
@@ -3229,6 +3332,15 @@ def format_status_json(report) -> str:
             "search_paths": report.search_path_count,
             "baleignore": report.baleignore,
             "summary_failed": report.config_summary_failed,
+        },
+        # Additive (session clipboard-key-rename): the clipboard row as
+        # data — see the docstring's `clipboard` entry.
+        "clipboard": {
+            "command": report.clipboard_command,
+            "source": report.clipboard_source,
+            "key": report.clipboard_key,
+            "shadowed": report.clipboard_shadowed,
+            "problem": report.clipboard_problem,
         },
     }
     return json.dumps(payload)
