@@ -1,0 +1,261 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-06-sitting-close-deltas-22-005",
+  "created_at": "2026-10-06T20:49:02+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-06T20:49:02+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-sitting-close-deltas-22-005.log",
+      "bundle": {
+        "stem": "2026-10-06-sitting-close-deltas-22",
+        "brief_sha256": "236fc174c4cd98dc3462ab2ba90e8317685fc822974a5f842fe3dd9584d34de0",
+        "checkpoint_sha256": "948acbdcdb67c5062b457b83a0a26c6f8f54e232eb6580bab29f79457bfc48ae",
+        "manifest_sha256": "de5eba50507d914f26a76d1b7137516518fe2bfe8c0ce765dae9836ba0da10ed"
+      },
+      "provenance": {
+        "work_class": "doc",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-06T20:49:02+00:00"
+      }
+    },
+    {
+      "at": "2026-10-06T23:41:17+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-06-sitting-close-deltas-22-005.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "reversal: removing this close's insertions restores the base sha256": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "header: Last landed by names this session, edited in place": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "\u00a76 numbering: entries 10 to 225 contiguous": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "board numbering: rows 1 to 135 contiguous": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "anchors: twelve insertions, each after its anchor line in its section": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "verbatim: transported quotes match their sources in the tree (notes.md, records, changelog, bin/, docs/PLANNER.md)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "seven keys: both brackets name exactly the keys suggest_wizard_values offers in bin/bale_config.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "width: no inserted line runs past 72 columns": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "reversal: removing this close's insertions restores the base sha256": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "header: Last landed by names this session, edited in place": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "\u00a76 numbering: entries 10 to 225 contiguous": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "board numbering: rows 1 to 135 contiguous": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "anchors: twelve insertions, each after its anchor line in its section": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "verbatim: transported quotes match their sources in the tree (notes.md, records, changelog, bin/, docs/PLANNER.md)": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "seven keys: both brackets name exactly the keys suggest_wizard_values offers in bin/bale_config.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "width: no inserted line runs past 72 columns": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax: claude/MASTER.md is UTF-8 with LF line endings",
+          "reversal: removing this close's insertions restores the base sha256",
+          "header: Last landed by names this session, edited in place",
+          "\u00a76 numbering: entries 10 to 225 contiguous",
+          "board numbering: rows 1 to 135 contiguous",
+          "anchors: twelve insertions, each after its anchor line in its section",
+          "verbatim: transported quotes match their sources in the tree (notes.md, records, changelog, bin/, docs/PLANNER.md)",
+          "seven keys: both brackets name exactly the keys suggest_wizard_values offers in bin/bale_config.py",
+          "width: no inserted line runs past 72 columns"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "claude/MASTER.md"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "claude/MASTER.md"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.46",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "32680c8efcfb1c56c486846d0187063d38b7c5333e48c553db1a9ae0b2d118b1",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "doc",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-06-sitting-close-deltas-22-005.sh",
+              "sha256": "948acbdcdb67c5062b457b83a0a26c6f8f54e232eb6580bab29f79457bfc48ae"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-06T20:49:02+00:00",
+            "base_files": {
+              "claude/MASTER.md": "7748ce44a9b1eb05d95247ea096fee84666ac3390664413e728d6539f406431e"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "Transported quotes are verbatim modulo whitespace: list markers dropped, lines joined and re-wrapped at 72 columns with code spans never split, as closes 18 to 21 flattened Proposals; the light block's three question rows are carried joined by ' / ', its sentinel and Reply lines left out as closes 20 and 21 did.",
+            "The session id's date, 2026-10-06, dates every block and bracket; \u00a75's block is bounded by the bump's apply (20:33:13Z) and this close's pack (20:49:02Z), inferred from the brief's 'after both relays reached the desk'.",
+            "No record of the close desk shipped; its packed_at, its light block, the reply, its chat answer, the relays' mangling and the tags rest on the brief's word, and the wave block says so.",
+            "bin/bale_report.py renders the bale status row's value and --json object but not its label, which the 0.4.46 record puts in bin/bale, not shipped; the bracket records what was read and what was not.",
+            "model_identity is this session's configured identifier; the surface says the serving model may differ."
+          ],
+          "judgment_calls": [
+            "The close desk's completing bracket sits under that block's light-block ledger bullet, the line it supersedes, since no \u00a73 sitting block carried a bracket before.",
+            "C's seven-keys bracket in the 99b routing entry sits right after C's set, mid-entry, because the brief asks for one at each place the document says eight.",
+            "One \u00a75 pointer bullet and no headed bullets: none of the block's three items changes a contract.",
+            "References to close 22's own insertions say 'of close 22' rather than 'of this date', because close 21's insertions carry the same date.",
+            "The WSL bracket adds this worker's own observation, marked as such: this session's opener arrived with its one non-ASCII character mangled to \u0393\u00c7\u00f6.",
+            "No probe of bin/bale for the status row's label: the brief's outcome is to say what the shipped bytes show, and the bracket and entry 225 say the label is still unread.",
+            "The optional \u00a77 bullet is included, as closes 20 and 21 did, led 'Version landmark: 0.4.46' in the earlier landmarks' form.",
+            "validation.sh embeds the insertion ledger and proves the reversal by exact block removal plus the header restore; the board check is a guard that passes on both trees by design."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md (in full)",
+            "README.md (the brief, with Appendix A)",
+            "TARBALL.md sections 1, 2, 5.1-5.4, 7, 8, 10.1",
+            "DOCS.md (in full)",
+            "PLANNER.md sections 6, 20 (20.1, 20.2)",
+            "claude/MASTER.md: header, \u00a73 Watches (WSL clip.exe and the dotted-key watch), Ruling queue, registry (bale status entry and brackets, the 99b routing entry, the dispositions entries, the riders' tail), close 20's wave2-004 desk block, close 21's two \u00a73 blocks, \u00a75's last three blocks, \u00a76 entries 210-224, \u00a77's tail and its version landmarks",
+            "claude/responses/*/notes.md, both",
+            "claude/telemetry/*.json, both",
+            "claude/changelog/0.4.46.json",
+            "bin/bale_config.py (suggest_wizard_values, the clipboard key constants)",
+            "bin/bale_report.py (the module docstring's clipboard paragraph, resolve_clipboard, copy_paste_block, describe_clipboard_state, format_status_json's clipboard entry)",
+            "tools/craft_response.py (header, imports, write sites, --help, --validation-epilogue)",
+            "tools/response_lint.py (header, imports)"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-06-sitting-close-deltas-22-005.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-06-sitting-close-deltas-22-005.sh",
+          "sha256": "948acbdcdb67c5062b457b83a0a26c6f8f54e232eb6580bab29f79457bfc48ae"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-06T23:41:17+00:00",
+  "outcome": "applied"
+}
