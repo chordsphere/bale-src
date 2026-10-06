@@ -557,6 +557,27 @@ class CheckpointWizardPromptTest(CheckpointFileFixture):
         self.assertEqual(self.head_bytes(self.resolved_for(sid)),
                          typed_body.encode("utf-8"))
 
+    def test_question_mark_and_a_literal_number_are_paths(self) -> None:
+        """The picker's two exceptions, kept when it moved onto the
+        wizard layer's choice primitive (session
+        choice-prompt-convergence): '?' is a path, not help, so it misses
+        and re-asks; and an out-of-range number that names a file in cwd
+        is that file, so "7" commits ./7 rather than re-asking."""
+        self.inbox_with({"listed.sh": (checkpoint_script("listed"), 0)})
+        literal_body = checkpoint_script("literal-seven")
+        (self.repo / "7").write_text(literal_body, encoding="utf-8")
+        sid = self.predicted_sid("wiz-literal")
+        code, output = self.wizard_pack(self.picker_answers(
+            "wizard picker literal goal", "wiz-literal", "?", "7"))
+        self.assertEqual(code, 0, msg=output)
+        self.assertIn(CANDIDATES_MARKER, output)
+        self.assertIn("--checkpoint-file '?' not found; searched:", output)
+        self.assertNotIn("no candidate 7", output)
+        self.assertNotIn("? help", output.split(PROMPT_MARKER, 1)[1]
+                         .split("--exclude", 1)[0])
+        self.assertEqual(self.head_bytes(self.resolved_for(sid)),
+                         literal_body.encode("utf-8"))
+
     # -- fixture ---------------------------------------------------------
 
     def scope_json_of_only_session(self) -> list:

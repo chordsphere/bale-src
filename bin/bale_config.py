@@ -2308,7 +2308,11 @@ WINDOWS_DOWNLOADS_MAX = 3
 # and any single shippable file at least BALEIGNORE_LARGE_FILE_BYTES
 # that neither rule covers. Only what pack would ship is counted —
 # tracked plus untracked-not-ignored files (git ls-files, as pack lists
-# them), outside pack's baked-in excluded directories.
+# them) that pack's filter chain lets through (bale_pack.pack_drop_reason
+# since session choice-prompt-convergence: not under a baked-in excluded
+# directory, not a secret, not under the configured checkpoint's
+# exclusion basis, not a planner bundle, and not matched by a pattern
+# the .baleignore keeps).
 BALEIGNORE_SUGGEST_EXTENSIONS = frozenset({
     # data and serialized models
     "parquet", "feather", "arrow", "avro", "orc", "h5", "hdf5", "npy",
@@ -2550,8 +2554,9 @@ def staging_strategy_alternatives() -> list:
 
 
 def _baked_in_exclude_dirs() -> frozenset:
-    """Pack's baked-in excluded directory names, for the .baleignore
-    signals (a file pack never ships needs no pattern).
+    """Pack's baked-in excluded directory names: the .baleignore signals'
+    fallback filter when pack's own chain cannot be read (_pack_drops; a
+    file pack never ships needs no pattern).
 
     Read from bale_pack, the constant's one home, lazily (the module is
     large and only this step needs it). If it cannot be read — the name
@@ -2563,6 +2568,81 @@ def _baked_in_exclude_dirs() -> frozenset:
         return frozenset(bale_pack.BAKED_IN_EXCLUDE_DIRS)
     except (ImportError, AttributeError):
         return frozenset()
+
+
+def _configured_checkpoint_basis(repo: Path, basis_of) -> Optional[str]:
+    """The exclusion basis pack would apply for this repo's configured
+    blind checkpoint (`basis_of` is bale_pack.checkpoint_exclusion_basis),
+    or None when none is configured.
+
+    [validation] is project-layer only, so the project file alone is
+    read, through read_config_file, which never exits: the suggestions
+    are a detector, and a detector answers rather than ending `bale
+    config init` (get_validation_base would fail() on a malformed
+    value). The one difference from pack's own read is therefore only
+    reachable with a value pack refuses outright — an unparsable file
+    or a non-string base — and there the basis is None, so those files
+    are counted, as before this session.
+    """
+    cfg, _refusal = read_config_file(repo / BALE_CONFIG)
+    section = cfg.get("validation")
+    raw = section.get("base") if isinstance(section, dict) else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    return basis_of(raw.strip())
+
+
+def _pack_drops(repo: Path, kept: Sequence[str]
+                ) -> tuple[Optional[Callable[[str], bool]], Optional[str]]:
+    """A predicate saying whether pack would drop a listed path, for the
+    .baleignore signals; (predicate, None), or (None, why) when the kept
+    patterns themselves do not parse.
+
+    Built from pack's own filter chain (bale_pack.pack_drop_reason, the
+    one implementation walk_for_pack runs, short of --include), with this
+    walk's kept `.baleignore` patterns as the matcher — not the file on
+    disk, which phase 1 may have just trimmed — and the configured
+    checkpoint's exclusion basis (_configured_checkpoint_basis). No
+    session excludes: config init packs nothing.
+
+    C's lazy posture, kept: bale_pack is imported here and only here, and
+    if a name moved the predicate degrades to the baked-in directory
+    test (_baked_in_exclude_dirs, itself empty if that name moved too).
+    The matcher class is bin/bale's, reached through __main__ like every
+    other bin/bale helper; outside bin/bale (an in-process test that did
+    not provide one) kept patterns are not applied. Each degradation
+    counts more files, never fewer: noisier suggestions, never wrong
+    about what a pattern would match, and the wizard still runs.
+
+    A kept line pack cannot parse (a negation the phase-1 walk kept) is
+    the one case that skips suggestions: pack refuses that file outright,
+    so "what this repo would ship" has no answer until it is fixed.
+    """
+    try:
+        import bale_pack  # lazy: see the docstring
+        drop_reason = bale_pack.pack_drop_reason
+        basis_of = bale_pack.checkpoint_exclusion_basis
+    except (ImportError, AttributeError):
+        baked = _baked_in_exclude_dirs()
+        return (lambda rel: any(part in baked
+                                for part in rel.split("/"))), None
+    matcher = None
+    patterns = [p.strip() for p in kept
+                if p.strip() and not p.strip().startswith("#")]
+    if patterns:
+        try:
+            from __main__ import BaleignoreMatcher  # lazy: bin/bale's
+        except ImportError:
+            BaleignoreMatcher = None
+        if BaleignoreMatcher is not None:
+            try:
+                matcher = BaleignoreMatcher.from_lines(patterns)
+            except ValueError as e:
+                return None, f"a kept .baleignore pattern does not parse ({e})"
+    basis = _configured_checkpoint_basis(repo, basis_of)
+    return (lambda rel: drop_reason(rel, repo, matcher=matcher,
+                                    checkpoint_exclude=basis) is not None
+            ), None
 
 
 def _human_size(size: int) -> str:
@@ -2583,8 +2663,11 @@ def baleignore_suggestions(repo: Path,
     """.baleignore patterns drawn from what this repo would ship.
 
     Lists what pack lists (git ls-files --cached --others
-    --exclude-standard), drops what pack's baked-in exclusions already
-    drop, and groups the rest under three signals, in this order of
+    --exclude-standard), drops every file pack's filter chain would drop
+    (_pack_drops: a baked-in excluded directory, a secret, the
+    configured checkpoint's exclusion basis, a planner bundle, or a
+    pattern in `existing` — the patterns the .baleignore keeps), and
+    groups the rest under three signals, in this order of
     precedence for any one file: a directory in BALEIGNORE_SUGGEST_DIRS
     on its path (suggested as `name/`), an extension in
     BALEIGNORE_SUGGEST_EXTENSIONS (`*.ext`, in the case found), or a
@@ -2593,7 +2676,7 @@ def baleignore_suggestions(repo: Path,
     in `existing` are not offered again. The heaviest
     BALEIGNORE_SUGGESTIONS_MAX are returned, each aside giving the file
     count and total size; (alternatives, reason) — reason set only when
-    git could not list the files.
+    git could not list the files, or a kept pattern does not parse.
     """
     result, why = _run_git(
         ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
@@ -2602,13 +2685,15 @@ def baleignore_suggestions(repo: Path,
         return [], why
     if result.returncode != 0:
         return [], f"git ls-files exited {result.returncode}"
-    baked = _baked_in_exclude_dirs()
+    dropped, why = _pack_drops(repo, existing)
+    if dropped is None:
+        return [], why
     have = {p.strip() for p in existing}
     groups: dict = {}
     for rel in (p for p in result.stdout.split("\0") if p):
         parts = rel.split("/")
-        if any(part in baked for part in parts):
-            continue
+        if dropped(rel):
+            continue  # pack would not ship it: no pattern needed
         try:
             size = (repo / rel).stat().st_size
         except OSError:
@@ -4449,12 +4534,15 @@ def walkthrough_baleignore(
     offered, and a pick already added is not added twice. Enter still
     finishes, so an Enter-through run adds nothing.
 
-    The function does not import bale (or its matcher) — keeps this
-    module's circular-import surface minimal, and any pattern the user
-    types here will be validated when pack/apply next loads the file.
-    The cost of late validation is an error message at pack time
-    instead of inline; the cost of a typo here is one re-run of
-    `bale config init`, which is acceptable.
+    The function does not import bale — keeps this module's
+    circular-import surface minimal, and any pattern the user types
+    here will be validated when pack/apply next loads the file. The
+    cost of late validation is an error message at pack time instead
+    of inline; the cost of a typo here is one re-run of `bale config
+    init`, which is acceptable. (The suggestions do read the kept
+    patterns through bin/bale's matcher, lazily from __main__, so they
+    count only what pack would ship — session choice-prompt-convergence;
+    that read validates nothing the user typed.)
     """
     from __main__ import log
 

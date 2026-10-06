@@ -73,6 +73,7 @@ from harness import (
 
 bale_wizard = _load_module("bale_wizard")
 bale_pack = _load_module("bale_pack")
+_load_module("bale_config")  # registered for the picker tests' patches
 
 TITLE_MARKER = "bale pack — interactive mode"
 README_PROMPT = "y, or Enter = no > "
@@ -390,6 +391,292 @@ class SessionShapeAnswersTest(unittest.TestCase):
                                          write=["src"])
         self.assertEqual(prompts, [])
         self.assertEqual(out, "")
+
+
+class ShapeChoiceTest(unittest.TestCase):
+    """Session choice-prompt-convergence: the shape question asks through
+    bale_wizard's choice primitive — lettered rows, Enter's row marked,
+    '? help' offered — and '?' is the only answer whose meaning moved
+    (it re-asked with a warning; it now shows help and asks again)."""
+
+    FORMS = {
+        # name: (overrides, every answer the form takes, a non-answer)
+        "combined": ({}, ["c", "code", "d", "doc", "t", "contract-doc",
+                          "m", "META", "x", "mixed", "", "r", "read-only",
+                          "readonly", "R"], "y"),
+        "write given": ({"write": ["src"]},
+                        ["c", "code", "d", "doc", "t", "contract-doc", "m",
+                         "meta", "x", "mixed", ""], "r"),
+        "work-class given": ({"work_class": "doc"},
+                             ["", "y", "yes", "n", "no", "r", "read-only",
+                              "readonly", "YES"], "x"),
+    }
+
+    def run_shape(self, answers: list, **overrides):
+        args = shape_args(**overrides)
+        walk = quiet_walk(SHAPE_PLAN)
+        with fed_input(answers) as prompts, \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            bale_pack._wizard_input_session_shape(args, walk)
+        return (args.read_only, args.work_class, walk.plan), prompts, \
+            out.getvalue()
+
+    def test_a_question_mark_first_changes_no_answer(self) -> None:
+        for form, (overrides, answers, _bad) in self.FORMS.items():
+            for typed in answers:
+                with self.subTest(form=form, typed=typed):
+                    plain, _p, _o = self.run_shape([typed], **overrides)
+                    helped, prompts, out = self.run_shape(["?", typed],
+                                                          **overrides)
+                    self.assertEqual(helped, plain)
+                    self.assertEqual(len(prompts), 2)
+                    self.assertIn("── shape ", out, msg="the help block")
+                    self.assertNotIn("! Type", out)
+
+    def test_a_non_answer_still_reasks_with_the_hint(self) -> None:
+        hints = {"combined": "! Type c, d, t, m, x, or r",
+                 "write given": "! Type c, d, t, m, or x",
+                 "work-class given": "! Type y or n"}
+        for form, (overrides, _answers, bad) in self.FORMS.items():
+            with self.subTest(form=form):
+                _r, prompts, out = self.run_shape([bad, ""], **overrides)
+                self.assertEqual(len(prompts), 2)
+                self.assertIn(hints[form], out)
+
+    def test_digits_are_not_picks_here(self) -> None:
+        """Lettered rows offer no numbers: '1' re-asks with the hint, as
+        it always did, rather than picking the first row."""
+        result, prompts, out = self.run_shape(["1", "d"])
+        self.assertEqual(result[1], "doc")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("! Type c, d, t, m, x, or r", out)
+        self.assertNotIn("no alternative", out)
+
+    def test_the_screen_reads_like_config_inits_alternatives(self) -> None:
+        _r, prompts, out = self.run_shape([""])
+        rows = [ln.strip() for ln in out.splitlines()
+                if ln.strip().startswith("[")]
+        self.assertEqual(rows, [
+            "[c] code", "[d] doc", "[t] contract-doc", "[m] meta",
+            "[x] mixed  (Enter)",
+            "[r] read-only  (nothing lands: discussion, orchestration, "
+            "audit)"])
+        self.assertTrue(prompts[0].endswith(
+            "Enter = mixed · c/d/t/m/x/r picks · ? help > "))
+        _r, prompts, out = self.run_shape([""], work_class="doc")
+        rows = [ln.strip() for ln in out.splitlines()
+                if ln.strip().startswith("[")]
+        self.assertEqual(rows[0], "[y] yes  (it lands changes, Enter)")
+        self.assertTrue(rows[1].startswith("[n] no  (read-only"))
+        self.assertTrue(prompts[0].endswith(
+            "Enter = yes · y/n picks · ? help > "))
+        for line in out.splitlines():
+            self.assertLessEqual(len(line), bale_wizard.WIDTH, line)
+
+    def test_eof_still_aborts_the_pack(self) -> None:
+        saved = sys.modules["__main__"]
+        fake = types.ModuleType("__main__")
+
+        def fail(msg):
+            raise SystemExit(msg)
+        fake.fail = fail
+        sys.modules["__main__"] = fake
+        try:
+            with self.assertRaises(SystemExit) as caught:
+                self.run_shape([])
+        finally:
+            sys.modules["__main__"] = saved
+        self.assertIn("aborted at wizard prompt", str(caught.exception))
+
+
+class CheckpointPickerAnswersTest(unittest.TestCase):
+    """Every picker answer keeps its meaning on the choice primitive
+    (session choice-prompt-convergence; brief outcome 2): a number in
+    range picks; Enter packs without one; any other answer — '?'
+    included — is a path; an out-of-range number re-asks unless a file of
+    that name is in cwd, which is then the path. The pty suites
+    (test_checkpoint_file_flag) pin the same end to end; this pins the
+    whole answer table in-process, with the config, the Enter outcome,
+    and the path resolution stood in."""
+
+    def setUp(self) -> None:
+        from unittest import mock
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-picker-")
+        self.cwd = Path(self._tmp.name).resolve()
+        self._saved_cwd = os.getcwd()
+        os.chdir(self.cwd)
+        for i, name in enumerate(("older.sh", "newer.sh")):
+            path = self.cwd / name
+            path.write_text(f"#!/bin/sh\nexit {i}\n", encoding="utf-8")
+            os.utime(path, (1_780_000_000 + i, 1_780_000_000 + i))
+        self.resolved: list = []
+
+        def locate(raw, repo, cwd):
+            self.resolved.append(raw)
+            if raw.startswith("/") or (cwd / raw).is_file():
+                return Path(raw), b"#!/bin/sh\n", None
+            return None, None, f"could not read --checkpoint-file {raw!r}"
+
+        # The live module bale_pack's lazy `import bale_config` will get:
+        # another suite in the same run may have re-registered it.
+        bale_config = sys.modules["bale_config"]
+        self._patches = [
+            mock.patch.object(bale_config, "merged_config",
+                              lambda repo: {}),
+            mock.patch.object(bale_config, "get_validation_base",
+                              lambda cfg: SID_BASE),
+            mock.patch.object(bale_config, "get_apply_search_paths",
+                              lambda cfg: []),
+            mock.patch.object(bale_pack, "_checkpoint_enter_outcome",
+                              lambda repo, base, slug: None),
+            mock.patch.object(bale_pack, "locate_and_read_checkpoint_file",
+                              locate),
+        ]
+        for patch in self._patches:
+            patch.start()
+
+    def tearDown(self) -> None:
+        for patch in self._patches:
+            patch.stop()
+        os.chdir(self._saved_cwd)
+        self._tmp.cleanup()
+
+    def pick(self, answers: list):
+        self.resolved.clear()
+        args = Namespace(read_only=False, checkpoint_file=None, slug="s")
+        walk = quiet_walk([bale_pack.WALK_CHECKPOINT])
+        with fed_input(answers) as prompts, \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            bale_pack._wizard_input_checkpoint_file(args, self.cwd, walk)
+        return args.checkpoint_file, prompts, out.getvalue()
+
+    def test_numbers_in_range_pick_newest_first(self) -> None:
+        newer, older = str(self.cwd / "newer.sh"), str(self.cwd / "older.sh")
+        for typed, expected in (("1", newer), ("2", older), ("02", older),
+                                ("١", newer)):
+            with self.subTest(typed=typed):
+                picked, prompts, _o = self.pick([typed])
+                self.assertEqual(picked, expected)
+                self.assertEqual(len(prompts), 1)
+
+    def test_enter_packs_without_one(self) -> None:
+        picked, prompts, _o = self.pick([""])
+        self.assertIsNone(picked)
+        self.assertEqual(self.resolved, [])
+
+    def test_out_of_range_reasks_naming_the_range(self) -> None:
+        picked, prompts, out = self.pick(["7", "0", "1"])
+        self.assertEqual(picked, str(self.cwd / "newer.sh"))
+        self.assertEqual(len(prompts), 3)
+        self.assertIn("no candidate 7; pick 1-2", " ".join(out.split()))
+        self.assertIn("no candidate 0", out)
+        self.assertEqual(self.resolved, [str(self.cwd / "newer.sh")],
+                         msg="a re-asked number is never resolved")
+
+    def test_out_of_range_names_a_cwd_file_literally(self) -> None:
+        (self.cwd / "7").write_text("#!/bin/sh\n", encoding="utf-8")
+        picked, prompts, out = self.pick(["7"])
+        self.assertEqual((picked, len(prompts)), ("7", 1))
+        self.assertNotIn("no candidate", out)
+
+    def test_a_question_mark_is_a_path(self) -> None:
+        picked, prompts, out = self.pick(["?", "1"])
+        self.assertEqual(self.resolved[0], "?")
+        self.assertIn("could not read --checkpoint-file '?'", out)
+        self.assertNotIn("? help", prompts[0])
+        (self.cwd / "?").write_text("#!/bin/sh\n", encoding="utf-8")
+        picked, _p, _o = self.pick(["?"])
+        self.assertEqual(picked, "?")
+
+    def test_other_answers_are_paths(self) -> None:
+        for typed in ("newer.sh", "²", "1:2", "-1"):
+            with self.subTest(typed=typed):
+                _picked, _p, _o = self.pick([typed, ""])
+                self.assertEqual(self.resolved[0], typed)
+
+    def test_the_screen_and_prompt(self) -> None:
+        _picked, prompts, out = self.pick([""])
+        self.assertIn(f"[1] {self.cwd / 'newer.sh'}", out)
+        self.assertIn(f"[2] {self.cwd / 'older.sh'}", out)
+        self.assertIn("sha256 ", out)
+        self.assertIn("Checkpoint file to commit for this session?", out)
+        self.assertTrue(prompts[0].endswith("Enter = none · 1-2 picks > "))
+
+    def test_no_candidates_asks_a_plain_path(self) -> None:
+        for name in ("older.sh", "newer.sh"):
+            (self.cwd / name).unlink()
+        (self.cwd / "3").write_text("#!/bin/sh\n", encoding="utf-8")
+        picked, prompts, out = self.pick(["3"])
+        self.assertEqual(picked, "3", msg="a digit is a path with no list")
+        self.assertTrue(prompts[0].endswith("a path, or Enter = none > "))
+        self.assertNotIn("[1]", out)
+
+
+class PackDropReasonTest(unittest.TestCase):
+    """pack_drop_reason is walk_for_pack's filter chain, short of
+    --include — one implementation, which config init's .baleignore
+    suggestions count through too (session choice-prompt-convergence)."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="bale-dropreason-")
+        self.repo = Path(self._tmp.name)
+        self.files = {
+            "src/app.py": "ok", "node_modules/x.js": "", "keys.pem": "",
+            ".aws/credentials": "", "web/.npmrc": "_authToken=1\n",
+            "web/plain/.npmrc": "registry=x\n",
+            "claude/checkpoints/old.sh": "", "plan.bale-bundle": "",
+            "data/a.csv": "", "notes.md": "",
+        }
+        for rel, body in self.files.items():
+            path = self.repo / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(body, encoding="utf-8")
+        cli = _load_cli()
+        self.matcher = cli.BaleignoreMatcher.from_lines(["data/"])
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_each_reason_in_chain_order(self) -> None:
+        reason = lambda rel: bale_pack.pack_drop_reason(  # noqa: E731
+            rel, self.repo, matcher=self.matcher,
+            checkpoint_exclude="claude/checkpoints")
+        self.assertEqual(
+            {rel: reason(rel) for rel in self.files} | {"gone.txt":
+                                                        reason("gone.txt")},
+            {"src/app.py": None, "notes.md": None,
+             "web/plain/.npmrc": None,
+             "node_modules/x.js": bale_pack.DROP_BAKED_IN_DIR,
+             "keys.pem": bale_pack.DROP_SECRET,
+             ".aws/credentials": bale_pack.DROP_SECRET,
+             "web/.npmrc": bale_pack.DROP_SECRET,
+             "claude/checkpoints/old.sh": bale_pack.DROP_CHECKPOINT,
+             "plan.bale-bundle": bale_pack.DROP_BUNDLE,
+             "data/a.csv": bale_pack.DROP_BALEIGNORE,
+             "gone.txt": bale_pack.DROP_NOT_A_FILE})
+        self.assertIsNone(bale_pack.pack_drop_reason(
+            "claude/checkpoints/old.sh", self.repo),
+            msg="no basis configured, no checkpoint drop")
+
+    def test_the_walk_ships_exactly_what_it_lets_through(self) -> None:
+        from unittest import mock
+        logged: list = []
+        main = sys.modules["__main__"]
+        with mock.patch.object(main, "log", logged.append, create=True):
+            projection = bale_pack.walk_for_pack(
+                self.repo, [], caps=bale_pack.PackCaps(), force=True,
+                matcher=self.matcher, verbose=True,
+                checkpoint_exclude="claude/checkpoints",
+                listed=sorted(self.files) + ["gone.txt"])
+        self.assertEqual(projection.files,
+                         ["notes.md", "src/app.py", "web/plain/.npmrc"])
+        self.assertIn("verbose: skip keys.pem (secret pattern)", logged)
+        self.assertIn("verbose: skip data/a.csv (.baleignore / session "
+                      "exclude)", logged)
+        self.assertTrue(any(line.startswith("auto-excluded") and
+                            "claude/checkpoints/old.sh" in line
+                            for line in logged),
+                        msg="the checkpoint drop is still logged loudly")
 
 
 class ReadmeAnswersTest(unittest.TestCase):
