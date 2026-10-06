@@ -1,0 +1,232 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-06-bump-0-4-46-003",
+  "created_at": "2026-10-06T19:54:43+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-06T19:54:43+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "claude/changelog"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-bump-0-4-46-003.log",
+      "bundle": {
+        "stem": "2026-10-06-bump-0-4-46",
+        "brief_sha256": "f034bc003da44e372c1408ac1d2ca46958e03a6c284155fa844d71c760b531be",
+        "checkpoint_sha256": "0623f824126d9b28b0f9bb1a679b6152d4aef37aec54f80bc7c29077476d6303",
+        "manifest_sha256": "7672d2982b015fff2d39f26bf0b7405be8b6dbffccdcdfe9814eaef9b4efbf57"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-06T19:54:43+00:00"
+      }
+    },
+    {
+      "at": "2026-10-06T20:33:13+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-06-bump-0-4-46-003.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: tests/test_changelog_record.py": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bin/VERSION is exactly 0.4.46": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bale --version reports 0.4.46": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: 0.4.46 record shape and attribution": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: existing changelog records unchanged": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: tests/test_changelog_record.py": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bin/VERSION is exactly 0.4.46": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bale --version reports 0.4.46": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: 0.4.46 record shape and attribution": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: existing changelog records unchanged": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "file syntax (json)",
+          "unittest: tests/test_changelog_record.py",
+          "assert: bin/VERSION is exactly 0.4.46",
+          "assert: bale --version reports 0.4.46",
+          "assert: 0.4.46 record shape and attribution",
+          "assert: existing changelog records unchanged"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "bin/VERSION",
+        "claude/changelog"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "bin/VERSION",
+        "claude/changelog/0.4.46.json"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "32680c8efcfb1c56c486846d0187063d38b7c5333e48c553db1a9ae0b2d118b1",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-06-bump-0-4-46-003.sh",
+              "sha256": "0623f824126d9b28b0f9bb1a679b6152d4aef37aec54f80bc7c29077476d6303"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-06T19:54:43+00:00",
+            "base_files": {
+              "bin/VERSION": "76b4e8738a7b7faa4db9801e03a42022d11d40f6f2b79d49fae4390ee8742ef5",
+              "claude/changelog/0.4.35.json": "14422ebc4977997fe159cbf3ff3d1735c70642481ae445b952748eb9abcec13b",
+              "claude/changelog/0.4.36.json": "edbbb5c7eef40d9a5102a59f94e4a734dc203ed63fab2ebe8875d72bd0753be0",
+              "claude/changelog/0.4.37.json": "5ef59d140d133f4e0fc0ebb5ee9c15ea73a7fcb7644ae7a90900bc0d9f5d05ea",
+              "claude/changelog/0.4.38.json": "dbee836b0341c4c154910cca6dc149366b5f5f149dbc64804952c5a44b504e61",
+              "claude/changelog/0.4.39.json": "c977531f87e44471fb9d7cfa2294468780ef2a831b1437873fd506928a1fad57",
+              "claude/changelog/0.4.40.json": "aa787750fc30c9621263c1dc6b825441ab9976b4aea19ce172651f94a9f9e4ed",
+              "claude/changelog/0.4.41.json": "c6a2dea436e6ecc3215c637a934cef4f76140c4409035ca215374022f4586065",
+              "claude/changelog/0.4.42.json": "c0d26fe4b30cefa33612a497d8390c6e3eeec67df79434ac61ddbe46df660e46",
+              "claude/changelog/0.4.43.json": "90b4854fd11251bf9a6d02cc2516142d88c1dfa7d33f8d20c62bba5467576f36",
+              "claude/changelog/0.4.44.json": "62e71e58abf649a076c606c0c06097819980862e728824d48eeaaa14f553c570",
+              "claude/changelog/0.4.45.json": "2088ed72407753211e2ca185e5e5b9f91e206ef7a4db35a1934e7a98fa3aad20"
+            },
+            "model_identity": "anthropic:claude-opus-5-5"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "The record describes the 0.4.46 bytes, not each session's intermediate state: a change one arc session made and a later arc session replaced (never released in any version) gets no row of its own.",
+            "Repo-root README.md and claude/context/bale-internals.md get no rows: no earlier record names either, and both are prose, not machine-readable surfaces."
+          ],
+          "judgment_calls": [
+            "Took the desk's recommendation: rows for all eight code sessions, not only the four the ruling names; A, E, B and convergence are all borne out by the bytes, so none was left out.",
+            "Followed the 0.4.44/0.4.45 practice of test rows; test rows stay at the level each session's notes describe, naming only classes or functions both the notes and the bytes confirm, because shared suites carry several sessions' classes.",
+            "Rows are ordered by when each session landed (apply time in its telemetry), bin/VERSION first.",
+            "Session C's notes say config init offers alternatives on eight keys; suggest_wizard_values in the bytes offers them on seven, so C's row names the seven."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md META through 11.2",
+            "README.md (the brief)",
+            "TARBALL.md sections 1, 2, 5, 7, 10.1",
+            "CODE.md 8.5",
+            "schemas/changelog-record.schema.json",
+            "schemas/response-manifest.schema.json (self_reported)",
+            "claude/changelog/0.4.44.json, 0.4.45.json (and every record's path list)",
+            "the eight arc sessions' notes.md and telemetry records"
+          ]
+        }
+      },
+      "log": ".bale/logs/2026-10-06-bump-0-4-46-003.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-06-bump-0-4-46-003.sh",
+          "sha256": "0623f824126d9b28b0f9bb1a679b6152d4aef37aec54f80bc7c29077476d6303"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-06T20:33:13+00:00",
+  "outcome": "applied"
+}
