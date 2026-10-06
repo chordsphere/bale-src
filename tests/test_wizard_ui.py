@@ -52,6 +52,7 @@ import unittest
 from pathlib import Path
 
 from harness import (
+    _load_cli,
     _load_module,
     bale_env,
     make_install,
@@ -831,6 +832,27 @@ Alt = bale_wizard.Alternative
 ALT_LINE_RE = re.compile(r"^\s+\[(\d+)\] (.+?)(?:  \((.*)\))?$")
 
 
+@contextlib.contextmanager
+def bale_matcher_on_main():
+    """Put bin/bale's BaleignoreMatcher on __main__ for an in-process run.
+
+    The .baleignore suggestions read it lazily from __main__ (production:
+    bin/bale) to apply the patterns a .baleignore keeps; the unittest
+    runner's __main__ has none, and without it those patterns are simply
+    not applied (the degradation the next tests pin)."""
+    main = sys.modules["__main__"]
+    missing = object()
+    saved = getattr(main, "BaleignoreMatcher", missing)
+    main.BaleignoreMatcher = _load_cli().BaleignoreMatcher
+    try:
+        yield
+    finally:
+        if saved is missing:
+            del main.BaleignoreMatcher
+        else:
+            main.BaleignoreMatcher = saved
+
+
 def alt_lines(output: str) -> list[tuple[int, str, str]]:
     """(number, value, aside) for every `[n] value  (aside)` line."""
     found = []
@@ -986,6 +1008,122 @@ class ChoiceLayerTest(unittest.TestCase):
                 self.assertIsNone(answer)
         with self.assertRaises(ValueError):
             ui.ask_choice("Enter", count=0, show_help=lambda: None)
+
+
+class ChoiceLayerOptionsTest(unittest.TestCase):
+    """What session choice-prompt-convergence added to the primitive for
+    the pack walk: lettered rows, the Enter mark, and the checkpoint
+    picker's options. Every default is config init's behavior, pinned
+    byte-for-byte here so the additions cannot move it."""
+
+    def capture(self, fn):
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            fn(bale_wizard.WizardUI())
+        return buffer.getvalue()
+
+    def test_config_init_prompt_and_warning_are_unchanged(self) -> None:
+        ui = bale_wizard.WizardUI()
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["7", "2"], "Enter keeps current", count=2,
+            show_help=lambda: None)
+        self.assertEqual(answer, "2")
+        self.assertEqual(
+            prompts[0],
+            " " * bale_wizard.BODY_INDENT
+            + "Enter keeps current · 1-2 picks · ? help > ")
+        self.assertEqual(
+            " ".join(out.split()),
+            "! no alternative 7; pick 1-2, type a value, or press Enter.")
+
+    def test_the_aside_marks_enter_after_note_and_detected(self) -> None:
+        self.assertEqual(Alt("mixed", enter=True).aside(), "Enter")
+        self.assertEqual(Alt("yes", "lands", enter=True).aside(),
+                         "lands, Enter")
+        self.assertEqual(Alt("v", "n", True, enter=True).aside(),
+                         "n, detected, Enter")
+        self.assertEqual(Alt("pbcopy", "macOS", True).aside(),
+                         "macOS, detected", msg="config init's aside as was")
+
+    def test_lettered_rows_draw_their_letters(self) -> None:
+        out = self.capture(lambda ui: ui.alternatives(
+            [Alt("code", key="c"), Alt("mixed", key="x", enter=True),
+             Alt("read-only", "nothing lands", key="r")], label=""))
+        self.assertEqual(out.splitlines(), [
+            "         [c] code",
+            "         [x] mixed  (Enter)",
+            "         [r] read-only  (nothing lands)",
+        ])
+        self.assertEqual(alt_lines(out), [],
+                         msg="a lettered row never reads as a numbered one")
+
+    def test_a_screen_is_all_lettered_or_all_numbered(self) -> None:
+        ui = bale_wizard.WizardUI()
+        with self.assertRaises(ValueError):
+            ui.alternatives([Alt("a", key="a"), Alt("b")])
+        with self.assertRaises(ValueError):
+            ui.alternatives([Alt("a", key="a"), Alt("b", key="a")])
+
+    def test_letters_name_the_offer_and_judge_nothing(self) -> None:
+        ui = bale_wizard.WizardUI()
+        for typed in ("c", "", "contract-doc", "7", "0", "META", "q"):
+            with self.subTest(typed=typed):
+                answer, out, prompts = run_with_inputs(
+                    ui.ask_choice, [typed], "Enter = mixed",
+                    letters=["c", "x", "r"], show_help=lambda: None)
+                self.assertEqual(answer, typed)
+                self.assertEqual(len(prompts), 1)
+                self.assertEqual(out, "")
+                self.assertTrue(prompts[0].endswith(
+                    "Enter = mixed · c/x/r picks · ? help > "))
+
+    def test_letters_still_take_help_and_eof(self) -> None:
+        ui = bale_wizard.WizardUI()
+        shown = []
+        answer, _o, prompts = run_with_inputs(
+            ui.ask_choice, ["?", "x"], "Enter", letters=["x"],
+            show_help=lambda: shown.append(1))
+        self.assertEqual((answer, len(shown), len(prompts)), ("x", 1, 2))
+        answer, _o, _p = run_with_inputs(
+            ui.ask_choice, [EOF_ANSWER], "Enter", letters=["x"],
+            show_help=lambda: None)
+        self.assertIsNone(answer)
+
+    def test_numbers_or_letters_not_both(self) -> None:
+        ui = bale_wizard.WizardUI()
+        with self.assertRaises(ValueError):
+            ui.ask_choice("Enter", count=2, letters=["a"],
+                          show_help=lambda: None)
+        with self.assertRaises(ValueError):
+            ui.ask_choice("Enter", show_help=lambda: None)
+
+    def test_without_help_a_question_mark_is_an_answer(self) -> None:
+        ui = bale_wizard.WizardUI()
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["?"], "Enter = none", count=2, show_help=None)
+        self.assertEqual((answer, out), ("?", ""))
+        self.assertTrue(prompts[0].endswith("Enter = none · 1-2 picks > "))
+        self.assertNotIn("? help", prompts[0])
+
+    def test_the_pickers_options(self) -> None:
+        """noun / typed name the warning; out_of_range_ok keeps an
+        out-of-range number it accepts; number reads the answer."""
+        ui = bale_wizard.WizardUI()
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["9", "7"], "Enter = none", count=2,
+            show_help=None, noun="candidate", typed="a path",
+            out_of_range_ok=lambda entry: entry == "7")
+        self.assertEqual((answer, len(prompts)), ("7", 2))
+        self.assertEqual(
+            " ".join(out.split()),
+            "! no candidate 9; pick 1-2, type a path, or press Enter.")
+        wide = lambda t: int(t) if t.isdecimal() else None  # noqa: E731
+        answer, out, prompts = run_with_inputs(
+            ui.ask_choice, ["٩", "٢"], "Enter", count=2,
+            show_help=None, number=wide)
+        self.assertEqual((answer, len(prompts)), ("٢", 2),
+                         msg="the caller's parser decides what a number is")
+        self.assertIn("no alternative 9", out)
 
 
 class ChoiceWalkTest(unittest.TestCase):
@@ -1331,6 +1469,92 @@ class GitDetectionTest(unittest.TestCase):
         self.assertEqual(found, [])
         self.assertIn("git ls-files exited", why)
 
+    # -- pack's real filter chain (session choice-prompt-convergence) ----
+
+    def big(self, rel, size=2 * 1024 * 1024, body=b""):
+        path = self.repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body + b"x" * (size - len(body)))
+
+    def test_suggestions_count_only_what_pack_would_ship(self) -> None:
+        """The desk's repro (brief §3), plus the chain's other drops:
+        every 2 MiB file below but data.parquet is one pack never ships,
+        so it is never counted toward a suggestion."""
+        (self.repo / "bale.toml").write_text(
+            '[validation]\nbase = "claude/checkpoints/{sid}.sh"\n',
+            encoding="utf-8")
+        self.big("assets/big.bin")                 # kept .baleignore dir
+        self.big("keys.pem")                       # secret pattern
+        self.big(".aws/credentials")               # secret path
+        self.big("tools/.npmrc", body=b"_authToken=x\n")  # npmrc token
+        self.big("claude/checkpoints/old.sh")      # checkpoint basis
+        self.big("plan.bale-bundle")               # planner bundle
+        self.big("data.parquet")                   # ships
+        with bale_matcher_on_main():
+            found, why = bale_config.baleignore_suggestions(
+                self.repo, ["assets/"])
+        self.assertIsNone(why)
+        self.assertEqual(found, [Alt("*.parquet", "1 file, 2.0 MB")])
+
+    def test_each_filter_is_what_drops_its_file(self) -> None:
+        """Without the kept pattern or the checkpoint configured, those
+        two files ship — and are suggested — so the drops above are the
+        chain's, not an accident of the fixture."""
+        self.big("assets/big.bin")
+        self.big("claude/checkpoints/old.sh")
+        self.big("keys.pem")
+        with bale_matcher_on_main():
+            found, _why = bale_config.baleignore_suggestions(self.repo)
+        self.assertEqual(sorted(a.value for a in found),
+                         ["assets/big.bin", "claude/checkpoints/old.sh"])
+
+    def test_a_literal_checkpoint_base_is_its_own_basis(self) -> None:
+        (self.repo / "bale.toml").write_text(
+            '[validation]\nbase = "ci/oracle.sh"\n', encoding="utf-8")
+        self.big("ci/oracle.sh")
+        self.big("ci/other.sh")
+        found, _why = bale_config.baleignore_suggestions(self.repo)
+        self.assertEqual([a.value for a in found], ["ci/other.sh"])
+
+    def test_a_malformed_config_never_ends_the_wizard(self) -> None:
+        """The detector reads the project file without fail(): a base
+        pack would refuse leaves the checkpoint files counted."""
+        (self.repo / "bale.toml").write_text("[validation\n",
+                                             encoding="utf-8")
+        self.big("claude/checkpoints/old.sh")
+        found, why = bale_config.baleignore_suggestions(self.repo)
+        self.assertIsNone(why)
+        self.assertEqual([a.value for a in found],
+                         ["claude/checkpoints/old.sh"])
+
+    def test_a_kept_negation_skips_with_a_reason(self) -> None:
+        self.big("data.parquet")
+        with bale_matcher_on_main():
+            found, why = bale_config.baleignore_suggestions(
+                self.repo, ["!data.parquet"])
+        self.assertEqual(found, [])
+        self.assertIn("a kept .baleignore pattern does not parse", why)
+
+    def test_an_unreadable_chain_degrades_to_the_baked_in_dirs(self) -> None:
+        """C's lazy posture, kept: if bale_pack's names moved, the
+        suggestions count more files (noisier), never fewer, and still
+        run. Here only BAKED_IN_EXCLUDE_DIRS is left to read."""
+        from unittest import mock
+        self.big("keys.pem")
+        self.big("dist/pkg.bin")
+        stub = type(sys)("bale_pack")
+        stub.BAKED_IN_EXCLUDE_DIRS = {"dist"}
+        with mock.patch.dict(sys.modules, {"bale_pack": stub}):
+            found, why = bale_config.baleignore_suggestions(self.repo)
+        self.assertIsNone(why)
+        self.assertEqual([a.value for a in found], ["/keys.pem"])
+        # And with no matcher on __main__, kept patterns are still never
+        # re-offered, though their files count.
+        self.big("assets/big.bin")
+        found, _why = bale_config.baleignore_suggestions(
+            self.repo, ["assets/big.bin"])
+        self.assertNotIn("assets/big.bin", [a.value for a in found])
+
 
 class BaleignoreSuggestionStepTest(unittest.TestCase):
     """The .baleignore step's [n] picks, with suggestions injected."""
@@ -1452,6 +1676,35 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(
             (self.repo / ".baleignore").read_text(encoding="utf-8"),
             "foo/\n")
+
+    def test_baleignore_offers_only_what_pack_would_ship(self) -> None:
+        """The desk's repro (brief §3) through a real `bale config init`,
+        Enter through: a 2 MB file under a directory the .baleignore
+        keeps, a 2 MB keys.pem, a 2 MB file under the configured {sid}
+        checkpoint's directory, and a 2 MB data.parquet. All four used to
+        be suggested; only the one pack would ship is now."""
+        (self.repo / "bale.toml").write_text(
+            '[validation]\nbase = "claude/checkpoints/{sid}.sh"\n',
+            encoding="utf-8")
+        (self.repo / ".baleignore").write_text("assets/\n",
+                                               encoding="utf-8")
+        for rel in ("assets/huge.bin", "keys.pem",
+                    "claude/checkpoints/old.sh", "data.parquet"):
+            path = self.repo / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"x" * (2 * 1024 * 1024))
+        out = self.init()
+        plain = ANSI_RE.sub("", out)
+        marker = "Suggested from what this repo would ship"
+        self.assertIn(marker, plain)
+        step = plain[plain.index(marker):]
+        self.assertEqual(alt_lines(step), [(1, "*.parquet",
+                                            "1 file, 2.0 MB")])
+        for absent in ("keys.pem", "huge.bin", "claude/checkpoints/old"):
+            self.assertNotIn(absent, plain)
+        self.assertEqual(
+            (self.repo / ".baleignore").read_text(encoding="utf-8"),
+            "assets/\n", msg="Enter through keeps and adds nothing")
 
     def test_global_enter_through(self) -> None:
         out = self.init(global_layer=True)

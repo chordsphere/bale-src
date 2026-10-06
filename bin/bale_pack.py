@@ -33,6 +33,13 @@ This module imports nothing from
 the apply path — the dependency direction is `bin/bale` → `bale_pack`,
 never the reverse.
 
+Read by `bale_config` (lazily, and degrading if a name moves): the
+filter chain's per-path predicate `pack_drop_reason` and
+`checkpoint_exclusion_basis`, which `bale config init`'s `.baleignore`
+suggestions use so they count only what a pack would ship (session
+choice-prompt-convergence), plus `BAKED_IN_EXCLUDE_DIRS` as their
+fallback.
+
 Sections:
   1. Pack constants                                      (~line   55)
   2. File enumeration and filtering                      (~line  105)
@@ -499,6 +506,51 @@ def is_bundle_file(rel: str) -> bool:
     return rel.endswith(BUNDLE_SUFFIX)
 
 
+# Why pack's filter chain drops a path (pack_drop_reason), in chain order.
+# The strings are the --verbose trail's own words ("verbose: skip <rel>
+# (<reason>)"), unchanged since that trail landed.
+DROP_NOT_A_FILE = "not a regular file"
+DROP_BAKED_IN_DIR = "baked-in excluded directory"
+DROP_SECRET = "secret pattern"
+DROP_CHECKPOINT = "checkpoint auto-exclusion"
+DROP_BUNDLE = "planner-bundle auto-exclusion"
+DROP_BALEIGNORE = ".baleignore / session exclude"
+
+
+def pack_drop_reason(rel: str, repo: Path, *,
+                     matcher: Optional[BaleignoreMatcher] = None,
+                     checkpoint_exclude: Optional[str] = None,
+                     ) -> Optional[str]:
+    """Why pack's filter chain drops `rel`, or None when it ships.
+
+    The chain walk_for_pack runs on every listed path, short of the
+    --include filter (which is the session's choice of scope, not a
+    property of the file): not a regular file, under a baked-in excluded
+    directory, a secret (pattern, path, or an .npmrc holding a token),
+    under the configured checkpoint's exclusion basis, a planner bundle,
+    or matched by the .baleignore-plus-session `matcher`. One
+    implementation for every caller (session choice-prompt-convergence):
+    walk_for_pack, and `bale config init`'s .baleignore suggestions,
+    which count only what this would let through. Reads the file system
+    (is_file, and .npmrc contents); writes and logs nothing — the walk
+    keeps its own trail and its loud checkpoint and bundle lines.
+    """
+    if not (repo / rel).is_file():
+        return DROP_NOT_A_FILE
+    if is_under_excluded_dir(rel):
+        return DROP_BAKED_IN_DIR
+    if is_secret_excluded(rel, repo):
+        return DROP_SECRET
+    if checkpoint_exclude is not None and checkpoint_auto_excluded(
+            rel, checkpoint_exclude):
+        return DROP_CHECKPOINT
+    if is_bundle_file(rel):
+        return DROP_BUNDLE
+    if matcher is not None and matcher.matches(rel):
+        return DROP_BALEIGNORE
+    return None
+
+
 def format_bundle_naming_refusal(offenders: list) -> str:
     """The planner-bundle blindness refusal text, one wording for both
     of cmd_pack's sites (v0.4.44: the pre-exchange pass,
@@ -786,7 +838,11 @@ def walk_for_pack(
     paths under --include. Order matches the v0.0.9 function's filter chain
     with the matcher slotted before --include — same reasoning as the
     other exclude filters: cheaper to drop matched paths early than to
-    run them through the --include pruner.
+    run them through the --include pruner. Every step but --include is
+    pack_drop_reason (session choice-prompt-convergence), the one
+    implementation `bale config init`'s .baleignore suggestions count
+    through too; the planner-bundle drop sits between the checkpoint
+    and the matcher.
 
     `checkpoint_exclude` (v0.4.9) is the configured blind checkpoint's
     exclusion basis (checkpoint_exclusion_basis) — a structural
@@ -862,41 +918,34 @@ def walk_for_pack(
     for rel in listed:
         # Filter chain — matches gather_files_for_pack's body so the
         # surviving set on a no-cap run is consistent across entry points.
-        if not (repo / rel).is_file():
-            _drop(rel, "not a regular file")
-            continue
-        if is_under_excluded_dir(rel):
-            _drop(rel, "baked-in excluded directory")
-            continue
-        if is_secret_excluded(rel, repo):
-            _drop(rel, "secret pattern")
-            continue
-        if checkpoint_exclude is not None and checkpoint_auto_excluded(
-                rel, checkpoint_exclude):
-            # Collected here, logged loudly after the walk (v0.4.10):
-            # one line per file when a single file drops, one summary
-            # line for the pack when several do — the revC per-file pin
-            # was the wrong grain (the wall grows by one line per
-            # landed session forever under a {sid} basis). Never
-            # silent remains the floor; the emission site is below the
-            # walk loop. The verbose trail still names every path.
-            _drop(rel, "checkpoint auto-exclusion")
-            checkpoint_drops.append(rel)
-            continue
-        if is_bundle_file(rel):
-            # Planner-bundle auto-exclusion (v0.4.12, board 49a-i;
-            # BALE.md §6.7): same species as the checkpoint drop above
-            # — the bundle carries the oracle — but keyed on the
-            # reserved suffix, so it is unconditional: no config, no
-            # admission flag, no degenerate shape. Collected here,
-            # logged loudly after the walk at the v0.4.10 grain
-            # (per-file for one, one summary line for several); the
-            # verbose trail still names every path via _drop.
-            _drop(rel, "planner-bundle auto-exclusion")
-            bundle_drops.append(rel)
-            continue
-        if matcher is not None and matcher.matches(rel):
-            _drop(rel, ".baleignore / session exclude")
+        # The chain itself is pack_drop_reason (one implementation since
+        # session choice-prompt-convergence, shared with config init's
+        # .baleignore suggestions); the order and the trail's words are
+        # unchanged.
+        why = pack_drop_reason(rel, repo, matcher=matcher,
+                               checkpoint_exclude=checkpoint_exclude)
+        if why is not None:
+            _drop(rel, why)
+            if why == DROP_CHECKPOINT:
+                # Collected here, logged loudly after the walk (v0.4.10):
+                # one line per file when a single file drops, one
+                # summary line for the pack when several do — the revC
+                # per-file pin was the wrong grain (the wall grows by one
+                # line per landed session forever under a {sid} basis).
+                # Never silent remains the floor; the emission site is
+                # below the walk loop. The verbose trail still names
+                # every path.
+                checkpoint_drops.append(rel)
+            elif why == DROP_BUNDLE:
+                # Planner-bundle auto-exclusion (v0.4.12, board 49a-i;
+                # BALE.md §6.7): same species as the checkpoint drop —
+                # the bundle carries the oracle — but keyed on the
+                # reserved suffix, so it is unconditional: no config, no
+                # admission flag, no degenerate shape. Collected here,
+                # logged loudly after the walk at the v0.4.10 grain
+                # (per-file for one, one summary line for several); the
+                # verbose trail still names every path via _drop.
+                bundle_drops.append(rel)
             continue
         if not is_under_include(rel, includes):
             _drop(rel, "outside --include")
@@ -2984,26 +3033,46 @@ def checkpoint_file_candidates(
     return ordered[:limit]
 
 
-def format_checkpoint_candidates(candidates: list[CheckpointCandidate],
-                                 *, indent: int = 2) -> list[str]:
-    """Render candidates as the wizard's numbered lines: `[n] path`,
-    then the UTC mtime (bale's one clock) and the sha256 prefix, four
-    columns further in. An empty list renders no lines at all — the
-    prompt prints nothing extra when there is nothing to pick.
+def checkpoint_candidate_note(candidate: CheckpointCandidate) -> str:
+    """A candidate's aside on the picker: the UTC mtime (bale's one
+    clock) and the sha256 prefix, "modified 2026-10-06 15:49 UTC,
+    sha256 0123456789ab" (54 columns)."""
+    stamp = datetime.fromtimestamp(candidate.mtime, timezone.utc).strftime(
+        "%Y-%m-%d %H:%M UTC")
+    return (f"modified {stamp}, sha256 "
+            f"{candidate.sha256[:CHECKPOINT_CANDIDATE_SHA_CHARS]}")
 
-    `indent` is the `[n]` column; the walk passes bale_wizard's item
-    body indent so the list sits under its question. The path line names
-    an absolute path and is never broken (the wizard layer's one width
-    exception); the detail line is 54 columns past `indent`."""
-    pad = " " * indent
-    lines: list[str] = []
-    for i, c in enumerate(candidates, start=1):
-        stamp = datetime.fromtimestamp(c.mtime, timezone.utc).strftime(
-            "%Y-%m-%d %H:%M UTC")
-        lines.append(f"{pad}[{i}] {c.path}")
-        lines.append(f"{pad}    modified {stamp}  sha256 "
-                     f"{c.sha256[:CHECKPOINT_CANDIDATE_SHA_CHARS]}")
-    return lines
+
+def checkpoint_candidate_alternatives(
+        candidates: list[CheckpointCandidate]) -> list:
+    """The candidates as bale_wizard alternatives, in list order (newest
+    first, so [1] is the file the planner just delivered): the absolute
+    path as the value, checkpoint_candidate_note as the aside. Since
+    session choice-prompt-convergence the picker draws these with
+    WizardUI.alternatives — `[n] path  (aside)`, the aside moving under
+    the path when both do not fit — in place of the hand-built
+    format_checkpoint_candidates lines. An empty list gives an empty
+    list, which draws nothing."""
+    import bale_wizard  # lazy — see module docstring
+    return [bale_wizard.Alternative(str(c.path), checkpoint_candidate_note(c))
+            for c in candidates]
+
+
+def picker_number(text: str) -> Optional[int]:
+    """The checkpoint picker's reading of an answer as a number: what
+    `str.isdigit()` accepts and int() can read — today's rule, kept
+    when the picker moved onto bale_wizard.ask_choice (whose own
+    pick_number reads ASCII digits only). So "3", "03", and a Unicode
+    decimal digit pick as they always did. A digit int() cannot read
+    ("²") is not a number (None): it used to escape the picker as an
+    uncaught ValueError, and is now an ordinary path answer."""
+    text = text.strip()
+    if not text.isdigit():
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
 def checkpoint_file_base_or_refuse(repo: Optional[Path]) -> str:
@@ -3700,12 +3769,19 @@ _WORK_CLASS_ANSWERS = {
     "x": "mixed", "mixed": "mixed", "": "mixed",
 }
 _READ_ONLY_ANSWERS = ("r", "read-only", "readonly")
+# The shape question's rows, (letter, value) — drawn as bale_wizard's
+# lettered alternatives (`[c] code`) since session
+# choice-prompt-convergence. The value is a typable answer, exactly as
+# config init's alternatives are; the letter is the other. 'x' is the row
+# Enter takes, marked on screen.
 _WORK_CLASS_ROWS = (
     ("c", "code"), ("d", "doc"), ("t", "contract-doc"), ("m", "meta"),
     ("x", "mixed"),
 )
-_READ_ONLY_ROW = ("r", "read-only — nothing lands")
+_WORK_CLASS_ENTER = "x"
+_READ_ONLY_ROW = ("r", "read-only")
 _READ_ONLY_ASIDE = "discussion, orchestration, audit"
+_READ_ONLY_NOTE = f"nothing lands: {_READ_ONLY_ASIDE}"
 
 # suggest_slug's shape: at most this many words, at most this many chars.
 SLUG_SUGGESTION_WORDS = 4
@@ -3860,6 +3936,17 @@ class PackWalk:
             fail("aborted at wizard prompt")
         return answer
 
+    def choose(self, enter_action: str, **options) -> str:
+        """A choice-screen answer through the layer's primitive
+        (bale_wizard.WizardUI.ask_choice; `options` are its keywords),
+        raw for the caller to map. EOF/^C aborts the whole pack, as at
+        `ask` (session choice-prompt-convergence)."""
+        answer = self.ui.ask_choice(enter_action, **options)
+        if answer is None:
+            from __main__ import fail  # lazy — see module docstring
+            fail("aborted at wizard prompt")
+        return answer
+
     def ask_list(self, *, empty: str) -> list[str]:
         """A list answer: one item per line, a blank line ends it. The
         first prompt states what Enter means with nothing typed yet
@@ -3931,15 +4018,50 @@ def _clip(value: str, limit: int = 40) -> str:
     return bale_wizard.clip(value, limit)
 
 
-def _draw_work_class_rows(walk: PackWalk, *, with_read_only: bool) -> None:
-    """The work-class letters as state rows, Enter's answer marked."""
-    rows = list(_WORK_CLASS_ROWS)
-    aside = [""] * len(rows)
-    aside[-1] = "Enter"
+def _shape_alternatives(*, with_read_only: bool) -> list:
+    """The work-class rows as lettered bale_wizard alternatives, Enter's
+    row marked; the read-only row last when it is an answer here."""
+    import bale_wizard  # lazy — see module docstring
+    alts = [bale_wizard.Alternative(value, key=letter,
+                                    enter=(letter == _WORK_CLASS_ENTER))
+            for letter, value in _WORK_CLASS_ROWS]
     if with_read_only:
-        rows.append(_READ_ONLY_ROW)
-        aside.append(_READ_ONLY_ASIDE)
-    walk.ui.state(rows, aside=aside)
+        letter, value = _READ_ONLY_ROW
+        alts.append(bale_wizard.Alternative(value, _READ_ONLY_NOTE,
+                                            key=letter))
+    return alts
+
+
+def _ask_shape(walk: PackWalk, alternatives: list, enter_action: str, *,
+               paragraphs: list, answers: str) -> str:
+    """Read one shape answer through the layer's choice primitive,
+    lowercased (the question's answers are case-blind, as before); the
+    caller drew `alternatives` once above its loop. '?' shows the item's
+    help and asks again — the one answer that changed, and it was never
+    a valid one (it re-asked with a warning); every other answer comes
+    back for the caller to map."""
+    return walk.choose(
+        enter_action, letters=[a.key for a in alternatives],
+        show_help=lambda: walk.ui.help(WALK_SHAPE, paragraphs, answers),
+    ).lower()
+
+
+# The shape question's '?' help. One paragraph per fact, so each form shows
+# the ones that apply to it.
+_SHAPE_HELP_KIND = (
+    "The kind of work is stamped into the request manifest's provenance "
+    "as its work class, the value --work-class sets: code, doc, "
+    "contract-doc, meta, or mixed, the default. Telemetry and the trust "
+    "ledger (bale stats) aggregate their rates by it.")
+_SHAPE_HELP_READ_ONLY = (
+    "Read-only packs a session that lands nothing, the shape --read-only "
+    "declares: its write forecast is empty, so it locks no paths and "
+    "other sessions pack and apply beside it. It suits discussion, "
+    "orchestration, or audit. Picking it skips the forecast and "
+    "checkpoint questions.")
+_SHAPE_ANSWERS_KIND = ("c or code · d or doc · t or contract-doc · m or "
+                       "meta · x, mixed, or Enter")
+_SHAPE_ANSWERS_READ_ONLY = "r, read-only, or readonly"
 
 
 def _wizard_input_session_shape(args: argparse.Namespace,
@@ -3977,8 +4099,14 @@ def _wizard_input_session_shape(args: argparse.Namespace,
     answered and only the work-class half can remain. Same per-field
     skip rule as everywhere in the wizard.
 
-    Drawn through the walk (PackWalk) since session pack-wizard-ui; the
-    answer sets below are byte-for-byte the pre-move ones."""
+    Drawn through the walk (PackWalk) since session pack-wizard-ui, and
+    asked through the layer's choice primitive (lettered rows, Enter's
+    row marked, '? help' offered) since session
+    choice-prompt-convergence. The answer sets below are byte-for-byte
+    the pre-move ones; the one answer that changed is '?', which used to
+    re-ask with a warning and now shows the item's help and asks again
+    (_ask_shape)."""
+    import bale_wizard  # lazy — see module docstring
     if args.read_only:
         return
     if args.work_class is not None and args.write:
@@ -3992,9 +4120,15 @@ def _wizard_input_session_shape(args: argparse.Namespace,
         walk.begin(WALK_SHAPE, kind="one letter", summary=(
             "This session lands changes (--write given). What kind of "
             "work? The answer is stamped as the request's work class."))
-        _draw_work_class_rows(walk, with_read_only=False)
+        alternatives = _shape_alternatives(with_read_only=False)
+        walk.ui.alternatives(alternatives, label="")
         while True:
-            raw = walk.ask("Enter = mixed > ").lower()
+            raw = _ask_shape(
+                walk, alternatives, "Enter = mixed",
+                paragraphs=[_SHAPE_HELP_KIND,
+                            "Read-only is not an answer here: --write "
+                            "declared that this session lands changes."],
+                answers=f"Answers: {_SHAPE_ANSWERS_KIND}")
             if raw in _WORK_CLASS_ANSWERS:
                 args.work_class = _WORK_CLASS_ANSWERS[raw]
                 return
@@ -4006,11 +4140,22 @@ def _wizard_input_session_shape(args: argparse.Namespace,
         walk.begin(WALK_SHAPE, kind="y/n", summary=(
             f"Will this session land changes? (--work-class "
             f"{args.work_class} given.)"))
-        walk.ui.state([("y", "yes, it lands changes"),
-                       ("n", "no — read-only, nothing lands")],
-                      aside=["Enter", _READ_ONLY_ASIDE])
+        alternatives = [
+            bale_wizard.Alternative("yes", "it lands changes", key="y",
+                                    enter=True),
+            bale_wizard.Alternative("no", f"read-only, {_READ_ONLY_NOTE}",
+                                    key="n"),
+        ]
+        walk.ui.alternatives(alternatives, label="")
         while True:
-            raw = walk.ask("Enter = yes > ").lower()
+            raw = _ask_shape(
+                walk, alternatives, "Enter = yes",
+                paragraphs=[
+                    f"Yes packs a session that lands changes, with "
+                    f"--work-class {args.work_class} stamped as its work "
+                    f"class.", _SHAPE_HELP_READ_ONLY],
+                answers=(f"Answers: y, yes, or Enter · n, no, "
+                         f"{_SHAPE_ANSWERS_READ_ONLY}"))
             if raw in ("", "y", "yes"):
                 return
             if raw in ("n", "no") + _READ_ONLY_ANSWERS:
@@ -4023,9 +4168,14 @@ def _wizard_input_session_shape(args: argparse.Namespace,
         "Will this session land changes, and of what kind? A kind is "
         "stamped as the request's work class; r packs a read-only "
         "session that locks nothing."))
-    _draw_work_class_rows(walk, with_read_only=True)
+    alternatives = _shape_alternatives(with_read_only=True)
+    walk.ui.alternatives(alternatives, label="")
     while True:
-        raw = walk.ask("Enter = mixed > ").lower()
+        raw = _ask_shape(
+            walk, alternatives, "Enter = mixed",
+            paragraphs=[_SHAPE_HELP_KIND, _SHAPE_HELP_READ_ONLY],
+            answers=(f"Answers: {_SHAPE_ANSWERS_KIND} · "
+                     f"{_SHAPE_ANSWERS_READ_ONLY}"))
         if raw in _READ_ONLY_ANSWERS:
             args.read_only = True
             walk.drop(WALK_WRITE, WALK_CHECKPOINT)
@@ -4142,6 +4292,15 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace, repo: Path,
     number in range picks one; any other answer is a path, resolved
     exactly as before. With no candidates nothing extra is listed.
 
+    Since session choice-prompt-convergence the candidates are the
+    wizard layer's numbered alternatives and the answer is read through
+    its choice primitive (PackWalk.choose), configured so that every
+    answer keeps its meaning: '?' is a path (no '? help' here), numbers
+    are read by picker_number, and an out-of-range number re-asks unless
+    a file of that name is in cwd, which is then taken as the path. With
+    no candidates there is nothing to pick and the prompt is a plain
+    ask, as before.
+
     An EMPTY answer deliberately falls through to the named
     resolved-existence refusal (checkpoint_resolved_preflight): the
     operator declined, and the refusal is loud with the remedy —
@@ -4154,7 +4313,6 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace, repo: Path,
     pack after the answers are in.
     """
     import bale_config  # lazy — see module docstring
-    import bale_wizard  # lazy — see module docstring
 
     if args.read_only or args.checkpoint_file is not None:
         return
@@ -4183,9 +4341,8 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace, repo: Path,
         # question so the question stays the last thing above the prompt.
         walk.ui.notice("Checkpoint candidates (.sh files in cwd and "
                        "apply.search_paths, newest first):")
-        for line in format_checkpoint_candidates(
-                candidates, indent=bale_wizard.BODY_INDENT):
-            print(line)
+        walk.ui.alternatives(checkpoint_candidate_alternatives(candidates),
+                             label="")
     walk.ui.notice("Checkpoint file to commit for this session?")
     picks = ("1" if len(candidates) == 1
              else f"1-{len(candidates)}")
@@ -4206,27 +4363,35 @@ def _wizard_input_checkpoint_file(args: argparse.Namespace, repo: Path,
         walk.ui.notice("Enter packs without one, and the pack then "
                        "refuses: no checkpoint is committed for this "
                        "session yet.")
-    prompt = (f"{picks}, a path, or Enter = none > "
-              if candidates else "a path, or Enter = none > ")
     while True:
-        raw = walk.ask(prompt)
+        if candidates:
+            # The layer's choice primitive (session
+            # choice-prompt-convergence), set to the picker's own answer
+            # set, which is unchanged: no '? help', because '?' is a path
+            # here (B's ratified reasoning for prompts whose answers are
+            # paths); numbers read by picker_number, today's rule; and an
+            # out-of-range number re-asks — naming the range rather than
+            # a confusing "not found; searched:" for "7" — unless a file
+            # literally named that number is in cwd, which is then the
+            # path, as it always was.
+            raw = walk.choose(
+                "Enter = none", count=len(candidates), show_help=None,
+                noun="candidate", typed="a path", number=picker_number,
+                out_of_range_ok=lambda entry: (cwd / entry).is_file())
+        else:
+            # Nothing listed, nothing to pick: every answer is a path.
+            raw = walk.ask("a path, or Enter = none > ")
         if not raw:
             return
-        if raw.isdigit() and candidates:
-            pick = int(raw)
-            if 1 <= pick <= len(candidates):
-                # A pick resolves to the candidate's absolute path, which
-                # locate_inbound_path passes through unsearched — the
-                # read, normalization, and empty-file refusal stay the
-                # one shared implementation below.
-                raw = str(candidates[pick - 1].path)
-            elif not (cwd / raw).is_file():
-                # Out of range and not a file literally named that
-                # number: re-prompt naming the range rather than a
-                # confusing "not found; searched:" for "7".
-                walk.ui.warn(f"no candidate {pick}; pick {picks}, type "
-                             f"a path, or press Enter for none.")
-                continue
+        pick = picker_number(raw) if candidates else None
+        if pick is not None and 1 <= pick <= len(candidates):
+            # A pick resolves to the candidate's absolute path, which
+            # locate_inbound_path passes through unsearched — the read,
+            # normalization, and empty-file refusal stay the one shared
+            # implementation below. Any other answer (an out-of-range
+            # number among them, which reaches here only as the name of
+            # a file in cwd) is a path, resolved below.
+            raw = str(candidates[pick - 1].path)
         path, data, err = locate_and_read_checkpoint_file(
             raw, repo, cwd)
         if err is not None:

@@ -403,7 +403,15 @@ shared module; the detectors run git through their own
 a reason, never `fail()`, and the in-process tests drive them with no
 `bin/bale` on `__main__`. The wizard draws through `bale_wizard`
 (below), imported at module top; `bale_pack` is imported lazily in one
-place, for its baked-in exclusion names.
+place, `_pack_drops`, so the `.baleignore` suggestions count only what
+a pack would ship: pack's own per-path filter chain
+(`bale_pack.pack_drop_reason`) with the walk's kept patterns as the
+matcher (bin/bale's `BaleignoreMatcher`, lazily from `__main__`) and
+the configured checkpoint's exclusion basis (read from the project file
+without `fail()`, since a detector never ends the wizard). If a name
+moved, the filter degrades to pack's baked-in excluded directories,
+counting more files, never fewer (session
+`choice-prompt-convergence`).
 
 `bin/bale_wizard.py` (added by session `config-wizard-ui`, after v0.4.45) is
 the shared wizard presentation layer — net-new code, placed in its own
@@ -424,8 +432,20 @@ pick — warned and re-asked, the pack checkpoint picker's rule — while
 an in-range number comes back raw for the caller to map), and
 `confirm` (a yes/no gate whose Enter, EOF, and ^C outcomes are the
 caller's). `Alternative` is the row type, `detected_first` puts a
-detected value at `[1]`, and `pick_number` / `pick_range` parse and
-name the numbers.
+detected value at `[1]`, and `pick_number` / `pick_range` /
+`pick_letters` parse and name the picks. Since session
+`choice-prompt-convergence` the goal-less pack walk asks its two choice
+screens through the same primitive. An `Alternative` may carry a `key`
+(drawn `[c] code` in place of `[1] code`; a screen is all lettered or
+all numbered) and `enter` (the aside says which row Enter takes);
+`ask_choice(letters=...)` names the letters on its prompt and judges
+nothing, so the session-shape question keeps its own answer set. For
+the checkpoint picker, `ask_choice` takes `show_help=None` (`?` is an
+answer, a path, and the prompt offers no help), the warning's `noun` /
+`typed` words, a `number` parser (the picker keeps reading what
+`str.isdigit` and `int` accept), and `out_of_range_ok` (an out-of-range
+number naming a file in cwd is that path). Every default is config
+init's behavior, so its screens and answers are unchanged.
 `Walk` derives each item's `n/N` position and the per-section headings
 from a declared key order, refusing a key the order does not list.
 Output rules: every line fits 80 columns (`wrap`) except a line naming
@@ -565,7 +585,10 @@ unit, behavior-preserving). It owns the `bale pack` path end to end: the
 pack-side constants (baked-in excluded dirs, secret patterns, the
 `PACK_MAX_*` threshold caps), file enumeration and filtering
 (`list_git_files`, the secret/exclude predicates, `build_pack_matcher`,
-`gather_files_for_pack`), scope projection + threshold caps
+`gather_files_for_pack`, and `pack_drop_reason` — the per-path filter
+chain short of `--include`, which `walk_for_pack` runs and `bale_config`'s
+`.baleignore` suggestions read lazily, so the two cannot disagree about
+what ships), scope projection + threshold caps
 (`PackCaps` / `PackProjection` / `walk_for_pack`, plus `parse_size_arg`,
 `format_bytes`, `format_projection_block`), manifest and tarball
 construction (`build_request_manifest`, `build_provenance_block`,
@@ -1054,7 +1077,11 @@ doesn't walk through is a contract violation.
    the same `[n]` shape — bulky or binary formats by extension
    (`*.parquet`), data or vendored directory names (`data/`), and any
    single file of 1 MiB or more, counted over the files pack would
-   list, heaviest first, at most six; a number adds its pattern;
+   ship — listed by git as pack lists them, then through pack's own
+   filter chain (`pack_drop_reason`: baked-in directories, secrets,
+   the configured checkpoint's exclusion basis, planner bundles, and
+   the patterns this walk keeps) — heaviest first, at most six; a
+   number adds its pattern;
    (c) review the removed and added patterns ("no changes"
    included); (d) write the composed file, or remove it if the
    kept-plus-added pattern set is empty (a missing file is the
@@ -1063,7 +1090,10 @@ doesn't walk through is a contract violation.
    a change gates (d) on the same Enter-writes confirm as step 5. The
    walk doesn't import bale itself — patterns are validated lazily
    the next time pack or apply loads the file via
-   `BaleignoreMatcher` (cluster 10).
+   `BaleignoreMatcher` (cluster 10). (The suggestions read the kept
+   patterns through that matcher, from `__main__`, to know what they
+   already exclude; a kept line it cannot parse skips the suggestions
+   with the reason, since pack would refuse the file outright.)
 
 ### 4.4 Walkthrough (global mode)
 
