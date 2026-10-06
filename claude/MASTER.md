@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-10-06-sitting-close-deltas-21-004`.
+Last landed by: `2026-10-06-sitting-close-deltas-22-005`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -378,6 +378,18 @@ source):
   Re-trigger: the operator's report of the try; a mangled paste makes
   C's WSL alternative offer the transcoding form, and a clean one closes
   this. (Opened 2026-10-05 at close 20, from the 2026-10-03/04 desks.)
+  [2026-10-06: a specimen, at close 22. By its brief: both relays, close
+  21's and the bump's, reached the close desk with every non-ASCII
+  character mangled the way UTF-8 reads under code page 437: "—" arrived
+  as `ΓÇö`, "§" as `┬º`, "·" as `┬╖`, "…" as `ΓÇª`. The desk's own
+  session opener arrived the same way. Seen by close 22's worker, not by
+  the brief: close 22's own opener reached its chat with its one
+  non-ASCII character, a "—", as `ΓÇö`. That is the signature this watch
+  names, `clip.exe` reading stdin in the console codepage, though which
+  copy path carried each paste is not recorded. The `iconv` transcoding
+  form is still untried, so the watch does not close, and nothing is
+  authored on it: its text says to ask the operator first. Re-trigger
+  unchanged.]
 - The project-layer absolute WSL path (same source): "C's project-layer
   wizard offers the absolute WSL Downloads path. A pick lands it in a
   committed, team-shared file. A home-relative form may be wanted." C's
@@ -516,6 +528,29 @@ says so):
   its own "no suggestion N" loop. *Scope hints:* it would change that
   screen's prompt text, which this session's constraint froze, so it
   needs a ruling first." (Queued 2026-10-06 at close 21.)
+- Whether a version bump is checked when code changes: a test that a
+  version's record exists whenever code under `bin/` or `tools/`
+  changes, an apply-time nudge naming CODE.md §8.5, or the planner
+  forecasting `bin/VERSION` and `claude/changelog/` on every code pack.
+  The bump's first Proposal, filed here by the operator's "as assumed"
+  to the close desk's light block, [3], because it changes how forecasts
+  are authored; §6 entry 224 is the miss it answers. Text verbatim from
+  `2026-10-06-bump-0-4-46-003`'s notes.md, nested markers flattened:
+  "**What:** a check in `tests/test_changelog_record.py` that a
+  version's record exists whenever code under `bin/` or `tools/`
+  changes, or at least an apply-time nudge that names CODE.md §8.5 when
+  a response modifies `bin/` without touching `bin/VERSION`. **Why:**
+  this record exists because eight sessions in a row shipped surface
+  changes without a bump. Each had a good local reason: its forecast
+  didn't name `bin/VERSION`. Nothing caught it until the rename worker
+  noticed. `test_current_version_has_a_valid_record` only binds the
+  version that is current, so it cannot see a version that should have
+  moved. **Scope hints:** apply's walkthrough (`bin/bale_apply.py`) is
+  the natural place for a nudge; a test cannot see git history. This
+  needs an operator ruling first, since it touches how forecasts are
+  authored. The planner could instead forecast `bin/VERSION` and
+  `claude/changelog/` on every code pack." (Queued 2026-10-06 at close
+  22.)
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -1226,6 +1261,27 @@ with the unverifiable ones carried verbatim and marked):
   non-exiting form, by the shipped `claude/context/bale-internals.md`.
   `bin/bale_report.py` itself did not ship to close 21, so the row's
   bytes are not read here.]
+  [2026-10-06: read at close 22, in `bin/bale_report.py` as this close's
+  pack ships it (sha256 `c07900c5…ae41`). The row's value is
+  `describe_clipboard_state`, whose docstring calls it the row "labelled
+  `clipboard` since session clipboard-key-rename". With the key spelled
+  `[clipboard] command` and no second spelling in the same file, its
+  words are the four states the bracket of 2026-10-05 above lists,
+  `<command> (<layer> layer) — every paste block is copied`,
+  `suppressed here (…) — nothing is copied`,
+  `unset — nothing is copied; …` and
+  `UNREADABLE — nothing is copied until it is fixed: <reason>`, with one
+  more, `unset (the global bale.toml sets … empty) — …`, for a global
+  file that sets the key empty; a value read from the legacy spelling
+  adds "via the legacy" and the key, and a file that sets both spellings
+  names the one that won and the one ignored. `format_status_json`
+  carries the `clipboard` object, `command`, `source`, `key`,
+  `shadowed`, `problem`. The facts come from `resolve_clipboard`, which
+  reads `bale_config.clipboard_command_reading`, log-hold's non-exiting
+  form. No code in this file emits the label: the 0.4.46 record puts
+  "the status row is labelled `clipboard`" in `bin/bale`, which did not
+  ship to close 22 either, so the label's own bytes are still not read
+  here (§6 entry 225).]
 - Pack-json `sweep`/`include_group` key: named and deferred at 47a
   (its pass-through half sat in the pack-UX micro's file). Carrier
   unchanged.
@@ -2203,6 +2259,18 @@ with the unverifiable ones carried verbatim and marked):
   eight keys and in the `.baleignore` step, with Enter unchanged. Why:
   the brief routes `BALE.md` truing here as a Proposal, and BALE.md
   wasn't in this request."
+  [2026-10-06: seven keys, not eight, by the bytes, at close 22.
+  `suggest_wizard_values` in the shipped `bin/bale_config.py` (sha256
+  `af5a902b…ecd1`) offers numbered alternatives on seven keys:
+  `apply.search_paths`, `apply.archive_dir`, `staging.strategy`,
+  `staging.untracked_inputs` (inside a repo), `identity.packer` (when
+  git's `user.name` is found), the clipboard key `clipboard.command` and
+  `validation.base` (at the project layer only); the `.baleignore`
+  step's suggestions are separate. The bump found it against C's notes,
+  and the 0.4.46 record's C row names the seven. The bytes read here are
+  0.4.46's, after D, log-hold, the rename and convergence each touched
+  the file, so whether C landed eight is not recorded. A bracket, not an
+  edit, by the close desk's light block, [2] (§5, close 22's block).]
   D, `2026-10-04-clipboard-paste-blocks-001`: "**What:** BALE.md true-up
   sentences for session 99b (BALE.md was out of scope here). Proposed
   sentences: "When `[probe] clipboard_command` resolves to a command for
@@ -2271,6 +2339,21 @@ with the unverifiable ones carried verbatim and marked):
   hand-built rows and the all-files count this session replaced. *Scope
   hints:* `BALE.md` §7.3, and the §6.4 or wizard passage on
   `.baleignore`."]
+  [2026-10-06: a checklist for the true-up, recorded at close 22. The
+  bump's second Proposal, routed here by the operator's "as assumed" to
+  the close desk's light block, [3]; text verbatim from
+  `2026-10-06-bump-0-4-46-003`'s notes.md, nested markers flattened:
+  "**What:** the BALE.md 99b true-up could cite this record as its
+  checklist. It lists every surface the arc changed, by session.
+  **Why:** the arc's notes each carried BALE.md sentences separately,
+  and this record is the one place that lists them all. **Scope hints:**
+  BALE.md only, after the operator's ruling." The record is
+  `claude/changelog/0.4.46.json`: 64 rows, the bump's own and one per
+  session per surface for the arc's eight code sessions, covering
+  `bin/`, `tools/`, the release scripts, the carried contract docs and
+  tests, with no rows for the repo `README.md` or
+  `claude/context/bale-internals.md`, both prose, by the bump's
+  notes.md.]
 - An oracle grades a crash in the code under test as the work's failure:
   rides the next `docs/PLANNER.md` holder, §4, beside the fixture
   entries above. The wave2-004 desk's authoring lesson, earned on D's
@@ -2444,6 +2527,16 @@ with the unverifiable ones carried verbatim and marked):
   above; "Config init's `.baleignore` add prompt." → the ruling queue.
   The `contract-doc` rider above is the close desk's own, not a worker's
   Proposal. Anything not named here stands as shipped.
+- Proposals of the `2026-10-06-friction-points-close-desk-002` sitting's
+  workers, dispositions, two, as the close desk routed them (its light
+  block, [3]) and the records bear out. The bump's first, "a check in
+  `tests/test_changelog_record.py` that a version's record exists
+  whenever code under `bin/` or `tools/` changes", → the ruling queue's
+  entry queued at close 22; its second, "the BALE.md 99b true-up could
+  cite this record as its checklist", → close 22's checklist bracket on
+  the 99b routing entry. Close 21's archived notes.md carries no
+  Proposals section, checked at close 22, so it routes nothing. Anything
+  not named here stands as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -6340,6 +6433,18 @@ home; close recorded by `2026-10-05-sitting-close-deltas-20-001`:
   status`, TARBALL.md §4.3 and the help trued up; 1778 tests, 39 more,
   the new suite's 35 among them; the install-side `validate.sh` 94/94.
   Every count is the worker's own, on its partial `context/` tree.
+  [2026-10-06: C's "eight `config init` keys" are seven in the bytes, at
+  close 22. `suggest_wizard_values` in the shipped `bin/bale_config.py`
+  (sha256 `af5a902b…ecd1`) offers numbered alternatives on seven keys:
+  `apply.search_paths`, `apply.archive_dir`, `staging.strategy`,
+  `staging.untracked_inputs` (inside a repo), `identity.packer` (when
+  git's `user.name` is found), the clipboard key `clipboard.command` and
+  `validation.base` (at the project layer only); the `.baleignore`
+  step's suggestions are separate. The bump found it against C's notes,
+  and the 0.4.46 record's C row names the seven. The bytes read here are
+  0.4.46's, after D, log-hold, the rename and convergence each touched
+  the file, so whether C landed eight is not recorded. A bracket, not an
+  edit, by the close desk's light block, [2] (§5, close 22's block).]
 - Rulings at the desk, the operator's "as assumed" to its two light
   blocks: block one, in the desk's words: "On a key with alternatives,
   Enter keeps today's meaning. The detected value is listed first,
@@ -6718,6 +6823,21 @@ by `2026-10-06-sitting-close-deltas-21-004`:
   ruling.
 - Light-block ledger: zero light blocks, zero probes, zero clarification
   rounds.
+  [2026-10-06: the desk's record, completed at close 22, by its brief.
+  After close 21 recorded this block, the desk received both relays,
+  close 21's and the bump's; emitted one light block, Appendix A of
+  close 22's brief, which the operator answered "as assumed" with a
+  question (§5, close 22's block); answered the question, whether an
+  upward report is owed, in chat (close 22's wave block in §3); and
+  authored close 22 as its last job, stem
+  `2026-10-06-sitting-close-deltas-22`. Its ledger is now one light
+  block, answered "as assumed", and zero probes. Close 22's identity is
+  its request's: brief (`readme`) sha256 `236fc174…4de0`, and in its
+  provenance checkpoint
+  `claude/checkpoints/2026-10-06-sitting-close-deltas-22-005.sh`, sha256
+  `948acbdc…48ae`, base `claude/MASTER.md` `7748ce44…431e`. The desk
+  stays open until the next read-only pack sweeps it or the operator
+  unlocks it.]
 - Findings at the desk: block four [2]'s four-name list (above; §6 entry
   224); the cleanup desk's summary of convergence's picker Proposal,
   which drops a "consider" (the ruling queue's entry of this date);
@@ -6728,6 +6848,149 @@ by `2026-10-06-sitting-close-deltas-21-004`:
 - Board deltas of this sitting's work: none of its own; rows 134 and 135
   are the cleanup desk's ruling, queued at this close. Registry deltas:
   the `contract-doc` rider.
+
+Landed 2026-10-06, the friction-points close desk's wave and the desk's
+close (`2026-10-06-friction-points-close-desk-002`, its block above).
+Two sessions, the two it dispatched, both applied: close 21 and the
+0.4.46 bump. The desk itself stays open, by close 22's brief: no pack
+has swept it and the operator has not unlocked it; no record of it
+shipped to this close. Sources: the two records, the two archived
+notes.md, `claude/changelog/0.4.46.json`, the shipped
+`bin/bale_config.py` and `bin/bale_report.py`, and close 22's brief,
+authored by the close desk as its last job, the request's README.md
+(sha256 `236fc174…4de0`). The tags (`applied/<sid>`) are by each
+session's relay, by the brief; no record carries a tag. This block
+carries only what has no row home; close recorded by
+`2026-10-06-sitting-close-deltas-22-005`:
+- Landing record, in apply order from telemetry. Both sessions: one
+  attempt, first pass; checkpoint PASS, exit 0, stamp matched, no failed
+  probes; worker validation PASS, exit 0, `reconciliation_parsed: true`;
+  no admissions, `overridden_paths` empty and no required-check or
+  base-drift override; confined, the network grant exercised, no sandbox
+  escape; `budget_pressure: none`, no compaction;
+  `clarification.rounds: 0`; `corrects` null; `bale_version` 0.4.45 at
+  the pack; `model_identity` `anthropic:claude-opus-5-5`.
+  `2026-10-06-sitting-close-deltas-21-004`, work class doc: opened
+  2026-10-06T19:54:55Z, its `packed_at` the same second, 43 min 18 s
+  after the close desk's pack; `applied` at 20:17:19Z, 22 min 24 s
+  later; checkpoint `bf55c4ee…4dc0`, its bundle's brief `ce8bb3f5…3d02`;
+  six claims, each observed and `agree`; one `change_paths`,
+  `claude/MASTER.md`, its whole forecast; base `b1ed2936…ddf2`;
+  `self_reported.light_blocks: 0`; `includes_missing` one entry,
+  "bin/bale_report.py (the brief asked the relabel be checked there;
+  recorded on other evidence instead)". `2026-10-06-bump-0-4-46-003`,
+  work class code: opened 19:54:43Z, its `packed_at` the same second,
+  twelve seconds before close 21; `applied` at 20:33:13Z, 38 min 30 s
+  later and 15 min 54 s after close 21; checkpoint `0623f824…6303`, its
+  bundle's brief `f034bc00…31be`, both as the close desk's block gives
+  them; five claims, each observed and `agree`; two `change_paths`,
+  `bin/VERSION` and `claude/changelog/0.4.46.json`, under its two-entry
+  forecast (`bin/VERSION`, `claude/changelog`); twelve base files
+  stamped, `bin/VERSION` and the eleven existing records; no
+  `light_blocks` key; `includes_missing` empty. Across the wave: two
+  applies on two attempts, zero HOLDs, zero retries; 11 claim rows, all
+  `agree`; three `change_paths`; no admitted path. Close 22 packed at
+  20:49:02Z, 15 min 49 s after the bump applied, 1 h 37 min 25 s after
+  the close desk's pack.
+- What landed, in short (the notes.md carry the detail). Close 21: the
+  cleanup desk's wave and the close desk's record in `claude/MASTER.md`,
+  636 lines inserted in thirteen blocks and the header line edited,
+  proved by reversal to `b1ed2936…ddf2`: the wave block and the close
+  desk's block in §3, the 27 decisions ratified there; thirteen
+  Proposals dispositioned, three to the ruling queue, three registry
+  riders, three BALE.md sets in a bracket on 99b's routing entry, board
+  rows 134 and 135, one the 0.4.46 bump and one record only; the close
+  desk's own `contract-doc` rider; four registry brackets; the
+  dotted-key watch; §5's block; §6 entry 224; a §7 bullet; a row-99
+  bracket. §6 ran 10 to 224 and the board 1 to 135 after it. The bump:
+  `bin/VERSION` at 0.4.46, `bale --version` printing `bale 0.4.46`;
+  `claude/changelog/0.4.46.json`, its `at` 2026-10-06T20:01:49+00:00, 64
+  rows, the bump's own and then one per session per surface for all
+  eight of the arc's code sessions in landing order, E nine, A eight, B
+  four, C four, D twelve, log-hold nine, the rename eleven and
+  convergence six; rows describe the 0.4.46 end state, so a change a
+  later arc session replaced has only the later row; test rows kept; no
+  rows for the repo `README.md` or `claude/context/bale-internals.md`;
+  the record's `notes` name the two removed names and the one new
+  release file; no existing record changed. C's "eight keys" is seven in
+  the bytes, and C's row names the seven.
+- Ratified at the close desk, as shipped, by the operator's "as assumed"
+  to its light block, [1] and [2] (close 22's §5 block, the block and
+  the reply verbatim). Close 21's seven flagged decisions, each by its
+  own lead-in, verbatim from its notes.md: 1, "The §5 block is dated "by
+  2026-10-06", with the bounds spelled out."; 2, "The three new BALE.md
+  sets go inside close 20's routing entry, as a bracket"; 3, "The
+  `bale status` relabel is recorded as consumed without reading
+  `bin/bale_report.py`."; 4, "D's help-suite and internals rider is
+  recorded as consumed at log-hold"; 5, "Headed §5 bullets for two
+  rulings only"; 6, "The ratifications name all 27 decisions in one
+  bullet."; 7, "`contract-doc` sits in the close desk's deltas, not the
+  wave's.". Its two blocks past its brief's outcomes are kept, the
+  row-99 bracket and the §7 bullet. §5's 2026-10-03/04 line that says
+  log-hold was "recorded by the next close" gets no bracket; close 21's
+  wave block is that record. The bump, as shipped: rows for all eight
+  sessions, the four beyond block four's list being the close desk's
+  read; rows describing the 0.4.46 end state, the worker's own rule; the
+  test rows kept; no rows for `README.md` or
+  `claude/context/bale-internals.md`. C's "eight keys", seven in the
+  bytes, is bracketed, never edited, at each place this document says
+  eight: the wave2-004 desk's block and C's set in the 99b routing
+  entry.
+- Routed at the close desk, by its light block, [3], each Proposal
+  verbatim from the bump's notes.md in its home: the changelog check or
+  apply-time nudge to the ruling queue's entry queued at close 22, since
+  it changes how forecasts are authored; the record as 99b's checklist
+  to close 22's checklist bracket on the 99b routing entry. Both are
+  dispositioned in the registry's dispositions entry of close 22. Close
+  21's archived notes.md carries no Proposals section, so it routes
+  nothing.
+- Verified at this close in the bytes the pack ships, each a dated
+  bracket of close 22: C's seven keys in `bin/bale_config.py` (the two
+  brackets above); the `bale status` row in `bin/bale_report.py` (the
+  registry bracket under close 21's), whose value and `--json` object
+  the file's code renders and whose label it does not, the label being
+  `bin/bale`'s by the 0.4.46 record (§6 entry 225). And on watch: the
+  WSL `clip.exe` specimen (§3 Watches).
+- No upward report is owed (PLANNER.md §20.2, "A sub-master closes its
+  arc with a structured upward report"): the report is owed by a
+  sub-master to the master that delegated its arc, and the
+  friction-points arc began as the operator's own goal, its four desks
+  (001, wave2-004, cleanup, close desk) each answering to the operator
+  directly; the arc's record is closes 20 to 22. The operator asked, in
+  the reply to the desk's light block; this is the desk's answer, given
+  in chat.
+- Light-block ledger (PLANNER.md §6). The close desk: one light block,
+  emitted after close 21 wrote its record, both relays having reached
+  the desk, and answered "as assumed", the reply adding the
+  upward-report question above; zero probes. The desk's block above read
+  zero light blocks at close 21, true when close 21 wrote it; its
+  bracket of close 22 completes it. The workers: close 21's notes.md,
+  "Zero light blocks, zero probes, zero clarification rounds.", and its
+  record's `self_reported.light_blocks: 0`; the bump's notes.md name no
+  light block or probe, and its record carries no `light_blocks` key;
+  `clarification.rounds: 0` on both records. This close: zero light
+  blocks, zero probes, zero clarification rounds.
+- Where the brief and the records part, found at this close: nowhere on
+  the records. Everything close 22's brief states of the two records and
+  notes.md held: the checkpoint and worker states, no admissions, close
+  21's 636 inserted lines and its §6 and board counts, the bump's 64
+  rows, eight sessions and suite counts. What rests on the brief's word,
+  no record of the close desk having shipped: the tags; the desk still
+  open; its `packed_at`, 19:11:37Z, as close 21 recorded it, from which
+  this block's two intervals to the desk's pack are counted; its light
+  block and the operator's reply, Appendix A, with the block's timing
+  inferred from the brief's "after both relays reached the desk" and
+  this close's own pack; the desk's chat answer on the upward report;
+  and the relays' mangling (§3 Watches). One thing the bytes refine: the
+  brief asks for the `bale status` row in `bin/bale_report.py`, which
+  renders the row's value and not its label (above).
+- Board deltas of this sitting's work: none; the board stays at 135.
+  Ruling queue: one entry. Registry deltas: two brackets on the 99b
+  routing entry (C's seven keys, the bump's checklist Proposal); the
+  `bale status` bracket; the dispositions entry. In §3, this block, the
+  close desk's bracket and the seven-keys bracket on the wave2-004
+  desk's block; the WSL `clip.exe` bracket (§3 Watches). In §5, the
+  block recorded at close 22; in §6, entry 225; in §7, the wave's facts.
 
 ## 4. The board
 
@@ -11062,6 +11325,44 @@ close 21):
   blocked: dropping the picker exceptions reverses this desk's pin, and
   the add prompt's text was frozen by the convergence constraint"
 
+New, ratified 2026-10-06 (the operator's "as assumed, but don't we need
+an upward report?" to the `2026-10-06-friction-points-close-desk-002`
+desk's one light block, verbatim as close 22's brief carries it, its
+Appendix A, rows joined by " / "; emitted after both relays reached the
+desk, so after the bump applied, 2026-10-06T20:33:13Z, and answered
+before close 22's pack, 20:49:02Z; recorded at close 22):
+
+- Every item lands where it belongs: [1] and [2], the ratifications, in
+  close 22's wave block in §3; [3], the routings, in the ruling queue's
+  entry queued at close 22 and close 22's checklist bracket on the 99b
+  routing entry, dispositioned in the registry's dispositions entry of
+  close 22. The reply's question, whether an upward report is owed, the
+  desk answered in chat; its answer is one line of the same §3 block. No
+  ruling here changes a contract.
+- The block, verbatim: "[1] question: Ratify close 21-004's seven
+  flagged decisions as shipped, keeping its row-99 bracket and §7
+  bullet, with no bracket on §5's "recorded by the next close" line? /
+  while doing: reviewing close 21's ratification relay / would assume:
+  yes: all seven as shipped, both optional blocks kept, no §5 bracket;
+  recorded at close 22 / why blocked: ratifying a worker's flagged
+  decisions is yours, and two of its blocks went past the brief's
+  outcomes / [2] question: Ratify bump-0-4-46-003 as shipped: rows for
+  all eight sessions describing 0.4.46 end state, test rows kept, no
+  rows for README.md or bale-internals.md? / while doing: reviewing the
+  bump's ratification relay / would assume: yes: all as shipped; C's
+  "eight keys" (seven in the bytes) gets a dated bracket at close 22,
+  never an edit / why blocked: the four extra sessions were the desk's
+  read, not your ruling, and the end-state rule is the worker's own /
+  [3] question: Route the bump's two Proposals: the CODE.md 8.5 bump
+  nudge to the ruling queue, and the record-as-99b-checklist into the
+  99b routing entry? / while doing: routing bump-0-4-46-003's Proposals
+  / would assume: yes: the nudge waits on a ruling because it changes
+  how forecasts are authored; the checklist rides 99b / why blocked: the
+  nudge adds an apply-time surface or a packing rule, which is a scope
+  decision"
+- The operator's reply, verbatim: "as assumed, but don't we need an
+  upward report?"
+
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
 
@@ -13460,6 +13761,25 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     authored, by the records. The close desk did not read A's, B's or
     E's briefs, so nothing here says what they carried.)
 
+225. **A brief that cites a file its pack does not carry.** Close 21's
+    brief, authored by the close desk, told the worker to check the
+    `bale status` row's relabel in `bin/bale_report.py`, and close 21's
+    pack did not include the file. It is the include class of entries
+    215 and 223, "A suite ships with what it reads", met by a brief's
+    own instruction rather than by a suite: the read the brief asked for
+    was one the pack could not serve. The worker caught it and said so
+    rather than guess: it recorded the relabel on other evidence, its
+    registry bracket says the bytes were not read, and its record's
+    `includes_missing` reads "bin/bale_report.py (the brief asked the
+    relabel be checked there; recorded on other evidence instead)".
+    Close 22's pack ships `bin/bale_report.py`, and close 22's bracket
+    on the registry's `bale status` entry reads the row there. The
+    file's code renders the row's value and `--json` object but not its
+    label, which the 0.4.46 record puts in `bin/bale`, carried by
+    neither pack, so the file the brief named was the right read for the
+    row's words and not for its label. (Desk-side, the close desk; close
+    21's notes.md and record.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -13922,6 +14242,21 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   `anthropic:claude-fable-5-1`. Close 21's base `claude/MASTER.md` was
   13,305 lines, `b1ed2936…ddf2`, matching the close desk's carried copy
   and the request's `base_files`, before it inserted.
+- Version landmark: 0.4.46 (`2026-10-06-bump-0-4-46-003`), minted by the
+  close desk's wave on 2026-10-06, the first bump since 0.4.45; the
+  wave's two records stamp 0.4.45 at their packs, and close 22's
+  request, the day's next pack by its counter, is the first stamped
+  `bale_version` 0.4.46. The bump's full default discovery ran 1866
+  tests, passing, with 47 slow-gated skips, on both trees, the
+  unmodified and the changed, and none of the arc's missing-file
+  baseline failures, because its request carried `bale.toml`, the ADRs,
+  the changelog corpus and the repo `README.md`; close 21 reported no
+  suite count. `contract_docs` are unchanged across the wave's two
+  records and close 22's request, `docs/TARBALL.md` at `32680c8e…`.
+  Model identities on the two records: `anthropic:claude-opus-5-5` on
+  both. Close 22's base `claude/MASTER.md` was 13,941 lines,
+  `7748ce44…431e`, the request's `base_files`, its header naming close
+  21, before it inserted.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
