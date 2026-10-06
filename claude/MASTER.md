@@ -11,7 +11,7 @@ This document lives IN the repo at `claude/MASTER.md`, listed in
 a project doc, not a global workflow doc — see §5 for the
 categorization contract.
 
-Last landed by: `2026-10-05-sitting-close-deltas-20-001`.
+Last landed by: `2026-10-06-sitting-close-deltas-21-004`.
 (This line is edited in place at each landing, never appended to.)
 
 Going-forward convention (recorded once, effective v4): sittings
@@ -403,6 +403,23 @@ source):
   against a forecast it holds; the remedy then is `bale unlock` with a
   reason, by the operator. (Opened 2026-10-05 at close 20, from the
   `2026-10-04-friction-points-cleanup-002` desk's finding.)
+- The dotted-key split between bale and the crafter (from the rename's
+  notes.md, its decision 2, the second paragraph verbatim): "The one
+  known split this leaves (an edge of the pre-existing one): a *dotted*
+  `clipboard.command = "x"` beside a readable `[probe] clipboard_command
+  = "y"`. bale's parser sees the new key and refuses its spelling (loud,
+  nothing copied, `bale status` shows UNREADABLE with the remedy); the
+  crafter's scan cannot see dotted keys at all, so its no-bale fallback
+  would tee into `y`. bale is loud first, so an operator meets the
+  refusal before any probe runs; I did not teach the scan dotted keys.
+  Pinned as a refusal case in
+  `EffectiveAccessorTest.test_other_unseen_spellings_are_refused`."
+  Re-trigger: an operator writing a dotted `clipboard.command`, or a
+  probe run on a machine without bale copying the legacy value; the
+  remedy then is teaching the crafter's scan dotted keys. The decision
+  itself is ratified as shipped (the cleanup desk's light block four,
+  [1]). (Opened 2026-10-06 at close 21, from
+  `2026-10-05-clipboard-key-rename-002`.)
 
 **Ruling queue** (desk rulings awaiting a future sitting —
 decisions, not work rows; a ruling becomes a doc delta only if it
@@ -447,6 +464,58 @@ says so):
   same string pass, is agreed by both desks; the ruling stays the
   operator's. The arc's five BALE.md sentence sets for 99b are the
   registry's routing entry of this date.]
+- Whether every verb's `[bale]` lines wrap on a terminal, and whether
+  checkpoint authors are told that terminal transcripts wrap. log-hold's
+  first Proposal, filed here by the operator's "as assumed" to the
+  cleanup desk's light block two, [2], because wrapping every verb
+  breaks 18 pty assertions and changes all terminal output; log-hold
+  itself wraps only pack's pre-walk lines (its decision 3, ratified).
+  Text verbatim from `2026-10-04-log-hold-003`'s notes.md, nested
+  markers flattened: "**Display wrapping for every verb.** *What:* call
+  `set_log_display_wrap(True)` once in `main()`, so every verb's
+  `[bale]` lines fit the terminal. Then update the pty pins that read
+  fixed decline lines whole: the hook, admission, and sweep decline
+  lines in `test_hook_acceptance`, `test_admission_prompts_e2e` and
+  `test_readonly_pack`. The `on_terminal` helper this session added to
+  `test_supersession_pack` is the pattern; it belongs in
+  `tests/harness.py` if a second suite adopts it. *Why:* the same
+  80-column friction exists on apply, retry, relay and status. I
+  measured the cost: 18 assertions in 4 suites. Any blind checkpoint
+  that greps a decline line off a pty would need the same tolerance.
+  *Scope hints:* `bin/bale` `main()` plus those three suites. Rule first
+  on whether checkpoint authors should be told that terminal transcripts
+  wrap." (Queued 2026-10-06 at close 21.)
+- Whether the checkpoint picker drops its Unicode-digit read, and
+  perhaps its literal-file rule. choice-prompt-convergence's second
+  Proposal, filed here by the cleanup desk's light block four, [3]: it
+  changes what an answer says and reverses that desk's pin (every answer
+  at the picker keeps its meaning). The Proposal drops the first and
+  only asks to "consider" the second; the cleanup desk's brief
+  summarized both as dropped, and the close desk caught it. Text
+  verbatim from `2026-10-06-choice-prompt-convergence-001`'s notes.md,
+  flattened: "**Drop two of the picker's three exceptions.** As the
+  brief asked, I kept all three. *What:* make the picker read numbers
+  with the layer's ASCII `pick_number` and drop the `number` option.
+  Also consider dropping the cwd literal-file rule, and with it
+  `out_of_range_ok`. Keep `?` as a path, on B's ratified reasoning.
+  *Why:* the Unicode-digit pick is an accident of `str.isdigit`, not a
+  design. The literal-file rule only serves a checkpoint saved under a
+  bare number in cwd, beside a list that already offers numbers, and the
+  file stays reachable as `./7`. Dropping both would make the picker's
+  number rule exactly config init's. *Scope hints:* `bin/bale_pack.py`
+  (`picker_number`, `_wizard_input_checkpoint_file`),
+  `bin/bale_wizard.py` (`ask_choice`), and the picker tables in
+  `test_pack_wizard_ui`." (Queued 2026-10-06 at close 21.)
+- Whether config init's `.baleignore` add prompt moves onto
+  `ask_choice`, which changes that screen's prompt text, frozen by
+  convergence's constraint. Convergence's fourth Proposal, filed here by
+  the same block's [3]; text verbatim, flattened: "**Config init's
+  `.baleignore` add prompt.** *What:* move its numbered picks onto
+  `ask_choice` (`noun="suggestion"`, `typed="a pattern"`). *Why:* it is
+  the last hand-built numbered choice in either wizard. It still runs
+  its own "no suggestion N" loop. *Scope hints:* it would change that
+  screen's prompt text, which this session's constraint froze, so it
+  needs a ruling first." (Queued 2026-10-06 at close 21.)
 
 **Fold-in registry** (one home, this list — the dated block v3
 carried inside §2's 07-16 sitting summary is merged in; each entry
@@ -1145,6 +1214,18 @@ with the unverifiable ones carried verbatim and marked):
   which cannot see spelling (C's handoff to D). The relabel to
   `clipboard` rides the key rename (D's Proposal 2, dispatched as
   `2026-10-04-clipboard-key-rename`).]
+  [2026-10-06: the relabel consumed at
+  `2026-10-05-clipboard-key-rename-002`, by its notes.md and record: the
+  row is labelled `clipboard`, its words "byte-identical to D's row
+  apart from the label" for a lone `[clipboard] command`, and naming the
+  spelling only where a reader would want it (decision 3); `bale status
+  --json` gains the `clipboard` object, `command`, `source`, `key`,
+  `shadowed`, `problem` (decision 4); the record's assertion "status row
+  label and json clipboard object" ran and agreed. The row reads the
+  command through `clipboard_command_reading(repo)`, log-hold's
+  non-exiting form, by the shipped `claude/context/bale-internals.md`.
+  `bin/bale_report.py` itself did not ship to close 21, so the row's
+  bytes are not read here.]
 - Pack-json `sweep`/`include_group` key: named and deferred at 47a
   (its pass-through half sat in the pack-UX micro's file). Carrier
   unchanged.
@@ -2141,6 +2222,55 @@ with the unverifiable ones carried verbatim and marked):
   UNREADABLE with the accessor's reason." **Why:** the brief routes
   BALE.md wording to 99b. **Scope hints:** BALE.md's status and probe
   sections, plus a verb entry for `clipboard`."
+  [2026-10-06: three more sets, the cleanup desk's wave, each verbatim
+  from its archived notes.md (nested markers flattened), routed to 99b
+  by the cleanup desk's brief and recorded at close 21. The key the sets
+  above spell `[probe] clipboard_command` is `[clipboard] command` since
+  the rename, the old spelling read as a legacy alias; C's and D's
+  sentences predate that. log-hold, `2026-10-04-log-hold-003`:
+  "**BALE.md true-up sentences** (BALE.md wasn't in this request): Where
+  BALE.md describes the goal-less walk's quiet span: "From the walk's
+  first question through its README question, bale holds its `[bale]`
+  lines (bin/bale's `hold_log`/`release_log`): each line is journaled
+  when logged and printed after the README question, in order; a refusal
+  prints the held lines before its error line." In §7.7 (the
+  tree-position echo) or wherever pack's pre-walk output is described:
+  "On a terminal, the `[bale]` lines pack prints before the walk are
+  word-wrapped to the terminal's width (80 on an 80-column terminal),
+  continuation lines indented under the text; piped output and the
+  session log keep each line whole." Where the read-only sweep's prompt
+  is described: "On a terminal the sweep's y/N wraps to the terminal's
+  width; Enter accepts, y or yes in any case accepts, any other answer
+  declines without re-asking, EOF or ^C declines, and piped stdin
+  declines without a prompt." Where the paste-block copy's
+  unreadable-key behavior is described: "An unreadable key skips the
+  copy with one `NOT copied` notice naming the reason; it is not an
+  error of the command and is not journaled as one.""
+  clipboard-key-rename, `2026-10-05-clipboard-key-rename-002`:
+  "**BALE.md true-up sentences** (BALE.md is out of this request; the
+  wording belongs wherever it names the key): §5's `clipboard` row and
+  §8.9's clipboard notes, if they name `[probe] clipboard_command`: "the
+  key is `[clipboard] command` at both layers; `[probe]
+  clipboard_command` is read as a legacy alias, `[clipboard] command`
+  winning inside one file". The `bale status` row: "labelled
+  `clipboard`; `--json` carries it as the `clipboard` object (`command`,
+  `source`, `key`, `shadowed`, `problem`)". Why: the brief routes
+  BALE.md wording here as Proposals." choice-prompt-convergence,
+  `2026-10-06-choice-prompt-convergence-001`: "**BALE.md true-up (out of
+  scope here).** *What:* §7.3's description of the session-shape
+  exchange and the checkpoint picker should say that both draw config
+  init's alternatives. The shape rows are lettered (`[c] code` … `[x]
+  mixed (Enter)`, `[r] read-only`), and the prompt offers `? help`,
+  which shows the item's description. The picker's numbered candidates
+  and prompt (`Enter = none · 1-N picks >`) offer no help, because `?`
+  is a path there. Wherever BALE.md describes `bale config init`'s
+  `.baleignore` suggestions, it should say they count only files pack's
+  filter chain would ship. That means not secrets, not the configured
+  checkpoint's subtree, not planner bundles, and not files a kept
+  pattern already matches. *Why:* the prose would otherwise describe the
+  hand-built rows and the all-files count this session replaced. *Scope
+  hints:* `BALE.md` §7.3, and the §6.4 or wizard passage on
+  `.baleignore`."]
 - An oracle grades a crash in the code under test as the work's failure:
   rides the next `docs/PLANNER.md` holder, §4, beside the fixture
   entries above. The wave2-004 desk's authoring lesson, earned on D's
@@ -2163,6 +2293,14 @@ with the unverifiable ones carried verbatim and marked):
   session log. That is an honest record of what bale read, but you'll
   see it in the log above the "NOT copied" notice." Touches
   `bin/bale_config.py`.
+  [2026-10-06: consumed at `2026-10-04-log-hold-003`, its decision 5,
+  ratified: `clipboard_command_reading(repo)` returns a
+  `ClipboardCommandReading(command, source, refusal)` with any refusal
+  as a value, no `fail()`, no print and no journal entry, and
+  `effective_clipboard_command` stays fatal for other callers as a
+  wrapper over it; the "NOT copied" notice and the exit codes are
+  unchanged. Its end-to-end test packs with a triple-quoted global key
+  and finds the notice in the session log and no `[bale] error:` entry.]
 - `("clipboard",)` in `tests/test_cli_help.py`'s `COMMANDS` and a
   `claude/context/bale-internals.md` line for `bale_report`'s copy
   section and `bin/bale` section 30: D's fourth Proposal, rider on the
@@ -2175,6 +2313,16 @@ with the unverifiable ones carried verbatim and marked):
   for the goal (this session's suite covers the verb's help). **Scope
   hints:** a tests-only or docs-only rider on the next session that
   touches either file."
+  [2026-10-06: consumed at `2026-10-04-log-hold-003`. Its record's
+  `change_paths` carry `tests/test_cli_help.py` and
+  `claude/context/bale-internals.md`, and its `validation_will_run`
+  lists "assert: session D rider — clipboard in the help suite and the
+  internals map", in a run whose state is PASS; its notes.md count the
+  `("clipboard",)` help entry among its deliberate no-change pins,
+  "which already rendered cleanly". The internals file as shipped to
+  close 21 carries both lines: cluster 20, "Clipboard verb",
+  `cmd_clipboard` as `bin/bale` banner section 30, and the paragraph on
+  `bale_report`'s paste-block copy section.]
 - Proposals of the `2026-10-03-friction-points-001` and
   `2026-10-03-friction-points-wave2-004` sittings' workers,
   dispositions, as the two desks routed them and the records bear out:
@@ -2204,6 +2352,98 @@ with the unverifiable ones carried verbatim and marked):
   rider above. The three dispatched sessions' own landings, decisions
   and Proposals are the next close's. Anything not named here stands as
   shipped.
+  [2026-10-06: recorded at close 21. The three sessions' landings and
+  their ratified decisions are §3's wave block of this date; their
+  Proposals, with close 20's own two, are dispositioned in the
+  registry's entry of this date below.]
+- `wrap=True` at the other long y/N prompts, the supersession,
+  drift-admission and bare-apply prompts: rides the next session
+  touching both `bin/bale_pack.py` and `bin/bale_apply.py`, layout only.
+  log-hold's second Proposal, filed as a rider by the operator's "as
+  assumed" to the cleanup desk's light block two, [2], the keyword being
+  layout-only by construction. Text verbatim from
+  `2026-10-04-log-hold-003`'s notes.md, flattened: "**The other long y/N
+  prompts.** *What:* pass `wrap=True` at the supersession,
+  drift-admission and bare-apply prompts. *Why:* the supersession prompt
+  is a pre-walk line in all but name, and it still runs long on an
+  80-column terminal. The keyword is layout-only by construction, but
+  the operator's ruling covered only the sweep. *Scope hints:* one
+  argument per call site, in `bale_pack` and `bale_apply`." Convergence,
+  the one later session holding `bin/bale_pack.py`, did not hold
+  `bin/bale_apply.py`.
+- Accessors for `bin/bale`'s FORCE queue, retiring `bale_pack`'s two
+  `__main__` reach-ins: rides the next session holding `bin/bale`
+  (section 2) and `bin/bale_pack.py` (`_pending_force_line_count`,
+  `_drop_force_lines_queued_since`). log-hold's fourth Proposal, a rider
+  by the cleanup desk's brief. Text verbatim, flattened: "**Retire the
+  FORCE-queue `__main__` reach-ins.** *What:* give bin/bale's logging
+  section two small accessors for its FORCE queue: a count, and a
+  drop-since-mark. Then have `bale_pack`'s `_pending_force_line_count`
+  and `_drop_force_lines_queued_since` call them instead of reading and
+  truncating `__main__._pending_log_lines`. *Why:* B called the
+  rebinding "the second bale_pack reach into `__main__` state". With it
+  gone, these two are the last, and the second one mutates bin/bale's
+  state from outside. *Scope hints:* bin/bale section 2 and those two
+  `bale_pack` helpers, a few lines each."
+- PackWalk as a configuration of `bale_wizard.Walk`: rides the next
+  session holding `bin/bale_wizard.py` and `bin/bale_pack.py`, changing
+  nothing visible. Convergence's third Proposal, filed as a rider by the
+  cleanup desk's light block four, [3]. Text verbatim from
+  `2026-10-06-choice-prompt-convergence-001`'s notes.md, flattened:
+  "**PackWalk as a `bale_wizard.Walk` configuration** (B's second
+  addition, deferred). *What:* give `Walk` a shrinkable plan (`drop`)
+  and plain-word section headings, then make PackWalk a configuration of
+  it. *Why:* the choice move did not need it. Today the only differences
+  are those two features plus PackWalk's abort-on-EOF `ask` and
+  `choose`, which would become a Walk option too. *Scope hints:*
+  `bin/bale_wizard.py`, `bin/bale_pack.py`, and `PackWalkTest`."
+- `contract-doc` defined where it is named: rides the next session
+  holding `bin/bale_pack.py`. The close desk's rider
+  (`2026-10-06-friction-points-close-desk-002`), from convergence's
+  decision 4, "Nothing that ships defines `contract-doc`, so the help
+  names it without explaining it." In the desk's words, from its record
+  as close 21's brief carries it: "The cleanup desk left the routing to
+  this desk: the `?` help convergence added to the shape question names
+  `contract-doc` without defining it, and nothing that ships defines it
+  (the schemas list it in the `work_class` enums and name it in a
+  description; TARBALL.md §3.4's `--work-class` row lists it). Routed as
+  a registry rider on the next session holding `bin/bale_pack.py`:
+  define the class in the shape question's help, in words its
+  dispatching desk supplies, and the same words in TARBALL.md §3.4's
+  `--work-class` row if that session holds `docs/TARBALL.md`. This
+  desk's reading of the term's use in `claude/MASTER.md`, a session
+  whose change set is the carried contract docs, is a reading, not a
+  definition."
+- Proposals of the `2026-10-04-friction-points-cleanup-002` sitting's
+  workers and close 20, dispositions, thirteen, as the cleanup desk
+  routed them (its light blocks two and four, and its brief where they
+  name no home) and the close desk checked each against its notes.md.
+  log-hold's "Display wrapping for every verb." → the ruling queue's
+  entry of this date; "The other long y/N prompts." → the `wrap=True`
+  rider above; "BALE.md true-up sentences" → the 99b routing entry's
+  bracket of this date; "Retire the FORCE-queue `__main__` reach-ins." →
+  the FORCE-queue rider above. Close 20's pack-time include warning →
+  row 134; `reconciliation_parsed: false` surfaced → row 135. The
+  rename's "A changelog row for this rename, with the version bump." →
+  the 0.4.46 bump, dispatched by the close desk as
+  `2026-10-06-bump-0-4-46` (§3's close-desk block; §6 entry 224); its
+  "BALE.md true-up sentences" → the 99b bracket; its "Drop the legacy
+  alias one day, or not." → record only, no work, its text verbatim,
+  flattened: "**Drop the legacy alias one day, or not.** What: nothing
+  now. If the alias is ever retired, the retirement needs
+  `clipboard_command_reading` to refuse `[probe] clipboard_command` with
+  a remedy, the crafter's scan to stop reading it, and bale-src's own
+  `bale.toml` moved first. Why: every reader walks
+  `CLIPBOARD_SPELLINGS`, so the retirement is a one-tuple change plus
+  the refusal text; I note it so the pin is visible rather than because
+  anything asks for it. `TARBALL.md` §3.2's precedent for
+  `claude-decides` is "accepted for good", and that reads right here
+  too." Convergence's "BALE.md true-up (out of scope here)." → the 99b
+  bracket; "Drop two of the picker's three exceptions." → the ruling
+  queue; "PackWalk as a `bale_wizard.Walk` configuration" → the rider
+  above; "Config init's `.baleignore` add prompt." → the ruling queue.
+  The `contract-doc` rider above is the close desk's own, not a worker's
+  Proposal. Anything not named here stands as shipped.
 Landed 2026-08-05, non-board (`2026-08-05-auto-sweep-009`):
 calls recorded in v4 of this doc (git) and the sessions' archived
 notes.
@@ -6264,6 +6504,231 @@ block carries only what has no row home; close recorded by
   bracket on the 99b riders entry. In §6, entry 223; in §7, the arc's
   facts; the fourth watch (§3 Watches).
 
+Landed 2026-10-06, the friction-points cleanup desk's wave and the
+desk's close (`2026-10-04-friction-points-cleanup-002`, its block
+above). The desk closed `closed-read-only` at 2026-10-06T19:11:36Z by
+the `2026-10-06-friction-points-close-desk-002` pack, which its record's
+`swept_by` names, one second before that desk's own `packed_at`,
+19:11:37Z by its brief; the attempt is on `command: pack`, and the
+record's top-level `outcome` reads `unlocked`; the desk stood open 2 d
+17 h 13 min 1 s from its pack. Four sessions, the four it dispatched,
+all applied: log-hold, close 20, clipboard-key-rename and
+choice-prompt-convergence. Sources: the four records and the cleanup
+desk's, the four archived notes.md, and close 21's brief, authored by
+the close desk. The tags (`applied/<sid>`) are by each session's relay,
+by the cleanup desk's brief; no record carries a tag. This block carries
+only what has no row home; close recorded by
+`2026-10-06-sitting-close-deltas-21-004`:
+- Landing record, in apply order from telemetry. Every session: one
+  attempt, first pass; checkpoint PASS, exit 0, stamp matched, no failed
+  probes; worker validation PASS, exit 0, `reconciliation_parsed: true`;
+  no admissions, `overridden_paths` empty and no required-check or
+  base-drift override; confined, the network grant exercised, no sandbox
+  escape; `budget_pressure: none`, no compaction; `clarification.rounds:
+  0`; `corrects` null. `2026-10-04-log-hold-003`: opened
+  2026-10-04T02:33:14Z, its `packed_at` 02:33:13Z, one second earlier;
+  `applied` at 2026-10-05T00:12:44Z, 21 h 39 min 30 s later; checkpoint
+  sha256 `f0fba9d3…2d9e`; two claims, the scoped suites observed and
+  `agree`, the `--slow` full suite predicted against a `skip`, `n/a`;
+  ten `change_paths` under a six-entry forecast (`bin/bale`,
+  `bin/bale_config.py`, `bin/bale_pack.py`, `bin/bale_report.py`,
+  `claude/context/bale-internals.md`, `tests`), five of them suites;
+  `model_identity` `anthropic:claude-opus-5-5`.
+  `2026-10-05-sitting-close-deltas-20-001`: opened 00:28:56Z, 16 min 12
+  s after log-hold applied; `applied` at 01:03:02Z, 34 min 6 s later;
+  checkpoint `bf6dc891…2b71`; five claims, each observed and `agree`;
+  one `change_paths`, `claude/MASTER.md`, its whole forecast;
+  `model_identity` `anthropic:claude-fable-5-1`.
+  `2026-10-05-clipboard-key-rename-002`: opened 01:05:59Z from the `-r2`
+  bundle, its `packed_at` 01:05:58Z, 2 min 57 s after close 20 applied;
+  `applied` at 2026-10-06T15:44:25Z, 38 h 38 min 26 s later, the wave's
+  long sit; checkpoint `bc843282…c2c9`; ten claims, nine observed and
+  `agree`, the `--slow` full discovery observed against a `skip`, `n/a`;
+  thirteen `change_paths` under an eight-entry forecast;
+  `model_identity` `anthropic:claude-fable-5-1`; the record carries
+  `self_reported.light_blocks: 0`, the arc's first record to carry the
+  key. `2026-10-06-choice-prompt-convergence-001`: opened 15:49:59Z from
+  its `-r2` bundle, 5 min 34 s after the rename applied; `applied` at
+  19:07:41Z, 3 h 17 min 42 s later; checkpoint `cdf0778f…495e`; six
+  claims, five observed and `agree`, the `--slow` pack neighbors
+  observed against a `skip`, `n/a`; seven `change_paths` under a
+  five-entry forecast; `model_identity` `anthropic:claude-opus-5-5`.
+  Across the wave: four applies on four attempts, zero HOLDs, zero
+  retries; 23 claim rows, 20 `agree`, 3 `n/a`, none unreconciled; 31
+  `change_paths`; no admitted path; all four bumpless on 0.4.45.
+  `contract_docs` moved once, `docs/TARBALL.md` `f6c3326e…` to
+  `32680c8e…` between the rename's request and convergence's, the rename
+  having edited it.
+- What landed, in short (the notes.md carry the detail; every count is
+  the worker's own, on its partial `context/` tree). log-hold:
+  `bin/bale`'s native log hold, `hold_log()` / `release_log()` /
+  `log_holding()` with a `log_held()` context manager, journaling a held
+  line when it is logged and holding only the print, `fail()` releasing
+  first and an `atexit` release; `WalkLogHold` deleted; display wrapping
+  in `bin/bale` section 2, opt-in and on today only for pack's pre-walk
+  lines, piped output byte-identical; the sweep's y/N laid out through
+  `confirm_yn_decision(..., wrap=True)`, its only caller; the
+  non-exiting clipboard reader; D's `("clipboard",)` and internals
+  rider; 1796 tests in discover form, passing but for the seven failures
+  the unmodified tree shares, from files the request did not ship. Close
+  20: the friction-points arc's record in `claude/MASTER.md`, 829 lines
+  inserted and the header line edited, proved by reversal.
+  clipboard-key-rename: `[clipboard] command` the key at both layers,
+  `[probe] clipboard_command` read as a legacy alias, `[clipboard]
+  command` winning inside one file and the file never silent about it;
+  the `bale status` row labelled `clipboard` and `--json`'s `clipboard`
+  object; the wizard carrying a legacy value into the new spelling and
+  the review naming the move; the crafter's scan reading both spellings;
+  1834 tests in full discovery, `validate.sh` 94 checks.
+  choice-prompt-convergence: the pack walk's shape question, all three
+  forms, and its checkpoint picker drawn and asked through
+  `bale_wizard`'s `ask_choice`, every answer keeping its meaning and `?`
+  help joining the shape question; pack's per-path filter chain moved
+  into `bale_pack.pack_drop_reason`, which `walk_for_pack` and config
+  init's `.baleignore` suggestions both call, so the suggestions count
+  only files pack would ship; no whole-suite count given.
+- Ratified at the cleanup desk, as shipped, every flagged decision of
+  the four notes.md, by the operator's "as assumed" to its light block
+  two, [1] (log-hold's five and close 20's seven, close 20's extra §7
+  bullet kept), and light block four, [1] (the rename's eight and
+  convergence's seven, convergence moving pack's per-path filter chain
+  into `pack_drop_reason` among them); both blocks are §5's entry of
+  this date, verbatim. Each decision by its own heading or lead-in,
+  verbatim from its notes.md. log-hold: 1, "The hold journals at log
+  time; only the print waits."; 2, "`WalkLogHold` is deleted, not
+  thinned."; 3, "Display wrapping is opt-in, and today only pack's
+  pre-walk lines use it. Look closely here."; 4, "The sweep's y/N: a
+  keyword only the sweep passes."; 5, "Clipboard rider:
+  `clipboard_command_reading(repo)` → `ClipboardCommandReading(command,
+  source, refusal)`.". Close 20: 1, "The stale key is bracketed, not
+  edited, in three places."; 2, "Rulings in §5, ratifications in §3.";
+  3, "The wave2-004 desk's brief correction is not a §5 line."; 4, "E's
+  unreconciled claims are a records finding, not a defect."; 5, "The
+  dispositions entry says what the records bear out and no more."; 6,
+  "The cleanup sessions are recorded as dispatched only"; 7,
+  "`validation.sh` embeds the insertion ledger.". clipboard-key-rename:
+  1, "How the two spellings merge."; 2, "An unreadable new key never
+  falls through to the legacy one"; 3, "The row's exact words for the
+  spelling."; 4, "`bale status --json` says which spelling."; 5, "The
+  wizard's carry-over."; 6, "The review names the move."; 7, "D's
+  `--block` notice wording."; 8, "Names.". choice-prompt-convergence: 1,
+  "The layer grew options, not a sibling primitive."; 2, "What the
+  picker's screen now says."; 3, "The picker still reads digits the way
+  it did."; 4, "`?` at the shape question."; 5, "One filter chain."; 6,
+  "What now stops a file from counting toward a suggestion."; 7, "Three
+  edge rulings in the suggestions.". The rename's decision 7 asked
+  whether its reading of D's `--block` notice wording was the one meant;
+  ratified as shipped, its reading stands.
+- Routed at the cleanup desk, by its light blocks two, [2] and [3], and
+  four, [2] and [3], and its brief where they name no home, and checked
+  against the notes.md by the close desk: thirteen Proposals,
+  dispositioned in the registry's entry of this date. Three wait in the
+  ruling queue, three ride as registry riders, three BALE.md sets join
+  99b's routing entry, two are board rows 134 and 135, one is the 0.4.46
+  bump and one is record only. Consumed by the wave, each bracketed in
+  the registry: the non-exiting accessor rider and D's `test_cli_help`
+  and internals rider at log-hold, the `bale status` row's relabel at
+  the rename.
+- Light-block ledger (PLANNER.md §6). The cleanup desk, in its brief's
+  words as close 21's brief carries them: "four light blocks (two
+  answered "as assumed", two replaced without an answer) and one probe,
+  answered". Close 20's block for the desk reads "light blocks 0; probes
+  1", which was true when the desk wrote close 20's brief: all four
+  blocks came after it, during the wave, so the two counts are dated,
+  not in conflict. Blocks one and three went unanswered and were
+  replaced by two and four, block four's [2] folding block three's
+  changelog question in by its own "while doing"; one and three were not
+  carried to the close desk, so only two and four are quoted (§5). The
+  workers: `clarification.rounds: 0` on all four records; the rename's
+  carries `self_reported.light_blocks: 0`, and the other three carry no
+  such key.
+- Where the brief and the records part, found at this close: nowhere on
+  the records. Everything close 21's brief states of the four records
+  held: the applied times, checkpoint and worker states, stamps,
+  admissions, decision counts and `light_blocks`; so did the cleanup
+  desk's closure time and `swept_by`. Two things the brief asks this
+  close to check are recorded on other evidence: the `bale status` row's
+  relabel on the rename's notes.md and record, `bin/bale_report.py` not
+  having shipped (the registry bracket says so); and the close desk's
+  own `packed_at`, on the brief's word, no record of that desk having
+  shipped.
+- Board deltas of this sitting's work: rows 134 and 135; row 99's
+  bracket. Ruling queue: three entries. Registry deltas: the three
+  consumption brackets (the non-exiting accessor, D's help-suite and
+  internals rider, the `bale status` row); the 99b routing entry's
+  bracket with three sets; the bracket on close 20's dispositions entry;
+  three riders (the close desk's `contract-doc` rider is its own
+  block's); the dispositions entry. In §5, the block of this date; in
+  §6, entry 224; the dotted-key watch (§3 Watches); in §7, the wave's
+  facts.
+
+Landed 2026-10-06, the friction-points close desk
+(`2026-10-06-friction-points-close-desk-002`, read-only, work class
+meta; bale 0.4.45 at its pack; packer `chordsphere`; packed
+2026-10-06T19:11:37Z by its manifest; its pack swept the cleanup desk;
+it stays open until the next read-only pack sweeps it or the operator
+unlocks it). It succeeded the cleanup desk and authored close 21 and the
+0.4.46 bump. Its brief, authored by the cleanup desk, is its request's
+README (sha256 `ddb62a74…d540`). No record of the desk shipped to close
+21; this block is its record as close 21's brief gives it (Appendix C),
+flattened. This block carries only what has no row home; close recorded
+by `2026-10-06-sitting-close-deltas-21-004`:
+- What it did: verified the cleanup desk's brief against the four
+  records and notes.md, every verdict and admission holding, and the
+  decision counts, five, seven, eight and seven; verified every
+  Proposal's routing (the registry's dispositions entry of this date);
+  scoped and authored two sessions, each as a crafter bundle with a
+  blind checkpoint, forecast-disjoint and meant to run beside each
+  other: this close (`claude/MASTER.md`) and the bump (`bin/VERSION`,
+  `claude/changelog`). It ran no probe, so it holds no registry reading
+  of its own; the last on record is the cleanup desk's of 2026-10-04.
+- The bump, as dispatched only; the next close records its landing. Stem
+  `2026-10-06-bump-0-4-46`, bundle sha256
+  `7bc43027a8c03232ec24d7cf9268b74d33c72156177de3038017451dc076e345`,
+  brief
+  `f034bc003da44e372c1408ac1d2ca46958e03a6c284155fa844d71c760b531be`,
+  checkpoint v1
+  `0623f824126d9b28b0f9bb1a679b6152d4aef37aec54f80bc7c29077476d6303`;
+  forecast `bin/VERSION` and `claude/changelog`. Close 21's own identity
+  is its request's provenance: checkpoint
+  `claude/checkpoints/2026-10-06-sitting-close-deltas-21-004.sh`, sha256
+  `bf55c4ee…4dc0`, base `claude/MASTER.md` `b1ed2936…ddf2`.
+- Dry-runs: each checkpoint exits 1 on the shipped tree, 0 on a stub
+  landing built from its brief's own bytes, 1 on stubs each missing one
+  outcome, and 2 when its control breaks. The bump's bundle was also
+  rehearsed with `bale open --dry-run` in a scratch git copy of the
+  desk's shipped tree (exit 1 from the checkpoint, every argv gate
+  passed), placeholder files standing in for the five archived notes.md
+  and records its request did not carry.
+- Rulings and reads of the desk. The changelog's scope, in its words:
+  "Block 4 [2] named four sessions, "C, D, log-hold, the rename". The
+  brief asked this desk to read convergence. By the schema's own list
+  ("schemas, closed vocabularies, record and manifest shapes,
+  CLI-accepted values, the release layout"), A (`bin/bale_wizard.py` in
+  the release layout) and E (`BALE_HELP.md` in every request) changed
+  surfaces the four-name list leaves out; by the 0.4.44 and 0.4.45
+  records' practice of naming each changed `bin/` module, all eight
+  sessions of the arc that changed bale's code did. The bump's brief
+  asks for rows for all eight, the ratified four pinned and the other
+  four the desk's read, flagged to the operator in chat."
+  `contract-doc`: routed as the registry's rider of this date.
+  Sequencing: the bump and this close run beside each other; rows 134
+  and 135 are queued, unscheduled; the three ruling-queue entries and
+  the BALE.md ruling wait on the operator; 99b waits on the BALE.md
+  ruling.
+- Light-block ledger: zero light blocks, zero probes, zero clarification
+  rounds.
+- Findings at the desk: block four [2]'s four-name list (above; §6 entry
+  224); the cleanup desk's summary of convergence's picker Proposal,
+  which drops a "consider" (the ruling queue's entry of this date);
+  `docs/TARBALL.md` moved from `f6c3326e…` in close 20's request to
+  `32680c8e…` in the desk's, the rename having edited it; bale-src's own
+  `bale.toml` still on the legacy spelling (§7); the rename's record the
+  first of the arc to carry `light_blocks`.
+- Board deltas of this sitting's work: none of its own; rows 134 and 135
+  are the cleanup desk's ruling, queued at this close. Registry deltas:
+  the `contract-doc` rider.
+
 ## 4. The board
 
 Ordering is the recommended sequence; small sessions first, the
@@ -8544,6 +9009,17 @@ and §8, so done items keep their numbers as one-line pointers.
     key is per-machine at both layers. The citation recount 99b waits on
     is the ruling queue's bracket of this date: 24 occurrences, 9 of 19
     sections, 9 board mentions.]
+    [2026-10-06: 99b's inputs grow by three more sets, the cleanup
+    desk's wave: log-hold's (the goal-less walk's held lines, pack's
+    wrapped pre-walk lines, the sweep's y/N, the copy's `NOT copied`
+    notice), the rename's (the `[clipboard] command` key and its legacy
+    alias, the `bale status` row and its `--json` object) and
+    convergence's (§7.3's shape question and checkpoint picker, config
+    init's `.baleignore` counts), verbatim in the bracket of this date
+    on the §3 registry's routing entry. The key 99a landed as `[probe]
+    clipboard_command` is `[clipboard] command` since
+    `2026-10-05-clipboard-key-rename-002`, the old spelling a legacy
+    alias. 99b still waits on the ruling queue's BALE.md entry.]
 
 100. **Model-agnostic bale — ARC** — queued 2026-09-15. Operator's
     goal, VERBATIM: "I want to abstract everything away from claude or
@@ -9366,6 +9842,40 @@ and §8, so done items keep their numbers as one-line pointers.
     (`kind: probe`, `point: pre-build`), so a probe's existence is
     recorded when the worker fills it; its timing is recorded nowhere,
     which is the row's point.
+
+134. **A pack-time include warning** — queued 2026-10-06 (code; decide
+    first: a static or a derived seed list; warnings only, never
+    refusals). Close 20's first Proposal, made a row by the operator's
+    "as assumed" to the cleanup desk's light block two, [3]; verbatim
+    from `2026-10-05-sitting-close-deltas-20-001`'s notes.md, flattened:
+    "**What:** a board row for a pack-time include warning: when an
+    included suite's module imports or fixture reads (`bale.toml`,
+    `claude/changelog/`, `claude/context/adr/`, the repo `README.md`)
+    fall outside the request's includes, `bale pack` says so, never
+    refuses. **Why:** §6 entry 223 is the class's fourth occurrence (215
+    had two, row 131 one); every worker of this arc reported the same
+    six or seven baseline failures from the same files, and C's record
+    put them in `includes_missing`, so the signal was already in the
+    telemetry before the cleanup desk repeated the miss. **Scope
+    hints:** `bin/bale_pack.py`'s include gate and the
+    `includes_missing` corpus as the seed list; a desk decision first on
+    whether the list is static or derived from `tests/` imports." This
+    is the remedy §6 entry 223 says "has no row yet". The ruling queued
+    it after choice-prompt-convergence, which has applied
+    (2026-10-06T19:07:41Z); unscheduled.
+
+135. **`reconciliation_parsed: false` surfaced** — queued 2026-10-06
+    (code; warnings only, never refusals). Close 20's second Proposal,
+    same ruling; verbatim, flattened: "**What:** surface
+    `reconciliation_parsed: false` at apply as a warning line beside the
+    worker PASS, and in `bale stats`. **Why:** E's record passed with no
+    claim paired to a verdict and nothing said so; the calibration
+    signal the claims field exists for was lost silently, which is the
+    silent-skip class. **Scope hints:** `bin/bale_apply.py` where the
+    reconciliation is parsed, `bin/bale_stats.py`'s claim counts; one
+    line each." E's record is the specimen (§3's 001-desk block of
+    2026-10-05). Queued after choice-prompt-convergence, which has
+    applied; unscheduled.
 
 ## 5. Contracts established (do not re-litigate casually)
 
@@ -10476,6 +10986,81 @@ desk's rendering, carried in the cleanup desk's brief; recorded at close
   lines and [1]; D stays clipboard-only / why blocked: D also touches
   bin/bale and bale_pack.py, so the two must run one after the other,
   and folding them together would make D bigger"
+
+New, ratified by 2026-10-06 (the operator's "as assumed" to the
+`2026-10-04-friction-points-cleanup-002` desk's light blocks two and
+four, in that desk's rendering, verbatim as the close desk's brief
+carries them, rows joined by " / "; block two answered after close 20
+applied, 2026-10-05T01:03:02Z, and block four after convergence applied,
+2026-10-06T19:07:41Z, the records giving no closer date; blocks one and
+three went unanswered and were replaced by two and four; recorded at
+close 21):
+
+- **Close 20's two Proposals are board rows, warnings only, never
+  refusals.** Block two, [3]: a pack-time include warning for reads a
+  shipped suite needs (row 134, the remedy §6 entry 223 said had no row)
+  and `reconciliation_parsed: false` surfaced at apply and in `bale
+  stats` (row 135). Each adds a warning surface to bale, which is a
+  scope decision; both queued after choice-prompt-convergence, which has
+  applied.
+- **The arc's changelog catch-up is its own version bump.** Block four,
+  [2]: `bin/VERSION` plus `claude/changelog/0.4.46.json`, authored by
+  the successor desk beside close 21, because CODE.md §8.5 puts the
+  entry in the changing session, the arc's sessions skipped it, and
+  catching up mints a version. Dispatched by the close desk as
+  `2026-10-06-bump-0-4-46`, whose brief asks for rows for all eight
+  sessions of the arc that changed bale's code where the block named
+  four, the close desk's read, flagged to the operator (§3's close-desk
+  block). §6 entry 224 is the defect.
+- The rest land where they belong: block two, [1] and block four, [1],
+  the ratifications, in §3's wave block of this date; block two, [2] and
+  block four, [3], the routings, in the ruling queue and the registry.
+- Block two, verbatim: "[1] question: Ratify as shipped every flagged
+  decision of log-hold-003 (five) and sitting-close-deltas-20-001
+  (seven), keeping close 20's extra section 7 bullet? / while doing:
+  reviewing the log-hold and close-20 ratification relays / would
+  assume: yes: all twelve as shipped, recorded at close 21 / why
+  blocked: ratifying a worker's flagged decisions is yours; log-hold
+  narrowed the wrap to pack's pre-walk lines, and close 20 asked about
+  the section 7 bullet / [2] question: File log-hold's two wrap
+  Proposals as a ruling-queue entry (every verb's [bale] lines) and a
+  registry rider (the supersession, drift-admission and bare-apply y/N
+  prompts)? / while doing: routing log-hold-003's Proposals / would
+  assume: yes: the every-verb wrap waits on a ruling because it breaks
+  18 pty assertions; the y/N keyword is layout only and rides the next
+  session touching bale_pack.py and bale_apply.py / why blocked: your
+  ruling covered only the sweep's prompt, and wrapping every verb
+  changes all terminal output / [3] question: Make close 20's two
+  Proposals board rows: a pack-time include warning for reads a shipped
+  suite needs, and surfacing reconciliation_parsed false at apply and in
+  stats? / while doing: routing sitting-close-deltas-20-001's Proposals
+  / would assume: yes: two board rows, warnings only, never refusals;
+  queued after choice-prompt-convergence / why blocked: each adds a new
+  warning surface to bale, which is a scope decision"
+- Block four, verbatim: "[1] question: Ratify as shipped
+  clipboard-key-rename-002's eight decisions and
+  choice-prompt-convergence-001's seven, including convergence moving
+  pack's per-path filter chain into pack_drop_reason? / while doing:
+  reviewing the rename and convergence ratification relays / would
+  assume: yes: all fifteen as shipped, recorded at close 21 / why
+  blocked: ratifying a worker's flagged decisions is yours, and the
+  filter-chain refactor runs inside every pack / [2] question: Author a
+  version-bump micro-session (0.4.46) beside close 21, writing the
+  changelog record for the arc's surface changes (C, D, log-hold, the
+  rename)? / while doing: routing clipboard-key-rename-002's changelog
+  Proposal (light block 3, unanswered, folded in here) / would assume:
+  yes: bin/VERSION plus claude/changelog/0.4.46.json, authored by the
+  successor desk beside close 21 / why blocked: CODE.md 8.5 puts the
+  entry in the changing session, the arc's sessions skipped it, and
+  catching up mints a version / [3] question: File convergence's
+  remaining Proposals: dropping two picker exceptions and moving the
+  .baleignore add prompt onto ask_choice as ruling-queue entries, and
+  PackWalk as a Walk configuration as a registry rider? / while doing:
+  routing choice-prompt-convergence-001's Proposals / would assume: yes:
+  the first two change what an answer or a frozen prompt says, so they
+  wait on rulings; the Walk refactor changes nothing visible / why
+  blocked: dropping the picker exceptions reverses this desk's pin, and
+  the add prompt's text was frozen by the convergence constraint"
 
 ## 6. Orchestration-doctrine evidence pile (feeds the doctrine doc at
    harness scoping; each rule earned from live traffic)
@@ -12844,6 +13429,37 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
     imports or fixture reads fall outside the includes, has no row yet.
     (Desk-side, the cleanup desk, by its own brief.)
 
+224. **The changelog obligation, missed across an arc.** `CODE.md` §8.5,
+    "Surface changes write their changelog entry": "the session that
+    changes a machine-readable surface writes that version's entry in
+    the same response, so the record is part of the change rather than a
+    later reconstruction of it." No session of the friction-points arc
+    that changed bale's code bumped. Their recorded forecasts carry
+    neither `bin/VERSION` nor `claude/changelog`: A's seven paths, E's
+    eight, B's ten, C's six and D's eleven, in the 001 and wave2-004
+    desks' §3 blocks, and log-hold's, the rename's and convergence's, in
+    their records; §7 records the arc "bumpless on 0.4.45" as a fact,
+    not a gap. In the cleanup desk's words: "None of the desk's three
+    code briefs carried CODE.md §8.5: a session that changes a
+    machine-readable surface writes that version's changelog entry in
+    the same response. None of the forecasts named `bin/VERSION` or
+    `claude/changelog/` either. The earlier desks' briefs for C and D
+    had the same gap. The rename worker found it and proposed the
+    catch-up; it is not yet in MASTER.md." Found by the rename worker,
+    who read §8.5, named the gap and proposed the catch-up rather than
+    mint a version outside its forecast (its notes.md: it "followed the
+    arc rather than mint a version in a session whose forecast does not
+    name `bin/VERSION` or `claude/changelog/`"); ruled at the cleanup
+    desk, light block four, [2] (§5, 2026-10-06); the catch-up's own
+    list named four of the eight sessions of the arc that changed bale's
+    code, "C, D, log-hold, the rename", and the close desk's brief for
+    the bump asks for all eight (§3's close-desk block); dispatched as
+    `2026-10-06-bump-0-4-46`. The worker side held where the desk side
+    did not. (Desk-side: the cleanup desk's and the wave2-004 desk's
+    briefs, by the cleanup desk's words; the forecasts all three desks
+    authored, by the records. The close desk did not read A's, B's or
+    E's briefs, so nothing here says what they carried.)
+
 ## 7. Standing environment facts
 
 - Architect on WSL; Windows Downloads at
@@ -13286,6 +13902,26 @@ New from the 2026-08-31→09-01 continue-plan sitting (session 026;
   `claude/MASTER.md` was 12,476 lines, `4b45a684…3eb8`, matching the
   cleanup desk's probe prefix, before it inserted; the operator's tree
   at that probe was `main` at `8f0bbc4`.
+- The cleanup desk's wave (2026-10-04 to 06) was bumpless on 0.4.45,
+  every record's `bale_version` 0.4.45; 0.4.46 is dispatched as
+  `2026-10-06-bump-0-4-46` beside close 21, not landed. The whole-suite
+  counts the workers reported on their partial `context/` trees:
+  log-hold 1796 in discover form, seven failing there as on the
+  unmodified tree, for `bale.toml`, `claude/changelog/`, the ADR-0013
+  file and the repo `README.md`; the rename 1834 in full default
+  discovery, 47 slow-gated skips, and 1834 passing with
+  `BALE_TEST_SLOW=1`, `validate.sh` 94 checks; convergence and close 20
+  none. `docs/TARBALL.md` stands at `32680c8e…` in the close desk's
+  request and close 21's, after the rename's edit, from close 20's
+  `f6c3326e…`; the other four `contract_docs` are unchanged. bale-src's
+  own `bale.toml` still spells `[probe] clipboard_command`, which `bale
+  status` reads "via the legacy [probe] clipboard_command" and the
+  operator's next `bale config init` moves to `[clipboard] command`.
+  Model identities on the wave's four records: log-hold and convergence
+  `anthropic:claude-opus-5-5`, close 20 and the rename
+  `anthropic:claude-fable-5-1`. Close 21's base `claude/MASTER.md` was
+  13,305 lines, `b1ed2936…ddf2`, matching the close desk's carried copy
+  and the request's `base_files`, before it inserted.
 
 ## 8. Foundation-audit findings register (008, 2026-07-13)
 
