@@ -1,0 +1,328 @@
+{
+  "record_version": 1,
+  "version": "0.4.46",
+  "session_id": "2026-10-06-bump-0-4-46-003",
+  "at": "2026-10-06T20:01:49+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.45 -> 0.4.46"
+    },
+    {
+      "path": "bin/bale",
+      "change": "request shape: new CLI_REFERENCE_NAME (\"BALE_HELP.md\") and CLI_REFERENCE_COLUMNS (80) beside CARRIED_TOOLS; new render_fixed_width_help and render_cli_reference render the top-level `bale help` and every command path's help verbatim at a fixed 80 columns with color off, so the text is identical from any terminal; extract_paths_from_reading_plan drops CLI_REFERENCE_NAME like the global docs, so a handoff reading plan citing it pulls nothing into context/",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "request shape: build_request_tarball writes CLI_REFERENCE_NAME (BALE_HELP.md) at request-NNN/'s top level, as bytes, in every request it builds (pack and handoff); a context tarball carries none; the file is not stamped in provenance.contract_docs (the request-manifest schema is unchanged)",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "docs/AGENT.md",
+      "change": "the META reachability paragraph and an INDEX read-paths row name BALE_HELP.md, the carried per-verb help, read instead of probing for `bale --help`",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "\u00a73.1's request shape lists BALE_HELP.md (generated at build time) with a paragraph on it; the INDEX row for a verb's syntax routes to it",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "tests/test_cli_reference.py",
+      "change": "new suite: the reference verbatim against the real CLI, coverage against an independent parser walk, width and FORCE_COLOR independence, carriage by pack and handoff, absence from a context tarball, the handoff reading-plan filter",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "PackCarriageSurface's stub __main__ supplies CLI_REFERENCE_NAME and render_cli_reference, which build_request_tarball now needs",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "tests/test_doc_crossrefs.py",
+      "change": "the reference's name is read from bin/bale's CLI_REFERENCE_NAME line, and AGENT.md's reachability model and INDEX and TARBALL.md's INDEX are pinned to route verb syntax to it",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "tests/test_global_doc_selfcontainment.py",
+      "change": "CliReferenceFramingSelfContainment: the generated reference's framing (everything outside its code fences) is held to the docs-and-tools deny table; the fenced help bodies are exempt",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "tests/test_install_precheck.py",
+      "change": "the end-to-end pin expects the request's top-level .md set to be GLOBAL_DOCS plus BALE_HELP.md",
+      "session_id": "2026-10-03-bale-cli-reference-003"
+    },
+    {
+      "path": "bin/bale_wizard.py",
+      "change": "new release file: the shared wizard presentation layer, a stdlib-only leaf module \u2014 WizardUI (title, heading, item, state/table rows, warn, review, ask, ask_item, confirm(default=, eof=, interrupt=)), Walk (items numbered against a declared order; begin refuses an unlisted key), ITEM_HEADER_RE for `n/N  key` item headers, WIDTH 80, color_enabled (color only on a TTY with NO_COLOR absent and TERM set and not dumb)",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "`bale config init` draws through bale_wizard (a load-time import): one screen per key headed n/19 and its dotted key, the order declared in WIZARD_WALK_ORDER_BOTH_LAYERS and WIZARD_WALK_ORDER_PROJECT_ONLY; a bare '?' at an item prompt now shows the key's full description instead of setting the value '?'; review_and_write_config shows the changes against the file on disk and asks `Write bale.toml? [Y/n]` (Enter and EOF write; n and ^C leave the file), and a file already byte-equal is not rewritten (summary `unchanged`); walkthrough_baleignore gets the same gate; walkthrough_git_identity(repo, ui=None) is shared with pack's git-init step; the values written are otherwise unchanged",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "scripts/build.sh",
+      "change": "release layout: RELEASE_FILES gains bin/bale_wizard.py",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "install.sh",
+      "change": "release layout: INSTALL_LAYOUT gains bin/bale_wizard.py",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "validate.sh",
+      "change": "release layout: a presence check for bin/bale_wizard.py",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "tests/test_wizard_ui.py",
+      "change": "new suite: the layer's primitives and color policy, the walk order, the frozen answers-to-config SEMANTICS table (each answer also run after '?'), the review gate, the .baleignore step, pty end-to-end runs for width, color, piped output and prompt count",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "tests/test_layout_and_formats.py",
+      "change": "the in-process wizard driver finds items by bale_wizard.ITEM_HEADER_RE",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "tests/test_probe_clipboard_config.py",
+      "change": "the in-process wizard driver finds items by bale_wizard.ITEM_HEADER_RE",
+      "session_id": "2026-10-03-config-wizard-ui-002"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "the goal-less `bale pack` wizard draws through bale_wizard (lazy import): a 'bale pack \u2014 interactive mode' title screen, Session/Scope/Brief sections, items headed n/N with the CLI spelling that answers each as its key (PackWalk, plan_pack_walk; a read-only shape answer drops the forecast and checkpoint items and the count re-derives); Enter at the slug item takes suggest_slug(goal) (SLUG_SUGGESTION_WORDS 4 non-stopword words, at most SLUG_SUGGESTION_MAX_CHARS 40) where it used to re-prompt, and the answer echoes its session id; the README item keeps confirm_yn's answer set; [bale] lines the post-walk gates print are held until after the README question (through log-hold's native hold, below); plan_pack_walk reads the merged config up front for the checkpoint item, so a malformed bale.toml refuses before the first question rather than at the checkpoint question; _wizard_input_required removed",
+      "session_id": "2026-10-03-pack-wizard-ui-005"
+    },
+    {
+      "path": "upgrade.sh",
+      "change": "release layout: REQUIRED_RELEASE_MEMBERS gains bin/VERSION, bin/bale_stats.py, bin/bale_open.py, bin/bale_relay.py and bin/bale_wizard.py; bin/bale_sandbox.py stays off deliberately (every importer loads it lazily)",
+      "session_id": "2026-10-03-pack-wizard-ui-005"
+    },
+    {
+      "path": "tests/test_pack_wizard_ui.py",
+      "change": "new suite: suggest_slug, PackWalk numbering and headings, the shape, README and slug answer meanings in-process, pty full-walk runs",
+      "session_id": "2026-10-03-pack-wizard-ui-005"
+    },
+    {
+      "path": "tests/test_upgrade_required_members.py",
+      "change": "new suite: derives bin/bale's load-time import closure from the sources and pins REQUIRED_RELEASE_MEMBERS against it, bin/bale_sandbox.py the named exception",
+      "session_id": "2026-10-03-pack-wizard-ui-005"
+    },
+    {
+      "path": "bin/bale_wizard.py",
+      "change": "additive: Alternative (value, note, detected), detected_first, pick_number and WizardUI.ask_choice \u2014 numbered alternatives on an item screen, a number picks, an out-of-range number re-asks, any other answer comes back raw",
+      "session_id": "2026-10-03-wizard-defaults-006"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "the clipboard command key is both-layer (the [identity] packer mechanics: merged_config inherits it from the global file, the global walk offers it, \"\" at the project suppresses); new effective_clipboard_command(repo) (the stripped command or None; fatal on a value or spelling the probe scaffold's reader cannot see, triple-quoted above all) and clipboard_command_source(repo) ('project' | 'global' | None); config init lists numbered alternatives, detected first (WizardSuggestions, suggest_wizard_values, detect_clipboard_command, detect_git_user_name), on apply.search_paths, apply.archive_dir, staging.strategy, staging.untracked_inputs, identity.packer, the clipboard key and validation.base, plus .baleignore pattern suggestions (baleignore_suggestions, BALEIGNORE_SUGGEST_EXTENSIONS); walk_configurables takes suggestions=; a detector that cannot run prints 'detection skipped: \u2026'; Enter means what it meant",
+      "session_id": "2026-10-03-wizard-defaults-006"
+    },
+    {
+      "path": "tests/test_probe_clipboard_config.py",
+      "change": "the key's both-layer inheritance and suppression, the effective accessor's refusals, SpellingTwinTest (bin/'s one-line scan against the crafter's on one corpus), a pty Enter-through after which the crafter still reads the project key",
+      "session_id": "2026-10-03-wizard-defaults-006"
+    },
+    {
+      "path": "tests/test_wizard_ui.py",
+      "change": "numbered-alternative screens and picks, detection (platform, git), the .baleignore suggestion step",
+      "session_id": "2026-10-03-wizard-defaults-006"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new copy_paste_block(repo, block, text), the one copy helper every paste point calls: runs the configured command with the block on stdin (run_clipboard_command: new session, stdout discarded, CLIPBOARD_TIMEOUT_SECONDS 10) and prints one `[bale] clipboard: \u2026` line on stderr; never raises, never changes stdout or an exit code; PASTE_BLOCK_* block names; resolve_clipboard_command(repo) -> (command, source, problem); describe_clipboard_state renders the status row",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale",
+      "change": "new verb `bale clipboard [--block NAME]` (cmd_clipboard): copies stdin through copy_paste_block, exit 0 copied, 1 not copied, 2 on a terminal stdin; `bale status` gains a clipboard row (command and layer, suppressed, unset, or UNREADABLE with the reason; exit stays 0); `config init`'s description names the numbered alternatives, '?', the review before writing, and [layout] among the project-only sections",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "cmd_pack copies the session opener (the lines between the scissor lines, opener_paste_text) after the report prints, human and --json runs alike, when a clipboard command is configured",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale_open.py",
+      "change": "open_second_desk copies that desk's own opener",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale_relay.py",
+      "change": "both emit sites (ingest and the no-file re-emit) copy the exchange block, BEGIN through END",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale_apply.py",
+      "change": "apply and retry copy on HOLD the relay block the card names under `send first:`, and on PASS the APPLIED relay block before the [PASS] banner",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "help text only: the clipboard key's '?' description says bale copies every paste block it prints (the copying is no longer future tense); no code change",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "the --probe scaffold's tail pipes its PROBE BEGIN/END block into `bale clipboard --block \"probe block\"` and trusts its 0/1 answer; clip_fallback (a tee into the request's own clipboard command when the crafter read one, else remedy text naming `bale config init --global`) runs only when bale is absent or answers anything else",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "\u00a74.3: the probe scaffold's clipboard copy is made by bale through `bale clipboard`, bale copies every other operator-side paste block the same way, and the no-bale fallback is the request's own clipboard command",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "tests/test_clipboard_paste_blocks.py",
+      "change": "new suite: the copy at every paste point, the HOLD send-first choice, stdout and exit invariance, nothing detected when unset, the status row, the verb's exit codes, the probe through a real installed bale, the runner's timeout and selection-owner cases",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "CraftProbeClipboard: the scaffold's tail copies through the installed `bale clipboard` and falls back only where bale cannot answer",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "tests/test_probe_clipboard_config.py",
+      "change": "the key's help text reads present tense now that bale copies paste blocks",
+      "session_id": "2026-10-04-clipboard-paste-blocks-001"
+    },
+    {
+      "path": "bin/bale",
+      "change": "section 2 gains a native log hold \u2014 hold_log / release_log / log_holding and the log_held() context manager: a held line is journaled (or FORCE-queued) when logged and printed at release; fail() releases first; an atexit hook releases; one level deep \u2014 and opt-in terminal wrapping (set_log_display_wrap, wrap_log_line, log_display_width: $COLUMNS, else the tty width, else 80, floored at 40, continuations hung under the text; off by default; piped output and the journal unchanged); confirm_yn_decision takes wrap= (layout_yn_prompt), layout only",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "cmd_pack wraps its pre-walk [bale] lines on a terminal and holds the walk span through bin/bale's hold_log/release_log; the read-only sweep's y/N passes wrap=True, its answers unchanged",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "new clipboard_command_reading(repo) -> ClipboardCommandReading(command, source, refusal): the clipboard read with any refusal returned as a value (no fail(), print or journal entry); effective_clipboard_command is its fatal wrapper with the same text; both config loaders share read_config_file",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "resolve_clipboard_command reads through clipboard_command_reading, so an unreadable key's reason reaches the `NOT copied` notice without a `[bale] error:` line in the session log; exit codes and the notice unchanged",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "tests/test_pack_wizard_ui.py",
+      "change": "the native hold, the display wrap and the sweep prompt's layout (answers decide identically with and without wrap=True), held lines and pre-walk width over a pty",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "tests/test_supersession_pack.py",
+      "change": "four pty pins of the supersession exchange's now-wrapped pre-walk lines compare words in order (on_terminal) instead of one whole line",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "tests/test_clipboard_paste_blocks.py",
+      "change": "a pack with a triple-quoted global key leaves the notice and no `[bale] error:` entry in the session log",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "tests/test_probe_clipboard_config.py",
+      "change": "the non-fatal reading: each refusal class's fatal message equals the reading's refusal",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "tests/test_cli_help.py",
+      "change": "COMMANDS gains (\"clipboard\",)",
+      "session_id": "2026-10-04-log-hold-003"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "the clipboard key is `[clipboard] command` at both layers (CLIPBOARD_VALUES; CLIPBOARD_SPELLINGS holds the order); `[probe] clipboard_command` is read as a legacy alias, `[clipboard] command` winning inside one file, and merged_config takes the deciding layer's spelling(s) whole (_layer_clipboard_tables); the walk's eleventh both-layer item is clipboard.command (n/19 unchanged), a legacy value shown as current and written back as `[clipboard] command`; render_bale_toml never writes [probe]; config_changes shows the move as one `~` row; new get_clipboard_command / clipboard_command_problem, the probe_* names kept as aliases; ClipboardCommandReading gains key and shadowed (default None)",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "`bale status --json` gains the additive `clipboard` object {command, source, key, shadowed, problem}, always present (key: \"clipboard.command\" | \"probe.clipboard_command\" | null; shadowed: the same file's ignored other spelling or null); existing keys untouched; new resolve_clipboard -> ClipboardResolution (resolve_clipboard_command still returns the triple); describe_clipboard_state takes key=/shadowed= and names a legacy or shadowed spelling; the project-suppress notice names the file's own spelling",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "bin/bale",
+      "change": "the status row is labelled `clipboard` and names the spelling when the file uses the legacy one or sets both; cmd_clipboard's and `config init`'s help name `[clipboard] command` and the legacy alias",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "the request's clipboard key is scanned as `[clipboard] command`, falling back to `[probe] clipboard_command` only when the file has no `[clipboard] command` line (scan_clipboard_command over find_bale_toml + scan_toml_text_key); scan_bale_toml_key is composed from the same pieces, behavior unchanged",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "docs/TARBALL.md",
+      "change": "\u00a74.3 names `command` under `[clipboard]`, the legacy `[probe] clipboard_command` alias at both layers, the in-file precedence, and the status row naming the spelling used",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_clipboard_key_rename.py",
+      "change": "new suite: the legacy alias copies, in-file precedence, the status --json clipboard object (existing keys untouched), wording that follows the key, config_changes' move row, describe_clipboard_state",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_probe_clipboard_config.py",
+      "change": "SpellingTwinTest's corpus covers both headers and mixed files; dotted and other unseen spellings refuse; the wizard screen and its review row pinned over a pty",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_wizard_ui.py",
+      "change": "the walk order's clipboard.command item and its rendered review row",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_clipboard_paste_blocks.py",
+      "change": "fixtures write `[clipboard] command`, and the status row is read under its `clipboard` label",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "CraftProbeClipboard: the crafter reads either spelling with the same precedence",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "tests/test_layout_and_formats.py",
+      "change": "the rendered clipboard key is expected under `[clipboard]`, never the legacy `[probe]` spelling",
+      "session_id": "2026-10-05-clipboard-key-rename-002"
+    },
+    {
+      "path": "bin/bale_wizard.py",
+      "change": "additive: Alternative gains key (lettered rows, `[c] code`) and enter (the aside says Enter); ask_choice gains letters, noun, typed, number and out_of_range_ok, each defaulting to config init's existing behavior, and show_help accepts None (no '?' help; '?' is then an ordinary answer)",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "new pack_drop_reason(rel, repo, matcher=, checkpoint_exclude=), the per-path filter chain every pack runs, now called by walk_for_pack (order, --verbose trail words and loud lines unchanged); the session-shape question draws lettered rows through ask_choice with Enter's row marked, and '?' shows the item's help instead of re-asking; the checkpoint picker draws numbered rows (checkpoint_candidate_alternatives) and asks `Enter = none \u00b7 1-N picks`; picker_number keeps the str.isdigit reading, and a digit int() cannot read is now a path answer rather than an uncaught ValueError; format_checkpoint_candidates removed",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    },
+    {
+      "path": "bin/bale_config.py",
+      "change": "config init's .baleignore suggestions count only files pack's filter chain would ship (_pack_drops over bale_pack.pack_drop_reason: no secrets, nothing under the configured checkpoint's exclusion basis (_configured_checkpoint_basis), no planner bundles, nothing a kept pattern matches), falling back to the baked-in directories if those names move",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    },
+    {
+      "path": "tests/test_pack_wizard_ui.py",
+      "change": "PackDropReasonTest pins each drop reason in chain order; CheckpointPickerAnswersTest and the shape-choice cases pin every answer's meaning on the new screens",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    },
+    {
+      "path": "tests/test_wizard_ui.py",
+      "change": "ChoiceLayerOptionsTest: ask_choice's new options and their defaults",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    },
+    {
+      "path": "tests/test_checkpoint_file_flag.py",
+      "change": "a pty case: '?' at the picker is a path that misses and re-asks, and an out-of-range number naming a file in cwd (\"7\") commits ./7",
+      "session_id": "2026-10-06-choice-prompt-convergence-001"
+    }
+  ],
+  "notes": "Catch-up record. The friction-points arc landed eight code sessions on 0.4.45 without a bump; this record writes their surface changes under 0.4.46, one row per session per surface, each attributed by its session_id, in the order the sessions landed. Rows describe the 0.4.46 bytes: a change one arc session made and a later one replaced is described by the later row only, since no release ever carried the intermediate form. Two names a 0.4.45 consumer might call are gone: bale_pack.format_checkpoint_candidates and _wizard_input_required. New release file: bin/bale_wizard.py. No schema, closed vocabulary or record shape changed; the request gains a top-level member, BALE_HELP.md."
+}
