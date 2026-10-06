@@ -1,0 +1,78 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-06-friction-points-close-desk-002",
+  "created_at": "2026-10-06T19:11:37+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-06T19:11:37+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-friction-points-close-desk-002.log",
+      "bundle": {
+        "stem": "2026-10-06-friction-points-close-desk",
+        "brief_sha256": "ddb62a742f5980aff3fc18a44fbba7d22af930870c9cc2e3c51968332dfed540",
+        "checkpoint_sha256": null,
+        "manifest_sha256": "072f6454b904b922bb835524f967bb9c3a96e4add61ca322e57be0300a74988f"
+      },
+      "provenance": {
+        "work_class": "meta",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-06T19:11:37+00:00"
+      }
+    },
+    {
+      "at": "2026-10-06T23:41:42+00:00",
+      "outcome": "unlocked",
+      "command": "pack",
+      "closure_reason": "closed-read-only",
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-06-friction-points-close-desk-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-06T23:41:42+00:00",
+  "outcome": "unlocked"
+}
