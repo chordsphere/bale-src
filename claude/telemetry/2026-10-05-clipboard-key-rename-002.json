@@ -1,0 +1,416 @@
+{
+  "record_version": 1,
+  "session_id": "2026-10-05-clipboard-key-rename-002",
+  "created_at": "2026-10-05T01:05:59+00:00",
+  "attempts": [
+    {
+      "at": "2026-10-05T01:05:59+00:00",
+      "outcome": "opened",
+      "command": "pack",
+      "closure_reason": null,
+      "tarball": null,
+      "validation": null,
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "claude/context/bale-internals.md",
+        "docs/TARBALL.md",
+        "tests",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": false,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [],
+      "feedback": null,
+      "log": ".bale/logs/2026-10-05-clipboard-key-rename-002.log",
+      "bundle": {
+        "stem": "2026-10-04-clipboard-key-rename-r2",
+        "brief_sha256": "c4cd0d05c2e71bc1270311ea02e0a751bda3411237ea2b942b8aa554cedfab3d",
+        "checkpoint_sha256": "bc843282f9bb2774d9638d3600f4036d9a65febaa9e6963208c02f6ff0fac2c9",
+        "manifest_sha256": "c1fbfad366e8c9f5bd20639cbbeee5d0429fe4148ae2ed1daf2d1111a9d10181"
+      },
+      "provenance": {
+        "work_class": "code",
+        "packer": "chordsphere",
+        "packed_at": "2026-10-05T01:05:58+00:00"
+      }
+    },
+    {
+      "at": "2026-10-06T15:44:25+00:00",
+      "outcome": "applied",
+      "command": "apply",
+      "closure_reason": null,
+      "tarball": "response-2026-10-05-clipboard-key-rename-002.tar.gz",
+      "validation": {
+        "state": "PASS",
+        "exit_code": 0,
+        "claims": {
+          "unittest: clipboard suites": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "unittest: full discovery (--slow)": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "validate.sh": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: legacy alias reads the same at both layers": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: in-file precedence and shadowed spelling": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: status row label and json clipboard object": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: wizard carries a legacy value into [clipboard] command": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: crafter and bin scan agree on both spellings": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: docs name the key and the alias": {
+            "value": "pass",
+            "claim_basis": "observed"
+          },
+          "assert: bale.toml of this repo is untouched": {
+            "value": "pass",
+            "claim_basis": "observed"
+          }
+        },
+        "claim_verdict": {
+          "unittest: clipboard suites": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "unittest: full discovery (--slow)": {
+            "claim": "pass",
+            "verdict": "skip",
+            "agreement": "n/a"
+          },
+          "validate.sh": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: legacy alias reads the same at both layers": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: in-file precedence and shadowed spelling": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: status row label and json clipboard object": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: wizard carries a legacy value into [clipboard] command": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: crafter and bin scan agree on both spellings": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: docs name the key and the alias": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          },
+          "assert: bale.toml of this repo is untouched": {
+            "claim": "pass",
+            "verdict": "pass",
+            "agreement": "agree"
+          }
+        },
+        "reconciliation_parsed": true,
+        "validation_will_run": [
+          "python syntax (bin/bale, bin/bale_config.py, bin/bale_report.py, tools/craft_response.py, tests/*.py)",
+          "unittest: clipboard suites",
+          "unittest: full discovery (--slow)",
+          "validate.sh",
+          "assert: legacy alias reads the same at both layers",
+          "assert: in-file precedence and shadowed spelling",
+          "assert: status row label and json clipboard object",
+          "assert: wizard carries a legacy value into [clipboard] command",
+          "assert: crafter and bin scan agree on both spellings",
+          "assert: docs name the key and the alias",
+          "assert: bale.toml of this repo is untouched"
+        ]
+      },
+      "scope_kind": "write-forecast",
+      "scope": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "claude/context/bale-internals.md",
+        "docs/TARBALL.md",
+        "tests",
+        "tools/craft_response.py"
+      ],
+      "overridden_paths": [],
+      "overridden_path_sources": {},
+      "required_check_overrides": [],
+      "base_drift_overrides": [],
+      "sandbox_escaped": false,
+      "network_grant_exercised": true,
+      "sandbox_confined": true,
+      "sandbox_off_source": null,
+      "cost": {
+        "tokens_in": null,
+        "tokens_out": null,
+        "usd": null,
+        "model_tier": null
+      },
+      "change_paths": [
+        "README.md",
+        "bin/bale",
+        "bin/bale_config.py",
+        "bin/bale_report.py",
+        "claude/context/bale-internals.md",
+        "docs/TARBALL.md",
+        "tests/test_clipboard_key_rename.py",
+        "tests/test_clipboard_paste_blocks.py",
+        "tests/test_craft_response.py",
+        "tests/test_layout_and_formats.py",
+        "tests/test_probe_clipboard_config.py",
+        "tests/test_wizard_ui.py",
+        "tools/craft_response.py"
+      ],
+      "feedback": {
+        "mechanical": {
+          "response_kind": "normal",
+          "schema_valid": true,
+          "mirror_agreement": {
+            "changes_to_files": true,
+            "files_to_changes": true
+          },
+          "claims_subset": true,
+          "provenance": {
+            "bale_version": "0.4.45",
+            "contract_docs": {
+              "AGENT.md": "5124250b3d6362ae362801f89e2c0498a6e493c638a398de2f4c3d13d6c12285",
+              "TARBALL.md": "f6c3326ee3c827498371886ead46349b50fa4f448e2facb0d40ee4d137ce234a",
+              "DOCS.md": "90cc9aad0670610b7865a54db33975103580cdd3354d000b8db07f8a6e956d0c",
+              "CODE.md": "49a145323bfc472a22dd8be56565d6e7767fd1ffbd33c36cda95e7e3e149ab75",
+              "PLANNER.md": "5af584b98ed0591b57fbb146baf1441f8130a894e050882d22b3cd62c5cd17d5"
+            },
+            "packer": "chordsphere",
+            "work_class": "code",
+            "checkpoint": {
+              "path": "claude/checkpoints/2026-10-05-clipboard-key-rename-002.sh",
+              "sha256": "bc843282f9bb2774d9638d3600f4036d9a65febaa9e6963208c02f6ff0fac2c9"
+            },
+            "checkpoint_scope_admitted": false,
+            "packed_at": "2026-10-05T01:05:58+00:00",
+            "base_files": {
+              "README.md": "048a38843e1a7541d1a2a6d7d62861617d35b25f7cf52c72ae2dd4c7b5bf54ad",
+              "bin/bale": "e6c8c2c50851b10029b6b234e086d1f891bd3e3ceaa943a90e9cb8a8a2c2632d",
+              "bin/bale_config.py": "efb43878f8f18cdd7d701102511103a8dfb7a0c8845676c7fe5d8b7920011e21",
+              "bin/bale_report.py": "bd13521b279e7fa183d96577bcef9f8bcb49a556d1aafb20896f70837c1d0ac5",
+              "claude/context/bale-internals.md": "b8ae2ac8edb399a4dcc4c590b920cb77ad401601d9ebfab6759d4f05137d26e0",
+              "docs/TARBALL.md": "f6c3326ee3c827498371886ead46349b50fa4f448e2facb0d40ee4d137ce234a",
+              "tests/__init__.py": "0c44c07eb437099ccf549130ff801e000c31117eefaabca2ae20373f88606802",
+              "tests/fixtures/stats_corpus/2026-06-01-fx-pre-cr-001.json": "4317724352498ade052ad09c5ccf0b8b24e6f38a4e60b41ad1216ae0afee34a9",
+              "tests/fixtures/stats_corpus/2026-06-02-fx-scopeless-001.json": "21bdafc2b26e0321ce28517c1100db942c528ea000d338f2704032192d06cc60",
+              "tests/fixtures/stats_corpus/2026-06-05-fx-applied-001.json": "b91344cadfaf3b2d0e9846a7d2900096a0beb595b3e5feea01b6e2aaeacf9044",
+              "tests/fixtures/stats_corpus/2026-06-06-fx-hold-retry-001.json": "e63c78ba4988d0495c3e1312acd73fe2ef30cd78f4ca5ca17f5308c1219f4248",
+              "tests/fixtures/stats_corpus/2026-06-07-fx-drift-001.json": "01e652a0c65d6d2682d56c045d9be8e1b58ab855ed33e6f50fb89af69d8e689d",
+              "tests/fixtures/stats_corpus/2026-06-08-fx-rejected-001.json": "885794e43cfeaad9b1167d428a3df206997ca8aba26bb59618f3d6001335e0b9",
+              "tests/fixtures/stats_corpus/2026-06-09-fx-abandoned-001.json": "7015bbbd2cccb5de0115234d886c0365b440a270aeeb20c8295ce95734d8cc3b",
+              "tests/fixtures/stats_corpus/2026-06-10-fx-readonly-001.json": "eff576f01a3a04389b075f01f87785b85ef9cae0feabc0bd329a5a6eca42e5b3",
+              "tests/fixtures/stats_corpus/2026-06-11-fx-unparsed-001.json": "0f6d8c0114e0ab61f067f72cdb2c3de45e31f41d05a71b698b5647a449f1e8e4",
+              "tests/fixtures/stats_corpus/2026-06-12-fx-bailout-001.json": "89b6b8b654d08f94634bbdc25dab5b7e39274875ec4ba2bdaed5664086a8acdc",
+              "tests/fixtures/stats_corpus/2026-06-13-fx-clar-match-001.json": "11c4e47974cb6d72a6386303381f80b23f890e0fb7114c3426e8be52664fee45",
+              "tests/fixtures/stats_corpus/2026-06-14-fx-clar-promoted-001.json": "cfc2d3243735b03fb0ef270d6ca662d5071cded88a864a9b7ab4349e734b3005",
+              "tests/fixtures/stats_corpus/2026-06-15-fx-clar-self-001.json": "6bc97496e34d24aa944c9529d5ed7a2baf616f8f87cef5772a7aabea5600eb78",
+              "tests/fixtures/stats_corpus/2026-06-16-fx-pack-close-001.json": "42664288d9a387c5d28667d17388b734211133cab36587d82e824272ef57239d",
+              "tests/fixtures/stats_corpus/2026-06-17-fx-rolled-001.json": "acff85466fea6b23e3ef4ecfdd2ea5cd824afeb7b8bf5fb644f0df4ebbcbad92",
+              "tests/fixtures/stats_corpus/2026-06-18-fx-crash-001.json": "3181d4dc92910184725e2457845e3b0288bdab76df4ddfec6973c9800d5a1771",
+              "tests/fixtures/stats_corpus/2026-06-19-fx-inflight-001.json": "618224af3eef6f2ae4d0ea43097da46de3e318d2bda8ce1c718a0f739baf836c",
+              "tests/fixtures/stats_corpus/2026-06-20-fx-vfuture-001.json": "cb46c8944b345533b8fea2a507623a710ef9e63ee73e3580e2f722bddc9a7691",
+              "tests/fixtures/stats_corpus/2026-06-21-fx-ckpt-zero-001.json": "06b770b2ada1f3a16fbc7db26000aea24ceafe5376d46a29003e138bcbd2a36a",
+              "tests/fixtures/stats_corpus/2026-06-22-fx-ckpt-pass-001.json": "3196136fdd9b06525a2209891cb2f9cdca0fd351cfcac975124f844f62aa4001",
+              "tests/fixtures/stats_corpus/2026-06-23-fx-ckpt-hold-001.json": "bf8004cc11324a7acbbb1edf209f31bdd3274c19c1f176dbebe9c3c6d55e42fe",
+              "tests/fixtures/stats_corpus/2026-06-24-fx-ckpt-workerhold-001.json": "68d42658ce69d884e705392d0f44ede04ee4dbbd9a368698692fcf30817c5c48",
+              "tests/fixtures/stats_corpus/2026-06-25-fx-ckpt-bothhold-001.json": "e1789ddf0921a01eedff7cbfce3385e728ff93495f4afebb7db6dac55c30af30",
+              "tests/fixtures/stats_corpus/2026-06-26-fx-ckpt-errored-001.json": "4f5ae47ea3d6941f982f8041fd3c839b214dd8509f63c25c87f256be47b5c6d4",
+              "tests/fixtures/stats_corpus/2026-06-27-fx-ckpt-accepted-001.json": "35de4cfff3a04288b66743d66c31cbcae6128bf6404d86d78683b592808c3f5c",
+              "tests/fixtures/stats_corpus/2026-06-28-fx-reqcheck-inflight-001.json": "ad4f4a5e7d39ba584d6b0fcfea165358b1eb023f6074b7a5bed2237bea26a1a1",
+              "tests/fixtures/stats_corpus/2026-06-29-fx-reqcheck-override-001.json": "248676259e7ac3d2d9840c9dd6247371ff3b9147652c4f0c63884520125bfcab",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-docs-read-002.json": "0f2e4a0165fa4123aee88f0a88a6cbd68d4ce9ac376e28d96b3f85c1ae62ea19",
+              "tests/fixtures/stats_corpus/2026-06-30-fx-handoff-origin-001.json": "7d1779afb4224f1aa1bc32410f85a370949b77521f69d7bc7a0a2711e23c2e32",
+              "tests/fixtures/stats_corpus/2026-07-01-fx-recent-001.json": "1ad193e48c41da122f2f252fbe151d6dd19b65641c29ce9b3690d58ff2a6e458",
+              "tests/fixtures/stats_corpus/corrupt-record.json": "8e7d39b0534ad73130ea8a52903c20cf2851b5cbd76c49c124b81fc3d15027da",
+              "tests/harness.py": "9a53cf1d9d64f3f88d417f60d87a69a5c59e895e10eb38221edf3c838a65c7f0",
+              "tests/test_admission_prompts.py": "683606ce60d21e555d7ddbe937b3b1bc3611318d7872579523e03153faea67f9",
+              "tests/test_admission_prompts_e2e.py": "d6b999b59bb4fa736a779b27a6b61ba85fc74130c48099411cc3b9e0e4dfaa2d",
+              "tests/test_amend_checkpoint.py": "48ba518bea6d5ac3161c9af4022fdd592b309e5d5eb9ef6081d22da6c6a6bfe2",
+              "tests/test_apply_operations.py": "1fe89ee34ee9d9ada86041e1a8cee828c072d1ccb920eddf7761712022dab410",
+              "tests/test_apply_preflight.py": "23a66419edd6861e2b482762a788ec3d3ac6579cb2be789c24c955f87dd93971",
+              "tests/test_archive_dir.py": "f51c9a763936d81acb6aca4791133ac8869520023ab7ed66753670739ba9bdad",
+              "tests/test_auto_sweep.py": "7917e49eec36fa77ca25f27ec602f345d110add964f0e5aea84b60a72b7d8754",
+              "tests/test_base_drift.py": "1c2619900161d56dada5725ac8e760c25b68924c94ff0da5f154506cc17926b1",
+              "tests/test_blind_checkpoint.py": "d9955d2aa6c4d05d556b2e5f9dce89ac9d80c0769ad60d91d022f4f01ca3174f",
+              "tests/test_bundle_denylist.py": "ac8b3cf17be4794cadd7e5c2b84c84b6c2f331660ea815a2c5151fda8c6cd440",
+              "tests/test_bundle_manifest.py": "4d43e4edb9b513fb95eaf3496823cf8ea985dc948607e6efff1892e5162bd0a2",
+              "tests/test_changelog_record.py": "4c341a8b6d39d0a9b069096bb12e607a7cb8b005d72ba35b569a396bbf0d6ef5",
+              "tests/test_checkpoint_file_flag.py": "875e3ac2a54901aee5822100857f8a04548c4278d7525ebc7ac40002b8a2b96d",
+              "tests/test_checkpoint_provenance.py": "3a5ec190d58ae465037d575539b65a3811f91ae89796099edba4358c43cfeda2",
+              "tests/test_clarification_status.py": "d63031badeba9e55c043381c0efe3c0cbc6807a0d1c9e0aff942faa3242c4464",
+              "tests/test_cli_help.py": "28bbd7fd91f85d9e4d46070baf579f9b5fe13066b2b08d1092e52e910b9d9128",
+              "tests/test_cli_reference.py": "c99983171c671e83ac16eed985213f6e172ff60afc2f27fccb3d83a92cbb4ea6",
+              "tests/test_clipboard_paste_blocks.py": "9a29fe1414bddc74ec89e940b781134c2f4c269d02b09c4791a51cb5a6d92e6b",
+              "tests/test_clock_discipline.py": "9d8ee645be9307f364596eb1f92f1b16acddd916c327a2c92df26d6492583165",
+              "tests/test_closure_telemetry.py": "40538646717a5ab860103a4abbb312db1c834056c9fb17f02953b7a994ef4411",
+              "tests/test_context_pack.py": "b7b87fd4874efc5bb26e116a2eaa4ebdc9f3b0ab860029b8171d9d63904c55c0",
+              "tests/test_craft_response.py": "45ce0a21e5592ad80b191469d5e81e1bdb19c8ae15c5e359a6d50905410f4f90",
+              "tests/test_crlf_tolerance.py": "2ed4dbecbd928ca4de2cfacce55ebf6d35cd32dc6bf88f79adfa837a38cde94e",
+              "tests/test_doc_crossrefs.py": "500fbb3b648fe12bb2d5c27e690b64f711c946d0575fe32237ec401b28d8385f",
+              "tests/test_dotted_run_form.py": "ce5b7c303857d3ff61aba0b6d362961318f9b9068cba0dd9dd3952336f1a3a6c",
+              "tests/test_escalation_schemas.py": "513669f7bdcadef54415003f90b3f10ad1aadcf14817b9e930d5046b13555d04",
+              "tests/test_exchange_record.py": "a7a108ee4827067e1bfd5dfb2aaab342e2acd8efcf8d00adddfe2b2ac132e4ac",
+              "tests/test_forecast_ledger.py": "084b61d2a6643dc6710c02eb906ef2f050d7d771d4bb9c2a3804102ab0646e5a",
+              "tests/test_global_doc_noun.py": "199484749cfc804de5d8fff5347caea574ba46395a5755cbf2c38c9dfc063f26",
+              "tests/test_global_doc_selfcontainment.py": "ae978d27f7031ffbbea02bd6da13eccff54237d2d3be6b9aaa8f013309c7836c",
+              "tests/test_handoff_checkpoint_gates.py": "59e4e48abb28cc4dd79eb85441ea3c3d011dd41470658faa8b37cae55de6ceeb",
+              "tests/test_handoff_fixture.py": "ba6184dc8a5a654cd27b93eae9e7450f7318b5e0fae6176a44e4f18043979252",
+              "tests/test_handoff_forecast.py": "f7a4c926e103bccb30734480c67ecf128338c0a48bef982127180c7f0eb953cc",
+              "tests/test_handoff_happy.py": "c05e1a99fe840c373d69ece9286e943afb362f82fef9f7a5b1215ed661cfb652",
+              "tests/test_handoff_registry_gate.py": "b2fe8f31072bb89bb9c1ff3b69217fbd80ba086e0a4a28aa38e1f2898280de23",
+              "tests/test_harness_cli_loader.py": "649fadbc43c1690d87d62d862bc4cc1caacade1969a84c89e6792d473fef0110",
+              "tests/test_hold_retry_e2e.py": "5842725a36cea7dc6aba385ed7b75beb66ff6d4a34aa8133d10bc668ffcdc47a",
+              "tests/test_hook_acceptance.py": "a0c63f4a575d94fc92e9882f26b6bdf96462a466e1dd4ce38232a7bc63bf8299",
+              "tests/test_include_group.py": "e6ef53519d2c3c28616d62bd00427e56af2d7aeceb6717e8071ada0eea665bec",
+              "tests/test_install_precheck.py": "f1efa65094b0081d04f97c4c51472aead85bfab9202cb35fe27a759a11712335",
+              "tests/test_layout_and_formats.py": "9cdd7adc58550673ce63990a0f3fb47ca5ecd1b722addfebd1a23ac2e8f07445",
+              "tests/test_lint_clock_and_prefix.py": "79d3a7484281d1c8ac9f541651aa9563524d6bc32cfb078714a3778f8448c8b4",
+              "tests/test_open_verb.py": "5ef26ea4ad88d341d1400a0a48893064b12218fed1722f424172ede556184b64",
+              "tests/test_pack_guards.py": "1ecc5570a040ffa0bd0ff78dead4c4c580166063627012752d95a4d434f1096a",
+              "tests/test_pack_opener.py": "413c2b9a99bcfbd88bad2ebaa9fe7baf3436bc094adc52b30afbf859c014d331",
+              "tests/test_pack_telemetry_104b.py": "7ed4dd6d9ffb406462ededa54f8d63336d9cea74fad26c9701b40472bbd5842d",
+              "tests/test_pack_wizard_ui.py": "47b73697ea14f901ed24dfa8fa1900f4792b4659ecc7bd01e37fe8f3cca16004",
+              "tests/test_per_sid_checkpoint.py": "bcbc077906e7e8b524bfdb450d799ba04ee5407ad34c685c99e4d03d1bff5c72",
+              "tests/test_planner_admission.py": "fa0b3e9c247cb9567ea6def0c36589d3786876d31f0baf0ba1656e148a6d9731",
+              "tests/test_pre_answered_intents.py": "922018b9f7396388a405d21b6feea94832cf95ff568069fc269ae5599006a199",
+              "tests/test_probe_clipboard_config.py": "57c85ba2596e574db10b0661c8aee8d7082befdca925ad134bae02a925bf3ea7",
+              "tests/test_provenance_at_open.py": "26698c79a2477ce9f879c2feb12869f5df9b7f37d18952e394b878a4bf3ab3d5",
+              "tests/test_readme_identity.py": "d950c764d4976bf60d895903be18a9d57c9455c23f0600b9d15f6b56d7687aa6",
+              "tests/test_readonly_pack.py": "05aae135b6c6a328c86bfcd63473039b0b592773d20cac9386b7b8049817cd65",
+              "tests/test_rehearsal_verbs.py": "41088634c897f85c47c40c9a1ee28af65cc657ca7e7acdc3871cbb706c710e08",
+              "tests/test_relay_verb.py": "f9174987e4811a1d6bbff88aa35c340b42a93fd80da724ae195f5ffa223321b3",
+              "tests/test_release_packaging.py": "d08bbb8e64a823410e7f08e9330faaf98169790040ee10b9f2bd38776664fcd4",
+              "tests/test_required_check_gate.py": "0e01a4612567183840147d5d63148448ee7b75e6cdd6b07bdfc72cc511420043",
+              "tests/test_response_lint.py": "f87f7b98657ce93dce887eb3839b577a952cfc7ddf6f8d721dd9b89c01d9a166",
+              "tests/test_revert_json.py": "bc27e13b1234963e33244f4e1d9e3895078a2c3bf88538ae970efa6fa9dc063c",
+              "tests/test_rollback_telemetry.py": "b1d51a5924c2604f48c7de138577649c6b48e1b876cbef037b4b525893a28f5e",
+              "tests/test_sanctioned_pairs.py": "4619483d955babf2a91246fbe8591898ede6dacf790a74e8491b71d4b143d32e",
+              "tests/test_sandbox_wrapper.py": "aadb52c3006f149dfe4ecef571449cbdd8b06cf4729cb22fdd0beda006f18ce6",
+              "tests/test_schema_embeds.py": "f9b7afbd84345ade5bd771e17bbe5092eeb0d542f72289a1acb24123b618a39e",
+              "tests/test_slow_gate.py": "0c90b8673ddc07ec58df2827bd409ce219569e32a3f0d8b06f205db6fda3374b",
+              "tests/test_stats_aggregation.py": "46fe0c4af5880647c7402b35efbeb42d5aa2dfb32c7f8e90e065d99eeddc5001",
+              "tests/test_stats_compaction.py": "87a984e77f34025e7af8d1f9d860d6e35ab0e5ba13b54b6b37e0f6658dbea2c8",
+              "tests/test_stats_drilldown.py": "936ed0d8c4ab4141d392ecb589df76c0ff6c6e7feabd7ac32db9b290d8e4ea18",
+              "tests/test_stats_linkage.py": "8c65d70681646e43e45bc088896c7b859f7d37bba950cb4970429d8d2648ce8f",
+              "tests/test_supersession_pack.py": "902e838d420567055ae06b120607cc05cb58ade02c6d77420a1b6c1078642a66",
+              "tests/test_telemetry_extensions.py": "9dfae1d263912875a6e7ad4df8f45ae1f03c1033a1fabe95e152fccbf66d54f9",
+              "tests/test_telemetry_fields_wave1.py": "2a7fae230920f3a1a5bab3af5ce026b9f05d42f43880aee82282722c3cae6a62",
+              "tests/test_telemetry_promotion.py": "3aac77cbbe031b716ef8f44a0f9f3297cdac4730b82671dfa2460a7ebba9b5c0",
+              "tests/test_thread_status.py": "cc77b708af9111327e72b3fca17ad1c23262de8cb6fdc276e1a5ab5fddf7e107",
+              "tests/test_tree_position_echo.py": "e85a4168f099ef2e6dd85245475ab7828ee9fc6f6da37bc3f349e0da6c5e5246",
+              "tests/test_unlock_json.py": "014da4e11e891c1a312bc8636fb9cd2a922dc8b6ab7c69ab8af22eed5189b16b",
+              "tests/test_upgrade_required_members.py": "2d1c3f9f3f7aeb6fe60aa29a24b176ef77f8443c9ded40e8cce9d49bcffb2223",
+              "tests/test_verbose_thread.py": "d3172d9a392532a3249ec70747856aa15b02c3d808e835c586f0c967f0acb0a7",
+              "tests/test_wizard_ui.py": "ce29822bf86420a7343260063982f61269a6c4819d17eb3d34f85ae4a1b731c5",
+              "tests/test_write_forecast.py": "ceced962e27ba328a64e82f87d1e8ee1cc5818a7a9cb8e29e674302976088c52",
+              "tools/craft_response.py": "c5e67a03390d140ce8d36bd52e50ca99e19e1f9da0970a4c3a41f38ed93290c1"
+            },
+            "model_identity": "anthropic:claude-fable-5-1"
+          }
+        },
+        "self_reported": {
+          "assumptions": [
+            "A `[clipboard]` table without `command` (or a `[probe]` table without `clipboard_command`) decides nothing for that file, so the other spelling in the same file is read: the precedence is keyed on the key being set, not on the section header being present.",
+            "The brief's '--block notice wording' is the copy-path notice that named the key \u2014 the project-suppress notice in copy_paste_block, which now names the spelling the file used; the `--block NAME` flag's own help ('e.g. probe block') is still right and was left alone.",
+            "No version bump and no claude/changelog entry in this response: sessions C and D of this arc landed without one (bin/VERSION is still 0.4.45 with board-122's record), so the surface rows for `status --json`'s clipboard object and the `[clipboard] command` key are proposed in notes.md for the bump."
+          ],
+          "judgment_calls": [
+            "merged_config lays the deciding layer's own spelling(s) in under their section names (never mixing layers) and the typed accessor applies the in-file precedence, so refusals can name the dotted key a file actually used.",
+            "bale status --json's clipboard object carries two additive keys past the Proposal's three: `key` (the dotted spelling the deciding file was read by) and `shadowed` (the other spelling that file also sets and bale ignored).",
+            "The status row names the spelling only when a reader would want it: a legacy value reads 'via the legacy [probe] clipboard_command', a both-set file reads '[clipboard] command, which wins over the same file's [probe] clipboard_command \u2014 ignored'; a lone new-spelling value renders exactly as before.",
+            "The crafter's craft-time read treats a [clipboard] command line that is there but unreadable (triple-quoted, empty) as deciding \u2014 unset, never a fallthrough to a legacy line bale would ignore \u2014 so the two readers judge a file by the same spelling.",
+            "render_bale_toml never writes [probe]: a dict carrying only the legacy key is written as [clipboard] command, and config_changes reviews that as one '~' move row rather than a +/- pair or a 'dropped' stranger.",
+            "The pre-rename names get_probe_clipboard_command and probe_clipboard_command_problem stay as aliases; resolve_clipboard_command keeps its triple and resolve_clipboard carries the five facts; describe_clipboard_state takes the spellings by keyword so the old triple call still renders.",
+            "The config-trio suite keeps its file name tests/test_probe_clipboard_config.py (now covering both spellings); the rename's own outcomes live in a new tests/test_clipboard_key_rename.py."
+          ],
+          "budget_pressure": "none",
+          "includes_missing": [],
+          "compaction_occurred": {
+            "occurred": false,
+            "disclosure_ref": null
+          },
+          "docs_read": [
+            "manifest.json",
+            "AGENT.md in full (META through section 11.2)",
+            "README.md (the request brief, in full)",
+            "TARBALL.md sections 1, 2, 5, 7, 3.1-3.2, 4, 10",
+            "CODE.md section 8.5",
+            "claude/context/bale-internals.md sections 1-2 and the wizard walk notes",
+            "tools/craft_response.py docstring and section 3; tools/response_lint.py docstring and schema"
+          ],
+          "light_blocks": 0
+        }
+      },
+      "log": ".bale/logs/2026-10-05-clipboard-key-rename-002.log",
+      "clarification": {
+        "rounds": 0,
+        "records": []
+      },
+      "corrects": null,
+      "checkpoint": {
+        "configured": true,
+        "state": "PASS",
+        "exit_code": 0,
+        "script": {
+          "path": "claude/checkpoints/2026-10-05-clipboard-key-rename-002.sh",
+          "sha256": "bc843282f9bb2774d9638d3600f4036d9a65febaa9e6963208c02f6ff0fac2c9"
+        },
+        "stamp_matched": true,
+        "failed_probes": []
+      }
+    }
+  ],
+  "updated_at": "2026-10-06T15:44:25+00:00",
+  "outcome": "applied"
+}
