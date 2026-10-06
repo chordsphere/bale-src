@@ -117,8 +117,8 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   configurable-never-core; through bale since session
   clipboard-paste-blocks): the script pipes its sentinel-bracketed
   block into the installed bale (`bale clipboard`), which copies it
-  with that machine's `[probe] clipboard_command` — project value,
-  else the global one — and says so either way, never failing the
+  with that machine's `[clipboard] command` — project value, else the
+  global one — and says so either way, never failing the
   probe. Where bale is not on PATH (or has no such verb), the script
   falls back to a tee into the request's own key when one is readable
   from `bale.toml` at craft time (looked up in `./bale.toml` then
@@ -126,8 +126,10 @@ scaffolds all three response kinds (`--kind`, default `normal`):
   and to remedy text naming `bale config init --global` when none
   is; the sentinel banners always emit either way (the
   dependency-free selection aid) — never fails, never silently skips.
-  The key keeps the spelling bin/bale_config.py reads: `[probe]
-  clipboard_command`;
+  The key is the one bin/bale_config.py reads, in both of its
+  spellings and with the same in-file precedence: `[clipboard] command`
+  (session clipboard-key-rename) decides when its line is there, else
+  the legacy `[probe] clipboard_command`;
 
 - (bundle; the format's mechanical home is
   schemas/bundle-manifest.schema.json, shipped with every install)
@@ -369,23 +371,36 @@ CHECKPOINT_MEMBER = "checkpoint.sh"
 # the fix is immediate, instead of at the operator's `bale open`.
 BRIEF_PLACEHOLDER = "TODO(brief)"
 
-# --- Probe clipboard key (registry fold-in, ratified 2026-08-18,
+# --- The clipboard key (registry fold-in, ratified 2026-08-18,
 #     configurable-never-core) ---
 #
 # The opt-in config key naming the environment's clipboard command.
-# NAMED LOUDLY on purpose: bin/bale_config.py reads the same spelling —
-# section `[probe]`, key `clipboard_command`, a one-line TOML basic
-# ("...") or literal ('...') string whose value is the shell command
-# probe output is piped into (e.g. "pbcopy", "xclip -selection
-# clipboard"). Since session clipboard-paste-blocks the scaffold copies
-# through the installed bale, which reads the key at both layers; this
-# tool reads only the project file, for the scaffold's fallback on a
-# machine without bale, with a deliberately minimal single-key scan
+# NAMED LOUDLY on purpose: bin/bale_config.py reads the same spellings
+# — section `[clipboard]`, key `command` (session clipboard-key-rename),
+# and before it section `[probe]`, key `clipboard_command`, still read
+# as a legacy alias — each a one-line TOML basic ("...") or literal
+# ('...') string whose value is the shell command probe output is piped
+# into (e.g. "pbcopy", "xclip -selection clipboard"). One key, two
+# spellings, one in-file precedence shared with bale (the desk's pin):
+# a `[clipboard] command` line that is there at all — readable or not
+# — decides, and the legacy line is read only when there is none, so
+# this scan and bale's parser judge a file by the same spelling. Since
+# session clipboard-paste-blocks the scaffold copies through the
+# installed bale, which reads the key at both layers; this tool reads
+# only the project file, for the scaffold's fallback on a machine
+# without bale, with a deliberately minimal single-key scan
 # (stdlib-only, no TOML parser is available standalone on 3.10),
 # looked up in ./bale.toml then ./context/bale.toml — the repo-root
 # and request-root layouts.
-CLIPBOARD_SECTION = "probe"
-CLIPBOARD_KEY = "clipboard_command"
+CLIPBOARD_SECTION = "clipboard"
+CLIPBOARD_KEY = "command"
+LEGACY_CLIPBOARD_SECTION = "probe"
+LEGACY_CLIPBOARD_KEY = "clipboard_command"
+# (section, key) pairs in in-file precedence order.
+CLIPBOARD_SPELLINGS = (
+    (CLIPBOARD_SECTION, CLIPBOARD_KEY),
+    (LEGACY_CLIPBOARD_SECTION, LEGACY_CLIPBOARD_KEY),
+)
 CLIPBOARD_CONFIG_CANDIDATES = ("bale.toml", "context/bale.toml")
 
 APPLY_NOOP = """#!/usr/bin/env bash
@@ -489,8 +504,8 @@ emit_probe_block
 # clipboard-paste-blocks, ruling 1: bale copies, from the per-machine
 # key, through the installed CLI). Always emitted: the script pipes its
 # sentinel-bracketed block into `bale clipboard`, which copies it with
-# this machine's effective [probe] clipboard_command — the project's
-# value in a repo, else the global one — so a request that ships no
+# this machine's effective [clipboard] command — the project's value
+# in a repo, else the global one — so a request that ships no
 # bale.toml still copies. bale prints the notice; the script adds a
 # line only when bale is not on PATH, or exits outside its 0 (copied) /
 # 1 (not copied, said why) contract — an older bale without the verb.
@@ -500,8 +515,8 @@ emit_probe_block
 # a probe is read-only (4.2).
 PROBE_CLIPBOARD_TAIL = """\
 # Clipboard copy (TARBALL.md 4.3): the installed bale copies the block
-# above with this machine's clipboard command, [probe] clipboard_command
-# in bale.toml (the project's value, else the global one; set it once
+# above with this machine's clipboard command, [clipboard] command in
+# bale.toml (the project's value, else the global one; set it once
 # with `bale config init --global`). This never fails the probe, and the
 # PROBE BEGIN/END banners above stay the dependency-free selection aid.
 clip_fallback() {{
@@ -531,7 +546,7 @@ PROBE_CLIPBOARD_FALLBACK_REMEDY = """\
 # that wins when bale can answer, too — so it never contradicts bale.
 PROBE_CLIPBOARD_FALLBACK_EPILOGUE = """\
   if emit_probe_block | {clip} 2>/dev/null; then
-    echo "[clipboard] probe output copied with the request's bale.toml [probe] clipboard_command, read at craft time" >&2
+    echo "[clipboard] probe output copied with the request's bale.toml clipboard command, read at craft time" >&2
   else
     echo "[clipboard] the request's bale.toml clipboard command failed or is missing: select between the PROBE BEGIN/END banners and copy manually ('bale config init --global' sets this machine's command)" >&2
   fi
@@ -662,12 +677,14 @@ def die(msg: str) -> "int":
 # ---------------------------------------------------------------------------
 
 def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
-    """Read the opt-in `[probe] clipboard_command` from bale.toml.
+    """Read the opt-in clipboard command from bale.toml — `[clipboard]
+    command`, or its legacy spelling `[probe] clipboard_command`.
 
     Returns (command, note): command is the configured one-line shell
     command, or None whenever the key is unreadable for any reason —
     no file, no section, no key, or a value outside the minimal shape
-    this reader supports. The note says which, for the emission log.
+    this reader supports. The note says which, and which spelling
+    answered, for the emission log.
 
     Deliberately a minimal single-key scan, not a TOML parser: this
     tool is stdlib-only and runs standalone on 3.10 (no tomllib), and
@@ -681,45 +698,134 @@ def read_clipboard_command(base: Path | None = None) -> tuple[str | None, str]:
     never-silently-skips path, where the scaffold's fallback carries
     remedy text instead of a tee and the note names the accepted forms
     and the unread triple-quoted ones. bin/bale_config.py's
-    get_probe_clipboard_command is the full reader; its shape check
-    (probe_clipboard_command_problem) refuses the contents this scan
-    cannot read, so the two agree on every one-line basic or literal
-    value (tests/test_probe_clipboard_config.py pins it). The one
-    known split left is the triple-quoted forms, which bale's parser
-    reads and this scan does not — named in the note rather than
-    parsed here.
+    get_clipboard_command is the full reader; its shape check
+    (clipboard_command_problem) refuses the contents this scan cannot
+    read, so the two agree on every one-line basic or literal value
+    (tests/test_probe_clipboard_config.py pins it). The one known split
+    left is the triple-quoted forms, which bale's parser reads and this
+    scan does not — named in the note rather than parsed here.
+
+    Two spellings, one precedence (session clipboard-key-rename, the
+    desk's pin, shared with bin/bale_config.py's restated scan): the
+    `[clipboard] command` line decides when it is there at all — set,
+    or present in a shape this scan cannot read — and the legacy
+    `[probe] clipboard_command` line is read only when there is none.
+    So a file that sets both is read by its new key here as in bale,
+    and a new key bale refuses (triple-quoted) is treated as unset here
+    rather than falling through to a legacy value bale would ignore.
 
     Lookup order: ./bale.toml (the repo-root layout), then
     ./context/bale.toml (the request-root layout). The first file
     found settles it — the two are alternative locations for the same
     project-layer file, not config layers.
     """
-    value, status, rel = scan_bale_toml_key(CLIPBOARD_SECTION,
-                                            CLIPBOARD_KEY, base)
+    value, status, rel, spelling = scan_clipboard_command(base)
+    if spelling is not None:
+        section, key = spelling
+        shown = f"[{section}] {key}"
+        legacy = (", the legacy spelling — `bale config init` moves it to "
+                  f"[{CLIPBOARD_SECTION}] {CLIPBOARD_KEY}"
+                  if spelling != CLIPBOARD_SPELLINGS[0] else "")
+    else:
+        shown = " / ".join(f"[{s}] {k}" for s, k in CLIPBOARD_SPELLINGS)
+        legacy = ""
     if status == "set":
-        return value, (f"{rel} sets [{CLIPBOARD_SECTION}] "
-                       f"{CLIPBOARD_KEY}")
+        return value, f"{rel} sets {shown}{legacy}"
     if status == "unreadable-file":
         return None, f"{rel} exists but is unreadable ({value})"
     if status == "bad-shape":
-        return None, (f"{rel} carries [{CLIPBOARD_SECTION}] "
-                      f"{CLIPBOARD_KEY} but not as a non-empty "
+        return None, (f"{rel} carries {shown} but not as a non-empty "
                       f"one-line \"double-quoted\" or 'single-quoted' "
                       f"string without escapes, double quotes, or "
                       f"control characters (triple-quoted multi-line "
-                      f"forms are not read) — treated as unset")
+                      f"forms are not read) — treated as unset{legacy}")
     if status == "unset":
-        return None, (f"{rel} found; [{CLIPBOARD_SECTION}] "
-                      f"{CLIPBOARD_KEY} unset")
+        return None, f"{rel} found; {shown} unset"
     return None, (f"no bale.toml found "
                   f"({', '.join('./' + c for c in CLIPBOARD_CONFIG_CANDIDATES)})")
+
+
+def scan_clipboard_command(base: Path | None = None
+                           ) -> tuple[str | None, str, str | None,
+                                      tuple[str, str] | None]:
+    """The clipboard key's two-spelling scan read_clipboard_command
+    documents. Returns (value, status, rel, spelling): the first three
+    as scan_bale_toml_key returns them for the spelling that answered,
+    and spelling as its (section, key) pair from CLIPBOARD_SPELLINGS —
+    None when no spelling's line is in the file (status "unset"), or
+    there is no readable file. One file, found once, scanned once per
+    spelling in precedence order; the first spelling whose line is
+    there — "set" or "bad-shape" — answers. bin/bale_config.py's
+    _scan_clipboard_line is this function's restated twin (bin/ never
+    imports tools/), pinned to it by tests/test_probe_clipboard_config.py."""
+    found = find_bale_toml(base)
+    if found is None:
+        return None, "no-file", None, None
+    rel, text = found
+    if isinstance(text, Exception):
+        return str(text), "unreadable-file", rel, None
+    for section, key in CLIPBOARD_SPELLINGS:
+        value, status = scan_toml_text_key(text, section, key)
+        if status != "unset":
+            return value, status, rel, (section, key)
+    return None, "unset", rel, None
+
+
+def find_bale_toml(base: Path | None = None
+                   ) -> tuple[str, str | Exception] | None:
+    """The one project-layer bale.toml in reach, as (rel, text) — rel
+    the CLIPBOARD_CONFIG_CANDIDATES entry that exists, text its UTF-8
+    contents, or the exception when it exists but cannot be read — or
+    None when no candidate exists. The first candidate found settles
+    it: the repo-root and request-root layouts are alternative
+    locations for the same file, not config layers."""
+    root = base if base is not None else Path.cwd()
+    for rel in CLIPBOARD_CONFIG_CANDIDATES:
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            return rel, path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            return rel, e
+    return None
+
+
+def scan_toml_text_key(text: str, section_name: str,
+                       key_name: str) -> tuple[str | None, str]:
+    """One section's one key in bale.toml text, the minimal scan
+    (value, status): "set" (value is the key's one-line quoted string),
+    "bad-shape" (the key's line is there but not in the shape
+    one_line_quoted_value reads), or "unset" (no such line under that
+    header)."""
+    section = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            continue
+        if section != section_name or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() != key_name:
+            continue
+        got = one_line_quoted_value(value.strip())
+        if got is not None:
+            return got, "set"
+        return None, "bad-shape"
+    return None, "unset"
 
 
 def scan_bale_toml_key(section_name: str, key_name: str,
                        base: Path | None = None
                        ) -> tuple[str | None, str, str | None]:
     """The minimal single-key bale.toml scan read_clipboard_command
-    documents, shared since v0.4.44 with read_validation_base.
+    documents, shared since v0.4.44 with read_validation_base and
+    since session clipboard-key-rename composed from find_bale_toml and
+    scan_toml_text_key (so the clipboard key's two spellings scan one
+    read of the file).
 
     Returns (value, status, rel): status is "set" (value is the key's
     one-line quoted string), "bad-shape" (the key is present but not in
@@ -729,34 +835,14 @@ def scan_bale_toml_key(section_name: str, key_name: str,
     settles it, in CLIPBOARD_CONFIG_CANDIDATES order — the repo-root and
     request-root layouts of the one project-layer file.
     """
-    root = base if base is not None else Path.cwd()
-    for rel in CLIPBOARD_CONFIG_CANDIDATES:
-        path = root / rel
-        if not path.is_file():
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as e:
-            return str(e), "unreadable-file", rel
-        section = None
-        for raw in text.splitlines():
-            line = raw.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("[") and line.endswith("]"):
-                section = line[1:-1].strip()
-                continue
-            if section != section_name or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            if key.strip() != key_name:
-                continue
-            got = one_line_quoted_value(value.strip())
-            if got is not None:
-                return got, "set", rel
-            return None, "bad-shape", rel
-        return None, "unset", rel
-    return None, "no-file", None
+    found = find_bale_toml(base)
+    if found is None:
+        return None, "no-file", None
+    rel, text = found
+    if isinstance(text, Exception):
+        return str(text), "unreadable-file", rel
+    value, status = scan_toml_text_key(text, section_name, key_name)
+    return value, status, rel
 
 
 def one_line_quoted_value(value: str) -> str | None:
@@ -771,7 +857,7 @@ def one_line_quoted_value(value: str) -> str | None:
     basic string supports no escapes here, so its first `"` is too. A
     triple-quoted opener closes at once on an empty value, so both
     multi-line forms read as unset. The content rules mirror
-    bin/bale_config.py's probe_clipboard_command_problem — no
+    bin/bale_config.py's clipboard_command_problem — no
     backslash, no double quote, no control character (a raw tab is
     legal TOML inside either form, and bale refuses it) — so every
     value returned here is one bale's accessor returns identically
@@ -798,7 +884,7 @@ def build_probe_scaffold(slug: str, clipboard_cmd: str | None) -> str:
     """The full --probe emission: the fixed skeleton plus the clipboard
     tail, which always copies through the installed bale (`bale
     clipboard`). `clipboard_cmd` — the request's project key, read at
-    craft time — only chooses clip_fallback's body for a machine where
+    craft time in either spelling — only chooses clip_fallback's body for a machine where
     bale cannot answer: that command teed the old way when set, remedy
     text naming `bale config init --global` when None. The tail never
     touches stdout (bale's notice and the script's lines go to stderr)
@@ -2907,7 +2993,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(build_probe_scaffold(args.probe, clip))
         log("clipboard copy wired through the installed bale (`bale "
             "clipboard`): at run time it copies the PROBE BEGIN/END block "
-            "with that machine's [probe] clipboard_command, project or "
+            "with that machine's [clipboard] command, project or "
             "global, and says so either way")
         if clip is not None:
             log(f"fallback for a machine without bale on PATH: the "
@@ -2982,8 +3068,8 @@ def main(argv: list[str] | None = None) -> int:
             if problem:
                 return die(problem)
         # v0.4.44: an argv naming the blind checkpoint refuses at the
-        # desk, not at the operator's `bale open` (the [probe] clipboard
-        # read's bale.toml scan, extended to [validation] base).
+        # desk, not at the operator's `bale open` (the clipboard key's
+        # bale.toml scan, extended to [validation] base).
         validation_base, base_note = read_validation_base()
         log(f"checkpoint naming: {base_note}")
         problem = checkpoint_naming_problem(args.pack_arg, validation_base)

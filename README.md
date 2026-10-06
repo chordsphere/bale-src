@@ -114,8 +114,12 @@ value. The project walk checks your git identity first and ends with the
 `x` at a prompt suppresses an inherited global value. Some sections are
 project-layer only and never appear in the global walk: `[validation]` (the
 blind checkpoint and required checks), `[sandbox]`, `[pack]` (the include
-group), and `[probe]` (the probe scaffold's clipboard command). The wizard
-rewrites the whole file, so keys it doesn't walk are dropped.
+group), and `[layout]`. `[clipboard]` (this machine's clipboard command,
+`command`, which bale copies every paste block with) is walked at both
+layers; a file that still spells it `[probe] clipboard_command` — the key's
+earlier name — is read as a legacy alias, and the wizard moves the value to
+the new spelling on its next write. The wizard rewrites the whole file, so
+keys it doesn't walk are dropped.
 
 The key most people set first is `apply.search_paths` — the directories bale
 searches when a command is given a relative file name, and where bare

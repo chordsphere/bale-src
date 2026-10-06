@@ -74,10 +74,12 @@ reworked by session clipboard-paste-blocks, where bale does the copy
 (ruling 1): the scaffold always pipes its sentinel block into the
 installed `bale clipboard` and trusts its 0/1 answer; only where bale
 is absent or predates the verb does it fall back, to a tee into the
-request's [probe] clipboard_command when readable at craft time
-(./bale.toml then ./context/bale.toml) and to remedy text naming
-`bale config init --global` otherwise — sentinel banners always,
-loud either way, never failing the probe. BundlePackParity
+request's clipboard key when readable at craft time — `[clipboard]
+command`, or its legacy spelling `[probe] clipboard_command`, with the
+new one deciding when both are present (session clipboard-key-rename)
+— looked up in ./bale.toml then ./context/bale.toml, and to remedy
+text naming `bale config init --global` otherwise — sentinel banners
+always, loud either way, never failing the probe. BundlePackParity
 (skipUnless bin/, the PackCarriageSurface rider pattern) pins the
 re-declared constants equal to bale_pack's, the TODO(brief) literal
 still present in the pack source, and the emitted bundle.json passing
@@ -1951,7 +1953,7 @@ class CraftBundleCheckpointNaming(unittest.TestCase):
     --include or --write value that names the blind checkpoint — the
     base itself, its `{sid}` basis, or a path under the basis — refuses
     at the desk (exit 2), before any bundle is written. The read is the
-    [probe] clipboard key's bale.toml scan, extended."""
+    clipboard key's bale.toml scan, extended."""
 
     BASE = "claude/checkpoints/{sid}.sh"
 
@@ -1964,7 +1966,7 @@ class CraftBundleCheckpointNaming(unittest.TestCase):
                   where: str = "bale.toml") -> None:
         target = self.tmp / where
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(f'[probe]\nclipboard_command = "pbcopy"\n\n'
+        target.write_text(f'[clipboard]\ncommand = "pbcopy"\n\n'
                           f'[validation]\nbase = "{base or self.BASE}"\n',
                           encoding="utf-8")
 
@@ -2198,7 +2200,14 @@ class CraftProbeClipboard(unittest.TestCase):
     trusts; a fallback only where bale is absent or exits outside that
     contract — a tee into the request's key when readable at craft
     time, remedy text naming `bale config init --global` otherwise.
-    Banners always; never fails the probe."""
+    Banners always; never fails the probe.
+
+    The key is read in both spellings since session clipboard-key-rename
+    (`[clipboard] command`, else the legacy `[probe] clipboard_command`);
+    the fixtures here keep the legacy spelling on purpose — it is the
+    spelling every pre-rename request ships, and it must keep working —
+    and the rename's own cases pin the new spelling and the in-file
+    precedence against the same scaffold."""
 
     SLUG = "fixture-probe"
     BALE_PIPE = ('emit_probe_block | PYTHONDONTWRITEBYTECODE=1 bale '
@@ -2212,10 +2221,68 @@ class CraftProbeClipboard(unittest.TestCase):
     def emit(self) -> subprocess.CompletedProcess:
         return run_craft("--probe", self.SLUG, cwd=self.tmp)
 
-    def set_key(self, value_line: str, where: str = "bale.toml"):
+    def set_key(self, value_line: str, where: str = "bale.toml",
+                header: str = "[probe]"):
         path = self.tmp / where
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"[probe]\n{value_line}\n", encoding="utf-8")
+        path.write_text(f"{header}\n{value_line}\n", encoding="utf-8")
+
+    def test_new_spelling_tees_and_the_log_names_it(self):
+        """Outcome 4: the craft-time read takes [clipboard] command."""
+        self.set_key('command = "cat >clipboard-capture.txt"',
+                     header="[clipboard]")
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+                      cp.stdout)
+        self.assertIn("bale.toml sets [clipboard] command", cp.stderr)
+        self.assertNotIn("legacy", cp.stderr)
+        run = self.run_scaffold(cp.stdout)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assert_banners(run)
+        self.assertEqual((self.tmp / "clipboard-capture.txt").read_bytes(),
+                         run.stdout.encode("utf-8"))
+
+    def test_legacy_spelling_is_named_as_legacy_in_the_log(self):
+        self.set_key('clipboard_command = "cat >clipboard-capture.txt"')
+        cp = self.emit()
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("emit_probe_block | cat >clipboard-capture.txt",
+                      cp.stdout)
+        self.assertIn("bale.toml sets [probe] clipboard_command, the legacy "
+                      "spelling — `bale config init` moves it to "
+                      "[clipboard] command", cp.stderr)
+
+    def test_new_spelling_wins_over_the_legacy_in_one_file(self):
+        """The desk's in-file precedence, crafter side: [clipboard]
+        command decides when its line is there — readable, empty, or
+        unreadable — and the legacy line is read only when it is not."""
+        cases = (
+            ('[clipboard]\ncommand = "cat >new.txt"\n'
+             '[probe]\nclipboard_command = "cat >old.txt"\n',
+             "| cat >new.txt", "sets [clipboard] command"),
+            ('[probe]\nclipboard_command = "cat >old.txt"\n'
+             '[clipboard]\ncommand = "cat >new.txt"\n',
+             "| cat >new.txt", "sets [clipboard] command"),
+            ('[clipboard]\ncommand = ""\n'
+             '[probe]\nclipboard_command = "cat >old.txt"\n',
+             "probe output not copied", "treated as unset"),
+            ("[clipboard]\ncommand = '''cat >new.txt'''\n"
+             '[probe]\nclipboard_command = "cat >old.txt"\n',
+             "probe output not copied", "treated as unset"),
+            ('[clipboard]\nother = 1\n'
+             '[probe]\nclipboard_command = "cat >old.txt"\n',
+             "| cat >old.txt", "legacy spelling"),
+        )
+        for body, expect_out, expect_err in cases:
+            with self.subTest(body=body):
+                (self.tmp / "bale.toml").write_text(body, encoding="utf-8")
+                cp = self.emit()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn(expect_out, cp.stdout)
+                self.assertIn(expect_err, cp.stderr)
+                self.assertNotIn("| cat >old.txt" if "new" in expect_out
+                                 else "| cat >new.txt", cp.stdout)
 
     def stub_bale(self, body: str) -> Path:
         """A `bale` on a private bin dir: a shell script with `body`."""
@@ -2376,14 +2443,19 @@ class CraftProbeClipboard(unittest.TestCase):
                 self.assertIn(self.BALE_PIPE, cp.stdout)
                 self.assertIn("treated as unset", cp.stderr)
 
-    def test_key_outside_the_probe_section_is_unset(self):
-        (self.tmp / "bale.toml").write_text(
-            '[hooks]\nclipboard_command = "pbcopy"\n', encoding="utf-8")
-        cp = self.emit()
-        self.assertEqual(cp.returncode, 0, cp.stderr)
-        self.assertIn("probe output not copied", cp.stdout)
-        self.assertNotIn("| pbcopy", cp.stdout)
-        self.assertIn("unset", cp.stderr)
+    def test_key_outside_its_section_is_unset(self):
+        for body in ('[hooks]\nclipboard_command = "pbcopy"\n',
+                     '[hooks]\ncommand = "pbcopy"\n',
+                     '[probe]\ncommand = "pbcopy"\n',
+                     '[clipboard]\nclipboard_command = "pbcopy"\n'):
+            with self.subTest(body=body):
+                (self.tmp / "bale.toml").write_text(body, encoding="utf-8")
+                cp = self.emit()
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                self.assertIn("probe output not copied", cp.stdout)
+                self.assertNotIn("| pbcopy", cp.stdout)
+                self.assertIn("[clipboard] command / [probe] "
+                              "clipboard_command unset", cp.stderr)
 
 
 @unittest.skipUnless(PACK_MODULE.is_file(),

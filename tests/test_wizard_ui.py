@@ -403,10 +403,12 @@ class WalkOrderTest(unittest.TestCase):
             + [f"apply.{k}" for k in bale_config.APPLY_VALUES]
             + [f"staging.{k}" for k in bale_config.STAGING_VALUES]
             + [f"identity.{k}" for k in bale_config.IDENTITY_VALUES]
-            # [probe] is a both-layer section since session
+            # [clipboard] is a both-layer section since session
             # wizard-defaults (the clipboard command is per-machine), so
             # it closes the both-layer run, before the project-only ones.
-            + [f"probe.{k}" for k in bale_config.PROBE_VALUES]
+            # Its legacy spelling, [probe] clipboard_command, is read but
+            # never walked (session clipboard-key-rename).
+            + [f"clipboard.{k}" for k in bale_config.CLIPBOARD_VALUES]
             + [f"validation.{k}" for k in bale_config.VALIDATION_VALUES]
             + [f"sandbox.{k}" for k in bale_config.SANDBOX_VALUES]
             + [f"pack.{k}" for k in bale_config.PACK_VALUES]
@@ -476,10 +478,13 @@ class ScreenTest(unittest.TestCase):
                                "no_interact": True},
                      "identity": {"packer": "alice"}}
         answers = {key: ["?", ""] for key in PROJECT_KEYS}
-        _new, out, _p = walk_with_answers(
-            {"probe": {"clipboard_command": "pbcopy"}}, layer="project",
-            answers=answers, inherited=inherited)
-        self.assertEqual(overwide(out), [])
+        for existing in ({"clipboard": {"command": "pbcopy"}},
+                         {"probe": {"clipboard_command": "pbcopy"}}):
+            with self.subTest(existing=existing):
+                _new, out, _p = walk_with_answers(
+                    existing, layer="project", answers=answers,
+                    inherited=inherited)
+                self.assertEqual(overwide(out), [])
 
     def test_prompt_states_the_enter_action(self) -> None:
         inherited = {"identity": {"packer": "alice"},
@@ -592,26 +597,43 @@ SEMANTICS = [
       "sweep": True}}),
     ("reject-with-hint keeps current (three checks)", "project",
      {"staging": {"strategy": "working-tree"},
-      "probe": {"clipboard_command": "pbcopy"},
+      "clipboard": {"command": "pbcopy"},
       "layout": {"agent_dir": "agent"}}, None,
-     {"staging.strategy": "fast", "probe.clipboard_command": 'sh -c "x"',
+     {"staging.strategy": "fast", "clipboard.command": 'sh -c "x"',
       "layout.agent_dir": "/abs"},
      {"staging": {"strategy": "working-tree"},
-      "probe": {"clipboard_command": "pbcopy"},
+      "clipboard": {"command": "pbcopy"},
       "layout": {"agent_dir": "agent"}}),
     ("reject-with-hint accepts the good shapes", "project", {}, None,
-     {"staging.strategy": " target-base ", "probe.clipboard_command": "pbcopy",
+     {"staging.strategy": " target-base ", "clipboard.command": "pbcopy",
       "layout.agent_dir": "agent"},
      {"staging": {"strategy": "target-base"},
-      "probe": {"clipboard_command": "pbcopy"},
+      "clipboard": {"command": "pbcopy"},
       "layout": {"agent_dir": "agent"}}),
-    # Eleven since session wizard-defaults: probe.clipboard_command is
-    # walked at the global layer now; validation.base still is not.
+    # Eleven since session wizard-defaults: clipboard.command is walked
+    # at the global layer now; validation.base still is not.
     ("global walks only its eleven keys", "global",
-     {"validation": {"base": "x.sh"}, "probe": {"clipboard_command": "p"},
+     {"validation": {"base": "x.sh"}, "clipboard": {"command": "p"},
       "identity": {"packer": "alice"}}, None,
-     {"validation.base": "y.sh", "probe.clipboard_command": "q"},
-     {"identity": {"packer": "alice"}, "probe": {"clipboard_command": "q"}}),
+     {"validation.base": "y.sh", "clipboard.command": "q"},
+     {"identity": {"packer": "alice"}, "clipboard": {"command": "q"}}),
+    # Session clipboard-key-rename: a legacy [probe] clipboard_command is
+    # the clipboard screen's current value; Enter carries it into the
+    # new spelling, '-' clears it, and a typed value replaces it there.
+    ("legacy clipboard spelling is carried over on Enter", "project",
+     {"probe": {"clipboard_command": "pbcopy"}}, None, {},
+     {"clipboard": {"command": "pbcopy"}}),
+    ("legacy clipboard spelling clears with -", "project",
+     {"probe": {"clipboard_command": "pbcopy"}}, None,
+     {"clipboard.command": "-"}, {}),
+    ("legacy clipboard spelling is replaced by a typed value", "global",
+     {"probe": {"clipboard_command": "pbcopy"}}, None,
+     {"clipboard.command": "wl-copy"}, {"clipboard": {"command": "wl-copy"}}),
+    ("both spellings: the new one is current, the legacy is dropped",
+     "project",
+     {"probe": {"clipboard_command": "xclip"},
+      "clipboard": {"command": "pbcopy"}}, None, {},
+     {"clipboard": {"command": "pbcopy"}}),
     ("misshapen values read as unset", "project",
      {"apply": {"no_interact": "yes", "search_paths": [1]},
       "identity": {"packer": 7}}, None, {}, {}),
@@ -642,7 +664,7 @@ class SemanticsTest(unittest.TestCase):
         _new, out, _p = walk_with_answers(
             {}, layer="project",
             answers={"staging.strategy": "fast",
-                     "probe.clipboard_command": "C:\\clip.exe",
+                     "clipboard.command": "C:\\clip.exe",
                      "layout.agent_dir": "/abs"})
         flat = " ".join(out.split())
         self.assertIn("is not a staging strategy", flat)
@@ -833,7 +855,7 @@ def rich_suggestions(**overrides) -> "bale_config.WizardSuggestions":
             Alt(".venv", "present, untracked", True),
             Alt("node_modules", "present, untracked", True)],
         "identity.packer": [Alt("Alice Example", "git user.name", True)],
-        "probe.clipboard_command": bale_config.clipboard_alternatives(
+        "clipboard.command": bale_config.clipboard_alternatives(
             platform="linux", environ={"WAYLAND_DISPLAY": "wayland-0"},
             which=lambda name: f"/usr/bin/{name}", wsl=False),
         "validation.base": bale_config.validation_base_alternatives(
@@ -974,6 +996,9 @@ class ChoiceWalkTest(unittest.TestCase):
         """The clipboard opt-in rests on this: detected values are on
         screen, and an Enter-through still returns the file unchanged."""
         cases = [({}, None), (SEMANTICS[0][2], None),
+                 ({"clipboard": {"command": "pbcopy"}},
+                  {"clipboard": {"command": "xclip"},
+                   "identity": {"packer": "alice"}}),
                  ({"probe": {"clipboard_command": "pbcopy"}},
                   {"probe": {"clipboard_command": "xclip"},
                    "identity": {"packer": "alice"}})]
@@ -997,7 +1022,7 @@ class ChoiceWalkTest(unittest.TestCase):
                    "staging.strategy": "2",
                    "staging.untracked_inputs": "1:vendor",
                    "identity.packer": "1",
-                   "probe.clipboard_command": "1",
+                   "clipboard.command": "1",
                    "validation.base": "1"}
         new, _out, _p = walk_with_answers(
             {}, layer="project", answers=answers,
@@ -1009,20 +1034,20 @@ class ChoiceWalkTest(unittest.TestCase):
             "staging": {"strategy": "target-base",
                         "untracked_inputs": [".venv", "vendor"]},
             "identity": {"packer": "Alice Example"},
-            "probe": {"clipboard_command": "wl-copy"},
+            "clipboard": {"command": "wl-copy"},
             "validation": {"base": "claude/checkpoints/{sid}.sh"},
         })
         new, _out, _p = walk_with_answers(
             {}, layer="global",
-            answers={"probe.clipboard_command": "4", "identity.packer": "1"},
+            answers={"clipboard.command": "4", "identity.packer": "1"},
             suggestions=rich_suggestions())
         self.assertEqual(new, {
             "identity": {"packer": "Alice Example"},
-            "probe": {"clipboard_command": "xclip -selection clipboard"}})
+            "clipboard": {"command": "xclip -selection clipboard"}})
 
     def test_a_pick_equals_typing_the_value(self) -> None:
         suggestions = rich_suggestions()
-        for key, number in (("probe.clipboard_command", "3"),
+        for key, number in (("clipboard.command", "3"),
                             ("staging.strategy", "1"),
                             ("identity.packer", "1")):
             value = suggestions.for_key(key)[int(number) - 1].value
@@ -1043,12 +1068,14 @@ class ChoiceWalkTest(unittest.TestCase):
             existing, layer="project", inherited=inherited,
             suggestions=rich_suggestions(),
             answers={"identity.packer": "x",
-                     "probe.clipboard_command": ["?", "x"],
+                     "clipboard.command": ["?", "x"],
                      "apply.archive_dir": ["9", ""],
                      "staging.strategy": "fast"})
         self.assertEqual(new, {"apply": {"archive_dir": "keep/me"},
                                "identity": {"packer": ""},
-                               "probe": {"clipboard_command": ""}})
+                               "clipboard": {"command": ""}},
+                         msg="x suppresses a global value inherited under "
+                             "the legacy spelling, in the new spelling")
         flat = " ".join(out.split())
         self.assertIn("no alternative 9; pick 1", flat)
         self.assertIn("is not a staging strategy", flat)
@@ -1065,7 +1092,7 @@ class ChoiceWalkTest(unittest.TestCase):
         self.assertIn((1, "/mnt/c/Users/alice/Downloads",
                        "Windows Downloads, detected"), rows)
         by_key = dict(prompts)
-        self.assertIn("1-5 picks", by_key["probe.clipboard_command"])
+        self.assertIn("1-5 picks", by_key["clipboard.command"])
         self.assertIn("1 picks it", by_key["identity.packer"])
         self.assertNotIn("picks", by_key["apply.sweep"],
                          msg="a key with nothing to offer asks as before")
@@ -1083,7 +1110,7 @@ class ChoiceWalkTest(unittest.TestCase):
     def test_notes_and_warnings_reach_their_screen(self) -> None:
         suggestions = bale_config.WizardSuggestions()
         suggestions.note("identity.packer", "detection skipped: git not found")
-        suggestions.warn("probe.clipboard_command", "spelled oddly")
+        suggestions.warn("clipboard.command", "spelled oddly")
         _new, out, _p = walk_with_answers(
             {}, layer="global", answers={}, suggestions=suggestions)
         packer = out.index("identity.packer")
@@ -1408,13 +1435,20 @@ class EndToEndTest(unittest.TestCase):
         out = self.init(answers=answers)
         self.assertEqual(overwide(out), [])
         self.assertEqual(len(item_headers(out)), 19)
+        plain = ANSI_RE.sub("", out)
         self.assertIn("mystery.k = 1  (not walked at this layer; dropped)",
-                      ANSI_RE.sub("", out))
+                      plain)
+        # The legacy clipboard spelling is a move in the review, never a
+        # drop (session clipboard-key-rename).
+        self.assertIn("probe.clipboard_command → clipboard.command = "
+                      '"pbcopy"', " ".join(plain.split()))
+        self.assertNotIn("probe.clipboard_command = \"pbcopy\"  (not walked",
+                         plain)
         self.assertEqual(
             (self.repo / "bale.toml").read_text(encoding="utf-8"),
             bale_config.render_bale_toml(
                 {"hooks": {"post_pack": ""}, "apply": {"search_paths": []},
-                 "probe": {"clipboard_command": "pbcopy"}}))
+                 "clipboard": {"command": "pbcopy"}}))
         self.assertEqual(
             (self.repo / ".baleignore").read_text(encoding="utf-8"),
             "foo/\n")
