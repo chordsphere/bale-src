@@ -5914,8 +5914,27 @@ def cmd_pack_context(args: argparse.Namespace, cwd: Path) -> int:
     gate, no wizard, no read-only sweep, no .gitignore edit, no sid,
     no registry, no lock, no telemetry, no session log, no opener.
     BALE.md §7.8 is the design; the receiving side is TARBALL.md §3.1.
+
+    One session-pack step does run (v0.4.51, session pack-apply-ux): the
+    post_pack hook offer, after the tarball is written and before the
+    report. The operator's post_pack typically copies the tarball where
+    it travels from — exactly where a context tarball needs to be — so
+    the context pack offers it through the session pack's own run_hook:
+    same prompt, default, decline causes and acceptance store, with
+    BALE_TARBALL naming the context tarball and BALE_SESSION_ID empty
+    (there is no session). The hook resolves from the config root the
+    walk already read ([validation] base above): the git work tree's
+    root inside one, else the packed directory — which is also the
+    hook's cwd and BALE_REPO_ROOT. No hook configured: run_hook returns
+    without a line, so the run prints exactly what it printed before.
     """
-    from __main__ import fail, log, repo_root, run  # lazy — see module docstring
+    from __main__ import (  # lazy — see module docstring
+        fail,
+        log,
+        repo_root,
+        run,
+        run_hook,
+    )
     import bale_config  # lazy — see module docstring
     from bale_report import (  # lazy — see module docstring
         emit_json_line,
@@ -6063,6 +6082,14 @@ def cmd_pack_context(args: argparse.Namespace, cwd: Path) -> int:
             log(f"note: {out_path.parent.relative_to(cwd)}/ is not "
                 f"gitignored here, so the tarball shows as untracked; "
                 f"--context never edits .gitignore")
+
+    # The post_pack offer (v0.4.51): after the tarball is on disk, before
+    # the report — the session pack's placement relative to its own
+    # report. A context pack has no sid, so BALE_SESSION_ID is empty and
+    # BALE_TARBALL carries the one fact a hook needs. Json mode's stream
+    # routing is run_hook's own, unchanged.
+    run_hook(config_root, bale_config.merged_config(config_root),
+             "post_pack", "", tarball=out_path)
 
     if args.json:
         emit_json_line(format_context_pack_json(
@@ -7263,7 +7290,8 @@ def cmd_pack(args: argparse.Namespace) -> int:
     #
     # merged_config layers global under project so a single config call covers
     # both `<install>/user/bale.toml` and `<repo>/bale.toml`.
-    run_hook(repo, bale_config.merged_config(repo), "post_pack", sid)
+    run_hook(repo, bale_config.merged_config(repo), "post_pack", sid,
+             tarball=tarball_path)
 
     # The opener's two keys, computed once so the human report and the
     # --json path cannot disagree: whether a README ships (the reading

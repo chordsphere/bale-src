@@ -615,6 +615,87 @@ def hold_judge(checkpoint: Optional[dict], exit_code: int) -> dict:
             "line": f"worker validation — {wk_part} · {cp_part}"}
 
 
+# ---------------------------------------------------------------------------
+# The browser's numbered siblings (v0.4.51, session pack-apply-ux)
+# ---------------------------------------------------------------------------
+#
+# A re-attempt ships under the held tarball's own filename
+# (response-<sid>.tar.gz), so a browser saves it beside the held one as
+# `response-<sid> (1).tar.gz`, then `(2)`, and so on. The composed
+# `bale retry` line therefore names the NEXT numbered sibling of the
+# HOLD-time stamp, and `bale retry` resolves a missing numbered name to
+# the newest sibling that is there (bin/bale's resolve_retry_sibling).
+# Both read the name grammar from here, so the line bale prints and the
+# name bale resolves cannot disagree about what a sibling is.
+#
+# The grammar (the decision ratified in the session's notes): a name is
+# `<base>[ (N)]<suffix>`, where <suffix> is `.tar.gz` when the name ends
+# with it and otherwise the name's last extension (`Path.suffix`, possibly
+# empty), and ` (N)` — one space, parentheses, a positive integer with no
+# leading zero — is the browser's counter. <base> is what is left, so a
+# stamp that is itself `(1)` has the same base as the plain name and its
+# own counter counts: "if the previous file had a (1) the retry block
+# should now have a (2)".
+
+NUMBERED_SIBLING_COUNTER = re.compile(r"^(?P<base>.+?) \((?P<n>[1-9][0-9]*)\)$")
+
+
+def numbered_sibling_parts(name: str) -> tuple:
+    """Split a file name into (base, counter, suffix) per the grammar
+    above: `response-x (2).tar.gz` → ("response-x", 2, ".tar.gz");
+    `response-x.tar.gz` → ("response-x", None, ".tar.gz"); `notes (3).md`
+    → ("notes", 3, ".md"). A name whose stem is empty (`.tar.gz`) keeps
+    the empty base. Pure."""
+    if name.endswith(".tar.gz"):
+        suffix = ".tar.gz"
+    else:
+        dot = name.rfind(".")
+        suffix = name[dot:] if dot > 0 else ""
+    stem = name[:len(name) - len(suffix)] if suffix else name
+    m = NUMBERED_SIBLING_COUNTER.match(stem)
+    if m:
+        return m.group("base"), int(m.group("n")), suffix
+    return stem, None, suffix
+
+
+def numbered_sibling_counter(name: str, base: str, suffix: str):
+    """The counter of `name` when it is `<base><suffix>` (0) or
+    `<base> (N)<suffix>` (N); None when it is not a sibling of that base
+    and suffix. Pure."""
+    got_base, n, got_suffix = numbered_sibling_parts(name)
+    if got_base != base or got_suffix != suffix:
+        return None
+    return 0 if n is None else n
+
+
+def next_numbered_sibling(held_tarball: str) -> str:
+    """The path the composed `bale retry` line names for a HOLD-time
+    stamp: `<dir>/<base> (N+1)<suffix>`, where N is the highest counter
+    among the stamp itself and the siblings listed in the stamp's own
+    directory (the plain name counts as 0), so `(1)` when no numbered
+    sibling exists. The directory and its spelling are the stamp's; only
+    the basename moves.
+
+    Reads one directory listing and nothing else. A directory that
+    cannot be listed (gone, unreadable) contributes no siblings — the
+    stamp's own counter still counts, so a plain stamp composes `(1)` —
+    and never raises: this runs while a HOLD card or an amend report is
+    being printed, and a listing failure must not cost the operator the
+    line."""
+    directory, name = os.path.split(held_tarball)
+    base, own, suffix = numbered_sibling_parts(name)
+    highest = own or 0
+    try:
+        listed = os.listdir(directory or ".")
+    except OSError:
+        listed = []
+    for entry in listed:
+        n = numbered_sibling_counter(entry, base, suffix)
+        if n is not None and n > highest:
+            highest = n
+    return os.path.join(directory, f"{base} ({highest + 1}){suffix}")
+
+
 def compose_hold_successors(
     *,
     sid: str,
@@ -701,13 +782,27 @@ def compose_hold_successors(
     The work fork: `bale retry`
     at the held tarball's own path — the re-attempt closing-line rule
     delivers the corrected `response-<sid>.tar.gz` to the same
-    directory under the same name. Pure.
+    directory under the same name.
+
+    v0.4.51 (session pack-apply-ux): every composed `bale retry` line —
+    all three forks — names the stamp's NEXT numbered sibling
+    (next_numbered_sibling), not the stamp itself, because the browser
+    saves the re-delivered tarball beside the held one as `<name> (1)`,
+    `(2)`, and so on. The stamp argument is unchanged; only the line
+    moves. On the fixture and base forks, where the SAME bytes are
+    retried and no new file arrives, the named sibling does not exist
+    and `bale retry` resolves it to the newest sibling there — the held
+    tarball — and says so (bin/bale's resolve_retry_sibling). Pure but
+    for that one directory listing, which never raises.
     """
     import shlex
 
+    retry_target = (next_numbered_sibling(held_tarball)
+                    if held_tarball is not None else None)
+
     def retry_line(extra: str) -> list:
-        if held_tarball is not None:
-            return [f"bale retry {shlex.quote(held_tarball)}{extra}"]
+        if retry_target is not None:
+            return [f"bale retry {shlex.quote(retry_target)}{extra}"]
         return [f"(the response tarball path could not be filled in: "
                 f"{held_tarball_why}; substitute the path below)",
                 f"bale retry <response-tarball>{extra}"]
@@ -1131,7 +1226,8 @@ def format_hold_relay_worker(*, sid: str, judge_line: str, judge_case: str,
     own validation.sh output and exit, and the held tarball's path for
     the closing line. There is no parameter for the checkpoint's output
     or the session log, so no line of either can reach this block, in
-    any judge case, including a checkpoint that passed. Pure.
+    any judge case, including a checkpoint that passed. Pure but for
+    the one directory listing next_numbered_sibling reads (v0.4.51).
     """
     begin, end = relay_sentinels(sid, RELAY_TO_WORKER)
     first = relay_send_first(judge_case)
@@ -1161,7 +1257,12 @@ def format_hold_relay_worker(*, sid: str, judge_line: str, judge_case: str,
                f"\"{sid}\" in its manifest, delivered to the directory the "
                f"held tarball came from, and ends its turn with this line:")
     if held_tarball is not None:
-        out.append(f"bale retry {_always_quoted(held_tarball)}")
+        # v0.4.51: the line names the held tarball's next numbered
+        # sibling — where the browser will save the re-attempt, which
+        # ships under the held one's own name — composed by the same
+        # helper as the HOLD card's forks, so the two agree.
+        out.append(
+            f"bale retry {_always_quoted(next_numbered_sibling(held_tarball))}")
     else:
         out.append(f"(the held tarball's path was not recorded: "
                    f"{held_tarball_why}; the operator substitutes it)")

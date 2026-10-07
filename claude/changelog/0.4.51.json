@@ -1,0 +1,49 @@
+{
+  "record_version": 1,
+  "version": "0.4.51",
+  "session_id": "2026-10-07-pack-apply-ux-006",
+  "at": "2026-10-07T17:47:00+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.50 -> 0.4.51"
+    },
+    {
+      "path": "bin/bale",
+      "change": "new resolve_retry_sibling(arg, cwd, search_paths) and RETRY_SIBLING_BASE: cmd_retry resolves a tarball argument that does not exist and is named response-<sid>.tar.gz or 'response-<sid> (N).tar.gz' to the newest such sibling in that path's own directory by st_mtime_ns, logging '[bale] retry: <asked> is not there; resolved <found> (newest sibling by mtime in <dir>)' (after json mode engages, so --json stdout stays one line); an exact mtime tie at the newest refuses naming each tied file as a quoted 'bale retry' line; no sibling, any other name, or an existing path passes the argument through, so the not-found refusal is byte-identical; run_hook gains the keyword-only tarball= and, when given, prints '          BALE_TARBALL=<abs path>' between the BALE_SESSION_ID and BALE_REPO_ROOT env lines and exports BALE_TARBALL; bale handoff's post_pack passes its request tarball; the retry tarball argument's and pack --context's help name the new behavior; post_apply_pass prompt and environment unchanged"
+    },
+    {
+      "path": "bin/bale_pack.py",
+      "change": "the session pack's post_pack passes tarball= (its request tarball); cmd_pack_context offers post_pack through run_hook after the tarball is written and before the report (human or --json), with BALE_SESSION_ID empty, BALE_TARBALL the context tarball and the config root (git work-tree root, else the packed directory) as repo; a context pack with no hook configured prints exactly what it printed before"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "new numbered_sibling_parts(name), numbered_sibling_counter(name, base, suffix) and next_numbered_sibling(held_tarball) (the browser's '<base> (N)<suffix>' grammar, NUMBERED_SIBLING_COUNTER); compose_hold_successors' three forks and format_hold_relay_worker's closing line name the HOLD-time stamp's next numbered sibling (highest counter among the stamp and its directory's siblings, plus one; '(1)' when none or the directory cannot be listed) instead of the stamp; the planner block's 'held tarball:' row, --sid and every admission token unchanged"
+    },
+    {
+      "path": "tests/harness.py",
+      "change": "new numbered_sibling(tarball, n=1) helper spelling the browser's twin name independently of the implementation"
+    },
+    {
+      "path": "tests/test_apply_preflight.py",
+      "change": "new NumberedSiblingUnitTest (grammar, (1) with no sibling, (N+1) with siblings present, a numbered stamp counting itself, unlistable directory, planner row unchanged) through both composers; HoldCardUnitTest and HoldRelayUnitTest place HELD in a non-existent temp directory and pin the retry lines at RETRY, its (1) sibling; ExplicitNameMissTest's two twin-beside-the-miss cases keep the near-name listing for apply and handoff and pin retry's resolution of the twin instead (the §2.2 behavior)"
+    },
+    {
+      "path": "tests/test_amend_checkpoint.py",
+      "change": "composed-line pins name the (1) sibling; ComposeRetrySuccessorUnitTest's HELD moves under a temp root and gains a case naming (N+1) through compose_retry_successor with a numbered stamp and siblings present; the pasted fixture rung now lands through retry's sibling resolution"
+    },
+    {
+      "path": "tests/test_hold_retry_e2e.py",
+      "change": "card and worker-block pins name the (1) sibling; RetryArtifactResolutionTest gains the sibling resolution cases: newest by mtime (log line, later gate names the resolved file), plain name, tie refusal, no-sibling not-found, existing path used as given, other names and directories not resolved, --json routing, and the HOLD work line landing the browser's twin"
+    },
+    {
+      "path": "tests/test_hook_acceptance.py",
+      "change": "new PostPackTarballTest: the session pack's post_pack prompt carries BALE_TARBALL (closed stdin, the hook never runs), an accepted hook receives it, and post_apply_pass's prompt has no BALE_TARBALL line"
+    },
+    {
+      "path": "tests/test_context_pack.py",
+      "change": "new ContextPackHookTest: the context pack offers post_pack (global and project layer, prompt lines, decline on closed stdin, tarball still written, placement before the report), an accepted hook receives BALE_TARBALL and an empty BALE_SESSION_ID, --json keeps stdout one line, and no hook configured prints no hook line"
+    }
+  ],
+  "notes": "Human output changes only on the lines this record names: the composed 'bale retry' lines (now the next numbered sibling, quoted since the counter carries a space), retry's one resolution log line or tie refusal, the post_pack prompt's BALE_TARBALL line, and the context pack's hook offer when a hook is configured. Stamps, exit codes and every --json line's keys are unchanged (a resolved retry reports the file it resolved); a hook script can now read BALE_TARBALL."
+}

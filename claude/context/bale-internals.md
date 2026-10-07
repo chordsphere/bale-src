@@ -228,7 +228,10 @@ is *for* — and stays stable as the per-section line numbers drift:
     their consumers.
 15. **Hook invocation.** `confirm_yn()`, `run_hook()`. Reaches into
     `bale_config` for `get_hook()` and `GLOBAL_USER_DIR` to identify
-    which layer the script came from. `confirm_yn_decision()`, the
+    which layer the script came from. Since v0.4.51 `run_hook` takes a
+    `tarball=` keyword that every `post_pack` caller (session pack,
+    handoff, context pack) passes, and prints and exports it as
+    `BALE_TARBALL`; `post_apply_pass` passes none and is unchanged. `confirm_yn_decision()`, the
     shared y/N every bale prompt goes through, lives here too; its
     `wrap=True` (the read-only sweep is the one caller) lays a long
     prompt out for the terminal (`layout_yn_prompt`) without touching
@@ -940,17 +943,23 @@ default — and the decision plus its source is logged. The safety net
 becomes the explicit config opt-in plus the audit log instead of a
 per-run prompt; the pre-invocation banner (script path, env, warning)
 still prints. Pack- and handoff-side `post_pack` invocations are
-untouched and always prompt.
+untouched and always prompt. Since v0.4.51 the context pack
+(`bale pack --context`, `cmd_pack_context`) offers `post_pack` too,
+through the same `run_hook` after its tarball is written and before
+its report, with `BALE_SESSION_ID` empty and the hook resolved from
+the git work tree's root (else the packed directory).
 
 ### 3.3 Environment
 
-Bale exports three environment variables to every hook:
+Bale exports three environment variables to every hook, and a fourth
+to every `post_pack` (v0.4.51):
 
 | Variable | Value |
 |----------|-------|
 | `BALE_HOOK` | the hook name, e.g. `post_apply_pass` |
-| `BALE_SESSION_ID` | the full session id that triggered the hook |
-| `BALE_REPO_ROOT` | absolute path to the repo |
+| `BALE_SESSION_ID` | the full session id that triggered the hook; empty on a context pack, which has none |
+| `BALE_TARBALL` | `post_pack` only: absolute path of the tarball the run just wrote — the request tarball, or the context tarball |
+| `BALE_REPO_ROOT` | absolute path to the repo (a context pack outside a git work tree: the packed directory) |
 
 The script runs with cwd set to the repo root and inherits the user's
 environment (including `PATH`, `HOME`, etc.).
@@ -980,8 +989,9 @@ script lives at `scripts/reinstall.sh` and is wired up via this repo's
 `bale.toml`. Never fires on revert.
 
 **`post_pack`** — invoked after `bale pack` writes the request tarball
-and acquires the session lock. Same opt-in/prompted contract as
-`post_apply_pass`. Use cases: copying the tarball to a shared folder,
+and acquires the session lock — and, since v0.4.51, after
+`bale pack --context` writes its context tarball. Same opt-in/prompted
+contract as `post_apply_pass`. Use cases: copying the tarball to a shared folder,
 opening Claude in the browser with the tarball ready to drag in,
 pinging chat that a request is queued. Lifecycle ordering matters for
 the wizard — `post_pack` is walked before `post_apply_pass` (pack

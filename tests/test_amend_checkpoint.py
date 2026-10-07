@@ -78,6 +78,7 @@ from pathlib import Path
 from harness import (
     _load_module,
     build_response_dir,
+    numbered_sibling,
     run_bale,
     run_checked,
     tar_response_dir,
@@ -302,7 +303,11 @@ class AmendCheckpointSuccessorTest(AmendFixture):
         v1 = checkpoint_script("v1-composed")
         amendment = self.write_amendment(v1)
         published = sha256_text_lf(v1)
-        expected = (f"bale retry {held_tarball.resolve()} "
+        # v0.4.51: the line names the stamp's next numbered sibling —
+        # `(1)`, the held directory holding no numbered twin — quoted,
+        # since the browser's counter carries a space.
+        expected = (f"bale retry "
+                    f"{shlex.quote(str(numbered_sibling(held_tarball.resolve())))} "
                     f"--accept-checkpoint-change --sid {sid}")
 
         first = self.amend(str(amendment), "--sha256", published)
@@ -552,7 +557,8 @@ class HeldAdmissionsE2ETest(AmendFixture):
         sid = self.open_failing("admitlands")
         tarball, held = self.admitted_hold(sid)
         card_rung = self.fixture_rung(self.card_lines(held.stdout))
-        expected = (f"bale retry {shlex.quote(str(tarball.resolve()))} "
+        expected = (f"bale retry "
+                    f"{shlex.quote(str(numbered_sibling(tarball.resolve())))} "
                     f"--allow-out-of-scope {shlex.quote(EXTRA_PATH)} "
                     f"--accept-checkpoint-change --sid {sid}")
         self.assertEqual(card_rung, expected)
@@ -610,7 +616,8 @@ class HeldAdmissionsE2ETest(AmendFixture):
         r = self.amend_v1(sid, "admitlegacy")
         last = self.assert_successor_is_last_line(r.stdout, sid)
         self.assertEqual(
-            last, f"bale retry {shlex.quote(str(tarball.resolve()))} "
+            last, f"bale retry "
+                  f"{shlex.quote(str(numbered_sibling(tarball.resolve())))} "
                   f"--accept-checkpoint-change --sid {sid}",
             msg="the successor still prints, carrying what it always did")
         lines = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
@@ -644,7 +651,8 @@ class HeldAdmissionsE2ETest(AmendFixture):
         self.assertIn("could not be written", notes[0])
         self.assertEqual(
             self.fixture_rung(lines),
-            f"bale retry {shlex.quote(str(tarball.resolve()))} "
+            f"bale retry "
+            f"{shlex.quote(str(numbered_sibling(tarball.resolve())))} "
             f"--accept-checkpoint-change --sid {sid}")
         base = [ln for ln in lines
                 if ln.startswith("bale retry ") and ln.endswith(f"--sid {sid}")
@@ -668,7 +676,8 @@ class HeldAdmissionsE2ETest(AmendFixture):
                          msg=f"stdout:\n{again.stdout}\nstderr:\n"
                              f"{again.stderr}")
         card_rung = self.fixture_rung(self.card_lines(again.stdout))
-        expected = (f"bale retry {shlex.quote(str(second.resolve()))} "
+        expected = (f"bale retry "
+                    f"{shlex.quote(str(numbered_sibling(second.resolve())))} "
                     f"--accept-checkpoint-change --sid {sid}")
         self.assertEqual(card_rung, expected,
                          msg="the first HOLD's admission does not linger")
@@ -688,14 +697,26 @@ class ComposeRetrySuccessorUnitTest(unittest.TestCase):
     needed to exercise every branch."""
 
     SID = "2026-09-19-successor-unit-001"
-    HELD = "/tmp/held dir/response-2026-09-19-successor-unit-001.tar.gz"
 
     @classmethod
     def setUpClass(cls) -> None:
+        import tempfile
         from harness import _load_cli
         cls.cli = _load_cli()
         cls.br = _load_module("bale_report")
         cls.ba = _load_module("bale_apply")
+        # v0.4.51: the composed line names the stamp's next numbered
+        # sibling, read from the stamp's directory. HELD's directory does
+        # not exist (a fresh temp root's child), so the listing is empty
+        # by construction and the line names RETRY, `(1)`.
+        cls._held_root = tempfile.TemporaryDirectory(prefix="bale-held-")
+        cls.HELD = (f"{cls._held_root.name}/held dir/"
+                    f"response-{cls.SID}.tar.gz")
+        cls.RETRY = str(numbered_sibling(Path(cls.HELD)))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._held_root.cleanup()
 
     def setUp(self) -> None:
         import tempfile
@@ -739,17 +760,44 @@ class ComposeRetrySuccessorUnitTest(unittest.TestCase):
             held_tarball=self.HELD, held_admissions=admissions))
         (line,) = lines
         self.assertEqual(shlex.split(line), [
-            "bale", "retry", self.HELD,
+            "bale", "retry", self.RETRY,
             "--allow-out-of-scope", "new dir/a.py",
             "--accept-base-drift", "c.py",
             "--allow-missing-required-check", "lint",
             "--accept-checkpoint-change", "--no-sandbox",
             "--sid", self.SID])
 
+    def test_names_the_next_numbered_sibling_of_the_stamp(self) -> None:
+        """v0.4.51: the report's line names `(N+1)` for the highest
+        numbered sibling in the stamp's directory, and the stamp's own
+        counter counts — through compose_retry_successor, the report's
+        one composer call."""
+        downloads = self.repo / "Down loads"
+        downloads.mkdir()
+        held = downloads / f"response-{self.SID} (1).tar.gz"
+        held.write_bytes(b"held")
+        (self.sdir / "held_tarball").write_text(f"{held}\n")
+        (self.sdir / ADMISSIONS_STAMP).write_text(
+            self.ba.format_held_admissions_stamp({}))
+        expected = (f"bale retry "
+                    f"{shlex.quote(str(numbered_sibling(held.with_name(f'response-{self.SID}.tar.gz'), 2)))} "
+                    f"--accept-checkpoint-change --sid {self.SID}")
+        self.assertEqual(self.successor(), [expected],
+                         msg="a (1) stamp with no other sibling names (2)")
+        (downloads / f"response-{self.SID} (4).tar.gz").write_bytes(b"x")
+        (downloads / f"response-{self.SID}.tar.gz").write_bytes(b"x")
+        (line,) = self.successor()
+        self.assertEqual(
+            shlex.split(line)[2],
+            str(downloads / f"response-{self.SID} (5).tar.gz"))
+        self.assertEqual(
+            (self.sdir / "held_tarball").read_text().strip(), str(held),
+            msg="the stamp itself is never rewritten")
+
     def test_no_admission_is_the_pre_0437_line(self) -> None:
         self.stamp(admissions={})
         self.assertEqual(self.successor(), [
-            f"bale retry {shlex.quote(self.HELD)} "
+            f"bale retry {shlex.quote(self.RETRY)} "
             f"--accept-checkpoint-change --sid {self.SID}"])
 
     def test_missing_admissions_stamp_is_named(self) -> None:
@@ -791,7 +839,7 @@ class ComposeRetrySuccessorUnitTest(unittest.TestCase):
                 self.assertIn(ADMISSIONS_WHY_PHRASE, lines[0])
                 self.assertIn(phrase, lines[0])
                 self.assertEqual(lines[-1],
-                                 f"bale retry {shlex.quote(self.HELD)} "
+                                 f"bale retry {shlex.quote(self.RETRY)} "
                                  f"--accept-checkpoint-change --sid "
                                  f"{self.SID}")
 

@@ -150,6 +150,8 @@ from bale_report import (  # noqa: E402 — sys.path tweak above is load-bearing
     resolve_clipboard,
     build_telemetry_attempt,
     compose_hold_successors,
+    numbered_sibling_counter,
+    numbered_sibling_parts,
     read_clarification_summary,
     emit_json_line,
     enable_json_mode,
@@ -2004,6 +2006,90 @@ def locate_inbound_path(arg: str, cwd: Path,
     return cwd_candidate  # pragma: no cover
 
 
+# `bale retry`'s numbered-name resolution (v0.4.51, session pack-apply-ux):
+# the name shape it engages on. A sid never contains whitespace or a
+# parenthesis, so `response-<sid>` is the base numbered_sibling_parts
+# returns once the browser's ` (N)` counter is split off.
+RETRY_SIBLING_BASE = re.compile(r"^response-[^\s()/]+$")
+
+
+def resolve_retry_sibling(arg: str, cwd: Path, search_paths: list[str]
+                          ) -> tuple[str, Optional[str]]:
+    """Resolve `bale retry`'s missing numbered name to the newest sibling
+    that is there (v0.4.51). Returns (argument to resolve, log line or
+    None); the caller passes the first to resolve_inbound_path exactly
+    as it would have passed `arg`, and logs the second once json mode's
+    stream discipline is settled.
+
+    The composed retry line (bale_report.compose_hold_successors and the
+    worker relay block) names the HOLD-time stamp's NEXT numbered
+    sibling — `response-<sid> (N+1).tar.gz` — because that is where the
+    browser saves a re-delivered tarball. When nothing arrived there
+    (the fixture and base rulings retry the same bytes; or the browser
+    reused a lower free number after the operator deleted a twin), the
+    named file is missing. Then, and only then, this resolves it:
+
+    - A path that exists is used as given, always — through the same
+      lookup the verb uses (locate_inbound_path: absolute as-is, cwd,
+      then each search path). Resolution never replaces a file the
+      operator named and has.
+    - It engages only on a name that is `response-<sid>.tar.gz` or
+      `response-<sid> (N).tar.gz` (bale_report.numbered_sibling_parts'
+      grammar); any other missing name refuses exactly as before.
+    - It looks only in the named path's own directory — the absolute
+      path's parent, or the cwd-relative one — never the search path:
+      the line names a directory, and that is where the sibling is.
+    - Candidates are the regular files there named `response-<sid>.tar.gz`
+      or `response-<sid> (N).tar.gz` for the same sid. The newest by
+      st_mtime_ns wins; an exact tie at the newest refuses naming every
+      tied file (bare apply's never-guess rule, board 101 — no secondary
+      tie-break). No candidate: returns `arg` unchanged with no log line,
+      so resolve_inbound_path's not-found refusal fires byte for byte as
+      today, naming the directory it consulted.
+
+    Never reads a tarball: the name and the stat are the whole surface,
+    and every later gate (session resolution from responds_to, --sid
+    vetting, the pipeline) runs on the resolved file exactly as if it
+    had been typed."""
+    located = locate_inbound_path(arg, cwd, search_paths)
+    if located is not None and located.exists():
+        return arg, None
+    typed = Path(arg)
+    base, _, suffix = numbered_sibling_parts(typed.name)
+    if suffix != ".tar.gz" or not RETRY_SIBLING_BASE.match(base):
+        return arg, None
+    directory = typed.parent if typed.is_absolute() else (cwd / typed).parent
+    try:
+        entries = list(directory.iterdir())
+    except OSError:
+        # Unlistable or absent: nothing to resolve to, so the not-found
+        # refusal below names the path as today.
+        return arg, None
+    candidates: list[tuple[int, Path]] = []
+    for entry in entries:
+        if numbered_sibling_counter(entry.name, base, suffix) is None:
+            continue
+        try:
+            if not entry.is_file():
+                continue
+            candidates.append((entry.stat().st_mtime_ns, entry))
+        except OSError:
+            continue
+    if not candidates:
+        return arg, None
+    newest = max(mtime for mtime, _ in candidates)
+    tied = sorted(str(p) for mtime, p in candidates if mtime == newest)
+    if len(tied) > 1:
+        fail(f"retry: {arg} is not there, and its newest siblings in "
+             f"{directory} share one modification time, so bale will not "
+             f"guess between them:\n"
+             + "\n".join(f"    bale retry {shlex.quote(t)}" for t in tied)
+             + "\n  Name the one to retry.")
+    found = tied[0]
+    return found, (f"retry: {arg} is not there; resolved {found} "
+                   f"(newest sibling by mtime in {directory})")
+
+
 # ---------------------------------------------------------------------------
 # 9. Editor invocation
 # ---------------------------------------------------------------------------
@@ -2833,7 +2919,18 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # fail_not_found ends in fail(), and fail() ends in sys.exit on every
     # branch — so a returned path has passed is_file(), and the check
     # that stood here could not run.
-    tarball_path = resolve_inbound_path(args.tarball, cwd, search_paths,
+    #
+    # v0.4.51: a missing `response-<sid>[ (N)].tar.gz` resolves to the
+    # newest sibling in its own directory first (resolve_retry_sibling) —
+    # the composed retry line names the next numbered sibling, which the
+    # same-bytes rulings never deliver. An existing path, any other name,
+    # or no sibling passes `args.tarball` through untouched, so the
+    # refusal below is today's byte for byte. The resolution's log line
+    # waits for the json-mode switch below, so `--json` stdout stays the
+    # one report line.
+    retry_arg, sibling_note = resolve_retry_sibling(args.tarball, cwd,
+                                                    search_paths)
+    tarball_path = resolve_inbound_path(retry_arg, cwd, search_paths,
                                         verb="retry")
 
     # json output mode (v0.3.14, retry parity): same two-part contract as
@@ -2847,6 +2944,8 @@ def cmd_retry(args: argparse.Namespace) -> int:
     # nothing threads through apply_pipeline's signature.
     if args.json:
         enable_json_mode()
+    if sibling_note is not None:
+        log(sibling_note)
 
     # Retry requires an open session, same as apply — and, since board 71,
     # resolves WHICH one from the tarball's own responds_to (the board-51
@@ -4703,7 +4802,8 @@ def cmd_handoff(args: argparse.Namespace) -> int:
         # hook that prepares the user's environment for a new request
         # is just as relevant for a handoff as for a pack; the hook
         # contract makes no distinction.
-        run_hook(repo, bale_config.merged_config(repo), "post_pack", new_sid)
+        run_hook(repo, bale_config.merged_config(repo), "post_pack", new_sid,
+                 tarball=tarball_out)
 
         # Reading-plan file list (reference detail) first, crisp summary last —
         # the same eye-lands-last shape as pack/apply. The crisp block carries
@@ -4892,8 +4992,19 @@ def confirm_yn(prompt: str, *, default_no: bool = True) -> bool:
 
 
 def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
-             no_interact: bool = False, no_interact_source: str = "") -> None:
+             no_interact: bool = False, no_interact_source: str = "",
+             tarball: Optional[Path] = None) -> None:
     """Run the named hook if configured. Silent no-op when absent.
+
+    `tarball` (v0.4.51, session pack-apply-ux) is the tarball the run
+    just wrote — every post_pack caller passes it: the session pack's
+    request tarball, `bale handoff`'s, and the context pack's. When
+    given, its absolute path is printed in the prompt's `env:` lines as
+    `BALE_TARBALL=` beside BALE_SESSION_ID and exported to the script,
+    so a hook can act on the tarball without reconstructing its path
+    from the sid (which a context pack does not have: it passes `sid`
+    empty). None — post_apply_pass, which writes no tarball — prints
+    and exports exactly what it did before.
 
     Expects the merged config (from merged_config), so the hook value is
     already an absolute path resolved against its owning layer. This function
@@ -5001,6 +5112,10 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
     print(f"  cwd:    {repo}")
     print(f"  env:    BALE_HOOK={name}")
     print(f"          BALE_SESSION_ID={sid}")
+    tarball_abs = (os.path.abspath(tarball) if tarball is not None
+                   else None)
+    if tarball_abs is not None:
+        print(f"          BALE_TARBALL={tarball_abs}")
     print(f"          BALE_REPO_ROOT={repo}")
     print("  This script runs as your user. It may write outside the repo,")
     print("  install software, or perform any action its author chose.")
@@ -5062,6 +5177,8 @@ def run_hook(repo: Path, cfg: dict, name: str, sid: str, *,
         "BALE_SESSION_ID": sid,
         "BALE_REPO_ROOT": str(repo),
     }
+    if tarball_abs is not None:
+        env["BALE_TARBALL"] = tarball_abs
     log(f"[hook {name}] invoking {script_path}")
     try:
         # No capture: stream the hook's stdout/stderr to the user's terminal
@@ -6788,7 +6905,10 @@ def build_parser() -> argparse.ArgumentParser:
              "--read-only, --supersedes, --checkpoint-file, the README "
              "flags, --constraint, --out-of-scope, --expects-probe, "
              "--packer, --work-class, --allow-checkpoint-in-scope, "
-             "--no-include-group) refuses beside it.",
+             "--no-include-group) refuses beside it. A configured "
+             "post_pack hook is offered after the tarball is written "
+             "(v0.4.51), with the session pack's prompt: BALE_TARBALL "
+             "names the context tarball, BALE_SESSION_ID is empty.",
     )
     p_pack.add_argument(
         "--slug", default=None,
@@ -7335,7 +7455,15 @@ def build_parser() -> argparse.ArgumentParser:
             "not."
         ),
     )
-    p_retry.add_argument("tarball", help="Path to the new response-<sid>.tar.gz.")
+    p_retry.add_argument(
+        "tarball",
+        help="Path to the new response-<sid>.tar.gz. A path that does not "
+             "exist and is named response-<sid>.tar.gz or "
+             "'response-<sid> (N).tar.gz' (the HOLD card's line names the "
+             "held tarball's next numbered sibling) resolves to the newest "
+             "such sibling in its own directory by mtime, logging which "
+             "(v0.4.51); a tie refuses, and no sibling refuses as not "
+             "found.")
     p_retry.add_argument(
         "--sid", default=None,
         help="Vetting only (board 71): the session is resolved from the "

@@ -383,6 +383,119 @@ SESSION_ONLY_EXAMPLES = {
 }
 
 
+# ---------------------------------------------------------------------------
+# v0.4.51: the context pack offers the post_pack hook
+# ---------------------------------------------------------------------------
+
+class ContextPackHookTest(_Sandbox):
+    """`bale pack --context` offers the post_pack hook with the session
+    pack's own prompt (run_hook): after the tarball is written, before
+    the report; BALE_TARBALL names the context tarball; BALE_SESSION_ID
+    is empty (there is no session). Piped runs decline on closed stdin,
+    so the configured script never runs there — asserted by its marker.
+    The one pty case accepts at a global hook's accept default to prove
+    the two variables reach the script's environment."""
+
+    MARK = "post-pack-ran.txt"
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.dir = self.tmp / "notes-tree"
+        self.dir.mkdir()
+        (self.dir / "readme.txt").write_text("hello\n")
+        self.marker = self.home / self.MARK
+        self.out = self.dir / ".bale" / "outbox" / "context-notes-tree.tar.gz"
+
+    def write_global_hook(self) -> Path:
+        user = self.install / "user"
+        (user / "scripts").mkdir(parents=True, exist_ok=True)
+        script = user / "scripts" / "copy.sh"
+        script.write_text(
+            "#!/bin/sh\n"
+            f"printf 'tarball=%s\\nsid=[%s]\\nroot=%s\\n' \"$BALE_TARBALL\" "
+            f"\"$BALE_SESSION_ID\" \"$BALE_REPO_ROOT\" > \"$HOME/{self.MARK}\"\n",
+            encoding="utf-8")
+        script.chmod(0o755)
+        (user / "bale.toml").write_text(
+            '[hooks]\npost_pack = "scripts/copy.sh"\n', encoding="utf-8")
+        return script
+
+    def test_offers_the_hook_and_declines_on_closed_stdin(self) -> None:
+        script = self.write_global_hook()
+        r = self.context(self.dir)
+        self.assertOk(r)
+        out = r.stdout
+        self.assertIn("  hook:   post_pack (global)\n", out)
+        self.assertIn(f"  script: {script}\n", out)
+        self.assertIn(f"  cwd:    {self.dir}\n", out)
+        self.assertIn("  env:    BALE_HOOK=post_pack\n"
+                      "          BALE_SESSION_ID=\n"
+                      f"          BALE_TARBALL={self.out}\n"
+                      f"          BALE_REPO_ROOT={self.dir}\n", out)
+        self.assertIn("run this hook? [Y/n]", out)
+        self.assertIn("[bale] [hook post_pack] declined (stdin closed or "
+                      "interrupted); not invoking.", out)
+        self.assertFalse(self.marker.exists(), "the hook must not run")
+        self.assertTrue(self.out.is_file(), "the tarball is still written")
+        # Placement: after the tarball is written, before the report.
+        self.assertLess(out.index("  hook:   post_pack"),
+                        out.index("[bale] wrote context tarball: "))
+
+    def test_project_hook_in_a_work_tree_resolves_from_the_root(self) -> None:
+        repo = make_repo(self.tmp, self.home)
+        (repo / "scripts").mkdir()
+        script = repo / "scripts" / "copy.sh"
+        script.write_text("#!/bin/sh\ntouch \"$HOME/post-pack-ran.txt\"\n")
+        script.chmod(0o755)
+        (repo / "bale.toml").write_text(
+            '[hooks]\npost_pack = "scripts/copy.sh"\n', encoding="utf-8")
+        (repo / "docs").mkdir()
+        (repo / "docs" / "g.md").write_text("g\n")
+        genv = git_env(self.home)
+        run_checked(["git", "add", "-A"], cwd=repo, env=genv)
+        run_checked(["git", "commit", "-m", "hook"], cwd=repo, env=genv)
+        sub = repo / "docs"
+        r = self.context(sub)
+        self.assertOk(r)
+        out_path = sub / ".bale" / "outbox" / "context-docs.tar.gz"
+        self.assertIn("  hook:   post_pack (project)\n", r.stdout)
+        self.assertIn("  default: decline — project-layer hook not yet "
+                      "accepted", r.stdout)
+        self.assertIn(f"          BALE_TARBALL={out_path}\n", r.stdout)
+        self.assertIn(f"          BALE_REPO_ROOT={repo}\n", r.stdout)
+        self.assertIn("declined (stdin closed or interrupted)", r.stdout)
+        self.assertFalse(self.marker.exists(), "the hook must not run")
+        self.assertTrue(out_path.is_file())
+
+    def test_accepted_hook_receives_the_tarball_and_an_empty_sid(
+            self) -> None:
+        self.write_global_hook()
+        code, out = run_bale_pty(self.install, ["pack", "--context"],
+                                 cwd=self.dir, env=self.env, answers="\n")
+        self.assertEqual(code, 0, out)
+        self.assertIn("[hook post_pack] invoking", out)
+        self.assertEqual(self.marker.read_text(),
+                         f"tarball={self.out}\nsid=[]\nroot={self.dir}\n")
+
+    def test_json_mode_keeps_stdout_one_line(self) -> None:
+        self.write_global_hook()
+        r = self.context(self.dir, "--json")
+        self.assertOk(r)
+        self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)
+        json.loads(r.stdout)
+        self.assertIn(f"BALE_TARBALL={self.out}", r.stderr)
+        self.assertFalse(self.marker.exists())
+
+    def test_no_hook_configured_prints_no_hook_line(self) -> None:
+        r = self.context(self.dir)
+        self.assertOk(r)
+        self.assertNotIn("hook", r.stdout + r.stderr)
+        self.assertNotIn("BALE_", r.stdout + r.stderr)
+        lines = r.stdout.splitlines()
+        self.assertTrue(lines[-3].startswith(
+            "[bale] wrote context tarball: "), r.stdout)
+
+
 class RefusalTest(_Sandbox):
     def setUp(self) -> None:
         super().setUp()

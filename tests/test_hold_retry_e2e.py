@@ -76,11 +76,13 @@ from harness import (
     make_install,
     make_repo,
     make_sandbox_home,
+    numbered_sibling,
     run_bale,
     run_checked,
     slow,
     tar_response_dir,
 )
+import os
 import subprocess
 
 # Sentinels for the surfaces this file pins.
@@ -572,6 +574,150 @@ class RetryArtifactResolutionTest(unittest.TestCase):
         self.assertIn("no response-NNN/manifest.json", r.stderr)
         self.assert_hold_intact(sid, before)
 
+    # -- v0.4.51: a missing numbered name resolves to the newest sibling ----
+
+    RESOLVED_PHRASE = "is not there; resolved"
+
+    def junk(self, directory: Path, name: str, mtime_ns: int) -> Path:
+        """A sibling-named file that is not a tarball: the resolution
+        reads names and stats only, and the later gate (the manifest
+        peek) refuses it naming the file — which is how a test sees
+        which file the resolution handed on."""
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / name
+        path.write_bytes(b"not a gzip tarball\n")
+        os.utime(path, ns=(mtime_ns, mtime_ns))
+        return path
+
+    def test_missing_numbered_name_resolves_newest_sibling(self) -> None:
+        sid = self.packed("sibnewest", "hello.txt")
+        downloads = self.tmp / "Down loads"
+        t = 1_700_000_000_000_000_000
+        older = self.junk(downloads, f"response-{sid}.tar.gz", t)
+        newer = self.junk(downloads, f"response-{sid} (1).tar.gz",
+                          t + 1_000)
+        asked = downloads / f"response-{sid} (2).tar.gz"
+        r = self.retry(asked)
+        self.assertEqual(r.returncode, 1,
+                         msg=f"stdout:\n{r.stdout}\nstderr:\n{r.stderr}")
+        self.assertIn(f"[bale] retry: {asked} is not there; resolved "
+                      f"{newer} (newest sibling by mtime in {downloads})",
+                      r.stdout)
+        self.assertIn(newer.name, r.stderr,
+                      msg="the later gate names the resolved file")
+        self.assertIn("unreadable", r.stderr)
+        self.assertNotIn(f"{older}", r.stderr)
+        self.assertNotIn("tarball not found", r.stderr)
+
+    def test_missing_plain_name_resolves_too(self) -> None:
+        """The plain `response-<sid>.tar.gz` is a numbered name with
+        counter zero: missing, it resolves the same way."""
+        sid = self.packed("sibplain", "hello.txt")
+        downloads = self.tmp / "dl"
+        only = self.junk(downloads, f"response-{sid} (3).tar.gz", 10**18)
+        r = self.retry(downloads / f"response-{sid}.tar.gz")
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn(self.RESOLVED_PHRASE, r.stdout)
+        self.assertIn(only.name, r.stderr)
+
+    def test_mtime_tie_refuses_naming_both(self) -> None:
+        sid = self.packed("sibtie", "hello.txt")
+        downloads = self.tmp / "tie dir"
+        t = 1_700_000_000_000_000_000
+        a = self.junk(downloads, f"response-{sid}.tar.gz", t)
+        b = self.junk(downloads, f"response-{sid} (1).tar.gz", t)
+        self.junk(downloads, f"response-{sid} (2).tar.gz", t - 5)
+        r = self.retry(downloads / f"response-{sid} (3).tar.gz")
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn("share one modification time", r.stderr)
+        for tied in (a, b):
+            self.assertIn(f"bale retry {shlex.quote(str(tied))}", r.stderr)
+        self.assertNotIn("(2).tar.gz", r.stderr,
+                         msg="only the tied newest are named")
+        self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+        self.assertNotIn("unreadable", r.stderr,
+                         msg="a tie refuses before any later gate")
+
+    def test_no_sibling_keeps_the_not_found_refusal(self) -> None:
+        sid = self.packed("sibnone", "hello.txt")
+        downloads = self.tmp / "empty dl"
+        downloads.mkdir()
+        asked = downloads / f"response-{sid} (1).tar.gz"
+        r = self.retry(asked)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertIn(f"[bale] error: tarball not found: {asked}", r.stderr)
+        self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+
+    def test_existing_path_is_used_as_given(self) -> None:
+        """Resolution never replaces a file the operator named and has,
+        even when a newer sibling sits beside it."""
+        sid = self.packed("sibexists", "hello.txt")
+        downloads = self.tmp / "given"
+        t = 1_700_000_000_000_000_000
+        given = self.junk(downloads, f"response-{sid}.tar.gz", t)
+        self.junk(downloads, f"response-{sid} (1).tar.gz", t + 10**9)
+        r = self.retry(given)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+        self.assertIn(given.name, r.stderr)
+        self.assertNotIn("(1).tar.gz", r.stderr)
+
+    def test_other_names_and_other_directories_are_not_resolved(
+            self) -> None:
+        """Only `response-<sid>[ (N)].tar.gz` engages, and only in the
+        named directory: a sibling elsewhere — cwd included — is never
+        found."""
+        sid = self.packed("sibscope", "hello.txt")
+        here = self.tmp / "here"
+        self.junk(here, "notes (1).tar.gz", 10**18)
+        r = self.retry(here / "notes (2).tar.gz")
+        self.assertIn("tarball not found", r.stderr, msg=r.stdout)
+        self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+        self.junk(self.repo, f"response-{sid}.tar.gz", 10**18)
+        try:
+            r = self.retry(here / f"response-{sid} (1).tar.gz")
+            self.assertIn("tarball not found", r.stderr, msg=r.stdout)
+            self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+        finally:
+            (self.repo / f"response-{sid}.tar.gz").unlink()
+
+    def test_json_mode_routes_the_resolution_line_to_stderr(self) -> None:
+        sid = self.packed("sibjson", "hello.txt")
+        downloads = self.tmp / "json dl"
+        self.junk(downloads, f"response-{sid}.tar.gz", 10**18)
+        r = run_bale(self.install,
+                     ["retry", str(downloads / f"response-{sid} (1).tar.gz"),
+                      "--json"], cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        self.assertNotIn(self.RESOLVED_PHRASE, r.stdout)
+        self.assertIn(self.RESOLVED_PHRASE, r.stderr)
+
+    def test_held_work_line_lands_the_twin_the_browser_saved(self) -> None:
+        """The loop the feature exists for: the HOLD card's work-fork
+        line names `(1)`; the corrected tarball arrives there (the
+        browser's twin of the held name); pasting the line exactly as
+        the card printed it lands the retry."""
+        sid = self.packed("sibloop", "hello.txt")
+        held = self.response(sid, "hello.txt", validation_exit=1)
+        r = run_bale(self.install, ["apply", str(held)],
+                     cwd=self.repo, env=self.env)
+        self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+        card = r.stdout[r.stdout.rindex("  [HOLD] "):]
+        (work,) = [ln.strip() for ln in card.splitlines()
+                   if ln.strip().startswith("bale retry ")
+                   and " --" not in ln]
+        twin = numbered_sibling(held.resolve())
+        self.assertEqual(work, f"bale retry {shlex.quote(str(twin))}")
+        self.response(sid, "hello.txt", validation_exit=0).rename(twin)
+        landed = run_bale(self.install, shlex.split(work)[1:],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(landed.returncode, 0,
+                         msg=f"stdout:\n{landed.stdout}\n"
+                             f"stderr:\n{landed.stderr}")
+        self.assertIn(PASS_HEADLINE, landed.stdout)
+        self.assertNotIn(self.RESOLVED_PHRASE, landed.stdout,
+                         msg="the twin exists: used as given")
+
 
 # ---------------------------------------------------------------------------
 # Board 47a (v0.4.34): the HOLD card — judge line, failed probe labels,
@@ -681,19 +827,21 @@ class HoldCardE2ETest(PerSidFixture):
         self.assertNotIn("validation: exited 0", r.stdout)
         self.assertNotIn("<new-tarball>", r.stdout)
 
-        held = str(tarball.resolve())
+        # v0.4.51: every fork names the held tarball's next numbered
+        # sibling — `(1)`, the held directory holding no twin yet.
+        named = str(numbered_sibling(tarball.resolve()))
         amend = self.commands(card, "amend-checkpoint")
         self.assertEqual(len(amend), 1, msg=card)
         self.assertIn(f"--sid {sid}", amend[0])
         retries = self.commands(card, "retry")
         self.assertEqual(retries, [
-            f"bale retry {shlex.quote(held)} --accept-checkpoint-change "
+            f"bale retry {shlex.quote(named)} --accept-checkpoint-change "
             f"--sid {sid}",
-            f"bale retry {shlex.quote(held)}",
-            f"bale retry {shlex.quote(held)} --sid {sid}",
+            f"bale retry {shlex.quote(named)}",
+            f"bale retry {shlex.quote(named)} --sid {sid}",
         ])
         for line in retries:
-            self.assertEqual(shlex.split(line)[2], held,
+            self.assertEqual(shlex.split(line)[2], named,
                              msg="pasteable: the quoted path round-trips")
 
         attempt = self.attempt(sid)
@@ -713,7 +861,7 @@ class HoldCardE2ETest(PerSidFixture):
                          "(exit 1) · checkpoint: PASS")
         self.assertEqual(self.row(card, "failed probes"), "none")
         self.assertEqual(self.commands(card, "amend-checkpoint"), [])
-        quoted = shlex.quote(str(tarball.resolve()))
+        quoted = shlex.quote(str(numbered_sibling(tarball.resolve())))
         self.assertEqual(self.commands(card, "retry"),
                          [f"bale retry {quoted}",
                           f"bale retry {quoted} --sid {sid}"])
@@ -784,7 +932,7 @@ class HoldCardE2ETest(PerSidFixture):
         self.assertEqual(len(notes), 1, msg=card)
         self.assertIn(LITERAL_BASE, notes[0])
         self.assertIn(
-            f"bale retry {shlex.quote(str(tarball.resolve()))} "
+            f"bale retry {shlex.quote(str(numbered_sibling(tarball.resolve())))} "
             f"--accept-checkpoint-change --sid {sid}",
             self.commands(card, "retry"))
 
@@ -831,7 +979,9 @@ class RelayBlocksE2ETest(HoldCardE2ETest):
         self.assertNotIn("=== blind checkpoint", worker)
         self.assertNotIn("blind checkpoint exit code", worker)
         self.assertNotIn(".bale/logs", worker)
-        self.assertIn(f"bale retry '{tarball.resolve()}'", worker)
+        self.assertIn(
+            f"bale retry '{numbered_sibling(tarball.resolve())}'", worker,
+            msg="v0.4.51: the worker's closing line names the (1) twin")
 
         self.assertIn(self.PASSING_LABEL, planner,
                       msg="the checkpoint band is inlined for the desk")

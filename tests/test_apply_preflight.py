@@ -1602,18 +1602,34 @@ class ExplicitNameMissTest(unittest.TestCase):
         self.assertNotIn("  searched:", result.stderr)
         return result
 
+    def retry_resolves_twin(self, typed: str, asked, twin: Path) -> None:
+        """v0.4.51: `bale retry` no longer refuses this miss — a missing
+        `response-<sid>.tar.gz` with its `(1)` twin in the same directory
+        resolves to the twin (bin/bale resolve_retry_sibling), logs it,
+        and the next gate runs on the twin (here: no session is open)."""
+        result = run_bale(self.install, ["retry", typed],
+                          cwd=self.repo, env=self.env)
+        self.assertEqual(result.returncode, 1, msg=result.stdout)
+        self.assertIn(f"[bale] retry: {asked} is not there; resolved "
+                      f"{twin} (newest sibling by mtime in {twin.parent})",
+                      result.stdout)
+        self.assertNotIn("tarball not found", result.stderr)
+        self.assertIn("no session is open", result.stderr)
+
     def test_absolute_path_miss_lists_the_twin_for_every_verb(self) -> None:
         """The desk's reproduction: `bale <verb> /abs/dir/response-X.tar.gz`
         with the browser twin `response-X (1).tar.gz` beside it lists the
-        twin as a paste-ready, quoted line — apply, retry and handoff
-        alike — and still exits 1."""
+        twin as a paste-ready, quoted line — apply and handoff alike —
+        and still exits 1. Retry resolves the twin instead (v0.4.51)."""
         twin = self.drop(f"{self.PREFIX} (1).tar.gz")
         typed = self.downloads / f"{self.PREFIX}.tar.gz"
-        for verb in ("apply", "retry", "handoff"):
+        for verb in ("apply", "handoff"):
             with self.subTest(verb=verb):
                 result = self.bare_miss(verb, str(typed), typed)
                 self.assertEqual(self.listing_lines(result.stderr),
                                  [f"bale {verb} '{twin}'"])
+        with self.subTest(verb="retry"):
+            self.retry_resolves_twin(str(typed), typed, twin)
 
     def test_absolute_path_miss_scans_only_its_own_directory(self) -> None:
         """Search is bypassed for an absolute path, so a near name in a
@@ -1635,12 +1651,15 @@ class ExplicitNameMissTest(unittest.TestCase):
         (self.repo / "bale.toml").unlink()
         twin = self.drop(f"{self.PREFIX} (1).tar.gz", where=self.repo)
         typed = f"{self.PREFIX}.tar.gz"
-        for verb in ("apply", "retry", "handoff"):
+        for verb in ("apply", "handoff"):
             with self.subTest(verb=verb):
                 result = self.bare_miss(verb, typed,
                                         (self.repo / typed).resolve())
                 self.assertEqual(self.listing_lines(result.stderr),
                                  [f"bale {verb} '{twin.resolve()}'"])
+        with self.subTest(verb="retry"):
+            # v0.4.51: retry resolves the cwd twin (its own directory).
+            self.retry_resolves_twin(typed, typed, twin.resolve())
 
     def test_absolute_miss_without_candidates_is_the_bare_refusal(
             self) -> None:
@@ -1750,12 +1769,26 @@ class HoldCardUnitTest(unittest.TestCase):
     """
 
     SID = "2026-09-16-card-unit-001"
-    HELD = "/tmp/held dir/response-2026-09-16-card-unit-001.tar.gz"
 
     @classmethod
     def setUpClass(cls) -> None:
         from harness import _load_module
         cls.br = _load_module("bale_report")
+        # v0.4.51: the composed retry line names the stamp's next
+        # numbered sibling, read from the stamp's directory. HELD sits in
+        # a directory that does not exist (under a fresh temp root), so
+        # the listing is empty by construction and RETRY is `(1)` — the
+        # pins stay hermetic. The space in `held dir` still forces
+        # quoting.
+        cls._held_root = tempfile.TemporaryDirectory(prefix="bale-card-")
+        cls.HELD = (f"{cls._held_root.name}/held dir/"
+                    f"response-{cls.SID}.tar.gz")
+        cls.RETRY = (f"{cls._held_root.name}/held dir/"
+                     f"response-{cls.SID} (1).tar.gz")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._held_root.cleanup()
 
     def cp(self, exit_code: int, labels=None) -> dict:
         return {"configured": True,
@@ -1855,13 +1888,13 @@ class HoldCardUnitTest(unittest.TestCase):
             f"bale amend-checkpoint <amendment> --sha256 <hex> "
             f"--sid {self.SID}  # "), msg=amend)
         self.assertIn("unknowable when this card renders", amend)
-        quoted = shlex.quote(self.HELD)
-        self.assertNotEqual(quoted, self.HELD,
+        quoted = shlex.quote(self.RETRY)
+        self.assertNotEqual(quoted, self.RETRY,
                             msg="fixture path must need quoting")
         self.assertEqual(
             fixture_retry,
             f"bale retry {quoted} --accept-checkpoint-change --sid {self.SID}")
-        self.assertEqual(shlex.split(fixture_retry)[2], self.HELD,
+        self.assertEqual(shlex.split(fixture_retry)[2], self.RETRY,
                          msg="the quoted line round-trips to the real path")
         self.assertEqual(forks[1]["lines"], [f"bale retry {quoted}"])
         self.assertEqual(forks[2]["lines"],
@@ -1957,6 +1990,130 @@ class HoldCardUnitTest(unittest.TestCase):
                         msg="the card ends on a pasteable successor")
 
 
+class NumberedSiblingUnitTest(unittest.TestCase):
+    """v0.4.51 (session pack-apply-ux): every composed `bale retry` line
+    names the HOLD-time stamp's NEXT numbered sibling in the browser's
+    form — `<base> (N+1).tar.gz` — because a re-attempt ships under the
+    held tarball's own name and the browser saves it beside the held one.
+    Pinned here on the grammar helpers and through both composers
+    (compose_hold_successors' three forks and the worker relay block)
+    against a real temp directory, so the listing is exercised, not
+    mocked. The stamp itself is never rewritten: the planner block's
+    `held tarball:` row still names it."""
+
+    SID = "2026-10-07-sibling-unit-006"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from harness import _load_module
+        cls.br = _load_module("bale_report")
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory(prefix="bale-sibling-")
+        self.dir = Path(self._tmpdir.name) / "Down loads"
+        self.dir.mkdir()
+        self.held = self.dir / f"response-{self.SID}.tar.gz"
+        self.held.write_bytes(b"held")
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def touch(self, name: str) -> None:
+        (self.dir / name).write_bytes(b"x")
+
+    def named(self, n: int) -> str:
+        return str(self.dir / f"response-{self.SID} ({n}).tar.gz")
+
+    def retry_targets(self, held: Path) -> list:
+        import shlex
+        forks = self.br.compose_hold_successors(
+            sid=self.SID, judge_case=self.br.HOLD_JUDGE_BOTH,
+            held_tarball=str(held))
+        lines = [ln for f in forks for ln in f["lines"]
+                 if ln.startswith("bale retry ")]
+        self.assertEqual(len(lines), 3, msg=lines)
+        return [shlex.split(ln)[2] for ln in lines]
+
+    def worker_target(self, held: Path) -> str:
+        import shlex
+        block = self.br.format_hold_relay_worker(
+            sid=self.SID, judge_line="j", judge_case=self.br.HOLD_JUDGE_WORKER,
+            failed_probes=None, worker_exit=1, worker_output="[FAIL] x\n",
+            held_tarball=str(held))
+        line = block.splitlines()[-2]
+        self.assertTrue(line.startswith("bale retry '"), msg=line)
+        return shlex.split(line)[2]
+
+    # -- the grammar -------------------------------------------------------
+
+    def test_parts_split_base_counter_suffix(self) -> None:
+        parts = self.br.numbered_sibling_parts
+        self.assertEqual(parts("response-x.tar.gz"),
+                         ("response-x", None, ".tar.gz"))
+        self.assertEqual(parts("response-x (12).tar.gz"),
+                         ("response-x", 12, ".tar.gz"))
+        self.assertEqual(parts("notes (3).md"), ("notes", 3, ".md"))
+        self.assertEqual(parts("README"), ("README", None, ""))
+        # Not the browser's counter: no space, a zero, a leading zero.
+        self.assertEqual(parts("r(1).tar.gz"), ("r(1)", None, ".tar.gz"))
+        self.assertEqual(parts("r (0).tar.gz"), ("r (0)", None, ".tar.gz"))
+        self.assertEqual(parts("r (01).tar.gz"), ("r (01)", None, ".tar.gz"))
+
+    def test_counter_matches_only_the_same_base_and_suffix(self) -> None:
+        c = self.br.numbered_sibling_counter
+        self.assertEqual(c("r.tar.gz", "r", ".tar.gz"), 0)
+        self.assertEqual(c("r (4).tar.gz", "r", ".tar.gz"), 4)
+        self.assertIsNone(c("r (4).tgz", "r", ".tar.gz"))
+        self.assertIsNone(c("rr (4).tar.gz", "r", ".tar.gz"))
+        self.assertIsNone(c("r-old.tar.gz", "r", ".tar.gz"))
+
+    # -- through the composers ----------------------------------------------
+
+    def test_no_sibling_names_one_on_every_fork_and_the_worker_block(
+            self) -> None:
+        self.assertEqual(self.retry_targets(self.held), [self.named(1)] * 3)
+        self.assertEqual(self.worker_target(self.held), self.named(1))
+
+    def test_siblings_present_name_highest_plus_one(self) -> None:
+        self.touch(f"response-{self.SID} (1).tar.gz")
+        self.touch(f"response-{self.SID} (3).tar.gz")
+        # Not siblings: another sid, a variant, a different suffix.
+        self.touch("response-2026-10-07-other-006 (9).tar.gz")
+        self.touch(f"response-{self.SID}-old (7).tar.gz")
+        self.touch(f"response-{self.SID} (8).tgz")
+        self.assertEqual(self.retry_targets(self.held), [self.named(4)] * 3)
+        self.assertEqual(self.worker_target(self.held), self.named(4))
+
+    def test_numbered_stamp_counts_itself(self) -> None:
+        """The operator's words: if the previous file had a (1), the
+        retry line now has a (2) — even with the plain name gone."""
+        held = Path(self.named(1))
+        held.write_bytes(b"held twin")
+        self.held.unlink()
+        self.assertEqual(self.retry_targets(held), [self.named(2)] * 3)
+        self.assertEqual(self.worker_target(held), self.named(2))
+
+    def test_unlistable_directory_composes_one(self) -> None:
+        gone = self.dir / "gone" / f"response-{self.SID}.tar.gz"
+        self.assertEqual(
+            self.br.next_numbered_sibling(str(gone)),
+            str(self.dir / "gone" / f"response-{self.SID} (1).tar.gz"))
+        # A numbered stamp in an unlistable directory still counts itself.
+        gone2 = self.dir / "gone" / f"response-{self.SID} (5).tar.gz"
+        self.assertEqual(
+            self.br.next_numbered_sibling(str(gone2)),
+            str(self.dir / "gone" / f"response-{self.SID} (6).tar.gz"))
+
+    def test_planner_block_still_names_the_stamp(self) -> None:
+        self.touch(f"response-{self.SID} (1).tar.gz")
+        planner = self.br.format_hold_relay_planner(
+            sid=self.SID, exit_code=1, checkpoint=None,
+            held_tarball=str(self.held),
+            bands=self.br.split_attempt_bands(None, "[FAIL] mine\n"))
+        self.assertIn(f"held tarball: {self.held}", planner)
+        self.assertNotIn("(2).tar.gz", planner)
+
+
 class HoldRelayUnitTest(unittest.TestCase):
     """Board 47b's addressed relay blocks (bin/bale_report.py), pinned
     pure: the sentinel wire format, the send-first rule, the worker
@@ -1966,13 +2123,23 @@ class HoldRelayUnitTest(unittest.TestCase):
     """
 
     SID = "2026-09-18-relay-unit-001"
-    HELD = "/tmp/held dir/response-2026-09-18-relay-unit-001.tar.gz"
     SECRET = "ORACLE-MECHANICS grep -q needle src/x.py"
 
     @classmethod
     def setUpClass(cls) -> None:
         from harness import _load_module
         cls.br = _load_module("bale_report")
+        # v0.4.51: see HoldCardUnitTest.setUpClass — HELD's directory
+        # does not exist, so the composed retry line names RETRY, `(1)`.
+        cls._held_root = tempfile.TemporaryDirectory(prefix="bale-relay-")
+        cls.HELD = (f"{cls._held_root.name}/held dir/"
+                    f"response-{cls.SID}.tar.gz")
+        cls.RETRY = (f"{cls._held_root.name}/held dir/"
+                     f"response-{cls.SID} (1).tar.gz")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._held_root.cleanup()
 
     def cp(self, exit_code: int, labels=None, matched=True) -> dict:
         return {"configured": True,
@@ -2233,8 +2400,8 @@ class HoldRelayUnitTest(unittest.TestCase):
         import shlex
         _, worker = self.blocks(self.cp(1, ["a"]), 0)
         line = worker.splitlines()[-2]
-        self.assertEqual(line, f"bale retry '{self.HELD}'")
-        self.assertEqual(shlex.split(line)[2], self.HELD)
+        self.assertEqual(line, f"bale retry '{self.RETRY}'")
+        self.assertEqual(shlex.split(line)[2], self.RETRY)
         _, worker = self.blocks(self.cp(1, ["a"]), 0, held_tarball=None,
                                 held_tarball_why="stamp write failed")
         self.assertIn("stamp write failed", worker)
@@ -2302,7 +2469,7 @@ class HoldRelayUnitTest(unittest.TestCase):
         self.assertTrue(base["heading"].startswith("base defect"))
         (line,) = base["lines"]
         self.assertEqual(shlex.split(line), [
-            "bale", "retry", self.HELD,
+            "bale", "retry", self.RETRY,
             "--allow-out-of-scope", "new dir/a.py",
             "--allow-out-of-scope", "b.py",
             "--accept-base-drift", "c.py",
@@ -2311,7 +2478,7 @@ class HoldRelayUnitTest(unittest.TestCase):
             "--sid", self.SID])
         work = [f for f in forks
                 if f["ruling"] == self.br.RULING_WORK_DEFECT][0]
-        self.assertEqual(work["lines"], [f"bale retry {shlex.quote(self.HELD)}"],
+        self.assertEqual(work["lines"], [f"bale retry {shlex.quote(self.RETRY)}"],
                          msg="the work rung is new bytes: no re-admissions")
 
     # -- board 110 (v0.4.37): the fixture rung re-states them too ------------
@@ -2336,7 +2503,7 @@ class HoldRelayUnitTest(unittest.TestCase):
         amend, line = fixture["lines"]
         self.assertTrue(amend.startswith("bale amend-checkpoint "))
         self.assertEqual(shlex.split(line), [
-            "bale", "retry", self.HELD,
+            "bale", "retry", self.RETRY,
             "--allow-out-of-scope", "new dir/a.py",
             "--allow-out-of-scope", "b.py",
             "--accept-base-drift", "c.py",
@@ -2355,7 +2522,7 @@ class HoldRelayUnitTest(unittest.TestCase):
         self.assertEqual(by[self.br.RULING_FIXTURE_DEFECT][-1],
                          by[self.br.RULING_BASE_DEFECT][-1])
         self.assertEqual(by[self.br.RULING_WORK_DEFECT],
-                         [f"bale retry {__import__('shlex').quote(self.HELD)}"],
+                         [f"bale retry {__import__('shlex').quote(self.RETRY)}"],
                          msg="the work rung stays bare")
 
     def test_fixture_rung_carries_the_accept_flag_exactly_once(self) -> None:
@@ -2369,7 +2536,7 @@ class HoldRelayUnitTest(unittest.TestCase):
 
     def test_fixture_rung_without_admissions_is_todays_line(self) -> None:
         import shlex
-        today = (f"bale retry {shlex.quote(self.HELD)} "
+        today = (f"bale retry {shlex.quote(self.RETRY)} "
                  f"--accept-checkpoint-change --sid {self.SID}")
         for kw in ({}, {"held_admissions": {}},
                    {"held_admissions": {"allow_out_of_scope": [],
@@ -2389,7 +2556,7 @@ class HoldRelayUnitTest(unittest.TestCase):
         self.assertTrue(note.startswith(
             "(the held apply's admissions could not be recovered: "
             "the dog ate it; "), msg=note)
-        self.assertEqual(line, f"bale retry {shlex.quote(self.HELD)} "
+        self.assertEqual(line, f"bale retry {shlex.quote(self.RETRY)} "
                                f"--accept-checkpoint-change --sid {self.SID}")
 
     def test_card_fixture_rung_ignores_in_process_readmissions(

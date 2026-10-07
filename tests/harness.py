@@ -362,6 +362,17 @@ def tar_response_dir(rdir: Path) -> Path:
     return tarball
 
 
+def numbered_sibling(tarball: Path, n: int = 1) -> Path:
+    """The browser's `<name> (n).tar.gz` twin of a `<name>.tar.gz` path
+    (v0.4.51): what a composed `bale retry` line names for a HOLD-time
+    stamp whose directory holds no numbered sibling yet (n=1). Spelled
+    out here, independently of bale_report.next_numbered_sibling, so the
+    suites pin the shape rather than re-run the implementation."""
+    name = tarball.name
+    assert name.endswith(".tar.gz"), name
+    return tarball.with_name(f"{name[:-len('.tar.gz')]} ({n}).tar.gz")
+
+
 # ---------------------------------------------------------------------------
 # In-process bin/ module loader and the smallest-valid telemetry record
 # ---------------------------------------------------------------------------
