@@ -3546,8 +3546,11 @@ acceptance store).
   output can reach it in any judge case, a passing checkpoint
   included; it tells the worker not to ask for the log, and ends on
   the `bale retry '<held-tarball>'` line a re-attempt closes its turn
-  with. An inlined line that would read as a sentinel is indented two
-  spaces, so no output can close a block early. The card's trailer
+  with. An inlined line that would read as any of bale's four shapes'
+  sentinels — one starting `=== RELAY `, `=== PROBE `, `=== LIGHT `
+  or `BALE EXCHANGE ` — is indented two spaces, so no output can
+  close a block early or read as a probe, light or exchange block
+  of its own to a reader that is not span-aware. The card's trailer
   opens with `send first: planner` (the checkpoint held, alone or
   with the worker — the worker block waits for the desk's ruling) or
   `send first: worker` (only the worker's validation held — its block

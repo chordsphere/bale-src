@@ -1315,6 +1315,25 @@ class CraftValidationEpilogue(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("[SKIP] claims reconciliation", run.stdout)
 
+    def test_heredoc_python_runs_under_dash_B(self):
+        """The reconciliation heredoc is `python3 -B -` (session
+        inline-sentinels-and-crafter-b): TARBALL.md 7.1 asks every
+        validation.sh to announce or suppress interpreter caches, and
+        the pasted fragment says so itself — three workers had edited
+        the emitted `python3 -` by hand. Same arguments, same delimiter,
+        and no bare `python3 - ` survives anywhere in the emission."""
+        out = self.emit()
+        self.assertIn(
+            '  python3 -B - "$manifest" ${pairs[@]+"${pairs[@]}"} '
+            "<<'BALE_RECONCILE'\n", out)
+        self.assertNotIn("python3 - ", out)
+        self.assertEqual(out.count("python3 -B -"), 1)
+        # The separable parts carry the same invocation; definitions
+        # is the part that holds the heredoc.
+        defs = self.emit("--fragment", "definitions")
+        self.assertIn("python3 -B - ", defs)
+        self.assertNotIn("python3 - ", defs)
+
     def test_exec_assertions_share_the_chmod_source(self):
         """One source, two emissions: the same --executable list yields
         chmod lines in --apply-only and per-path assertions in
@@ -1544,6 +1563,27 @@ class CraftDocAssertions(unittest.TestCase):
         self.assertNotIn("INDEX coherence", only_prune)
         self.assertNotIn("ADR guards", only_prune)
         self.assertNotIn("index-header coherence", only_prune)
+
+    def test_every_block_runs_its_heredoc_under_dash_B(self):
+        """Each block's guarded heredoc is `if ! python3 -B - <args>
+        <<'DELIM'` (session inline-sentinels-and-crafter-b, the twin of
+        CraftValidationEpilogue.test_heredoc_python_runs_under_dash_B):
+        one invocation per selected block, the argv and delimiter as
+        before, and no bare `python3 - ` anywhere in the emission."""
+        out = self.emit("--index", "claude/INDEX.md",
+                        "--adr-dir", "claude/context/adr",
+                        "--prune-reasons",
+                        "--index-header", "bin/tool.py",
+                        "--index-header", "bin/other.py")
+        self.assertNotIn("python3 - ", out)
+        heads = [ln for ln in out.splitlines() if "python3" in ln]
+        self.assertEqual(heads, [
+            "if ! python3 -B - claude/INDEX.md <<'BALE_DOC_INDEX'",
+            "if ! python3 -B - claude/context/adr <<'BALE_DOC_ADR'",
+            "if ! python3 -B - <<'BALE_DOC_PRUNE'",
+            "if ! python3 -B - bin/tool.py bin/other.py "
+            "<<'BALE_DOC_HEADER'",
+        ])
 
     def test_flag_hygiene(self):
         cp = run_craft(str(self.rdir), "--doc-assertions")

@@ -1,0 +1,29 @@
+{
+  "record_version": 1,
+  "version": "0.4.49",
+  "session_id": "2026-10-07-inline-sentinels-and-crafter-b-004",
+  "at": "2026-10-07T12:21:23+00:00",
+  "surfaces": [
+    {
+      "path": "bin/VERSION",
+      "change": "0.4.48 -> 0.4.49"
+    },
+    {
+      "path": "bin/bale_report.py",
+      "change": "_inline_lines indents (two spaces) an inlined line starting with any shape's sentinel prefix — `=== RELAY `, `=== PROBE `, `=== LIGHT ` or `BALE EXCHANGE ` — not only the relay's; the four are declared once as the tuple _SHAPE_SENTINEL_PREFIXES beside _RELAY_SENTINEL_PREFIX, which is unchanged, as are relay_sentinels and every relay-block builder; a consumer parsing a relay block's inlined bands now sees a quoted probe, light or exchange sentinel indented where before only a quoted relay sentinel was"
+    },
+    {
+      "path": "tools/craft_response.py",
+      "change": "the two validation.sh fragment emitters run their heredoc Python as `python3 -B -`: --validation-epilogue's reconcile_claims (`python3 -B - \"$manifest\" ...<<'BALE_RECONCILE'`) and every --doc-assertions block (`if ! python3 -B - <args> <<'DELIM'`), same arguments and delimiters, every other emitted byte unchanged; --probe, --bundle, --emit-block and --light-block emissions byte-identical to 0.4.48"
+    },
+    {
+      "path": "tests/test_apply_preflight.py",
+      "change": "HoldRelayUnitTest gains the per-prefix _inline_lines pins (the tuple declared once, each of the four indented, plain / contains-only / already-indented lines verbatim, blank-edge handling unchanged, and the quoted shapes staying inside the worker block end to end)"
+    },
+    {
+      "path": "tests/test_craft_response.py",
+      "change": "CraftValidationEpilogue and CraftDocAssertions each pin their emission's heredoc as `python3 -B -` with no bare `python3 - ` surviving"
+    }
+  ],
+  "notes": "Additive for readers of relay blocks: more inlined lines carry the two-space indent, the relay's own sentinels are unchanged. A validation.sh built from fragments crafted at 0.4.48 keeps working unchanged; one crafted at 0.4.49 no longer needs the `-B` hand-edit."
+}
